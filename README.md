@@ -6,6 +6,7 @@ I hope you will find _ASAB_ useful and fun to use, especially when you are about
 
 Have fun!
 
+
 ## Principles
 
  * Write once, use many times
@@ -17,3 +18,8 @@ Have fun!
  * Introspection supported
  * Modularized
  * Good documentation
+
+
+## High-level architecture
+
+![Schema of ASAB high-level achitecture](./doc/images/asab_arch.png)
