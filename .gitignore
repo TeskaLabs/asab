@@ -102,3 +102,6 @@ ENV/
 
 # idea
 .idea/
+
+# ignoring site configuration
+/etc/site.conf
