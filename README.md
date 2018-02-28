@@ -13,7 +13,7 @@ Have fun!
  * Keep it simple
  * Python 3.5+, compatible with pypi
  * Asynchronous via `asyncio`
- * [Event-driven](http://en.wikipedia.org/wiki/Event_driven)
+ * [Event-driven](http://en.wikipedia.org/wiki/Event_driven) / [Reactor pattern](https://en.wikipedia.org/wiki/Reactor_pattern)
  * Single-threaded core but compatible with threads
  * Introspection supported
  * Modularized
