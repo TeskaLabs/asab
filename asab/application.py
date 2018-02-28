@@ -4,6 +4,7 @@ import os
 
 from .pubsub import PubSub
 from .config import Config
+from .abc.singleton import Singleton
 
 #
 
@@ -11,7 +12,8 @@ L = logging.getLogger(__file__)
 
 #
 
-class Application(object):
+class Application(metaclass=Singleton):
+
 
 	def __init__(self):
 
@@ -21,6 +23,7 @@ class Application(object):
 
 		self.Loop = asyncio.get_event_loop()
 		self.PubSub = PubSub(self)
+
 
 	def run(self):
 		L.info("Running...")
