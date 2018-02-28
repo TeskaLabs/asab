@@ -18,6 +18,7 @@ class ConfigParser(configparser.ConfigParser):
 		'general': {
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			'config_file': os.environ.get('ASAB_CONFIG', './etc/asab.conf'),
+			'tick_period': 1, # In seconds
 		},
 
 	}

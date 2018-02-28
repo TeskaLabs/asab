@@ -6,6 +6,18 @@ import asab
 
 
 class SampleApplication(asab.Application):
+
+	def __init__(self):
+		super().__init__()
+		self.death_counter = 5
+		self.PubSub.subscribe("tick", self.sample_pubsub_on_tick)
+
+	def sample_pubsub_on_tick(self, event_name):
+		print("Tick!")
+		self.death_counter -= 1
+		if self.death_counter == 0:
+			self.stop()
+
 	def sample_pubsub_on_consume(self, event_name, arg1, arg2, arg3, kwsample):
 		print("Event processed by a subscriber", event_name, arg1, arg2, arg3, kwsample)
 
