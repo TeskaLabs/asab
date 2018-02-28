@@ -2,9 +2,10 @@ import logging
 import asyncio
 import os
 
-from .pubsub import PubSub
 from .config import Config
 from .abc.singleton import Singleton
+from .pubsub import PubSub
+from .metrics import Metrics
 
 #
 
@@ -23,6 +24,7 @@ class Application(metaclass=Singleton):
 
 		self.Loop = asyncio.get_event_loop()
 		self.PubSub = PubSub(self)
+		self.Metrics = Metrics(self)
 
 
 	def run(self):

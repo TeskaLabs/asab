@@ -7,6 +7,7 @@ L = logging.getLogger(__name__)
 
 #
 
+
 class PubSub(object):
 	"""
 	Register subscribers and notify them when an event occurs.

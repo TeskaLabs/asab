@@ -32,6 +32,20 @@ class SampleApplication(asab.Application):
 		self.PubSub.publish_async("test_event", 1, 2, 3, kwsample=1)
 		print("Publishing done.")
 
+	def sample_metrics_add(self):
+		print("Adding a metric.")
+		self.Metrics.add("sample.metric", 10)
+
+	def sample_metrics_set(self):
+		print("Setting a metric.")
+		self.Metrics.set("sample.metric", 90)
+
+	def sample_metrics_pop(self):
+		value = self.Metrics.pop("sample.metric")
+		print("Popping a metric: {}.".format(value))
+
+	def sample_metrics_keys(self):
+		print("Reading metrics keys", self.Metrics.keys())
 ###
 
 if __name__ == '__main__':
@@ -46,6 +60,12 @@ if __name__ == '__main__':
 
 	app.sample_pubsub_add_subscriber()
 	app.sample_pubsub_publish_async()
+
+	# Example of Metric mechanism
+	app.sample_metrics_set()
+	app.sample_metrics_add()
+	app.sample_metrics_pop()
+	app.sample_metrics_keys()
 
 	ret = app.run()
 	sys.exit(ret)
