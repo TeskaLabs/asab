@@ -29,12 +29,18 @@ class Application(metaclass=Singleton):
 
 		# Configure event loop
 		self.Loop = asyncio.get_event_loop()
+		
 		try:
 			# Signals are not available on Windows
 			self.Loop.add_signal_handler(signal.SIGINT, self.stop)
+		except NotImplementedError:
+			pass
+
+		try:
 			self.Loop.add_signal_handler(signal.SIGTERM, self.stop)
 		except NotImplementedError:
 			pass
+
 		self.StopEvent = asyncio.Event(loop = self.Loop)
 		self.StopEvent.clear()
 
