@@ -10,6 +10,7 @@ L = logging.getLogger(__name__)
 
 #
 
+
 class ConfigParser(configparser.ConfigParser):
 
 	defaults = {
@@ -66,7 +67,7 @@ class ConfigParser(configparser.ConfigParser):
 				self.set(section, key, value)
 
 
-	def load(self):		
+	def load(self):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
 
 		config_fname = self.defaults['general']['config_file']

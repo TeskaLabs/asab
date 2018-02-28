@@ -23,7 +23,7 @@ class Metrics(collections.MutableMapping):
 			self.metrics[metric_name] = 0
 		self.metrics[metric_name] += value
 
-	def set(self, metric_name, value):
+	def set(self, metric_name, value=0):
 		""" Set a value of a specified metric. """
 
 		self.metrics[metric_name] = value
