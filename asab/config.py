@@ -57,7 +57,7 @@ class ConfigParser(configparser.ConfigParser):
 
 				key = self.optionxform(str(key))
 				if key in self._sections[section]:
-					""" Value exists, no default needed """
+					# Value exists, no default needed
 					continue 
 
 				if value is not None:
@@ -82,7 +82,7 @@ class ConfigParser(configparser.ConfigParser):
 
 		self.add_defaults(self.defaults)
 
-		""" Deals with environment variables """
+		# Deals with environment variables
 		for each_section in self.sections():
 			for (each_key, each_val) in self.items(each_section):
 				if "$" in each_val:
