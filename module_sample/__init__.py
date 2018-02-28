@@ -1,6 +1,5 @@
 import logging
-
-from asab.abc.module import Module
+import asab
 
 from .service_sample import ServiceSample
 
@@ -11,7 +10,7 @@ L = logging.getLogger(__name__)
 #
 
 
-class Module(Module):
+class Module(asab.Module):
 
 	def __init__(self, app):
 		super().__init__(app)

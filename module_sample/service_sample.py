@@ -1,7 +1,7 @@
-from asab.abc.service import Service
+import asab
 
 
-class ServiceSample(Service):
+class ServiceSample(asab.Service):
 
 	def __init__(self, app):
 		super().__init__(app)
