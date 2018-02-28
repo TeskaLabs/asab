@@ -15,9 +15,12 @@ class Application(object):
 
 	def __init__(self):
 
+		# Load configuration
+		self.Config = Config
+		self.Config.load()
+
 		self.Loop = asyncio.get_event_loop()
 		self.PubSub = PubSub(self)
-		self.Config = Config(self)
 
 	def run(self):
 		L.info("Running...")
