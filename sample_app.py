@@ -46,6 +46,11 @@ class SampleApplication(asab.Application):
 
 	def sample_metrics_keys(self):
 		print("Reading metrics keys", self.Metrics.keys())
+
+	def sample_module_add(self):
+		print("Adding a new module")
+		from module_sample import Module
+		self.add_module(Module)
 ###
 
 if __name__ == '__main__':
@@ -66,6 +71,9 @@ if __name__ == '__main__':
 	app.sample_metrics_add()
 	app.sample_metrics_pop()
 	app.sample_metrics_keys()
+
+	# Example of Module mechanism
+	app.sample_module_add()
 
 	ret = app.run()
 	sys.exit(ret)

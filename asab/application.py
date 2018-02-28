@@ -26,6 +26,8 @@ class Application(metaclass=Singleton):
 		self.PubSub = PubSub(self)
 		self.Metrics = Metrics(self)
 
+		self._modules = []
+
 
 	def run(self):
 		L.info("Running...")
@@ -33,3 +35,11 @@ class Application(metaclass=Singleton):
 		self.Loop.Close()
 
 		return os.EX_OK
+
+	# Modules
+
+	def add_module(self, module_class):
+		""" Load a new module """
+
+		module = module_class(self)
+		self._modules.append(module)
