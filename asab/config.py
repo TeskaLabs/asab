@@ -82,6 +82,12 @@ class ConfigParser(configparser.ConfigParser):
 
 		self.add_defaults(self.defaults)
 
+		""" Deals with environment variables """
+		for each_section in self.sections():
+			for (each_key, each_val) in self.items(each_section):
+				if "$" in each_val:
+					self.set(each_section, each_key, os.path.expandvars(each_val))
+
 ###
 
 Config = ConfigParser()

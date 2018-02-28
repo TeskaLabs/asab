@@ -47,10 +47,6 @@ class SampleApplication(asab.Application):
 	def sample_metrics_keys(self):
 		print("Reading metrics keys", self.Metrics.keys())
 
-	def sample_module_add(self):
-		print("Adding a new module")
-		from module_sample import Module
-		self.add_module(Module)
 ###
 
 if __name__ == '__main__':
@@ -72,13 +68,11 @@ if __name__ == '__main__':
 	app.sample_metrics_pop()
 	app.sample_metrics_keys()
 
-	# Example of Module mechanism
-	# The module also registers service_sample
-	app.sample_module_add()
-
-	# Example of Service usage
-	svc = app.get_service("service_sample")
-	svc.hello()
+	# Example of Config mechanism
+	v = app.Config["example"]["plain_value"]
+	print("Print a value from configuration:", v)
+	v = app.Config["example"]["env_value"]
+	print("Print an environment value from configuration:", v)
 
 	ret = app.run()
 	sys.exit(ret)
