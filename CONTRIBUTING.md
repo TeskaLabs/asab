@@ -17,3 +17,15 @@ import sys
 import logging
 ...
 ```
+
+### Documenting functions, methods and classes
+
+Functions, methods and classes should be documented using quotation marks, see the example below
+
+```
+def publish(self, event_name, *args, **kwargs):
+	""" Notify subscribers of an event with arguments. """
+
+	callback_set = self.subscribers.get(event_name)
+	...
+```
