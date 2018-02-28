@@ -26,8 +26,12 @@ class Application(metaclass=Singleton):
 
 		# Configure event loop
 		self.Loop = asyncio.get_event_loop()
-		self.Loop.add_signal_handler(signal.SIGINT, self.stop)
-		self.Loop.add_signal_handler(signal.SIGTERM, self.stop)
+		try:
+			# Signals are not available on Windows
+			self.Loop.add_signal_handler(signal.SIGINT, self.stop)
+			self.Loop.add_signal_handler(signal.SIGTERM, self.stop)
+		except NotImplementedError:
+			pass
 		self.StopEvent = asyncio.Event(loop = self.Loop)
 		self.StopEvent.clear()
 
@@ -60,7 +64,11 @@ class Application(metaclass=Singleton):
 
 		self.Loop.close()
 
-		return os.EX_OK
+		try:
+			# EX_OK code is not available on Windows
+			return os.EX_OK
+		except AttributeError:
+			return 0
 
 
 	def stop(self):
