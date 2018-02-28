@@ -74,6 +74,8 @@ if __name__ == '__main__':
 	print("Print a value from configuration:", v)
 	v = app.Config["example"]["env_value"]
 	print("Print an environment value from configuration:", v)
+	v = app.Config["test"]["test"]
+	print("Print an environment value from default configuration:", v)
 
 	ret = app.run()
 	sys.exit(ret)

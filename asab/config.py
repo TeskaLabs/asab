@@ -19,7 +19,9 @@ class ConfigParser(configparser.ConfigParser):
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			'config_file': os.environ.get('ASAB_CONFIG', './etc/asab.conf'),
 		},
-
+		'test': {
+		'test': "${HOME}"
+		}
 	}
 
 	def __init__(self):
@@ -64,8 +66,11 @@ class ConfigParser(configparser.ConfigParser):
 				if value is not None:
 					value = str(value)
 
-				self.set(section, key, value)
-
+				if "$" in value:
+					print(value)
+					self.set(section, key, os.path.expandvars(value))				
+				else:
+					self.set(section, key, value)
 
 	def load(self):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
