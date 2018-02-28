@@ -3,6 +3,13 @@ import asyncio
 import os
 
 from .pubsub import PubSub
+from .config import Config
+
+#
+
+L = logging.getLogger(__file__)
+
+#
 
 class Application(object):
 
@@ -10,9 +17,10 @@ class Application(object):
 
 		self.Loop = asyncio.get_event_loop()
 		self.PubSub = PubSub(self)
-
+		self.Config = Config(self)
 
 	def run(self):
+		L.info("Running...")
 		self.Loop.run_forever()
 		self.Loop.Close()
 
