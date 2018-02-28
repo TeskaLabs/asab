@@ -12,7 +12,6 @@ L = logging.getLogger(__name__)
 
 class ConfigParser(configparser.ConfigParser):
 
-
 	defaults = {
 
 		'general': {
@@ -26,26 +25,23 @@ class ConfigParser(configparser.ConfigParser):
 		super().__init__()
 
 		parser = argparse.ArgumentParser(
-			#TODO: should be configurable
-			prog="python3 ./api/__main__.py",
+			# TODO: should be configurable
 			formatter_class=argparse.RawDescriptionHelpFormatter,
-			description="Asynchronous Server Application Boilerplate\n(C) 2014-2018 TeskaLabs Ltd\nhttps://www.teskalabs.com/\n\nDON'T EXECUTE THIS BINARY DIRECTLY!\n",
+			description="Asynchronous Server Application Boilerplate\n(C) 2018 TeskaLabs Ltd\nhttps://www.teskalabs.com/\n",
 		)
 		parser.add_argument('-c', '--config', help='Specify file path to configuration file')
 		parser.add_argument('-v', '--verbose', action='store_true', help='Print more information (enable debug output)')
 
 		args = parser.parse_args()
-		if args.verbose:
-			self.defaults['general']['verbose'] = True
-
 		if args.config is not None:
 			self.defaults['general']['config_file'] = args.config
 
+		if args.verbose:
+			self.defaults['general']['verbose'] = True
+
 
 	def add_defaults(self, dictionary):
-		'''
-		Add defaults to a current configuration
-		'''
+		""" Add defaults to a current configuration """
 
 		for section, keys in dictionary.items():
 			section = str(section)
@@ -61,7 +57,8 @@ class ConfigParser(configparser.ConfigParser):
 
 				key = self.optionxform(str(key))
 				if key in self._sections[section]:
-					continue # Value exists, no default needed
+					""" Value exists, no default needed """
+					continue 
 
 				if value is not None:
 					value = str(value)
@@ -69,10 +66,8 @@ class ConfigParser(configparser.ConfigParser):
 				self.set(section, key, value)
 
 
-	def load(self):
-		'''
-		This method should be called only once, any subsequent call will lead to undefined behaviour
-		'''
+	def load(self):		
+		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
 
 		config_fname = self.defaults['general']['config_file']
 		if not os.path.isfile(config_fname):
@@ -81,8 +76,11 @@ class ConfigParser(configparser.ConfigParser):
 
 		self.read(config_fname)
 
-		self.add_defaults(self.defaults)
+		includes = self.get('general', 'include', fallback='./etc/site.conf')
+		for include in includes.split(os.pathsep):
+			self.read(include)
 
+		self.add_defaults(self.defaults)
 
 ###
 
