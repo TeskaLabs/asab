@@ -73,7 +73,12 @@ if __name__ == '__main__':
 	app.sample_metrics_keys()
 
 	# Example of Module mechanism
+	# The module also registers service_sample
 	app.sample_module_add()
+
+	# Example of Service usage
+	svc = app.get_service("service_sample")
+	svc.hello()
 
 	ret = app.run()
 	sys.exit(ret)
