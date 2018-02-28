@@ -24,6 +24,9 @@ class Application(metaclass=Singleton):
 		self.Config = Config
 		self.Config.load()
 
+		# Setup logging
+		logging.basicConfig(level=logging.INFO)
+
 		# Configure event loop
 		self.Loop = asyncio.get_event_loop()
 		try:
