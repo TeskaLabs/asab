@@ -9,6 +9,15 @@ L = logging.getLogger(__name__)
 
 #
 
+asab.Config.add_defaults(
+	{
+		'module_sample': {
+			'example': 'Hello world.'
+		}
+	}
+)
+
+
 
 class Module(asab.Module):
 
