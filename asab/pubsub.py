@@ -1,4 +1,5 @@
 import logging
+import asyncio
 
 #
 
@@ -14,6 +15,7 @@ class PubSub(object):
 
 	def __init__(self, app):
 		self.subscribers = {}
+		self.Loop = app.Loop
 
 	def subscribe(self, event_name, callback):
 		""" Add a subscriber of an event to the set. """
@@ -44,5 +46,18 @@ class PubSub(object):
 			return
 
 		for callback in callback_set:
-			callback(*args, **kwargs)
+			callback(event_name, *args, **kwargs)
+
+	def publish_async(self, event_name, *args, **kwargs):
+		""" Notify subscribers of an event with arguments asynchronously using coroutines. """
+
+		async def publish_coro(callback, *args, **kwargs):
+			callback(event_name, *args, **kwargs)
+
+		callback_set = self.subscribers.get(event_name)
+		if callback_set is None:
+			return
+
+		for callback in callback_set:
+			asyncio.ensure_future(publish_coro(callback, *args, **kwargs), loop=self.Loop)
 
