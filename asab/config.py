@@ -19,9 +19,7 @@ class ConfigParser(configparser.ConfigParser):
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			'config_file': os.environ.get('ASAB_CONFIG', './etc/asab.conf'),
 		},
-		'test': {
-		'test': "${HOME}"
-		}
+
 	}
 
 	def __init__(self):
@@ -67,7 +65,6 @@ class ConfigParser(configparser.ConfigParser):
 					value = str(value)
 
 				if "$" in value:
-					print(value)
 					self.set(section, key, os.path.expandvars(value))				
 				else:
 					self.set(section, key, value)
