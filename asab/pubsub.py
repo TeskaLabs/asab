@@ -62,3 +62,37 @@ class PubSub(object):
 		for callback in callback_set:
 			asyncio.ensure_future(publish_coro(callback, *args, **kwargs), loop=self.Loop)
 
+
+###
+
+class subscribe(object):
+
+	'''
+	Decorator
+
+	Usage:
+
+	@asab.subscribe("tick")
+	def on_tick(self, event_name):
+		print("Service tick")
+
+	'''
+
+	def __init__(self, event_name):
+		self.event_name = event_name
+
+	def __call__(self, f):
+		f.asab_pubsub_subscribe_to_event_name = self.event_name
+		return f
+
+
+class Subscriber(object):
+
+	def subscribe(self, app):
+
+		# Find decorated methods (@subscribe) and do subscribe them
+		for member_name in dir(self):
+			member = getattr(self, member_name)
+			event_name = getattr(member, 'asab_pubsub_subscribe_to_event_name', None)
+			if event_name is not None:
+				app.PubSub.subscribe(event_name, member)
