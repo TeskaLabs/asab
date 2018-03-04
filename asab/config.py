@@ -1,15 +1,14 @@
 import os
 import sys
 import glob
-import configparser
 import logging
+import configparser
 
 #
 
 L = logging.getLogger(__name__)
 
 #
-
 
 class ConfigParser(configparser.ConfigParser):
 
