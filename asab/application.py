@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import argparse
 import os
 import signal
 
@@ -18,11 +19,16 @@ L = logging.getLogger(__file__)
 class Application(metaclass=Singleton):
 
 
+	argparse_description = "Asynchronous Server Application Boilerplate\n(C) 2018 TeskaLabs Ltd\nhttps://www.teskalabs.com/\n"
+
+
 	def __init__(self):
 
+		# Parse command line
+		self.parse_args()
+
 		# Load configuration
-		self.Config = Config
-		self.Config.load()
+		Config._load()
 
 		# Setup logging
 		logging.basicConfig(level=logging.INFO)
@@ -55,6 +61,26 @@ class Application(metaclass=Singleton):
 		future = asyncio.Future()
 		asyncio.ensure_future(self.init_time_governor(future))
 		self.Loop.run_until_complete(future)
+
+
+	def parse_args(self):
+		'''
+		This method can be overriden to adjust argparse configuration 
+		'''
+
+		parser = argparse.ArgumentParser(
+			formatter_class=argparse.RawDescriptionHelpFormatter,
+			description=self.argparse_description,
+		)
+		parser.add_argument('-c', '--config', help='Path to configuration file (default: %(default)s)', default=Config._default_values['general']['config_file'])
+		parser.add_argument('-v', '--verbose', action='store_true', help='Print more information (enable debug output)')
+
+		args = parser.parse_args()
+		if args.config is not None:
+			Config._default_values['general']['config_file'] = args.config
+
+		if args.verbose:
+			Config._default_values['general']['verbose'] = True
 
 
 	def run(self):
@@ -123,7 +149,7 @@ class Application(metaclass=Singleton):
 
 
 	async def run_time_governor(self, future):
-		timeout = self.Config.getint('general', 'tick_period')
+		timeout = Config.getint('general', 'tick_period')
 		try:
 			self.PubSub.publish("run")
 			while True:

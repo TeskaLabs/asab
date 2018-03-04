@@ -87,9 +87,9 @@ if __name__ == '__main__':
 	app.sample_metrics_keys()
 
 	# Example of Config mechanism
-	v = app.Config["example"]["plain_value"]
+	v = asab.Config["example"]["plain_value"]
 	print("Print a value from configuration:", v)
-	v = app.Config["example"]["env_value"]
+	v = asab.Config["example"]["env_value"]
 	print("Print an environment value from configuration:", v)
 
 	# Example of Module mechanism
