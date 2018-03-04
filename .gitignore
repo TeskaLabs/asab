@@ -105,5 +105,6 @@ ENV/
 
 # ignoring site configuration
 etc/site.conf
+etc/site.d/
 
 doc/_build

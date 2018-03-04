@@ -3,41 +3,99 @@ Configuration
 
 The configuration is provided as ``asab.Config`` object which is a singleton. It means that you can access ``asab.Config`` from any place of your code, without need of explicit initialisation.
 
-The configuration is automatically loaded from a configuration file during initialiation time of ``asab.Application``.
+.. code:: python
 
-The default name of a configuration file is ``./etc/[name-of-executable].conf`` but it could be specified by ``-c`` command-line argument, by ``ASAB_CONFIG`` environment variable or by config ``[general] config_file`` default value.
+	import asab
+	
+	# Initialize application object and hence the configuration
+	app = asab.Application()
+
+	# Access configuration values anywhere
+	my_conf_value = asab.Config['section_name']['key1']
 
 
 Based on ConfigParser
 ---------------------
 
-The  ``asab.Config`` is inherited from Python Standard Library ``configparser.ConfigParser`` class. 
+The  ``asab.Config`` is inherited from Python Standard Library ``configparser.ConfigParser`` class. which implements a basic configuration language which provides a structure similar to what’s found in Microsoft Windows INI files. 
+
+Example of the configuration file:
+
+.. code:: ini
+
+	[bitbucket.org]
+	User = hg
+
+	[topsecret.server.com]
+	Port = 50022
+	ForwardX11 = no
 
 
-Including configuration files
------------------------------
+And this is how you access configuration values:
 
-TODO: Document includes
+.. code:: python
+
+	>>> asab.Config['topsecret.server.com']['ForwardX11']
+	'no'
+
+
+Automatic load of configuration
+-------------------------------
+
+If a configuration file name is specified, the configuration is automatically loaded from a configuration file during initialiation time of ``asab.Application``.
+The configuration file name can be specified by one of ``-c`` command-line argument (1), ``ASAB_CONFIG`` environment variable (2) or config ``[general] config_file`` default value (3).
+
+.. code:: shell
+
+	./sample_app.py -c ./etc/sample.conf
+
+
+
+Including other configuration files
+-----------------------------------
+
+You can specify one or more additional configuration files that are loaded and merged from an main configuration file.
+It is done by ``[general] include`` configuration value. Multiple paths are separated by ``os.pathsep`` (``:`` on Unix).
+The path can be specified as a glob (e.g. use of ``*`` and ``?`` wildcard characters), it will be expanded by ``glob`` module from Python Standard Library.
+Included configuration files may not exists, this situation is silently ignored.
+
+.. code:: ini
+
+	[general]
+	include=./etc/site.conf:./etc/site.d/*.conf
+
 
 
 Configuration default values
 ----------------------------
 
-TODO: Document defaults
+TODO: There are configuration default values
+
+TODO: You can extend them
 
 
 Environment variables in configration
 -------------------------------------
 
-TODO: Document environment variables
+Environment variables found in values are automaticall expanded.
+
+.. code:: ini
+
+	[section_name]
+	persistent_dir=${HOME}/.myapp/
+
+.. code:: python
+
+	>>> asab.Config['section_name']['persistent_dir']
+	'/home/user/.myapp/'
 
 
-asab.Config object
-------------------
+asab.Config
+-----------
 
 .. py:class:: asab.Config(configparser.ConfigParser)
 
-	``asab.Config`` provides a configuration to ASAB application.
+	``asab.Config`` provides a configuration.
 
 	.. py:method:: add_defaults(dictionary)
 
@@ -48,7 +106,7 @@ asab.Config object
 
 			asab.Config.add_defaults(
 			    {
-			        'section2_name': {
+			        'section_name': {
 			            'key1': 'value',
 			            'key2': 'another value'
 			        }

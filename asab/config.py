@@ -1,5 +1,6 @@
 import os
 import sys
+import glob
 import configparser
 import logging
 
@@ -16,7 +17,7 @@ class ConfigParser(configparser.ConfigParser):
 
 		'general': {
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
-			'config_file': os.environ.get('ASAB_CONFIG', './etc/{}.conf'.format(os.path.basename(sys.argv[0]))),
+			'config_file': os.environ.get('ASAB_CONFIG', ''),
 			'tick_period': 1, # In seconds
 		},
 
@@ -56,15 +57,17 @@ class ConfigParser(configparser.ConfigParser):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
 
 		config_fname = ConfigParser._default_values['general']['config_file']
-		if not os.path.isfile(config_fname):
-			print("Config file '{}' not found".format(config_fname), file=sys.stderr)
-			sys.exit(1)
+		if config_fname != '':
+			if not os.path.isfile(config_fname):
+				print("Config file '{}' not found".format(config_fname), file=sys.stderr)
+				sys.exit(1)
 
-		self.read(config_fname)
+			self.read(config_fname)
 
-		includes = self.get('general', 'include', fallback='./etc/site.conf')
-		for include in includes.split(os.pathsep):
-			self.read(include)
+		includes = self.get('general', 'include', fallback='')
+		for include_glob in includes.split(os.pathsep):
+			for include in glob.glob(include_glob):
+				self.read(include)
 
 		self.add_defaults(ConfigParser._default_values)
 
