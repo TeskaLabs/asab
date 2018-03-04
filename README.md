@@ -14,13 +14,13 @@ Have fun!
 import asab
 	
 class MyApplication(asab.Application):
-	async def main(self):
-		print("Hello world!")
-		self.stop()
+    async def main(self):
+        print("Hello world!")
+    self.stop()
 	
 if __name__ == '__main__':
-	app = MyApplication()
-	app.run()
+    app = MyApplication()
+    app.run()
 ```
 
 ## Principles
