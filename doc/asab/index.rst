@@ -5,6 +5,7 @@ Asynchronous Server App Boilerplate (or ASAB for short) minimizes the amount of 
 
 ASAB is developed `on GitHub <https://github.com/TeskaLabs/asab/>`_. Contributions are welcome!
 
+
 ASAB is designed to be simple
 -----------------------------
 
@@ -13,8 +14,10 @@ ASAB is designed to be simple
     import asab
 
     class MyApplication(asab.Application):
-    	pass
+        async def main(self):
+            print("Hello world!")
+            self.stop()
 
     if __name__ == "__main__":
-    	app = MyApplication()
+        app = MyApplication()
         app.run()

@@ -1,7 +1,9 @@
 Configuration
 =============
 
-The configuration is provided as ``asab.Config`` object which is a singleton. It means that you can access ``asab.Config`` from any place of your code, without need of explicit initialisation.
+.. py:currentmodule:: asab
+
+The configuration is provided by ``Config`` object which is a singleton. It means that you can access ``Config`` from any place of your code, without need of explicit initialisation.
 
 .. code:: python
 
@@ -17,7 +19,7 @@ The configuration is provided as ``asab.Config`` object which is a singleton. It
 Based on ConfigParser
 ---------------------
 
-The  ``asab.Config`` is inherited from Python Standard Library ``configparser.ConfigParser`` class. which implements a basic configuration language which provides a structure similar to what’s found in Microsoft Windows INI files. 
+The  ``Config`` is inherited from Python Standard Library ``configparser.ConfigParser`` class. which implements a basic configuration language which provides a structure similar to what’s found in Microsoft Windows INI files. 
 
 Example of the configuration file:
 
@@ -42,7 +44,7 @@ And this is how you access configuration values:
 Automatic load of configuration
 -------------------------------
 
-If a configuration file name is specified, the configuration is automatically loaded from a configuration file during initialiation time of ``asab.Application``.
+If a configuration file name is specified, the configuration is automatically loaded from a configuration file during initialiation time of ``Application``.
 The configuration file name can be specified by one of ``-c`` command-line argument (1), ``ASAB_CONFIG`` environment variable (2) or config ``[general] config_file`` default value (3).
 
 .. code:: shell
@@ -71,7 +73,24 @@ Configuration default values
 
 TODO: There are configuration default values
 
-TODO: You can extend them
+.. py:method:: Config.add_defaults(dictionary)
+
+This is how you can extend configuration default values:
+
+.. code:: python
+
+	asab.Config.add_defaults(
+	    {
+	        'section_name': {
+	            'key1': 'value',
+	            'key2': 'another value'
+	        },
+	        'other_section': {
+	            'key3': 'value',
+	        },
+	    }
+	)
+
 
 
 Environment variables in configration
@@ -90,26 +109,4 @@ Environment variables found in values are automaticall expanded.
 	'/home/user/.myapp/'
 
 
-asab.Config
------------
-
-.. py:class:: asab.Config(configparser.ConfigParser)
-
-	``asab.Config`` provides a configuration.
-
-	.. py:method:: add_defaults(dictionary)
-
-		Add default values to a configuration.
-
-
-		.. code:: python
-
-			asab.Config.add_defaults(
-			    {
-			        'section_name': {
-			            'key1': 'value',
-			            'key2': 'another value'
-			        }
-			    }
-			)
 
