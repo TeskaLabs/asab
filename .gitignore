@@ -104,4 +104,6 @@ ENV/
 .idea/
 
 # ignoring site configuration
-/etc/site.conf
+etc/site.conf
+
+doc/_build
