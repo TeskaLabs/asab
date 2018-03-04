@@ -1,4 +1,4 @@
-Publish/Subscribe
+Publish-Subscribe
 =================
 
 .. automodule:: asab.pubsub

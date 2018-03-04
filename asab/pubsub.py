@@ -76,8 +76,7 @@ class subscribe(object):
 
 	@asab.subscribe("tick")
 	def on_tick(self, event_name):
-		print("Service tick")
-
+	print("Service tick")
 	'''
 
 	def __init__(self, event_name):
