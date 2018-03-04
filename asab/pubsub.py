@@ -19,7 +19,9 @@ class PubSub(object):
 		self.Loop = app.Loop
 
 	def subscribe(self, event_name, callback):
-		""" Add a subscriber of an event to the set. """
+		"""
+		Add a subscriber of an event to the set.
+		"""
 
 		if event_name not in self.subscribers:
 			self.subscribers[event_name] = set([callback])
