@@ -1,5 +1,6 @@
+import abc
 
-class Module(object):
+class Module(abc.ABC):
 	"""
 	Abstract module class
 	"""

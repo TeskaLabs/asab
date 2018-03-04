@@ -1,5 +1,6 @@
+import abc
 
-class Service(object):
+class Service(abc.ABC):
 	"""
 	Abstract service class
 	"""
