@@ -22,4 +22,4 @@ Have fun!
 
 ## High-level architecture
 
-![Schema of ASAB high-level achitecture](./doc/images/asab_arch.png)
+![Schema of ASAB high-level achitecture](./doc/_static/asab_arch.png)
