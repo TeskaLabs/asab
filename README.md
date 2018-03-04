@@ -7,6 +7,22 @@ I hope you will find _ASAB_ useful and fun to use, especially when you are about
 Have fun!
 
 
+## The simplest application
+
+```python
+#!/usr/bin/env python3
+import asab
+	
+class MyApplication(asab.Application):
+	async def main(self):
+		print("Hello world!")
+		self.stop()
+	
+if __name__ == '__main__':
+	app = MyApplication()
+	app.run()
+```
+
 ## Principles
 
  * Write once, use many times
@@ -17,7 +33,7 @@ Have fun!
  * Single-threaded core but compatible with threads
  * Introspection supported
  * Modularized
- * Good documentation
+ * Well documented
 
 
 ## High-level architecture
