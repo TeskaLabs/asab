@@ -73,7 +73,7 @@ class subscribe(object):
 	Decorator
 
 	Usage:
-
+	
 	@asab.subscribe("tick")
 	def on_tick(self, event_name):
 	print("Service tick")
