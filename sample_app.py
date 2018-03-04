@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+import asyncio
 import asab
 
 ###
@@ -7,16 +8,28 @@ import asab
 
 class SampleApplication(asab.Application):
 
-	def __init__(self):
-		super().__init__()
-		self.death_counter = 5
-		self.PubSub.subscribe("tick", self.sample_pubsub_on_tick)
+
+	async def initialize(self):
+		self.PubSub.subscribe("Application.tick!", self.sample_pubsub_on_tick)
+
+		print("Adding a new module")
+		from module_sample import Module
+		self.add_module(Module)
+
+
+	async def main(self):
+		
+		# Example of Service usage
+		svc = self.get_service("service_sample")
+		svc.hello()
+
+		await asyncio.sleep(10)
+
+		self.stop()
+
 
 	def sample_pubsub_on_tick(self, event_name):
 		print("Tick!")
-		self.death_counter -= 1
-		if self.death_counter == 0:
-			self.stop()
 
 	def sample_pubsub_on_consume(self, event_name, arg1, arg2, arg3, kwsample):
 		print("Event processed by a subscriber", event_name, arg1, arg2, arg3, kwsample)
@@ -60,11 +73,6 @@ class SampleApplication(asab.Application):
 	def sample_metrics_keys(self):
 		print("Reading metrics keys", self.Metrics.keys())
 
-	def sample_module_add(self):
-		print("Adding a new module")
-		from module_sample import Module
-		self.add_module(Module)
-
 ###
 
 if __name__ == '__main__':
@@ -85,14 +93,6 @@ if __name__ == '__main__':
 	app.sample_metrics_add()
 	app.sample_metrics_pop()
 	app.sample_metrics_keys()
-
-	# Example of Module mechanism
-	# The module also registers service_sample
-	app.sample_module_add()
-
-	# Example of Service usage
-	svc = app.get_service("service_sample")
-	svc.hello()
 
 	ret = app.run()
 	sys.exit(ret)

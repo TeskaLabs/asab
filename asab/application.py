@@ -15,12 +15,10 @@ L = logging.getLogger(__file__)
 
 #
 
-
 class Application(metaclass=Singleton):
 
 
-	argparse_description = "Asynchronous Server Application Boilerplate\n(C) 2018 TeskaLabs Ltd\nhttps://www.teskalabs.com/\n"
-
+	description = "Asynchronous Server Application Boilerplate\n(C) 2018 TeskaLabs Ltd\nhttps://www.teskalabs.com/\n"
 
 	def __init__(self):
 
@@ -31,7 +29,7 @@ class Application(metaclass=Singleton):
 		Config._load()
 
 		# Setup logging
-		logging.basicConfig(level=logging.INFO)
+		logging.basicConfig(level=logging.WARNING)
 
 		# Configure event loop
 		self.Loop = asyncio.get_event_loop()
@@ -47,8 +45,8 @@ class Application(metaclass=Singleton):
 		except NotImplementedError:
 			pass
 
-		self.StopEvent = asyncio.Event(loop = self.Loop)
-		self.StopEvent.clear()
+		self._stop_event = asyncio.Event(loop = self.Loop)
+		self._stop_event.clear()
 
 		self.PubSub = PubSub(self)
 		self.Metrics = Metrics(self)
@@ -56,11 +54,16 @@ class Application(metaclass=Singleton):
 		self.Modules = []
 		self.Services = {}
 
-		# Launch init time governor
+		# Comence init-time governor
 		L.info("Initializing ...")
-		future = asyncio.Future()
-		asyncio.ensure_future(self.init_time_governor(future))
-		self.Loop.run_until_complete(future)
+		self.Loop.run_until_complete(asyncio.wait(
+			[
+				self.initialize(),
+				self._init_time_governor(asyncio.Future()),
+			],
+			return_when = asyncio.FIRST_EXCEPTION
+		))
+		#TODO: Process completed & done tasks from above
 
 
 	def parse_args(self):
@@ -70,7 +73,7 @@ class Application(metaclass=Singleton):
 
 		parser = argparse.ArgumentParser(
 			formatter_class=argparse.RawDescriptionHelpFormatter,
-			description=self.argparse_description,
+			description=self.description,
 		)
 		parser.add_argument('-c', '--config', help='Path to configuration file (default: %(default)s)', default=Config._default_values['general']['config_file'])
 		parser.add_argument('-v', '--verbose', action='store_true', help='Print more information (enable debug output)')
@@ -84,18 +87,34 @@ class Application(metaclass=Singleton):
 
 
 	def run(self):
-		# Launch run time governor
+		# Comence run-time governor and application main() function
 		L.info("Running ...")
-		self.StopEvent.clear()
-		future = asyncio.Future()
-		asyncio.ensure_future(self.run_time_governor(future))
-		self.Loop.run_until_complete(future)
+		self._stop_event.clear()
+		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
+			[
+				self.main(),
+				self._run_time_governor(asyncio.Future()),
+			],
+			return_when = asyncio.FIRST_EXCEPTION
+		))
+		for task in finished_tasks:
+			try:
+				task.result()
+			except Exception:
+				L.exception("Exception in {}".format(task))
 
-		# Launch exit time governor
+		#TODO: Process completed & done tasks from above
+
+		# Comence exit-time governor
 		L.info("Exiting ...")
-		future = asyncio.Future()
-		asyncio.ensure_future(self.exit_time_governor(future))
-		self.Loop.run_until_complete(future)
+		self.Loop.run_until_complete(asyncio.wait(
+			[
+				self.finalize(),
+				self._exit_time_governor(asyncio.Future()),
+			],
+			return_when = asyncio.FIRST_EXCEPTION
+		))
+		#TODO: Process completed & done tasks from above
 
 		self.Loop.close()
 
@@ -107,7 +126,8 @@ class Application(metaclass=Singleton):
 
 
 	def stop(self):
-		self.StopEvent.set()
+		self._stop_event.set()
+
 
 	# Modules
 
@@ -141,30 +161,43 @@ class Application(metaclass=Singleton):
 		self.Services[service_name] = service
 		return True
 
+	# Lifecycle callback
+
+	async def initialize(self):
+		pass
+
+	async def main(self):
+		pass
+
+	async def finalize(self):
+		pass
+
 	# Governors
 
-	async def init_time_governor(self, future):
-		self.PubSub.publish("init")
-		future.set_result("init")
+	async def _init_time_governor(self, future):
+		self.PubSub.publish("Application.init!")
+		future.set_result("initialize")
 
 
-	async def run_time_governor(self, future):
+	async def _run_time_governor(self, future):
 		timeout = Config.getint('general', 'tick_period')
 		try:
-			self.PubSub.publish("run")
+			self.PubSub.publish("Application.run!")
+
+			# Wait for stop event & tick in meanwhile
 			while True:
 				try:
-					await asyncio.wait_for(self.StopEvent.wait(), timeout=timeout)
+					await asyncio.wait_for(self._stop_event.wait(), timeout=timeout)
 					break
 				except asyncio.TimeoutError:
-					self.PubSub.publish("tick")
+					self.PubSub.publish("Application.tick!")
+					self.Metrics.add("Application.tick", 1)
 					continue
 
 		finally:
 			future.set_result("run")
 
 
-	async def exit_time_governor(self, future):
-		print("Exiting ...")
-		self.PubSub.publish("exit")
+	async def _exit_time_governor(self, future):
+		self.PubSub.publish("Application.exit!")
 		future.set_result("exit")
