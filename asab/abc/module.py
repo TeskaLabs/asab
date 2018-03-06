@@ -7,3 +7,5 @@ class Module(abc.ABC):
 
 	def __init__(self, app):
 		pass
+
+	#TODO: Consider adding lifecycle methods as in Application
