@@ -18,7 +18,6 @@ asab.Config.add_defaults(
 )
 
 
-
 class Module(asab.Module):
 
 	def __init__(self, app):

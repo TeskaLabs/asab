@@ -1,12 +1,12 @@
 import asab
 
 
-class ServiceSample(asab.Service, asab.Subscriber):
+class ServiceSample(asab.Service):
 
 
 	def __init__(self, app):
 		super().__init__(app)
-		self.subscribe(app)
+		app.PubSub.subscribe_all(self)
 
 		self.value = asab.Config["module_sample"]["example"]
 
@@ -15,6 +15,6 @@ class ServiceSample(asab.Service, asab.Subscriber):
 		print(self.value, "<<<<")
 
 
-	@asab.subscribe("tick")
+	@asab.subscribe("Application.tick!")
 	def on_tick(self, event_name):
-		print("Service tick")
+		print("Service tick!")

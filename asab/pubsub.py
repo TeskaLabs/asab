@@ -18,6 +18,7 @@ class PubSub(object):
 		self.subscribers = {}
 		self.Loop = app.Loop
 
+
 	def subscribe(self, event_name, callback):
 		"""
 		Add a subscriber of an event to the set.
@@ -27,6 +28,20 @@ class PubSub(object):
 			self.subscribers[event_name] = set([callback])
 		else:
 			self.subscribers[event_name].add(callback)
+
+
+	def subscribe_all(self, obj):
+		"""
+		Find all @asab.subscribe decorated methods on the obj and do subscription
+		"""
+		for member_name in dir(obj):
+			member = getattr(obj, member_name)
+			event_names = getattr(member, 'asab_pubsub_subscribe_to_event_names', None)
+			print(">>>", member, event_names)
+			if event_names is not None:
+				for event_name in event_names:
+					self.subscribe(event_name, member)
+
 
 	def unsubscribe(self, event_name, callback):
 		""" Remove a subscriber of an event from the set. """
@@ -41,6 +56,7 @@ class PubSub(object):
 			except KeyError:
 				L.warning('Callback {} not found in the event set {}.'.format(event_name, callback))
 
+
 	def publish(self, event_name, *args, **kwargs):
 		""" Notify subscribers of an event with arguments. """
 
@@ -50,6 +66,7 @@ class PubSub(object):
 
 		for callback in callback_set:
 			callback(event_name, *args, **kwargs)
+
 
 	def publish_async(self, event_name, *args, **kwargs):
 		""" Notify subscribers of an event with arguments asynchronously using coroutines. """
@@ -63,7 +80,6 @@ class PubSub(object):
 
 		for callback in callback_set:
 			asyncio.ensure_future(publish_coro(callback, *args, **kwargs), loop=self.Loop)
-
 
 ###
 
@@ -83,17 +99,9 @@ class subscribe(object):
 		self.event_name = event_name
 
 	def __call__(self, f):
-		f.asab_pubsub_subscribe_to_event_name = self.event_name
+		if getattr(f, 'asab_pubsub_subscribe_to_event_names', None) is None:
+			f.asab_pubsub_subscribe_to_event_names = [self.event_name]
+		else:
+			f.asab_pubsub_subscribe_to_event_names.append(self.event_name)
 		return f
 
-
-class Subscriber(object):
-
-	def subscribe(self, app):
-
-		# Find decorated methods (@subscribe) and do subscribe them
-		for member_name in dir(self):
-			member = getattr(self, member_name)
-			event_name = getattr(member, 'asab_pubsub_subscribe_to_event_name', None)
-			if event_name is not None:
-				app.PubSub.subscribe(event_name, member)
