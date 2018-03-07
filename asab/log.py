@@ -1,8 +1,61 @@
+import io
 import os
 import logging
+import logging.config
 import logging.handlers
 import time
 import socket
+from .config import Config
+from configparser import ConfigParser
+
+
+
+Config.add_defaults({
+	"logging:loggers": {
+		"keys": "root",
+	},
+	"logging:handlers": {
+		"keys": "default",
+	},
+	"logging:formatters": {
+		"keys": "default",
+	},
+
+	"logging:logger_root": {
+		"level": "INFO",
+		"handlers": "default",
+	},
+	"logging:handler_default": {
+		"class": "StreamHandler",
+		"level": "INFO",
+		"formatter": "default",
+		"args": "(sys.stdout,)",
+	},
+	"logging:formatter_default": {
+		"format": "%%(asctime)s %%(levelname)s %%(message)s",
+		"class": "logging.Formatter",
+	},
+})
+
+
+
+def setup_logging():
+	# Prepare logging file config
+	cp = ConfigParser()
+	for section in Config.sections():
+		if section.startswith("logging:"):
+			lsection = section[8:]
+			# Create section for logging
+			cp.add_section(lsection)
+			# Copy all values
+			for option,value in Config.items(section):
+				cp.set(lsection, option, value)
+	# Configure logging
+	fw = io.StringIO()
+	cp.write(fw)
+	v = fw.getvalue()
+	fw.close()
+	logging.config.fileConfig(io.StringIO(v))
 
 
 
