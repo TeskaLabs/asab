@@ -1,5 +1,7 @@
 import logging
 import asyncio
+import inspect
+import functools
 
 #
 
@@ -22,7 +24,15 @@ class PubSub(object):
 	def subscribe(self, event_name, callback):
 		"""
 		Add a subscriber of an event to the set.
+		It could be even plain function, method or its coroutine variant (then it will be delivered in a dedicated future)
 		"""
+
+		def _deliver_async(loop, callback, event_name, *args, **kwargs):
+			asyncio.ensure_future(callback(event_name, *args, **kwargs), loop=loop)
+
+		# If subscribe is a coroutine (async def), then wrap delivery in 
+		if inspect.iscoroutinefunction(callback):
+			callback = functools.partial(_deliver_async, self.Loop, callback)
 
 		if event_name not in self.subscribers:
 			self.subscribers[event_name] = set([callback])

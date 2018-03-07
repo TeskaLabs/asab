@@ -31,5 +31,5 @@ class ServiceSample(asab.Service):
 
 
 	@asab.subscribe("Application.tick!")
-	def on_tick(self, event_name):
+	async def on_tick(self, event_name):
 		print("Service tick!")
