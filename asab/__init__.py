@@ -3,3 +3,4 @@ from .abc.service import Service
 from .abc.module import Module
 from .config import Config
 from .pubsub import subscribe, PubSub
+from .metrics import Metrics
