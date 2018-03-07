@@ -11,7 +11,8 @@ class Module(abc.ABC):
 
 	# Lifecycle
 
-	async def initialize(self):
+	async def initialize(self, app):
 		pass
 
-	#TODO: Consider adding lifecycle methods as in Application
+	async def finalize(self, app):
+		pass

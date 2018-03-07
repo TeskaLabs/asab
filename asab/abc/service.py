@@ -8,4 +8,11 @@ class Service(abc.ABC):
 	def __init__(self, app):
 		pass
 
-	#TODO: Consider adding lifecycle methods as in Application
+
+	# Lifecycle
+
+	async def initialize(self, app):
+		pass
+
+	async def finalize(self, app):
+		pass
