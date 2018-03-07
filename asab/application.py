@@ -142,7 +142,7 @@ class Application(metaclass=Singleton):
 		module = module_class(self)
 		self.Modules.append(module)
 	
-		asyncio.ensure_future(module.initialize(), loop=self.Loop)
+		asyncio.ensure_future(module.initialize(self), loop=self.Loop)
 
 	# Services
 
@@ -167,6 +167,9 @@ class Application(metaclass=Singleton):
 			raise RuntimeError("Service {} already registered".format(service_name))
 
 		self.Services[service_name] = service
+
+		asyncio.ensure_future(service.initialize(self), loop=self.Loop)
+
 
 	# Lifecycle callback
 
@@ -207,4 +210,21 @@ class Application(metaclass=Singleton):
 
 	async def _exit_time_governor(self, future):
 		self.PubSub.publish("Application.exit!")
+
+		# Finalize services
+		futures = []
+		for service in self.Services.values():
+			nf = asyncio.ensure_future(service.finalize(self), loop=self.Loop)
+			futures.append(nf)
+		await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
+		# TODO: Handle expections (if needed) - probably only print them
+
+		# Finalize modules
+		futures = []
+		for module in self.Modules:
+			nf = asyncio.ensure_future(module.finalize(self), loop=self.Loop)
+			futures.append(nf)
+		await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
+		# TODO: Handle expections (if needed) - probably only print them
+
 		future.set_result("exit")

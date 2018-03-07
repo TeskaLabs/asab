@@ -28,5 +28,10 @@ class Module(asab.Module):
 		app.register_service("service_sample", self.service_sample)
 
 
-	async def initialize(self):
+	async def initialize(self, app):
 		L.info("Sample module initialized.")
+		app.PubSub.subscribe_all(self)
+
+
+	async def finalize(self, app):
+		L.info("Sample module finalized.")

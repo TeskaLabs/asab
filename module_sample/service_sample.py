@@ -1,4 +1,11 @@
+import logging
 import asab
+
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 
 class ServiceSample(asab.Service):
@@ -9,6 +16,14 @@ class ServiceSample(asab.Service):
 		app.PubSub.subscribe_all(self)
 
 		self.value = asab.Config["module_sample"]["example"]
+
+
+	async def initialize(self, app):
+		L.info("Sample service initialized.")
+
+
+	async def finalize(self, app):
+		L.info("Sample service finalized.")
 
 
 	def hello(self):
