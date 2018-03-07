@@ -141,6 +141,8 @@ class Application(metaclass=Singleton):
 
 		module = module_class(self)
 		self.Modules.append(module)
+	
+		asyncio.ensure_future(module.initialize(), loop=self.Loop)
 
 	# Services
 
