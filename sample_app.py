@@ -29,7 +29,7 @@ class SampleApplication(asab.Application):
 
 
 	def sample_pubsub_on_tick(self, event_name):
-		print("Tick!")
+		print("Application tick!")
 
 	def sample_pubsub_on_consume(self, event_name, arg1, arg2, arg3, kwsample):
 		print("Event processed by a subscriber", event_name, arg1, arg2, arg3, kwsample)
