@@ -47,6 +47,7 @@ class Application(metaclass=Singleton):
 
 		self._stop_event = asyncio.Event(loop = self.Loop)
 		self._stop_event.clear()
+		self._stop_counter = 0
 
 		self.PubSub = PubSub(self)
 		self.Metrics = Metrics(self)
@@ -127,6 +128,10 @@ class Application(metaclass=Singleton):
 
 	def stop(self):
 		self._stop_event.set()
+		self._stop_counter += 1
+		if self._stop_counter >= 3:
+			L.fatal("Emergency exit")
+			os._exit(os.EX_SOFTWARE)
 
 
 	# Modules
