@@ -16,7 +16,7 @@ class Metrics(collections.MutableMapping):
 	def __init__(self, app):
 		self.metrics = {}
 
-	def add(self, metric_name, value):
+	def add(self, metric_name, value=1):
 		""" Add a value to the specified metric. """
 
 		if metric_name not in self.metrics:
