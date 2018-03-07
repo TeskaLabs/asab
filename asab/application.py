@@ -216,15 +216,17 @@ class Application(metaclass=Singleton):
 		for service in self.Services.values():
 			nf = asyncio.ensure_future(service.finalize(self), loop=self.Loop)
 			futures.append(nf)
-		await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
-		# TODO: Handle expections (if needed) - probably only print them
+		if len(futures) > 0:
+			await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
+			# TODO: Handle expections (if needed) - probably only print them
 
 		# Finalize modules
 		futures = []
 		for module in self.Modules:
 			nf = asyncio.ensure_future(module.finalize(self), loop=self.Loop)
 			futures.append(nf)
-		await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
-		# TODO: Handle expections (if needed) - probably only print them
+		if len(futures) > 0:
+			await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
+			# TODO: Handle expections (if needed) - probably only print them
 
 		future.set_result("exit")
