@@ -37,7 +37,6 @@ class PubSub(object):
 		for member_name in dir(obj):
 			member = getattr(obj, member_name)
 			event_names = getattr(member, 'asab_pubsub_subscribe_to_event_names', None)
-			print(">>>", member, event_names)
 			if event_names is not None:
 				for event_name in event_names:
 					self.subscribe(event_name, member)
