@@ -88,7 +88,7 @@ class Application(metaclass=Singleton):
 
 
 	def run(self):
-		# Comence run-time governor and application main() function
+		# Comence run-time and application main() function
 		L.info("Running ...")
 		self._stop_event.clear()
 		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
@@ -106,7 +106,7 @@ class Application(metaclass=Singleton):
 
 		#TODO: Process completed & done tasks from above
 
-		# Comence exit-time governor
+		# Comence exit-time
 		L.info("Exiting ...")
 		self.Loop.run_until_complete(asyncio.wait(
 			[
@@ -157,16 +157,16 @@ class Application(metaclass=Singleton):
 		L.error("Cannot find service '{}' - not registered?".format(service_name))
 		raise KeyError("Cannot find service '{}'".format(service_name))
 
+
 	def register_service(self, service_name, service):
 		""" Register a new service using its name. """
 
 		if service_name in self.Services:
 			L.error("Service '{}' already registered (existing:{} new:{})"
 					.format(service_name, self.Services[service_name], service))
-			raise KeyError("Service {} already registered".format(service_name))
+			raise RuntimeError("Service {} already registered".format(service_name))
 
 		self.Services[service_name] = service
-		return True
 
 	# Lifecycle callback
 
