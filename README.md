@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
  * Write once, use many times
  * Keep it simple
- * Python 3.5+, compatible with pypi
+ * Python 3.5+, compatible with pypy
  * Asynchronous via `asyncio`
  * [Event-driven](http://en.wikipedia.org/wiki/Event_driven) / [Reactor pattern](https://en.wikipedia.org/wiki/Reactor_pattern)
  * Single-threaded core but compatible with threads
