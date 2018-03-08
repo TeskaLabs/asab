@@ -16,6 +16,7 @@ class ServiceSample(asab.Service):
 		app.PubSub.subscribe_all(self)
 
 		self.value = asab.Config["module_sample"]["example"]
+		self.counter = 0
 
 
 	async def initialize(self, app):
@@ -27,9 +28,10 @@ class ServiceSample(asab.Service):
 
 
 	def hello(self):
-		print(self.value, "<<<<")
+		L.info(self.value)
 
 
 	@asab.subscribe("Application.tick!")
 	async def on_tick(self, event_name):
-		print("Service tick!")
+		self.counter=self.counter+1
+		L.info("Service tick!", struct_data={"counter":self.counter})
