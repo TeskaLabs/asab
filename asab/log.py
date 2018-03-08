@@ -37,8 +37,9 @@ Config.add_defaults({
 
 	# Formatters
 	"logging:formatter_default": {
-		"format": "%%(asctime)s %%(levelname)s %%(message)s",
-		"class": "logging.Formatter",
+		"class": "asab.log.StructuredDataFormatter",
+		"format": "%%(asctime)s %%(levelname)s %%(struct_data)s %%(message)s",
+		"class": "asab.log.StructuredDataFormatter",
 	},
 	"logging:formatter_rfc5424": {
 		"class": "asab.log.RFC5424Formatter",
@@ -85,11 +86,31 @@ class StructuredDataLogger(logging.Logger):
 
 
 
-class RFC5424Formatter(logging.Formatter):
+class StructuredDataFormatter(logging.Formatter):
+
+	def __init__(self, fmt=None, datefmt=None, style='%'):
+		super().__init__(fmt, datefmt, style)
+		self.sd_id = Config["logging:formatter_rfc5424"]["sd_id"]
+
+	def format(self, record):
+		record.struct_data=self.render_struct_data(record.__dict__.get("_struct_data"))
+		return super().format(record)
+
+	def render_struct_data(self, struct_data):
+		if struct_data is None:
+			return ""
+		else:
+			return "[{sd_id} {sd_params}]".format(
+				sd_id=self.sd_id,
+				sd_params=" ".join(['{}="{}"'.format(key, val) for key, val in struct_data.items()]))
+
+
+
+class RFC5424Formatter(StructuredDataFormatter):
 	""" This formatter is meant for a SysLogHandler """
 
 	def __init__(self, fmt=None, datefmt=None, style='%'):
-		self.sd_id = Config["logging:formatter_rfc5424"]["sd_id"]
+		super().__init__(fmt, datefmt, style)
 		app_name=Config["logging:formatter_rfc5424"]["app_name"]
 
 		# RFC5424 format
@@ -114,19 +135,6 @@ class RFC5424Formatter(logging.Formatter):
 		# Convert time to GMT
 		self.converter = time.gmtime
 
-
-	def format(self, record):
-		record.struct_data=self.render_struct_data(record.__dict__.get("_struct_data"))
-		return super().format(record)
-
-
-	def render_struct_data(self, struct_data):
-		if struct_data is None:
-			return ""
-		else:
-			return "[{sd_id} {sd_params}]".format(
-				sd_id=self.sd_id,
-				sd_params=" ".join(['{}="{}"'.format(key, val) for key, val in struct_data.items()]))
 
 
 
