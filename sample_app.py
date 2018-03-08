@@ -2,8 +2,13 @@
 import sys
 import asyncio
 import asab
+import logging
 
-###
+#
+
+L = logging.getLogger(__file__)
+
+#
 
 
 class SampleApplication(asab.Application):
@@ -12,7 +17,7 @@ class SampleApplication(asab.Application):
 	async def initialize(self):
 		self.PubSub.subscribe("Application.tick!", self.sample_pubsub_on_tick)
 
-		print("Adding a new module")
+		#L.info("Adding a new module")
 		from module_sample import Module
 		self.add_module(Module)
 
@@ -29,49 +34,49 @@ class SampleApplication(asab.Application):
 
 
 	def sample_pubsub_on_tick(self, event_name):
-		print("Application tick!")
+		L.info("Application tick!")
 
 	def sample_pubsub_on_consume(self, event_name, arg1, arg2, arg3, kwsample):
-		print("Event processed by a subscriber", event_name, arg1, arg2, arg3, kwsample)
+		L.info("Event processed by a subscriber", event_name, arg1, arg2, arg3, kwsample)
 
 	def sample_pubsub_add_subscriber(self):
 		self.PubSub.subscribe("test_event", self.sample_pubsub_on_consume)
-		print("Subscriber added.")
+		L.info("Subscriber added.")
 
 	def sample_pubsub_remove_subscriber(self):
 		self.PubSub.unsubscribe("test_event", self.sample_pubsub_on_consume)
-		print("Subscriber removed.")
+		L.info("Subscriber removed.")
 
 	def sample_pubsub_publish(self):
-		print("Event to be published.")
+		L.info("Event to be published.")
 		self.PubSub.publish("test_event", 1, 2, 3, kwsample=1)
 
 	def sample_pubsub_publish_to_unreg(self):
 		"""
 		This is sample event handled that is unregistered to PubSub
 		"""
-		print("Unregistered event to be published.")
+		L.info("Unregistered event to be published.")
 		self.PubSub.publish("test_wrong_event")
 
 	def sample_pubsub_publish_async(self):
-		print("Event to be published asynchonously.")
+		L.info("Event to be published asynchonously.")
 		self.PubSub.publish_async("test_event", 1, 2, 3, kwsample=1)
-		print("Publishing done.")
+		L.info("Publishing done.")
 
 	def sample_metrics_add(self):
-		print("Adding a metric.")
+		L.info("Adding a metric.")
 		self.Metrics.add("sample.metric", 10)
 
 	def sample_metrics_set(self):
-		print("Setting a metric.")
+		L.info("Setting a metric.")
 		self.Metrics.set("sample.metric", 90)
 
 	def sample_metrics_pop(self):
 		value = self.Metrics.pop("sample.metric")
-		print("Popping a metric: {}.".format(value))
+		L.info("Popping a metric: {}.".format(value))
 
 	def sample_metrics_keys(self):
-		print("Reading metrics keys", self.Metrics.keys())
+		L.info("Reading metrics keys {}".format(self.Metrics.keys()))
 
 ###
 
