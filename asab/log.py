@@ -15,25 +15,41 @@ Config.add_defaults({
 		"keys": "root",
 	},
 	"logging:handlers": {
-		"keys": "default",
+		"keys": "default,syslog",
 	},
 	"logging:formatters": {
-		"keys": "default",
+		"keys": "default,rfc5424",
 	},
 
-	"logging:logger_root": {
-		"level": "INFO",
-		"handlers": "default",
-	},
+	# Handlers
 	"logging:handler_default": {
 		"class": "StreamHandler",
 		"level": "INFO",
 		"formatter": "default",
 		"args": "(sys.stdout,)",
 	},
+	"logging:handler_syslog": {
+		"class": "logging.handlers.SysLogHandler",
+		"level": "INFO",
+		"formatter": "rfc5424",
+		"args":"('/dev/log',)",
+	},
+
+	# Formatters
 	"logging:formatter_default": {
 		"format": "%%(asctime)s %%(levelname)s %%(message)s",
 		"class": "logging.Formatter",
+	},
+	"logging:formatter_rfc5424": {
+		"class": "asab.log.RFC5424Formatter",
+		"app_name": "-",
+		"sd_id": "L",
+	},
+
+	# Loggers
+	"logging:logger_root": {
+		"level": "INFO",
+		"handlers": "default", # "default,syslog"... console and syslog; "syslog"... syslog only
 	},
 })
 
@@ -45,7 +61,7 @@ def setup_logging():
 	for section in Config.sections():
 		if section.startswith("logging:"):
 			lsection = section[8:]
-			# Create section for logging
+			# Create section
 			cp.add_section(lsection)
 			# Copy all values
 			for option,value in Config.items(section):
@@ -55,6 +71,7 @@ def setup_logging():
 	cp.write(fw)
 	v = fw.getvalue()
 	fw.close()
+	logging.setLoggerClass(StructuredDataLogger)
 	logging.config.fileConfig(io.StringIO(v))
 
 
@@ -71,8 +88,9 @@ class StructuredDataLogger(logging.Logger):
 class RFC5424Formatter(logging.Formatter):
 	""" This formatter is meant for a SysLogHandler """
 
-	def __init__(self, app_name='-', sd_id="L"):
-		self.sd_id = sd_id
+	def __init__(self, fmt=None, datefmt=None, style='%'):
+		self.sd_id = Config["logging:formatter_rfc5424"]["sd_id"]
+		app_name=Config["logging:formatter_rfc5424"]["app_name"]
 
 		# RFC5424 format
 		fmt = '{header} {structured_data} {message}'.format(
