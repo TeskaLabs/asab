@@ -7,7 +7,7 @@ import signal
 
 from .config import Config
 from .abc.singleton import Singleton
-from .log import setup_logging
+from .log import setup_logging, _loop_exception_handler
 from .pubsub import PubSub
 from .metrics import Metrics
 
@@ -35,6 +35,10 @@ class Application(metaclass=Singleton):
 
 		# Configure event loop
 		self.Loop = asyncio.get_event_loop()
+		self.Loop.set_exception_handler(_loop_exception_handler)
+		if Config["general"]["verbose"] == "True":
+			self.Loop.set_debug(True)
+
 		
 		try:
 			# Signals are not available on Windows
