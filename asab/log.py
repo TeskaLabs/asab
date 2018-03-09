@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import logging.handlers
+import traceback
 import time
 import datetime
 import pprint
@@ -111,10 +112,21 @@ class RFC5424Formatter(StructuredDataFormatter):
 
 
 def _loop_exception_handler(loop, context):
+	exception = context.pop('exception', None)
+	
 	message = context.pop('message', '')
-	if len(message) > 0: message += '\n'
-	logging.getLogger().error(message + pprint.pformat(context))
+	if len(message) > 0:
+		message += '\n'
 
+	if len(context) > 0:
+		message += pprint.pformat(context)
+
+	if exception is not None:
+		ex_traceback = exception.__traceback__
+		tb_lines = [ line.rstrip('\n') for line in traceback.format_exception(exception.__class__, exception, ex_traceback)]
+		message += '\n' + '\n'.join(tb_lines)
+
+	logging.getLogger().error(message)
 
 
 
