@@ -57,8 +57,7 @@ class StructuredDataFormatter(logging.Formatter):
 
 	def format(self, record):
 		record.struct_data=self.render_struct_data(record.__dict__.get("_struct_data"))
-		ret = super().format(record)
-		return ret
+		return super().format(record)
 
 
 	def formatTime(self, record, datefmt=None):
@@ -131,7 +130,6 @@ def _loop_exception_handler(loop, context):
 
 
 if __name__ == '__main__':
-	logging.setLoggerClass(StructuredDataLogger)
 	handler = logging.handlers.SysLogHandler()
 	handler.setFormatter(RFC5424Formatter())
 	handler.setLevel(logging.INFO)
