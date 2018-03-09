@@ -1,4 +1,3 @@
-import io
 import os
 import sys
 import logging
@@ -7,7 +6,6 @@ import time
 import datetime
 import pprint
 import socket
-import configparser
 from .config import Config
 
 
