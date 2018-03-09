@@ -63,14 +63,19 @@ class Application(metaclass=Singleton):
 
 		# Comence init-time governor
 		L.info("Initializing ...")
-		self.Loop.run_until_complete(asyncio.wait(
+		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
 			[
 				self.initialize(),
 				self._init_time_governor(asyncio.Future()),
 			],
 			return_when = asyncio.FIRST_EXCEPTION
 		))
-		#TODO: Process completed & done tasks from above
+		for task in finished_tasks:
+			try:
+				task.result()
+			except Exception:
+				L.exception("Exception in {}".format(task))
+				raise
 
 
 	def parse_args(self):
@@ -110,18 +115,25 @@ class Application(metaclass=Singleton):
 			except Exception:
 				L.exception("Exception in {}".format(task))
 
-		#TODO: Process completed & done tasks from above
+		#TODO: Process pending_tasks tasks from above
 
 		# Comence exit-time
 		L.info("Exiting ...")
-		self.Loop.run_until_complete(asyncio.wait(
+		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
 			[
 				self.finalize(),
 				self._exit_time_governor(asyncio.Future()),
 			],
 			return_when = asyncio.FIRST_EXCEPTION
 		))
-		#TODO: Process completed & done tasks from above
+		for task in finished_tasks:
+			try:
+				task.result()
+			except Exception:
+				L.exception("Exception in {}".format(task))
+
+		#TODO: Process pending_tasks tasks from above
+
 
 		self.Loop.close()
 
