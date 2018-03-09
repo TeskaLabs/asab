@@ -13,7 +13,7 @@ from .metrics import Metrics
 
 #
 
-L = logging.getLogger(__file__)
+L = logging.getLogger(__name__)
 
 #
 
