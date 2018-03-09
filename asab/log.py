@@ -16,7 +16,7 @@ Config.add_defaults({
 		"keys": "root",
 	},
 	"logging:handlers": {
-		"keys": "stderr,syslog",
+		"keys": "stderr",
 	},
 	"logging:formatters": {
 		"keys": "stderr,rfc5424",
