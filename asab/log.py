@@ -4,9 +4,10 @@ import logging
 import logging.config
 import logging.handlers
 import time
+import pprint
 import socket
+import configparser
 from .config import Config
-from configparser import ConfigParser
 
 
 
@@ -15,28 +16,28 @@ Config.add_defaults({
 		"keys": "root",
 	},
 	"logging:handlers": {
-		"keys": "default,syslog",
+		"keys": "stderr,syslog",
 	},
 	"logging:formatters": {
-		"keys": "default,rfc5424",
+		"keys": "stderr,rfc5424",
 	},
 
 	# Handlers
-	"logging:handler_default": {
+	"logging:handler_stderr": {
 		"class": "StreamHandler",
-		"level": "INFO",
-		"formatter": "default",
-		"args": "(sys.stdout,)",
+		"formatter": "stderr",
+		"level": "NOTSET",
+		"args": "(sys.stderr,)",
 	},
 	"logging:handler_syslog": {
 		"class": "logging.handlers.SysLogHandler",
-		"level": "INFO",
 		"formatter": "rfc5424",
+		"level": "NOTSET",
 		"args":"('/dev/log',)",
 	},
 
 	# Formatters
-	"logging:formatter_default": {
+	"logging:formatter_stderr": {
 		"class": "asab.log.StructuredDataFormatter",
 		"format": "%%(asctime)s %%(levelname)s %%(struct_data)s %%(message)s",
 		"class": "asab.log.StructuredDataFormatter",
@@ -49,24 +50,29 @@ Config.add_defaults({
 
 	# Loggers
 	"logging:logger_root": {
-		"level": "INFO",
-		"handlers": "default", # "default,syslog"... console and syslog; "syslog"... syslog only
+		"level": "WARNING",
+		"handlers": "stderr", # "stderr,syslog"... stderr and syslog; "syslog"... syslog only
 	},
 })
 
 
 
 def setup_logging():
+
 	# Prepare logging file config
-	cp = ConfigParser()
+
+	cp = configparser.ConfigParser()
 	for section in Config.sections():
 		if section.startswith("logging:"):
 			lsection = section[8:]
+
 			# Create section
 			cp.add_section(lsection)
+
 			# Copy all values
 			for option,value in Config.items(section):
 				cp.set(lsection, option, value)
+
 	# Configure logging
 	fw = io.StringIO()
 	cp.write(fw)
@@ -75,6 +81,9 @@ def setup_logging():
 	logging.setLoggerClass(StructuredDataLogger)
 	logging.config.fileConfig(io.StringIO(v))
 
+	if Config["general"]["verbose"] == "True":
+		print("YES - verbose")
+		logging.getLogger().setLevel(logging.DEBUG)
 
 
 class StructuredDataLogger(logging.Logger):
@@ -134,6 +143,13 @@ class RFC5424Formatter(StructuredDataFormatter):
 
 		# Convert time to GMT
 		self.converter = time.gmtime
+
+
+
+def _loop_exception_handler(loop, context):
+	message - context.pop('message')
+	L.error(message)
+	pprint.pprint(context)
 
 
 
