@@ -15,13 +15,17 @@ def _setup_logging():
 	if not root_logger.hasHandlers():
 		
 		# Add console logger
+		#TODO: Don't initialize this when not on console
 		h = logging.StreamHandler(stream=sys.stderr)
 		h.setFormatter(StructuredDataFormatter(
 			fmt = Config["logging:console"]["format"],
 			datefmt = Config["logging:console"]["datefmt"],
+			sd_id = Config["logging:rfc5424"]["sd_id"],
 		))
 		h.setLevel(logging.DEBUG)
 		root_logger.addHandler(h)
+
+		#TODO: If configured, initialize syslog
 
 	else:
 		root_logger.warning("Logging seems to be already configured. Proceed with caution.")
@@ -46,9 +50,9 @@ logging.setLoggerClass(StructuredDataLogger)
 
 class StructuredDataFormatter(logging.Formatter):
 
-	def __init__(self, fmt=None, datefmt=None, style='%'):
+	def __init__(self, fmt=None, datefmt=None, style='%', sd_id=None):
 		super().__init__(fmt, datefmt, style)
-		self.sd_id = Config["logging:rfc5424"]["sd_id"]
+		self.sd_id = sd_id
 
 	def format(self, record):
 		record.struct_data=self.render_struct_data(record.__dict__.get("_struct_data"))
