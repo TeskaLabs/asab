@@ -7,7 +7,7 @@ import signal
 
 from .config import Config
 from .abc.singleton import Singleton
-from .log import setup_logging, _loop_exception_handler
+from .log import _setup_logging, _loop_exception_handler
 from .pubsub import PubSub
 from .metrics import Metrics
 
@@ -31,7 +31,7 @@ class Application(metaclass=Singleton):
 		Config._load()
 
 		# Setup logging
-		setup_logging()
+		_setup_logging()
 
 		# Configure event loop
 		self.Loop = asyncio.get_event_loop()

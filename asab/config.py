@@ -20,6 +20,15 @@ class ConfigParser(configparser.ConfigParser):
 			'tick_period': 1, # In seconds
 		},
 
+		"logging:rfc5424": {
+			"sd_id": "sd",
+		},
+
+		"logging:console": {
+			"format": "%%(asctime)s %%(levelname)s %%(struct_data)s %%(message)s",
+			"datefmt": "%%d-%%b-%%Y %%H:%%M:%%S.%%f",
+		},
+
 	}
 
 

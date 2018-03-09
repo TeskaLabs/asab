@@ -37,7 +37,7 @@ class SampleApplication(asab.Application):
 		L.info("Application tick!")
 
 	def sample_pubsub_on_consume(self, event_name, arg1, arg2, arg3, kwsample):
-		L.info("Event processed by a subscriber", event_name, arg1, arg2, arg3, kwsample)
+		L.info("Event processed by a subscriber %s %d %d %d %d", event_name, arg1, arg2, arg3, kwsample)
 
 	def sample_pubsub_add_subscriber(self):
 		self.PubSub.subscribe("test_event", self.sample_pubsub_on_consume)

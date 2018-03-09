@@ -28,7 +28,11 @@ class ServiceSample(asab.Service):
 
 
 	def hello(self):
+		L.debug(self.value)
 		L.info(self.value)
+		L.warning(self.value)
+		L.error(self.value)
+		L.fatal(self.value)
 
 
 	@asab.subscribe("Application.tick!")

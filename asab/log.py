@@ -1,109 +1,71 @@
 import io
 import os
+import sys
 import logging
-import logging.config
 import logging.handlers
 import time
+import datetime
 import pprint
 import socket
 import configparser
 from .config import Config
 
 
+def _setup_logging():
 
-Config.add_defaults({
-	"logging:loggers": {
-		"keys": "root",
-	},
-	"logging:handlers": {
-		"keys": "stderr",
-	},
-	"logging:formatters": {
-		"keys": "stderr,rfc5424",
-	},
+	root_logger = logging.getLogger()
+	if not root_logger.hasHandlers():
+		
+		# Add console logger
+		h = logging.StreamHandler(stream=sys.stderr)
+		h.setFormatter(StructuredDataFormatter(
+			fmt = Config["logging:console"]["format"],
+			datefmt = Config["logging:console"]["datefmt"],
+		))
+		h.setLevel(logging.DEBUG)
+		root_logger.addHandler(h)
 
-	# Handlers
-	"logging:handler_stderr": {
-		"class": "StreamHandler",
-		"formatter": "stderr",
-		"level": "NOTSET",
-		"args": "(sys.stderr,)",
-	},
-	"logging:handler_syslog": {
-		"class": "logging.handlers.SysLogHandler",
-		"formatter": "rfc5424",
-		"level": "NOTSET",
-		"args":"('/dev/log',)",
-	},
-
-	# Formatters
-	"logging:formatter_stderr": {
-		"class": "asab.log.StructuredDataFormatter",
-		"format": "%%(asctime)s %%(levelname)s %%(struct_data)s %%(message)s",
-		"class": "asab.log.StructuredDataFormatter",
-	},
-	"logging:formatter_rfc5424": {
-		"class": "asab.log.RFC5424Formatter",
-		"app_name": "-",
-		"sd_id": "L",
-	},
-
-	# Loggers
-	"logging:logger_root": {
-		"level": "WARNING",
-		"handlers": "stderr", # "stderr,syslog"... stderr and syslog; "syslog"... syslog only
-	},
-})
-
-
-
-def setup_logging():
-
-	# Prepare logging file config
-
-	cp = configparser.ConfigParser()
-	for section in Config.sections():
-		if section.startswith("logging:"):
-			lsection = section[8:]
-
-			# Create section
-			cp.add_section(lsection)
-
-			# Copy all values
-			for option,value in Config.items(section):
-				cp.set(lsection, option, value)
-
-	# Configure logging
-	fw = io.StringIO()
-	cp.write(fw)
-	v = fw.getvalue()
-	fw.close()
-	logging.setLoggerClass(StructuredDataLogger)
-	logging.config.fileConfig(io.StringIO(v))
+	else:
+		root_logger.warning("Logging seems to be already configured. Proceed with caution.")
 
 	if Config["general"]["verbose"] == "True":
-		print("YES - verbose")
-		logging.getLogger().setLevel(logging.DEBUG)
+		root_logger.setLevel(logging.DEBUG)
+	else:
+		root_logger.setLevel(logging.WARNING)
 
 
 class StructuredDataLogger(logging.Logger):
+
 	def _log(self, level, msg, args, exc_info=None, struct_data=None, extra=None, stack_info=False):
 		if struct_data is not None:
 			if extra is None: extra = dict()
 			extra['_struct_data'] = struct_data
+
 		super()._log(level, msg, args, exc_info=exc_info, extra=extra, stack_info=stack_info)
 
+logging.setLoggerClass(StructuredDataLogger)
 
 
 class StructuredDataFormatter(logging.Formatter):
 
 	def __init__(self, fmt=None, datefmt=None, style='%'):
 		super().__init__(fmt, datefmt, style)
-		self.sd_id = Config["logging:formatter_rfc5424"]["sd_id"]
+		self.sd_id = Config["logging:rfc5424"]["sd_id"]
 
 	def format(self, record):
 		record.struct_data=self.render_struct_data(record.__dict__.get("_struct_data"))
-		return super().format(record)
+		ret = super().format(record)
+		return ret
+
+
+	def formatTime(self, record, datefmt=None):
+		ct = datetime.datetime.fromtimestamp(record.created)
+		if datefmt:
+			s = ct.strftime(datefmt)
+		else:
+			t = ct.strftime("%Y-%m-%d %H:%M:%S")
+			s = "%s.%03d" % (t, record.msecs)
+		return s
 
 	def render_struct_data(self, struct_data):
 		if struct_data is None:
@@ -147,9 +109,9 @@ class RFC5424Formatter(StructuredDataFormatter):
 
 
 def _loop_exception_handler(loop, context):
-	message - context.pop('message')
-	L.error(message)
-	pprint.pprint(context)
+	message = context.pop('message', '')
+	if len(message) > 0: message += '\n'
+	logging.getLogger().error(message + pprint.pformat(context))
 
 
 
