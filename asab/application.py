@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import argparse
+import itertools
 import os
 import signal
 
@@ -196,13 +197,21 @@ class Application(metaclass=Singleton):
 			self.PubSub.publish("Application.run!")
 
 			# Wait for stop event & tick in meanwhile
-			while True:
+			for cycle_no in itertools.count(1):
 				try:
 					await asyncio.wait_for(self._stop_event.wait(), timeout=timeout)
 					break
 				except asyncio.TimeoutError:
-					self.PubSub.publish("Application.tick!")
 					self.Metrics.add("Application.tick", 1)
+					self.PubSub.publish("Application.tick!")
+					if (cycle_no % 10) == 0: self.PubSub.publish("Application.tick/10!")
+					if (cycle_no % 60) == 0: self.PubSub.publish("Application.tick/60!")
+					if (cycle_no % 300) == 0: self.PubSub.publish("Application.tick/300!")
+					if (cycle_no % 600) == 0: self.PubSub.publish("Application.tick/600!")
+					if (cycle_no % 1800) == 0: self.PubSub.publish("Application.tick/1800!")
+					if (cycle_no % 3600) == 0: self.PubSub.publish("Application.tick/3600!")
+					if (cycle_no % 43200) == 0: self.PubSub.publish("Application.tick/43200!")
+					if (cycle_no % 86400) == 0: self.PubSub.publish("Application.tick/86400!")
 					continue
 
 		finally:
