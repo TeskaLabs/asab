@@ -34,10 +34,10 @@ if __name__ == '__main__':
  * Keep it simple
  * Well documented
  * Asynchronous via Python 3.5+ `async`/`await` and `asyncio`
- * [Event-driven](http://en.wikipedia.org/wiki/Event_driven) / [Reactor pattern](https://en.wikipedia.org/wiki/Reactor_pattern)
+ * [Event-driven Architecture](https://en.wikipedia.org/wiki/Event-driven_architecture) / [Reactor pattern](https://en.wikipedia.org/wiki/Reactor_pattern)
  * Single-threaded core but compatible with threads
  * Compatible with [pypy](http://pypy.org), Just-In-Time compiler capable of boosting Python code performace more then 5x times
- * Support fot introspection
+ * Support for introspection
  * Modularized
 
 
