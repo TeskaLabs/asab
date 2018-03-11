@@ -43,4 +43,4 @@ if __name__ == '__main__':
 
 ## High-level architecture
 
-![Schema of ASAB high-level achitecture](./doc/_static/asab_arch.png)
+![Schema of ASAB high-level achitecture](./doc/_static/asab-architecture.png)
