@@ -6,7 +6,7 @@ L = logging.getLogger(__name__)
 
 class MyApplication(asab.Application):
 	async def main(self):
-		print("Hello world!")
+		print("Hello world! And love to Nikol!")
 		L.debug("DEBUG")
 		L.info("INFO")
 		L.warning("WARNING")
