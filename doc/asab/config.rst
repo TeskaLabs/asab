@@ -3,7 +3,9 @@ Configuration
 
 .. py:currentmodule:: asab
 
-The configuration is provided by ``Config`` object which is a singleton. It means that you can access ``Config`` from any place of your code, without need of explicit initialisation.
+.. py:data:: Config
+
+The configuration is provided by :py:obj:`Config` object which is a singleton. It means that you can access :py:obj:`Config` from any place of your code, without need of explicit initialisation.
 
 .. code:: python
 
@@ -19,7 +21,11 @@ The configuration is provided by ``Config`` object which is a singleton. It mean
 Based on ConfigParser
 ---------------------
 
-The  ``Config`` is inherited from Python Standard Library ``configparser.ConfigParser`` class. which implements a basic configuration language which provides a structure similar to what’s found in Microsoft Windows INI files. 
+The  :py:obj:`Config` is inherited from Python Standard Library :py:class:`configparser.ConfigParser` class. which implements a basic configuration language which provides a structure similar to what’s found in Microsoft Windows INI files. 
+
+.. py:currentmodule:: asab.config
+
+.. py:class:: ConfigParser
 
 Example of the configuration file:
 
@@ -41,10 +47,13 @@ And this is how you access configuration values:
 	'no'
 
 
+.. py:currentmodule:: asab
+
+
 Automatic load of configuration
 -------------------------------
 
-If a configuration file name is specified, the configuration is automatically loaded from a configuration file during initialiation time of ``Application``.
+If a configuration file name is specified, the configuration is automatically loaded from a configuration file during initialiation time of :py:class:`Application`.
 The configuration file name can be specified by one of ``-c`` command-line argument (1), ``ASAB_CONFIG`` environment variable (2) or config ``[general] config_file`` default value (3).
 
 .. code:: shell
@@ -70,8 +79,6 @@ Included configuration files may not exists, this situation is silently ignored.
 
 Configuration default values
 ----------------------------
-
-TODO: There are configuration default values
 
 .. py:method:: Config.add_defaults(dictionary)
 
