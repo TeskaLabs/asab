@@ -4,12 +4,19 @@ import argparse
 import itertools
 import os
 import signal
+import platform
 
 from .config import Config
 from .abc.singleton import Singleton
 from .log import _setup_logging, _loop_exception_handler
 from .pubsub import PubSub
 from .metrics import Metrics
+
+# Importing the Win API library
+try:
+	import win32api
+except ModuleNotFoundError:
+	win32api = None
 
 #
 
@@ -45,7 +52,15 @@ class Application(metaclass=Singleton):
 			# Signals are not available on Windows
 			self.Loop.add_signal_handler(signal.SIGINT, self.stop)
 		except NotImplementedError:
-			pass
+			# Checking if the program runs on Windows
+			if any(platform.win32_ver()):
+				if win32api is not None:
+					callBack = self.stop
+					# Adding a handler to listen to the interrupt event
+					def handler(type):
+						callBack()
+						return True
+					win32api.SetConsoleCtrlHandler(handler, True)
 
 		try:
 			self.Loop.add_signal_handler(signal.SIGTERM, self.stop)
@@ -149,7 +164,11 @@ class Application(metaclass=Singleton):
 		self._stop_counter += 1
 		if self._stop_counter >= 3:
 			L.fatal("Emergency exit")
-			os._exit(os.EX_SOFTWARE)
+			try:
+				# EX_SOFTWARE code is not available on Windows
+				return os._exit(os.EX_SOFTWARE)
+			except AttributeError:
+				return os._exit(0)
 
 
 	# Modules
