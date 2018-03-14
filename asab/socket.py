@@ -13,7 +13,6 @@ class StreamSocketServerService(Service):
 
 			L.debug("Starting server on {} {} ...".format(host, port))
 			await self.create_server(app, MyProtocol, [(host, port)])
-
 	'''
 
 	def __init__(self, app):
