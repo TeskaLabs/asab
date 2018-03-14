@@ -58,17 +58,19 @@ PubSub Events
 
 .. option:: Application.init!
 
-TODO: This ...
+This event is emitted when application is in the init-time.
+It is actually one of the last things done in init-time, so the application environment is almost ready for use.
+It means that configuration is loaded, logging is setup, the event loop is constructed etc.
 
 
 .. option:: Application.run!
 
-TODO: This ...
+This event is emitted when application enters the run-time.
 
 
 .. option:: Application.exit!
 
-TODO: This ...
+This event is emitted when application enter the exit-time.
 
 
 .. option:: Application.tick!
@@ -81,7 +83,9 @@ TODO: This ...
 .. option:: Application.tick/43200!
 .. option:: Application.tick/86400!
 
-TODO: This ...
+The application emits periodically "tick" events.
+The default tick frequency is 1 second but you can change it by configuration ``[general] tick_period``.
+:any:`Application.tick!` is called every tick. :any:`Application.tick/10!` is called every 10th tick and so on.
 
 
 Metrics
