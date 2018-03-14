@@ -20,7 +20,8 @@ L = logging.getLogger(__name__)
 class Application(metaclass=Singleton):
 
 
-	description = "Asynchronous Server Application Boilerplate\n(C) 2018 TeskaLabs Ltd\nhttps://www.teskalabs.com/\n"
+	Description = "Asynchronous Server Application Boilerplate\n(C) 2018 TeskaLabs Ltd\nhttps://www.teskalabs.com/\n"
+
 
 	def __init__(self):
 
@@ -71,11 +72,10 @@ class Application(metaclass=Singleton):
 			return_when = asyncio.FIRST_EXCEPTION
 		))
 		for task in finished_tasks:
-			try:
-				task.result()
-			except Exception:
-				L.exception("Exception in {}".format(task))
-				raise
+			# This one also raises exceptions from futures, which is perfectly ok
+			task.result()
+		if len(pending_tasks) > 0:
+			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
 
 
 	def parse_args(self):
@@ -85,7 +85,7 @@ class Application(metaclass=Singleton):
 
 		parser = argparse.ArgumentParser(
 			formatter_class=argparse.RawDescriptionHelpFormatter,
-			description=self.description,
+			description=self.Description,
 		)
 		parser.add_argument('-c', '--config', help='Path to configuration file (default: %(default)s)', default=Config._default_values['general']['config_file'])
 		parser.add_argument('-v', '--verbose', action='store_true', help='Print more information (enable debug output)')
