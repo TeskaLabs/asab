@@ -32,6 +32,7 @@ Direct use of :py:class:`Application` object:
 	app.run()
 
 
+
 Event Loop
 ----------
 
@@ -117,6 +118,10 @@ The :class:`Config` is loaded during init-time.
 
 TODO: This..
 
+
+.. py:data:: Application.Description
+
+TODO: This..
 
 
 .. py:method:: Application.initialize()
