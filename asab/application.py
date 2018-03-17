@@ -9,7 +9,7 @@ import platform
 from .config import Config
 from .abc.singleton import Singleton
 from .log import _setup_logging, _loop_exception_handler
-from .pubsub import PubSub
+
 from .metrics import Metrics
 
 # Importing the Win API library
@@ -71,6 +71,7 @@ class Application(metaclass=Singleton):
 		self._stop_event.clear()
 		self._stop_counter = 0
 
+		from .pubsub import PubSub
 		self.PubSub = PubSub(self)
 		self.Metrics = Metrics(self)
 
