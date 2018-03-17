@@ -13,9 +13,12 @@ from .log import _setup_logging, _loop_exception_handler
 from .metrics import Metrics
 
 # Importing the Win API library
-try:
-	import win32api
-except ModuleNotFoundError:
+if platform.system() == "Windows":
+	try:
+		import win32api
+	except ModuleNotFoundError:
+		win32api = None
+else:
 	win32api = None
 
 #
