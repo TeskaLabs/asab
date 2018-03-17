@@ -112,4 +112,3 @@ The example of a **asynchronous version** of a message publish to the :any:`Appl
 
 	def my_function(app):
 	    app.PubSub.publish("mymessage!", asynchronously=True)
-
