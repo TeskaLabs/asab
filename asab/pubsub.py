@@ -11,33 +11,29 @@ L = logging.getLogger(__name__)
 
 
 class PubSub(object):
-	"""
-	Register subscribers and notify them when an event occurs.
-	For architecture details refer to: https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern
-	"""
 
 	def __init__(self, app):
 		self.subscribers = {}
 		self.Loop = app.Loop
 
 
-	def subscribe(self, event_name, callback):
+	def subscribe(self, message_type, callback):
 		"""
-		Add a subscriber of an event to the set.
+		Subscribe a subscriber to the an message type.
 		It could be even plain function, method or its coroutine variant (then it will be delivered in a dedicated future)
 		"""
 
-		def _deliver_async(loop, callback, event_name, *args, **kwargs):
-			asyncio.ensure_future(callback(event_name, *args, **kwargs), loop=loop)
+		def _deliver_async(loop, callback, message_type, *args, **kwargs):
+			asyncio.ensure_future(callback(message_type, *args, **kwargs), loop=loop)
 
 		# If subscribe is a coroutine (async def), then wrap delivery in 
 		if inspect.iscoroutinefunction(callback):
 			callback = functools.partial(_deliver_async, self.Loop, callback)
 
-		if event_name not in self.subscribers:
-			self.subscribers[event_name] = set([callback])
+		if message_type not in self.subscribers:
+			self.subscribers[message_type] = set([callback])
 		else:
-			self.subscribers[event_name].add(callback)
+			self.subscribers[message_type].add(callback)
 
 
 	def subscribe_all(self, obj):
@@ -46,49 +42,42 @@ class PubSub(object):
 		"""
 		for member_name in dir(obj):
 			member = getattr(obj, member_name)
-			event_names = getattr(member, 'asab_pubsub_subscribe_to_event_names', None)
-			if event_names is not None:
-				for event_name in event_names:
-					self.subscribe(event_name, member)
+			message_types = getattr(member, 'asab_pubsub_subscribe_to_message_types', None)
+			if message_types is not None:
+				for message_type in message_types:
+					self.subscribe(message_type, member)
 
 
-	def unsubscribe(self, event_name, callback):
-		""" Remove a subscriber of an event from the set. """
+	def unsubscribe(self, message_type, callback):
+		""" Remove a subscriber of an message type from the set. """
 
-		callback_set = self.subscribers.get(event_name)
+		callback_set = self.subscribers.get(message_type)
 		if callback_set is None:
-			L.warning('Event name {} not found.'.format(event_name))
+			L.warning("Message type subscription '{}'' not found.".format(message_type))
 			return
 		else:
 			try:
 				callback_set.remove(callback)
 			except KeyError:
-				L.warning('Callback {} not found in the event set {}.'.format(event_name, callback))
+				L.warning("Subscriber '{}'' not found for the message type '{}'.".format(message_type, callback))
 
 
-	def publish(self, event_name, *args, **kwargs):
-		""" Notify subscribers of an event with arguments. """
+	def publish(self, message_type, *args, **kwargs):
+		""" Notify subscribers of an message type. Including arguments. """
 
-		callback_set = self.subscribers.get(event_name)
+		callback_set = self.subscribers.get(message_type)
 		if callback_set is None:
 			return
 
-		for callback in callback_set:
-			callback(event_name, *args, **kwargs)
+		asynchronously = kwargs.pop('asynchronously', False)
 
+		if asynchronously:
+			for callback in callback_set:
+				self.Loop.call_soon(functools.partial(callback, message_type, *args, **kwargs))
 
-	def publish_async(self, event_name, *args, **kwargs):
-		""" Notify subscribers of an event with arguments asynchronously using coroutines. """
-
-		async def publish_coro(callback, *args, **kwargs):
-			callback(event_name, *args, **kwargs)
-
-		callback_set = self.subscribers.get(event_name)
-		if callback_set is None:
-			return
-
-		for callback in callback_set:
-			asyncio.ensure_future(publish_coro(callback, *args, **kwargs), loop=self.Loop)
+		else:
+			for callback in callback_set:
+				callback(message_type, *args, **kwargs)
 
 ###
 
@@ -100,17 +89,17 @@ class subscribe(object):
 	Usage:
 	
 	@asab.subscribe("tick")
-	def on_tick(self, event_name):
+	def on_tick(self, message_type):
 	print("Service tick")
 	'''
 
-	def __init__(self, event_name):
-		self.event_name = event_name
+	def __init__(self, message_type):
+		self.message_type = message_type
 
 	def __call__(self, f):
-		if getattr(f, 'asab_pubsub_subscribe_to_event_names', None) is None:
-			f.asab_pubsub_subscribe_to_event_names = [self.event_name]
+		if getattr(f, 'asab_pubsub_subscribe_to_message_types', None) is None:
+			f.asab_pubsub_subscribe_to_message_types = [self.message_type]
 		else:
-			f.asab_pubsub_subscribe_to_event_names.append(self.event_name)
+			f.asab_pubsub_subscribe_to_message_types.append(self.message_type)
 		return f
 

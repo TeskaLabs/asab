@@ -29,7 +29,7 @@ class StreamSocketServerService(Service):
 			self._servers.append(server)
 
 
-	def _on_exit(self, event_name):
+	def _on_exit(self, message_type):
 		for server in self._servers:
 			server.close()
 

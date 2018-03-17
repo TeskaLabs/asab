@@ -33,34 +33,34 @@ class SampleApplication(asab.Application):
 		self.stop()
 
 
-	def sample_pubsub_on_tick(self, event_name):
-		L.info("Application tick!")
+	def sample_pubsub_on_tick(self, message_type):
+		L.info(message_type)
 
-	def sample_pubsub_on_consume(self, event_name, arg1, arg2, arg3, kwsample):
-		L.info("Event processed by a subscriber %s %d %d %d %d", event_name, arg1, arg2, arg3, kwsample)
+	def sample_pubsub_on_consume(self, message_type, arg1, arg2, arg3, kwsample):
+		L.info("Message processed by a subscriber %s %d %d %d %d", message_type, arg1, arg2, arg3, kwsample)
 
 	def sample_pubsub_add_subscriber(self):
-		self.PubSub.subscribe("test_event", self.sample_pubsub_on_consume)
+		self.PubSub.subscribe("test_message", self.sample_pubsub_on_consume)
 		L.info("Subscriber added.")
 
 	def sample_pubsub_remove_subscriber(self):
-		self.PubSub.unsubscribe("test_event", self.sample_pubsub_on_consume)
+		self.PubSub.unsubscribe("test_message", self.sample_pubsub_on_consume)
 		L.info("Subscriber removed.")
 
 	def sample_pubsub_publish(self):
-		L.info("Event to be published.")
-		self.PubSub.publish("test_event", 1, 2, 3, kwsample=1)
+		L.info("Message to be published.")
+		self.PubSub.publish("test_message", 1, 2, 3, kwsample=1)
 
 	def sample_pubsub_publish_to_unreg(self):
 		"""
-		This is sample event handled that is unregistered to PubSub
+		This is sample message handled that is unregistered to PubSub
 		"""
-		L.info("Unregistered event to be published.")
-		self.PubSub.publish("test_wrong_event")
+		L.info("Unregistered message to be published.")
+		self.PubSub.publish("test_wrong_message")
 
-	def sample_pubsub_publish_async(self):
-		L.info("Event to be published asynchonously.")
-		self.PubSub.publish_async("test_event", 1, 2, 3, kwsample=1)
+	def sample_pubsub_publish_asynchonously(self):
+		L.info("Message to be published asynchonously.")
+		self.PubSub.publish("test_message", 3, 2, 1, kwsample=1, asynchronously=True)
 		L.info("Publishing done.")
 
 	def sample_metrics_add(self):
@@ -91,7 +91,7 @@ if __name__ == '__main__':
 	app.sample_pubsub_publish_to_unreg()
 
 	app.sample_pubsub_add_subscriber()
-	app.sample_pubsub_publish_async()
+	app.sample_pubsub_publish_asynchonously()
 
 	# Example of Metric mechanism
 	app.sample_metrics_set()
