@@ -27,7 +27,7 @@ L = logging.getLogger(__name__)
 class Application(metaclass=Singleton):
 
 
-	Description = "Asynchronous Server Application Boilerplate\n(C) 2018 TeskaLabs Ltd\nhttps://www.teskalabs.com/\n"
+	Description = ""
 
 
 	def __init__(self):
