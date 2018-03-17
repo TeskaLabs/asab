@@ -25,7 +25,7 @@ import asab
 # -- Project information -----------------------------------------------------
 
 project = 'ASAB'
-copyright = '2018, Ales Teska'
+copyright = '2018, TeskaLabs Ltd.'
 author = 'Ales Teska'
 
 # The short X.Y version
