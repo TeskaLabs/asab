@@ -45,33 +45,33 @@ The :py:mod:`asyncio` event loop that is used by this application.
     asyncio.ensure_future(my_coro(), loop=Application.Loop)
 
 
-PubSub
-------
+Publish-Subcribe
+----------------
 
 .. py:attribute:: Application.PubSub
 
-The application-wide publish-Subscribe broker.
+The application-wide Publish-Subscribe message bus.
 
 For more details, go to :py:class:`asab.PubSub`.
 
-PubSub Events
-^^^^^^^^^^^^^
+Well-Known Messages 
+^^^^^^^^^^^^^^^^^^^
 
 .. option:: Application.init!
 
-This event is emitted when application is in the init-time.
+This message is published when application is in the init-time.
 It is actually one of the last things done in init-time, so the application environment is almost ready for use.
 It means that configuration is loaded, logging is setup, the event loop is constructed etc.
 
 
 .. option:: Application.run!
 
-This event is emitted when application enters the run-time.
+This message is emitted when application enters the run-time.
 
 
 .. option:: Application.exit!
 
-This event is emitted when application enter the exit-time.
+This message is emitted when application enter the exit-time.
 
 
 .. option:: Application.tick!
@@ -84,13 +84,13 @@ This event is emitted when application enter the exit-time.
 .. option:: Application.tick/43200!
 .. option:: Application.tick/86400!
 
-The application emits periodically "tick" events.
+The application publish periodically "tick" messages.
 The default tick frequency is 1 second but you can change it by configuration ``[general] tick_period``.
-:any:`Application.tick!` is called every tick. :any:`Application.tick/10!` is called every 10th tick and so on.
+:any:`Application.tick!` is published every tick. :any:`Application.tick/10!` is published every 10th tick and so on.
 
 
-Metrics
--------
+Measurements and Metrics
+------------------------
 
 .. py:attribute:: Application.Metrics
 
@@ -99,8 +99,8 @@ Application Metrics.
 For more details, see :py:class:`asab.metrics.Metrics`.
 
 
-Lifecycle
----------
+Application Lifecycle
+---------------------
 
 The application lifecycle is divided into 3 phases: init-time, run-time and exit-time.
 
@@ -110,18 +110,8 @@ Init-time
 .. py:method:: Application.__init__()
 
 The init-time happens during :py:class:`Application` constructor call.
-The Publish-Subscribe event :any:`Application.init!` is published during init-time.
+The Publish-Subscribe message :any:`Application.init!` is published during init-time.
 The :class:`Config` is loaded during init-time.
-
-
-.. py:method:: Application.parse_args()
-
-TODO: This..
-
-
-.. py:data:: Application.Description
-
-TODO: This..
 
 
 .. py:method:: Application.initialize()
@@ -138,12 +128,12 @@ The application object executes asynchronous callback ``Application.initialize()
 
 
 Run-time
-^^^^^^^^^
+^^^^^^^^
 
 .. py:method:: Application.run()
 
 Enter a run-time. This is where the application spends the most time typically.
-The Publish-Subscribe event :any:`Application.run!` is published when run-time begins.
+The Publish-Subscribe message :any:`Application.run!` is published when run-time begins.
 
 
 .. py:method:: Application.main()
@@ -161,15 +151,15 @@ If ``main()`` method is completed without calling ``stop()``, then the applicati
 
 .. py:method:: Application.stop()
 
-Terminate  ``Application.stop()`` the run-time and commence the exit-time.
-This method is automatically called by SIGINT, SIGTERM. It also includes a response to Ctrl-C on UNIX-like system.
+The method  ``Application.stop()`` gracefully terminates the run-time and commence the exit-time.
+This method is automatically called by ``SIGINT`` and ``SIGTERM``. It also includes a response to ``Ctrl-C`` on UNIX-like system.
 When this method is called 3x, it abruptly exits the application (aka emergency abort).
+
+*Note:* You need to install :py:mod:`win32api` module to use ``Ctrl-C`` or an emergency abord properly with ASAB on Windows. It is an optional dependency of ASAB.
 
 
 Exit-time
 ^^^^^^^^^
-
-The Publish-Subscribe event :any:`Application.exit!` is published when exit-time begins.
 
 .. py:method:: Application.finalize()
 
@@ -181,6 +171,9 @@ The application object executes asynchronous callback ``Application.finalize()``
         async def finalize(self):
             # Custom finalization
             ...
+
+
+The Publish-Subscribe message :any:`Application.exit!` is published when exit-time begins.
 
 
 Module registry
@@ -230,3 +223,37 @@ Add a ``Service`` into a registry using provided ``service_name``.
 .. py:attribute:: Application.Services
 
 A dictionary of registered services.
+
+
+Command-line parser
+-------------------
+
+.. py:method:: Application.parse_args()
+
+The application object calls this method during init-time to process a command-line arguments.
+:py:mod:`argparse` is used to process arguments.
+You can overload this method to provide your own implementation of command-line argument parser.
+
+Default command-line arguments:
+
+.. option:: -h , --help
+
+Show a help.
+
+
+.. option:: -c <CONFIG>,--config <CONFIG>
+
+Load configuration file from a file CONFIG.
+
+
+.. option:: -v , --verbose
+
+Increase the logging level to DEBUG aka be more verbose about what is happening.
+
+
+.. py:data:: Application.Description
+
+The :py:data:`Description` attribute is a text that will be displayed in a help text (``--help``).
+It is expected that own value will be provided.
+The default value is ``""`` (empty string).
+
