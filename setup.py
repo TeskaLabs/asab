@@ -13,7 +13,7 @@ setup(
 		'Programming Language :: Python :: 3.6',
 	],
 	keywords='asynchornous server application boilerplate',
-	packages=find_packages(exclude=['doc', 'module_sample']),
+	packages=find_packages(exclude=['module_sample']),
 	project_urls={
 		'Source': 'https://github.com/TeskaLabs/asab'
 	},
