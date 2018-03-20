@@ -14,8 +14,8 @@
    asab/log
    asab/metrics
    asab/pubsub
-   asab/module
    asab/service
+   asab/module
    asab/abc
 
 

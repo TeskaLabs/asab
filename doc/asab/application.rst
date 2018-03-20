@@ -215,11 +215,6 @@ Locate a service by its service name in a registry and return the ``Service`` ob
     svc.hello()
 
 
-.. py:method:: Application.register_service(service_name, service)
-
-Add a ``Service`` into a registry using provided ``service_name``.
-
-
 .. py:attribute:: Application.Services
 
 A dictionary of registered services.
