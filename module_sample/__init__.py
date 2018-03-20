@@ -24,8 +24,7 @@ class Module(asab.Module):
 		super().__init__(app)
 		L.info("Sample module loaded.")
 
-		self.service_sample = ServiceSample(app)
-		app.register_service("service_sample", self.service_sample)
+		self.service = ServiceSample(app, "service_sample")
 
 
 	async def initialize(self, app):

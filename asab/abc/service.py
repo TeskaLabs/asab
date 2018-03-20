@@ -5,8 +5,9 @@ class Service(abc.ABC):
 	Abstract service class
 	"""
 
-	def __init__(self, app):
-		pass
+	def __init__(self, app, service_name):
+		self.Name = service_name
+		app._register_service(self)
 
 
 	# Lifecycle

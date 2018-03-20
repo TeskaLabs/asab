@@ -199,15 +199,15 @@ class Application(metaclass=Singleton):
 		raise KeyError("Cannot find service '{}'".format(service_name))
 
 
-	def register_service(self, service_name, service):
+	def _register_service(self, service):
 		""" Register a new service using its name. """
 
-		if service_name in self.Services:
+		if service.Name in self.Services:
 			L.error("Service '{}' already registered (existing:{} new:{})"
-					.format(service_name, self.Services[service_name], service))
-			raise RuntimeError("Service {} already registered".format(service_name))
+					.format(service.Name, self.Services[service.Name], service))
+			raise RuntimeError("Service {} already registered".format(service.Name))
 
-		self.Services[service_name] = service
+		self.Services[service.Name] = service
 
 		asyncio.ensure_future(service.initialize(self), loop=self.Loop)
 

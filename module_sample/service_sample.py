@@ -11,8 +11,8 @@ L = logging.getLogger(__name__)
 class ServiceSample(asab.Service):
 
 
-	def __init__(self, app):
-		super().__init__(app)
+	def __init__(self, app, service_name):
+		super().__init__(app, service_name)
 		app.PubSub.subscribe_all(self)
 
 		self.value = asab.Config["module_sample"]["example"]
