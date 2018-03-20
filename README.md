@@ -10,6 +10,9 @@ Contributions are welcome.
 
 Have fun!
 
+## Installation
+
+	pip install asab
 
 ## The simplest application
 
