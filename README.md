@@ -47,3 +47,16 @@ if __name__ == '__main__':
 ## High-level architecture
 
 ![Schema of ASAB high-level achitecture](./doc/_static/asab-architecture.png)
+
+
+
+## Licence
+
+ASAB is an open-source software, available under BSD 3-Clause License.  
+ASAB is maintained by [TeskaLabs Ltd](https://www.teskalabs.com).
+
+
+## Links
+
+  * [Pypi](https://pypi.org/project/asab/)
+  * [GitHub](https://github.com/teskalabs/asab)
