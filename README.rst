@@ -19,6 +19,12 @@ Installation
 ``pip install asab``
 
 
+Documentation
+-------------
+
+`Documentation on Readthedocs <http://asab.readthedocs.io/>`_
+
+
 Example
 -------
 
@@ -42,7 +48,7 @@ Principles
 
 * Write once, use many times
 * Keep it simple
-* Well documented
+* Well `documented <http://asab.readthedocs.io/>`_
 * Asynchronous via Python 3.5+ ``async``/``await`` and ``asyncio``
 * `Event-driven Architecture <https://en.wikipedia.org/wiki/Event-driven_architecture>`_ / `Reactor pattern <https://en.wikipedia.org/wiki/Reactor_pattern>`_
 * Single-threaded core but compatible with threads
