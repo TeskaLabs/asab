@@ -19,7 +19,8 @@ Installation
 -  ``pip install asab``
 
 
-## The simplest application
+Example
+-------
 
 .. code:: python
 
@@ -53,7 +54,7 @@ Principles
 High-level architecture
 -----------------------
 
-.. image:: https://github.com/TeskaLabs/asab/doc/_static/asab-architecture.png
+.. image:: https://github.com/TeskaLabs/asab/raw/master/doc/_static/asab-architecture.png
 	:alt: Schema of ASAB high-level achitecture
 
 
