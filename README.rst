@@ -26,12 +26,12 @@ Example
 
     #!/usr/bin/env python3
     import asab
-	
+    
     class MyApplication(asab.Application):
         async def main(self):
             print("Hello world!")
             self.stop()
-	
+    
     if __name__ == '__main__':
         app = MyApplication()
         app.run()
@@ -55,7 +55,7 @@ High-level architecture
 -----------------------
 
 .. image:: https://github.com/TeskaLabs/asab/raw/master/doc/_static/asab-architecture.png
-	:alt: Schema of ASAB high-level achitecture
+    :alt: Schema of ASAB high-level achitecture
 
 
 Licence
@@ -63,11 +63,4 @@ Licence
 
 ASAB is an open-source software, available under BSD 3-Clause License.  
 ASAB is maintained by `TeskaLabs Ltd <https://www.teskalabs.com>`_.
-
-
-Links
------
-
-* `Pypi <https://pypi.org/project/asab/>`_
-* `GitHub <https://github.com/teskalabs/asab>`_
 

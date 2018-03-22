@@ -1,14 +1,11 @@
 from setuptools import setup
 from setuptools import find_packages
 
-with open_local(['README.rst']) as rm:
-	long_description = rm.read()
-
 setup(
 	name='asab',
-	version='18.03-beta1',
+	version='18.03-beta7',
 	description='ASAB simplifies a development of async application servers',
-	long_description=long_description,
+	long_description=open('README.rst').read(),
 	url='https://github.com/TeskaLabs/asab',
 	author='TeskaLabs Ltd',
 	author_email='info@teskalabs.com',
