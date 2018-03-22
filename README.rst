@@ -46,6 +46,7 @@ Principles
 * Asynchronous via Python 3.5+ ``async``/``await`` and ``asyncio``
 * `Event-driven Architecture <https://en.wikipedia.org/wiki/Event-driven_architecture>`_ / `Reactor pattern <https://en.wikipedia.org/wiki/Reactor_pattern>`_
 * Single-threaded core but compatible with threads
+* Good support for `containerization <https://en.wikipedia.org/wiki/Operating-system-level_virtualization>`_
 * Compatible with `pypy <http://pypy.org>`_, Just-In-Time compiler capable of boosting Python code performace more then 5x times
 * Support for introspection
 * Modularized
