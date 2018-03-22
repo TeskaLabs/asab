@@ -16,7 +16,7 @@ Have fun!
 Installation
 ------------
 
--  ``pip install asab``
+``pip install asab``
 
 
 Example
