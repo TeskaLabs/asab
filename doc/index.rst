@@ -9,6 +9,7 @@
    :maxdepth: 2
    :caption: Contents:
 
+   get-started
    asab/application
    asab/config
    asab/log
