@@ -7,14 +7,18 @@ setup(
 	description='Asynchronous Server Application Boilerplate',
 	url='https://github.com/TeskaLabs/asab',
 	author='TeskaLabs Ltd',
-	author_email='support@teskalabs.com',
+	author_email='info@teskalabs.com',
+	license='BSD License',
+	platforms='any',
 	classifiers=[
-		'Programming Language :: Python :: 3',
+		'Development Status :: 4 - Beta',
+		'Programming Language :: Python :: 3.5',
 		'Programming Language :: Python :: 3.6',
 	],
-	keywords='asynchornous server application boilerplate',
+	keywords='asyncio',
 	packages=find_packages(exclude=['module_sample']),
 	project_urls={
 		'Source': 'https://github.com/TeskaLabs/asab'
 	},
 )
+
