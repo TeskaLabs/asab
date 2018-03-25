@@ -151,9 +151,9 @@ class Application(metaclass=Singleton):
 			except Exception:
 				L.exception("Exception in {}".format(task))
 
-		#TODO: Process pending_tasks tasks from above
+		#TODO: Process pending_tasks tasks from above (should be none)
 
-
+		self.Loop.run_until_complete(self.Loop.shutdown_asyncgens())
 		self.Loop.close()
 
 		try:
@@ -277,5 +277,21 @@ class Application(metaclass=Singleton):
 		if len(futures) > 0:
 			await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
 			# TODO: Handle expections (if needed) - probably only print them
+
+		tasks_awaiting = 0
+		for i in range(3):
+			ts = asyncio.Task.all_tasks(self.Loop)
+			tasks_awaiting = 0
+			for t in ts:
+				if t.done(): continue
+				tasks_awaiting += 1
+			if tasks_awaiting <= 2:
+				# 2 is for _exit_time_governor and wait()
+				break
+
+			await asyncio.sleep(1)
+
+		else:
+			L.warn("Exiting but {} async task(s) are still waiting".format(tasks_awaiting))
 
 		future.set_result("exit")
