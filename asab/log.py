@@ -55,19 +55,24 @@ class StructuredDataFormatter(logging.Formatter):
 		super().__init__(fmt, datefmt, style)
 		self.sd_id = sd_id
 
+
 	def format(self, record):
 		record.struct_data=self.render_struct_data(record.__dict__.get("_struct_data"))
 		return super().format(record)
 
 
 	def formatTime(self, record, datefmt=None):
-		ct = datetime.datetime.fromtimestamp(record.created)
-		if datefmt:
-			s = ct.strftime(datefmt)
-		else:
-			t = ct.strftime("%Y-%m-%d %H:%M:%S")
-			s = "%s.%03d" % (t, record.msecs)
-		return s
+		try:
+			ct = datetime.datetime.fromtimestamp(record.created)
+			if datefmt is not None:
+				s = ct.strftime(datefmt)
+			else:
+				t = ct.strftime("%Y-%m-%d %H:%M:%S")
+				s = "%s.%03d" % (t, record.msecs)
+			return s
+		except Exception as e:
+			print("ERROR when logging: {}".format(e), file=sys.stderr)
+			return str(ct)
 
 	def render_struct_data(self, struct_data):
 		if struct_data is None:
