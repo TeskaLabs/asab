@@ -166,6 +166,7 @@ class Application(metaclass=Singleton):
 	def stop(self):
 		self._stop_event.set()
 		self._stop_counter += 1
+		self.PubSub.publish("Application.stop!", self._stop_counter)
 		if self._stop_counter >= 3:
 			L.fatal("Emergency exit")
 			try:

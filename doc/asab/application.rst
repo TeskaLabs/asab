@@ -69,6 +69,13 @@ It means that configuration is loaded, logging is setup, the event loop is const
 This message is emitted when application enters the run-time.
 
 
+.. option:: Application.stop!
+
+This message is emitted when application wants to stop the run-time.
+It can be sent multiple times because of a process of graceful run-time termination.
+The first argument of the message is a counter that increases with every ``Application.stop!`` event.
+
+
 .. option:: Application.exit!
 
 This message is emitted when application enter the exit-time.
