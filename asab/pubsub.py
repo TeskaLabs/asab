@@ -104,3 +104,68 @@ class subscribe(object):
 			f.asab_pubsub_subscribe_to_message_types.append(self.message_type)
 		return f
 
+
+###
+
+class Subscriber(object):
+
+	'''
+:any:`Subscriber` object allows to consume PubSub messages in coroutines.
+It subscribes for various message types and consumes them.
+It works on FIFO basis (First message In, first message Out).
+If ``pubsub`` argument is None, the initial subscription is skipped.
+
+.. code:: python
+    
+    subscriber = asab.Subscriber(
+        app.PubSub,
+        "Application.tick!",
+        "Application.stop!"
+    )
+
+    # Use in await statement
+    message = await subscriber.message()
+
+    # Use in a "async for" statement
+    async for message in subscriber:
+        handle(message)
+
+	'''
+
+	def __init__(self, pubsub = None, *message_types):
+
+		self._q = asyncio.Queue()
+		self._subscriptions = []
+
+		if pubsub is not None:
+			for message_type in message_types:
+				self.subscribe(pubsub, message_type)
+
+
+	def subscribe(self, pubsub, message_type):
+		'''
+Subscribe for more message types. This method can be called many times with various ``pubsub`` objects.
+		'''
+		pubsub.subscribe(message_type, self)
+		self._subscriptions.append((pubsub, message_type))
+
+
+	def __call__(self, message_type, *args, **kwargs):
+		self._q.put_nowait((message_type, args, kwargs))
+
+
+	def message(self):
+		'''
+Wait for a message asynchronously.
+Returns a three-members tuple ``(message_type, args, kwargs)``.
+		'''
+
+		return self._q.get()
+
+
+	def __aiter__(self):
+		return self
+
+
+	async def __anext__(self):
+		return await self.wait()

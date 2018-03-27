@@ -4,6 +4,6 @@ from .abc.service import Service
 from .abc.module import Module
 from .abc.singleton import Singleton
 from .config import Config
-from .pubsub import subscribe, PubSub
+from .pubsub import subscribe, PubSub, Subscriber
 
 from .socket import StreamSocketServerService

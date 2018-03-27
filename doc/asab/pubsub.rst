@@ -82,6 +82,11 @@ In the followin example, both ``on_tick()`` and ``on_exit()`` methods are subscr
 Unsubscribe from a message delivery.
 
 
+.. autoclass:: asab.Subscriber
+    :members:
+    :undoc-members:
+
+
 Publishing
 ----------
 
@@ -98,9 +103,6 @@ The example of a message publish to the :any:`Application.PubSub` message bus:
 	def my_function(app):
 	    app.PubSub.publish("mymessage!")
 
-
-Asynchronous publish
-^^^^^^^^^^^^^^^^^^^^
 
 Asynchronous message delivery can be trigged by providing ``asynchronously=True`` keyword argument.
 Each subscriber is then handled in a dedicated ``Future`` object.
