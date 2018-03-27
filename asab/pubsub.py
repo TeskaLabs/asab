@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import weakref
 import inspect
 import functools
 
@@ -31,7 +32,7 @@ class PubSub(object):
 			callback = functools.partial(_deliver_async, self.Loop, callback)
 
 		if message_type not in self.subscribers:
-			self.subscribers[message_type] = set([callback])
+			self.subscribers[message_type] = weakref.WeakSet([callback])
 		else:
 			self.subscribers[message_type].add(callback)
 
