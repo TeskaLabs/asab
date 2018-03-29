@@ -10,7 +10,6 @@ L = logging.getLogger(__name__)
 
 #
 
-
 class PubSub(object):
 
 	def __init__(self, app):
@@ -24,15 +23,16 @@ class PubSub(object):
 		It could be even plain function, method or its coroutine variant (then it will be delivered in a dedicated future)
 		"""
 
-		def _deliver_async(loop, callback, message_type, *args, **kwargs):
-			asyncio.ensure_future(callback(message_type, *args, **kwargs), loop=loop)
+		# If subscribe is a bound method, do special treatment
+		# https://stackoverflow.com/questions/53225/how-do-you-check-whether-a-python-method-is-bound-or-not
+		if hasattr(callback, '__self__'):
+			callback = weakref.WeakMethod(callback)
 
-		# If subscribe is a coroutine (async def), then wrap delivery in 
-		if inspect.iscoroutinefunction(callback):
-			callback = functools.partial(_deliver_async, self.Loop, callback)
+		else:
+			callback = weakref.ref(callback)
 
 		if message_type not in self.subscribers:
-			self.subscribers[message_type] = weakref.WeakSet([callback])
+			self.subscribers[message_type] = set([callback])
 		else:
 			self.subscribers[message_type].add(callback)
 
@@ -63,22 +63,50 @@ class PubSub(object):
 				L.warning("Subscriber '{}'' not found for the message type '{}'.".format(message_type, callback))
 
 
-	def publish(self, message_type, *args, **kwargs):
-		""" Notify subscribers of an message type. Including arguments. """
+	def _callback_iter(self, message_type):
+
+		def _deliver_async(loop, callback, message_type, *args, **kwargs):
+			asyncio.ensure_future(callback(message_type, *args, **kwargs), loop=loop)
 
 		callback_set = self.subscribers.get(message_type)
 		if callback_set is None:
 			return
 
+		remove_set = None
+
+		for callback_ref in callback_set:
+			callback = callback_ref()
+
+			# Check if a weak reference is working
+			if callback is None: # a reference is lost
+				if remove_set is None:
+					remove_set = set()
+				remove_set.add(callback_ref)
+				continue
+
+			if inspect.iscoroutinefunction(callback):
+				callback = functools.partial(_deliver_async, self.Loop, callback)
+
+			yield callback
+
+		if remove_set is not None:
+			for callback_ref in remove_set:
+				callback_set.remove(callback_ref)
+
+
+	def publish(self, message_type, *args, **kwargs):
+		""" Notify subscribers of an message type. Including arguments. """
+
 		asynchronously = kwargs.pop('asynchronously', False)
 
 		if asynchronously:
-			for callback in callback_set:
+			for callback in self._callback_iter(message_type):
 				self.Loop.call_soon(functools.partial(callback, message_type, *args, **kwargs))
 
 		else:
-			for callback in callback_set:
+			for callback in self._callback_iter(message_type):
 				callback(message_type, *args, **kwargs)
+
 
 ###
 
