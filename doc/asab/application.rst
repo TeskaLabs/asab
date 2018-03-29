@@ -27,11 +27,11 @@ Direct use of :py:class:`Application` object:
 
 .. code:: python
 
-	import asab
+    import asab
 
     if __name__ == '__main__':
-	    app = asab.Application()
-	    app.run()
+        app = asab.Application()
+        app.run()
 
 
 
