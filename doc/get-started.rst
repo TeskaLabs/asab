@@ -16,8 +16,9 @@ syntax, so earlier versions of python won't work.
     class MyApplication(asab.Application):
         pass
 
-    app = MyApplication()
-    app.run()
+    if __name__ == '__main__':
+        app = MyApplication()
+        app.run()
 
 
 3. Run the server: ``python3 main.py``
