@@ -11,10 +11,13 @@ syntax, so earlier versions of python won't work.
 
 .. code:: python
 
+    #!/usr/bin/env python3
     import asab
 
     class MyApplication(asab.Application):
-        pass
+        async def main(self):
+            print("Hello world")
+            self.stop()
 
     if __name__ == '__main__':
         app = MyApplication()
