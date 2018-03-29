@@ -18,8 +18,9 @@ Subclassing:
     class MyApplication(asab.Application):
         pass
 
-    app = MyApplication()
-    app.run()
+    if __name__ == '__main__':
+        app = MyApplication()
+        app.run()
 
 
 Direct use of :py:class:`Application` object:
@@ -28,8 +29,9 @@ Direct use of :py:class:`Application` object:
 
 	import asab
 
-	app = asab.Application()
-	app.run()
+    if __name__ == '__main__':
+	    app = asab.Application()
+	    app.run()
 
 
 
