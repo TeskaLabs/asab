@@ -49,11 +49,11 @@ This is how a service is located and used:
 
 .. py:data:: Service.Name
 
-The service name.
+Each service is identified by its name.
 
 
-Service lifecycle
------------------
+Lifecycle
+---------
 
 .. py:method:: Service.initialize(app)
 
