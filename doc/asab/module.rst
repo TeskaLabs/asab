@@ -47,17 +47,19 @@ And this is how the module is loaded:
     from mymodule import MyModule
     app.add_module(MyModule)
 
+For more details see :any:`Application.add_module`.
+
 
 Lifecycle
 ---------
 
-.. py:method:: Module.initialize
+.. py:method:: Module.initialize(app)
 
 Called when the module is initialized.
 It can be overriden by an user.
 
 
-.. py:method:: Module.finalize
+.. py:method:: Module.finalize(app)
 
 Called when the module is finalized e.g. during application exit-time.
 It can be overriden by an user.
