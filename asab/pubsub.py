@@ -1,7 +1,6 @@
 import logging
 import asyncio
 import weakref
-import inspect
 import functools
 
 #
@@ -84,7 +83,7 @@ class PubSub(object):
 				remove_set.add(callback_ref)
 				continue
 
-			if inspect.iscoroutinefunction(callback):
+			if asyncio.iscoroutinefunction(callback):
 				callback = functools.partial(_deliver_async, self.Loop, callback)
 
 			yield callback
