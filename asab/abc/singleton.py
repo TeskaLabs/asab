@@ -4,8 +4,7 @@ class Singleton(type):
 	"""
 The singleton pattern is a software design pattern that restricts the instantiation of a class to one object.
 More at https://en.wikipedia.org/wiki/Singleton_pattern
-
-Implementation idea is from https://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
+and the implementation idea is from https://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
 	
 Usage:
 
