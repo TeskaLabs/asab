@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
 	name='asab',
-	version='18.03-beta7',
+	version='18.04-beta3',
 	description='ASAB simplifies a development of async application servers',
 	long_description=open('README.rst').read(),
 	url='https://github.com/TeskaLabs/asab',
