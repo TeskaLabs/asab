@@ -10,6 +10,7 @@
    :caption: Contents:
 
    get-started
+   how-to
    asab/application
    asab/config
    asab/log
