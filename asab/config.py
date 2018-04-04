@@ -18,6 +18,9 @@ class ConfigParser(configparser.ConfigParser):
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			'config_file': os.environ.get('ASAB_CONFIG', ''),
 			'tick_period': 1, # In seconds
+		},
+
+		'daemon': {
 			'pidfile': '',
 			'uid': '',
 			'gid': '',

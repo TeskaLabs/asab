@@ -238,6 +238,15 @@ The application object calls this method during init-time to process a command-l
 :py:mod:`argparse` is used to process arguments.
 You can overload this method to provide your own implementation of command-line argument parser.
 
+
+.. py:data:: Application.Description
+
+The :py:data:`Description` attribute is a text that will be displayed in a help text (``--help``).
+It is expected that own value will be provided.
+The default value is ``""`` (empty string).
+
+
+
 Default command-line arguments:
 
 .. option:: -h , --help
@@ -255,9 +264,18 @@ Load configuration file from a file CONFIG.
 Increase the logging level to DEBUG aka be more verbose about what is happening.
 
 
-.. py:data:: Application.Description
+.. option:: -d , --daemonize
 
-The :py:data:`Description` attribute is a text that will be displayed in a help text (``--help``).
-It is expected that own value will be provided.
-The default value is ``""`` (empty string).
+Launch the application in the background aka daemonized.
+Python module :py:mod:`python-daemon` has to be installed.
+
+Daemon-related section of :any:`Config` file::
+
+    [daemon]
+    pidfile=/var/run/myapp.pid
+    uid=nobody
+    gid=nobody
+
+Options ``pidfile``, ``uid`` and ``gid`` are supported.
+
 
