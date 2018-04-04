@@ -131,7 +131,7 @@ class Application(metaclass=Singleton):
 		for task in finished_tasks:
 			try:
 				task.result()
-			except Exception:
+			except BaseException:
 				L.exception("Exception in {}".format(task))
 
 		#TODO: Process pending_tasks tasks from above
@@ -148,7 +148,7 @@ class Application(metaclass=Singleton):
 		for task in finished_tasks:
 			try:
 				task.result()
-			except Exception:
+			except BaseException:
 				L.exception("Exception in {}".format(task))
 
 		#TODO: Process pending_tasks tasks from above (should be none)

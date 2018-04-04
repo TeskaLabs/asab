@@ -70,7 +70,7 @@ class StructuredDataFormatter(logging.Formatter):
 				t = ct.strftime("%Y-%m-%d %H:%M:%S")
 				s = "%s.%03d" % (t, record.msecs)
 			return s
-		except Exception as e:
+		except BaseException as e:
 			print("ERROR when logging: {}".format(e), file=sys.stderr)
 			return str(ct)
 
