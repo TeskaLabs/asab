@@ -32,3 +32,5 @@ class ServiceWebApp(asab.Service):
 		for addr, port in self._listen:
 			server = await app.Loop.create_server(self.WebApp.make_handler(), addr, port)
 			self.Servers.append(server)
+
+	#TODO: Implement finalize() where all servers are closed including all peer connections
