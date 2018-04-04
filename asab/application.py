@@ -3,8 +3,15 @@ import asyncio
 import argparse
 import itertools
 import os
+import sys
 import signal
 import platform
+
+try:
+	import daemon
+	import daemon.pidfile
+except ModuleNotFoundError:
+	daemon = None
 
 from .config import Config
 from .abc.singleton import Singleton
@@ -36,10 +43,13 @@ class Application(metaclass=Singleton):
 	def __init__(self):
 
 		# Parse command line
-		self.parse_args()
+		args = self.parse_args()
 
 		# Load configuration
 		Config._load()
+
+		if args.daemonize:
+			self.daemonize()
 
 		# Setup logging
 		_setup_logging()
@@ -108,6 +118,7 @@ class Application(metaclass=Singleton):
 		)
 		parser.add_argument('-c', '--config', help='Path to configuration file (default: %(default)s)', default=Config._default_values['general']['config_file'])
 		parser.add_argument('-v', '--verbose', action='store_true', help='Print more information (enable debug output)')
+		parser.add_argument('-d', '--daemonize', action='store_true', help='Run deamonized (in the background)')
 
 		args = parser.parse_args()
 		if args.config is not None:
@@ -115,6 +126,44 @@ class Application(metaclass=Singleton):
 
 		if args.verbose:
 			Config._default_values['general']['verbose'] = True
+
+		return args
+
+
+	def daemonize(self):
+		if daemon is None:
+			print("Install 'python-daemon' module to support daemonising.", file=sys.stderr)
+			sys.exit(1)
+
+		pidfilepath = Config['general']['pidfile']
+		if pidfilepath == "":
+			pidfile = None
+		else:
+			pidfile = daemon.pidfile.TimeoutPIDLockFile(pidfilepath)
+
+		uid = Config['general']['uid']
+		if uid == "": uid = None
+
+		gid = Config['general']['gid']
+		if gid == "": gid = None
+
+		signal_map={
+			signal.SIGTTIN: None,
+			signal.SIGTTOU: None,
+			signal.SIGTSTP: None,
+		}
+
+		self.DaemonContext = daemon.DaemonContext(
+			signal_map=signal_map,
+			pidfile=pidfile,
+			uid=uid, gid=gid
+		)
+
+		try:
+			self.DaemonContext.open()
+		except lockfile.AlreadyLocked as e:
+			print("Cannot create a PID file '{}':".format(pidfilepath), e)
+			sys.exit(1)
 
 
 	def run(self):
