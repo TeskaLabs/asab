@@ -42,7 +42,7 @@ How to deploy ASAB into LXC container
 
 .. code-block:: bash
 
-	$ pip3 install asab
+	$ pip3 install asab python-daemon
 
 
 6. (Optionally if you want to use asab.web module) install aiohttp dependecy
