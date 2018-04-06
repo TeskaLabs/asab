@@ -18,6 +18,7 @@ class ConfigParser(configparser.ConfigParser):
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			'config_file': os.environ.get('ASAB_CONFIG', ''),
 			'tick_period': 1, # In seconds
+			'var_dir': os.path.expanduser('~/.'+os.path.splitext(os.path.basename(sys.argv[0]))[0]),
 		},
 
 		'daemon': {
