@@ -6,6 +6,7 @@ import os
 import sys
 import signal
 import platform
+import random
 
 try:
 	import daemon
@@ -53,6 +54,9 @@ class Application(metaclass=Singleton):
 
 		# Setup logging
 		_setup_logging()
+
+		# Seed the random generator
+		random.seed()
 
 		# Configure event loop
 		self.Loop = asyncio.get_event_loop()
