@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
+import os
 import asab
 import aiohttp
 
 class MyApplication(asab.Application):
 
+	'''
+	Run by:
+	$ PYTHONPATH=.. WEBAPPDIR='../../asab-webui-kit/build/' python3 ./webserver.py
+	'''
 
 	async def initialize(self):
 		# Loading the web service module
@@ -13,12 +18,13 @@ class MyApplication(asab.Application):
 		# Locate web service
 		svc = self.get_service("asab.WebService")
 
-		svc.addWebApp('/', '../../asab-webui-kit/build/')
+		webappdir = os.environ.get('WEBAPPDIR', 'webapp')
+		svc.addWebApp('/', webappdir)
 
 		# Add a route
 		svc.WebApp.router.add_get('/hello', self.hello)
-
 		print("Test with curl:\n\t$ curl http://localhost:8080/hello")
+
 
 	# Simplistic view
 	async def hello(self, request):
