@@ -3,29 +3,35 @@ import os
 import asab
 import aiohttp
 
+import asab.web
+import asab.web.session
+
 class MyApplication(asab.Application):
 
 	'''
 	Run by:
-	$ PYTHONPATH=.. WEBAPPDIR='../../asab-webui-kit/build/' python3 ./webserver.py
+	$ PYTHONPATH=.. ./webserver.py
 	'''
 
 	async def initialize(self):
 		# Loading the web service module
-		from asab.web import Module
-		self.add_module(Module)
+		self.add_module(asab.web.Module)
 
 		# Locate web service
-		svc = self.get_service("asab.WebService")
+		websvc = self.get_service("asab.WebService")
+
+		# Add a web ession service
+		asab.web.session.ServiceWebSession(self, "asab.ServiceWebSession", websvc)
 
 		# Add a route
-		svc.WebApp.router.add_get('/hello', self.hello)
-		print("Test with curl:\n\t$ curl http://localhost:8080/hello")
+		websvc.WebApp.router.add_get('/api/login', self.login)
+		print("Test with curl:\n\t$ curl http://localhost:8080/api/login")
 
 
-	# Simplistic view
-	async def hello(self, request):
-		return aiohttp.web.Response(text='Hello!\n')
+	async def login(self, request):
+		session = request.get('Session')
+		return aiohttp.web.Response(text='Hello {}!\n'.format(session))
+
 
 if __name__ == '__main__':
 	app = MyApplication()
