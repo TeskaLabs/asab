@@ -7,6 +7,14 @@ import aiohttp.web
 
 class StaticDirProvider(object):
 
+	'''
+To serve e.g. React app, add this to your asab.Application / async def initialize(self):
+
+svc = self.get_service("asab.WebService")
+webappdir = os.environ.get('WEBAPPDIR', 'webapp')
+svc.addWebApp('/', webappdir)
+	'''
+
 	def __init__(self, websvc, root, path, index='index.html'):
 		self.Path = path
 		self.Index = index

@@ -18,9 +18,6 @@ class MyApplication(asab.Application):
 		# Locate web service
 		svc = self.get_service("asab.WebService")
 
-		webappdir = os.environ.get('WEBAPPDIR', 'webapp')
-		svc.addWebApp('/', webappdir)
-
 		# Add a route
 		svc.WebApp.router.add_get('/hello', self.hello)
 		print("Test with curl:\n\t$ curl http://localhost:8080/hello")
