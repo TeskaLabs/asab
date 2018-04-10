@@ -26,6 +26,11 @@ class ServiceWebApp(asab.Service):
 		self.WebApp = aiohttp.web.Application(loop=app.Loop)
 		self.WebApp['app'] = app
 
+		rootdir = asab.Config["asab:web"]["rootdir"]
+		if len(rootdir) > 0:
+			from .staticdir import StaticDirProvider
+			self.WebApp['rootdir'] = StaticDirProvider(self, root='/', path=rootdir)
+
 
 	async def initialize(self, app):
 		self.Servers = []
@@ -34,3 +39,8 @@ class ServiceWebApp(asab.Service):
 			self.Servers.append(server)
 
 	#TODO: Implement finalize() where all servers are closed including all peer connections
+
+
+	def addWebApp(self, root, path, index='index.html'):
+		from .staticdir import StaticDirProvider
+		StaticDirProvider(self, root=root, path=path, index=index)

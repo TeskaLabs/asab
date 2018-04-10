@@ -4,6 +4,7 @@ import aiohttp
 
 class MyApplication(asab.Application):
 
+
 	async def initialize(self):
 		# Loading the web service module
 		from asab.web import Module
@@ -11,6 +12,8 @@ class MyApplication(asab.Application):
 
 		# Locate web service
 		svc = self.get_service("asab.WebService")
+
+		svc.addWebApp('/', '../../asab-webui-kit/build/')
 
 		# Add a route
 		svc.WebApp.router.add_get('/hello', self.hello)

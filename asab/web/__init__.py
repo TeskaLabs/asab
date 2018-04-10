@@ -13,6 +13,7 @@ asab.Config.add_defaults(
 	{
 		'asab:web': {
 			'listen': '0.0.0.0 8080', # Can be multiline
+			'rootdir': '',
 		}
 	}
 )
