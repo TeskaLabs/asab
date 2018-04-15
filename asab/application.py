@@ -29,17 +29,13 @@ if platform.system() == "Windows":
 else:
 	win32api = None
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 class Application(metaclass=Singleton):
 
-
 	Description = ""
-
 
 	def __init__(self):
 
@@ -63,7 +59,6 @@ class Application(metaclass=Singleton):
 		self.Loop.set_exception_handler(_loop_exception_handler)
 		if Config["general"]["verbose"] == "True":
 			self.Loop.set_debug(True)
-
 		
 		try:
 			# Signals are not available on Windows
@@ -72,10 +67,11 @@ class Application(metaclass=Singleton):
 			# Checking if the program runs on Windows
 			if any(platform.win32_ver()):
 				if win32api is not None:
-					callBack = self.stop
+					callback = self.stop
+
 					# Adding a handler to listen to the interrupt event
 					def handler(type):
-						callBack()
+						callback()
 						return True
 					win32api.SetConsoleCtrlHandler(handler, True)
 
@@ -239,6 +235,7 @@ class Application(metaclass=Singleton):
 	
 		asyncio.ensure_future(module.initialize(self), loop=self.Loop)
 
+
 	# Services
 
 	def get_service(self, service_name):
@@ -276,6 +273,7 @@ class Application(metaclass=Singleton):
 
 	async def finalize(self):
 		pass
+
 
 	# Governors
 
