@@ -6,5 +6,15 @@
 </head>
 <body>
 	<p>Hi there!</p>
+	<p id="ticks"></p>
+	<script type="text/javascript">
+var tick_counter = 0
+var connection = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + window.location.host + "/subscribe");
+connection.onmessage = function (e) {
+	tick_counter += 1;
+	var pticks = document.getElementById("ticks");
+	pticks.innerHTML = "Ticks: " + tick_counter;
+};
+	</script>
 </body>
 </html>
