@@ -149,14 +149,6 @@ If ``pubsub`` argument is None, the initial subscription is skipped.
         "Application.tick!",
         "Application.stop!"
     )
-
-    # Use in await statement
-    message = await subscriber.message()
-
-    # Use in a "async for" statement
-    async for message in subscriber:
-        handle(message)
-
 	'''
 
 	def __init__(self, pubsub = None, *message_types):
@@ -185,14 +177,26 @@ Subscribe for more message types. This method can be called many times with vari
 		'''
 Wait for a message asynchronously.
 Returns a three-members tuple ``(message_type, args, kwargs)``.
-		'''
 
+# Use in await statement
+    message = await subscriber.message()
+		'''
 		return self._q.get()
 
 
 	def __aiter__(self):
+		'''
+Wait for a message asynchronously.
+Returns a three-members tuple ``(message_type, args, kwargs)``.
+
+    # Use in a "async for" statement
+    async for message in subscriber:
+        handle(message)
+
+		'''
+
 		return self
 
 
 	async def __anext__(self):
-		return await self.wait()
+		return await self._q.get()
