@@ -9,6 +9,11 @@ L = logging.getLogger(__name__)
 
 #
 
+#TODO: Configure cookie name
+#TODO: Configure cookie http only / secure
+#TODO: Configure cookie domain
+#TODO: Configure max-age
+
 class ServiceWebSession(asab.Service):
 
 	def __init__(self, app, service_name, webservice, session_storage=None):
