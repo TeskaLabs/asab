@@ -8,8 +8,7 @@ L = logging.getLogger(__name__)
 
 #
 
-class ServiceWebApp(asab.Service):
-
+class WebService(asab.Service):
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
@@ -41,6 +40,14 @@ class ServiceWebApp(asab.Service):
 	#TODO: Implement finalize() where all servers are closed including all peer connections
 
 
-	def addWebApp(self, root, path, index='index.html'):
+	def addFrontendWebApp(self, root, path, index='index.html'):
+		'''
+To serve e.g. React or AngularJS frontend web application,
+add this to your asab.Application / async def initialize(self):
+
+websvc = self.get_service("asab.WebService")
+webappdir = os.environ.get('WEBAPPDIR', 'webapp')
+websvc.addFrontendWebApp('/', webappdir)
+		'''
 		from .staticdir import StaticDirProvider
 		StaticDirProvider(self, root=root, path=path, index=index)

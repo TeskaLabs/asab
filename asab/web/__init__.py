@@ -1,7 +1,7 @@
 import logging
 import asab
 
-from .service_webapp import ServiceWebApp
+from .service import WebService
 
 #
 
@@ -23,4 +23,4 @@ class Module(asab.Module):
 
 	def __init__(self, app):
 		super().__init__(app)
-		self.service = ServiceWebApp(app, "asab.WebService")
+		self.service = WebService(app, "asab.WebService")

@@ -20,12 +20,15 @@ class MyApplication(asab.Application):
 		# Locate web service
 		websvc = self.get_service("asab.WebService")
 
-		# Add a web ession service
+		# Add a web session service
 		asab.web.session.ServiceWebSession(self, "asab.ServiceWebSession", websvc)
 
 		# Add a route
 		websvc.WebApp.router.add_get('/api/login', self.login)
 		print("Test with curl:\n\t$ curl http://localhost:8080/api/login")
+
+		# Add a web app
+		websvc.addFrontendWebApp('/', "webapp")
 
 
 	async def login(self, request):
