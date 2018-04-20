@@ -30,6 +30,9 @@ class MyApplication(asab.Application):
 		# Add a web app
 		websvc.addFrontendWebApp('/', "webapp")
 
+		# Add a PubSub handler
+		websvc.WebApp.router.add_get('/subscribe', asab.web.Subscriber(self, self.PubSub, "Application.tick!"))
+
 
 	async def login(self, request):
 		session = request.get('Session')

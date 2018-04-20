@@ -2,6 +2,7 @@ import logging
 import asab
 
 from .service import WebService
+from .subscriber import Subscriber
 
 #
 
