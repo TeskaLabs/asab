@@ -37,13 +37,13 @@ class Subscriber(object):
 		app.PubSub.subscribe("Application.stop!", self._on_app_stop)
 
 
-	async def _on_app_stop(self, message_type, counter):
+	def _on_app_stop(self, message_type, counter):
 		# Clean up during pplication exit
 		wslist = [ws.close(code=aiohttp.WSCloseCode.GOING_AWAY, message='Server shutdown') for ws in self.Websockets]
 		asyncio.gather(*wslist, loop=self.Loop)
 
 
-	async def _on_message(self, message_type, *args, **kwargs):
+	def _on_message(self, message_type, *args, **kwargs):
 		message = {'message_type': message_type}
 		if len(args) > 0:
 			message['args'] = args
