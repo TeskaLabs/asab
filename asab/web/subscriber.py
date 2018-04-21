@@ -29,14 +29,18 @@ class Subscriber(object):
 	def __init__(self, app, pubsub, *message_types):
 		self.PubSub = pubsub
 		self.Loop = app.Loop
+		self.Websockets = set([])
 
 		for message_type in message_types:
 			self.PubSub.subscribe(message_type, self._on_message)
 
-		#TODO: Clean up during pplication exit:
-		# for ws in self.Websockets:
-        #	await ws.close(code=WSCloseCode.GOING_AWAY, message='Server shutdown')
-		self.Websockets = set([])
+		app.PubSub.subscribe("Application.stop!", self._on_app_stop)
+
+
+	async def _on_app_stop(self, message_type, counter):
+		# Clean up during pplication exit
+		wslist = [ws.close(code=aiohttp.WSCloseCode.GOING_AWAY, message='Server shutdown') for ws in self.Websockets]
+		asyncio.gather(*wslist, loop=self.Loop)
 
 
 	async def _on_message(self, message_type, *args, **kwargs):
@@ -65,7 +69,7 @@ class Subscriber(object):
 				L.warn("Received unexpected message from client: {}".msg)
 
 		except asyncio.CancelledError:
-			pass
+			ws.close()
 
 		finally:
 			self.Websockets.remove(ws)
