@@ -1,9 +1,29 @@
+import logging
 import asyncio
 import aiohttp
 import asab
 
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 class Subscriber(object):
+
+	'''
+
+	websvc.WebApp.router.add_get('/subscribe', asab.web.Subscriber(self, self.PubSub, "Application.tick!"))
+
+
+	<script type="text/javascript">
+		var connection = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + window.location.host + "/subscribe");
+		connection.onmessage = function (e) {
+			...
+		};
+	</script>
+
+	'''
 
 
 	def __init__(self, app, pubsub, *message_types):
@@ -13,7 +33,7 @@ class Subscriber(object):
 		for message_type in message_types:
 			self.PubSub.subscribe(message_type, self._on_message)
 
-		#TODO: Applicatio exit:
+		#TODO: Clean up during pplication exit:
 		# for ws in self.Websockets:
         #	await ws.close(code=WSCloseCode.GOING_AWAY, message='Server shutdown')
 		self.Websockets = set([])
@@ -26,8 +46,12 @@ class Subscriber(object):
 		if len(kwargs) > 0:
 			message['kwargs'] = kwargs
 
+		wsc = list()
 		for ws in self.Websockets:
-			await ws.send_json(message)
+			wsc.append(ws.send_json(message))
+
+		# Send messages parallely
+		asyncio.gather(*wsc, loop=self.Loop)
 
 
 	async def __call__(self, request):
@@ -38,9 +62,7 @@ class Subscriber(object):
 			self.Websockets.add(ws)
 
 			async for msg in ws:
-				# We receive a WSMessage from a peer
-				#TODO: Handle this ...
-				print(">>>", msg)
+				L.warn("Received unexpected message from client: {}".msg)
 
 		except asyncio.CancelledError:
 			pass
