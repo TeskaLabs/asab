@@ -31,7 +31,7 @@ class MyApplication(asab.Application):
 		websvc.addFrontendWebApp('/', "webapp")
 
 		# Add a PubSub handler
-		websvc.WebApp.router.add_get('/subscribe', asab.web.Subscriber(self, self.PubSub, "Application.tick!"))
+		websvc.WebApp.router.add_get('/api/subscribe', asab.web.Subscriber(self, self.PubSub, "Application.tick/10!"))
 
 
 	async def login(self, request):
