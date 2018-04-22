@@ -1,12 +1,13 @@
 import abc
-from .session import Session
 
 
 class SessionStorage(abc.ABC):
 
 
-	def __init__(self, app, max_age):
+	def __init__(self, app, max_age, session_class):
+		self.App = app
 		self.MaxAge = max_age
+		self.SessionClass = session_class
 
 
 	@abc.abstractmethod
@@ -43,4 +44,4 @@ class SessionStorage(abc.ABC):
 
 
 	async def create(self, request):
-		return Session(id=None, new=True, max_age=self.MaxAge)
+		return self.SessionClass(self.App, id=None, new=True, max_age=self.MaxAge)
