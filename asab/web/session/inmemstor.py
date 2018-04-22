@@ -2,7 +2,7 @@ import uuid
 import logging
 
 from .storage import SessionStorage
-from . cookies import CookieSessionMixIn
+from .cookies import CookieSessionMixIn
 
 #
 
@@ -13,8 +13,8 @@ L = logging.getLogger(__name__)
 class InMemorySessionStorage(SessionStorage, CookieSessionMixIn):
 
 
-	def __init__(self, app, max_age=60*15, cookie_name='SESSID'):
-		super().__init__(app, max_age=max_age)
+	def __init__(self, app, session_class, max_age=60*15, cookie_name='SESSID'):
+		super().__init__(app, max_age=max_age, session_class=session_class)
 		self.set_cookie_name(cookie_name)
 
 		self.Sessions = {}

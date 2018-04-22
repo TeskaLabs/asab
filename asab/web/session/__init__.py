@@ -3,6 +3,8 @@ import aiohttp.web
 
 import asab
 
+from .session import Session
+
 #
 
 L = logging.getLogger(__name__)
@@ -16,15 +18,18 @@ L = logging.getLogger(__name__)
 
 class ServiceWebSession(asab.Service):
 
-	def __init__(self, app, service_name, webservice, session_storage=None):
+	def __init__(self, app, service_name, webservice, session_storage=None, session_class=None):
 		super().__init__(app, service_name)
 
 		webapp = webservice.WebApp
 
+		if session_class is None:
+			session_class = Session
+
 		# Construct session storage
 		if session_storage is None:
 			from .inmemstor import InMemorySessionStorage
-			self.SessionStorage = InMemorySessionStorage(app)
+			self.SessionStorage = InMemorySessionStorage(app, session_class)
 		else:
 			self.SessionStorage = session_storage
 
@@ -44,6 +49,8 @@ def session_middleware(storage):
 		request['Session'] = session
 		try:
 			response = await handler(request)
+			if isinstance(response, aiohttp.web.StreamResponse):
+				return response
 			await storage.set(session, response)
 			return response
 		finally:
