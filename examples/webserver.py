@@ -6,6 +6,7 @@ import aiohttp
 import asab.web
 import asab.web.session
 
+
 class MyApplication(asab.Application):
 
 	'''
@@ -30,13 +31,40 @@ class MyApplication(asab.Application):
 		# Add a web app
 		websvc.addFrontendWebApp('/', "webapp")
 
-		# Add a PubSub handler
-		websvc.WebApp.router.add_get('/api/subscribe', asab.web.Subscriber(self, self.PubSub, "Application.tick/10!"))
+		# Add a websocket handler
+		websvc.WebApp.router.add_get('/api/ws', MyWebSocketFactory(self))
 
 
 	async def login(self, request):
 		session = request.get('Session')
 		return aiohttp.web.Response(text='Hello {}!\n'.format(session))
+
+
+class MyWebSocketFactory(asab.web.WebSocketFactory):
+
+	def __init__(self, app):
+		super().__init__(app)
+
+		app.PubSub.subscribe("Application.tick/10!", self.on_tick)
+
+
+	async def on_request(self, request):
+		ws = await super().on_request(request)
+		return ws
+
+
+	async def on_message(self, request, message):
+		print("WebSocket message", message)
+
+
+	def on_tick(self, event_name):
+		message = {'event_name': event_name}
+
+		wsc = list()
+		for ws in self.WebSockets:
+			wsc.append(ws.send_json(message))
+
+		self.send_parallely(wsc)
 
 
 if __name__ == '__main__':
