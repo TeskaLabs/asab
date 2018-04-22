@@ -13,11 +13,11 @@ class Subscriber(object):
 
 	'''
 
-	websvc.WebApp.router.add_get('/subscribe', asab.web.Subscriber(self, self.PubSub, "Application.tick!"))
+	websvc.WebApp.router.add_get('/api/subscribe', asab.web.Subscriber(self, self.PubSub, "Application.tick!"))
 
 
 	<script type="text/javascript">
-		var connection = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + window.location.host + "/subscribe");
+		var connection = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + window.location.host + "/api/subscribe");
 		connection.onmessage = function (e) {
 			...
 		};
@@ -69,7 +69,7 @@ class Subscriber(object):
 				L.warn("Received unexpected message from client: {}".msg)
 
 		except asyncio.CancelledError:
-			ws.close()
+			await ws.close()
 
 		finally:
 			self.Websockets.remove(ws)
