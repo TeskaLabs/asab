@@ -4,6 +4,7 @@ import argparse
 import itertools
 import os
 import sys
+import time
 import signal
 import platform
 import random
@@ -45,8 +46,11 @@ class Application(metaclass=Singleton):
 		# Load configuration
 		Config._load()
 
-		if args.daemonize:
+		if hasattr(args, "daemonize") and args.daemonize:
 			self.daemonize()
+
+		elif hasattr(args, "kill") and args.kill:
+			self.daemon_kill()
 
 		# Setup logging
 		_setup_logging()
@@ -118,7 +122,10 @@ class Application(metaclass=Singleton):
 		)
 		parser.add_argument('-c', '--config', help='Path to configuration file (default: %(default)s)', default=Config._default_values['general']['config_file'])
 		parser.add_argument('-v', '--verbose', action='store_true', help='Print more information (enable debug output)')
-		parser.add_argument('-d', '--daemonize', action='store_true', help='Run deamonized (in the background)')
+
+		if daemon is not None:
+			parser.add_argument('-d', '--daemonize', action='store_true', help='Run daemonized (in the background)')
+			parser.add_argument('-k', '--kill', action='store_true', help='Kill running daemon and quit')
 
 		args = parser.parse_args()
 		if args.config is not None:
@@ -130,15 +137,23 @@ class Application(metaclass=Singleton):
 		return args
 
 
+	def get_pidfile_path(self):
+		pidfilepath = Config['general']['pidfile']
+		if pidfilepath == "":
+			return None
+		elif pidfilepath == "!":
+			return os.path.join('/var/run', os.path.basename(sys.argv[0]) + '.pid')
+		else:
+			return pidfilepath
+
+
 	def daemonize(self):
 		if daemon is None:
 			print("Install 'python-daemon' module to support daemonising.", file=sys.stderr)
 			sys.exit(1)
 
-		pidfilepath = Config['general']['pidfile']
-		if pidfilepath == "":
-			pidfile = None
-		else:
+		pidfilepath = self.get_pidfile_path()
+		if pidfilepath is not None:
 			pidfile = daemon.pidfile.TimeoutPIDLockFile(pidfilepath)
 
 		uid = Config['general']['uid']
@@ -162,8 +177,42 @@ class Application(metaclass=Singleton):
 		try:
 			self.DaemonContext.open()
 		except lockfile.AlreadyLocked as e:
-			print("Cannot create a PID file '{}':".format(pidfilepath), e)
+			print("Cannot create a PID file '{}':".format(pidfilepath), e, file=sys.stderr)
 			sys.exit(1)
+
+
+	def daemon_kill(self):
+		if daemon is None:
+			print("Install 'python-daemon' module to support daemonising.", file=sys.stderr)
+			sys.exit(1)
+
+		pidfilepath = self.get_pidfile_path()
+		if pidfilepath is None:
+			sys.exit(0)
+
+		try:
+			pid = open(pidfilepath, "r").read()
+		except FileNotFoundError:
+			print("Pid file '{}' not found.".format(pidfilepath), file=sys.stderr)
+			sys.exit(0)
+
+		pid = int(pid)
+
+		for sno in [signal.SIGINT, signal.SIGINT, signal.SIGINT, signal.SIGINT, signal.SIGTERM]:
+			try:
+				os.kill(pid, sno)
+			except ProcessLookupError:
+				print("Process with pid '{}' not found.".format(pid), file=sys.stderr)
+				sys.exit(0)
+			for i in range(10):
+				if not os.path.exists(pidfilepath):
+					sys.exit(0)
+				time.sleep(0.1)
+			print("Daemon process (pid: {}) still running ...".format(pid), file=sys.stderr)
+
+		print("Pid file '{}' not found.".format(pidfilepath), file=sys.stderr)
+		sys.exit(1)
+
 
 
 	def run(self):

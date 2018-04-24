@@ -21,7 +21,7 @@ class ConfigParser(configparser.ConfigParser):
 			'var_dir': os.path.expanduser('~/.'+os.path.splitext(os.path.basename(sys.argv[0]))[0]),
 		
 			# Daemonization
-			'pidfile': '',
+			'pidfile': '!', # '!' has a special meaning => it transforms into platform specific location of pid file
 			'uid': '',
 			'gid': '',
 		},
