@@ -12,7 +12,7 @@ import random
 try:
 	import daemon
 	import daemon.pidfile
-except ModuleNotFoundError:
+except ImportError:
 	daemon = None
 
 from .config import Config
