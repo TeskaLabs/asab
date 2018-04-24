@@ -107,8 +107,14 @@ How to deploy ASAB into LXC container
 .. code-block:: bash
 
 	$ rc-update add local
+
 	$ vi /etc/local.d/asab-app.start
 	#!/bin/sh
 	cd <app-root-dir>
 	python3.6 ./<app>.py -d -c <app>.conf
+
+
+    $ vi <app-root-dir>/<app>.conf
+    [general]
+	pidfile=/var/run/<app>.pid
 
