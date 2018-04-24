@@ -61,7 +61,7 @@ How to deploy ASAB into LXC container
 
 .. code-block:: bash
 
-	$ lxc launch images:alpine/edge asab
+	$ lxc launch images:alpine/3.7 asab
 
 
 2. Swich into a container
@@ -101,4 +101,14 @@ How to deploy ASAB into LXC container
 
 	$ pip3 install aiohttp
 
+
+7. Use local service to automatically start/stop ASAB application
+
+.. code-block:: bash
+
+	$ rc-update add local
+	$ vi /etc/local.d/asab-app.start
+	#!/bin/sh
+	cd <app-root-dir>
+	python3.6 ./<app>.py -d -c <app>.conf
 
