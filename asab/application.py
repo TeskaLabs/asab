@@ -135,16 +135,16 @@ class Application(metaclass=Singleton):
 			print("Install 'python-daemon' module to support daemonising.", file=sys.stderr)
 			sys.exit(1)
 
-		pidfilepath = Config['daemon']['pidfile']
+		pidfilepath = Config['general']['pidfile']
 		if pidfilepath == "":
 			pidfile = None
 		else:
 			pidfile = daemon.pidfile.TimeoutPIDLockFile(pidfilepath)
 
-		uid = Config['daemon']['uid']
+		uid = Config['general']['uid']
 		if uid == "": uid = None
 
-		gid = Config['daemon']['gid']
+		gid = Config['general']['gid']
 		if gid == "": gid = None
 
 		signal_map={
