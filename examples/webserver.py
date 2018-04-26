@@ -74,7 +74,7 @@ class MyWebSocketFactory(asab.web.WebSocketFactory):
 class MySession(asab.web.session.Session):
 
 	def __init__(self, app, id, new, max_age=None):
-		super().__init__(id, new, max_age)
+		super().__init__(app, id, new, max_age)
 		app.PubSub.subscribe("Application.tick!", self.on_tick)
 
 		self.Loop = app.Loop

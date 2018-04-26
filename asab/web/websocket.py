@@ -72,6 +72,9 @@ class WebSocketFactory(object):
 
 		'''
 		ws = aiohttp.web.WebSocketResponse()
+		session = request.get('Session')
+		if session is not None:
+			await session.Storage.set(session, ws)
 		await ws.prepare(request)
 		return ws
 

@@ -49,9 +49,8 @@ def session_middleware(storage):
 		request['Session'] = session
 		try:
 			response = await handler(request)
-			if isinstance(response, aiohttp.web.StreamResponse):
-				return response
-			await storage.set(session, response)
+			if session.Id is None:
+			 	await storage.set(session, response)
 			return response
 		finally:
 			await storage.store(session)

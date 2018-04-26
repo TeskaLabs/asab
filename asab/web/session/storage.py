@@ -44,4 +44,4 @@ class SessionStorage(abc.ABC):
 
 
 	async def create(self, request):
-		return self.SessionClass(self.App, id=None, new=True, max_age=self.MaxAge)
+		return self.SessionClass(self, id=None, new=True, max_age=self.MaxAge)

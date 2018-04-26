@@ -7,12 +7,13 @@ class Session(collections.MutableMapping):
 
 	"""Session dict-like object."""
 
-	def __init__(self, app, id, new, max_age=None):
+	def __init__(self, storage, id, new, max_age=None):
 		self._id = id
 		self._changed = False
 		self._mapping = {}
 		self._new = new
 		self.MaxAge = max_age
+		self.Storage = storage
 
 		if new or created is None:
 			self._created = int(time.time())
