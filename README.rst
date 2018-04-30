@@ -1,6 +1,10 @@
 Asynchronous Server Application Boilerplate
 ===========================================
 
+.. image:: https://badges.gitter.im/TeskaLabs/asab.svg
+   :alt: Join the chat at https://gitter.im/TeskaLabs/asab
+   :target: https://gitter.im/TeskaLabs/asab?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+
 Asynchronous Server App Boilerplate (or *ASAB* for short) minimizes the amount of code that needs to be written when building a server application in Python.
 ASAB is fully asynchronous, this means you can use the new shiny async/await syntax from Python 3.5, making your code non-blocking, speedy and hence scalable.
 
