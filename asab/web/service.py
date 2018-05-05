@@ -55,14 +55,14 @@ class WebService(asab.Service):
 		response.headers['Server'] = self.ServerTokens
 
 
-	def addFrontendWebApp(self, root, path, index='index.html'):
+	def add_frontend_web_app(self, root, path, index='index.html'):
 		'''
 To serve e.g. React or AngularJS frontend web application,
 add this to your asab.Application / async def initialize(self):
 
 websvc = self.get_service("asab.WebService")
 webappdir = os.environ.get('WEBAPPDIR', 'webapp')
-websvc.addFrontendWebApp('/', webappdir)
+websvc.add_frontend_web_app('/', webappdir)
 		'''
 		from .staticdir import StaticDirProvider
 		StaticDirProvider(self, root=root, path=path, index=index)

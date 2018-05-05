@@ -31,7 +31,7 @@ class MyApplication(asab.Application):
 		print("Test with curl:\n\t$ curl http://localhost:8080/api/login")
 
 		# Add a web app
-		websvc.addFrontendWebApp('/', "webapp")
+		websvc.add_frontend_web_app('/', "webapp")
 
 		# Add a websocket handler
 		websvc.WebApp.router.add_get('/api/ws', MyWebSocketFactory(self))
