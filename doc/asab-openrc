@@ -1,0 +1,19 @@
+#!/sbin/openrc-run
+
+command="/usr/local/bin/asab-app.py"
+conffile="/etc/asab-app.conf"
+
+name=$RC_SVCNAME
+pidfile="/run/$RC_SVCNAME.pid"
+command_args="$asab_app -c $conffile"
+command_background="yes"
+
+depend() {
+	need net localmount
+	after firewall
+}
+
+# This can be used to set PYTHONPATH etc.
+#start_pre() {
+#	export PYTHONPATH=...
+#}
