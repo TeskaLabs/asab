@@ -15,7 +15,7 @@ asab.Config.add_defaults(
 		'asab:web': {
 			'listen': '0.0.0.0 8080', # Can be multiline
 			'rootdir': '',
-			'servertokens': 'prod' # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
+			'servertokens': 'full' # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
 		}
 	}
 )
