@@ -102,19 +102,17 @@ How to deploy ASAB into LXC container
 	$ pip3 install aiohttp
 
 
-7. Use local service to automatically start/stop ASAB application
+7. Use OpenRC to automatically start/stop ASAB application
 
 .. code-block:: bash
 
-	$ rc-update add local
+	$ vi /etc/init.d/asab-app
 
-	$ vi /etc/local.d/asab-app.start
-	#!/bin/sh
-	cd <app-root-dir>
-	python3.6 ./<app>.py -d
 
-	$ vi /etc/local.d/asab-app.stop
-	#!/bin/sh
-	cd <app-root-dir>
-	python3.6 ./<app>.py -k
+Adjust the example of `OpenRC init file <https://github.com/TeskaLabs/asab/blob/master/doc/asab-openrc>`_. 
+
+.. code-block:: bash
+
+	$ chown a+x /etc/init.d/asab-app
+	$ rc-update add asab-app
 
