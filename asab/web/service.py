@@ -29,7 +29,6 @@ class WebService(asab.Service):
 			port = int(port)
 			self._listen.append((addr, port))
 
-		self.Servers = []
 		self.WebApp = aiohttp.web.Application(loop=app.Loop)
 		self.WebApp.on_response_prepare.append(self._on_prepare_response)
 		self.WebApp['app'] = app
@@ -39,16 +38,20 @@ class WebService(asab.Service):
 			from .staticdir import StaticDirProvider
 			self.WebApp['rootdir'] = StaticDirProvider(self, root='/', path=rootdir)
 
+		self.WebAppRunner = aiohttp.web.AppRunner(self.WebApp, handle_signals=False)
+
 
 	async def initialize(self, app):
 
-		self.Servers = []
+		await self.WebAppRunner.setup()
+
 		for addr, port in self._listen:
-			server = await app.Loop.create_server(self.WebApp.make_handler(), addr, port)
-			self.Servers.append(server)
+			site = aiohttp.web.TCPSite(self.WebAppRunner, addr, port)
+			await site.start()
 
-	#TODO: Implement finalize() where all servers are closed including all peer connections
 
+	async def finalize(self, app):
+		await self.WebAppRunner.cleanup()
 
 
 	async def _on_prepare_response(self, request, response):
