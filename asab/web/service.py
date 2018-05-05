@@ -19,7 +19,8 @@ class WebService(asab.Service):
 			# Because we cannot remove token completely
 			self.ServerTokens = "asab"
 		else:
-			self.ServerTokens = aiohttp.web_response.SERVER_SOFTWARE + " asab/18.04-beta3"
+			from .. import __version__
+			self.ServerTokens = aiohttp.web_response.SERVER_SOFTWARE + " asab/" + __version__
 
 		# Parse listen address(es), can be multiline configuration item
 		ls = asab.Config["asab:web"]["listen"]

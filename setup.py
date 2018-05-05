@@ -1,9 +1,18 @@
+import re
+import pathlib
 from setuptools import setup
 from setuptools import find_packages
 
+here = pathlib.Path(__file__).parent
+txt = (here / 'asab' / '__init__.py').read_text('utf-8')
+try:
+    version = re.findall(r"^__version__ = '([^']+)'\r?$", txt, re.M)[0]
+except IndexError:
+    raise RuntimeError('Unable to determine version.')
+
 setup(
 	name='asab',
-	version='18.04-beta3',
+	version=version,
 	description='ASAB simplifies a development of async application servers',
 	long_description=open('README.rst').read(),
 	url='https://github.com/TeskaLabs/asab',
