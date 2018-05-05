@@ -73,11 +73,11 @@ class MyWebSocketFactory(asab.web.WebSocketFactory):
 
 class MySession(asab.web.session.Session):
 
-	def __init__(self, app, id, new, max_age=None):
-		super().__init__(app, id, new, max_age)
-		app.PubSub.subscribe("Application.tick!", self.on_tick)
+	def __init__(self, storage, id, new, max_age=None):
+		super().__init__(storage, id, new, max_age)
+		storage.App.PubSub.subscribe("Application.tick!", self.on_tick)
 
-		self.Loop = app.Loop
+		self.Loop = storage.App.Loop
 		self.WebSockets = weakref.WeakSet()
 
 
