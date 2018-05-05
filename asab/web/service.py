@@ -1,5 +1,6 @@
 import logging
 import aiohttp.web
+import aiohttp.web_response
 import asab
 
 #
@@ -13,6 +14,13 @@ class WebService(asab.Service):
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 
+		servertokens = asab.Config["asab:web"]["servertokens"]
+		if servertokens == 'prod':
+			# Because we cannot remove token completely
+			self.ServerTokens = "asab"
+		else:
+			self.ServerTokens = aiohttp.web_response.SERVER_SOFTWARE + " asab/18.04-beta3"
+
 		# Parse listen address(es), can be multiline configuration item
 		ls = asab.Config["asab:web"]["listen"]
 		self._listen = []
@@ -23,6 +31,7 @@ class WebService(asab.Service):
 
 		self.Servers = []
 		self.WebApp = aiohttp.web.Application(loop=app.Loop)
+		self.WebApp.on_response_prepare.append(self.on_prepare_response)
 		self.WebApp['app'] = app
 
 		rootdir = asab.Config["asab:web"]["rootdir"]
@@ -32,12 +41,17 @@ class WebService(asab.Service):
 
 
 	async def initialize(self, app):
+
 		self.Servers = []
 		for addr, port in self._listen:
 			server = await app.Loop.create_server(self.WebApp.make_handler(), addr, port)
 			self.Servers.append(server)
 
 	#TODO: Implement finalize() where all servers are closed including all peer connections
+
+
+	async def on_prepare_response(self, request, response):
+		response.headers['Server'] = self.ServerTokens
 
 
 	def addFrontendWebApp(self, root, path, index='index.html'):
