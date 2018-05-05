@@ -31,7 +31,7 @@ class WebService(asab.Service):
 
 		self.Servers = []
 		self.WebApp = aiohttp.web.Application(loop=app.Loop)
-		self.WebApp.on_response_prepare.append(self.on_prepare_response)
+		self.WebApp.on_response_prepare.append(self._on_prepare_response)
 		self.WebApp['app'] = app
 
 		rootdir = asab.Config["asab:web"]["rootdir"]
@@ -50,7 +50,8 @@ class WebService(asab.Service):
 	#TODO: Implement finalize() where all servers are closed including all peer connections
 
 
-	async def on_prepare_response(self, request, response):
+
+	async def _on_prepare_response(self, request, response):
 		response.headers['Server'] = self.ServerTokens
 
 
