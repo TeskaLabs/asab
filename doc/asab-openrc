@@ -5,7 +5,7 @@ conffile="/etc/asab-app.conf"
 
 name=$RC_SVCNAME
 pidfile="/run/$RC_SVCNAME.pid"
-command_args="$asab_app -c $conffile"
+command_args="$command -c $conffile"
 command_background="yes"
 
 depend() {
