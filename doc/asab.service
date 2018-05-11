@@ -1,0 +1,13 @@
+[Unit]
+Description=ASAB Application Server
+After=network.target
+
+[Service]
+Type=simple
+;WorkingDirectory=/usr/share/asab-app
+Restart=on-failure
+PIDFile=/var/run/asab-app.pid
+ExecStart=/usr/local/bin/asab-app.py -c /etc/asab-app.conf
+
+[Install]
+WantedBy=multi-user.target
