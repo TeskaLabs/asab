@@ -8,4 +8,4 @@ ENV LANG C.UTF-8
 RUN set -ex \
 	&& pip3 install asab
 
-CMD ["python", "-m", "asab"]
+CMD ["python3", "-m", "asab"]
