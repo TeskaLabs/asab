@@ -6,6 +6,11 @@ MAINTAINER TeskaLabs Ltd (support@teskalabs.com)
 ENV LANG C.UTF-8
 
 RUN set -ex \
-	&& pip3 install asab
+	&& apk update \
+    && apk upgrade \
+	&& apk add git
+
+RUN set -ex \
+	&& pip install git+https://github.com/TeskaLabs/asab
 
 CMD ["python3", "-m", "asab"]
