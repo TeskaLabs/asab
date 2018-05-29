@@ -156,6 +156,9 @@ class Application(metaclass=Singleton):
 		if pidfilepath is not None:
 			pidfile = daemon.pidfile.TimeoutPIDLockFile(pidfilepath)
 
+
+		working_dir = Config['general']['working_dir']
+
 		uid = Config['general']['uid']
 		if uid == "": uid = None
 
@@ -169,9 +172,11 @@ class Application(metaclass=Singleton):
 		}
 
 		self.DaemonContext = daemon.DaemonContext(
+			working_directory=working_dir,
 			signal_map=signal_map,
 			pidfile=pidfile,
-			uid=uid, gid=gid
+			uid=uid,
+			gid=gid,
 		)
 
 		try:
