@@ -251,7 +251,9 @@ class Application(metaclass=Singleton):
 
 		#TODO: Process pending_tasks tasks from above (should be none)
 
-		self.Loop.run_until_complete(self.Loop.shutdown_asyncgens())
+		# Python 3.5 lacks support for shutdown_asyncgens()
+		if hasattr(self.Loop, "shutdown_asyncgens"):
+			self.Loop.run_until_complete(self.Loop.shutdown_asyncgens())
 		self.Loop.close()
 
 		try:
