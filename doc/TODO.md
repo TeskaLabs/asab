@@ -1,8 +1,11 @@
 Undocumented items:
 	
 	- Compatibility with pypy
-	- -d -> daemonise (via python-daemon) + [general] 'pidfile', 'uid' and 'gid'
+	- -d -> daemonise (via python-daemon) + [general] 'pidfile', 'uid', 'gid', 'working_dir'
 	- PersistentDict (there is example pdict.py)
+	- asab.web
+		- asab.web websocket pubsub
+		- sessions
 
 Enhancements:
 
