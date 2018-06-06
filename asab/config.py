@@ -22,6 +22,7 @@ class ConfigParser(configparser.ConfigParser):
 		
 			# Daemonization
 			'pidfile': '!', # '!' has a special meaning => it transforms into platform specific location of pid file
+			'working_dir': '.',
 			'uid': '',
 			'gid': '',
 		},
