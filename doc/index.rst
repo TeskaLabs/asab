@@ -20,6 +20,8 @@
    asab/module
    asab/abc
 
+   asab/web/index
+
 
 Indices and tables
 ==================

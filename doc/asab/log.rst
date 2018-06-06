@@ -35,13 +35,20 @@ Example of the output to the console:
 Verbose mode
 ------------
 
-``-v`` switch -> ``logging.DEBUG`` & asyncio debug.
+``-v`` switch on command-line sets ``logging.DEBUG`` and ``asyncio`` debuging.
 
 
 Structured data
 ---------------
 
-TODO: ...
+ASAB supports a structured data to be added to a log entry.
+It follows the RFC 5424, section ``STRUCTURED-DATA``.
+Structured data are a dictionary, that has to be seriazable to JSON.
+
+.. code:: python
+
+	L.info("Hello world!", struct_data={'key1':'value1', 'key2':2})
+
 
 
 Reference
