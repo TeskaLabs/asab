@@ -4,10 +4,7 @@ Logging
 .. py:currentmodule:: asab
 
 ASAB configures a standard Python ``logging`` module in a sane way.
-It means that: 
-
-1) Output to STDERR
-2) Output to syslog (new version)
+It means that it logs to STDERR when running on a console.
 
 Note: Microsecond precision
 
@@ -38,11 +35,19 @@ Verbose mode
 ``-v`` switch on command-line sets ``logging.DEBUG`` and ``asyncio`` debuging.
 
 
+Logging to syslog
+-----------------
+
+Follows (new) syslog `RFC 5424 <https://tools.ietf.org/html/rfc5424>`_.
+
+TODO: How to configure that
+
+
 Structured data
 ---------------
 
 ASAB supports a structured data to be added to a log entry.
-It follows the RFC 5424, section ``STRUCTURED-DATA``.
+It follows the `RFC 5424 <https://tools.ietf.org/html/rfc5424>`_, section ``STRUCTURED-DATA``.
 Structured data are a dictionary, that has to be seriazable to JSON.
 
 .. code:: python
