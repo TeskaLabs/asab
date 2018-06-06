@@ -26,9 +26,14 @@ class MyApplication(asab.Application):
 		# Add a web session service
 		asab.web.session.ServiceWebSession(self, "asab.ServiceWebSession", websvc, session_class=MySession)
 
+		# Enable exception to JSON middleware
+		websvc.WebApp.middlewares.append(asab.web.except_json_middleware)
+
 		# Add a route
 		websvc.WebApp.router.add_get('/api/login', self.login)
 		print("Test with curl:\n\t$ curl http://localhost:8080/api/login")
+
+		websvc.WebApp.router.add_get('/error', self.error)
 
 		# Add a web app
 		websvc.add_frontend_web_app('/', "webapp")
@@ -40,6 +45,10 @@ class MyApplication(asab.Application):
 	async def login(self, request):
 		session = request.get('Session')
 		return aiohttp.web.Response(text='Hello {}!\n'.format(session))
+
+
+	async def error(self, request):
+		raise RuntimeError("Errror!!")
 
 
 class MyWebSocketFactory(asab.web.WebSocketFactory):
