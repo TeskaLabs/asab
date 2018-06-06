@@ -16,17 +16,17 @@ def _setup_logging():
 	if not root_logger.hasHandlers():
 		
 		# Add console logger
-		#TODO: Don't initialize this when not on console
-		h = logging.StreamHandler(stream=sys.stderr)
-		h.setFormatter(StructuredDataFormatter(
-			fmt = Config["logging:console"]["format"],
-			datefmt = Config["logging:console"]["datefmt"],
-			sd_id = Config["logging:rfc5424"]["sd_id"],
-		))
-		h.setLevel(logging.DEBUG)
-		root_logger.addHandler(h)
+		# Don't initialize this when not on console
+		if os.isatty(sys.stdin.fileno()):
+			h = logging.StreamHandler(stream=sys.stderr)
+			h.setFormatter(StructuredDataFormatter(
+				fmt = Config["logging:console"]["format"],
+				datefmt = Config["logging:console"]["datefmt"],
+				sd_id = Config["logging:rfc5424"]["sd_id"],
+			))
+			h.setLevel(logging.DEBUG)
+			root_logger.addHandler(h)
 
-		#TODO: If configured, initialize syslog
 
 	else:
 		root_logger.warning("Logging seems to be already configured. Proceed with caution.")
