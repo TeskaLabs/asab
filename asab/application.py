@@ -52,16 +52,18 @@ class Application(metaclass=Singleton):
 		elif hasattr(args, "kill") and args.kill:
 			self.daemon_kill()
 
-		# Setup logging
-		_setup_logging()
-
 		# Seed the random generator
 		random.seed()
 
-		# Configure event loop
+		# Obtain the event loop
 		self.Loop = asyncio.get_event_loop()
+
+		# Setup logging
+		_setup_logging(self)
+
+		# Configure the event loop
 		self.Loop.set_exception_handler(_loop_exception_handler)
-		if Config["general"]["verbose"] == "True":
+		if Config["logging"].getboolean("verbose"):
 			self.Loop.set_debug(True)
 		
 		try:
@@ -122,6 +124,7 @@ class Application(metaclass=Singleton):
 		)
 		parser.add_argument('-c', '--config', help='Path to configuration file (default: %(default)s)', default=Config._default_values['general']['config_file'])
 		parser.add_argument('-v', '--verbose', action='store_true', help='Print more information (enable debug output)')
+		parser.add_argument('-s', '--syslog', action='store_true', help='Enable logging to a syslog')
 
 		if daemon is not None:
 			parser.add_argument('-d', '--daemonize', action='store_true', help='Run daemonized (in the background)')
@@ -132,7 +135,10 @@ class Application(metaclass=Singleton):
 			Config._default_values['general']['config_file'] = args.config
 
 		if args.verbose:
-			Config._default_values['general']['verbose'] = True
+			Config._default_values['logging']['verbose'] = True
+
+		if args.syslog:
+			Config._default_values['logging:syslog']['enabled'] = True
 
 		return args
 
