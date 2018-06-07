@@ -40,9 +40,10 @@ The selected verbose mode is avaiable at ``asab.Config["logging"]["verbose"]`` f
 Logging to syslog
 -----------------
 
-Follows (new) syslog `RFC 5424 <https://tools.ietf.org/html/rfc5424>`_.
+``-s`` switch on command-line enables logging to syslog.
 
-TODO: How to configure that
+Follows (new) syslog `RFC 5424 <https://tools.ietf.org/html/rfc5424>`_ , old BSD syslog `RFC 3164 <https://tools.ietf.org/html/rfc3164>`_ and Mac OSX syslog flavour.
+
 
 
 Structured data
