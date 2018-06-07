@@ -264,6 +264,11 @@ Load configuration file from a file CONFIG.
 Increase the logging level to DEBUG aka be more verbose about what is happening.
 
 
+.. option:: -s , --syslog
+
+Log to a syslog.
+
+
 .. option:: -d , --daemonize
 
 Launch the application in the background aka daemonized.
