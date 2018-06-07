@@ -34,6 +34,8 @@ Verbose mode
 
 ``-v`` switch on command-line sets ``logging.DEBUG`` and ``asyncio`` debuging.
 
+The selected verbose mode is avaiable at ``asab.Config["logging"]["verbose"]`` flag.
+
 
 Logging to syslog
 -----------------

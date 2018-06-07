@@ -2,6 +2,7 @@ import os
 import sys
 import glob
 import logging
+import platform
 import configparser
 
 #
@@ -12,10 +13,18 @@ L = logging.getLogger(__name__)
 
 class ConfigParser(configparser.ConfigParser):
 
+	_syslog_sockets = {
+		'Darwin': '/var/run/syslog'
+	}
+
+	_syslog_format = {
+		'Darwin': 'm'
+	}
+
+
 	_default_values = {
 
 		'general': {
-			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			'config_file': os.environ.get('ASAB_CONFIG', ''),
 			'tick_period': 1, # In seconds
 			'var_dir': os.path.expanduser('~/.'+os.path.splitext(os.path.basename(sys.argv[0]))[0]),
@@ -27,13 +36,23 @@ class ConfigParser(configparser.ConfigParser):
 			'gid': '',
 		},
 
-		"logging:rfc5424": {
-			"sd_id": "sd",
+		"logging": {
+			'verbose': os.environ.get('ASAB_VERBOSE', False),
+			"app_name": os.path.basename(sys.argv[0]),
+			"sd_id": "sd", # Structured data id, see RFC5424
 		},
 
 		"logging:console": {
-			"format": "%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s: %%(message)s",
+			"format": "%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s",
 			"datefmt": "%%d-%%b-%%Y %%H:%%M:%%S.%%f",
+		},
+
+		"logging:syslog": {
+			"enabled": "false",
+			"version": "3",
+			#TODO: "facility": 'local1',
+			"address": _syslog_sockets.get(platform.system(), "/dev/log"),
+			"format": _syslog_format.get(platform.system(), "3"),
 		},
 
 	}
