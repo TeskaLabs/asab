@@ -6,6 +6,7 @@ Undocumented items:
 	- asab.web
 		- asab.web websocket pubsub
 		- sessions
+	- Configuration default values (aka ConfigParser._default_values)
 
 Enhancements:
 
