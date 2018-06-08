@@ -1,4 +1,4 @@
-__version__ = '18.5b1'
+__version__ = '18.5b2'
 
 from .log import _StructuredDataLogger
 from .application import Application
