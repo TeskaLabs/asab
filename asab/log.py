@@ -88,7 +88,7 @@ def _setup_logging(app):
 
 ###
 
-class StructuredDataLogger(logging.Logger):
+class _StructuredDataLogger(logging.Logger):
 
 	def _log(self, level, msg, args, exc_info=None, struct_data=None, extra=None, stack_info=False):
 		if struct_data is not None:
@@ -97,7 +97,7 @@ class StructuredDataLogger(logging.Logger):
 
 		super()._log(level, msg, args, exc_info=exc_info, extra=extra, stack_info=stack_info)
 
-logging.setLoggerClass(StructuredDataLogger)
+logging.setLoggerClass(_StructuredDataLogger)
 
 ###
 

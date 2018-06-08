@@ -1,6 +1,6 @@
 __version__ = '18.5b1'
 
-from .log import StructuredDataLogger
+from .log import _StructuredDataLogger
 from .application import Application
 from .abc.service import Service
 from .abc.module import Module
