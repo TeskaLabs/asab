@@ -44,18 +44,18 @@ def _setup_logging(app):
 
 			else:
 				url = urllib.parse.urlparse(address)
+
 				if url.scheme == 'tcp':
-					address = (
+					h = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_STREAM, (
 						url.hostname if url.hostname is not None else 'localhost',
 						url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
-					)
-					socktype = socket.SOCK_STREAM
+					))
+
 				elif url.scheme == 'udp':
-					address = (
+					h = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_DGRAM, (
 						url.hostname if url.hostname is not None else 'localhost',
 						url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
-					)
-					socktype = socket.SOCK_DGRAM
+					))
 
 				elif url.scheme == 'unix-connect':
 					h = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_STREAM, url.path)
