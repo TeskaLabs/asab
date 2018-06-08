@@ -36,7 +36,7 @@ L = logging.getLogger(__name__)
 
 class Application(metaclass=Singleton):
 
-	Description = ""
+	Description = "This app is based on ASAB."
 
 	def __init__(self):
 
@@ -122,13 +122,13 @@ class Application(metaclass=Singleton):
 			formatter_class=argparse.RawDescriptionHelpFormatter,
 			description=self.Description,
 		)
-		parser.add_argument('-c', '--config', help='Path to configuration file (default: %(default)s)', default=Config._default_values['general']['config_file'])
-		parser.add_argument('-v', '--verbose', action='store_true', help='Print more information (enable debug output)')
-		parser.add_argument('-s', '--syslog', action='store_true', help='Enable logging to a syslog')
+		parser.add_argument('-c', '--config', help='specify a path to a configuration file')
+		parser.add_argument('-v', '--verbose', action='store_true', help='print more information (enable debug output)')
+		parser.add_argument('-s', '--syslog', action='store_true', help='enable logging to a syslog')
 
 		if daemon is not None:
-			parser.add_argument('-d', '--daemonize', action='store_true', help='Run daemonized (in the background)')
-			parser.add_argument('-k', '--kill', action='store_true', help='Kill running daemon and quit')
+			parser.add_argument('-d', '--daemonize', action='store_true', help='run daemonized (in the background)')
+			parser.add_argument('-k', '--kill', action='store_true', help='kill a running daemon and quit')
 
 		args = parser.parse_args()
 		if args.config is not None:
