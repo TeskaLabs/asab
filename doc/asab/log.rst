@@ -4,7 +4,7 @@ Logging
 .. py:currentmodule:: asab
 
 ASAB uses a standard Python ``logging`` module.
-It means that it logs to ``stderr`` when running on a console and ASAB also provides a syslog integration for background mode of operations.
+It means that it logs to ``stderr`` when running on a console and ASAB also provides a syslog support (both RFC5424 and RFC3164) for background mode of operations.
 
 Log timestamps are captured with sub-second precision (depending on the system capabilities) and displayed including microsecond part.
 
