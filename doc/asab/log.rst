@@ -3,10 +3,10 @@ Logging
 
 .. py:currentmodule:: asab
 
-ASAB configures a standard Python ``logging`` module in a sane way.
-It means that it logs to STDERR when running on a console.
+ASAB uses a standard Python ``logging`` module.
+It means that it logs to ``stderr`` when running on a console and ASAB also provides a syslog integration for background mode of operations.
 
-Note: Microsecond precision
+Log timestamps are captured with sub-second precision (depending on the system capabilities) and displayed including microsecond part.
 
 
 Recommended use
@@ -42,8 +42,38 @@ Logging to syslog
 
 ``-s`` switch on command-line enables logging to syslog.
 
-Follows (new) syslog `RFC 5424 <https://tools.ietf.org/html/rfc5424>`_ , old BSD syslog `RFC 3164 <https://tools.ietf.org/html/rfc3164>`_ and Mac OSX syslog flavour.
+A configuration section ``[[logging:syslog]]`` can be used to specify details about desired syslog logging.
 
+Example of the configuration file section:
+
+.. code:: ini
+
+	[[logging:syslog]]
+	enabled=true
+	format=5
+	address=tcp://syslog.server.lan:1554/
+
+
+``enabled`` is equivalent to command-line switch ``-s`` and it enables syslog logging target.
+
+``format`` speficies which logging format will be used.
+Possible values are:
+
+- ``5`` for  (new) syslog format (`RFC 5424 <https://tools.ietf.org/html/rfc5424>`_ ) ,
+- ``3`` for old BSD syslog format (`RFC 3164 <https://tools.ietf.org/html/rfc3164>`_ ), typically used by ``/dev/log`` and 
+- ``m`` for Mac OSX syslog flavour that is based on BSD syslog format but it is not fully compatible.
+
+The default value is ``3`` on Linux and ``m`` on Mac OSX.
+
+``address`` specifies the location of the Syslog server. It could be a UNIX path such as ``/dev/log`` or URL.
+Possible URL values:
+
+- ``tcp://syslog.server.lan:1554/`` for Syslog over TCP
+- ``udp://syslog.server.lan:1554/`` for Syslog over UDP
+- ``unix-connect:///path/to/syslog.socket`` for Syslog over UNIX socket (stream)
+- ``unix-sendto:///path/to/syslog.socket`` for Syslog over UNIX socket (datagram), equivalent to ``/path/to/syslog.socket``, used by a ``/dev/log``.
+
+The default value is a ``/dev/log`` on Linux or ``/var/run/syslog`` on Mac OSX.
 
 
 Structured data
@@ -56,7 +86,6 @@ Structured data are a dictionary, that has to be seriazable to JSON.
 .. code:: python
 
 	L.info("Hello world!", struct_data={'key1':'value1', 'key2':2})
-
 
 
 Reference

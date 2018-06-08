@@ -89,6 +89,10 @@ def _setup_logging(app):
 ###
 
 class _StructuredDataLogger(logging.Logger):
+	'''
+This class extends a default python logger class, specifically by adding ``struct_data`` parameter to logging functions.
+It means that you can use expressions such as ``logger.info("Hello world!", struct_data={'key':'value'})``.
+	'''
 
 	def _log(self, level, msg, args, exc_info=None, struct_data=None, extra=None, stack_info=False):
 		if struct_data is not None:
@@ -102,6 +106,9 @@ logging.setLoggerClass(_StructuredDataLogger)
 ###
 
 class StructuredDataFormatter(logging.Formatter):
+	'''
+	The logging formatter that renders log messages that includes structured data.
+	'''
 
 	empty_sd = ""
 
@@ -112,6 +119,10 @@ class StructuredDataFormatter(logging.Formatter):
 
 
 	def format(self, record):
+		'''
+		Format the specified record as text.
+		'''
+
 		record.struct_data=self.render_struct_data(record.__dict__.get("_struct_data"))
 		
 		# The Priority value is calculated by first multiplying the Facility number by 8 and then adding the numerical value of the Severity.
@@ -132,6 +143,10 @@ class StructuredDataFormatter(logging.Formatter):
 
 
 	def formatTime(self, record, datefmt=None):
+		'''
+		Return the creation time of the specified LogRecord as formatted text.
+		'''
+
 		try:
 			ct = datetime.datetime.fromtimestamp(record.created)
 			if datefmt is not None:
@@ -145,6 +160,10 @@ class StructuredDataFormatter(logging.Formatter):
 			return str(ct)
 
 	def render_struct_data(self, struct_data):
+		'''
+		Return the string with structured data.
+		'''
+
 		if struct_data is None:
 			return self.empty_sd
 		else:
@@ -180,8 +199,7 @@ def _loop_exception_handler(loop, context):
 
 class MacOSXSyslogFormatter(StructuredDataFormatter):
 	""" 
-	This formatter is meant for a AsyncIOHandler.
-	It implements Syslog formatting for Mac OSX syslog.
+	It implements Syslog formatting for Mac OSX syslog (aka format ``m``).
 	"""
 
 	def __init__(self, fmt=None, datefmt=None, style='%', sd_id='sd'):
@@ -197,8 +215,7 @@ class MacOSXSyslogFormatter(StructuredDataFormatter):
 
 class SyslogRFC3164Formatter(StructuredDataFormatter):
 	""" 
-	This formatter is meant for a AsyncIOHandler.
-	It implements Syslog formatting described in RFC 3164.
+	It implements Syslog formatting for Mac OSX syslog (aka format ``3``).
 	"""
 
 	def __init__(self, fmt=None, datefmt=None, style='%', sd_id='sd'):
@@ -215,8 +232,7 @@ class SyslogRFC3164Formatter(StructuredDataFormatter):
 
 class SyslogRFC5424Formatter(StructuredDataFormatter):
 	""" 
-	This formatter is meant for a AsyncIOHandler.
-	It implements Syslog formatting described in RFC 5424.
+	It implements Syslog formatting for Mac OSX syslog (aka format ``5``).
 	"""
 
 	empty_sd = " "
@@ -237,6 +253,10 @@ class SyslogRFC5424Formatter(StructuredDataFormatter):
 
 class AsyncIOHandler(logging.Handler):
 
+	'''
+A logging handler similar to a standard ``logging.handlers.SocketHandler`` that utilizes ``asyncio``.
+It implements a queue for decoupling logging from a networking. The networking is fully event-driven via ``asyncio`` mechanisms.
+	'''
 
 	def __init__(self, loop, family, sock_type, address, facility=logging.handlers.SysLogHandler.LOG_LOCAL1):
 		logging.Handler.__init__(self)
@@ -294,6 +314,9 @@ class AsyncIOHandler(logging.Handler):
 
 
 	def emit(self, record):
+		'''
+		This is the entry point for log entries.
+		'''
 		try:
 			msg = self.format(record).encode('utf-8')
 
