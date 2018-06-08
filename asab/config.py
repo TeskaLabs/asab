@@ -49,7 +49,6 @@ class ConfigParser(configparser.ConfigParser):
 
 		"logging:syslog": {
 			"enabled": "false",
-			"version": "3",
 			#TODO: "facility": 'local1',
 			"address": _syslog_sockets.get(platform.system(), "/dev/log"),
 			"format": _syslog_format.get(platform.system(), "3"),
