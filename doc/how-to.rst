@@ -63,7 +63,7 @@ Adjust the example of `OpenRC init file <https://github.com/TeskaLabs/asab/blob/
 
 .. code-block:: bash
 
-	$ chown a+x /etc/init.d/asab-app
+	$ chmod a+x /etc/init.d/asab-app
 	$ rc-update add asab-app
 
 
