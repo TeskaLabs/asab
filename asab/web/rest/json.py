@@ -23,7 +23,7 @@ class _Dumper(object):
 		return json.JSONEncoder.default(self, o)
 
 
-def json_response(request, json_obj):
+def json_response(request, json_obj, **kwargs):
 	'''
 	## Pretty Result
 	When appending ?pretty=true to any request made, the JSON returned will be pretty formatted (use it for debugging only!).
@@ -32,6 +32,7 @@ def json_response(request, json_obj):
 
 	return aiohttp.web.json_response(
 		json_obj,
-		dumps=_Dumper(pretty)
+		dumps=_Dumper(pretty),
+		**kwargs
 	)
 
