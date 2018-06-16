@@ -8,6 +8,7 @@ Undocumented items:
 		- sessions
 	- Configuration default values (aka ConfigParser._default_values)
 	- `-s` command-line switch
+	- Timer
 
 Enhancements:
 

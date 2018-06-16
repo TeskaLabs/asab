@@ -8,5 +8,6 @@ from .abc.singleton import Singleton
 from .config import Config
 from .pubsub import subscribe, PubSub, Subscriber
 from .pdict import PersistentDict
+from .timer import Timer
 
 from .socket import StreamSocketServerService
