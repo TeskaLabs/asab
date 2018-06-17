@@ -17,6 +17,7 @@ asab.Config.add_defaults(
 			'heartbeat_timeout': 75, # miliseconds, needs to be significantly lower than election_timeout_min
 			'election_timeout_min': 150, # miliseconds
 			'election_timeout_max': 300, # miliseconds
+			'server_id': '', # If empty, construct name from hostname and a port
 		}
 	}
 )

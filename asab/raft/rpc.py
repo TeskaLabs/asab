@@ -1,7 +1,11 @@
 import json
 import itertools
+import functools
+import socket
 import pprint
 import logging
+
+import asab
 
 #
 
@@ -17,18 +21,52 @@ class RPC(object):
 
 	MAX_DGRAM_LENGTH = 1024
 
-	def __init__(self, raft_service):
-		self.RaftService = raft_service
+	def __init__(self, app):
+		self.Loop = app.Loop
 		self.IdSeq = itertools.count(start=1, step=1)
-
 		self.RPCMethods = {}
 		self.RPCResults = {}
-		for attr_name in dir(raft_service):
-			attr = getattr(raft_service, attr_name)
+
+		self.Sockets = {}
+		self.PrimarySocket = None
+
+		# Parse listen address(es), can be multiline configuration item
+		ls = asab.Config["asab:raft"]["listen"]
+		for l in ls.split('\n'):
+			l = l.strip()
+			if len(l) == 0: continue
+			addr, port = l.split(' ', 1)
+			port = int(port)
+
+			s = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+			s.setblocking(0)
+			s.bind((addr,port))
+
+			self.Loop.add_reader(s, functools.partial(self.on_recv, s))
+			self.Sockets[s.fileno()] = s
+
+			if self.PrimarySocket is None:
+				self.PrimarySocket = s
+
+		assert(self.PrimarySocket is not None)
+
+
+	def bind(self, obj):
+		'''
+		Resolve all @RPCMethod and @RPCResult decorators in the object and bind them
+		'''
+		for attr_name in dir(obj):
+			attr = getattr(obj, attr_name)
 			if hasattr(attr, '_RCPMethod'):
-				self.RPCMethods[attr._RCPMethod] = attr
+				if attr._RCPMethod in self.RPCMethods:
+					L.error("RCP method '{}' is already bound".format(attr._RCPMethod))
+				else:
+					self.RPCMethods[attr._RCPMethod] = attr
 			if hasattr(attr, '_RCPResult'):
-				self.RPCResults[attr._RCPResult] = attr
+				if attr._RCPResult in self.RPCResults:
+					L.error("RCP result '{}' is already bound".format(attr._RCPResult))
+				else:
+					self.RPCResults[attr._RCPResult] = attr
 
 	#
 
@@ -133,7 +171,7 @@ class RPC(object):
 		}
 		request_dgram = json.dumps(request_obj).encode('utf-8')
 		request_cgram = self._encrypt(peer_address, request_dgram)
-		self.RaftService.PrimarySocket.sendto(request_cgram, peer_address)
+		self.PrimarySocket.sendto(request_cgram, peer_address)
 
 	#
 
