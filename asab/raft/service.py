@@ -7,6 +7,7 @@ import asab
 
 from .rpc import RPC
 from .server import RaftServer
+from .client import RaftClient
 
 #
 
@@ -27,6 +28,9 @@ class RaftService(asab.Service):
 		# Raft server
 		#TODO: Optional ...
 		self.Server = RaftServer(app, self.RPC)
+
+		# Raft client
+		self.Client = RaftClient(app, self.RPC)
 
 
 	async def initialize(self, app):
