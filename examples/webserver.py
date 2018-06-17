@@ -101,8 +101,6 @@ class MySession(asab.web.session.Session):
 		asyncio.gather(*wsc, loop=self.Loop)
 
 
-
-
 if __name__ == '__main__':
 	app = MyApplication()
 	app.run()

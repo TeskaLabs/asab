@@ -1,5 +1,6 @@
 import json
 import itertools
+import pprint
 import logging
 
 #
@@ -21,10 +22,13 @@ class RPC(object):
 		self.IdSeq = itertools.count(start=1, step=1)
 
 		self.RPCMethods = {}
+		self.RPCResults = {}
 		for attr_name in dir(raft_service):
 			attr = getattr(raft_service, attr_name)
-			if not hasattr(attr, '_RCPMethod'): continue
-			self.RPCMethods[attr._RCPMethod] = attr
+			if hasattr(attr, '_RCPMethod'):
+				self.RPCMethods[attr._RCPMethod] = attr
+			if hasattr(attr, '_RCPResult'):
+				self.RPCResults[attr._RCPResult] = attr
 
 	#
 
@@ -45,11 +49,11 @@ class RPC(object):
 			propagate_error = False
 
 			try:
-				request_cgram, peer = s.recvfrom(self.MAX_DGRAM_LENGTH)
+				request_cgram, peer_address = s.recvfrom(self.MAX_DGRAM_LENGTH)
 			except BlockingIOError:
 				return
 
-			request_dgram = self._decrypt(peer, request_cgram)
+			request_dgram = self._decrypt(peer_address, request_cgram)
 
 			try:
 				request_obj = json.loads(request_dgram.decode('utf-8'))
@@ -65,9 +69,10 @@ class RPC(object):
 
 				else:
 					# rpc call result
+					result_id = request_obj.get('id')
 					result = request_obj.get('result')
 					if result is not None:
-						self.rpc_dispatch_result(result)
+						self.rpc_dispatch_result(peer_address, result_id, result)
 						continue # No reply to results
 
 					else:
@@ -85,12 +90,12 @@ class RPC(object):
 						"error": e.obj,
 					}
 					error_dgram = json.dumps(error_obj).encode('utf-8')
-					error_cgram = self._encrypt(peer, error_dgram)
-					s.sendto(error_cgram, peer)
+					error_cgram = self._encrypt(peer_address, error_dgram)
+					s.sendto(error_cgram, peer_address)
 				continue
 
 			except Exception as e:				
-				L.exception("Exception during RPC request from '{}'".format(peer))
+				L.exception("Exception during RPC request from '{}'".format(peer_address))
 				if propagate_error:
 					error_obj = {
 						"id": request_obj.get('id'),
@@ -101,8 +106,8 @@ class RPC(object):
 						},
 					}
 					error_dgram = json.dumps(error_obj).encode('utf-8')
-					error_cgram = self._encrypt(peer, error_dgram)
-					s.sendto(error_cgram, peer)
+					error_cgram = self._encrypt(peer_address, error_dgram)
+					s.sendto(error_cgram, peer_address)
 				continue
 
 			# Handle result
@@ -113,22 +118,22 @@ class RPC(object):
 					"result": result,
 				}
 				result_dgram = json.dumps(result_obj).encode('utf-8')
-				result_cgram = self._encrypt(peer, result_dgram)
-				s.sendto(result_cgram, peer)
+				result_cgram = self._encrypt(peer_address, result_dgram)
+				s.sendto(result_cgram, peer_address)
 
 	#
 
-	def call(self, peer, method, params = None):
+	def call(self, peer_address, method, params = None):
 		request_id = next(self.IdSeq)
 		request_obj = {
-			"id": request_id,
+			"id": "{}:{}".format(method, request_id),
 			"jsonrpc": "2.0",
 			"method": method,
 			"params": params,
 		}
 		request_dgram = json.dumps(request_obj).encode('utf-8')
-		request_cgram = self._encrypt(peer, request_dgram)
-		self.RaftService.PrimarySocket.sendto(request_cgram, peer)
+		request_cgram = self._encrypt(peer_address, request_dgram)
+		self.RaftService.PrimarySocket.sendto(request_cgram, peer_address)
 
 	#
 
@@ -153,7 +158,7 @@ class RPC(object):
 		raise RPCError(-32601, "Method not found", data=method)
 
 
-	def rpc_dispatch_result(self, result):
+	def rpc_dispatch_result(self, peer_address, result_id, result):
 		'''
 		rpc_dispatch_method --> {"jsonrpc": "2.0", "method": "subtract", "params": [42, 23], "id": 1}
 		rpc_dispatch_result <-- {"jsonrpc": "2.0", "result": 19, "id": 1}
@@ -161,7 +166,13 @@ class RPC(object):
 		rpc_dispatch_method --> {"jsonrpc": "2.0", "method": "subtract", "params": [23, 42], "id": 2}
 		rpc_dispatch_result <-- {"jsonrpc": "2.0", "result": -19, "id": 2}
 		'''
-		print("!!! rpc_dispatch_result", result)
+		result_method, _ = result_id.split(":", 1)
+
+		m = self.RPCResults.get(result_method)
+		if m is not None:
+			return m(peer_address, result)
+
+		L.error("Received result for unknown method '{}'".format(result_id))
 
 
 	def rpc_dispatch_error(self, error):
@@ -180,6 +191,17 @@ class RPCMethod(object):
 
 	def __call__(self, f):
 		f._RCPMethod = self.Method
+		return f
+
+#
+
+class RPCResult(object):
+
+	def __init__(self, method):
+		self.Method = method
+
+	def __call__(self, f):
+		f._RCPResult = self.Method
 		return f
 
 #

@@ -13,10 +13,10 @@ asab.Config.add_defaults(
 	{
 		'asab:raft': {
 			'listen': '0.0.0.0 1711',  # Can be multiline
-			'peers': '''
-				127.0.0.1 1711
-				127.0.0.1 1712
-			''', # Can be multiline
+			'peers': '', # Can be multiline
+			'heartbeat_timeout': 75, # miliseconds, needs to be significantly lower than election_timeout_min
+			'election_timeout_min': 150, # miliseconds
+			'election_timeout_max': 300, # miliseconds
 		}
 	}
 )
