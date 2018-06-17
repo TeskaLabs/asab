@@ -1,5 +1,6 @@
 import random
 import re
+import os
 import socket
 import logging
 
@@ -38,11 +39,11 @@ class RaftServer(object):
 		self.HeartBeatTimeout = asab.Config["asab:raft"].getint("heartbeat_timeout") / 1000.0
 		self.HeartBeatTimer = asab.Timer(self._on_heartbeat_timeout, loop=self.Loop)
 
-		self.PersistentState = {
-			'currentTerm': 0,
-			'votedFor': None,
-			'log': [],
-		}
+		var_dir = asab.Config['general']['var_dir']
+		self.PersistentState = asab.PersistentDict(os.path.join(var_dir, '{}.raft'.format(self.Id.replace('.','-'))))
+		self.PersistentState.setdefault('currentTerm', 0)
+		self.PersistentState.setdefault('votedFor', None)
+		self.PersistentState.setdefault('log', [])
 
 		self.VolatileState = {
 			'commitIndex': 0,
