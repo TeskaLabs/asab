@@ -8,6 +8,7 @@ import asab
 from .rpc import RPC
 from .server import RaftServer
 from .client import RaftClient
+from .webapi import RaftWebApi
 
 #
 
@@ -31,6 +32,12 @@ class RaftService(asab.Service):
 
 		# Raft client
 		self.Client = RaftClient(app, self.RPC)
+
+		if asab.Config["asab:raft"].getboolean("webapi"):
+			self.WebApi = RaftWebApi(app, self.RPC)
+		else:
+			self.WebApi = None
+
 
 
 	async def initialize(self, app):

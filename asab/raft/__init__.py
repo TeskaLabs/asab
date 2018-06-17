@@ -18,6 +18,7 @@ asab.Config.add_defaults(
 			'election_timeout_min': 150, # miliseconds
 			'election_timeout_max': 300, # miliseconds
 			'server_id': '', # If empty, construct name from hostname and a port
+			'webapi': False,
 		}
 	}
 )

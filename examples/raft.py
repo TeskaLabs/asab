@@ -11,7 +11,11 @@ class MyApplication(asab.Application):
 	'''
 
 	async def initialize(self):
-		# Loading the web service module
+		if asab.Config["asab:raft"].getboolean("webapi"):
+			from asab import web
+			self.add_module(web.Module)
+
+		# Loading the raft service module
 		self.add_module(asab.raft.Module)
 
 		# Locate raft service
