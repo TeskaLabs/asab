@@ -43,13 +43,9 @@ class RaftServer(object):
 
 		var_dir = asab.Config['general']['var_dir']
 		self.PersistentState = asab.PersistentDict(os.path.join(var_dir, '{}.raft'.format(self.Id.replace('.','-'))))
-		#self.PersistentState.setdefault('currentTerm', 0)
-		#self.PersistentState.setdefault('votedFor', None)
+		self.PersistentState.setdefault('currentTerm', 0)
+		self.PersistentState.setdefault('votedFor', None)
 		self.PersistentState.setdefault('log', [])
-		self.PersistentState.update({
-			'currentTerm': 0,
-			'votedFor': None,
-		})
 
 		self.VolatileState = {
 			'commitIndex': 0,
@@ -172,6 +168,7 @@ class RaftServer(object):
 
 	@RPCResult("AppendEntries")
 	def append_entries_result(self, peer_address, params):
+		# Dispatch RPC result to state object
 		if isinstance(self.State, LeaderState):
 			self.State.append_entries_result(self, peer_address, params)
 		else:
@@ -193,33 +190,48 @@ class RaftServer(object):
 			'timestamp': params['timestamp'],
 		}
 
-		if (term < currentTerm):
+		if term < currentTerm:
 			# An older term received
 			return ret
 
-		elif (votedFor is not None) and (votedFor != candidateId):
-			# We voted for someone else
-			return ret
-
-		elif (votedFor is None) or (votedFor != candidateId):
-			#TODO: Also check that candidate log is at least as up-to-date as receiver's log
-
-			self.PersistentState['votedFor'] = candidateId
+		elif term > currentTerm:
+			#if RPC request contains term higher than currentTerm, convert to follower and set the term
+			self.PersistentState['currentTerm'] = term
+			self.PersistentState['votedFor'] = votedFor = candidateId
 			ret['voteGranted'] = True
-			L.warn("Voted for '{}'".format(candidateId))
+			L.warn("Voted for '{}' in {} term (higher term)".format(candidateId, term))
 
-			if isinstance(self.State, CandidateState):
+			if not isinstance(self.State, FollowerState):
 				self.State = FollowerState(self)
 
-		elif votedFor == candidateId:
-			assert(isinstance(self.State, FollowerState))
-			self.ElectionTimer.restart(self.get_election_timeout())
+		else: # term == currentTerm
+
+			if (votedFor is not None) and (votedFor != candidateId):
+				# We voted for someone else
+				return ret
+
+			elif (votedFor is None) or (votedFor == candidateId):
+				#TODO: Also check that candidate log is at least as up-to-date as receiver's log
+
+				ret['voteGranted'] = True
+				if votedFor is None:
+					self.PersistentState['votedFor'] = candidateId
+					L.warn("Voted for '{}' in {} term (not voted)".format(candidateId, term))
+				else:
+					L.warn("Voted for '{}' in {} term (confirm vote)".format(candidateId, term))
+
+				if isinstance(self.State, CandidateState):
+					self.State = FollowerState(self)
+				else:
+					assert(isinstance(self.State, FollowerState))
+					self.ElectionTimer.restart(self.get_election_timeout())
 
 		return ret
 
 
 	@RPCResult("RequestVote")
 	def request_vote_result(self, peer_address, params):
+		# Dispatch RPC result to state object
 		if isinstance(self.State, CandidateState):
 			self.State.request_vote_result(self, peer_address, params)
 		else:
