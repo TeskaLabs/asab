@@ -22,14 +22,14 @@ class RaftServer(object):
 
 	def __init__(self, app, rpc):
 		self.Loop = app.Loop
+		self.State = None
+
 		self.RPC = rpc
 		self.RPC.bind(self)
 
 		self.Id = asab.Config["asab:raft"]["server_id"]
-		if self.Id == "":
+		if self.Id == "" or self.Id is None:
 			self.Id = "{}:{}".format(socket.gethostname(), rpc.PrimarySocket.getsockname()[1])
-
-		self.State = None
 
 		self.ElectionTimerRange = (
 			asab.Config["asab:raft"].getint("election_timeout_min"),
@@ -39,7 +39,7 @@ class RaftServer(object):
 		self.ElectionTimer = asab.Timer(self._on_election_timeout, loop=self.Loop)
 
 		self.HeartBeatTimeout = asab.Config["asab:raft"].getint("heartbeat_timeout") / 1000.0
-		self.HeartBeatTimer = asab.Timer(self._on_heartbeat_timeout, loop=self.Loop)
+		self.HeartBeatTimer = asab.Timer(self._on_heartbeat_timeout, autorestart=True, loop=self.Loop)
 
 		var_dir = asab.Config['general']['var_dir']
 		self.PersistentState = asab.PersistentDict(os.path.join(var_dir, '{}.raft'.format(self.Id.replace('.','-'))))
@@ -51,7 +51,6 @@ class RaftServer(object):
 			'commitIndex': 0,
 			'lastApplied': 0,
 		}
-
 
 		self.Peers = []
 
@@ -79,7 +78,6 @@ class RaftServer(object):
 
 			if addr is not None:
 				self.Peers.append(Peer((addr, port)))
-
 
 		assert(len(self.Peers) > 0)
 
@@ -109,7 +107,6 @@ class RaftServer(object):
 
 	async def _on_heartbeat_timeout(self):
 		self.State.on_heartbeat_timeout(self)
-		self.HeartBeatTimer.start(self.HeartBeatTimeout)
 
 
 	def evalute_election(self):
@@ -135,30 +132,43 @@ class RaftServer(object):
 
 	#
 
+	def _convert_to_follower(self, term):
+		'''
+		If term in RPC request or response is higher than current term, convert to follower
+		'''
+		assert(self.State.CurrentTerm < term)
+		self.PersistentState['currentTerm'] = self.State.CurrentTerm = term
+		if not isinstance(self.State, FollowerState):
+			self.State = FollowerState(self)
+
+
 	@RPCMethod("AppendEntries")
 	def append_entries_server(self, params):
 		term = params['term']
-		currentTerm = self.PersistentState['currentTerm']
 		leaderId = params['leaderId']
 
 		ret = {
-			'term': currentTerm,
+			'term': self.State.CurrentTerm,
 			'success': False,
 			'serverId': self.Id,
 			'timestamp': params['timestamp'],
 		}
 
-		if term > currentTerm:
-			L.warn("Current term synced from {} to {}".format(currentTerm, term))
-			self.PersistentState['currentTerm'] = term
-		elif term == currentTerm:
+		if term > self.State.CurrentTerm:
+			L.warn("Current term synced from {} to {}".format(self.State.CurrentTerm, term))
+			self._convert_to_follower(term)
+			ret['term'] = term
+
+		elif term == self.State.CurrentTerm:
 			pass
+
 		else:
-			L.warning("Received AppendEntries for an old term:{} when current term is {}".format(term, currentTerm))
+			L.warning("Received AppendEntries for an old term:{} when current term is {}".format(term, self.State.CurrentTerm))
 			return ret
 
 		if isinstance(self.State, FollowerState):
 			self.ElectionTimer.restart(self.get_election_timeout())
+
 		else:
 			self.State = FollowerState(self)
 
@@ -181,7 +191,7 @@ class RaftServer(object):
 		term = params['term']
 		candidateId = params['candidateId']
 
-		votedFor, currentTerm = self.PersistentState.load('votedFor', 'currentTerm')
+		votedFor = self.PersistentState['votedFor']
 
 		ret = {
 			'term': term,
@@ -190,21 +200,18 @@ class RaftServer(object):
 			'timestamp': params['timestamp'],
 		}
 
-		if term < currentTerm:
+		if term < self.State.CurrentTerm:
 			# An older term received
 			return ret
 
-		elif term > currentTerm:
+		elif term > self.State.CurrentTerm:
 			#if RPC request contains term higher than currentTerm, convert to follower and set the term
-			self.PersistentState['currentTerm'] = term
+			self._convert_to_follower(term)
 			self.PersistentState['votedFor'] = votedFor = candidateId
 			ret['voteGranted'] = True
 			L.warn("Voted for '{}' in {} term (higher term)".format(candidateId, term))
 
-			if not isinstance(self.State, FollowerState):
-				self.State = FollowerState(self)
-
-		else: # term == currentTerm
+		else: # term == self.State.CurrentTerm
 
 			if (votedFor is not None) and (votedFor != candidateId):
 				# We voted for someone else

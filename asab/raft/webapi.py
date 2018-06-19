@@ -15,7 +15,7 @@ class RaftWebApi(object):
 
 	async def status(self, request):
 		raftsvc = self.App.get_service("asab.RaftService")
-		status = "Raft server state: {}\n".format(raftsvc.Server.State)
+		status = "Raft server state: {} {}\n".format(raftsvc.Server.State, raftsvc.Server.State.CurrentTerm)
 
 		for peer in raftsvc.Server.Peers:
 			status += ' - {} {} {}\n'.format(peer.Id, peer.Address, peer.RPCdue)

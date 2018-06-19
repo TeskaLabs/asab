@@ -10,8 +10,9 @@ L = logging.getLogger(__name__)
 class StateABC(abc.ABC):
 
 	def __init__(self, server):
-		currentTerm = server.PersistentState['currentTerm']
-		L.warn("Entering {} state from {} in term {}".format(self, server.State, currentTerm))
+		# Used as cache of current term over server.PersistentState['currentTerm']
+		self.CurrentTerm = server.PersistentState['currentTerm']
+		L.warn("Entering {} state from {} in term {}".format(self, server.State, self.CurrentTerm))
 
 
 	def on_heartbeat_timeout(self, server):
@@ -41,9 +42,10 @@ class CandidateState(StateABC):
 	def __init__(self, server):
 		# Starting elections
 		server.PersistentState['currentTerm'] += 1
-
 		super().__init__(server)
 		server.ElectionTimer.restart(server.get_election_timeout())
+
+		# Synchronize heartbeating with the election
 		server.HeartBeatTimer.restart(server.HeartBeatTimeout)
 
 		# Reset voting structure
@@ -70,7 +72,7 @@ class CandidateState(StateABC):
 		The request is sent
 		'''
 		server.RPC.call(peer.Address, "RequestVote",{
-			"term": server.PersistentState['currentTerm'],
+			"term": self.CurrentTerm,
 			"candidateId": server.Id,
 			"lastLogIndex": 1,
 			"lastLogTerm": 1,
@@ -83,12 +85,10 @@ class CandidateState(StateABC):
 		voteGranted = params['voteGranted']
 		serverId = params['serverId']
 
-		currentTerm = server.PersistentState['currentTerm']
-
-		if (term < currentTerm):
+		if (term < self.CurrentTerm):
 			return
-		if (term > currentTerm):
-			L.warning("Received RequestVote result for term {} higher than current term {}".format(term, currentTerm))
+		elif (term > self.CurrentTerm):
+			L.warning("Received RequestVote result for term {} higher than current term {}".format(term, self.CurrentTerm))
 			return
 
 		for peer in server.Peers:
@@ -138,7 +138,7 @@ class LeaderState(StateABC):
 
 	def append_entries(self, peer, server):
 		server.RPC.call(peer.Address, "AppendEntries",{
-			"term": server.PersistentState['currentTerm'],
+			"term": self.CurrentTerm,
 			"leaderId": server.Id,
 			"prevLogIndex": 1,
 			"prevLogTerm": 1,
