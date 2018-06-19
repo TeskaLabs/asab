@@ -54,6 +54,16 @@ def persistent_dict_file(fname, save=False):
 
 class PersistentDict(collections.MutableMapping):
 
+	'''
+ Note: Clever way of initializing of the persistent dict is a use of setdefault:
+
+PersistentState = asab.PersistentDict("some.file")
+PersistentState.setdefault('foo', 0)
+PersistentState.setdefault('bar', 2)
+
+	'''
+
+
 	def __init__(self, path):
 		# Create directory, if needed
 		dirname = os.path.dirname(path)
@@ -61,7 +71,6 @@ class PersistentDict(collections.MutableMapping):
 			os.makedirs(dirname)
 
 		self._path = path
-
 
 	def __getitem__(self, key):
 		with persistent_dict_file(self._path) as d:
@@ -86,3 +95,39 @@ class PersistentDict(collections.MutableMapping):
 	def __str__(self):
 		with persistent_dict_file(self._path) as d:
 			return str(d)
+
+	def load(self, *keys):
+		'''
+		Optimised version of the get() operations that load multiple keys from the persistent store at once.
+		It saves IO in exchange for possible race conditions.
+		'''
+		with persistent_dict_file(self._path) as d:
+			return (d[key] for key in keys)
+
+	def update(*args, **kwds):
+		'''D.update([E, ]**F) -> None.  Update D from mapping/iterable E and F.
+			If E present and has a .keys() method, does:     for k in E: D[k] = E[k]
+			If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v
+			In either case, this is followed by: for k, v in F.items(): D[k] = v
+
+			Inspired by a https://github.com/python/cpython/blob/3.6/Lib/_collections_abc.py
+		'''
+		self, *args = args
+		if len(args) > 1:
+			raise TypeError('update expected at most 1 arguments, got %d' % len(args))
+
+		with persistent_dict_file(self._path, save=True) as d:
+			if args:
+				other = args[0]
+				if isinstance(other, collections.Mapping):
+					for key in other:
+						d[key] = other[key]
+				elif hasattr(other, "keys"):
+					for key in other.keys():
+						d[key] = other[key]
+				else:
+					for key, value in other:
+						d[key] = value
+
+			for key, value in kwds.items():
+				d[key] = value
