@@ -18,7 +18,7 @@ class RaftWebApi(object):
 		status = "Raft server state: {}\n".format(raftsvc.Server.State)
 
 		for peer in raftsvc.Server.Peers:
-			status += ' - {} {}\n'.format(peer.Id, peer.Address)			
+			status += ' - {} {} {}\n'.format(peer.Id, peer.Address, peer.RPCdue)
 
 		status += '\n'
 		return aiohttp.web.Response(text=status)

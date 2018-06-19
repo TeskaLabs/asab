@@ -7,6 +7,8 @@ import logging
 import asab
 
 from .rpc import RPCMethod, RPCResult
+from .server_states import FollowerState, CandidateState, LeaderState
+from .server_peer import Peer
 
 #
 
@@ -27,7 +29,7 @@ class RaftServer(object):
 		if self.Id == "":
 			self.Id = "{}:{}".format(socket.gethostname(), rpc.PrimarySocket.getsockname()[1])
 
-		self.State = '?' # F .. follower, C .. candidate, L .. leader and '?' for initial
+		self.State = None
 
 		self.ElectionTimerRange = (
 			asab.Config["asab:raft"].getint("election_timeout_min"),
@@ -41,9 +43,13 @@ class RaftServer(object):
 
 		var_dir = asab.Config['general']['var_dir']
 		self.PersistentState = asab.PersistentDict(os.path.join(var_dir, '{}.raft'.format(self.Id.replace('.','-'))))
-		self.PersistentState.setdefault('currentTerm', 0)
-		self.PersistentState.setdefault('votedFor', None)
+		#self.PersistentState.setdefault('currentTerm', 0)
+		#self.PersistentState.setdefault('votedFor', None)
 		self.PersistentState.setdefault('log', [])
+		self.PersistentState.update({
+			'currentTerm': 0,
+			'votedFor': None,
+		})
 
 		self.VolatileState = {
 			'commitIndex': 0,
@@ -55,7 +61,8 @@ class RaftServer(object):
 
 		# Add self to peers
 		p = Peer(None)
-		p.set_id(self.Id)
+		p.Id = self.Id
+		p.RPCdue = 0.0
 		self.Peers.append(p)
 
 		# Parse peers
@@ -82,7 +89,8 @@ class RaftServer(object):
 
 
 	async def initialize(self, app):
-		self.enter_state_follower()
+		# Enter follower state
+		self.State = FollowerState(self)
 
 
 	async def finalize(self, app):
@@ -99,43 +107,21 @@ class RaftServer(object):
 
 	#
 
-	def enter_state_follower(self):
-		L.warn("Entering follower state (from '{}')".format(self.State))
-		self.State = 'F'
-		self.HeartBeatTimer.stop()
-		self.ElectionTimer.restart(self.get_election_timeout())
-
-
 	async def _on_election_timeout(self):
-		self.enter_state_candidate()
+		self.State = CandidateState(self)
 
 
-	def enter_state_candidate(self):
-		L.warn("Entering candidate state from '{}', term:{}".format(self.State, self.PersistentState['currentTerm'] + 1))
-
-		# Starting elections
-		self.State = 'C'
-		self.PersistentState['currentTerm'] += 1
-
-		for peer in self.Peers:
-			if peer.Address is not None:
-				peer.VoteGranted = False
-				self.request_vote(peer)
-			else:
-				peer.VoteGranted = True
-
-		self.evalute_election()
-		if self.State == 'C':
-			self.ElectionTimer.restart(self.get_election_timeout())
-			self.HeartBeatTimer.restart(self.HeartBeatTimeout)
+	async def _on_heartbeat_timeout(self):
+		self.State.on_heartbeat_timeout(self)
+		self.HeartBeatTimer.start(self.HeartBeatTimeout)
 
 
 	def evalute_election(self):
-		if self.State == 'L':
+		if isinstance(self.State, LeaderState):
 			# Already a leader
 			return
 
-		if self.State == 'F':
+		if isinstance(self.State, FollowerState):
 			L.warn("We are follower, cannot evaluate election")
 			return
 
@@ -149,72 +135,36 @@ class RaftServer(object):
 
 		# A candidate wins an election if it receives votes from a majority of the servers in the full cluster for the same term.
 		if voted_yes > voted_no:
-			self.enter_state_leader()
-
-
-	def enter_state_leader(self):
-		L.warn("Entering leader state from '{}', term:{}".format(self.State, self.PersistentState['currentTerm']))
-		self.State = 'L'
-
-		self.ElectionTimer.stop()
-		self.HeartBeatTimer.restart(self.HeartBeatTimeout)
-
-		self.send_heartbeat()
-
-
-	async def _on_heartbeat_timeout(self):
-		if self.State == 'L':
-			self.send_heartbeat()
-		elif self.State == 'C':
-			for peer in self.Peers:
-				if not peer.VoteGranted:
-					self.request_vote(peer)
-		else:
-			L.warn("No heartbeat needed for a state {}".format(self.State))
-		self.HeartBeatTimer.start(self.HeartBeatTimeout)
+			self.State = LeaderState(self)
 
 	#
-
-	def send_heartbeat(self):
-		for peer in self.Peers:
-			if peer.Address is not None:
-				self.append_entries(peer)
-
-	#
-
-	def append_entries(self, peer):
-		assert(self.State == 'L')
-		self.RPC.call(peer.Address, "AppendEntries",{
-			"term": self.PersistentState['currentTerm'],
-			"leaderId": self.Id,
-			"prevLogIndex": 1,
-			"prevLogTerm": 1,
-			"entries": [],
-			"leaderCommitIndex": self.VolatileState['commitIndex']
-		})
-
 
 	@RPCMethod("AppendEntries")
 	def append_entries_server(self, params):
 		term = params['term']
+		currentTerm = self.PersistentState['currentTerm']
 		leaderId = params['leaderId']
 
 		ret = {
-			'term': self.PersistentState['currentTerm'],
+			'term': currentTerm,
 			'success': False,
 			'serverId': self.Id,
+			'timestamp': params['timestamp'],
 		}
 
-		if term >= self.PersistentState['currentTerm']:
+		if term > currentTerm:
+			L.warn("Current term synced from {} to {}".format(currentTerm, term))
 			self.PersistentState['currentTerm'] = term
+		elif term == currentTerm:
+			pass
 		else:
-			L.warning("Received AppendEntries for an old term:{} when current term is {}".format(term, self.PersistentState['currentTerm']))
+			L.warning("Received AppendEntries for an old term:{} when current term is {}".format(term, currentTerm))
 			return ret
 
-		if self.State != 'F':
-			self.enter_state_follower()
-
-		self.ElectionTimer.restart(self.get_election_timeout())
+		if isinstance(self.State, FollowerState):
+			self.ElectionTimer.restart(self.get_election_timeout())
+		else:
+			self.State = FollowerState(self)
 
 		ret['success'] = True
 		return ret
@@ -222,109 +172,55 @@ class RaftServer(object):
 
 	@RPCResult("AppendEntries")
 	def append_entries_result(self, peer_address, params):
-		'''
-		The reply is received
-		'''
-		serverId = params['serverId']
-
-		for peer in self.Peers:
-			if peer.Address == peer_address:
-				if peer.Id == '?':
-					L.warn("Peer at '{}' is now known as '{}'".format(peer_address, serverId))
-					peer.Id = serverId
-				elif peer.Id != serverId:
-					L.warn("Server id changed from '{}' to '{}' at '{}'".format(peer.Id, serverId, peer_address))
-
-				break
-
-
-	def request_vote(self, peer):
-		'''
-		The request is sent
-		'''
-		self.RPC.call(peer.Address, "RequestVote",{
-			"term": self.PersistentState['currentTerm'],
-			"candidateId": self.Id,
-			"lastLogIndex": 1,
-			"lastLogTerm": 1,
-		})
-
-
-	@RPCResult("RequestVote")
-	def request_vote_result(self, peer_address, params):
-		'''
-		The reply is received
-		'''
-		term = params['term']
-		voteGranted = params['voteGranted']
-		serverId = params['serverId']
-
-		if (term < self.PersistentState['currentTerm']):
-			return
-		if (term > self.PersistentState['currentTerm']):
-			L.warning("Received RequestVote result for term {} higher than current term {}".format(term, self.PersistentState['currentTerm']))
-			return
-
-		for peer in self.Peers:
-			if peer.Address == peer_address:
-				if peer.Id == '?':
-					L.warn("Peer at '{}' is now known as '{}'".format(peer_address, serverId))
-					peer.Id = serverId
-				elif peer.Id != serverId:
-					L.warn("Server id changed from '{}' to '{}' at '{}'".format(peer.Id, serverId, peer_address))
-
-				if voteGranted:
-					if not peer.VoteGranted:
-						peer.VoteGranted = True
-						self.evalute_election()
-					else:
-						L.warn("Peer '{}'/'{}' already voted".format(peer_address, serverId))
-				break
+		if isinstance(self.State, LeaderState):
+			self.State.append_entries_result(self, peer_address, params)
 		else:
-			L.warn("Cannot find peer entry for '{}' / '{}'".format(peer_address, serverId))
+			L.warn("Received AppendEntries result when not leader but {}".format(self.State))
 
-
+	#
 
 	@RPCMethod("RequestVote")
 	def request_vote_server(self, params):
 		term = params['term']
 		candidateId = params['candidateId']
 
+		votedFor, currentTerm = self.PersistentState.load('votedFor', 'currentTerm')
+
 		ret = {
 			'term': term,
 			'voteGranted': False,
 			'serverId': self.Id,
+			'timestamp': params['timestamp'],
 		}
 
-		if (term < self.PersistentState['currentTerm']):
+		if (term < currentTerm):
+			# An older term received
 			return ret
 
-		if (self.PersistentState['votedFor'] is not None) and (self.PersistentState['votedFor'] != candidateId):
+		elif (votedFor is not None) and (votedFor != candidateId):
+			# We voted for someone else
 			return ret
 
-		if (self.PersistentState['votedFor'] is None) or (self.PersistentState['votedFor'] != candidateId):
+		elif (votedFor is None) or (votedFor != candidateId):
 			#TODO: Also check that candidate log is at least as up-to-date as receiver's log
 
 			self.PersistentState['votedFor'] = candidateId
 			ret['voteGranted'] = True
 			L.warn("Voted for '{}'".format(candidateId))
 
-			if (self.State == 'C'):
-				self.enter_state_follower()
+			if isinstance(self.State, CandidateState):
+				self.State = FollowerState(self)
+
+		elif votedFor == candidateId:
+			assert(isinstance(self.State, FollowerState))
+			self.ElectionTimer.restart(self.get_election_timeout())
 
 		return ret
 
-#
 
-class Peer(object):
-
-
-	def __init__(self, address):
-		self.Address = address # None for self
-		self.Id = '?'
-		self.VoteGranted = False
-
-
-	def set_id(self, id):
-		self.Id = id
-
+	@RPCResult("RequestVote")
+	def request_vote_result(self, peer_address, params):
+		if isinstance(self.State, CandidateState):
+			self.State.request_vote_result(self, peer_address, params)
+		else:
+			L.warn("Received AppendEntries result when not candidate but {}".format(self.State))
