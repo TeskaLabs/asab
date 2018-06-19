@@ -7,10 +7,11 @@ class Timer(object):
 	From https://stackoverflow.com/questions/45419723/python-timer-with-asyncio-coroutine
 	'''
 
-	def __init__(self, callback, loop=None):
+	def __init__(self, callback, autorestart=False, loop=None):
 		self.Callback = callback
 		self.Task = None
 		self.Loop = loop
+		self.AutoRestart = autorestart
 
 
 	def is_started(self):
@@ -38,4 +39,6 @@ class Timer(object):
 	async def _job(self, timeout):
 		await asyncio.sleep(timeout)
 		self.Task = None
+		if self.AutoRestart:
+			self.start(timeout)
 		await self.Callback()
