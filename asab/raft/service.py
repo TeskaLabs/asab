@@ -1,4 +1,5 @@
 import logging
+import asyncio
 
 import asab
 
@@ -38,9 +39,11 @@ class RaftService(asab.Service):
 
 
 	async def initialize(self, app):
+		asyncio.ensure_future(self.Client.initialize(app), loop=app.Loop)
 		await self.Server.initialize(app)
 
 
 	async def finalize(self, app):
 		await self.Server.finalize(app)
+		await self.RPC.finalize(app)
 

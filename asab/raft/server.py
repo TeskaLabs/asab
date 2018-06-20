@@ -23,6 +23,7 @@ class RaftServer(object):
 	def __init__(self, app, rpc):
 		self.Loop = app.Loop
 		self.State = None
+		self.LeaderAddress = None
 
 		self.RPC = rpc
 		self.RPC.bind(self)
@@ -143,7 +144,7 @@ class RaftServer(object):
 
 
 	@RPCMethod("AppendEntries")
-	def append_entries_server(self, params):
+	def append_entries_server(self, peer_address, params):
 		term = params['term']
 		leaderId = params['leaderId']
 
@@ -172,6 +173,7 @@ class RaftServer(object):
 		else:
 			self.State = FollowerState(self)
 
+		self.LeaderAddress = peer_address
 		ret['success'] = True
 		return ret
 
@@ -187,7 +189,7 @@ class RaftServer(object):
 	#
 
 	@RPCMethod("RequestVote")
-	def request_vote_server(self, params):
+	def request_vote_server(self, peer_address, params):
 		term = params['term']
 		candidateId = params['candidateId']
 
@@ -238,8 +240,29 @@ class RaftServer(object):
 
 	@RPCResult("RequestVote")
 	def request_vote_result(self, peer_address, params):
-		# Dispatch RPC result to state object
+		# Dispatch RPC result to a state object (have to be candidate state)
 		if isinstance(self.State, CandidateState):
 			self.State.request_vote_result(self, peer_address, params)
 		else:
 			L.warn("Received AppendEntries result when not candidate but {}".format(self.State))
+
+
+	# Client API
+
+	@RPCMethod("RegisterClient")
+	def register_client_server(self, peer_address, params):
+		if isinstance(self.State, LeaderState):
+			ret = {
+				"status": "OK",
+				"clientId": "TODO",
+			}
+
+		else:
+			# Not a leader
+			ret = {
+				"status": "NOT_LEADER",
+			}
+			if self.LeaderAddress is not None:
+				ret["leaderHint"] = self.LeaderAddress
+
+		return ret

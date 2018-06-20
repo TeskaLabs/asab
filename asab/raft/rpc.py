@@ -1,6 +1,7 @@
 import json
 import itertools
 import functools
+import asyncio
 import socket
 import pprint
 import logging
@@ -26,6 +27,7 @@ class RPC(object):
 		self.IdSeq = itertools.count(start=1, step=1)
 		self.RPCMethods = {}
 		self.RPCResults = {}
+		self.ACallRegister = {}
 
 		self.Sockets = {}
 		self.PrimarySocket = None
@@ -49,6 +51,22 @@ class RPC(object):
 				self.PrimarySocket = s
 
 		assert(self.PrimarySocket is not None)
+
+		app.PubSub.subscribe("Application.tick!", self._on_tick)
+
+
+	async def finalize(self, app):
+		for acall in self.ACallRegister.values():
+			acall.cancel()
+
+
+	def _on_tick(self, message_type):
+		# Find out acall (awaitable calls) that should be timeouted and timeout them
+		now = self.Loop.time()
+		timeouted = [acall.RequestId for acall in self.ACallRegister.values() if acall.TimeoutAt >= now]
+		for rid in timeouted:
+			acall = self.ACallRegister.pop(rid)
+			acall.timeout()
 
 
 	def bind(self, obj):
@@ -103,7 +121,7 @@ class RPC(object):
 				method = request_obj.get('method')
 				if method is not None:
 					propagate_error = True
-					result = self.rpc_dispatch_method(method, request_obj.get('params'))
+					result = self.rpc_dispatch_method(peer_address, method, request_obj.get('params'))
 
 				else:
 					# rpc call result
@@ -162,9 +180,9 @@ class RPC(object):
 	#
 
 	def call(self, peer_address, method, params = None):
-		request_id = next(self.IdSeq)
+		request_id = "{}:{}".format(method, next(self.IdSeq))
 		request_obj = {
-			"id": "{}:{}".format(method, request_id),
+			"id": request_id,
 			"jsonrpc": "2.0",
 			"method": method,
 			"params": params,
@@ -172,10 +190,68 @@ class RPC(object):
 		request_dgram = json.dumps(request_obj).encode('utf-8')
 		request_cgram = self._encrypt(peer_address, request_dgram)
 		self.PrimarySocket.sendto(request_cgram, peer_address)
+		return request_id
+
+
+	async def acall(self, peer_address, method, params = None):
+		'''
+		This is awaitable RCP call.
+		'''
+
+		class ACall(object):
+
+			def __init__(self, rpc):
+				self.RequestId = rpc.call(peer_address, method, params)
+				self.ReplyEvent = asyncio.Event(loop=rpc.Loop)
+				rpc.ACallRegister[self.RequestId] = self
+				self.Result = None
+				self.Error = None
+				self.TimeoutAt = rpc.Loop.time() + 3 # Timeout is hardwired to 3 seconds
+
+
+			async def wait(self):
+				await self.ReplyEvent.wait()
+				if self.Error is not None:
+					# TODO: This is just a scatch
+					raise RuntimeError(self.Error)
+				if self.Result is asyncio.CancelledError:
+					raise asyncio.CancelledError()
+				if self.Result is asyncio.TimeoutError:
+					raise asyncio.TimeoutError()
+				return self.Result
+
+
+			def send(self, peer_address, result):
+				#TODO: peer_address should match the original
+				assert(self.Result is None)
+				assert(self.Error is None)
+				self.Result = result
+				self.ReplyEvent.set()
+
+
+			def send_error(self, peer_address, error):
+				#TODO: peer_address should match the original
+				assert(self.Result is None)
+				assert(self.Error is None)
+				self.Error = error
+				self.ReplyEvent.set()
+
+
+			def cancel(self):
+				self.Result = asyncio.CancelledError
+				self.ReplyEvent.set()
+
+			def timeout(self):
+				self.Result = asyncio.TimeoutError
+				self.ReplyEvent.set()				
+
+
+		a = ACall(self)
+		return await a.wait()
 
 	#
 
-	def rpc_dispatch_method(self, method, params):
+	def rpc_dispatch_method(self, peer_address, method, params):
 		'''
 		rpc_dispatch_method --> {"jsonrpc": "2.0", "method": "subtract", "params": [42, 23], "id": 1}
 		rpc_dispatch_result <-- {"jsonrpc": "2.0", "result": 19, "id": 1}
@@ -183,15 +259,15 @@ class RPC(object):
 		rpc_dispatch_method --> {"jsonrpc": "2.0", "method": "subtract", "params": [23, 42], "id": 2}
 		rpc_dispatch_result <-- {"jsonrpc": "2.0", "result": -19, "id": 2}
 		'''
-		if method == "ping":
+		if method == "Ping":
 			if params is None:
-				return "pong"
+				return "Pong"
 			else:
 				return params
 
 		m = self.RPCMethods.get(method)
 		if m is not None:
-			return m(params)
+			return m(peer_address, params)
 
 		raise RPCError(-32601, "Method not found", data=method)
 
@@ -208,7 +284,13 @@ class RPC(object):
 
 		m = self.RPCResults.get(result_method)
 		if m is not None:
-			return m(peer_address, result)
+			m(peer_address, result)
+			return
+
+		acall = self.ACallRegister.pop(result_id)
+		if acall is not None:
+			acall.send(peer_address, result)
+			return
 
 		L.error("Received result for unknown method '{}'".format(result_id))
 
@@ -218,6 +300,13 @@ class RPC(object):
 		rpc_dispatch_method --> {"jsonrpc": "2.0", "method": "foobar", "id": "1"}
 		rpc_dispatch_result <-- {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": "1"}
 		'''
+
+		#TODO: this ...
+		# acall = self.ACallRegister.pop(result_id)
+		# if acall is not None:
+		#	acall.send_error(peer_address, result)
+		#	return
+
 		print("!!! rpc_dispatch_error", error)
 
 #

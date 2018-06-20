@@ -14,6 +14,7 @@ asab.Config.add_defaults(
 		'asab:raft': {
 			'listen': '0.0.0.0 1711',  # Can be multiline
 			'peers': '', # Can be multiline
+			'discovery': '', # Can be multiline
 			'heartbeat_timeout': 500, # miliseconds, needs to be significantly lower than election_timeout_min
 			'election_timeout_min': 1800, # miliseconds
 			'election_timeout_max': 2200, # miliseconds

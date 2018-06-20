@@ -56,6 +56,8 @@ class CandidateState(StateABC):
 			else:
 				peer.VoteGranted = True
 
+		server.LeaderAddress = None
+
 		#TODO: Maybe call soon server.evalute_election()
 		# Can candidate goes immediatelly into a leader state?
 
@@ -122,6 +124,8 @@ class LeaderState(StateABC):
 		super().__init__(server)
 		server.ElectionTimer.stop()
 		server.HeartBeatTimer.restart(server.HeartBeatTimeout)
+
+		server.LeaderAddress = None
 
 		self.send_heartbeat(server)
 
