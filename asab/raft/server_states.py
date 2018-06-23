@@ -179,14 +179,15 @@ class LeaderState(StateABC):
 	async def append_entries(self, peer, server):
 		start_timestamp = server.Loop.time()
 
-		prevLogTerm = 0
-		prevLogIndex = 0
+		prevLogTerm = None
+		prevLogIndex = None
 
 		if server.Log.Index >= peer.nextIndex:
 			prevLogTerm, prevLogIndex, le = server.Log.get(peer.nextIndex)
 			entries = [le]
 
 		else:
+			prevLogTerm, prevLogIndex, _ = server.Log.get_last()
 			entries = []
 
 		try:
@@ -220,5 +221,8 @@ class LeaderState(StateABC):
 		if success:
 			if len(entries) > 0:
 				peer.nextIndex += len(entries) # This is likely not correct
+			peer.matchIndex = response.get('matchIndex')
 		else:
-			L.warn("Peer {} failed to append entries.".format(peer.Id))
+			L.warn("Peer '{}' reported unsuccessful AppendEntries".format(peer.Id))
+			if peer.nextIndex > 1:
+				peer.nextIndex -= 1

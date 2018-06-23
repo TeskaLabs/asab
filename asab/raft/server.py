@@ -162,6 +162,7 @@ class RaftServer(object):
 			'term': self.State.CurrentTerm,
 			'success': False,
 			'serverId': self.Id,
+			'matchIndex': self.Log.Index,
 		}
 
 		if term > self.State.CurrentTerm:
@@ -169,24 +170,26 @@ class RaftServer(object):
 			self._convert_to_follower(term)
 			ret['term'] = term
 
-		elif term == self.State.CurrentTerm:
-			pass
-
-		else:
+		elif term < self.State.CurrentTerm:
 			L.warning("Received AppendEntries for an old term:{} when current term is {}".format(term, self.State.CurrentTerm))
 			return ret
 
-		if isinstance(self.State, FollowerState):
-			self.ElectionTimer.restart(self.get_election_timeout())
 		else:
-			self.State = FollowerState(self)
+			self.ElectionTimer.restart(self.get_election_timeout())
 
-		if len(entries) > 0:
-			self.Log.replicate(self.State.CurrentTerm, prevLogTerm, prevLogIndex, entries)
-			self.Log.print()
-
+		assert(isinstance(self.State, FollowerState))
 		self.LeaderAddress = peer_address
-		ret['success'] = True
+
+		# TODO: Better prev check (including the term)
+		if self.Log.Index == prevLogIndex:
+			if len(entries) > 0:
+				self.Log.replicate(self.State.CurrentTerm, entries)
+				self.Log.print()
+			ret['success'] = True
+
+		else:
+			L.warn("My log index:{} vs prevLogIndex:{} (len(entries):{})".format(self.Log.Index, prevLogIndex, len(entries)))
+		
 		return ret
 
 	#

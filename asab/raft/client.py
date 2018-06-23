@@ -53,13 +53,14 @@ class RaftClient(object):
 
 		if len(self.Discovery) == 0:
 			L.warn("Discovery set is empty :-(")
-			return
+			return False
 
 		self.LeaderAddress, self.ClientId = await self._leader_discovery()
 		self.RequestSeq = itertools.count(start=1, step=1)
 		self.ConnectionEvent.set()
 
 		L.warn("Received client id '{}'".format(self.ClientId))
+		return True
 
 
 	def disconnect(self):
