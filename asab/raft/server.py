@@ -6,16 +6,16 @@ import logging
 
 import asab
 
-from .rpc import RPCMethod, RPCResult
+from .rpc import RPCMethod
 from .server_states import FollowerState, CandidateState, LeaderState
 from .server_peer import Peer
+from .log import Log
 
 #
 
 L = logging.getLogger(__name__)
 
 #
-
 
 class RaftServer(object):
 
@@ -46,7 +46,8 @@ class RaftServer(object):
 		self.PersistentState = asab.PersistentDict(os.path.join(var_dir, '{}.raft'.format(self.Id.replace('.','-'))))
 		self.PersistentState.setdefault('currentTerm', 0)
 		self.PersistentState.setdefault('votedFor', None)
-		self.PersistentState.setdefault('log', [])
+
+		self.Log = Log(os.path.join(var_dir, '{}.raftlog'.format(self.Id.replace('.','-'))))
 
 		self.VolatileState = {
 			'commitIndex': 0,
@@ -89,6 +90,7 @@ class RaftServer(object):
 
 
 	async def finalize(self, app):
+		await self.State.finalize(app)
 		self.ElectionTimer.stop()
 		self.HeartBeatTimer.stop()
 
@@ -144,15 +146,22 @@ class RaftServer(object):
 
 
 	@RPCMethod("AppendEntries")
-	def append_entries_server(self, peer_address, params):
+	def append_entries(self, peer_address, params):
+		'''
+		This is server-side of the method
+		'''
+
 		term = params['term']
 		leaderId = params['leaderId']
+
+		entries = params['entries']
+		prevLogTerm = params['prevLogTerm']
+		prevLogIndex = params['prevLogIndex']
 
 		ret = {
 			'term': self.State.CurrentTerm,
 			'success': False,
 			'serverId': self.Id,
-			'timestamp': params['timestamp'],
 		}
 
 		if term > self.State.CurrentTerm:
@@ -169,27 +178,24 @@ class RaftServer(object):
 
 		if isinstance(self.State, FollowerState):
 			self.ElectionTimer.restart(self.get_election_timeout())
-
 		else:
 			self.State = FollowerState(self)
+
+		if len(entries) > 0:
+			self.Log.replicate(self.State.CurrentTerm, prevLogTerm, prevLogIndex, entries)
+			self.Log.print()
 
 		self.LeaderAddress = peer_address
 		ret['success'] = True
 		return ret
 
-
-	@RPCResult("AppendEntries")
-	def append_entries_result(self, peer_address, params):
-		# Dispatch RPC result to state object
-		if isinstance(self.State, LeaderState):
-			self.State.append_entries_result(self, peer_address, params)
-		else:
-			L.warn("Received AppendEntries result when not leader but {}".format(self.State))
-
 	#
 
 	@RPCMethod("RequestVote")
-	def request_vote_server(self, peer_address, params):
+	def request_vote(self, peer_address, params):
+		'''
+		This is server-side of the method
+		'''
 		term = params['term']
 		candidateId = params['candidateId']
 
@@ -199,7 +205,6 @@ class RaftServer(object):
 			'term': term,
 			'voteGranted': False,
 			'serverId': self.Id,
-			'timestamp': params['timestamp'],
 		}
 
 		if term < self.State.CurrentTerm:
@@ -238,19 +243,14 @@ class RaftServer(object):
 		return ret
 
 
-	@RPCResult("RequestVote")
-	def request_vote_result(self, peer_address, params):
-		# Dispatch RPC result to a state object (have to be candidate state)
-		if isinstance(self.State, CandidateState):
-			self.State.request_vote_result(self, peer_address, params)
-		else:
-			L.warn("Received AppendEntries result when not candidate but {}".format(self.State))
-
-
 	# Client API
 
 	@RPCMethod("RegisterClient")
-	def register_client_server(self, peer_address, params):
+	def register_client(self, peer_address, params):
+		'''
+		This is server-side of the method
+		'''
+
 		if isinstance(self.State, LeaderState):
 			ret = {
 				"status": "OK",
@@ -266,3 +266,43 @@ class RaftServer(object):
 				ret["leaderHint"] = self.LeaderAddress
 
 		return ret
+
+
+
+	@RPCMethod("ClientRequest")
+	def client_request(self, peer_address, params):
+		'''
+		This is server-side of the method
+		'''
+		if params is None: params = {}
+		clientId = params.get("clientId")
+		sequenceNum = params.get("sequenceNum")
+		command = params.get("command")
+
+		if clientId is None or sequenceNum is None or command is None:
+			L.warn("Received invalid ClientRequest")
+			return
+
+		if not isinstance(self.State, LeaderState):
+			# Not a leader
+			ret = {
+				"status": "NOT_LEADER",
+			}
+			if self.LeaderAddress is not None:
+				ret["leaderHint"] = self.LeaderAddress
+			return ret
+
+
+		#self.State.add_command_to_log(clientId, sequenceNum, command)
+		self.Log.add(self.State.CurrentTerm, command)
+		self.Log.print()
+
+		self.State.send_heartbeat(self)
+		self.HeartBeatTimer.restart(self.HeartBeatTimeout)
+
+		ret = {
+			"status": "OK",
+		}
+		return ret
+
+

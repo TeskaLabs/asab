@@ -1,6 +1,7 @@
 import pprint
 import asyncio
 import logging
+import itertools
 import random
 
 import asab
@@ -18,10 +19,10 @@ class RaftClient(object):
 		self.Loop = app.Loop
 		self.LeaderAddress = None
 		self.ClientId = None
+		self.ConnectionEvent = asyncio.Event(loop=app.Loop)
 
 		self.RPC = rpc
 		self.RPC.bind(self)
-
 
 		# The discovery set contains a network addresses of the possible cluster members
 		# It will be used in a leader discovery procedure.
@@ -38,24 +39,36 @@ class RaftClient(object):
 			if addr is not None:
 				self.Discovery.add((addr, port))
 
+		self.disconnect()
+
+
 
 	async def initialize(self, app):
-		await self.connect(app)
+		#TODO: Conditionally await self.connect()
+		pass
 
 
-	async def connect(self, app):
-		self.LeaderAddress = None
-		self.ClientId = None
+	async def connect(self):
+		self.disconnect()
 
 		if len(self.Discovery) == 0:
 			L.warn("Discovery set is empty :-(")
 			return
 
-		self.LeaderAddress, self.ClientId = await self._leader_discovery(app)
+		self.LeaderAddress, self.ClientId = await self._leader_discovery()
+		self.RequestSeq = itertools.count(start=1, step=1)
+		self.ConnectionEvent.set()
+
 		L.warn("Received client id '{}'".format(self.ClientId))
 
 
-	async def _leader_discovery(self, app):
+	def disconnect(self):
+		self.LeaderAddress = None
+		self.ClientId = None
+		self.ConnectionEvent.clear()
+
+
+	async def _leader_discovery(self):
 		'''
 		Implementation of the leader discovery procedure
 		'''
@@ -119,3 +132,38 @@ class RaftClient(object):
 
 			else:
 				L.warn("Unknown status '{}' received in a leader discovery".format(status))
+
+
+	async def issue_command(self, command):
+
+		if not self.ConnectionEvent.is_set():
+			await self.connect()
+			if self.LeaderAddress is None:
+				raise RuntimeError("Raft client is not configured.")
+
+			# Wait for a connection (1 second)
+			await asyncio.wait_for(self.ConnectionEvent.wait(), 1.0, loop=self.Loop)
+			if self.LeaderAddress is None:
+				raise RuntimeError("Raft client is not configured.")
+
+		assert(self.ClientId is not None)
+		assert(self.LeaderAddress is not None)
+
+		try:
+			result = await self.RPC.acall(self.LeaderAddress, "ClientRequest", {
+				'clientId': self.ClientId,
+				'sequenceNum': next(self.RequestSeq),
+				'command': command,
+			})
+		except asyncio.TimeoutError:
+			L.warn("Timeout when issuing command to a '{}'".format(self.LeaderAddress))
+			self.disconnect()
+			raise
+
+		except Exception as e:
+			L.exception("Error in ClientRequest RPC")
+			raise
+
+		status = result.get('status', '?')
+
+		print(">>> ClientRequest", result)

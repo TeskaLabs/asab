@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
+import logging
+import datetime 
+
 import asab
 import asab.raft
 
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 class MyApplication(asab.Application):
 
@@ -18,8 +26,19 @@ class MyApplication(asab.Application):
 		# Loading the raft service module
 		self.add_module(asab.raft.Module)
 
+
+	async def main(self):
+		self.PubSub.subscribe("Application.tick/10!", self._on_tick)
+
+
+	async def _on_tick(self, event_name):
 		# Locate raft service
 		raftsvc = self.get_service("asab.RaftService")
+
+		try:
+			await raftsvc.Client.issue_command({'testing': datetime.datetime.now().isoformat()})
+		except Exception as e:
+			L.error("Raft client error: {}".format(e))
 
 
 if __name__ == '__main__':

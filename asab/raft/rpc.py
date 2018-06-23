@@ -24,10 +24,10 @@ class RPC(object):
 
 	def __init__(self, app):
 		self.Loop = app.Loop
+		self.PubSub = app.PubSub
 		self.IdSeq = itertools.count(start=1, step=1)
 		self.RPCMethods = {}
-		self.RPCResults = {}
-		self.ACallRegister = {}
+		self.ACallRegister = {} # Asynchronous call register
 
 		self.Sockets = {}
 		self.PrimarySocket = None
@@ -63,15 +63,19 @@ class RPC(object):
 	def _on_tick(self, message_type):
 		# Find out acall (awaitable calls) that should be timeouted and timeout them
 		now = self.Loop.time()
-		timeouted = [acall.RequestId for acall in self.ACallRegister.values() if acall.TimeoutAt >= now]
-		for rid in timeouted:
-			acall = self.ACallRegister.pop(rid)
+
+		filtered_acalls = [acall.RequestId for acall in self.ACallRegister.values() if acall.TimeoutAt <= now]
+		for request_id in filtered_acalls:
+			acall = self.ACallRegister.pop(request_id)
 			acall.timeout()
+
+		if len(self.ACallRegister) > 30:
+			L.warn("Too high number ({}) of registred acalls!".format(len(self.ACallRegister)))
 
 
 	def bind(self, obj):
 		'''
-		Resolve all @RPCMethod and @RPCResult decorators in the object and bind them
+		Resolve all @RPCMethod decorators in the target `obj` and bind them
 		'''
 		for attr_name in dir(obj):
 			attr = getattr(obj, attr_name)
@@ -80,11 +84,6 @@ class RPC(object):
 					L.error("RCP method '{}' is already bound".format(attr._RCPMethod))
 				else:
 					self.RPCMethods[attr._RCPMethod] = attr
-			if hasattr(attr, '_RCPResult'):
-				if attr._RCPResult in self.RPCResults:
-					L.error("RCP result '{}' is already bound".format(attr._RCPResult))
-				else:
-					self.RPCResults[attr._RCPResult] = attr
 
 	#
 
@@ -193,20 +192,25 @@ class RPC(object):
 		return request_id
 
 
-	async def acall(self, peer_address, method, params = None):
+	async def acall(self, peer_address, method, params = None, *, timeout = None):
 		'''
-		This is awaitable RCP call.
+		This is awaitable call.
 		'''
 
 		class ACall(object):
 
-			def __init__(self, rpc):
-				self.RequestId = rpc.call(peer_address, method, params)
+			def __init__(self, rpc, peer_address, timeout):
+				self.PeerAddress = peer_address
+				self.RequestId = rpc.call(self.PeerAddress, method, params)
 				self.ReplyEvent = asyncio.Event(loop=rpc.Loop)
 				rpc.ACallRegister[self.RequestId] = self
 				self.Result = None
 				self.Error = None
-				self.TimeoutAt = rpc.Loop.time() + 3 # Timeout is hardwired to 3 seconds
+
+				if timeout is None:
+					# The default timeout is 3 seconds
+					timeout = 3
+				self.TimeoutAt = rpc.Loop.time() + timeout
 
 
 			async def wait(self):
@@ -222,7 +226,8 @@ class RPC(object):
 
 
 			def send(self, peer_address, result):
-				#TODO: peer_address should match the original
+				assert(self.PeerAddress == peer_address)
+
 				assert(self.Result is None)
 				assert(self.Error is None)
 				self.Result = result
@@ -230,7 +235,8 @@ class RPC(object):
 
 
 			def send_error(self, peer_address, error):
-				#TODO: peer_address should match the original
+				assert(self.PeerAddress == peer_address)
+
 				assert(self.Result is None)
 				assert(self.Error is None)
 				self.Error = error
@@ -238,15 +244,17 @@ class RPC(object):
 
 
 			def cancel(self):
-				self.Result = asyncio.CancelledError
-				self.ReplyEvent.set()
+				if not self.ReplyEvent.is_set():
+					self.Result = asyncio.CancelledError
+					self.ReplyEvent.set()
 
 			def timeout(self):
-				self.Result = asyncio.TimeoutError
-				self.ReplyEvent.set()				
+				if not self.ReplyEvent.is_set():
+					self.Result = asyncio.TimeoutError
+					self.ReplyEvent.set()				
 
 
-		a = ACall(self)
+		a = ACall(self, peer_address, timeout)
 		return await a.wait()
 
 	#
@@ -280,19 +288,14 @@ class RPC(object):
 		rpc_dispatch_method --> {"jsonrpc": "2.0", "method": "subtract", "params": [23, 42], "id": 2}
 		rpc_dispatch_result <-- {"jsonrpc": "2.0", "result": -19, "id": 2}
 		'''
-		result_method, _ = result_id.split(":", 1)
 
-		m = self.RPCResults.get(result_method)
-		if m is not None:
-			m(peer_address, result)
+		acall = self.ACallRegister.pop(result_id, None)
+		if acall is None:
+			L.error("Received result for unknown method '{}'".format(result_id))
 			return
 
-		acall = self.ACallRegister.pop(result_id)
-		if acall is not None:
-			acall.send(peer_address, result)
-			return
-
-		L.error("Received result for unknown method '{}'".format(result_id))
+		acall.send(peer_address, result)
+		
 
 
 	def rpc_dispatch_error(self, error):
@@ -318,17 +321,6 @@ class RPCMethod(object):
 
 	def __call__(self, f):
 		f._RCPMethod = self.Method
-		return f
-
-#
-
-class RPCResult(object):
-
-	def __init__(self, method):
-		self.Method = method
-
-	def __call__(self, f):
-		f._RCPResult = self.Method
 		return f
 
 #
