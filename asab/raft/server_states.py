@@ -118,8 +118,10 @@ class CandidateState(StateABC):
 			)
 		except asyncio.TimeoutError:
 			# No reply from a peer server
+			peer.Online = False
 			return
 
+		peer.Online = True
 		term = response['term']
 		voteGranted = response['voteGranted']
 		serverId = response['serverId']
@@ -177,6 +179,9 @@ class LeaderState(StateABC):
 
 
 	async def append_entries(self, peer, server):
+
+		#TODO: Ensure that only single append_entries per peer is running
+
 		start_timestamp = server.Loop.time()
 
 		prevLogTerm = None
@@ -205,8 +210,14 @@ class LeaderState(StateABC):
 		except asyncio.TimeoutError:
 			# No reply from a peer server
 			#TODO: A good opportunity to kick a unreachable peer from a cluster
-			# L.warn("No reply for AppendEntries from '{}'".format(peer.Address))
+			if peer.Online != False:
+				L.warn("Peer '{}' is offine".format(peer.Address))
+				peer.Online = False
 			return
+
+		if peer.Online != True:
+			L.warn("Peer '{}' came online".format(peer.Address))
+			peer.Online = True
 
 		peer.RPCdue = server.Loop.time() - start_timestamp
 

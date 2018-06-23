@@ -31,9 +31,9 @@ class MyApplication(asab.Application):
 		# Locate raft service
 		self.RaftSVC = self.get_service("asab.RaftService")
 		
-		ok = await self.RaftSVC.Client.connect()
-		if ok:
-			self.PubSub.subscribe("Application.tick!", self._on_tick)
+		#ok = await self.RaftSVC.Client.connect()
+		#if ok:
+		#	self.PubSub.subscribe("Application.tick!", self._on_tick)
 
 
 	async def _on_tick(self, event_name):

@@ -69,6 +69,21 @@ class RaftClient(object):
 		self.ConnectionEvent.clear()
 
 
+	async def _ensure_connected(self):
+		if not self.ConnectionEvent.is_set():
+			await self.connect()
+			if self.LeaderAddress is None:
+				raise RuntimeError("Raft client is not configured.")
+
+			# Wait for a connection (1 second)
+			await asyncio.wait_for(self.ConnectionEvent.wait(), 1.0, loop=self.Loop)
+			if self.LeaderAddress is None:
+				raise RuntimeError("Raft client is not configured.")
+
+		assert(self.ClientId is not None)
+		assert(self.LeaderAddress is not None)
+
+
 	async def _leader_discovery(self):
 		'''
 		Implementation of the leader discovery procedure
@@ -137,18 +152,7 @@ class RaftClient(object):
 
 	async def issue_command(self, command):
 
-		if not self.ConnectionEvent.is_set():
-			await self.connect()
-			if self.LeaderAddress is None:
-				raise RuntimeError("Raft client is not configured.")
-
-			# Wait for a connection (1 second)
-			await asyncio.wait_for(self.ConnectionEvent.wait(), 1.0, loop=self.Loop)
-			if self.LeaderAddress is None:
-				raise RuntimeError("Raft client is not configured.")
-
-		assert(self.ClientId is not None)
-		assert(self.LeaderAddress is not None)
+		await self._ensure_connected()
 
 		try:
 			result = await self.RPC.acall(self.LeaderAddress, "ClientRequest", {
@@ -168,3 +172,15 @@ class RaftClient(object):
 		status = result.get('status', '?')
 
 		print(">>> ClientRequest", result)
+
+
+	async def status(self):
+		await self._ensure_connected()
+
+		try:
+			result = await self.RPC.acall(self.LeaderAddress, "Status")
+		except asyncio.TimeoutError:
+			self.disconnect()
+			raise
+
+		return result

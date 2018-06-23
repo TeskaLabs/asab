@@ -309,3 +309,35 @@ class RaftServer(object):
 		return ret
 
 
+
+	@RPCMethod("Status")
+	def status(self, peer_address, params):
+
+		currentTerm, votedFor = self.PersistentState.load('currentTerm','votedFor')
+
+		ret = {
+			"id": self.Id,
+			"state": self.State.Name,
+
+			"currentTerm": currentTerm,
+			"votedFor": votedFor,
+
+			"commitIndex": self.VolatileState.get("commitIndex"),
+			"lastApplied": self.VolatileState.get("lastApplied"),
+		}
+
+		if isinstance(self.State, LeaderState):
+			peers = []
+			for p in self.Peers:
+				peers.append({
+					'address': p.Address,
+					'id': p.Id,
+					'online': p.Online,
+					'voteGranted': p.VoteGranted,
+					'rpcDue': p.RPCdue,
+					'nextIndex': p.nextIndex,
+					'matchIndex': p.matchIndex,
+				})
+			ret['peers'] = peers
+
+		return ret

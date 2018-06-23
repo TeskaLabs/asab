@@ -1,4 +1,6 @@
 import aiohttp
+import asab.web
+import asab.web.rest
 
 class RaftWebApi(object):
 
@@ -10,15 +12,14 @@ class RaftWebApi(object):
 		# Locate web service
 		websvc = app.get_service("asab.WebService")	
 
+		# Enable exception to JSON middleware
+		websvc.WebApp.middlewares.append(asab.web.except_json_middleware)
+
 		websvc.WebApp.router.add_get('{}/status'.format(self.Root), self.status)
 
 
 	async def status(self, request):
 		raftsvc = self.App.get_service("asab.RaftService")
-		status = "Raft server state: {} {}\n".format(raftsvc.Server.State, raftsvc.Server.State.CurrentTerm)
+		status = await raftsvc.Client.status()
+		return asab.web.rest.json_response(request, status)
 
-		for peer in raftsvc.Server.Peers:
-			status += ' - {} {} {}\n'.format(peer.Id, peer.Address, peer.RPCdue)
-
-		status += '\n'
-		return aiohttp.web.Response(text=status)

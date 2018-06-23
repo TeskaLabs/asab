@@ -7,6 +7,8 @@ class Peer(object):
 		self.VoteGranted = False
 		self.RPCdue = None
 
+		self.Online = '?'
+
 		# Following entries are valid only for a leader (reinitialize after election)
 		self.nextIndex = None
 		self.matchIndex = None
