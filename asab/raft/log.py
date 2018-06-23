@@ -21,12 +21,12 @@ class Log(object):
 			f.close()
 		self.LogFile = open(fname, 'r+b')
 
-		# Read last index from a file
-		self.Index = 0
-		self.LogFile.seek(0, os.SEEK_END)
-		index, _, _ = self._read_prev_log_entry()
-		if index is not None:
-			self.Index = index
+		# Read last object from a file
+		p = self.LogFile.seek(0, os.SEEK_END)
+		self.Term, self.Index, self.PrevEntry = self._read_prev_log_entry()
+		print("Read Log Index: {} @ {}".format(self.Index, p))
+
+		self.print()
 
 
 	def add(self, term, command):
@@ -39,16 +39,19 @@ class Log(object):
 		variable (bytes) .. command, encoded as UTF-8 JSON string
 		2 bytes (unsigned short) .. length of the command (again, for reverse scrolling)
 		'''
-		self.Index += 1
 		cmd_ser = json.dumps(command)
 		cmd_ser_len = len(cmd_ser)
-		output = struct.pack('=HII', cmd_ser_len, term, self.Index) +\
+		output = struct.pack('=HII', cmd_ser_len, term, self.Index+1) +\
 			cmd_ser.encode('utf-8') +\
 			struct.pack('=H', cmd_ser_len)
 
 		self.LogFile.seek(0, os.SEEK_END)
 		self.LogFile.write(output)
 		self.LogFile.flush()
+
+		self.Index += 1
+		self.Term = term
+		self.PrevEntry = command
 
 		return self.Index
 
@@ -59,10 +62,7 @@ class Log(object):
 
 
 	def get_last(self):
-		#TODO: optimize this (avoid read from a disk)
-		self.LogFile.seek(0, os.SEEK_END)
-		term, index, cmd = self._read_prev_log_entry()
-		return term, index, cmd
+		return self.Term, self.Index, self.PrevEntry
 
 
 	def get(self, index):
