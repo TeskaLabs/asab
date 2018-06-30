@@ -107,12 +107,14 @@ class CandidateState(StateABC):
 
 	async def request_vote(self, server, peer):
 		start_timestamp = server.Loop.time()
+		lastLogTerm, lastLogIndex, _ = server.Log.get_last()
+
 		try:
-			response = await server.RPC.acall(peer.Address, "RequestVote",{
+			response = await server.RPC.acall(peer.Address, "RequestVote", {
 				"term": self.CurrentTerm,
 				"candidateId": server.Id,
-				"lastLogIndex": 1,
-				"lastLogTerm": 1,
+				"lastLogIndex": lastLogIndex,
+				"lastLogTerm": lastLogTerm,
 				},
 				timeout=server.HeartBeatTimeout*0.9
 			)

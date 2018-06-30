@@ -224,6 +224,8 @@ class RaftServer(object):
 		'''
 		term = params['term']
 		candidateId = params['candidateId']
+		lastLogIndex = params['lastLogIndex']
+		lastLogTerm = params['lastLogTerm']
 
 		votedFor = self.PersistentState['votedFor']
 
@@ -234,37 +236,36 @@ class RaftServer(object):
 		}
 
 		if term < self.State.CurrentTerm:
-			# An older term received
+			# Reply false if term < currentTerm (§5.1)
 			return ret
 
 		elif term > self.State.CurrentTerm:
-			#if RPC request contains term higher than currentTerm, convert to follower and set the term
+			# If RPC request or response contains term T > currentTerm: set currentTerm = T, convert to follower (§5.1)
 			self._convert_to_follower(term)
 			self.PersistentState['votedFor'] = votedFor = candidateId
 			ret['voteGranted'] = True
 			L.warn("Voted for '{}' in {} term (higher term)".format(candidateId, term))
 
-		else: # term == self.State.CurrentTerm
+		# If votedFor is null or candidateId, and candidate’s log is at least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
+		if (votedFor is not None) and (votedFor != candidateId):
+			return ret # We already voted for someone else
 
-			if (votedFor is not None) and (votedFor != candidateId):
-				# We voted for someone else
-				return ret
+		my_lastLogTerm, my_lastLogIndex, _ = self.Log.get_last()
+		if (my_lastLogIndex > lastLogIndex) or (my_lastLogTerm > lastLogTerm):
+			return ret # Our log is more recent that the candidate
 
-			elif (votedFor is None) or (votedFor == candidateId):
-				#TODO: Also check that candidate log is at least as up-to-date as receiver's log
+		ret['voteGranted'] = True
+		if votedFor is None:
+			self.PersistentState['votedFor'] = candidateId
+			L.warn("Voted for '{}' in {} term (not voted)".format(candidateId, term))
+		else:
+			L.warn("Voted for '{}' in {} term (confirm vote)".format(candidateId, term))
 
-				ret['voteGranted'] = True
-				if votedFor is None:
-					self.PersistentState['votedFor'] = candidateId
-					L.warn("Voted for '{}' in {} term (not voted)".format(candidateId, term))
-				else:
-					L.warn("Voted for '{}' in {} term (confirm vote)".format(candidateId, term))
-
-				if isinstance(self.State, CandidateState):
-					self.State = FollowerState(self)
-				else:
-					assert(isinstance(self.State, FollowerState))
-					self.ElectionTimer.restart(self.get_election_timeout())
+		if isinstance(self.State, CandidateState):
+			self.State = FollowerState(self)
+		else:
+			assert(isinstance(self.State, FollowerState))
+			self.ElectionTimer.restart(self.get_election_timeout())
 
 		return ret
 
