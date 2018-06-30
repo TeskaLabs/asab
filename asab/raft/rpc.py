@@ -27,6 +27,7 @@ class RPC(object):
 		self.RPCMethods = {}
 		self.ACallRegister = {} # Asynchronous call register
 		self.MaxRPCPayloadSize = int(asab.Config.get('asab:raft', 'max_rpc_payload_size'))
+		self.DelayedReplies = {}
 
 		self.Sockets = {}
 		self.PrimarySocket = None
@@ -59,6 +60,10 @@ class RPC(object):
 			acall.cancel()
 
 
+	def pop_delayed_reply(self, key):
+		return self.DelayedReplies.pop(key, None)
+
+
 	def _on_tick(self, message_type):
 		# Find out acall (awaitable calls) that should be timeouted and timeout them
 		now = self.Loop.time()
@@ -70,6 +75,15 @@ class RPC(object):
 
 		if len(self.ACallRegister) > 30:
 			L.warn("Too high number ({}) of registred acalls!".format(len(self.ACallRegister)))
+
+		# Remove timeouted deplayed replies
+		to_remove = set()
+		for delayed_reply in self.DelayedReplies.values():
+			if delayed_reply.TimeoutAt <= now:
+				delayed_reply.timeout()
+				to_remove.add(delayed_reply.Key)
+		for key in to_remove:
+			del self.DelayedReplies[key]
 
 
 	def bind(self, obj):
@@ -137,7 +151,12 @@ class RPC(object):
 							self.rpc_dispatch_error(peer_address, result_id, error)
 							continue # No reply to results
 
-			except RPCError as e:	
+			except RPCDelayedReply as delayed_reply:
+				delayed_reply._bind(self, s, peer_address, request_obj.get('id'))
+				self.DelayedReplies[delayed_reply.Key] = delayed_reply
+				return
+
+			except RPCError as e:
 				if propagate_error:
 					error_obj = {
 						"id": request_obj.get('id'),
@@ -338,3 +357,57 @@ class RPCError(Exception):
 
 		if data is not None:
 			self.obj['data'] = data
+
+# 
+
+class RPCDelayedReply(Exception):
+
+	#TODO: Implement a timeout!
+
+	def __init__(self, key):
+		self.Key = key
+		self.RPC = None
+		self.Socket = None
+		self.PeerAddress = None
+		self.RequestId = None
+		self.TimeoutAt = None
+
+
+	def reply(self, *args, **kwargs):
+		'''
+		Overload this for an implementation of delayed reply
+		'''
+		return None
+
+
+	def timeout(self):
+		'''
+		Called when timeout is reached
+		'''
+		L.warn("Timeout of the RCP deplayed reply '{}'".format(self.Key))
+
+
+	def _bind(self, rpc, socket, peer_address, request_id, timeout=3.0):
+		assert(self.RPC is None)
+		assert(self.Socket is None)
+		assert(self.PeerAddress is None)
+		assert(self.RequestId is None)
+		self.RPC = rpc
+		self.Socket = socket
+		self.PeerAddress = peer_address
+		self.RequestId = request_id
+		self.TimeoutAt = rpc.Loop.time() + timeout
+
+
+	def execute(self, *args, **kwargs):
+		result = self.reply(*args, **kwargs)
+		if result is not None:
+			result_obj = {
+				"id": self.RequestId,
+				"jsonrpc": "2.0",
+				"result": result,
+			}
+			result_dgram = json.dumps(result_obj).encode('utf-8')
+			result_cgram = self.RPC._encrypt(self.PeerAddress, result_dgram)
+			self.Socket.sendto(result_cgram, self.PeerAddress)
+

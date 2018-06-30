@@ -6,7 +6,7 @@ import logging
 
 import asab
 
-from .rpc import RPCMethod
+from .rpc import RPCMethod, RPCDelayedReply
 from .server_states import FollowerState, CandidateState, LeaderState
 from .server_peer import Peer
 from .log import Log
@@ -105,8 +105,13 @@ class RaftServer(object):
 		while self.VolatileState['commitIndex'] > self.VolatileState['lastApplied']:
 			n = self.VolatileState['lastApplied'] + 1
 			_, _, command = self.Log.get(n)
+			print("APPLY: {} {}".format(n, command))
 			self.PubSub.publish("Raft.apply!", command=command)
 			self.VolatileState['lastApplied'] = n
+
+			delayed_reply = self.RPC.pop_delayed_reply(("client_request", n))
+			if delayed_reply is not None:
+				delayed_reply.execute(command=command)
 
 	#
 
@@ -202,7 +207,7 @@ class RaftServer(object):
 		elif self.Log.Index == prevLogIndex:
 			if len(entries) > 0:
 				self.Log.replicate(self.State.CurrentTerm, entries)
-				self.Log.print()
+				#self.Log.print()
 			ret['success'] = True
 
 			#If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
@@ -250,8 +255,8 @@ class RaftServer(object):
 		if (votedFor is not None) and (votedFor != candidateId):
 			return ret # We already voted for someone else
 
-		my_lastLogTerm, my_lastLogIndex, _ = self.Log.get_last()
-		if (my_lastLogIndex > lastLogIndex) or (my_lastLogTerm > lastLogTerm):
+		myLastLogTerm, myLastLogIndex, _ = self.Log.get_last()
+		if (myLastLogTerm > lastLogTerm) or (myLastLogIndex > lastLogIndex):
 			return ret # Our log is more recent that the candidate
 
 		ret['voteGranted'] = True
@@ -306,7 +311,7 @@ class RaftServer(object):
 		sequenceNum = params.get("sequenceNum")
 		command = params.get("command")
 
-		if clientId is None or sequenceNum is None or command is None:
+		if (clientId is None) or (sequenceNum is None) or (command is None):
 			L.warn("Received invalid ClientRequest")
 			return
 
@@ -319,16 +324,21 @@ class RaftServer(object):
 				ret["leaderHint"] = self.LeaderAddress
 			return ret
 
-		# Issue a command to a log and peers
-		self.Log.add(self.State.CurrentTerm, command)
-		self.State.log_command_added(self)
-		self.Log.print()
+		# Append command to a log
+		log_index = self.State.append_command(self, command)
 
-		ret = {
-			"status": "OK",
-		}
-		return ret
+		class ClientRequestReply(RPCDelayedReply):
 
+			def __init__(self):
+				super().__init__(("client_request", log_index))
+
+			def reply(self, *args, **kwargs):
+				ret = {
+					"status": "OK",
+				}
+				return ret
+
+		raise ClientRequestReply()
 
 
 	@RPCMethod("Status")
@@ -362,7 +372,3 @@ class RaftServer(object):
 			ret['peers'] = peers
 
 		return ret
-
-
-	def commit(self, term, index, cmd):
-		print("COMMIT: ", term, index, cmd)

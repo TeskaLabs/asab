@@ -177,10 +177,12 @@ class LeaderState(StateABC):
 			self.Tasks.append(t)
 
 
-	def log_command_added(self, server):
+	def append_command(self, server, command):
+		log_index = server.Log.append(self.CurrentTerm, command)
 		for peer in server.Peers:
 			peer.logReadyEvent.set()
 		self._adjust_commit_index(server)
+		return log_index
 
 
 	async def _peer_server_loop(self, server, peer):

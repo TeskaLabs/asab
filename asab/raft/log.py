@@ -28,7 +28,7 @@ class Log(object):
 		self.print()
 
 
-	def add(self, term, command):
+	def append(self, term, command):
 		'''
 		The serialized format of the log entry is follows:
 
@@ -57,7 +57,7 @@ class Log(object):
 
 	def replicate(self, term, entries):
 		for command in entries:
-			self.add(term, command)
+			self.append(term, command)
 
 
 	def get_last(self):
