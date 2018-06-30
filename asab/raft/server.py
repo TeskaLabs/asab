@@ -150,13 +150,14 @@ class RaftServer(object):
 		'''
 		This is server-side of the method
 		'''
-
 		term = params['term']
 		leaderId = params['leaderId']
 
 		entries = params['entries']
 		prevLogTerm = params['prevLogTerm']
 		prevLogIndex = params['prevLogIndex']
+
+		leaderCommit = params['leaderCommit']
 
 		ret = {
 			'term': self.State.CurrentTerm,
@@ -181,16 +182,34 @@ class RaftServer(object):
 		self.LeaderAddress = peer_address
 
 		# TODO: Better prev check (including the term)
-		if self.Log.Index == prevLogIndex:
+		if (len(entries) == 0) and (prevLogTerm == 0) and (prevLogIndex == 0):
+			# This is special case for ping-only append entries
+			ret['success'] = True
+		elif self.Log.Index == prevLogIndex:
 			if len(entries) > 0:
 				self.Log.replicate(self.State.CurrentTerm, entries)
 				self.Log.print()
 			ret['success'] = True
 
+			#If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
+			if leaderCommit > self.VolatileState['commitIndex']:
+				self.VolatileState['commitIndex'] = min(leaderCommit, self.Log.Index)
+				self._apply()
+
 		else:
 			L.warn("My log index:{} vs prevLogIndex:{} (len(entries):{})".format(self.Log.Index, prevLogIndex, len(entries)))
 		
 		return ret
+
+
+	def _apply(self):
+		'''
+		If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)
+		'''
+
+		while self.VolatileState['commitIndex'] > self.VolatileState['lastApplied']:
+			print("COMMIT! {}".format(self.VolatileState['lastApplied']))
+			self.VolatileState['lastApplied'] += 1
 
 	#
 
@@ -295,13 +314,10 @@ class RaftServer(object):
 				ret["leaderHint"] = self.LeaderAddress
 			return ret
 
-
-		#self.State.add_command_to_log(clientId, sequenceNum, command)
+		# Issue a command to a log and peers
 		self.Log.add(self.State.CurrentTerm, command)
+		self.State.log_command_added(self)
 		self.Log.print()
-
-		self.State.send_heartbeat(self)
-		self.HeartBeatTimer.restart(self.HeartBeatTimeout)
 
 		ret = {
 			"status": "OK",
@@ -341,3 +357,7 @@ class RaftServer(object):
 			ret['peers'] = peers
 
 		return ret
+
+
+	def commit(self, term, index, cmd):
+		print("COMMIT: ", term, index, cmd)

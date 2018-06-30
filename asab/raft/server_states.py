@@ -49,7 +49,7 @@ class StateABC(abc.ABC):
 
 
 	def on_heartbeat_timeout(self, server):
-		L.warn("Heartbeat ignored in {} state")
+		L.warn("Heartbeat ignored in {} state".format(selg))
 
 
 	def __str__(self):
@@ -156,29 +156,50 @@ class LeaderState(StateABC):
 	def __init__(self, server):
 		super().__init__(server)
 		server.ElectionTimer.stop()
-		server.HeartBeatTimer.restart(server.HeartBeatTimeout)
+		server.HeartBeatTimer.stop()
 
 		server.LeaderAddress = None
 
 		for peer in server.Peers:
-			peer.nextIndex = server.Log.Index + 1
-			peer.matchIndex = 0
-
-		self.send_heartbeat(server)
+			self.add_peer(server, peer)
 
 
-	def on_heartbeat_timeout(self, server):
-		self.send_heartbeat(server)
+	def add_peer(self, server, peer):
+		peer.nextIndex = server.Log.Index + 1
+		peer.matchIndex = 0
+		peer.logReadyEvent = asyncio.Event(loop=server.Loop)
+		peer.logReadyEvent.clear()
+
+		if peer.Address is not None:
+			t = asyncio.ensure_future(self._peer_server_loop(server, peer))
+			self.Tasks.append(t)
 
 
-	def send_heartbeat(self, server):
+	def log_command_added(self, server):
 		for peer in server.Peers:
-			if peer.Address is not None:
-				t = asyncio.ensure_future(self.append_entries(peer, server), loop=server.Loop)
-				self.Tasks.append(t)
+			peer.logReadyEvent.set()
+		self._adjust_commit_index(server)
 
 
-	async def append_entries(self, peer, server):
+	async def _peer_server_loop(self, server, peer):
+		while True:
+			now = server.Loop.time()
+
+			await self._append_entries(peer, server)
+
+			#TODO: Clear only if there are no event to be send
+			peer.logReadyEvent.clear()
+
+			# Find a time interval for heartbeat/sleep
+			dt = server.HeartBeatTimeout - (server.Loop.time() - now)
+			if dt > 0:
+				try:
+					await asyncio.wait_for(peer.logReadyEvent.wait(),dt)
+				except asyncio.TimeoutError:
+					pass
+
+
+	async def _append_entries(self, peer, server):
 
 		#TODO: Ensure that only single append_entries per peer is running
 
@@ -186,14 +207,29 @@ class LeaderState(StateABC):
 
 		prevLogTerm = None
 		prevLogIndex = None
+		entries = []
 
-		if server.Log.Index >= peer.nextIndex:
-			prevLogTerm, prevLogIndex, le = server.Log.get(peer.nextIndex)
-			entries = [le]
+		# Find entries to be pushed to a peer
+		d = server.Log.Index - peer.nextIndex
+		if peer.Online and d >= 0:
+			i = server.Log.slice(peer.nextIndex - 1, d+2)
+			prevLogTerm, prevLogIndex, _ = next(i)				
+
+			while True:
+				try:
+					_t , _i, e = next(i)
+				except StopIteration:
+					break
+				assert(e is not None)
+				entries.append(e)
+
+				#TODO: Limit size of sent entries
 
 		else:
-			prevLogTerm, prevLogIndex, _ = server.Log.get_last()
-			entries = []
+			# No new entry to be sent
+			prevLogTerm, prevLogIndex, _ = server.Log.get(peer.nextIndex-1)
+			assert(peer.nextIndex-1 == prevLogIndex)
+
 
 		try:
 			response = await server.RPC.acall(peer.Address, "AppendEntries",{
@@ -202,14 +238,14 @@ class LeaderState(StateABC):
 					"prevLogTerm": prevLogTerm,
 					"prevLogIndex": prevLogIndex,
 					"entries": entries,
-					"leaderCommitIndex": server.VolatileState['commitIndex'],
+					"leaderCommit": server.VolatileState['commitIndex'],
 				},
 				timeout=server.HeartBeatTimeout*0.9
 			)
 
 		except asyncio.TimeoutError:
 			# No reply from a peer server
-			#TODO: A good opportunity to kick a unreachable peer from a cluster
+			# A good opportunity to kick a unreachable peer from a cluster
 			if peer.Online != False:
 				L.warn("Peer '{}' is offine".format(peer.Address))
 				peer.Online = False
@@ -227,13 +263,53 @@ class LeaderState(StateABC):
 			peer.Id = serverId
 		elif peer.Id != serverId:
 			L.warn("Server id changed from '{}' to '{}' at '{}'".format(peer.Id, serverId, peer.Address))
+			peer.Id = serverId
 
 		success = response.get('success', False)
 		if success:
 			if len(entries) > 0:
 				peer.nextIndex += len(entries) # This is likely not correct
 			peer.matchIndex = response.get('matchIndex')
+			self._adjust_commit_index(server)
+
 		else:
 			L.warn("Peer '{}' reported unsuccessful AppendEntries".format(peer.Id))
 			if peer.nextIndex > 1:
 				peer.nextIndex -= 1
+
+
+	def _adjust_commit_index(self, server):
+		'''
+		If there exists an N such that N > commitIndex, a majority 
+		of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N
+		'''
+
+		commitIndexChanged = False
+		while True:
+
+			N = server.VolatileState['commitIndex'] + 1
+
+			count = 0
+			for peer in server.Peers:
+				if peer.Address is None:
+					# This is a leader
+					if server.Log.Index >= N:
+						count += 1
+				else:
+					# This is a peer / follower
+					if peer.matchIndex >= N:
+						count += 1
+
+			if count <= (len(server.Peers) / 2):
+				break
+
+			e_term, e_index, e_cmd = server.Log.get(N)
+			if (e_term != self.CurrentTerm):
+				break
+
+			# We have a majority
+			server.VolatileState['commitIndex'] = N
+			commitIndexChanged = True
+
+		if commitIndexChanged:
+			server._apply()

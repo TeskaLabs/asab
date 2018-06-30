@@ -20,14 +20,13 @@ class RPC(object):
 	http://www.jsonrpc.org/specification
 	'''
 
-	MAX_DGRAM_LENGTH = 1024
-
 	def __init__(self, app):
 		self.Loop = app.Loop
 		self.PubSub = app.PubSub
 		self.IdSeq = itertools.count(start=1, step=1)
 		self.RPCMethods = {}
 		self.ACallRegister = {} # Asynchronous call register
+		self.MaxRPCPayloadSize = int(asab.Config.get('asab:raft', 'max_rpc_payload_size'))
 
 		self.Sockets = {}
 		self.PrimarySocket = None
@@ -104,7 +103,7 @@ class RPC(object):
 			propagate_error = False
 
 			try:
-				request_cgram, peer_address = s.recvfrom(self.MAX_DGRAM_LENGTH)
+				request_cgram, peer_address = s.recvfrom(self.MaxRPCPayloadSize)
 			except BlockingIOError:
 				return
 
@@ -189,7 +188,9 @@ class RPC(object):
 		}
 		request_dgram = json.dumps(request_obj).encode('utf-8')
 		request_cgram = self._encrypt(peer_address, request_dgram)
-		self.PrimarySocket.sendto(request_cgram, peer_address)
+		x = self.PrimarySocket.sendto(request_cgram, peer_address)
+		if x != len(request_cgram):
+			L.error("Sent data are not complete ({} != {})".format(x, len(request_cgram)))
 		return request_id
 
 

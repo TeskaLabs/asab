@@ -20,6 +20,7 @@ asab.Config.add_defaults(
 			'election_timeout_max': 2200, # miliseconds
 			'server_id': '', # If empty, construct name from hostname and a port
 			'webapi': False,
+			'max_rpc_payload_size': 65507, # The maximum size of the RCP packet payload, the default is maximum UDP packet size
 		}
 	}
 )

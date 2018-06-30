@@ -24,7 +24,6 @@ class Log(object):
 		# Read last object from a file
 		p = self.LogFile.seek(0, os.SEEK_END)
 		self.Term, self.Index, self.PrevEntry = self._read_prev_log_entry()
-		print("Read Log Index: {} @ {}".format(self.Index, p))
 
 		self.print()
 
@@ -65,23 +64,39 @@ class Log(object):
 		return self.Term, self.Index, self.PrevEntry
 
 
+	def slice(self, index, count):
+		assert(index >= 0)
+		assert(count > 0)
+
+		# Find first
+		p = self.LogFile.seek(0, os.SEEK_END)
+		while True:
+			e_term, e_index, e_cmd = self._read_prev_log_entry()
+			if index == e_index:
+				if e_cmd is None:
+					yield e_term, e_index, None
+				else:
+					yield e_term, e_index, json.loads(e_cmd)
+					e_term, e_index, e_cmd = self._read_log_entry()
+					assert(e_index == index)
+				break
+
+		for i in range(count-1):
+			e_term, e_index, e_cmd = self._read_log_entry()
+			yield e_term, e_index, json.loads(e_cmd) if e_cmd is not None else None
+
+
 	def get(self, index):
-		assert(index > 0)
+		if index == 0:
+			return 0, 0, None
 
 		self.LogFile.seek(0, os.SEEK_END)
 		while True:
-			_, e_index, e = self._read_prev_log_entry()
+			e_term, e_index, e_cmd = self._read_prev_log_entry()
 			if e_index == 0:
 				raise RuntimeError("Log entry {} not found".format(index))
-			if e_index == index: break
-
-		prevLogTerm, prevLogIndex, _ = self._read_prev_log_entry()
-		assert(e is not None)
-
-		e = json.loads(e)
-
-		return prevLogTerm, prevLogIndex, e
-
+			if e_index == index:
+				return e_term, e_index, json.loads(e_cmd)
 
 	def _read_log_entry(self):
 		b = self.LogFile.read(10)

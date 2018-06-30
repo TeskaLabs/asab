@@ -1,3 +1,4 @@
+import asyncio
 
 class Peer(object):
 
@@ -12,3 +13,4 @@ class Peer(object):
 		# Following entries are valid only for a leader (reinitialize after election)
 		self.nextIndex = None
 		self.matchIndex = None
+		self.logReadyEvent = None
