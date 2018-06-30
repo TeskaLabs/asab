@@ -28,6 +28,8 @@ class RaftServer(object):
 		self.RPC = rpc
 		self.RPC.bind(self)
 
+		self.PubSub = app.PubSub
+
 		self.Id = asab.Config["asab:raft"]["server_id"]
 		if self.Id == "" or self.Id is None:
 			self.Id = "{}:{}".format(socket.gethostname(), rpc.PrimarySocket.getsockname()[1])
@@ -93,6 +95,18 @@ class RaftServer(object):
 		await self.State.finalize(app)
 		self.ElectionTimer.stop()
 		self.HeartBeatTimer.stop()
+
+	#
+
+	def _apply(self):
+		'''
+		If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)
+		'''
+		while self.VolatileState['commitIndex'] > self.VolatileState['lastApplied']:
+			n = self.VolatileState['lastApplied'] + 1
+			_, _, command = self.Log.get(n)
+			self.PubSub.publish("Raft.apply!", command=command)
+			self.VolatileState['lastApplied'] = n
 
 	#
 
@@ -200,16 +214,6 @@ class RaftServer(object):
 			L.warn("My log index:{} vs prevLogIndex:{} (len(entries):{})".format(self.Log.Index, prevLogIndex, len(entries)))
 		
 		return ret
-
-
-	def _apply(self):
-		'''
-		If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)
-		'''
-
-		while self.VolatileState['commitIndex'] > self.VolatileState['lastApplied']:
-			print("COMMIT! {}".format(self.VolatileState['lastApplied']))
-			self.VolatileState['lastApplied'] += 1
 
 	#
 
