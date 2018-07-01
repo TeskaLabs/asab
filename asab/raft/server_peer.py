@@ -1,9 +1,17 @@
 import asyncio
+import socket
 
 class Peer(object):
 
 	def __init__(self, address):
-		self.Address = address # None for self
+
+		addr, port = address.split(' ', 1)
+		self.Port = int(port)
+		self.NonResolvedAddress = addr.strip()
+
+		self.Address = None
+		self.Me = False # Will be evaluated during a candidate state
+
 		self.Id = '?'
 		self.VoteGranted = False
 		self.RPCdue = None
@@ -14,3 +22,12 @@ class Peer(object):
 		self.nextIndex = None
 		self.matchIndex = None
 		self.logReadyEvent = None
+
+
+	def is_me(self):
+		return self.Me
+
+
+	def resolve(self, rpc):
+		addr = socket.gethostbyname(self.NonResolvedAddress)
+		self.Address = (addr, self.Port)

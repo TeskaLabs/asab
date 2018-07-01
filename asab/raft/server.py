@@ -1,5 +1,4 @@
 import random
-import re
 import os
 import socket
 import logging
@@ -42,7 +41,6 @@ class RaftServer(object):
 		self.ElectionTimer = asab.Timer(self._on_election_timeout, loop=self.Loop)
 
 		self.HeartBeatTimeout = asab.Config["asab:raft"].getint("heartbeat_timeout") / 1000.0
-		self.HeartBeatTimer = asab.Timer(self._on_heartbeat_timeout, autorestart=True, loop=self.Loop)
 
 		var_dir = asab.Config['general']['var_dir']
 		self.PersistentState = asab.PersistentDict(os.path.join(var_dir, '{}.raft'.format(self.Id.replace('.','-'))))
@@ -56,32 +54,19 @@ class RaftServer(object):
 			'lastApplied': 0,
 		}
 
-		self.Peers = []
-
-		# Add self to peers
-		p = Peer(None)
-		p.Id = self.Id
-		p.RPCdue = 0.0
-		self.Peers.append(p)
+		# # Add self to peers
+		# p = Peer(None)
+		# p.Id = self.Id
+		# p.RPCdue = 0.0
+		# self.Peers.append(p)
 
 		# Parse peers
+		self.Peers = []
 		ps = asab.Config["asab:raft"]["peers"]
 		for p in ps.split('\n'):
 			p = p.strip()
 			if len(p) == 0: continue
-			addr, port = p.split(' ', 1)
-			port = int(port)
-			addr = addr.strip()
-
-			# Try to detect 'self' among peers
-			if (addr == 'localhost') or re.match(r'^127\.0+\.0+\.\d$', addr) or (addr == "::1"):
-				for s in rpc.Sockets:
-					if (port == rpc.PrimarySocket.getsockname()[1]):
-						# Skip this peer entry ...
-						addr = None
-
-			if addr is not None:
-				self.Peers.append(Peer((addr, port)))
+			self.Peers.append(Peer(p))
 
 		assert(len(self.Peers) > 0)
 
@@ -94,7 +79,6 @@ class RaftServer(object):
 	async def finalize(self, app):
 		await self.State.finalize(app)
 		self.ElectionTimer.stop()
-		self.HeartBeatTimer.stop()
 
 	#
 
@@ -134,11 +118,11 @@ class RaftServer(object):
 	def evalute_election(self):
 		if isinstance(self.State, LeaderState):
 			# Already a leader
-			return
+			return True
 
 		if isinstance(self.State, FollowerState):
 			L.warn("We are follower, cannot evaluate election")
-			return
+			return False
 
 		voted_yes = 0
 		voted_no = 0
@@ -151,6 +135,9 @@ class RaftServer(object):
 		# A candidate wins an election if it receives votes from a majority of the servers in the full cluster for the same term.
 		if voted_yes > voted_no:
 			self.State = LeaderState(self)
+			return True
+
+		return False
 
 	#
 
@@ -267,7 +254,10 @@ class RaftServer(object):
 			L.warn("Voted for '{}' in {} term (confirm vote)".format(candidateId, term))
 
 		if isinstance(self.State, CandidateState):
-			self.State = FollowerState(self)
+			# This could be own call to self (candidate queries its own to get vote)
+			if candidateId != self.Id:
+				self.State = FollowerState(self)
+
 		else:
 			assert(isinstance(self.State, FollowerState))
 			self.ElectionTimer.restart(self.get_election_timeout())

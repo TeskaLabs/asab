@@ -48,10 +48,6 @@ class StateABC(abc.ABC):
 		self._on_tick("simulated!")
 
 
-	def on_heartbeat_timeout(self, server):
-		L.warn("Heartbeat ignored in {} state".format(selg))
-
-
 	def __str__(self):
 		return self.Name
 
@@ -64,7 +60,6 @@ class FollowerState(StateABC):
 	def __init__(self, server):
 		super().__init__(server)
 		server.ElectionTimer.restart(server.get_election_timeout())
-		server.HeartBeatTimer.stop()
 
 #
 
@@ -73,81 +68,81 @@ class CandidateState(StateABC):
 	Name = "Candidate"
 
 	def __init__(self, server):
-		# Starting elections
+		# Vote for myself
 		server.PersistentState['currentTerm'] += 1
+		server.PersistentState['votedFor'] = server.Id
+
 		super().__init__(server)
 		server.ElectionTimer.restart(server.get_election_timeout())
-
-		# Synchronize heartbeating with the election
-		server.HeartBeatTimer.restart(server.HeartBeatTimeout)
-
-		# Reset voting structure
-		for peer in server.Peers:
-			if peer.Address is not None:
-				peer.VoteGranted = False
-				t = asyncio.ensure_future(self.request_vote(server, peer), loop=server.Loop)
-				self.Tasks.append(t)
-			else:
-				peer.VoteGranted = True
-
 		server.LeaderAddress = None
 
-		
-		#TODO: Maybe call soon server.evalute_election()
-		# Can candidate goes immediatelly into a leader state?
-
-
-	def on_heartbeat_timeout(self, server):
-		# Send RequestVote RCP to all peers but myself
-		for peer in server.Peers:
-			if peer.Address is not None:
-				t = asyncio.ensure_future(self.request_vote(server, peer), loop=server.Loop)
-				self.Tasks.append(t)
-
-
-	async def request_vote(self, server, peer):
-		start_timestamp = server.Loop.time()
 		lastLogTerm, lastLogIndex, _ = server.Log.get_last()
 
-		try:
-			response = await server.RPC.acall(peer.Address, "RequestVote", {
-				"term": self.CurrentTerm,
-				"candidateId": server.Id,
-				"lastLogIndex": lastLogIndex,
-				"lastLogTerm": lastLogTerm,
-				},
-				timeout=server.HeartBeatTimeout*0.9
-			)
-		except asyncio.TimeoutError:
-			# No reply from a peer server
-			peer.Online = False
-			return
+		for peer in server.Peers:
+			t = asyncio.ensure_future(self._voting_loop(server, peer, lastLogTerm, lastLogIndex), loop=server.Loop)
+			self.Tasks.append(t)
 
-		peer.Online = True
-		term = response['term']
-		voteGranted = response['voteGranted']
-		serverId = response['serverId']
 
-		if (term < self.CurrentTerm):
-			return
-		elif (term > self.CurrentTerm):
-			L.warning("Received RequestVote result for term {} higher than current term {}".format(term, self.CurrentTerm))
-			return
+	async def _voting_loop(self, server, peer, lastLogTerm, lastLogIndex):
 
-		if peer.Id == '?':
-			L.warn("Peer at '{}' is now known as '{}'".format(peer.Address, serverId))
-			peer.Id = serverId
-		elif peer.Id != serverId:
-			L.warn("Server id changed from '{}' to '{}' at '{}'".format(peer.Id, serverId, peer.Address))
+		peer.VoteGranted = False
+		peer.resolve(server.RPC)
 
-		if voteGranted:
-			if not peer.VoteGranted:
-				peer.VoteGranted = True
-				server.evalute_election()
-			else:
-				L.warn("Peer '{}'/'{}' already voted".format(peer.Address, serverId))
+		while True:
+			start_timestamp = server.Loop.time()
 
-		peer.RPCdue = server.Loop.time() - start_timestamp
+			try:
+				response = await server.RPC.acall(peer.Address, "RequestVote", {
+					"term": self.CurrentTerm,
+					"candidateId": server.Id,
+					"lastLogIndex": lastLogIndex,
+					"lastLogTerm": lastLogTerm,
+					},
+					timeout=server.HeartBeatTimeout*0.9
+				)
+
+			except asyncio.TimeoutError:
+				# No reply from a peer server
+				peer.Online = False
+				
+				dt = server.HeartBeatTimeout - (server.Loop.time() - start_timestamp)
+				if dt > 0:
+					await asyncio.sleep(dt)
+
+				continue
+
+			end_timestamp = server.Loop.time()
+			peer.Online = True
+			peer.RPCdue = end_timestamp - start_timestamp
+
+			term = response['term']
+			voteGranted = response['voteGranted']
+			serverId = response['serverId']
+
+			if peer.Id == '?':
+				L.warn("Peer at '{}' is now known as '{}'".format(peer.Address, serverId))
+				peer.Id = serverId
+				if peer.Id == server.Id:
+					peer.Me = True
+
+			elif peer.Id != serverId:
+				L.warn("Server id changed from '{}' to '{}' at '{}' (ignored)".format(peer.Id, serverId, peer.Address))
+
+			if term > self.CurrentTerm:
+				L.warning("Received RequestVote result for term {} higher than current term {}".format(term, self.CurrentTerm))
+
+			elif term == self.CurrentTerm:
+				if voteGranted and not peer.VoteGranted:
+					peer.VoteGranted = True
+					done = server.evalute_election()
+					if done or peer.is_me():
+						return
+
+			# Find a time interval for heartbeat/sleep
+			dt = server.HeartBeatTimeout - (end_timestamp - start_timestamp)
+			if dt > 0:
+				await asyncio.sleep(dt)
+
 
 #
 
@@ -158,21 +153,23 @@ class LeaderState(StateABC):
 	def __init__(self, server):
 		super().__init__(server)
 		server.ElectionTimer.stop()
-		server.HeartBeatTimer.stop()
 
 		server.LeaderAddress = None
 
 		for peer in server.Peers:
-			self.add_peer(server, peer)
+			self.lead_peer(server, peer)
 
 
-	def add_peer(self, server, peer):
+	def lead_peer(self, server, peer):
+		'''
+		Start leader coroutine (_peer_server_loop) for a given peer.
+		'''
 		peer.nextIndex = server.Log.Index + 1
 		peer.matchIndex = 0
 		peer.logReadyEvent = asyncio.Event(loop=server.Loop)
 		peer.logReadyEvent.clear()
 
-		if peer.Address is not None:
+		if not peer.is_me():
 			t = asyncio.ensure_future(self._peer_server_loop(server, peer))
 			self.Tasks.append(t)
 
@@ -295,7 +292,7 @@ class LeaderState(StateABC):
 
 			count = 0
 			for peer in server.Peers:
-				if peer.Address is None:
+				if peer.is_me():
 					# This is a leader
 					if server.Log.Index >= N:
 						count += 1
