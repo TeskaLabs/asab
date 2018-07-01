@@ -247,7 +247,7 @@ class RPC(object):
 
 
 			def send(self, peer_address, result):
-				assert(self.PeerAddress == peer_address)
+				#assert(self.PeerAddress == peer_address)
 
 				assert(self.Result is None)
 				assert(self.Error is None)
@@ -256,7 +256,7 @@ class RPC(object):
 
 
 			def send_error(self, peer_address, error):
-				assert(self.PeerAddress == peer_address)
+				#assert(self.PeerAddress == peer_address)
 
 				assert(self.Result is None)
 				assert(self.Error is None)
