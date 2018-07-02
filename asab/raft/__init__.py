@@ -21,6 +21,7 @@ asab.Config.add_defaults(
 			'server_id': '', # If empty, construct name from hostname and a port
 			'webapi': False,
 			'max_rpc_payload_size': 65507, # The maximum size of the RCP packet payload, the default is maximum UDP packet size
+			'secret_key': 'mysixteenbytekey', # AES key must be either 16 (AES-128), 24 (AES-192), or 32 (AES-256) bytes long
 		}
 	}
 )

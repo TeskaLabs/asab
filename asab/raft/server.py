@@ -341,7 +341,6 @@ class RaftServer(object):
 			"state": self.State.Name,
 
 			"currentTerm": currentTerm,
-			"votedFor": votedFor,
 
 			"commitIndex": self.VolatileState.get("commitIndex"),
 			"lastApplied": self.VolatileState.get("lastApplied"),
@@ -358,6 +357,7 @@ class RaftServer(object):
 					'rpcDue': p.RPCdue,
 					'nextIndex': p.nextIndex,
 					'matchIndex': p.matchIndex,
+					'is_me': p.is_me(),
 				})
 			ret['peers'] = peers
 

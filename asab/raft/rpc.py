@@ -6,6 +6,12 @@ import socket
 import pprint
 import logging
 
+import Crypto
+import Crypto.Random
+import Crypto.Cipher.AES
+import Crypto.Hash.HMAC
+import Crypto.Hash.SHA256
+
 import asab
 
 #
@@ -31,6 +37,10 @@ class RPC(object):
 
 		self.Sockets = {}
 		self.PrimarySocket = None
+
+		self.SecretKey = asab.Config.get('asab:raft', 'secret_key')
+		self.SecretKeyBytes = self.SecretKey.encode('utf-8')
+		self.CryptoRandom = Crypto.Random.new()
 
 		# Parse listen address(es), can be multiline configuration item
 		ls = asab.Config["asab:raft"]["listen"]
@@ -101,12 +111,36 @@ class RPC(object):
 	#
 
 	def _encrypt(self, peer, dgram):
-		#TODO: This ...
-		return dgram
+		'''
+		AES CFB with HMAC (SHA-256) Encrypt-then-MAC (EtM)
+		'''
+		iv = self.CryptoRandom.read(Crypto.Cipher.AES.block_size)
+		cipher = Crypto.Cipher.AES.new(self.SecretKey, Crypto.Cipher.AES.MODE_CFB, iv)
+		cgram = iv + cipher.encrypt(dgram)
+
+		h = Crypto.Hash.HMAC.new(self.SecretKeyBytes, digestmod=Crypto.Hash.SHA256)
+		h.update(cgram)
+		mac = h.digest()
+		
+		return cgram + mac
 
 
-	def _decrypt(self, peer, dgram):
-		#TODO: This ...
+	def _decrypt(self, peer, cgram):
+		h = Crypto.Hash.HMAC.new(self.SecretKeyBytes, digestmod=Crypto.Hash.SHA256)
+
+		iv = cgram[:Crypto.Cipher.AES.block_size]
+		msg = cgram[Crypto.Cipher.AES.block_size:-h.digest_size]
+		mac = cgram[-h.digest_size:]
+
+		h.update(cgram[:-h.digest_size])
+		mac_verify = h.digest()
+		if mac != mac_verify:
+			L.error("Untrusted message received from '{}'".format(peer))
+			return None
+
+		cipher = Crypto.Cipher.AES.new(self.SecretKey, Crypto.Cipher.AES.MODE_CFB, iv)
+		dgram = cipher.decrypt(msg)
+
 		return dgram
 
 	#
@@ -122,6 +156,8 @@ class RPC(object):
 				return
 
 			request_dgram = self._decrypt(peer_address, request_cgram)
+			if request_dgram is None:
+				return
 
 			try:
 				request_obj = json.loads(request_dgram.decode('utf-8'))
