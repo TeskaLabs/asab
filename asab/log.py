@@ -33,7 +33,7 @@ def _setup_logging(app):
 			root_logger.addHandler(h)
 
 		# Initialize file handler
-		if Config["logging:file"].getboolean("enabled"):
+		if Config["logging:file"].get("path"):
 
 			path = Config["logging:file"]["path"]
 
