@@ -54,6 +54,13 @@ class ConfigParser(configparser.ConfigParser):
 			"format": _syslog_format.get(platform.system(), "3"),
 		},
 
+		"logging:file": {
+			"enabled": "false",
+			"path": "",
+			"format": "%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s",
+			"datefmt": "%%d-%%b-%%Y %%H:%%M:%%S.%%f"
+		},
+
 	}
 
 

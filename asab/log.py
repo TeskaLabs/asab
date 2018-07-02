@@ -32,6 +32,19 @@ def _setup_logging(app):
 			h.setLevel(logging.DEBUG)
 			root_logger.addHandler(h)
 
+		# Initialize file handler
+		if Config["logging:file"].getboolean("enabled"):
+
+			path = Config["logging:file"]["path"]
+
+			fh = logging.FileHandler(path)
+			fh.setLevel(logging.DEBUG)
+			fh.setFormatter(StructuredDataFormatter(
+				fmt = Config["logging:file"]["format"],
+				datefmt = Config["logging:file"]["datefmt"],
+				sd_id = Config["logging"]["sd_id"],
+			))
+			root_logger.addHandler(fh)
 
 		# Initialize syslog
 		if Config["logging:syslog"].getboolean("enabled"):
