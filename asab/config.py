@@ -55,6 +55,7 @@ class ConfigParser(configparser.ConfigParser):
 		},
 
 		"logging:file": {
+			"path": "",
 			"format": "%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s",
 			"datefmt": "%%d-%%b-%%Y %%H:%%M:%%S.%%f"
 		},

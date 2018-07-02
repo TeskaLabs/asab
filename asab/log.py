@@ -33,11 +33,11 @@ def _setup_logging(app):
 			root_logger.addHandler(h)
 
 		# Initialize file handler
-		if Config["logging:file"].get("path"):
+		file_path = Config["logging:file"]["path"]
 
-			path = Config["logging:file"]["path"]
+		if len(file_path) > 0:
 
-			fh = logging.FileHandler(path)
+			fh = logging.FileHandler(file_path)
 			fh.setLevel(logging.DEBUG)
 			fh.setFormatter(StructuredDataFormatter(
 				fmt = Config["logging:file"]["format"],
