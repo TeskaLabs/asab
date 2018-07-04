@@ -324,7 +324,7 @@ class RaftServer(object):
 
 			def reply(self, *args, **kwargs):
 				ret = {
-					"status": "OK",
+					"result": "NOT-IMPLEMENTED-YET",
 				}
 				return ret
 

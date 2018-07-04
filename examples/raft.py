@@ -32,13 +32,13 @@ class MyApplication(asab.Application):
 		self.RaftSVC = self.get_service("asab.RaftService")
 		
 		ok = await self.RaftSVC.Client.connect()
-		if ok:
-			self.PubSub.subscribe("Application.tick!", self._on_tick)
+		#if ok:
+		#	self.PubSub.subscribe("Application.tick!", self._on_tick)
 
 
 	async def _on_tick(self, event_name):
 		try:
-			await self.RaftSVC.Client.issue_command({'testing': datetime.datetime.now().isoformat()})
+			await self.RaftSVC.Client.client_request({'testing': datetime.datetime.now().isoformat()})
 		except Exception as e:
 			L.error("Raft client error: {}".format(e))
 

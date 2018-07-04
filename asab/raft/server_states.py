@@ -313,4 +313,5 @@ class LeaderState(StateABC):
 			commitIndexChanged = True
 
 		if commitIndexChanged:
-			server._apply()
+			# This has to be delayed, because we need to inform client first about successful command append
+			server.Loop.call_soon(server._apply)

@@ -16,6 +16,7 @@ class RaftWebApi(object):
 		websvc.WebApp.middlewares.append(asab.web.except_json_middleware)
 
 		websvc.WebApp.router.add_get('{}/status'.format(self.Root), self.status)
+		websvc.WebApp.router.add_put('{}/client_request'.format(self.Root), self.client_request)
 
 
 	async def status(self, request):
@@ -23,3 +24,9 @@ class RaftWebApi(object):
 		status = await raftsvc.Client.status()
 		return asab.web.rest.json_response(request, status)
 
+
+	async def client_request(self, request):
+		raftsvc = self.App.get_service("asab.RaftService")
+		command = await request.json()
+		result = await raftsvc.Client.client_request(command)
+		return asab.web.rest.json_response(request, result)

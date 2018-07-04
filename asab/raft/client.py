@@ -150,37 +150,29 @@ class RaftClient(object):
 				L.warn("Unknown status '{}' received in a leader discovery".format(status))
 
 
-	async def issue_command(self, command):
-
+	async def client_request(self, command):
 		await self._ensure_connected()
-
 		try:
 			result = await self.RPC.acall(self.LeaderAddress, "ClientRequest", {
 				'clientId': self.ClientId,
 				'sequenceNum': next(self.RequestSeq),
 				'command': command,
 			})
+			return result
 		except asyncio.TimeoutError:
 			L.warn("Timeout when issuing command to a '{}'".format(self.LeaderAddress))
 			self.disconnect()
 			raise
-
 		except Exception as e:
 			L.exception("Error in ClientRequest RPC")
 			raise
 
-		status = result.get('status', '?')
-
-		print(">>> ClientRequest", result)
-
 
 	async def status(self):
 		await self._ensure_connected()
-
 		try:
 			result = await self.RPC.acall(self.LeaderAddress, "Status")
+			return result
 		except asyncio.TimeoutError:
 			self.disconnect()
 			raise
-
-		return result
