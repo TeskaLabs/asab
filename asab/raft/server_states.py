@@ -86,6 +86,8 @@ class CandidateState(StateABC):
 	async def _voting_loop(self, server, peer, lastLogTerm, lastLogIndex):
 
 		peer.VoteGranted = False
+
+		# Ensure that we have a fresh IP address of the peer
 		peer.resolve(server.RPC)
 
 		while True:
@@ -250,6 +252,7 @@ class LeaderState(StateABC):
 			if peer.Online != False:
 				L.warn("Peer '{}' is offine".format(peer.Address))
 				peer.Online = False
+				peer.resolve(server.RPC) # Try to obtain the IP again, maybe it changed in meanwhile
 			return
 
 		if peer.Online != True:

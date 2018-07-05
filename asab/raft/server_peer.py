@@ -29,5 +29,6 @@ class Peer(object):
 
 
 	def resolve(self, rpc):
+		# TODO: This should be ideally non-blocking
 		addr = socket.gethostbyname(self.NonResolvedAddress)
 		self.Address = (addr, self.Port)
