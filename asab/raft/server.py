@@ -181,10 +181,11 @@ class RaftServer(object):
 		assert(isinstance(self.State, FollowerState))
 		self.LeaderAddress = peer_address
 
-		# TODO: Better prev check (including the term)
 		if (len(entries) == 0) and (prevLogTerm == 0) and (prevLogIndex == 0):
 			# This is special case for ping-only append entries
 			ret['success'] = True
+
+		# TODO: Better prev check (including the term)
 		elif self.Log.Index == prevLogIndex:
 			if len(entries) > 0:
 				self.Log.replicate(self.State.CurrentTerm, entries)
