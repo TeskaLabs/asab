@@ -3,7 +3,7 @@ import asab
 
 from .service import WebService
 from .websocket import WebSocketFactory
-from . excmw import except_json_middleware
+from .exception import JsonExceptionMiddleware
 
 #
 
