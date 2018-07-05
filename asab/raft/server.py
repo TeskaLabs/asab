@@ -46,12 +46,18 @@ class RaftServer(object):
 		self.PersistentState = asab.PersistentDict(os.path.join(var_dir, '{}.raft'.format(self.Id.replace('.','-'))))
 		self.PersistentState.setdefault('currentTerm', 0)
 		self.PersistentState.setdefault('votedFor', None)
+		
+		# 
+		# https://github.com/ongardie/dissertation#readme Errata:
+		# Although lastApplied is listed as volatile state, it should be as volatile as the state machine.
+		# If the state machine is volatile, lastApplied should be volatile.
+		# If the state machine is persistent, lastApplied should be just as persistent.
+		self.PersistentState.setdefault('lastApplied', 0)
 
 		self.Log = Log(os.path.join(var_dir, '{}.raftlog'.format(self.Id.replace('.','-'))))
 
 		self.VolatileState = {
 			'commitIndex': 0,
-			'lastApplied': 0,
 		}
 
 		# Parse peers
@@ -78,14 +84,16 @@ class RaftServer(object):
 
 	def _apply(self):
 		'''
-		If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3)
+		If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine
 		'''
-		while self.VolatileState['commitIndex'] > self.VolatileState['lastApplied']:
-			n = self.VolatileState['lastApplied'] + 1
+		lastApplied = self.PersistentState['lastApplied']
+
+		while self.VolatileState['commitIndex'] > lastApplied:
+			n = lastApplied + 1
 			_, _, command = self.Log.get(n)
 			print("APPLY: {} {}".format(n, command))
 			self.PubSub.publish("Raft.apply!", command=command)
-			self.VolatileState['lastApplied'] = n
+			self.PersistentState['lastApplied'] = lastApplied = n
 
 			delayed_reply = self.RPC.pop_delayed_reply(("client_request", n))
 			if delayed_reply is not None:
@@ -219,17 +227,17 @@ class RaftServer(object):
 		}
 
 		if term < self.State.CurrentTerm:
-			# Reply false if term < currentTerm (§5.1)
+			# Reply false if term < currentTerm
 			return ret
 
 		elif term > self.State.CurrentTerm:
-			# If RPC request or response contains term T > currentTerm: set currentTerm = T, convert to follower (§5.1)
+			# If RPC request or response contains term T > currentTerm: set currentTerm = T, convert to follower
 			self._convert_to_follower(term)
 			self.PersistentState['votedFor'] = votedFor = candidateId
 			ret['voteGranted'] = True
 			L.warn("Voted for '{}' in {} term (higher term)".format(candidateId, term))
 
-		# If votedFor is null or candidateId, and candidate’s log is at least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
+		# If votedFor is null or candidateId, and candidate’s log is at least as up-to-date as receiver’s log, grant vote
 		if (votedFor is not None) and (votedFor != candidateId):
 			return ret # We already voted for someone else
 
@@ -325,7 +333,7 @@ class RaftServer(object):
 	@RPCMethod("Status")
 	def status(self, peer_address, params):
 
-		currentTerm, votedFor = self.PersistentState.load('currentTerm','votedFor')
+		currentTerm, votedFor, lastApplied = self.PersistentState.load('currentTerm','votedFor', 'lastApplied')
 
 		ret = {
 			"id": self.Id,
@@ -333,8 +341,8 @@ class RaftServer(object):
 
 			"currentTerm": currentTerm,
 
-			"commitIndex": self.VolatileState.get("commitIndex"),
-			"lastApplied": self.VolatileState.get("lastApplied"),
+			"commitIndex": self.VolatileState["commitIndex"],
+			"lastApplied": lastApplied,
 		}
 
 		if isinstance(self.State, LeaderState):
