@@ -12,8 +12,8 @@ class RaftWebApi(object):
 		# Locate web service
 		websvc = app.get_service("asab.WebService")	
 
-		# Enable exception to JSON middleware
-		websvc.WebApp.middlewares.append(asab.web.except_json_middleware)
+		# Enable exception to JSON exception middleware
+		websvc.WebApp.middlewares.append(asab.web.JsonExceptionMiddleware)
 
 		websvc.WebApp.router.add_get('{}/status'.format(self.Root), self.status)
 		websvc.WebApp.router.add_put('{}/client_request'.format(self.Root), self.client_request)

@@ -10,12 +10,12 @@ L = logging.getLogger(__name__)
 #
 
 @aiohttp.web.middleware
-async def except_json_middleware(request, handler):
+async def JsonExceptionMiddleware(request, handler):
 
 	'''
 	Installation of the handler to a web service:
 		
-	websvc.WebApp.middlewares.append(asab.web.except_json_middleware)
+	websvc.WebApp.middlewares.append(asab.web.JsonExceptionMiddleware)
 	'''
 
 	try:
