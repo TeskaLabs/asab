@@ -105,10 +105,6 @@ class RaftServer(object):
 		self.State = CandidateState(self)
 
 
-	async def _on_heartbeat_timeout(self):
-		self.State.on_heartbeat_timeout(self)
-
-
 	def evalute_election(self):
 		if isinstance(self.State, LeaderState):
 			# Already a leader
