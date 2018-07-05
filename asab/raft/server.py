@@ -54,12 +54,6 @@ class RaftServer(object):
 			'lastApplied': 0,
 		}
 
-		# # Add self to peers
-		# p = Peer(None)
-		# p.Id = self.Id
-		# p.RPCdue = 0.0
-		# self.Peers.append(p)
-
 		# Parse peers
 		self.Peers = []
 		ps = asab.Config["asab:raft"]["peers"]
