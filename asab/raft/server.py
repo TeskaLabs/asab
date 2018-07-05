@@ -56,9 +56,8 @@ class RaftServer(object):
 
 		self.Log = Log(os.path.join(var_dir, '{}.raftlog'.format(self.Id.replace('.','-'))))
 
-		self.VolatileState = {
-			'commitIndex': 0,
-		}
+		# Volatile State
+		self.CommitIndex = 0
 
 		# Parse peers
 		self.Peers = []
@@ -88,7 +87,7 @@ class RaftServer(object):
 		'''
 		lastApplied = self.PersistentState['lastApplied']
 
-		while self.VolatileState['commitIndex'] > lastApplied:
+		while self.CommitIndex > lastApplied:
 			n = lastApplied + 1
 			_, _, command = self.Log.get(n)
 			print("APPLY: {} {}".format(n, command))
@@ -197,8 +196,8 @@ class RaftServer(object):
 			ret['success'] = True
 
 			#If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
-			if leaderCommit > self.VolatileState['commitIndex']:
-				self.VolatileState['commitIndex'] = min(leaderCommit, self.Log.Index)
+			if leaderCommit > self.CommitIndex:
+				self.CommitIndex = min(leaderCommit, self.Log.Index)
 				self._apply()
 
 		else:
@@ -341,7 +340,7 @@ class RaftServer(object):
 
 			"currentTerm": currentTerm,
 
-			"commitIndex": self.VolatileState["commitIndex"],
+			"commitIndex": self.CommitIndex,
 			"lastApplied": lastApplied,
 		}
 

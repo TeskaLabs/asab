@@ -241,7 +241,7 @@ class LeaderState(StateABC):
 					"prevLogTerm": prevLogTerm,
 					"prevLogIndex": prevLogIndex,
 					"entries": entries,
-					"leaderCommit": server.VolatileState['commitIndex'],
+					"leaderCommit": server.CommitIndex,
 				},
 				timeout=server.HeartBeatTimeout*0.9
 			)
@@ -292,7 +292,7 @@ class LeaderState(StateABC):
 
 		commitIndexChanged = False
 		
-		for N in range(server.Log.Index, server.VolatileState['commitIndex'], -1):
+		for N in range(server.Log.Index, server.CommitIndex, -1):
 
 			count = 0
 			for peer in server.Peers:
@@ -313,7 +313,7 @@ class LeaderState(StateABC):
 			if (e_term != self.CurrentTerm):
 				continue
 
-			server.VolatileState['commitIndex'] = N
+			server.CommitIndex = N
 			commitIndexChanged = True
 			break
 
