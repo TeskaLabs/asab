@@ -284,19 +284,20 @@ class LeaderState(StateABC):
 
 	def _adjust_commit_index(self, server):
 		'''
-		If there exists an N such that N > commitIndex, a majority 
-		of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N
+		If there exists an N such that N > commitIndex,
+		a majority of matchIndex[i] ≥ N,
+		and log[N].term == currentTerm
+		set commitIndex = N
 		'''
 
 		commitIndexChanged = False
-		while True:
-
-			N = server.VolatileState['commitIndex'] + 1
+		
+		for N in range(server.Log.Index, server.VolatileState['commitIndex'], -1):
 
 			count = 0
 			for peer in server.Peers:
 				if peer.is_me():
-					# This is a leader
+					# This is me, a leader
 					if server.Log.Index >= N:
 						count += 1
 				else:
@@ -304,16 +305,17 @@ class LeaderState(StateABC):
 					if peer.matchIndex >= N:
 						count += 1
 
+			# Do we have a majority for a given N?
 			if count <= (len(server.Peers) / 2):
-				break
+				continue
 
 			e_term, e_index, e_cmd = server.Log.get(N)
 			if (e_term != self.CurrentTerm):
-				break
+				continue
 
-			# We have a majority
 			server.VolatileState['commitIndex'] = N
 			commitIndexChanged = True
+			break
 
 		if commitIndexChanged:
 			# This has to be delayed, because we need to inform client first about successful command append
