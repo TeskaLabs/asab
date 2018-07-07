@@ -88,6 +88,21 @@ def _setup_logging(app):
 
 ###
 
+class _StructuredLogRecord(logging.LogRecord):
+
+	def getMessage(self):
+		msg = self.msg
+		if self.args:
+			if isinstance(self.args, dict):
+				msg = msg.format(**self.args)
+			else:
+				msg = msg.format(*self.args)
+		return msg
+
+logging.setLogRecordFactory(_StructuredLogRecord)
+
+###
+
 class _StructuredDataLogger(logging.Logger):
 	'''
 This class extends a default python logger class, specifically by adding ``struct_data`` parameter to logging functions.
@@ -100,6 +115,7 @@ It means that you can use expressions such as ``logger.info("Hello world!", stru
 			extra['_struct_data'] = struct_data
 
 		super()._log(level, msg, args, exc_info=exc_info, extra=extra, stack_info=stack_info)
+
 
 logging.setLoggerClass(_StructuredDataLogger)
 
