@@ -22,7 +22,7 @@ L = logging.getLogger(__name__)
 
 class RPC(object):
 	'''
-	The simplistic implementation of JSON RPC
+	The simplistic implementation of JSON-RPC 2.0
 	http://www.jsonrpc.org/specification
 	'''
 
@@ -197,8 +197,12 @@ class RPC(object):
 					error_obj = {
 						"id": request_obj.get('id'),
 						"jsonrpc": "2.0",
-						"error": e.obj,
+						"error": {
+							"code": e.code,
+							"message": e.message,
+						}
 					}
+					if e.data is not None: error_obj['error']['data'] = e.data
 					error_dgram = json.dumps(error_obj).encode('utf-8')
 					error_cgram = self._encrypt(peer_address, error_dgram)
 					s.sendto(error_cgram, peer_address)
@@ -234,13 +238,15 @@ class RPC(object):
 	#
 
 	def call(self, peer_address, method, params = None):
-		request_id = "{}:{}".format(method, next(self.IdSeq))
+		request_id = next(self.IdSeq)
 		request_obj = {
 			"id": request_id,
 			"jsonrpc": "2.0",
 			"method": method,
-			"params": params,
 		}
+		if params is not None:
+			request_obj["params"] = params
+
 		request_dgram = json.dumps(request_obj).encode('utf-8')
 		request_cgram = self._encrypt(peer_address, request_dgram)
 		x = self.PrimarySocket.sendto(request_cgram, peer_address)
@@ -273,8 +279,11 @@ class RPC(object):
 			async def wait(self):
 				await self.ReplyEvent.wait()
 				if self.Error is not None:
-					# TODO: This is just a scatch
-					raise RPCError(code=self.Error.get('code'), message=self.Error.get('message'), data=self.Error.get('data'))
+					raise RPCError(
+						code=self.Error.get('code'),
+						message=self.Error.get('message'),
+						data=self.Error.get('data')
+					)
 				if self.Result is asyncio.CancelledError:
 					raise asyncio.CancelledError()
 				if self.Result is asyncio.TimeoutError:
@@ -282,7 +291,7 @@ class RPC(object):
 				return self.Result
 
 
-			def send(self, peer_address, result):
+			def result(self, peer_address, result):
 				#assert(self.PeerAddress == peer_address)
 
 				assert(self.Result is None)
@@ -291,7 +300,7 @@ class RPC(object):
 				self.ReplyEvent.set()
 
 
-			def send_error(self, peer_address, error):
+			def error(self, peer_address, error):
 				#assert(self.PeerAddress == peer_address)
 
 				assert(self.Result is None)
@@ -304,6 +313,7 @@ class RPC(object):
 				if not self.ReplyEvent.is_set():
 					self.Result = asyncio.CancelledError
 					self.ReplyEvent.set()
+
 
 			def timeout(self):
 				if not self.ReplyEvent.is_set():
@@ -351,14 +361,14 @@ class RPC(object):
 			L.error("Received result for unknown method '{}'".format(result_id))
 			return
 
-		acall.send(peer_address, result)
+		acall.result(peer_address, result)
 		
 
 
 	def rpc_dispatch_error(self, peer_address, result_id, error):
 		'''
-		rpc_dispatch_method --> {"jsonrpc": "2.0", "method": "foobar", "id": "1"}
-		rpc_dispatch_result <-- {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": "1"}
+		rpc_dispatch_method --> {"jsonrpc": "2.0", "method": "foobar", "id": 1}
+		rpc_dispatch_result <-- {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": 1}
 		'''
 
 		acall = self.ACallRegister.pop(result_id, None)
@@ -366,7 +376,7 @@ class RPC(object):
 			L.error("Received error '{}' for unknown method '{}'".format(error, result_id))
 			return
 
-		acall.send_error(peer_address, error)
+		acall.error(peer_address, error)
 
 #
 
@@ -386,13 +396,9 @@ class RPCError(Exception):
 	def __init__(self, code, message, data=None):
 		super().__init__("{}: {}".format(code, message))
 
-		self.obj = {
-			"code": code,
-			"message": message
-		}
-
-		if data is not None:
-			self.obj['data'] = data
+		self.code = code
+		self.message = message
+		self.data = data
 
 # 
 

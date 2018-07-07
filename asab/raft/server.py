@@ -5,10 +5,11 @@ import logging
 
 import asab
 
-from .rpc import RPCMethod, RPCDelayedReply
+from .rpc import RPCMethod, RPCDelayedReply, RPCError
 from .server_states import FollowerState, CandidateState, LeaderState
 from .server_peer import Peer
 from .log import Log
+from .common import StatusCode
 
 #
 
@@ -265,26 +266,31 @@ class RaftServer(object):
 
 	# Client API
 
+	def _assert_leader(self):
+		'''
+		Handles a API request that requires a leader.
+		'''
+		if not isinstance(self.State, LeaderState):
+			data = {}
+			if self.LeaderAddress is not None:
+				data["leaderHint"] = self.LeaderAddress
+			raise RPCError(
+				code=StatusCode.NOT_LEADER,
+				message="Not Leader",
+				data=data if len(data) > 0 else None
+			)
+
+
 	@RPCMethod("RegisterClient")
 	def register_client(self, peer_address, params):
 		'''
 		This is server-side of the method
 		'''
 
-		if isinstance(self.State, LeaderState):
-			ret = {
-				"status": "OK",
-				"clientId": "TODO",
-			}
-
-		else:
-			# Not a leader
-			ret = {
-				"status": "NOT_LEADER",
-			}
-			if self.LeaderAddress is not None:
-				ret["leaderHint"] = self.LeaderAddress
-
+		self._assert_leader()
+		ret = {
+			"clientId": "TODO",
+		}
 		return ret
 
 
@@ -294,6 +300,8 @@ class RaftServer(object):
 		'''
 		This is server-side of the method
 		'''
+		self._assert_leader()
+
 		if params is None: params = {}
 		clientId = params.get("clientId")
 		sequenceNum = params.get("sequenceNum")
@@ -302,15 +310,6 @@ class RaftServer(object):
 		if (clientId is None) or (sequenceNum is None) or (command is None):
 			L.warn("Received invalid ClientRequest")
 			return
-
-		if not isinstance(self.State, LeaderState):
-			# Not a leader
-			ret = {
-				"status": "NOT_LEADER",
-			}
-			if self.LeaderAddress is not None:
-				ret["leaderHint"] = self.LeaderAddress
-			return ret
 
 		# Append command to a log
 		log_index = self.State.append_command(self, command)
@@ -331,6 +330,7 @@ class RaftServer(object):
 
 	@RPCMethod("Status")
 	def status(self, peer_address, params):
+		self._assert_leader()
 
 		currentTerm, votedFor, lastApplied = self.PersistentState.load('currentTerm','votedFor', 'lastApplied')
 

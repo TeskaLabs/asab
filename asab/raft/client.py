@@ -1,10 +1,12 @@
-import pprint
 import asyncio
 import logging
 import itertools
 import random
 
 import asab
+
+from .rpc import RPCError
+from .common import StatusCode
 
 #
 
@@ -18,6 +20,7 @@ class RaftClient(object):
 	def __init__(self, app, rpc):
 		self.Loop = app.Loop
 		self.LeaderAddress = None
+		self.LeaderHint = None
 		self.ClientId = None
 		self.ConnectionEvent = asyncio.Event(loop=app.Loop)
 
@@ -93,24 +96,23 @@ class RaftClient(object):
 			# Generate an infinite list (iterator) of server for a discovery.
 			# It consists of partitions with unique servers separated by None that is meant for discovery cool down
 			# [server1, server2, server3, None, server3, server1, server2, None, server2, ...]
+			# Also, it prefers to supply address in client.LeaderHint if present
 			
 			def __init__(self, client):
 				self.Client = client
-				self.PriorityAddresses = []
 
 			def __call__(self):
 				while True:
 					server_addresses = list(self.Client.Discovery)
 					random.shuffle(server_addresses)
 					for server_address in server_addresses:
-						while len(self.PriorityAddresses) > 0:
-							priority_address = self.PriorityAddresses.pop()
-							yield priority_address
+						if self.Client.LeaderHint is not None:
+							lh = self.Client.LeaderHint
+							self.Client.LeaderHint = None
+							yield lh
 						yield server_address
 					yield None
 
-			def prioritize(self, address):
-				self.PriorityAddresses.append(address)
 
 		di = DiscoveryIterator(self)
 		for server_address in di():
@@ -122,57 +124,75 @@ class RaftClient(object):
 
 			try:
 				result = await self.RPC.acall(server_address, "RegisterClient") 
-			except asyncio.TimeoutError:
-				L.warn("Timeout in discovery procedure for a '{}'".format(server_address))
-				continue
-
-			status = result.get('status', '?')
-			
-			if status == 'OK':
-				# We hit the leader
-				L.warn("Found cluster leader at '{}'".format(server_address))
 				return server_address, result.get('clientId', 'unknown-client-id')
 
-			elif status == 'NOT_LEADER':
-				leaderHint = result.get('leaderHint')
-				if leaderHint is None: continue
+			except RPCError as e:
+				if e.code == StatusCode.NOT_LEADER:
 
-				# Convert the list to a tuple
-				if isinstance(leaderHint, list):
-					assert(len(leaderHint) == 2)
-					leaderHint = (leaderHint[0], leaderHint[1])
+					leaderHint = e.data.get('leaderHint') if e.data is not None else None
+					if leaderHint is None: continue
 
-				L.warn("Received leader hint '{}'".format(leaderHint))
-				di.prioritize(leaderHint)
-				continue
+					# Convert the list to a tuple
+					if isinstance(leaderHint, list):
+						assert(len(leaderHint) == 2)
+						leaderHint = (leaderHint[0], leaderHint[1])
 
-			else:
-				L.warn("Unknown status '{}' received in a leader discovery".format(status))
+					L.warn("Received leader hint '{}'".format(leaderHint))
+					self.LeaderHint = leaderHint
+					continue
+
+				L.exception("RPC error in discovery procedure for a '{}'".format(server_address), e)
+
+			except asyncio.TimeoutError:
+				L.warn("Timeout in discovery procedure for a '{}'".format(server_address))
+
+
+	async def acall(self, method, params = None, *, timeout = None):
+		'''
+		Adaptor for RPC.acall that handles NOT_LEADER, timeouts etc.
+		'''
+		for n in itertools.count(1):
+			await self._ensure_connected()
+
+			try:
+				return await self.RPC.acall(self.LeaderAddress, method, params, timeout=timeout)
+
+			except RPCError as e:
+				if e.code == StatusCode.NOT_LEADER:
+					leaderHint = e.data.get('leaderHint') if e.data is not None else None
+					if leaderHint is not None:
+						# Convert the list to a tuple
+						if isinstance(leaderHint, list):
+							assert(len(leaderHint) == 2)
+							leaderHint = (leaderHint[0], leaderHint[1])
+
+						self.LeaderHint = leaderHint
+						self.disconnect()
+						continue
+
+				L.exception("RPC error in {} RPC to '{}'".format(method, self.LeaderAddress))
+				raise
+
+
+			except asyncio.TimeoutError:
+				if n > 2:
+					raise
+				L.warn("Timeout in '{}' RPC to a '{}' - retrying {}".format(method, self.LeaderAddress, n))
+				self.disconnect()
+
+
+			except Exception:
+				L.exception("Error in {} RPC to '{}'".format(method, self.LeaderAddress))
+				raise
 
 
 	async def client_request(self, command):
-		await self._ensure_connected()
-		try:
-			result = await self.RPC.acall(self.LeaderAddress, "ClientRequest", {
-				'clientId': self.ClientId,
-				'sequenceNum': next(self.RequestSeq),
-				'command': command,
-			})
-			return result
-		except asyncio.TimeoutError:
-			L.warn("Timeout when issuing command to a '{}'".format(self.LeaderAddress))
-			self.disconnect()
-			raise
-		except Exception as e:
-			L.exception("Error in ClientRequest RPC")
-			raise
+		return await self.acall("ClientRequest", {
+			'clientId': self.ClientId,
+			'sequenceNum': next(self.RequestSeq),
+			'command': command,
+		})
 
 
 	async def status(self):
-		await self._ensure_connected()
-		try:
-			result = await self.RPC.acall(self.LeaderAddress, "Status")
-			return result
-		except asyncio.TimeoutError:
-			self.disconnect()
-			raise
+		return await self.acall("Status")
