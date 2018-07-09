@@ -38,6 +38,7 @@ class WebSocketFactory(object):
 
 
 	def send_parallely(self, send_futures):
+		#THIS METHOD IS OBSOLETED, DON'T USE IT IN A NEW CODE.
 	 	# Send messages parallely
 	 	asyncio.gather(*send_futures, loop=self.Loop)
 
