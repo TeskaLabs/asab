@@ -49,7 +49,7 @@ class WebSocketFactory(object):
 			self.WebSockets.add(ws)
 
 			async for msg in ws:
-				await self.on_message(request, msg, ws)
+				await self.on_message(request, ws, msg)
 
 		except asyncio.CancelledError:
 			await ws.close()
@@ -79,7 +79,7 @@ class WebSocketFactory(object):
 		return ws
 
 
-	async def on_message(self, request, message, websocket):
+	async def on_message(self, request, websocket, message):
 		'''
 		Override this method to receive messages from client over the websocket
 		'''
