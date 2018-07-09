@@ -66,7 +66,7 @@ class MyWebSocketFactory(asab.web.WebSocketFactory):
 		return ws
 
 
-	async def on_message(self, request, message):
+	async def on_message(self, request, websocket, message):
 		print("WebSocket message", message)
 
 
