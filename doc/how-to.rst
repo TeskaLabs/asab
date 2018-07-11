@@ -11,7 +11,7 @@ How to deploy ASAB into LXC container
 
 .. code-block:: bash
 
-	$ lxc launch images:alpine/3.7 asab
+	$ lxc launch images:alpine/3.8 asab
 
 
 2. Swich into a container
