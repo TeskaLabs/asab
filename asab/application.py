@@ -141,7 +141,7 @@ class Application(metaclass=Singleton):
 		if args.syslog:
 			Config._default_values['logging:syslog']['enabled'] = True
 
-		if args.log:
+		if args.log_file:
 			Config._default_values['logging:file']['path'] = args.log
 
 		return args
