@@ -125,7 +125,7 @@ class Application(metaclass=Singleton):
 		parser.add_argument('-c', '--config', help='specify a path to a configuration file')
 		parser.add_argument('-v', '--verbose', action='store_true', help='print more information (enable debug output)')
 		parser.add_argument('-s', '--syslog', action='store_true', help='enable logging to a syslog')
-		parser.add_argument('-l', '--log', help='specify a path to a log file')
+		parser.add_argument('-l', '--log-file', help='specify a path to a log file')
 
 		if daemon is not None:
 			parser.add_argument('-d', '--daemonize', action='store_true', help='run daemonized (in the background)')
