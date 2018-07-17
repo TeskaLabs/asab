@@ -2,6 +2,7 @@ import random
 import os
 import socket
 import logging
+import pprint
 
 import asab
 
@@ -9,7 +10,7 @@ from .rpc import RPCMethod, RPCDelayedReply, RPCError
 from .server_states import FollowerState, CandidateState, LeaderState
 from .server_peer import Peer
 from .log import Log
-from .common import StatusCode
+from .common import StatusCode, guess_my_ip_address
 
 #
 
@@ -24,6 +25,7 @@ class RaftServer(object):
 		self.Loop = app.Loop
 		self.State = None
 		self.LeaderAddress = None
+		self.Peers = []
 
 		self.RPC = rpc
 		self.RPC.bind(self)
@@ -60,24 +62,39 @@ class RaftServer(object):
 		# Volatile State
 		self.CommitIndex = 0
 
-		# Parse peers
-		self.Peers = []
-		ps = asab.Config["asab:raft"]["peers"]
-		for p in ps.split('\n'):
-			p = p.strip()
-			if len(p) == 0: continue
-			self.Peers.append(Peer(p))
 
-		assert(len(self.Peers) > 0)
+	async def initialize(self, app, client, bootstrapping=False):
+		'''
+		`bootstrap` specifies if the cluster is bootstrapping, hence the routine of how to get peers is different
+		`client` is Raft client, available only if not bootstrapping
+		'''
 
+		if not bootstrapping:
+			assert(len(self.Peers) == 0)			
+			s = await client.add_server()
+			#for peer in s.get('peers'):
+			#	self.Peers.append(Peer(peer.get('address')))
 
-	async def initialize(self, app):
+		else:
+			addr, port = self.RPC.PrimarySocket.getsockname()
+			
+			if addr == '0.0.0.0':
+				# Listen on all interfaces found, we need to get more specific 
+				addrs = sorted([address for family, address in guess_my_ip_address(self.RPC) if family == self.RPC.PrimarySocket.family])
+				if len(addrs) == 0:
+					L.error("Cannot find the server IP address")
+					return
+				addr = addrs[0]
+
+			self.Peers.append(Peer("{} {}".format(addr, port)))
+
 		# Enter follower state
 		self.State = FollowerState(self)
 
 
 	async def finalize(self, app):
-		await self.State.finalize(app)
+		if self.State is not None:
+			await self.State.finalize(app)
 		self.ElectionTimer.stop()
 
 	#
@@ -268,7 +285,8 @@ class RaftServer(object):
 
 	def _assert_leader(self):
 		'''
-		Handles a API request that requires a leader.
+		Handles the API request that requires a leader.
+		If a call is received by a peer in other state (e.g. candidate or follower), the error with NOT_LEADER status is raised
 		'''
 		if not isinstance(self.State, LeaderState):
 			data = {}
@@ -286,10 +304,10 @@ class RaftServer(object):
 		'''
 		This is server-side of the method
 		'''
-
 		self._assert_leader()
 		ret = {
 			"clientId": "TODO",
+			"peerAddress": peer_address, # Indicate the aparent peer address
 		}
 		return ret
 
@@ -360,3 +378,8 @@ class RaftServer(object):
 			ret['peers'] = peers
 
 		return ret
+
+
+	@RPCMethod("AddServer")
+	def add_server(self, peer_address, params):
+		self._assert_leader()

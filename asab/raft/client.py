@@ -47,8 +47,9 @@ class RaftClient(object):
 
 
 	async def initialize(self, app):
-		#TODO: Conditionally await self.connect()
-		pass
+		# Skip connect() if connection should be established in a 'lazy' mode
+		# aka with a first client call
+		await self.connect()
 
 
 	async def connect(self):
@@ -141,10 +142,15 @@ class RaftClient(object):
 					self.LeaderHint = leaderHint
 					continue
 
-				L.exception("RPC error in discovery procedure for a '{}'".format(server_address), e)
+				elif e.code == -32601:
+					# Not a server (maybe just bootstrapping)
+					L.warn("Raft server not detected at '{}'".format(server_address))
+					continue
+
+				L.exception("RPC error during discovery at a '{}'".format(server_address), e)
 
 			except asyncio.TimeoutError:
-				L.warn("Timeout in discovery procedure for a '{}'".format(server_address))
+				L.warn("Timeout in discovery at a '{}'".format(server_address))
 
 
 	async def acall(self, method, params = None, *, timeout = None):
@@ -196,3 +202,7 @@ class RaftClient(object):
 
 	async def status(self):
 		return await self.acall("Status")
+
+
+	async def add_server(self):
+		return await self.acall("AddServer")

@@ -9,6 +9,7 @@ Undocumented items:
 	- Configuration default values (aka ConfigParser._default_values)
 	- `-s` command-line switch
 	- Timer
+	- asab.Config.ConfigPaths
 
 Enhancements:
 

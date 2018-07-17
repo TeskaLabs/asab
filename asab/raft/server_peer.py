@@ -5,9 +5,19 @@ class Peer(object):
 
 	def __init__(self, address):
 
-		addr, port = address.split(' ', 1)
-		self.Port = int(port)
+		if isinstance(address, str):
+			addr, port = address.split(' ', 1)
+
+		elif isinstance(address, list) or isinstance(address, tuple):
+			assert(len(address) == 2)
+			addr = address[0]
+			port = address[1]
+
+		else:
+			raise RuntimeError("Invalid type of the address, should be string, tuple or list")
+
 		self.NonResolvedAddress = addr.strip()
+		self.Port = int(port)
 
 		self.Address = None
 		self.Me = False # Will be evaluated during a candidate state
@@ -29,6 +39,6 @@ class Peer(object):
 
 
 	def resolve(self, rpc):
-		# TODO: This should be ideally non-blocking
+		# TODO: `socket.gethostbyname` call should be ideally non-blocking
 		addr = socket.gethostbyname(self.NonResolvedAddress)
 		self.Address = (addr, self.Port)

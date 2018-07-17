@@ -1,3 +1,4 @@
+import os
 import logging
 import asyncio
 
@@ -25,8 +26,10 @@ class RaftService(asab.Service):
 		self.RPC = RPC(app)
 
 		# Raft server
-		#TODO: Optional ...
-		self.Server = RaftServer(app, self.RPC)
+		if asab.Config["asab:raft"].getboolean("server"):
+			self.Server = RaftServer(app, self.RPC)
+		else:
+			self.Server = None
 
 		# Raft client
 		self.Client = RaftClient(app, self.RPC)
@@ -37,13 +40,26 @@ class RaftService(asab.Service):
 			self.WebApi = None
 
 
-
 	async def initialize(self, app):
-		asyncio.ensure_future(self.Client.initialize(app), loop=app.Loop)
-		await self.Server.initialize(app)
+		initialize_server_after_client = False
+		if self.Server is not None:
+			cluster_bootstrap = os.environ.get('CLUSTER_BOOTSTRAP')
+			if cluster_bootstrap == "1":
+				await self.Server.initialize(app, None, bootstrapping=True)
+			else:
+				initialize_server_after_client = True
+
+		future = asyncio.ensure_future(self.Client.initialize(app), loop=app.Loop)
+		# If server is to be initialized after a client is up, schedule a future for that
+		if initialize_server_after_client:
+			def _initialize_server_after_client(future):
+				if not future.cancelled():
+					asyncio.ensure_future(self.Server.initialize(app, self.Client), loop=app.Loop)
+			future.add_done_callback(_initialize_server_after_client)
 
 
 	async def finalize(self, app):
-		await self.Server.finalize(app)
+		if self.Server is not None:
+			await self.Server.finalize(app)
 		await self.RPC.finalize(app)
 

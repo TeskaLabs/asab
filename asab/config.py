@@ -89,6 +89,8 @@ class ConfigParser(configparser.ConfigParser):
 	def _load(self):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
 
+		self.ConfigPaths = set()
+
 		config_fname = ConfigParser._default_values['general']['config_file']
 		if config_fname != '':
 			if not os.path.isfile(config_fname):
@@ -96,11 +98,13 @@ class ConfigParser(configparser.ConfigParser):
 				sys.exit(1)
 
 			self.read(config_fname)
+			self.ConfigPaths.add(os.path.dirname(config_fname))
 
 		includes = self.get('general', 'include', fallback='')
 		for include_glob in includes.split(os.pathsep):
 			for include in glob.glob(include_glob):
 				self.read(include)
+				self.ConfigPaths.add(os.path.dirname(include))
 
 		self.add_defaults(ConfigParser._default_values)
 
