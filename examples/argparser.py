@@ -5,7 +5,8 @@ class Application(asab.Application):
 
 	def __init__(self):
 		super().__init__()
-		self._command = None
+		self.command = None
+		self.command_args = None
 
 
 	def create_argparser(self):
