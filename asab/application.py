@@ -113,7 +113,7 @@ class Application(metaclass=Singleton):
 			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
 
 
-	def parse_args(self):
+	def create_argparser(self):
 		'''
 		This method can be overriden to adjust argparse configuration 
 		'''
@@ -131,7 +131,13 @@ class Application(metaclass=Singleton):
 			parser.add_argument('-d', '--daemonize', action='store_true', help='run daemonized (in the background)')
 			parser.add_argument('-k', '--kill', action='store_true', help='kill a running daemon and quit')
 
+		return parser
+
+
+	def parse_args(self):
+		parser = self.create_argparser()
 		args = parser.parse_args()
+
 		if args.config is not None:
 			Config._default_values['general']['config_file'] = args.config
 
