@@ -1,16 +1,17 @@
+#!/usr/bin/env python3
 import asab
 
 
 class Application(asab.Application):
 
 	def __init__(self):
-		super().__init__()
 		self.command = None
 		self.command_args = None
+		super().__init__()
 
 
-	def create_argparser(self):
-		parser = super().create_argparser()
+	def create_argument_parser(self):
+		parser = super().create_argument_parser()
 
 		subparsers = parser.add_subparsers(dest="command")
 		command1_subparser = subparsers.add_parser('command1')
@@ -22,8 +23,8 @@ class Application(asab.Application):
 		return parser
 
 
-	def parse_args(self):
-		args = super().parse_args()
+	def parse_arguments(self):
+		args = super().parse_arguments()
 		self.command =  args.command or ""
 
 		if args.command == "command1":
