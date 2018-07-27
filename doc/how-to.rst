@@ -32,6 +32,9 @@ How to deploy ASAB into LXC container
 
 .. code-block:: bash
 
+	$ apk update
+	$ apk upgrade
+	$ apk add --no-cache python3
 	$ apk add --no-cache python3
 	$ python3 -m ensurepip
 	$ rm -r /usr/lib/python*/ensurepip
@@ -65,6 +68,15 @@ Adjust the example of `OpenRC init file <https://github.com/TeskaLabs/asab/blob/
 
 	$ chmod a+x /etc/init.d/asab-app
 	$ rc-update add asab-app
+
+
+*Note*: If you need to install python packages that require compilation using C compiler, you have to add following dependencies:
+
+.. code-block:: bash
+	$ apk add python3-dev
+	$ apk add gcc
+	$ apk add musl-dev
+
 
 
 How to start/stop ASAB application with systemd
