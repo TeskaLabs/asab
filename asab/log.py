@@ -1,8 +1,5 @@
 import os
 import sys
-import logging
-import asyncio
-import logging.handlers
 import traceback
 import time
 import socket
@@ -11,6 +8,10 @@ import pprint
 import socket
 import queue
 import urllib.parse
+import logging
+import logging.handlers
+
+import asyncio
 
 from .config import Config
 
@@ -37,7 +38,7 @@ def _setup_logging(app):
 
 		if len(file_path) > 0:
 
-			fh = logging.FileHandler(file_path)
+			fh = logging.handlers.RotatingFileHandler(file_path)
 			fh.setLevel(logging.DEBUG)
 			fh.setFormatter(StructuredDataFormatter(
 				fmt = Config["logging:file"]["format"],
