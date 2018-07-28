@@ -27,7 +27,8 @@ Installation
 Documentation
 -------------
 
-`Documentation on Readthedocs <http://asab.readthedocs.io/>`_
+* `Documentation on Readthedocs <http://asab.readthedocs.io/>`_
+* `Examples <https://github.com/TeskaLabs/asab/tree/master/examples>`_
 
 
 Example
