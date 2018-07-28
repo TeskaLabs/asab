@@ -16,89 +16,104 @@ import asyncio
 from .config import Config
 
 
-def _setup_logging(app):
+class Logging(object):
 
-	root_logger = logging.getLogger()
-	if not root_logger.hasHandlers():
-		
-		# Add console logger
-		# Don't initialize this when not on console
-		if os.isatty(sys.stdin.fileno()):
-			h = logging.StreamHandler(stream=sys.stderr)
-			h.setFormatter(StructuredDataFormatter(
-				fmt = Config["logging:console"]["format"],
-				datefmt = Config["logging:console"]["datefmt"],
-				sd_id = Config["logging"]["sd_id"],
-			))
-			h.setLevel(logging.DEBUG)
-			root_logger.addHandler(h)
+	def __init__(self, app):
+		self.RootLogger = logging.getLogger()
 
-		# Initialize file handler
-		file_path = Config["logging:file"]["path"]
+		self.ConsoleHandler = None
+		self.FileHandler = None
+		self.SyslogHandler = None
 
-		if len(file_path) > 0:
+		if not self.RootLogger.hasHandlers():
+			
+			# Add console logger
+			# Don't initialize this when not on console
+			if os.isatty(sys.stdin.fileno()):
+				self.ConsoleHandler = logging.StreamHandler(stream=sys.stderr)
+				self.ConsoleHandler.setFormatter(StructuredDataFormatter(
+					fmt = Config["logging:console"]["format"],
+					datefmt = Config["logging:console"]["datefmt"],
+					sd_id = Config["logging"]["sd_id"],
+				))
+				self.ConsoleHandler.setLevel(logging.DEBUG)
+				self.RootLogger.addHandler(self.ConsoleHandler)
 
-			fh = logging.handlers.RotatingFileHandler(file_path)
-			fh.setLevel(logging.DEBUG)
-			fh.setFormatter(StructuredDataFormatter(
-				fmt = Config["logging:file"]["format"],
-				datefmt = Config["logging:file"]["datefmt"],
-				sd_id = Config["logging"]["sd_id"],
-			))
-			root_logger.addHandler(fh)
+			# Initialize file handler
+			file_path = Config["logging:file"]["path"]
 
-		# Initialize syslog
-		if Config["logging:syslog"].getboolean("enabled"):
+			if len(file_path) > 0:
 
-			address = Config["logging:syslog"]["address"]
-			h = None
+				self.FileHandler = logging.handlers.RotatingFileHandler(
+					file_path,
+					backupCount = Config.getint("logging:file", "backup_count"),
+				)
+				self.FileHandler.setLevel(logging.DEBUG)
+				self.FileHandler.setFormatter(StructuredDataFormatter(
+					fmt = Config["logging:file"]["format"],
+					datefmt = Config["logging:file"]["datefmt"],
+					sd_id = Config["logging"]["sd_id"],
+				))
+				self.RootLogger.addHandler(self.FileHandler)
 
-			if address[:1] == '/':
-				h = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_DGRAM, address)
+			# Initialize syslog
+			if Config["logging:syslog"].getboolean("enabled"):
 
-			else:
-				url = urllib.parse.urlparse(address)
+				address = Config["logging:syslog"]["address"]
+				h = None
 
-				if url.scheme == 'tcp':
-					h = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_STREAM, (
-						url.hostname if url.hostname is not None else 'localhost',
-						url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
-					))
-
-				elif url.scheme == 'udp':
-					h = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_DGRAM, (
-						url.hostname if url.hostname is not None else 'localhost',
-						url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
-					))
-
-				elif url.scheme == 'unix-connect':
-					h = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_STREAM, url.path)
-
-				elif url.scheme == 'unix-sendto':
-					h = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_DGRAM, url.path)
+				if address[:1] == '/':
+					self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_DGRAM, address)
 
 				else:
-					root_logger.warning("Invalid logging:syslog address '{}'".format(address))
-					address = None
+					url = urllib.parse.urlparse(address)
 
-			if h is not None:
-				h.setLevel(logging.DEBUG)
-				format = Config["logging:syslog"]["format"]
-				if format == 'm':
-					h.setFormatter(MacOSXSyslogFormatter(sd_id = Config["logging"]["sd_id"]))
-				elif format == '5':
-					h.setFormatter(SyslogRFC5424Formatter(sd_id = Config["logging"]["sd_id"]))
-				else:
-					h.setFormatter(SyslogRFC3164Formatter(sd_id = Config["logging"]["sd_id"]))
-				root_logger.addHandler(h)
+					if url.scheme == 'tcp':
+						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_STREAM, (
+							url.hostname if url.hostname is not None else 'localhost',
+							url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
+						))
 
-	else:
-		root_logger.warning("Logging seems to be already configured. Proceed with caution.")
+					elif url.scheme == 'udp':
+						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_DGRAM, (
+							url.hostname if url.hostname is not None else 'localhost',
+							url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
+						))
 
-	if Config["logging"].getboolean("verbose"):
-		root_logger.setLevel(logging.DEBUG)
-	else:
-		root_logger.setLevel(logging.WARNING)
+					elif url.scheme == 'unix-connect':
+						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_STREAM, url.path)
+
+					elif url.scheme == 'unix-sendto':
+						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_DGRAM, url.path)
+
+					else:
+						self.RootLogger.warning("Invalid logging:syslog address '{}'".format(address))
+						address = None
+
+				if self.SyslogHandler is not None:
+					self.SyslogHandler.setLevel(logging.DEBUG)
+					format = Config["logging:syslog"]["format"]
+					if format == 'm':
+						self.SyslogHandler.setFormatter(MacOSXSyslogFormatter(sd_id = Config["logging"]["sd_id"]))
+					elif format == '5':
+						self.SyslogHandler.setFormatter(SyslogRFC5424Formatter(sd_id = Config["logging"]["sd_id"]))
+					else:
+						self.SyslogHandler.setFormatter(SyslogRFC3164Formatter(sd_id = Config["logging"]["sd_id"]))
+					self.RootLogger.addHandler(self.SyslogHandler)
+
+		else:
+			self.RootLogger.warning("Logging seems to be already configured. Proceed with caution.")
+
+		if Config["logging"].getboolean("verbose"):
+			self.RootLogger.setLevel(logging.DEBUG)
+		else:
+			self.RootLogger.setLevel(logging.WARNING)
+
+
+	def rotate(self):
+		if self.FileHandler is not None:
+			self.RootLogger.info("Rotating logs")
+			self.FileHandler.doRollover()
 
 ###
 

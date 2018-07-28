@@ -41,6 +41,7 @@ Logging to file
 ---------------
 
 The command-line argument ``-l`` on command-line enables logging to file.
+ASAB supports a log rotation mechanism. A log rotation is triggered by a UNIX signal ``SIGHUP``.
 
 It is implemented using ``logging.handlers.RotatingFileHandler`` from a Python standard library.
 
@@ -54,6 +55,7 @@ Example of the configuration file section:
     path=/var/log/asab.log
     format="%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s",
     datefmt="%%d-%%b-%%Y %%H:%%M:%%S.%%f"
+    backup_count=0
 
 *Note*: Putting non-empty ``path`` option in the configuration file is the equivalent for ``-l`` argument respectively it enables logging to file as well.
 

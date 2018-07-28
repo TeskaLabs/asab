@@ -17,7 +17,7 @@ except ImportError:
 
 from .config import Config
 from .abc.singleton import Singleton
-from .log import _setup_logging, _loop_exception_handler
+from .log import Logging, _loop_exception_handler
 
 from .metrics import Metrics
 
@@ -59,7 +59,7 @@ class Application(metaclass=Singleton):
 		self.Loop = asyncio.get_event_loop()
 
 		# Setup logging
-		_setup_logging(self)
+		self.Logging = Logging(self)
 
 		# Configure the event loop
 		self.Loop.set_exception_handler(_loop_exception_handler)
@@ -303,7 +303,8 @@ class Application(metaclass=Singleton):
 
 
 	def _hup(self):
-		self.PubSub.publish("Application.signal.HUP!")
+		self.Logging.rotate()
+		self.PubSub.publish("Application.hup!")
 
 
 	# Modules
