@@ -10,6 +10,7 @@ Undocumented items:
 	- `-s` command-line switch
 	- logging to file
 	- asab.storage
+	- Timer
 	- custom arg parser
 
 Enhancements:
