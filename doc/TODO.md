@@ -1,13 +1,11 @@
 Undocumented items:
 	
 	- Compatibility with pypy
-	- PersistentDict (there is example pdict.py)
 	- asab.web
 		- asab.web websocket pubsub
 		- sessions
 	- Configuration default values (aka ConfigParser._default_values)
 	- asab.storage
-	- Timer
 	- custom arg parser
 
 Enhancements:

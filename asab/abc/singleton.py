@@ -2,17 +2,9 @@
 class Singleton(type):
 
 	"""
-The singleton pattern is a software design pattern that restricts the instantiation of a class to one object.
-More at https://en.wikipedia.org/wiki/Singleton_pattern
-and the implementation idea is from https://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
-	
-Usage:
+The `singleton pattern <https://en.wikipedia.org/wiki/Singleton_pattern>`_ is a software design pattern that restricts the instantiation of a class to one object.
 
-.. code:: python
-
-    class MyClass(metaclass=Singleton):
-        ...
-
+*Note*: The implementation idea is borrowed from "`Creating a singleton in Python <https://stackoverflow.com/questions/6760685/creating-a-singleton-in-python>`_" question on StackOverflow.
 	"""
 
 	_instances = {}

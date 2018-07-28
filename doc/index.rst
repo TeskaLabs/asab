@@ -17,7 +17,8 @@
    asab/pubsub
    asab/service
    asab/module
-   asab/abc
+
+   asab/various
 
    asab/web/index
 
