@@ -165,3 +165,9 @@ This message is emitted when application enter the exit-time.
 The application publish periodically "tick" messages.
 The default tick frequency is 1 second but you can change it by configuration ``[general] tick_period``.
 :any:`Application.tick!` is published every tick. :any:`Application.tick/10!` is published every 10th tick and so on.
+
+
+.. option:: Application.hup!
+
+This message is emitted when application receives UNIX signal ``SIGHUP`` or equivalent.
+

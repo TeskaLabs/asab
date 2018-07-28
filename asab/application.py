@@ -86,6 +86,11 @@ class Application(metaclass=Singleton):
 		except NotImplementedError:
 			pass
 
+		try:
+			self.Loop.add_signal_handler(signal.SIGHUP, self._hup)
+		except NotImplementedError:
+			pass
+
 		self._stop_event = asyncio.Event(loop = self.Loop)
 		self._stop_event.clear()
 		self._stop_counter = 0
@@ -295,6 +300,10 @@ class Application(metaclass=Singleton):
 				return os._exit(os.EX_SOFTWARE)
 			except AttributeError:
 				return os._exit(0)
+
+
+	def _hup(self):
+		self.PubSub.publish("Application.signal.HUP!")
 
 
 	# Modules
