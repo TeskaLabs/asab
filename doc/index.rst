@@ -27,6 +27,7 @@
    :caption: Administration
 
    admin/install
+   admin/command-line
    admin/containers
    admin/systemd
 

@@ -32,15 +32,36 @@ Example of the output to the console:
 Verbose mode
 ------------
 
-``-v`` switch on command-line sets ``logging.DEBUG`` and ``asyncio`` debuging.
+The command-line argument ``-v`` enables verbose logging, respectively sets ``logging.DEBUG`` and ``asyncio`` debuging.
 
-The selected verbose mode is avaiable at ``asab.Config["logging"]["verbose"]`` flag.
+The selected verbose mode is avaiable at ``asab.Config["logging"]["verbose"]`` boolean option.
+
+
+Logging to file
+---------------
+
+The command-line argument ``-l`` on command-line enables logging to file.
+
+It is implemented using ``logging.handlers.RotatingFileHandler`` from a Python standard library.
+
+A configuration section ``[[logging:file]]`` can be used to specify details about desired syslog logging.
+
+Example of the configuration file section:
+
+.. code:: ini
+
+    [[logging:file]]
+    path=/var/log/asab.log
+    format="%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s",
+    datefmt="%%d-%%b-%%Y %%H:%%M:%%S.%%f"
+
+*Note*: Putting non-empty ``path`` option in the configuration file is the equivalent for ``-l`` argument respectively it enables logging to file as well.
 
 
 Logging to syslog
 -----------------
 
-``-s`` switch on command-line enables logging to syslog.
+The command-line argument ``-s`` enables logging to syslog.
 
 A configuration section ``[[logging:syslog]]`` can be used to specify details about desired syslog logging.
 
