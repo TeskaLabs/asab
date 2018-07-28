@@ -41,7 +41,7 @@ class Application(metaclass=Singleton):
 	def __init__(self):
 
 		# Parse command line
-		args = self.parse_args()
+		args = self.parse_arguments()
 
 		# Load configuration
 		Config._load()
@@ -113,7 +113,7 @@ class Application(metaclass=Singleton):
 			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
 
 
-	def parse_args(self):
+	def create_argument_parser(self):
 		'''
 		This method can be overriden to adjust argparse configuration 
 		'''
@@ -131,7 +131,13 @@ class Application(metaclass=Singleton):
 			parser.add_argument('-d', '--daemonize', action='store_true', help='run daemonized (in the background)')
 			parser.add_argument('-k', '--kill', action='store_true', help='kill a running daemon and quit')
 
+		return parser
+
+
+	def parse_arguments(self):
+		parser = self.create_argument_parser()
 		args = parser.parse_args()
+
 		if args.config is not None:
 			Config._default_values['general']['config_file'] = args.config
 
@@ -142,7 +148,7 @@ class Application(metaclass=Singleton):
 			Config._default_values['logging:syslog']['enabled'] = True
 
 		if args.log_file:
-			Config._default_values['logging:file']['path'] = args.log
+			Config._default_values['logging:file']['path'] = args.log_file
 
 		return args
 

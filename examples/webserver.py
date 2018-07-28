@@ -26,8 +26,8 @@ class MyApplication(asab.Application):
 		# Add a web session service
 		asab.web.session.ServiceWebSession(self, "asab.ServiceWebSession", websvc, session_class=MySession)
 
-		# Enable exception to JSON middleware
-		websvc.WebApp.middlewares.append(asab.web.except_json_middleware)
+		# Enable exception to JSON exception middleware
+		websvc.WebApp.middlewares.append(asab.web.JsonExceptionMiddleware)
 
 		# Add a route
 		websvc.WebApp.router.add_get('/api/login', self.login)
