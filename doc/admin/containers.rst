@@ -46,17 +46,24 @@ ASAB in a LXC/LXD container
 
 .. code-block:: bash
 
+	$ pip3 install asab
+
+
+6. Deploy dependencies
+
+.. code-block:: bash
+
 	$ pip3 install asab python-daemon
 
 
-6. (Optionally if you want to use :py:mod:`asab.web` module) install aiohttp dependecy
+7. (Optionally if you want to use :py:mod:`asab.web` module) install aiohttp dependecy
 
 .. code-block:: bash
 
 	$ pip3 install aiohttp
 
 
-7. Use OpenRC to automatically start/stop ASAB application
+8. Use OpenRC to automatically start/stop ASAB application
 
 .. code-block:: bash
 
