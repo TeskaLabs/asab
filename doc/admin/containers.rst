@@ -1,13 +1,14 @@
-How to ...
-==========
+Containerisation
+================
 
-This chapter contains asorted collection of useful ASAB guides.
+ASAB is designed for deployment into containers such as LXC/LXD or Docker.
+It allows to build e.g. microservices that provides REST interface or consume MQ messages while being deployed into a container for a sake of the infrastructure flexibility.
 
 
-How to deploy ASAB into LXC container
--------------------------------------
+ASAB in a LXC/LXD container
+---------------------------
 
-1. Prepare LXC container based on Alpine Linux
+1. Prepare LXC/LXD container based on Alpine Linux
 
 .. code-block:: bash
 
@@ -73,54 +74,9 @@ Adjust the example of `OpenRC init file <https://github.com/TeskaLabs/asab/blob/
 *Note*: If you need to install python packages that require compilation using C compiler, you have to add following dependencies:
 
 .. code-block:: bash
+
 	$ apk add python3-dev
 	$ apk add gcc
 	$ apk add musl-dev
 
-
-
-How to start/stop ASAB application with systemd
------------------------------------------------
-
-1. Create a new Systemd unit file in /etc/systemd/system/:
-
-.. code-block:: bash
-
-	$ sudo vi /etc/systemd/system/asab.service
-
-
-Adjust the example of `SystemD unit file <https://github.com/TeskaLabs/asab/blob/master/doc/asab.service>`_. 
-
-
-2. Let systemd know that there is a new service:
-
-.. code-block:: bash
-
-	$ sudo systemctl enable asab
-
-
-To reload existing unit file after changing, use this:
-
-.. code-block:: bash
-
-	$ sudo systemctl daemon-reload
-
-
-3. ASAB Application Server service for systemd is now ready.
-
-
-Start of ASAB Server
-^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-	$ sudo service asab start
-
-
-Stop of ASAB Server
-^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-	$ sudo service asab stop
 

@@ -7,10 +7,9 @@
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Content
 
    get-started
-   how-to
    asab/application
    asab/config
    asab/log
@@ -21,6 +20,15 @@
    asab/abc
 
    asab/web/index
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Administration
+
+   admin/install
+   admin/containers
+   admin/systemd
 
 
 Indices and tables

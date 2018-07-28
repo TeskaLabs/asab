@@ -114,3 +114,54 @@ The example of a **asynchronous version** of a message publish to the :any:`Appl
 
 	def my_function(app):
 	    app.PubSub.publish("mymessage!", asynchronously=True)
+
+
+
+Application-wide PubSub
+------------------------
+
+.. py:attribute:: Application.PubSub
+
+The ASAB provides the application-wide Publish-Subscribe message bus.
+
+
+Well-Known Messages 
+^^^^^^^^^^^^^^^^^^^
+
+.. option:: Application.init!
+
+This message is published when application is in the init-time.
+It is actually one of the last things done in init-time, so the application environment is almost ready for use.
+It means that configuration is loaded, logging is setup, the event loop is constructed etc.
+
+
+.. option:: Application.run!
+
+This message is emitted when application enters the run-time.
+
+
+.. option:: Application.stop!
+
+This message is emitted when application wants to stop the run-time.
+It can be sent multiple times because of a process of graceful run-time termination.
+The first argument of the message is a counter that increases with every ``Application.stop!`` event.
+
+
+.. option:: Application.exit!
+
+This message is emitted when application enter the exit-time.
+
+
+.. option:: Application.tick!
+.. option:: Application.tick/10!
+.. option:: Application.tick/60!
+.. option:: Application.tick/300!
+.. option:: Application.tick/600!
+.. option:: Application.tick/1800!
+.. option:: Application.tick/3600!
+.. option:: Application.tick/43200!
+.. option:: Application.tick/86400!
+
+The application publish periodically "tick" messages.
+The default tick frequency is 1 second but you can change it by configuration ``[general] tick_period``.
+:any:`Application.tick!` is published every tick. :any:`Application.tick/10!` is published every 10th tick and so on.
