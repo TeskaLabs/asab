@@ -1,5 +1,10 @@
 import pprint
 
+'''
+apk add pymongo
+apk add motor
+'''
+
 import pymongo
 import bson.binary
 import motor.motor_asyncio
