@@ -4,12 +4,12 @@ import hashlib
 
 class UpsertorABC(abc.ABC):
 
-	def __init__(self, storage, collection, origObj=None):
-
+	def __init__(self, storage, collection, obj_id, version=None):
 		self.Storage = storage
 		self.Collection = collection
-		self.OrigObj = origObj
-		self.IsNew 	= origObj is None or origObj == {}
+		self.ObjId = obj_id
+
+		self.Version = version
 
 		self.ModSet = {}
 		self.ModUnset = {}
@@ -20,11 +20,11 @@ class UpsertorABC(abc.ABC):
 		self.ModPull = {}
 
 
-	def get_pk_name(self):
+	def get_id_name(self):
 		return "_id"
 
 
-	def generate_pk(self):
+	def generate_id(self):
 		m = hashlib.sha384()
 		m.update(uuid.uuid4().bytes)
 		m.update(uuid.uuid4().bytes)
@@ -32,30 +32,11 @@ class UpsertorABC(abc.ABC):
 		return m.hexdigest()
 
 
-	def _get_value(self, dotConvField):
-		v = self.OrigObj
-		for k in dotConvField.split('.'):
-			if not isinstance(v, dict): raise RuntimeError("Dictionary is expected.")
-			v = v.get(k)
-			if v is None: break;
-		return v
-
-
 	def set(self, objField, value):
 		'''
 		Scalar set
 		'''
-		origVal = None if self.IsNew else self._get_value(objField)
-
-		if origVal == value:
-			return False
-		if origVal is None and value is '' :
-			return False
-
-		if value is None or value == '':
-			self.unset(objField)
-		else:
-			self.ModSet[objField] = value
+		self.ModSet[objField] = value
 
 
 	def unset(self, obj_field):

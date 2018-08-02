@@ -13,6 +13,8 @@ import asab
 
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
+from .exceptions import DuplicateError
+
 
 asab.Config.add_defaults(
 	{
@@ -31,21 +33,21 @@ class StorageService(StorageServiceABC):
 		self.Database = self.Client[asab.Config.get('asab:storage', 'mongodb_database')]
 
 
-	def upsertor(self, collection, origObj=None):
-		return MongoDBUpsertor(self, collection, origObj)
+	def upsertor(self, collection, obj_id, version=None):
+		return MongoDBUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection:str, pk):
+	async def get(self, collection:str, obj_id):
 		coll = self.Database[collection]
-		ret = await coll.find_one({'_id': pk})
+		ret = await coll.find_one({'_id': obj_id})
 		if ret is None:
 			raise KeyError("NOT-FOUND")
 		return ret
 
 
-	async def delete(self, collection:str, pk):
+	async def delete(self, collection:str, obj_id):
 		coll = self.Database[collection]
-		ret = await coll.find_one_and_delete({'_id': pk})
+		ret = await coll.find_one_and_delete({'_id': obj_id})
 		if ret is None:
 			raise KeyError("NOT-FOUND")
 		return ret['_id']
@@ -56,24 +58,7 @@ class MongoDBUpsertor(UpsertorABC):
 
 	async def execute(self):
 
-		# Primary key
-		pk_name = self.get_pk_name()
-		if self.IsNew:
-			pk = self.ModSet.pop(pk_name, None)
-			if pk is None:
-				pk = self.generate_pk()
-		else:
-			pk = self.OrigObj.get(pk_name)
-
-		# Get the object
-		if self.IsNew:
-			obj = {
-				pk_name: pk
-			}
-		else:
-			obj = self.Storage.get(self.Collection, pk)
-
-
+		id_name = self.get_id_name()
 		addobj = {}
 
 		if len(self.ModSet) > 0:
@@ -86,21 +71,29 @@ class MongoDBUpsertor(UpsertorABC):
 			addobj['$push'] = { k : {'$each': v} for k, v in self.ModPush.items()}
 
 
-		filter = {'_id' : pk}
-		if not self.IsNew:
-			filter['_v'] = self.OrigObj.get('_v')
-
+		filter = {id_name : self.ObjId}
+		if self.Version is not None and self.Version != 0:
+			filter['_v'] = self.Version
+		elif self.Version == 0:
+			# This ensures a failure if version 0 is required (new insert) and a document already exists
+			filter['_v'] = 0
 
 		# First wave (adding stuff)
 		if len(addobj) > 0:
 			coll = self.Storage.Database[self.Collection]
-			ret = await coll.find_one_and_update(
-				filter,
-				update = addobj,
-				upsert = self.IsNew,
-				return_document = pymongo.collection.ReturnDocument.AFTER
-			)
-			pk = ret['_id']
+
+			try:
+				ret = await coll.find_one_and_update(
+					filter,
+					update = addobj,
+					upsert = True if (self.Version == 0) or (self.Version is None) else False,
+					return_document = pymongo.collection.ReturnDocument.AFTER
+				)
+			except pymongo.errors.DuplicateKeyError:
+				assert(self.Version == 0)
+				raise DuplicateError("Already exists", self.ObjId)
+
+			self.ObjId = ret[id_name]
 
 
 		# for k, v in self.ModUnset.items():
@@ -116,4 +109,4 @@ class MongoDBUpsertor(UpsertorABC):
 		# 			pass
 		# 	obj[k] = o
 
-		return pk
+		return self.ObjId

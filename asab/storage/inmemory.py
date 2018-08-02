@@ -1,29 +1,30 @@
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
-
+from .exceptions import DuplicateError
 
 class InMemoryUpsertor(UpsertorABC):
 
 
 	async def execute(self):
-
-		# Primary key
-		pk_name = self.get_pk_name()
-		if self.IsNew:
-			pk = self.ModSet.pop(pk_name, None)
-			if pk is None:
-				pk = self.generate_pk()
-		else:
-			pk = self.OrigObj.get(pk_name)
+		id_name = self.get_id_name()
 
 		# Get the object
-		if self.IsNew:
+		if self.Version == 0:
 			obj = {
-				pk_name: pk
+				id_name: self.ObjId
 			}
-			self.Storage._set(self.Collection, pk, obj)
+			self.Storage._set(self.Collection, self.ObjId, obj)
+
 		else:
-			obj = await self.Storage.get(self.Collection, pk)
+			obj = await self.Storage.get(self.Collection, self.ObjId)
+			if obj is None:
+				if self.Version is None:
+					obj = {
+						id_name: self.ObjId
+					}
+					self.Storage._set(self.Collection, self.ObjId, obj)
+				else:
+					raise RuntimeError("Previous version of '{}' not found".format(self.ObjId))
 
 
 		for k, v in self.ModSet.items():
@@ -52,7 +53,7 @@ class InMemoryUpsertor(UpsertorABC):
 					pass
 			obj[k] = o
 
-		return pk
+		return self.ObjId
 
 
 class StorageService(StorageServiceABC):
@@ -63,25 +64,28 @@ class StorageService(StorageServiceABC):
 		self.InMemoryCollections = {}
 
 
-	def upsertor(self, collection, origObj=None):
-		return InMemoryUpsertor(self, collection, origObj)
+	def upsertor(self, collection:str, obj_id, version=None):
+		return InMemoryUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection:str, pk):
+	async def get(self, collection:str, obj_id):
 		coll = self.InMemoryCollections[collection]
-		return coll[pk]
+		return coll[obj_id]
 
 
-	async def delete(self, collection:str, pk):
+	async def delete(self, collection:str, obj_id):
 		coll = self.InMemoryCollections[collection]
-		del coll[pk]
+		del coll[obj_id]
 
 
-	def _set(self, collection:str, pk, obj):
+	def _set(self, collection:str, obj_id, obj):
 		try:
 			coll = self.InMemoryCollections[collection]
 		except KeyError:
 			coll = {}
 			self.InMemoryCollections[collection] = coll
 
-		coll[pk] = obj
+		nobj = coll.setdefault(obj_id, obj)
+		if nobj != obj:
+			raise DuplicateError("Already exists", obj_id)
+
