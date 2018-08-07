@@ -1,20 +1,32 @@
 import abc
 import uuid
 import hashlib
+import datetime
 
 class UpsertorABC(abc.ABC):
 
 	def __init__(self, storage, collection, obj_id, version=None):
+		'''
+		'''
+
 		self.Storage = storage
 		self.Collection = collection
 		self.ObjId = obj_id
 
 		self.Version = version
 
-		self.ModSet = {}
+		now = datetime.datetime.utcnow()
+		self.ModSet = {
+			'_m': now, # Set the modification timestamp
+		}
+		if version == 0:
+			self.ModSet['_c'] = now # Set the creation timestamp
+
 		self.ModUnset = {}
 
-		self.ModInc = { '_v' : 1 } # Increment '_v' at every change
+		self.ModInc = {
+			'_v' : 1, # Increment '_v' at every change
+		}
 
 		self.ModPush = {}
 		self.ModPull = {}
