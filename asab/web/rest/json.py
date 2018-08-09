@@ -23,15 +23,15 @@ class _Dumper(object):
 		return json.JSONEncoder.default(self, o)
 
 
-def json_response(request, json_obj, **kwargs):
+def json_response(request, data, pretty=None, **kwargs):
 	'''
 	## Pretty Result
 	When appending ?pretty=true to any request made, the JSON returned will be pretty formatted (use it for debugging only!).
 	'''
-	pretty = request.query.get('pretty', 'no').lower() in frozenset(['true', '1', 't', 'y', 'yes'])
+	pretty = request.query.get('pretty', 'no').lower() in frozenset(['true', '1', 't', 'y', 'yes']) or pretty
 
 	return aiohttp.web.json_response(
-		json_obj,
+		data,
 		dumps=_Dumper(pretty),
 		**kwargs
 	)
