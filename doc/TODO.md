@@ -7,6 +7,7 @@ Undocumented items:
 	- Configuration default values (aka ConfigParser._default_values)
 	- asab.storage
 	- custom arg parser
+	= config object
 
 Enhancements:
 
