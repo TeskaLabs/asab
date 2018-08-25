@@ -22,15 +22,14 @@ class MyApplication(asab.Application):
 		})
 
 		# The timer will trigger a message publishing at every second
-		self.Timer = asab.Timer(self.on_tick, autorestart=True)
-		self.Timer.start(1)
+		self.PubSub.subscribe("Application.tick!", self.on_tick)
 
 		# Subscribe and add the route
 		self.Broker.subscribe("task.queue")
 		self.Broker.add("example", self.handler)
 
 
-	async def on_tick(self):
+	async def on_tick(self, event_type):
 		await self.Broker.publish("Hello world!", target="example")
 
 
