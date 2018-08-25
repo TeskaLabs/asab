@@ -291,7 +291,10 @@ class Application(metaclass=Singleton):
 		return self.ExitCode
 
 
-	def stop(self):
+	def stop(self, exit_code:int=None):
+		if exit_code is not None:
+			self.set_exit_code(exit_code)
+
 		self._stop_event.set()
 		self._stop_counter += 1
 		self.PubSub.publish("Application.stop!", self._stop_counter)
@@ -433,7 +436,7 @@ class Application(metaclass=Singleton):
 		future.set_result("exit")
 
 
-	def set_exit_code(self, exit_code):
-		if self.ExitCode < exit_code:
+	def set_exit_code(self, exit_code:int, force:bool=False):
+		if (self.ExitCode < exit_code) or force:
 			L.debug("Exit code set to {}",format(exit_code))
 			self.ExitCode = exit_code

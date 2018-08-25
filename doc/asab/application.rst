@@ -93,6 +93,8 @@ Run-time
 Enter a run-time. This is where the application spends the most time typically.
 The Publish-Subscribe message :any:`Application.run!` is published when run-time begins.
 
+The method returns the value of :any:`Application.ExitCode`.
+
 
 .. py:method:: Application.main()
 
@@ -107,11 +109,13 @@ If ``main()`` method is completed without calling ``stop()``, then the applicati
             self.stop()
 
 
-.. py:method:: Application.stop()
+.. py:method:: Application.stop(exit_code:int=None)
 
 The method  ``Application.stop()`` gracefully terminates the run-time and commence the exit-time.
 This method is automatically called by ``SIGINT`` and ``SIGTERM``. It also includes a response to ``Ctrl-C`` on UNIX-like system.
 When this method is called 3x, it abruptly exits the application (aka emergency abort).
+
+The parameter ``exit_code`` allows you to specify the application exit code (see *Exit-Time* chapter).
 
 *Note:* You need to install :py:mod:`win32api` module to use ``Ctrl-C`` or an emergency abord properly with ASAB on Windows. It is an optional dependency of ASAB.
 
@@ -132,6 +136,29 @@ The application object executes asynchronous callback ``Application.finalize()``
 
 
 The Publish-Subscribe message :any:`Application.exit!` is published when exit-time begins.
+
+
+.. py:method:: Application.set_exit_code(exit_code:int, force:bool=False)
+
+Set the exit code of the application, see ``os.exit()`` in the Python documentation.
+If ``force`` is ``False``, the exit code will be set only if the previous value is lower than the new one.
+If ``force`` is ``True``, the exit code value is set to a ``exit_code`` disregarding the previous value.
+
+
+.. py:attribute:: Application.ExitCode
+
+The actual value of the exit code.
+
+
+The example of the exit code handling in the ``main()`` function of the application.
+
+.. code:: python
+
+    if __name__ == '__main__':
+        app = asab.Application()
+        exit_code = app.run()
+        sys.exit(exit_code)
+
 
 
 Module registry
