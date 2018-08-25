@@ -117,21 +117,6 @@ class Logging(object):
 
 ###
 
-class _StructuredLogRecord(logging.LogRecord):
-
-	def getMessage(self):
-		msg = self.msg
-		if self.args:
-			if isinstance(self.args, dict):
-				msg = msg.format(**self.args)
-			else:
-				msg = msg.format(*self.args)
-		return msg
-
-logging.setLogRecordFactory(_StructuredLogRecord)
-
-###
-
 class _StructuredDataLogger(logging.Logger):
 	'''
 This class extends a default python logger class, specifically by adding ``struct_data`` parameter to logging functions.
@@ -254,7 +239,7 @@ class MacOSXSyslogFormatter(StructuredDataFormatter):
 		)
 
 		# Initialize formatter
-		super().__init__(fmt=fmt, datefmt='%b %d %H:%M:%S', style='%', sd_id=sd_id)
+		super().__init__(fmt=fmt, datefmt='%b %d %H:%M:%S', style=style, sd_id=sd_id)
 
 ##
 
@@ -271,7 +256,7 @@ class SyslogRFC3164Formatter(StructuredDataFormatter):
 		)
 
 		# Initialize formatter
-		super().__init__(fmt=fmt, datefmt='%b %d %H:%M:%S', style='%', sd_id=sd_id)
+		super().__init__(fmt=fmt, datefmt='%b %d %H:%M:%S', style=style, sd_id=sd_id)
 
 ##
 
@@ -290,7 +275,7 @@ class SyslogRFC5424Formatter(StructuredDataFormatter):
 		)
 
 		# Initialize formatter
-		super().__init__(fmt=fmt, datefmt='%Y-%m-%dT%H:%M:%S', style='%', sd_id=sd_id)
+		super().__init__(fmt=fmt, datefmt='%Y-%m-%dT%H:%M:%S', style=style, sd_id=sd_id)
 
 		# Convert time to GMT
 		self.converter = time.gmtime
