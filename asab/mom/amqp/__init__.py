@@ -10,7 +10,7 @@ import asab
 import pika
 import pika.adapters.asyncio_connection
 
-from ..abc import BrokerABC
+from ..broker import Broker
 from .subscription import SubscriptionObject
 
 # from .connection import AMQPConnection
@@ -23,7 +23,11 @@ L = logging.getLogger(__name__)
 
 #
 
-class AMQPBroker(BrokerABC):
+class AMQPBroker(Broker):
+
+	'''
+The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used with e.g. RabbitMQ as a message queue.
+	'''
 
 	ConfigDefaults = {
 		'url': 'amqp://test:test@rabbitmq1/test',
@@ -123,7 +127,7 @@ class AMQPBroker(BrokerABC):
 				channel.basic_ack(method.delivery_tag)
 
 
-	async def publish(self, body, target='', correlation_id=None):
+	async def publish(self, body, target:str='', correlation_id:str=None):
 		properties = pika.BasicProperties(
 			delivery_mode=1,
 			correlation_id=correlation_id,

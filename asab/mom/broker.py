@@ -9,9 +9,9 @@ L = logging.getLogger(__name__)
 
 #
 
-class BrokerABC(abc.ABC, asab.ConfigObject):
+class Broker(abc.ABC, asab.ConfigObject):
 
-	def __init__(self, app, task_service, config_section_name, config=None):
+	def __init__(self, app, task_service, config_section_name:str, config=None):
 		if task_service == None:
 			task_service = app.get_service("asab.MOMService")
 
@@ -30,17 +30,17 @@ class BrokerABC(abc.ABC, asab.ConfigObject):
 		self.MainFuture.cancel()
 
 
-	def subscribe(self, queue_name):
-		self.Subscriptions.add(queue_name)
+	def subscribe(self, subscription:str):
+		self.Subscriptions.add(subscription)
 		asyncio.ensure_future(self.ensure_subscriptions(), loop=self.Loop)
 
 
-	def add(self, target, coro, reply_to=None):
+	def add(self, target:str, handler, reply_to:str=None):
 		t = self.Targets.get(target)
 		if t is None:
-			self.Targets[target] = [(coro, reply_to)]
+			self.Targets[target] = [(handler, reply_to)]
 		else:
-			t.append((coro, reply_to))
+			t.append((handler, reply_to))
 
 
 	async def dispatch(self, target, properties, body):
@@ -49,8 +49,8 @@ class BrokerABC(abc.ABC, asab.ConfigObject):
 			L.warn("Received a message for an unknown target '{}'".format(target))
 			return
 
-		for coro, reply_to in tlist:
-			reply = await coro(properties, body)
+		for handler, reply_to in tlist:
+			reply = await handler(properties, body)
 			if reply_to is not None:
 				await self.publish(reply,
 					target=reply_to,
@@ -69,5 +69,5 @@ class BrokerABC(abc.ABC, asab.ConfigObject):
 		pass
 
 
-	async def publish(self, body, target=''):
+	async def publish(self, body, target:str='', correlation_id:str=None):
 		pass
