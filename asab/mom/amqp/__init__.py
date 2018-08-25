@@ -30,7 +30,7 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 	'''
 
 	ConfigDefaults = {
-		'url': 'amqp://test:test@rabbitmq1/test',
+		'url': 'amqp://test:test@localhost/test',
 		'appname': 'asab.mom',
 		'reconnect_delay': 10.0,
 		'prefetch_count': 5,
