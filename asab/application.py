@@ -40,6 +40,12 @@ class Application(metaclass=Singleton):
 
 	def __init__(self):
 
+		try:
+			# EX_OK code is not available on Windows
+			self.ExitCode = os.EX_OK
+		except AttributeError:
+			self.ExitCode = 0
+
 		# Parse command line
 		args = self.parse_arguments()
 
@@ -282,11 +288,7 @@ class Application(metaclass=Singleton):
 			self.Loop.run_until_complete(self.Loop.shutdown_asyncgens())
 		self.Loop.close()
 
-		try:
-			# EX_OK code is not available on Windows
-			return os.EX_OK
-		except AttributeError:
-			return 0
+		return self.ExitCode
 
 
 	def stop(self):
@@ -429,3 +431,9 @@ class Application(metaclass=Singleton):
 			L.warn("Exiting but {} async task(s) are still waiting".format(tasks_awaiting))
 
 		future.set_result("exit")
+
+
+	def set_exit_code(self, exit_code):
+		if self.ExitCode < exit_code:
+			L.debug("Exit code set to {}",format(exit_code))
+			self.ExitCode = exit_code
