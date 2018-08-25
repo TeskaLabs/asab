@@ -7,6 +7,9 @@ class MyApplication(asab.Application):
 	'''
 	Run by:
 	$ PYTHONPATH=.. ./mom.py
+
+	RabbitMQ virtual host 'playground' setup:
+	Exchange 'amqp.fanout' => queue 'task.queue'
 	'''
 
 	async def initialize(self):
@@ -23,7 +26,7 @@ class MyApplication(asab.Application):
 		self.Timer.start(1)
 
 		# Subscribe and add the route
-		self.Broker.subscribe("task-queue")
+		self.Broker.subscribe("task.queue")
 		self.Broker.add("example", self.handler)
 
 
