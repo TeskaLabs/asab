@@ -82,8 +82,14 @@ Adjust the example of `OpenRC init file <https://github.com/TeskaLabs/asab/blob/
 
 .. code-block:: bash
 
-	$ apk add python3-dev
-	$ apk add gcc
-	$ apk add musl-dev
+	$ apk add --virtual .buildenv python3-dev
+	$ apk add --virtual .buildenv gcc
+	$ apk add --virtual .buildenv musl-dev
 
+
+And removal of the build tools after pip install:
+
+.. code-block:: bash
+
+	$ apk del .buildenv
 
