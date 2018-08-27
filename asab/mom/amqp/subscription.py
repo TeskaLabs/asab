@@ -19,4 +19,3 @@ class SubscriptionObject(object):
 
 		self.Channel = self.Broker.Connection.channel(on_open_callback=on_channel_open)
 
-

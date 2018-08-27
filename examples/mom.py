@@ -17,16 +17,21 @@ class MyApplication(asab.Application):
 		self.add_module(Module)
 
 		from asab.mom.amqp import AMQPBroker
-		self.Broker = AMQPBroker(self, config={
+		self.Broker = AMQPBroker(self, accept_replies=True, config={
 			'url': 'amqp://testuser:test@rabbitmq1/playground',
 		})
 
 		# The timer will trigger a message publishing at every second
 		self.PubSub.subscribe("Application.tick!", self.on_tick)
 
-		# Subscribe and add the route
-		self.Broker.subscribe("task.queue")
+		# Add the route	
 		self.Broker.add("example", self.handler)
+		self.Broker.add("reply", self.reply_handler)
+
+
+	async def main(self):
+		# Subscribe and start working
+		self.Broker.subscribe("task.queue")
 
 
 	async def on_tick(self, event_type):
@@ -35,6 +40,11 @@ class MyApplication(asab.Application):
 
 	async def handler(self, properties, body):
 		print("Received:", body)
+		return "Reply!"
+
+
+	async def reply_handler(self, properties, body):
+		print("Reply:", body)
 
 
 if __name__ == '__main__':

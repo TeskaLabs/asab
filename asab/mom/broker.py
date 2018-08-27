@@ -35,12 +35,12 @@ class Broker(abc.ABC, asab.ConfigObject):
 		asyncio.ensure_future(self.ensure_subscriptions(), loop=self.Loop)
 
 
-	def add(self, target:str, handler, reply_to:str=None):
+	def add(self, target:str, handler):
 		t = self.Targets.get(target)
 		if t is None:
-			self.Targets[target] = [(handler, reply_to)]
+			self.Targets[target] = [handler]
 		else:
-			t.append((handler, reply_to))
+			t.append(handler)
 
 
 	async def dispatch(self, target, properties, body):
@@ -49,15 +49,16 @@ class Broker(abc.ABC, asab.ConfigObject):
 			L.warn("Received a message for an unknown target '{}'".format(target))
 			return
 
-		for handler, reply_to in tlist:
+		for handler in tlist:
 			reply = await handler(properties, body)
-			if reply_to is not None:
-				await self.publish(reply,
-					target=reply_to,
-					correlation_id=properties.correlation_id
+			if properties.reply_to is not None:
+				#TODO: If reply_to is URL, then use HTTP to deliver reply
+				await self.reply(reply,
+					reply_to=properties.reply_to,
+					correlation_id=properties.correlation_id,
 				)
 			elif reply is not None:
-				L.warn("Discart the reply from '{}'".format(target))
+				L.warn("Discart the reply from target '{}'".format(target))
 
 
 
