@@ -7,7 +7,8 @@ Undocumented items:
 	- Configuration default values (aka ConfigParser._default_values)
 	- asab.storage
 	- custom arg parser
-	= config object
+	- config object
+	- asab in Docker (how to build ASAB docker image and write how to deploy apps into a container derived from that image)
 
 Enhancements:
 
