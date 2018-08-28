@@ -11,7 +11,7 @@ L = logging.getLogger(__name__)
 
 class Broker(abc.ABC, asab.ConfigObject):
 
-	def __init__(self, app, task_service, config_section_name:str, config=None):
+	def __init__(self, app, accept_replies:bool, task_service, config_section_name:str, config=None):
 		if task_service == None:
 			task_service = app.get_service("asab.MOMService")
 
@@ -22,6 +22,7 @@ class Broker(abc.ABC, asab.ConfigObject):
 		self.Loop = app.Loop
 		self.Subscriptions = set()
 		self.Targets = {}
+		self.AcceptReplies = accept_replies
 
 		self.MainFuture = asyncio.ensure_future(self.main(), loop=self.Loop)
 
@@ -70,5 +71,19 @@ class Broker(abc.ABC, asab.ConfigObject):
 		pass
 
 
-	async def publish(self, body, target:str='', correlation_id:str=None):
+	async def publish(self, body, target:str='',
+		content_type:str=None,
+		content_encoding:str=None,
+		correlation_id:str=None,
+		reply_to:str=None,
+		):
+		pass
+
+
+	async def reply(self, body,
+		reply_to:str,
+		content_type:str=None,
+		content_encoding:str=None,
+		correlation_id:str=None,
+		):
 		pass

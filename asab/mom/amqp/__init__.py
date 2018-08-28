@@ -41,14 +41,13 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 	}
 
 	def __init__(self, app, accept_replies=False, task_service=None, config_section_name="asab:mom:amqp", config=None):
-		super().__init__(app, task_service, config_section_name, config)
+		super().__init__(app, accept_replies, task_service, config_section_name, config)
 
 		self.Origin = '{}@{}'.format(os.getpid(), socket.gethostname())
 
 		self.Connection = None
 		self.SubscriptionObjects = {}
 		self.ReplyTo = None
-		self.AcceptReplies = accept_replies
 
 		self.InboundQueue = asyncio.Queue(loop=app.Loop)
 		self.OutboundQueue = asyncio.Queue(loop=app.Loop)
@@ -144,7 +143,7 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 		content_encoding:str=None,
 		correlation_id:str=None,
 		reply_to:str=None,
-	):
+		):
 		await self.OutboundQueue.put((
 			self.Exchange, # Where to publish
 			target, # Routing key
@@ -167,7 +166,7 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 		content_type:str=None,
 		content_encoding:str=None,
 		correlation_id:str=None,
-	):
+		):
 		await self.OutboundQueue.put((
 			self.ReplyExchange, # Where to publish
 			reply_to, # Routing key

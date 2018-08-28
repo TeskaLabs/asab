@@ -25,7 +25,7 @@ class MyApplication(asab.Application):
 		self.PubSub.subscribe("Application.tick!", self.on_tick)
 
 		# Add the route	
-		self.Broker.add("example", self.handler)
+		self.Broker.add("task", self.task_handler)
 		self.Broker.add("reply", self.reply_handler)
 
 
@@ -35,10 +35,10 @@ class MyApplication(asab.Application):
 
 
 	async def on_tick(self, event_type):
-		await self.Broker.publish("Hello world!", target="example")
+		await self.Broker.publish("Hello world!", target="task")
 
 
-	async def handler(self, properties, body):
+	async def task_handler(self, properties, body):
 		print("Received:", body)
 		return "Reply!"
 
