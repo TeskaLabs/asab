@@ -21,6 +21,7 @@
    asab/various
 
    asab/web/index
+   asab/mom/index
 
 
 .. toctree::
