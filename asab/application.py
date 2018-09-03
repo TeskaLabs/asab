@@ -19,8 +19,6 @@ from .config import Config
 from .abc.singleton import Singleton
 from .log import Logging, _loop_exception_handler
 
-from .metrics import Metrics
-
 # Importing the Win API library
 if platform.system() == "Windows":
 	try:
@@ -97,7 +95,6 @@ class Application(metaclass=Singleton):
 
 		from .pubsub import PubSub
 		self.PubSub = PubSub(self)
-		self.Metrics = Metrics(self)
 
 		self.Modules = []
 		self.Services = {}
@@ -375,7 +372,6 @@ class Application(metaclass=Singleton):
 					await asyncio.wait_for(self._stop_event.wait(), timeout=timeout)
 					break
 				except asyncio.TimeoutError:
-					self.Metrics.add("Application.tick", 1)
 					self.PubSub.publish("Application.tick!")
 					if (cycle_no % 10) == 0: self.PubSub.publish("Application.tick/10!")
 					if (cycle_no % 60) == 0: self.PubSub.publish("Application.tick/60!")
