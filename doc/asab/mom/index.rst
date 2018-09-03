@@ -97,20 +97,6 @@ Message-oriented middleware is the asynchronous message passing model.
 By a mechanism of a message correlation, MOM service allow to reply to a message in the handler.
 
 
-Example of the sender:
-
-.. code:: python
-
-	import uuid
-	message = "Hello World!"
-	reply = await broker.publish(
-		message,
-		target="example",
-		correlation_id=uuid.uuid4().urn
-	)
-	print("Received:", reply)
-
-
 Example of the handler:
 
 .. code:: python
