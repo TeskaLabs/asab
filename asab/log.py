@@ -15,6 +15,9 @@ import asyncio
 
 from .config import Config
 
+# Non-error/warning type of message that is visible without -v flag
+LOG_NOTICE = 25 
+logging.addLevelName(LOG_NOTICE, "NOTICE")
 
 class Logging(object):
 
@@ -107,7 +110,7 @@ class Logging(object):
 		if Config["logging"].getboolean("verbose"):
 			self.RootLogger.setLevel(logging.DEBUG)
 		else:
-			self.RootLogger.setLevel(logging.WARNING)
+			self.RootLogger.setLevel(LOG_NOTICE)
 
 
 	def rotate(self):
