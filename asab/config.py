@@ -126,6 +126,20 @@ Config = ConfigParser()
 
 class ConfigObject(object):
 
+	'''
+	Usage:
+	class ConfigurableObject(asab.ConfigObject):
+
+		ConfigDefaults = {
+			'foo': 'bar',
+		}
+
+		def __init__(self, config_section_name, config=None):
+			super().__init__(config_section_name=config_section_name, config=config)
+
+			config_foo = self.Config.get('foo')
+
+	'''
 
 	ConfigDefaults = {}
 
