@@ -159,19 +159,21 @@ class StructuredDataFormatter(logging.Formatter):
 		record.struct_data=self.render_struct_data(record.__dict__.get("_struct_data"))
 		
 		# The Priority value is calculated by first multiplying the Facility number by 8 and then adding the numerical value of the Severity.
-		severity = 7
+		severity = 7 # Debug
 		if record.levelno > logging.DEBUG and record.levelno <= logging.INFO:
-			severity = 5
+			severity = 6 # Informational
+		elif record.levelno <= logging.LOG_NOTICE:
+			severity = 5 # Notice
 		elif record.levelno <= logging.WARNING:
-			severity = 4
+			severity = 4 # Warning
 		elif record.levelno <= logging.ERROR:
-			severity = 3
+			severity = 3 # Error
 		elif record.levelno <= logging.CRITICAL:
-			severity = 2
+			severity = 2 # Critical
 		else:
-			severity = 1
+			severity = 1 # Alert
 
-		record.priority = 8*self.Facility + severity
+		record.priority = (self.Facility << 3) + severity
 		return super().format(record)
 
 

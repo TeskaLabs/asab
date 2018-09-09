@@ -9,7 +9,6 @@ Undocumented items:
 	- custom arg parser
 	- config object
 	- asab in Docker (how to build ASAB docker image and write how to deploy apps into a container derived from that image)
-	- logging NOTICE
 	- Metrics service
 	- config var_dir + app method ensure_var_dir() that actually creates var directory if needed
 

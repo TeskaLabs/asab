@@ -29,12 +29,53 @@ Example of the output to the console:
 
 ``25-Mar-2018 23:33:58.044595 INFO myapp.mymodule : Hello world!``
 
+
 Verbose mode
 ------------
 
-The command-line argument ``-v`` enables verbose logging, respectively sets ``logging.DEBUG`` and ``asyncio`` debuging.
+The command-line argument ``-v`` enables verbose logging, respectively sets ``logging.DEBUG`` and enables ``asyncio`` debug logging.
 
-The selected verbose mode is avaiable at ``asab.Config["logging"]["verbose"]`` boolean option.
+The actual verbose mode is avaiable at ``asab.Config["logging"]["verbose"]`` boolean option.
+
+
+Logging Levels
+--------------
+
+ASAB uses Python logging levels with the addition of ``LOG_NOTICE`` level.
+``LOG_NOTICE`` level is similar to ``logging.INFO`` level but it is visible in even in non-verbose mode.
+
+
++----------------+---------------+------------------------------+
+| Level          | Numeric value | Syslog Severity level        |
++================+===============+==============================+
+| ``CRITICAL``   | 50            | Critical / ``crit`` / 2      |
++----------------+---------------+------------------------------+
+| ``ERROR``      | 40            | Error / ``err`` / 3          |
++----------------+---------------+------------------------------+
+| ``WARNING``    | 30            | Warning / ``warning`` / 4    |
++----------------+---------------+------------------------------+
+| ``LOG_NOTICE`` | 25            | Notice / ``notice`` / 5      |
++----------------+---------------+------------------------------+
+| ``INFO``       | 20            | Informational / ``info`` / 6 |
++----------------+---------------+------------------------------+
+| ``DEBUG``      | 10            | Debug / ``debug`` / 7        |
++----------------+---------------+------------------------------+
+| ``NOTSET``     | 0             |                              |
++----------------+---------------+------------------------------+
+
+
+
+Structured data
+---------------
+
+ASAB supports a structured data to be added to a log entry.
+It follows the `RFC 5424 <https://tools.ietf.org/html/rfc5424>`_, section ``STRUCTURED-DATA``.
+Structured data are a dictionary, that has to be seriazable to JSON.
+
+.. code:: python
+
+    L.info("Hello world!", struct_data={'key1':'value1', 'key2':2})
+
 
 
 Logging to file
@@ -97,18 +138,6 @@ Possible URL values:
 - ``unix-sendto:///path/to/syslog.socket`` for Syslog over UNIX socket (datagram), equivalent to ``/path/to/syslog.socket``, used by a ``/dev/log``.
 
 The default value is a ``/dev/log`` on Linux or ``/var/run/syslog`` on Mac OSX.
-
-
-Structured data
----------------
-
-ASAB supports a structured data to be added to a log entry.
-It follows the `RFC 5424 <https://tools.ietf.org/html/rfc5424>`_, section ``STRUCTURED-DATA``.
-Structured data are a dictionary, that has to be seriazable to JSON.
-
-.. code:: python
-
-	L.info("Hello world!", struct_data={'key1':'value1', 'key2':2})
 
 
 Reference
