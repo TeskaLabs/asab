@@ -162,7 +162,7 @@ class StructuredDataFormatter(logging.Formatter):
 		severity = 7 # Debug
 		if record.levelno > logging.DEBUG and record.levelno <= logging.INFO:
 			severity = 6 # Informational
-		elif record.levelno <= logging.LOG_NOTICE:
+		elif record.levelno <= LOG_NOTICE:
 			severity = 5 # Notice
 		elif record.levelno <= logging.WARNING:
 			severity = 4 # Warning
