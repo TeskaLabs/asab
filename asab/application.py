@@ -314,6 +314,11 @@ class Application(metaclass=Singleton):
 	def add_module(self, module_class):
 		""" Load a new module. """
 
+		for module in self.Modules:
+			if isinstance(module, module_class):
+				# Already loaded and registered
+				return
+
 		module = module_class(self)
 		self.Modules.append(module)
 	
