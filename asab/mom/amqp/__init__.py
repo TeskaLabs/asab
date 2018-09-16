@@ -12,7 +12,7 @@ import pika
 import pika.adapters.asyncio_connection
 
 from ..broker import Broker
-from .subscription import SubscriptionObject
+from .subscription import SubscriptionObject, TopicSubscriptionObject
 
 # from .connection import AMQPConnection
 # from .source import AMQPSource, AMQPFullMessageSource
@@ -43,7 +43,7 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 	def __init__(self, app, accept_replies=False, task_service=None, config_section_name="asab:mom:amqp", config=None):
 		super().__init__(app, accept_replies, task_service, config_section_name, config)
 
-		self.Origin = '{}@{}'.format(os.getpid(), socket.gethostname())
+		self.Origin = '{}#{}'.format(socket.gethostname(), os.getpid())
 
 		self.Connection = None
 		self.SubscriptionObjects = {}
@@ -116,9 +116,12 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 		if self.Connection is None: return
 		if not self.Connection.is_open: return
 
-		for s in self.Subscriptions:
+		for s, pkwargs in self.Subscriptions.items():
 			if s in self.SubscriptionObjects: continue
-			self.SubscriptionObjects[s] = SubscriptionObject(self, s)
+			if 'topic' in pkwargs:
+				self.SubscriptionObjects[s] = TopicSubscriptionObject(self, s, **pkwargs)
+			else:
+				self.SubscriptionObjects[s] = SubscriptionObject(self, s, **pkwargs)
 
 
 	async def main(self):
@@ -185,16 +188,14 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 
 	async def _sender_future(self, channel):
 		if self.AcceptReplies:
-			self.ReplyTo = await self._create_exclusive_reply_queue(channel)
+			self.ReplyTo = await self._create_exclusive_queue(channel, "~R@"+self.Origin)
 
 		while True:
 			exchange, routing_key, body, properties = await self.OutboundQueue.get()
 			channel.basic_publish(exchange, routing_key, body, properties)
 
 
-	async def _create_exclusive_reply_queue(self, channel):
-		queue_name = "reply.queue@"+self.Origin
-		
+	async def _create_exclusive_queue(self, channel, queue_name):
 		lock = asyncio.Event()
 		lock.set()
 

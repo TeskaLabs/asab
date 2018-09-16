@@ -12,6 +12,7 @@ Undocumented items:
 	- Metrics service
 	- config var_dir + app method ensure_var_dir() that actually creates var directory if needed
 	- Proactor service
+	- MOM topic subscriptions
 
 Enhancements:
 

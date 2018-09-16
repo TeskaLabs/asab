@@ -20,7 +20,7 @@ class Broker(abc.ABC, asab.ConfigObject):
 		self.TaskService._register_broker(self)
 
 		self.Loop = app.Loop
-		self.Subscriptions = set()
+		self.Subscriptions = dict()
 		self.Targets = {}
 		self.AcceptReplies = accept_replies
 
@@ -31,8 +31,8 @@ class Broker(abc.ABC, asab.ConfigObject):
 		self.MainFuture.cancel()
 
 
-	def subscribe(self, subscription:str):
-		self.Subscriptions.add(subscription)
+	def subscribe(self, subscription:str, **kwags):
+		self.Subscriptions[subscription] = kwags
 		asyncio.ensure_future(self.ensure_subscriptions(), loop=self.Loop)
 
 

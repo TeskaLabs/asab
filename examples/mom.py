@@ -18,7 +18,7 @@ class MyApplication(asab.Application):
 
 		from asab.mom.amqp import AMQPBroker
 		self.Broker = AMQPBroker(self, accept_replies=True, config={
-			'url': 'amqp://testuser:test@rabbitmq1/playground',
+			'url': 'amqp://guest:guest@localhost/',
 		})
 
 		# The timer will trigger a message publishing at every second
@@ -32,6 +32,10 @@ class MyApplication(asab.Application):
 	async def main(self):
 		# Subscribe and start working
 		self.Broker.subscribe("task.queue")
+
+		# This is a topic subscription
+		# See https://www.rabbitmq.com/tutorials/tutorial-five-python.html for more details
+		self.Broker.subscribe("amq.topic", topic=["*.orange.*", "*.*.rabbit"])
 
 
 	async def on_tick(self, event_type):
