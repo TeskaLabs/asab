@@ -21,11 +21,11 @@ This module offers an integration of a :py:mod:`aiohttp` `web server <http://aio
 	class MyApplication(asab.Application):
 
 	    async def initialize(self):
-	        # Loading the web service module
+	        # Load the web service module
 	        from asab.web import Module
 	        self.add_module(Module)
 
-	        # Locate web service
+	        # Locate the web service
 	        svc = self.get_service("asab.WebService")
 
 	        # Add a route
