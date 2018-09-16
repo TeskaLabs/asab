@@ -1,8 +1,11 @@
-Asynchronous Server Application Boilerplate
-===========================================
+Asynchronous Server App Boilerplate
+===================================
 
-Asynchronous Server App Boilerplate (or *ASAB* for short) minimizes the amount of code that needs to be written when building a server application in Python.
-ASAB is fully asynchronous, this means you can use the new shiny async/await syntax from Python 3.5, making your code non-blocking, speedy and hence scalable.
+Asynchronous Server App Boilerplate (or *ASAB* for short) provides an unified environment for building Pythonic microservices or application servers.
+ASAB minimizes the amount of code that needs to be written when building a backend infrastructure in Python.
+ASAB is fully asynchronous using async/await syntax from Python 3.5, making your code modern, non-blocking, speedy and hence scalable.
+ASAB supports request/response architectures such as HTTP REST as well as message oriented architectures such as RabbitMQ/AMQP or Kafka or any combinations.
+ASAB is made container friendly, so that you can deploy the microservice to a Docker or Kubernetes in a breeze.
 
 We hope you will find *ASAB* fun and easy to use.
 We carefully designed ASAB for `microservice <https://en.wikipedia.org/wiki/Microservices>`_, web application servers, ETL or `stream processors <https://github.com/TeskaLabs/bspump>`_.
