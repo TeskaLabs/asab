@@ -1,8 +1,8 @@
 import itertools
 
-class SubscriptionObject(object):
+class QueueSubscriptionObject(object):
 
-	def __init__(self, broker, queue_name):
+	def __init__(self, broker, queue_name, exchange:bool=False):
 		self.Broker = broker
 		self.QueueName = queue_name
 
@@ -21,7 +21,7 @@ class SubscriptionObject(object):
 		self.Channel = self.Broker.Connection.channel(on_open_callback=on_channel_open)
 
 
-class TopicSubscriptionObject(object):
+class ExchangeSubscriptionObject(object):
 	'''
 	This class handles a subscription to a topic exchange.
 	It creates a temporary exclusive queue that is bound to a specified exchange.
@@ -29,21 +29,21 @@ class TopicSubscriptionObject(object):
 	Usage:
 	Broker.subscribe("amq.topic", topic="*.orange.*")
 
-	... or for multiple topics
+	... or for multiple topics via subscription to an exchange
 	
-	Broker.subscribe("amq.topic", topic=["*.orange.*", "*.*.rabbit"])
+	Broker.subscribe("amq.topic", exchange=True, routing_key=["*.orange.*", "*.*.rabbit"])
 	'''
 
 	QueueNumberSeq = itertools.count(1)
 
-	def __init__(self, broker, exchange_name, topic):
+	def __init__(self, broker, exchange_name:str, exchange:bool=True, routing_key:str=None):
 		self.Broker = broker
 		self.QueueName = "~T{}@".format(next(self.QueueNumberSeq))+broker.Origin
 		self.ExchangeName = exchange_name
-		if isinstance(topic, list):
-			self.Topic = topic
+		if isinstance(routing_key, list):
+			self.RoutingKey = routing_key
 		else:
-			self.Topic = [topic]
+			self.RoutingKey = [routing_key]
 
 		def on_channel_open(channel):
 			channel.queue_declare(
@@ -58,12 +58,12 @@ class TopicSubscriptionObject(object):
 				on_qos_applied,
 				prefetch_count=int(self.Broker.Config['prefetch_count']),
 			)
-			for topic in self.Topic:
+			for rk in self.RoutingKey:
 				self.Channel.queue_bind(
 					None,
 					queue=self.QueueName,
 					exchange=self.ExchangeName,
-					routing_key=topic,
+					routing_key=rk,
 					nowait=True, # We are not interested in the result
 				)
 

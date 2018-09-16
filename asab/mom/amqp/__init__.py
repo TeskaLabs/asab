@@ -12,7 +12,7 @@ import pika
 import pika.adapters.asyncio_connection
 
 from ..broker import Broker
-from .subscription import SubscriptionObject, TopicSubscriptionObject
+from .subscription import QueueSubscriptionObject, ExchangeSubscriptionObject
 
 # from .connection import AMQPConnection
 # from .source import AMQPSource, AMQPFullMessageSource
@@ -118,10 +118,10 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 
 		for s, pkwargs in self.Subscriptions.items():
 			if s in self.SubscriptionObjects: continue
-			if 'topic' in pkwargs:
-				self.SubscriptionObjects[s] = TopicSubscriptionObject(self, s, **pkwargs)
+			if pkwargs.get('exchange', False):
+				self.SubscriptionObjects[s] = ExchangeSubscriptionObject(self, s, **pkwargs)
 			else:
-				self.SubscriptionObjects[s] = SubscriptionObject(self, s, **pkwargs)
+				self.SubscriptionObjects[s] = QueueSubscriptionObject(self, s, **pkwargs)
 
 
 	async def main(self):
@@ -202,7 +202,7 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 		def on_queue_declared(method):
 			lock.clear()
 			assert(method.method.queue == queue_name)
-			self.SubscriptionObjects[queue_name] = SubscriptionObject(self, queue_name)
+			self.SubscriptionObjects[queue_name] = QueueSubscriptionObject(self, queue_name)
 
 		x = channel.queue_declare(
 			callback=on_queue_declared,

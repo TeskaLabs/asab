@@ -35,7 +35,7 @@ class MyApplication(asab.Application):
 
 		# This is a topic subscription
 		# See https://www.rabbitmq.com/tutorials/tutorial-five-python.html for more details
-		self.Broker.subscribe("amq.topic", topic=["*.orange.*", "*.*.rabbit"])
+		self.Broker.subscribe("amq.topic", exchange=True, routing_key=["*.orange.*", "*.*.rabbit"])
 
 
 	async def on_tick(self, event_type):
