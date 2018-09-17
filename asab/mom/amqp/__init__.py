@@ -141,14 +141,17 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 				channel.basic_ack(method.delivery_tag)
 
 
-	async def publish(self, body, target:str='',
+	async def publish(self,
+		body,
+		target:str='',
 		content_type:str=None,
 		content_encoding:str=None,
 		correlation_id:str=None,
 		reply_to:str=None,
+		exchange:str=None
 		):
 		await self.OutboundQueue.put((
-			self.Exchange, # Where to publish
+			exchange if exchange is not None else self.Exchange, # Where to publish
 			target, # Routing key
 			body,
 			pika.BasicProperties(
