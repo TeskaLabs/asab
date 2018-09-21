@@ -47,16 +47,6 @@ The :py:mod:`asyncio` event loop that is used by this application.
     asyncio.ensure_future(my_coro(), loop=Application.Loop)
 
 
-Measurements and Metrics
-------------------------
-
-.. py:attribute:: Application.Metrics
-
-Application Metrics.
-
-For more details, see :py:class:`asab.metrics.Metrics`.
-
-
 Application Lifecycle
 ---------------------
 
