@@ -24,13 +24,13 @@ class MetricsInfluxDB(asab.ConfigObject):
 		self.WriteURL = '{}/write?db={}'.format(self.Config.get('url').rstrip('/'), self.Config.get('db'))
 
 
-	async def process(self, cache):
+	async def process(self, now, mlist):
 		rb = ""
-		for line in cache:
-			name = line['name']
+		for metric, values in mlist:
+			name = metric.Name
 
 			field_set = []
-			for fk, fv in line['fields'].items():
+			for fk, fv in values.items():
 				if isinstance(fv, int):
 					field_set.append("{}={}i".format(fk, fv))
 				elif isinstance(fv, float):
@@ -42,12 +42,10 @@ class MetricsInfluxDB(asab.ConfigObject):
 				else:
 					raise RuntimeError("Unknown/invalud type of the metrics field: {} {}".format(type(fv), fk))
 
-			tags = line.get('tags')
-			if tags is not None:
-				for tk, tv in tags.items():
-					name += ',{}={}'.format(tk, tv)
+			for tk, tv in metric.Tags.items():
+				name += ',{}={}'.format(tk, tv)
 
-			rb += "{} {} {}\n".format(name, ','.join(field_set), int(line['timestamp'] * 1e9))
+			rb += "{} {} {}\n".format(name, ','.join(field_set), int(now * 1e9))
 
 		async with aiohttp.ClientSession() as session:
 			async with session.post(self.WriteURL, data=rb) as resp:
