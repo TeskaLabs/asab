@@ -79,9 +79,9 @@ class MetricsService(asab.Service):
 		if len(fs) > 0:
 			done, pending = await asyncio.wait(fs, loop=self.Loop, timeout=5.0, return_when=asyncio.ALL_COMPLETED)
 		
-		for f in pending:
-			L.warning("Target task {} failed to complete".format(f))
-			f.cancel()
+			for f in pending:
+				L.warning("Target task {} failed to complete".format(f))
+				f.cancel()
 
 
 	def add_metric(self, metric:Metric):
