@@ -3,6 +3,8 @@ import aiohttp.web
 import aiohttp.web_response
 import asab
 
+from .accesslog import AccessLogger
+
 #
 
 L = logging.getLogger(__name__)
@@ -39,7 +41,12 @@ class WebService(asab.Service):
 			from .staticdir import StaticDirProvider
 			self.WebApp['rootdir'] = StaticDirProvider(self, root='/', path=rootdir)
 
-		self.WebAppRunner = aiohttp.web.AppRunner(self.WebApp, handle_signals=False)
+		self.WebAppRunner = aiohttp.web.AppRunner(
+			self.WebApp,
+			handle_signals=False,
+			access_log=logging.getLogger(__name__[:__name__.rfind('.')] + '.al'),
+			access_log_class=AccessLogger,
+		)
 
 
 	async def initialize(self, app):
