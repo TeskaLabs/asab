@@ -24,23 +24,26 @@ class MyApplication(asab.Application):
 		# Locate web service
 		websvc = self.get_service("asab.WebService")
 
+		# Create a dedicated web container
+		container = asab.web.WebContainer(websvc, 'example:web')
+
 		# Add a web session service
-		asab.web.session.ServiceWebSession(self, "asab.ServiceWebSession", websvc, session_class=MySession)
+		asab.web.session.ServiceWebSession(self, "asab.ServiceWebSession", container.WebApp, session_class=MySession)
 
 		# Enable exception to JSON exception middleware
-		websvc.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
+		container.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 
 		# Add a route
-		websvc.WebApp.router.add_get('/api/login', self.login)
+		container.WebApp.router.add_get('/api/login', self.login)
 		print("Test with curl:\n\t$ curl http://localhost:8080/api/login")
 
-		websvc.WebApp.router.add_get('/error', self.error)
+		container.WebApp.router.add_get('/error', self.error)
 
 		# Add a web app
-		websvc.add_frontend_web_app('/', "webapp")
+		asab.web.StaticDirProvider(container.WebApp, '/', "webapp")
 
 		# Add a websocket handler
-		websvc.WebApp.router.add_get('/subscribe', MyWebSocketFactory(self))
+		container.WebApp.router.add_get('/subscribe', MyWebSocketFactory(self))
 
 
 	async def login(self, request):

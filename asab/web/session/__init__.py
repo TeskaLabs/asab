@@ -18,10 +18,8 @@ L = logging.getLogger(__name__)
 
 class ServiceWebSession(asab.Service):
 
-	def __init__(self, app, service_name, webservice, session_storage=None, session_class=None):
+	def __init__(self, app, service_name, webapp, session_storage=None, session_class=None):
 		super().__init__(app, service_name)
-
-		webapp = webservice.WebApp
 
 		if session_class is None:
 			session_class = Session

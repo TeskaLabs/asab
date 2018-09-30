@@ -7,19 +7,19 @@ import aiohttp.web
 
 class StaticDirProvider(object):
 
-	def __init__(self, websvc, root, path, index='index.html'):
+	def __init__(self, webapp, root, path, index='index.html'):
 		self.Path = path
 		self.Index = index
 		self.Root = root.rstrip('/')
 
-		websvc.WebApp.router.add_get(self.Root if len(self.Root) > 0 else '/', self._index)
+		webapp.router.add_get(self.Root if len(self.Root) > 0 else '/', self._index)
 
 		# Read all files from path (build from React) and map them statically
 		for fname in glob.glob(os.path.join(self.Path, '*')):
 			if os.path.isfile(fname):
-				websvc.WebApp.router.add_get(self.Root + '/' + os.path.basename(fname), functools.partial(self._file, fname))
+				webapp.router.add_get(self.Root + '/' + os.path.basename(fname), functools.partial(self._file, fname))
 			elif os.path.isdir(fname):
-				websvc.WebApp.router.add_static(self.Root + '/' + os.path.basename(fname), path=fname)
+				webapp.router.add_static(self.Root + '/' + os.path.basename(fname), path=fname)
 
 
 	async def _index(self, request):
