@@ -6,6 +6,7 @@ import asab
 import aiohttp
 
 import asab.web
+import asab.web.rest
 import asab.web.session
 
 
@@ -27,7 +28,7 @@ class MyApplication(asab.Application):
 		asab.web.session.ServiceWebSession(self, "asab.ServiceWebSession", websvc, session_class=MySession)
 
 		# Enable exception to JSON exception middleware
-		websvc.WebApp.middlewares.append(asab.web.JsonExceptionMiddleware)
+		websvc.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 
 		# Add a route
 		websvc.WebApp.router.add_get('/api/login', self.login)
@@ -39,7 +40,7 @@ class MyApplication(asab.Application):
 		websvc.add_frontend_web_app('/', "webapp")
 
 		# Add a websocket handler
-		websvc.WebApp.router.add_get('/api/ws', MyWebSocketFactory(self))
+		websvc.WebApp.router.add_get('/subscribe', MyWebSocketFactory(self))
 
 
 	async def login(self, request):
