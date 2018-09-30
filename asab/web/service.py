@@ -18,7 +18,6 @@ class WebService(asab.Service):
 
 
 	def _register_container(self, container, config_section_name):
-		print("Register", container, config_section_name)
 		self.Containers[config_section_name] = container
 		asyncio.ensure_future(container.initialize(self.App.Loop))
 
