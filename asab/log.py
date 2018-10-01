@@ -7,6 +7,7 @@ import datetime
 import pprint
 import socket
 import queue
+import re
 import urllib.parse
 import logging
 import logging.handlers
@@ -14,6 +15,7 @@ import logging.handlers
 import asyncio
 
 from .config import Config
+from .timer import Timer
 
 # Non-error/warning type of message that is visible without -v flag
 LOG_NOTICE = 25 
@@ -58,6 +60,32 @@ class Logging(object):
 					sd_id = Config["logging"]["sd_id"],
 				))
 				self.RootLogger.addHandler(self.FileHandler)
+
+				rotate_every = Config.get("logging:file", "rotate_every")
+				if rotate_every != '':
+					rotate_every = re.match(r"^([0-9]+)([dMHs])$", rotate_every)
+					if rotate_every is not None:
+						i, u = rotate_every.groups()
+						i = int(i)
+						if i <= 0:
+							self.RootLogger.error("Invalid 'rotate_every' configuration value.")
+						else:
+							if u == 'H':
+								i = i * 60 * 60
+							elif u == 'M':
+								i = i * 60
+							elif u == 'd':
+								i = i * 60 * 60 * 24
+							elif u == 's':
+								pass
+
+							async def schedule(app, interval):
+								self.LogRotatingTime = Timer(app, self._on_tick_rotate_check, autorestart=True)
+								self.LogRotatingTime.start(i)
+							asyncio.ensure_future(schedule(app, i), loop=app.Loop)
+					else:
+						self.RootLogger.error("Invalid 'rotate_every' configuration value.")
+
 
 			# Initialize syslog
 			if Config["logging:syslog"].getboolean("enabled"):
@@ -115,8 +143,14 @@ class Logging(object):
 
 	def rotate(self):
 		if self.FileHandler is not None:
-			self.RootLogger.info("Rotating logs")
+			self.RootLogger.log(LOG_NOTICE, "Rotating logs")
 			self.FileHandler.doRollover()
+
+
+	async def _on_tick_rotate_check(self):
+		if self.FileHandler is not None:
+			if self.FileHandler.stream.tell() > 1000:
+				self.rotate()
 
 ###
 

@@ -82,11 +82,7 @@ Logging to file
 ---------------
 
 The command-line argument ``-l`` on command-line enables logging to file.
-ASAB supports a log rotation mechanism. A log rotation is triggered by a UNIX signal ``SIGHUP``.
-
-It is implemented using ``logging.handlers.RotatingFileHandler`` from a Python standard library.
-
-A configuration section ``[[logging:file]]`` can be used to specify details about desired syslog logging.
+Also non-empty ``path`` option in the section ``[[logging:file]]`` of configuration file enables logging to file as well.
 
 Example of the configuration file section:
 
@@ -96,9 +92,25 @@ Example of the configuration file section:
     path=/var/log/asab.log
     format="%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s",
     datefmt="%%d-%%b-%%Y %%H:%%M:%%S.%%f"
-    backup_count=0
+    backup_count=3
+    rotate_every=1d
 
-*Note*: Putting non-empty ``path`` option in the configuration file is the equivalent for ``-l`` argument respectively it enables logging to file as well.
+
+Log rotation
+^^^^^^^^^^^^
+
+ASAB supports a `log rotation <https://en.wikipedia.org/wiki/Log_rotation>`_.
+The log rotation is triggered by a UNIX signal ``SIGHUP``, which can be used e.g. to integrate with ``lorotate`` tool.
+It is implemented using ``logging.handlers.RotatingFileHandler`` from a Python standard library.
+Also, a time-based log rotation can be configured using ``rotate_every`` option.
+
+``backup_count`` specifies a number of old files to be kept prior their removal.
+The system will save old log files by appending the extensions ‘.1’, ‘.2’ etc., to the filename.
+
+``rotate_every`` specifies an time interval of a log rotation.
+Default value is empty string, which means that the time-based log rotation is disabled.
+The interval is specified by an integer value and an unit, e.g. 1d (for 1 day) or 30M (30 minutes).
+Known units are `H` for hours, `M` for minutes, `d` for days and `s` for seconds.
 
 
 Logging to syslog

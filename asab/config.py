@@ -59,7 +59,8 @@ class ConfigParser(configparser.ConfigParser):
 			"path": "",
 			"format": "%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s",
 			"datefmt": "%%d-%%b-%%Y %%H:%%M:%%S.%%f",
-			"backup_count": 0,
+			"backup_count": 3,
+			"rotate_every": "",
 		},
 
 	}
