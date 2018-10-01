@@ -79,10 +79,12 @@ class Logging(object):
 							elif u == 's':
 								pass
 
+							# PubSub is not ready at this moment, we need to create timer in a future
 							async def schedule(app, interval):
 								self.LogRotatingTime = Timer(app, self._on_tick_rotate_check, autorestart=True)
 								self.LogRotatingTime.start(i)
 							asyncio.ensure_future(schedule(app, i), loop=app.Loop)
+
 					else:
 						self.RootLogger.error("Invalid 'rotate_every' configuration value.")
 
