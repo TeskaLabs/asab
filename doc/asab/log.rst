@@ -100,7 +100,7 @@ Log rotation
 ^^^^^^^^^^^^
 
 ASAB supports a `log rotation <https://en.wikipedia.org/wiki/Log_rotation>`_.
-The log rotation is triggered by a UNIX signal ``SIGHUP``, which can be used e.g. to integrate with ``lorotate`` tool.
+The log rotation is triggered by a UNIX signal ``SIGHUP``, which can be used e.g. to integrate with ``logrotate`` utility.
 It is implemented using ``logging.handlers.RotatingFileHandler`` from a Python standard library.
 Also, a time-based log rotation can be configured using ``rotate_every`` option.
 
