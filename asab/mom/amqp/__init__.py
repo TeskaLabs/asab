@@ -14,10 +14,6 @@ import pika.adapters.asyncio_connection
 from ..broker import Broker
 from .subscription import QueueSubscriptionObject, ExchangeSubscriptionObject
 
-# from .connection import AMQPConnection
-# from .source import AMQPSource, AMQPFullMessageSource
-# from .sink import AMQPSink
-
 #
 
 L = logging.getLogger(__name__)
@@ -31,7 +27,7 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 	'''
 
 	ConfigDefaults = {
-		'url': 'amqp://test:test@localhost/test',
+		'url': 'amqp://username:password@localhost/virtualhost',
 		'appname': 'asab.mom',
 		'reconnect_delay': 10.0,
 		'prefetch_count': 5,
