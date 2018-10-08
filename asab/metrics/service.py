@@ -49,6 +49,10 @@ class MetricsService(asab.Service):
 		await self._on_flushing_event("finalize!")
 
 
+	def add_target(self, target):
+		self.Targets.append(target)
+
+
 	async def _on_flushing_event(self, event_type):
 		if len(self.Metrics) == 0: return
 		now = time.time()
