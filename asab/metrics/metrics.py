@@ -12,6 +12,13 @@ class Metric(abc.ABC):
 	def flush(self) -> dict:
 		pass
 
+	def rest_get(self):
+		return {
+			'Name': self.Name,
+			'Tags': self.Tags,
+		}
+
+
 
 class Gauge(Metric):
 
@@ -28,6 +35,11 @@ class Gauge(Metric):
 
 	def flush(self) -> dict:
 		return self.Values.copy()
+
+	def rest_get(self):
+		rest = super().rest_get()
+		rest['Values'] = self.Values
+		return rest
 
 
 class Counter(Metric):
@@ -53,3 +65,8 @@ class Counter(Metric):
 		if self.Reset:
 			self.Values = self.Init.copy()
 		return ret
+
+	def rest_get(self):
+		rest = super().rest_get()
+		rest['Values'] = self.Values
+		return rest
