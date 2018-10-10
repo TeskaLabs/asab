@@ -169,23 +169,30 @@ class ConfigObject(object):
 
 class ConfigObjectDict(MutableMapping):
 
+
 	def __init__(self):
 		self._data = {}
+
 
 	def __getitem__(self, key):
 		return self._data[key]
 
+
 	def __setitem__(self, key, value):
 		self._data[key] = value
+
 
 	def __delitem__(self, key):
 		del self._data[key]
 
+
 	def __iter__(self):
 		return iter(self._data)
 
+
 	def __len__(self):
 		return len(self._data)
+
 
 	def getboolean(self, key):
 		value = self._data[key]
