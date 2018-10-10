@@ -5,6 +5,7 @@ import logging
 import inspect
 import platform
 import configparser
+from collections.abc import MutableMapping
 
 #
 
@@ -146,7 +147,7 @@ class ConfigObject(object):
 
 
 	def __init__(self, config_section_name, config=None):
-		self.Config = {}
+		self.Config = ConfigObjectDict()
 
 		for base_class in inspect.getmro(self.__class__):
 			if not hasattr(base_class, 'ConfigDefaults'): continue
@@ -163,3 +164,34 @@ class ConfigObject(object):
 		if Config.has_section(config_section_name):
 			for key, value in Config.items(config_section_name):
 				self.Config[key] = value
+
+###
+
+class ConfigObjectDict(MutableMapping):
+
+	def __init__(self):
+		self._data = {}
+
+	def __getitem__(self, key):
+		return self._data[key]
+
+	def __setitem__(self, key, value):
+		self._data[key] = value
+
+	def __delitem__(self, key):
+		del self._data[key]
+
+	def __iter__(self):
+		return iter(self._data)
+
+	def __len__(self):
+		return len(self._data)
+
+	def getboolean(self, key):
+		value = self._data[key]
+		if isinstance(value, bool):
+			return value
+		if value.lower() not in configparser.ConfigParser.BOOLEAN_STATES:
+			raise ValueError('Not a boolean: %s' % value)
+		return configparser.ConfigParser.BOOLEAN_STATES[value.lower()]
+
