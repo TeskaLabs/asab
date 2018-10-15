@@ -55,11 +55,11 @@ class MetricsInfluxDB(asab.ConfigObject):
 		self.WriteURL = '{}/write?db={}'.format(self.Config.get('url').rstrip('/'), self.Config.get('db'))
 
 		username = self.Config.get('username')
-		if username is not None:
+		if username is not None and len(username) > 0:
 			self.WriteURL += '&u={}'.format(urllib.parse.quote(username, safe=''))
 
 		password = self.Config.get('password')
-		if password is not None:
+		if password is not None and len(password) > 0:
 			self.WriteURL += '&p={}'.format(urllib.parse.quote(password, safe=''))
 
 	async def process(self, now, mlist):
