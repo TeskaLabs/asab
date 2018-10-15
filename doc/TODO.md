@@ -14,6 +14,7 @@ Undocumented items:
 	- Proactor service
 	- MOM topic subscriptions
 	- LogMan.io service
+	- Web Rest object introspection (.get_rest() JSON serializer)
 
 Enhancements:
 
