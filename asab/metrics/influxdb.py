@@ -1,5 +1,6 @@
 import logging
 import aiohttp
+import urllib
 
 import asab
 
@@ -43,8 +44,8 @@ class MetricsInfluxDB(asab.ConfigObject):
 	ConfigDefaults = {
 		'url': 'http://localhost:8086/',
 		'db': 'mydb',
-		'u': '',
-		'p': '',
+		'username': '',
+		'password': '',
 	}
 
 
@@ -53,11 +54,13 @@ class MetricsInfluxDB(asab.ConfigObject):
 
 		self.WriteURL = '{}/write?db={}'.format(self.Config.get('url').rstrip('/'), self.Config.get('db'))
 
-		if len(self.Config.get('u')) > 0:
-			self.WriteURL = '{}&u={}'.format(self.WriteURL, self.Config['u'])
+		username = self.Config.get('username')
+		if username is not None:
+			self.WriteURL += '&u={}'.format(urllib.parse.quote(username, safe=''))
 
-		if len(self.Config.get('p')) > 0:
-			self.WriteURL = '{}&p={}'.format(self.WriteURL, self.Config['p'])
+		password = self.Config.get('password')
+		if password is not None:
+			self.WriteURL += '&p={}'.format(urllib.parse.quote(password, safe=''))
 
 	async def process(self, now, mlist):
 
@@ -68,4 +71,3 @@ class MetricsInfluxDB(asab.ConfigObject):
 				response = await resp.text()
 				if resp.status != 204:
 					L.warning("Error when sending metrics to Influx: {}\n{}".format(resp.status, response))
-
