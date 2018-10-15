@@ -43,6 +43,8 @@ class MetricsInfluxDB(asab.ConfigObject):
 	ConfigDefaults = {
 		'url': 'http://localhost:8086/',
 		'db': 'mydb',
+		'u': '',
+		'p': '',
 	}
 
 
@@ -51,6 +53,11 @@ class MetricsInfluxDB(asab.ConfigObject):
 
 		self.WriteURL = '{}/write?db={}'.format(self.Config.get('url').rstrip('/'), self.Config.get('db'))
 
+		if len(self.Config.get('u')) > 0:
+			self.WriteURL = '{}&u={}'.format(self.WriteURL, self.Config['u'])
+
+		if len(self.Config.get('p')) > 0:
+			self.WriteURL = '{}&p={}'.format(self.WriteURL, self.Config['p'])
 
 	async def process(self, now, mlist):
 
