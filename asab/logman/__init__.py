@@ -27,5 +27,3 @@ class Module(asab.Module):
 	def __init__(self, app):
 		super().__init__(app)
 		self.service = LogManIOService(app, "asab.LogManIOService")
-
-#TODO: Add a logging target too

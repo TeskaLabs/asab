@@ -7,6 +7,9 @@ import asab.metrics.service
 import pika
 import pika.adapters.asyncio_connection
 
+from .metrics import LogmanIOMetrics
+from .log import LogmanIOLogHandler
+
 #
 
 L = logging.getLogger(__name__)
@@ -42,9 +45,13 @@ class LogManIOService(asab.Service):
 
 	def configure_metrics(self, metrics_service):
 		assert(isinstance(metrics_service, asab.metrics.service.MetricsService))
-		from .metrics import MetricsLogmanIO
-		metrics_target = MetricsLogmanIO(self)
+		metrics_target = LogmanIOMetrics(self)
 		metrics_service.add_target(metrics_target)
+
+
+	def configure_logging(self, app):
+		log_handler = LogmanIOLogHandler(self)
+		app.Logging.RootLogger.addHandler(log_handler)
 
 
 	def _reconnect(self):

@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
+import logging
 
 import asab
 import asab.logman
 import asab.metrics
 
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 class MyApplication(asab.Application):
 
@@ -17,12 +23,13 @@ class MyApplication(asab.Application):
 		self.Counter = metrics_service.create_counter("test_counter", init_values={'test_value': 0})
 
 		logman_service.configure_metrics(metrics_service)
+		logman_service.configure_logging(self)
 
 		self.PubSub.subscribe("Application.tick!", self._on_tick)
 
 
 	def _on_tick(self, event_name):
-		print("Tick", event_name)
+		L.warning("Tick: {}".format(event_name), struct_data={'key1':'value1', 'key2':2})
 		self.Counter.add("test_value", 1)
 
 

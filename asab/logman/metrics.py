@@ -13,7 +13,7 @@ L = logging.getLogger(__name__)
 
 #
 
-class MetricsLogmanIO(object):
+class LogmanIOMetrics(object):
 
 
 	def __init__(self, svc):
