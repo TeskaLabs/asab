@@ -7,7 +7,7 @@ import pprint
 
 import asab
 
-from .metrics import Metric, Counter, Gauge
+from .metrics import Metric, Counter, Gauge, DutyCycle
 
 #
 
@@ -130,6 +130,23 @@ class MetricsService(asab.Service):
 			t = self.Tags
 
 		m = Counter(metric_name, tags=t, init_values=init_values, reset=reset)
+		self._add_metric(dimension, m)
+		return m
+
+
+
+	def create_duty_cycle(self, loop, metric_name, tags=None, init_values=None):
+		dimension = metric_dimension(metric_name, tags)
+		if dimension in self.Metrics:
+			raise RuntimeError("Metric '{}' already present".format(dimension))
+
+		if tags is not None:
+			t = self.Tags.copy()
+			t.update(tags)
+		else:
+			t = self.Tags
+
+		m = DutyCycle(loop, metric_name, tags=t, init_values=init_values)
 		self._add_metric(dimension, m)
 		return m
 

@@ -8,6 +8,7 @@ class Metric(abc.ABC):
 		self.Name = name
 		self.Tags = tags
 
+
 	@abc.abstractmethod
 	def flush(self) -> dict:
 		pass
@@ -17,7 +18,6 @@ class Metric(abc.ABC):
 			'Name': self.Name,
 			'Tags': self.Tags,
 		}
-
 
 
 class Gauge(Metric):
@@ -64,6 +64,70 @@ class Counter(Metric):
 		ret = self.Values
 		if self.Reset:
 			self.Values = self.Init.copy()
+		return ret
+
+	def rest_get(self):
+		rest = super().rest_get()
+		rest['Values'] = self.Values
+		return rest
+
+
+class DutyCycle(Metric):
+	'''
+	https://en.wikipedia.org/wiki/Duty_cycle
+
+		now = self.Loop.time()
+		d = now - self.LastReadyStateSwitch
+		self.LastReadyStateSwitch = now
+	'''
+
+
+	def __init__(self, loop, name:str, tags:dict, init_values=None):
+		super().__init__(name=name, tags=tags)
+		self.Loop = loop
+		self.Init = init_values
+
+		now = self.Loop.time()
+		self.Values = { k: (v, now, 0.0, 0.0) for k,v in self.Init.items() }
+
+
+	def set(self, name, on_off:bool):
+		now = self.Loop.time()
+		v = self.Values.get(name)
+		if v is None:
+			self.Values[name] = (on_off, now, 0.0, 0.0)
+			return
+
+		if v[0] == on_off: return # No change
+
+		d = now - v[1]
+		off_cycle = v[2]
+		on_cycle = v[3]
+		if on_off:
+			on_cycle += d
+		else:
+			off_cycle += d
+
+		self.Values[name] = (on_off, now, off_cycle, on_cycle)
+
+
+	def flush(self) -> dict:
+		ret = {}
+		now = self.Loop.time()
+		for k, v in self.Values.items():
+			d = now - v[1]
+			off_cycle = v[2]
+			on_cycle = v[3]
+			if v[0]:
+				on_cycle += d
+			else:
+				off_cycle += d
+
+			full_cycle = on_cycle + off_cycle
+			if full_cycle > 0.0:
+				ret[k] = on_cycle / full_cycle
+
+		self.Values = { k: (v, now, 0.0, 0.0) for k,v in self.Init.items() }
 		return ret
 
 	def rest_get(self):
