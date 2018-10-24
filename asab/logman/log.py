@@ -36,6 +36,9 @@ class LogmanIOLogHandler(logging.Handler):
 
 
 	def emit(self, record):
+		if record.name == 'asab.metrics.service' and record.levelno == LOG_NOTICE:
+			return # No metrics to be submitted this way
+
 		severity = 7
 		if record.levelno > logging.DEBUG and record.levelno <= logging.INFO:
 			severity = 6 # Informational
