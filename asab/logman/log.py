@@ -53,16 +53,9 @@ class LogmanIOLogHandler(logging.Handler):
 		else:
 			severity = 1 # Alert
 
-		message = record.getMessage()
-		if record.exc_text is not None:
-			message += '\n'+record.exc_text
-		if record.stack_info is not None:
-			message += '\n'+record.stack_info
-
 		log_entry = {
 			"@timestamp": datetime.datetime.utcfromtimestamp(record.created).isoformat() + 'Z',
 			"T": "syslog",
-			"M": message,
 			"H": self.Hostname,
 			"P": self.Program,
 			"C": record.name,
@@ -71,6 +64,14 @@ class LogmanIOLogHandler(logging.Handler):
 			"Th": record.thread,
 			"l": severity,
 		}
+
+		message = record.getMessage()
+		if record.exc_text is not None:
+			message += '\n'+record.exc_text
+		if record.stack_info is not None:
+			message += '\n'+record.stack_info
+		if len(message) > 0:
+			log_entry['M'] = message
 
 		if self.Facility is not None:
 			log_entry['f'] = self.Facility
