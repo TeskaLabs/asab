@@ -26,7 +26,7 @@ Subscription
 
 Subscribe to a message type. Messages will be delivered to a ``callback`` callable (function or method).
 The ``callback`` can be a standard callable or an ``async`` coroutine.
-Asynchronous ``callback`` means that the delivery of the message will happen in a coroutine, asynchronously.
+Asynchronous ``callback`` means that the delivery of the message will happen in a ``Future``, asynchronously.
 
 ``Callback`` callable will be called with the first argument
 
@@ -104,9 +104,8 @@ The example of a message publish to the :any:`Application.PubSub` message bus:
 	    app.PubSub.publish("mymessage!")
 
 
-Asynchronous message delivery can be trigged by providing ``asynchronously=True`` keyword argument.
-Each subscriber is then handled in a dedicated ``Future`` object.
-The method returns immediatelly and the delivery of the message to subscribers happens, when control returns to the event loop.
+Asynchronous publishing of a message is requested by ``asynchronously=True`` argument.
+The ``publish()`` method returns immediatelly and the delivery of the message to subscribers happens, when control returns to the event loop.
 
 The example of a **asynchronous version** of a message publish to the :any:`Application.PubSub` message bus:
 
@@ -115,6 +114,20 @@ The example of a **asynchronous version** of a message publish to the :any:`Appl
 	def my_function(app):
 	    app.PubSub.publish("mymessage!", asynchronously=True)
 
+
+Synchronous vs. asynchronous messaging
+--------------------------------------
+
+ASAB PubSub supports both modes of a message delivery: synchronous and asynchronous.
+Moreover, PubSub also deals with modes, when asynchronous code (coroutine) does publish to synchronous code and vice versa.
+
++-----------------+------------------------+---------------------------------------------+
+|                 | Sync publish           | Async publish                               |
++-----------------+------------------------+---------------------------------------------+
+| Sync subscribe  | Called immediately     | ``call_soon(...)``                          |
++-----------------+------------------------+---------------------------------------------+
+| Async subscribe | ``ensure_future(...)`` | ``call_soon(...)`` & ``ensure_future(...)`` | 
++-----------------+------------------------+---------------------------------------------+
 
 
 Application-wide PubSub
