@@ -113,8 +113,9 @@ class DutyCycle(Metric):
 
 
 	def flush(self) -> dict:
-		ret = {}
 		now = self.Loop.time()
+		ret = {}
+		new_values = {}
 		for k, v in self.Values.items():
 			d = now - v[1]
 			off_cycle = v[2]
@@ -128,8 +129,11 @@ class DutyCycle(Metric):
 			if full_cycle > 0.0:
 				ret[k] = on_cycle / full_cycle
 
-		self.Values = { k: (v, now, 0.0, 0.0) for k,v in self.Init.items() }
+			new_values[k] = (v[0], now, 0.0, 0.0)
+
+		self.Values = new_values
 		return ret
+
 
 	def rest_get(self):
 		rest = super().rest_get()
