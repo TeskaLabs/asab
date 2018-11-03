@@ -157,13 +157,13 @@ class ConfigObject(object):
 			for k, v in base_class.ConfigDefaults.items():
 				if k not in self.Config:
 					self.Config[k] = v
-
-		if config is not None:
-			self.Config.update(config)
 		
 		if Config.has_section(config_section_name):
 			for key, value in Config.items(config_section_name):
 				self.Config[key] = value
+
+		if config is not None:
+			self.Config.update(config)
 
 ###
 
