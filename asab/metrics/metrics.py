@@ -85,10 +85,9 @@ class DutyCycle(Metric):
 	def __init__(self, loop, name:str, tags:dict, init_values=None):
 		super().__init__(name=name, tags=tags)
 		self.Loop = loop
-		self.Init = init_values
 
 		now = self.Loop.time()
-		self.Values = { k: (v, now, 0.0, 0.0) for k,v in self.Init.items() }
+		self.Values = { k: (v, now, 0.0, 0.0) for k,v in init_values.items() }
 
 
 	def set(self, name, on_off:bool):
@@ -104,9 +103,11 @@ class DutyCycle(Metric):
 		off_cycle = v[2]
 		on_cycle = v[3]
 		if on_off:
-			on_cycle += d
-		else:
+			# From off to on
 			off_cycle += d
+		else:
+			# From on to off
+			on_cycle += d
 
 		self.Values[name] = (on_off, now, off_cycle, on_cycle)
 
