@@ -8,6 +8,7 @@ Undocumented items:
 	- asab.storage
 	- custom arg parser
 	- config object
+		- ConfigDefaults can contain only basic types (int, string, boolean, float)
 	- asab in Docker (how to build ASAB docker image and write how to deploy apps into a container derived from that image)
 	- Metrics service
 	- config var_dir + app method ensure_var_dir() that actually creates var directory if needed
