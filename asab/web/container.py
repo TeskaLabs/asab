@@ -1,3 +1,4 @@
+import re
 import asyncio
 import logging
 import aiohttp
@@ -9,7 +10,7 @@ class WebContainer(ConfigObject):
 
 
 	ConfigDefaults = {
-		'listen': '0.0.0.0 8080', # Can be multiline
+		'listen': '0.0.0.0:8080', # Can be multiline
 		'rootdir': '',
 		'servertokens': 'full' # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
 	}
@@ -29,8 +30,9 @@ class WebContainer(ConfigObject):
 		# Parse listen address(es), can be multiline configuration item
 		ls = self.Config.get("listen")
 		self._listen = []
-		for l in ls.split('\n'):
-			addr, port = l.split(' ', 1)
+		for line in ls.split('\n'):
+			# Split the last token (separated by a ' ' or ':')
+			addr, port, _ = re.split(r"[: ](\d+)$", line)
 			port = int(port)
 			self._listen.append((addr, port))
 
