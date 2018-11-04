@@ -38,6 +38,7 @@ class WebSocketFactory(object):
 
 
 	def send_parallely(self, send_futures):
+		#THIS METHOD IS OBSOLETED, DON'T USE IT IN A NEW CODE.
 	 	# Send messages parallely
 	 	asyncio.gather(*send_futures, loop=self.Loop)
 
@@ -49,7 +50,7 @@ class WebSocketFactory(object):
 			self.WebSockets.add(ws)
 
 			async for msg in ws:
-				await self.on_message(request, msg)
+				await self.on_message(request, ws, msg)
 
 		except asyncio.CancelledError:
 			await ws.close()
@@ -79,7 +80,7 @@ class WebSocketFactory(object):
 		return ws
 
 
-	async def on_message(self, request, message):
+	async def on_message(self, request, websocket, message):
 		'''
 		Override this method to receive messages from client over the websocket
 		'''

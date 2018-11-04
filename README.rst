@@ -1,10 +1,15 @@
-Asynchronous Server Application Boilerplate
-===========================================
+Asynchronous Server App Boilerplate
+===================================
 
-Asynchronous Server App Boilerplate (or *ASAB* for short) minimizes the amount of code that needs to be written when building a server application in Python.
-ASAB is fully asynchronous, this means you can use the new shiny async/await syntax from Python 3.5, making your code non-blocking, speedy and hence scalable.
+Asynchronous Server App Boilerplate (or ASAB for short) provides a unified environment for building Pythonic microservices or application servers.
+ASAB minimizes the amount of code that needs to be written when building a backend infrastructure in Python.
+ASAB is fully asynchronous using async/await syntax from Python 3.5, making your code modern, non-blocking, speedy and hence scalable.
+ASAB supports request/response architectures such as HTTP REST as well as message-oriented architectures such as RabbitMQ/AMQP or Kafka or any combinations.
+We make every effort to build ASAB container-friendly so that you can deploy the microservice to a Docker or Kubernetes in a breeze.
 
-We hope you will find *ASAB* fun and easy to use, especially when you are about to build a Python-based application server such as web application server, MQTT server, microservice container, ETL or `stream processor <https://github.com/TeskaLabs/bspump>`_.
+We hope you will find *ASAB* fun and easy to use.
+
+ASAB is currently used for `microservices <https://en.wikipedia.org/wiki/Microservices>`_, web application servers, ETL or `stream processors <https://github.com/TeskaLabs/bspump>`_.
 
 ASAB is developed on `GitHub <https://github.com/TeskaLabs/asab>`_.
 
@@ -27,7 +32,8 @@ Installation
 Documentation
 -------------
 
-`Documentation on Readthedocs <http://asab.readthedocs.io/>`_
+* `Documentation on Readthedocs <http://asab.readthedocs.io/>`_
+* `Examples <https://github.com/TeskaLabs/asab/tree/master/examples>`_
 
 
 Example

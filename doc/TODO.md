@@ -1,15 +1,21 @@
 Undocumented items:
 	
 	- Compatibility with pypy
-	- -d -> daemonise (via python-daemon) + [general] 'pidfile', 'uid', 'gid', 'working_dir'
-	- PersistentDict (there is example pdict.py)
 	- asab.web
 		- asab.web websocket pubsub
 		- sessions
 	- Configuration default values (aka ConfigParser._default_values)
-	- `-s` command-line switch
-	- Timer
-	- asab.Config.ConfigPaths
+	- asab.storage
+	- custom arg parser
+	- config object
+		- ConfigDefaults can contain only basic types (int, string, boolean, float)
+	- asab in Docker (how to build ASAB docker image and write how to deploy apps into a container derived from that image)
+	- Metrics service
+	- config var_dir + app method ensure_var_dir() that actually creates var directory if needed
+	- Proactor service
+	- MOM topic subscriptions
+	- LogMan.io service
+	- Web Rest object introspection (.get_rest() JSON serializer)
 
 Enhancements:
 

@@ -41,7 +41,7 @@ class RaftServer(object):
 			asab.Config["asab:raft"].getint("election_timeout_max")
 		)
 		assert(self.ElectionTimerRange[0] < self.ElectionTimerRange[1])
-		self.ElectionTimer = asab.Timer(self._on_election_timeout, loop=self.Loop)
+		self.ElectionTimer = asab.Timer(app, self._on_election_timeout)
 
 		self.HeartBeatTimeout = asab.Config["asab:raft"].getint("heartbeat_timeout") / 1000.0
 

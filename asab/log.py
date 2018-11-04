@@ -1,8 +1,5 @@
 import os
 import sys
-import logging
-import asyncio
-import logging.handlers
 import traceback
 import time
 import socket
@@ -10,81 +7,152 @@ import datetime
 import pprint
 import socket
 import queue
+import re
 import urllib.parse
+import logging
+import logging.handlers
+
+import asyncio
 
 from .config import Config
+from .timer import Timer
+
+# Non-error/warning type of message that is visible without -v flag
+LOG_NOTICE = 25 
+logging.addLevelName(LOG_NOTICE, "NOTICE")
+
+class Logging(object):
+
+	def __init__(self, app):
+		self.RootLogger = logging.getLogger()
+
+		self.ConsoleHandler = None
+		self.FileHandler = None
+		self.SyslogHandler = None
+
+		if not self.RootLogger.hasHandlers():
+			
+			# Add console logger
+			# Don't initialize this when not on console
+			if os.isatty(sys.stdin.fileno()):
+				self.ConsoleHandler = logging.StreamHandler(stream=sys.stderr)
+				self.ConsoleHandler.setFormatter(StructuredDataFormatter(
+					fmt = Config["logging:console"]["format"],
+					datefmt = Config["logging:console"]["datefmt"],
+					sd_id = Config["logging"]["sd_id"],
+				))
+				self.ConsoleHandler.setLevel(logging.DEBUG)
+				self.RootLogger.addHandler(self.ConsoleHandler)
+
+			# Initialize file handler
+			file_path = Config["logging:file"]["path"]
+
+			if len(file_path) > 0:
+
+				self.FileHandler = logging.handlers.RotatingFileHandler(
+					file_path,
+					backupCount = Config.getint("logging:file", "backup_count"),
+				)
+				self.FileHandler.setLevel(logging.DEBUG)
+				self.FileHandler.setFormatter(StructuredDataFormatter(
+					fmt = Config["logging:file"]["format"],
+					datefmt = Config["logging:file"]["datefmt"],
+					sd_id = Config["logging"]["sd_id"],
+				))
+				self.RootLogger.addHandler(self.FileHandler)
+
+				rotate_every = Config.get("logging:file", "rotate_every")
+				if rotate_every != '':
+					rotate_every = re.match(r"^([0-9]+)([dMHs])$", rotate_every)
+					if rotate_every is not None:
+						i, u = rotate_every.groups()
+						i = int(i)
+						if i <= 0:
+							self.RootLogger.error("Invalid 'rotate_every' configuration value.")
+						else:
+							if u == 'H':
+								i = i * 60 * 60
+							elif u == 'M':
+								i = i * 60
+							elif u == 'd':
+								i = i * 60 * 60 * 24
+							elif u == 's':
+								pass
+
+							# PubSub is not ready at this moment, we need to create timer in a future
+							async def schedule(app, interval):
+								self.LogRotatingTime = Timer(app, self._on_tick_rotate_check, autorestart=True)
+								self.LogRotatingTime.start(i)
+							asyncio.ensure_future(schedule(app, i), loop=app.Loop)
+
+					else:
+						self.RootLogger.error("Invalid 'rotate_every' configuration value.")
 
 
-def _setup_logging(app):
+			# Initialize syslog
+			if Config["logging:syslog"].getboolean("enabled"):
 
-	root_logger = logging.getLogger()
-	if not root_logger.hasHandlers():
-		
-		# Add console logger
-		# Don't initialize this when not on console
-		if os.isatty(sys.stdin.fileno()):
-			h = logging.StreamHandler(stream=sys.stderr)
-			h.setFormatter(StructuredDataFormatter(
-				fmt = Config["logging:console"]["format"],
-				datefmt = Config["logging:console"]["datefmt"],
-				sd_id = Config["logging"]["sd_id"],
-			))
-			h.setLevel(logging.DEBUG)
-			root_logger.addHandler(h)
+				address = Config["logging:syslog"]["address"]
+				h = None
 
-
-		# Initialize syslog
-		if Config["logging:syslog"].getboolean("enabled"):
-
-			address = Config["logging:syslog"]["address"]
-			h = None
-
-			if address[:1] == '/':
-				h = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_DGRAM, address)
-
-			else:
-				url = urllib.parse.urlparse(address)
-
-				if url.scheme == 'tcp':
-					h = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_STREAM, (
-						url.hostname if url.hostname is not None else 'localhost',
-						url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
-					))
-
-				elif url.scheme == 'udp':
-					h = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_DGRAM, (
-						url.hostname if url.hostname is not None else 'localhost',
-						url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
-					))
-
-				elif url.scheme == 'unix-connect':
-					h = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_STREAM, url.path)
-
-				elif url.scheme == 'unix-sendto':
-					h = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_DGRAM, url.path)
+				if address[:1] == '/':
+					self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_DGRAM, address)
 
 				else:
-					root_logger.warning("Invalid logging:syslog address '{}'".format(address))
-					address = None
+					url = urllib.parse.urlparse(address)
 
-			if h is not None:
-				h.setLevel(logging.DEBUG)
-				format = Config["logging:syslog"]["format"]
-				if format == 'm':
-					h.setFormatter(MacOSXSyslogFormatter(sd_id = Config["logging"]["sd_id"]))
-				elif format == '5':
-					h.setFormatter(SyslogRFC5424Formatter(sd_id = Config["logging"]["sd_id"]))
-				else:
-					h.setFormatter(SyslogRFC3164Formatter(sd_id = Config["logging"]["sd_id"]))
-				root_logger.addHandler(h)
+					if url.scheme == 'tcp':
+						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_STREAM, (
+							url.hostname if url.hostname is not None else 'localhost',
+							url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
+						))
 
-	else:
-		root_logger.warning("Logging seems to be already configured. Proceed with caution.")
+					elif url.scheme == 'udp':
+						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_DGRAM, (
+							url.hostname if url.hostname is not None else 'localhost',
+							url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
+						))
 
-	if Config["logging"].getboolean("verbose"):
-		root_logger.setLevel(logging.DEBUG)
-	else:
-		root_logger.setLevel(logging.WARNING)
+					elif url.scheme == 'unix-connect':
+						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_STREAM, url.path)
+
+					elif url.scheme == 'unix-sendto':
+						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_DGRAM, url.path)
+
+					else:
+						self.RootLogger.warning("Invalid logging:syslog address '{}'".format(address))
+						address = None
+
+				if self.SyslogHandler is not None:
+					self.SyslogHandler.setLevel(logging.DEBUG)
+					format = Config["logging:syslog"]["format"]
+					if format == 'm':
+						self.SyslogHandler.setFormatter(MacOSXSyslogFormatter(sd_id = Config["logging"]["sd_id"]))
+					elif format == '5':
+						self.SyslogHandler.setFormatter(SyslogRFC5424Formatter(sd_id = Config["logging"]["sd_id"]))
+					else:
+						self.SyslogHandler.setFormatter(SyslogRFC3164Formatter(sd_id = Config["logging"]["sd_id"]))
+					self.RootLogger.addHandler(self.SyslogHandler)
+
+		else:
+			self.RootLogger.warning("Logging seems to be already configured. Proceed with caution.")
+
+		if Config["logging"].getboolean("verbose"):
+			self.RootLogger.setLevel(logging.DEBUG)
+		else:
+			self.RootLogger.setLevel(LOG_NOTICE)
+
+
+	def rotate(self):
+		if self.FileHandler is not None:
+			self.RootLogger.log(LOG_NOTICE, "Rotating logs")
+			self.FileHandler.doRollover()
+
+
+	async def _on_tick_rotate_check(self):
+		if self.FileHandler is not None:
+			if self.FileHandler.stream.tell() > 1000:
+				self.rotate()
 
 ###
 
@@ -142,19 +210,21 @@ class StructuredDataFormatter(logging.Formatter):
 		record.struct_data=self.render_struct_data(record.__dict__.get("_struct_data"))
 		
 		# The Priority value is calculated by first multiplying the Facility number by 8 and then adding the numerical value of the Severity.
-		severity = 7
+		severity = 7 # Debug
 		if record.levelno > logging.DEBUG and record.levelno <= logging.INFO:
-			severity = 5
+			severity = 6 # Informational
+		elif record.levelno <= LOG_NOTICE:
+			severity = 5 # Notice
 		elif record.levelno <= logging.WARNING:
-			severity = 4
+			severity = 4 # Warning
 		elif record.levelno <= logging.ERROR:
-			severity = 3
+			severity = 3 # Error
 		elif record.levelno <= logging.CRITICAL:
-			severity = 2
+			severity = 2 # Critical
 		else:
-			severity = 1
+			severity = 1 # Alert
 
-		record.priority = 8*self.Facility + severity
+		record.priority = (self.Facility << 3) + severity
 		return super().format(record)
 
 
@@ -225,7 +295,7 @@ class MacOSXSyslogFormatter(StructuredDataFormatter):
 		)
 
 		# Initialize formatter
-		super().__init__(fmt=fmt, datefmt='%b %d %H:%M:%S', style='%', sd_id=sd_id)
+		super().__init__(fmt=fmt, datefmt='%b %d %H:%M:%S', style=style, sd_id=sd_id)
 
 ##
 
@@ -242,7 +312,7 @@ class SyslogRFC3164Formatter(StructuredDataFormatter):
 		)
 
 		# Initialize formatter
-		super().__init__(fmt=fmt, datefmt='%b %d %H:%M:%S', style='%', sd_id=sd_id)
+		super().__init__(fmt=fmt, datefmt='%b %d %H:%M:%S', style=style, sd_id=sd_id)
 
 ##
 
@@ -261,7 +331,7 @@ class SyslogRFC5424Formatter(StructuredDataFormatter):
 		)
 
 		# Initialize formatter
-		super().__init__(fmt=fmt, datefmt='%Y-%m-%dT%H:%M:%S', style='%', sd_id=sd_id)
+		super().__init__(fmt=fmt, datefmt='%Y-%m-%dT%H:%M:%S', style=style, sd_id=sd_id)
 
 		# Convert time to GMT
 		self.converter = time.gmtime

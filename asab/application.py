@@ -17,9 +17,7 @@ except ImportError:
 
 from .config import Config
 from .abc.singleton import Singleton
-from .log import _setup_logging, _loop_exception_handler
-
-from .metrics import Metrics
+from .log import Logging, _loop_exception_handler
 
 # Importing the Win API library
 if platform.system() == "Windows":
@@ -40,8 +38,14 @@ class Application(metaclass=Singleton):
 
 	def __init__(self):
 
+		try:
+			# EX_OK code is not available on Windows
+			self.ExitCode = os.EX_OK
+		except AttributeError:
+			self.ExitCode = 0
+
 		# Parse command line
-		args = self.parse_args()
+		args = self.parse_arguments()
 
 		# Load configuration
 		Config._load()
@@ -59,7 +63,7 @@ class Application(metaclass=Singleton):
 		self.Loop = asyncio.get_event_loop()
 
 		# Setup logging
-		_setup_logging(self)
+		self.Logging = Logging(self)
 
 		# Configure the event loop
 		self.Loop.set_exception_handler(_loop_exception_handler)
@@ -86,13 +90,17 @@ class Application(metaclass=Singleton):
 		except NotImplementedError:
 			pass
 
+		try:
+			self.Loop.add_signal_handler(signal.SIGHUP, self._hup)
+		except NotImplementedError:
+			pass
+
 		self._stop_event = asyncio.Event(loop = self.Loop)
 		self._stop_event.clear()
 		self._stop_counter = 0
 
 		from .pubsub import PubSub
 		self.PubSub = PubSub(self)
-		self.Metrics = Metrics(self)
 
 		self.Modules = []
 		self.Services = {}
@@ -113,7 +121,7 @@ class Application(metaclass=Singleton):
 			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
 
 
-	def parse_args(self):
+	def create_argument_parser(self):
 		'''
 		This method can be overriden to adjust argparse configuration 
 		'''
@@ -125,12 +133,19 @@ class Application(metaclass=Singleton):
 		parser.add_argument('-c', '--config', help='specify a path to a configuration file')
 		parser.add_argument('-v', '--verbose', action='store_true', help='print more information (enable debug output)')
 		parser.add_argument('-s', '--syslog', action='store_true', help='enable logging to a syslog')
+		parser.add_argument('-l', '--log-file', help='specify a path to a log file')
 
 		if daemon is not None:
 			parser.add_argument('-d', '--daemonize', action='store_true', help='run daemonized (in the background)')
 			parser.add_argument('-k', '--kill', action='store_true', help='kill a running daemon and quit')
 
+		return parser
+
+
+	def parse_arguments(self):
+		parser = self.create_argument_parser()
 		args = parser.parse_args()
+
 		if args.config is not None:
 			Config._default_values['general']['config_file'] = args.config
 
@@ -139,6 +154,9 @@ class Application(metaclass=Singleton):
 
 		if args.syslog:
 			Config._default_values['logging:syslog']['enabled'] = True
+
+		if args.log_file:
+			Config._default_values['logging:file']['path'] = args.log_file
 
 		return args
 
@@ -267,14 +285,13 @@ class Application(metaclass=Singleton):
 			self.Loop.run_until_complete(self.Loop.shutdown_asyncgens())
 		self.Loop.close()
 
-		try:
-			# EX_OK code is not available on Windows
-			return os.EX_OK
-		except AttributeError:
-			return 0
+		return self.ExitCode
 
 
-	def stop(self):
+	def stop(self, exit_code:int=None):
+		if exit_code is not None:
+			self.set_exit_code(exit_code)
+
 		self._stop_event.set()
 		self._stop_counter += 1
 		self.PubSub.publish("Application.stop!", self._stop_counter)
@@ -287,10 +304,20 @@ class Application(metaclass=Singleton):
 				return os._exit(0)
 
 
+	def _hup(self):
+		self.Logging.rotate()
+		self.PubSub.publish("Application.hup!")
+
+
 	# Modules
 
 	def add_module(self, module_class):
 		""" Load a new module. """
+
+		for module in self.Modules:
+			if isinstance(module, module_class):
+				# Already loaded and registered
+				return
 
 		module = module_class(self)
 		self.Modules.append(module)
@@ -355,7 +382,6 @@ class Application(metaclass=Singleton):
 					await asyncio.wait_for(self._stop_event.wait(), timeout=timeout)
 					break
 				except asyncio.TimeoutError:
-					self.Metrics.add("Application.tick", 1)
 					self.PubSub.publish("Application.tick!")
 					if (cycle_no % 10) == 0: self.PubSub.publish("Application.tick/10!")
 					if (cycle_no % 60) == 0: self.PubSub.publish("Application.tick/60!")
@@ -409,3 +435,9 @@ class Application(metaclass=Singleton):
 			L.warn("Exiting but {} async task(s) are still waiting".format(tasks_awaiting))
 
 		future.set_result("exit")
+
+
+	def set_exit_code(self, exit_code:int, force:bool=False):
+		if (self.ExitCode < exit_code) or force:
+			L.debug("Exit code set to {}",format(exit_code))
+			self.ExitCode = exit_code

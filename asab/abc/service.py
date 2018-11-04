@@ -7,6 +7,7 @@ class Service(abc.ABC):
 
 	def __init__(self, app, service_name):
 		self.Name = service_name
+		self.App = app
 		app._register_service(self)
 
 

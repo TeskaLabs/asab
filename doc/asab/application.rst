@@ -47,67 +47,6 @@ The :py:mod:`asyncio` event loop that is used by this application.
     asyncio.ensure_future(my_coro(), loop=Application.Loop)
 
 
-Publish-Subcribe
-----------------
-
-.. py:attribute:: Application.PubSub
-
-The application-wide Publish-Subscribe message bus.
-
-For more details, go to :py:class:`asab.PubSub`.
-
-Well-Known Messages 
-^^^^^^^^^^^^^^^^^^^
-
-.. option:: Application.init!
-
-This message is published when application is in the init-time.
-It is actually one of the last things done in init-time, so the application environment is almost ready for use.
-It means that configuration is loaded, logging is setup, the event loop is constructed etc.
-
-
-.. option:: Application.run!
-
-This message is emitted when application enters the run-time.
-
-
-.. option:: Application.stop!
-
-This message is emitted when application wants to stop the run-time.
-It can be sent multiple times because of a process of graceful run-time termination.
-The first argument of the message is a counter that increases with every ``Application.stop!`` event.
-
-
-.. option:: Application.exit!
-
-This message is emitted when application enter the exit-time.
-
-
-.. option:: Application.tick!
-.. option:: Application.tick/10!
-.. option:: Application.tick/60!
-.. option:: Application.tick/300!
-.. option:: Application.tick/600!
-.. option:: Application.tick/1800!
-.. option:: Application.tick/3600!
-.. option:: Application.tick/43200!
-.. option:: Application.tick/86400!
-
-The application publish periodically "tick" messages.
-The default tick frequency is 1 second but you can change it by configuration ``[general] tick_period``.
-:any:`Application.tick!` is published every tick. :any:`Application.tick/10!` is published every 10th tick and so on.
-
-
-Measurements and Metrics
-------------------------
-
-.. py:attribute:: Application.Metrics
-
-Application Metrics.
-
-For more details, see :py:class:`asab.metrics.Metrics`.
-
-
 Application Lifecycle
 ---------------------
 
@@ -144,6 +83,8 @@ Run-time
 Enter a run-time. This is where the application spends the most time typically.
 The Publish-Subscribe message :any:`Application.run!` is published when run-time begins.
 
+The method returns the value of :any:`Application.ExitCode`.
+
 
 .. py:method:: Application.main()
 
@@ -158,11 +99,13 @@ If ``main()`` method is completed without calling ``stop()``, then the applicati
             self.stop()
 
 
-.. py:method:: Application.stop()
+.. py:method:: Application.stop(exit_code:int=None)
 
 The method  ``Application.stop()`` gracefully terminates the run-time and commence the exit-time.
 This method is automatically called by ``SIGINT`` and ``SIGTERM``. It also includes a response to ``Ctrl-C`` on UNIX-like system.
 When this method is called 3x, it abruptly exits the application (aka emergency abort).
+
+The parameter ``exit_code`` allows you to specify the application exit code (see *Exit-Time* chapter).
 
 *Note:* You need to install :py:mod:`win32api` module to use ``Ctrl-C`` or an emergency abord properly with ASAB on Windows. It is an optional dependency of ASAB.
 
@@ -183,6 +126,29 @@ The application object executes asynchronous callback ``Application.finalize()``
 
 
 The Publish-Subscribe message :any:`Application.exit!` is published when exit-time begins.
+
+
+.. py:method:: Application.set_exit_code(exit_code:int, force:bool=False)
+
+Set the exit code of the application, see ``os.exit()`` in the Python documentation.
+If ``force`` is ``False``, the exit code will be set only if the previous value is lower than the new one.
+If ``force`` is ``True``, the exit code value is set to a ``exit_code`` disregarding the previous value.
+
+
+.. py:attribute:: Application.ExitCode
+
+The actual value of the exit code.
+
+
+The example of the exit code handling in the ``main()`` function of the application.
+
+.. code:: python
+
+    if __name__ == '__main__':
+        app = asab.Application()
+        exit_code = app.run()
+        sys.exit(exit_code)
+
 
 
 Module registry
@@ -245,42 +211,5 @@ The :py:data:`Description` attribute is a text that will be displayed in a help 
 It is expected that own value will be provided.
 The default value is ``""`` (empty string).
 
-
-
-Default command-line arguments:
-
-.. option:: -h , --help
-
-Show a help.
-
-
-.. option:: -c <CONFIG>,--config <CONFIG>
-
-Load configuration file from a file CONFIG.
-
-
-.. option:: -v , --verbose
-
-Increase the logging level to DEBUG aka be more verbose about what is happening.
-
-
-.. option:: -s , --syslog
-
-Log to a syslog.
-
-
-.. option:: -d , --daemonize
-
-Launch the application in the background aka daemonized.
-Python module :py:mod:`python-daemon` has to be installed.
-
-Daemon-related section of :any:`Config` file::
-
-    [daemon]
-    pidfile=/var/run/myapp.pid
-    uid=nobody
-    gid=nobody
-
-Options ``pidfile``, ``uid`` and ``gid`` are supported.
 
 

@@ -2,8 +2,10 @@ import os
 import sys
 import glob
 import logging
+import inspect
 import platform
 import configparser
+from collections.abc import MutableMapping
 
 #
 
@@ -52,6 +54,14 @@ class ConfigParser(configparser.ConfigParser):
 			#TODO: "facility": 'local1',
 			"address": _syslog_sockets.get(platform.system(), "/dev/log"),
 			"format": _syslog_format.get(platform.system(), "3"),
+		},
+
+		"logging:file": {
+			"path": "",
+			"format": "%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s",
+			"datefmt": "%%d-%%b-%%Y %%H:%%M:%%S.%%f",
+			"backup_count": 3,
+			"rotate_every": "",
 		},
 
 	}
@@ -117,3 +127,82 @@ class ConfigParser(configparser.ConfigParser):
 ###
 
 Config = ConfigParser()
+
+###
+
+class ConfigObject(object):
+
+	'''
+	Usage:
+	class ConfigurableObject(asab.ConfigObject):
+
+		ConfigDefaults = {
+			'foo': 'bar',
+		}
+
+		def __init__(self, config_section_name, config=None):
+			super().__init__(config_section_name=config_section_name, config=config)
+
+			config_foo = self.Config.get('foo')
+
+	'''
+
+	ConfigDefaults = {}
+
+
+	def __init__(self, config_section_name, config=None):
+		self.Config = ConfigObjectDict()
+
+		for base_class in inspect.getmro(self.__class__):
+			if not hasattr(base_class, 'ConfigDefaults'): continue
+			if len(base_class.ConfigDefaults) == 0: continue
+
+			# Merge config defaults of each base class in the 'inheritance' way
+			for k, v in base_class.ConfigDefaults.items():
+				if k not in self.Config:
+					self.Config[k] = v
+		
+		if Config.has_section(config_section_name):
+			for key, value in Config.items(config_section_name):
+				self.Config[key] = value
+
+		if config is not None:
+			self.Config.update(config)
+
+###
+
+class ConfigObjectDict(MutableMapping):
+
+
+	def __init__(self):
+		self._data = {}
+
+
+	def __getitem__(self, key):
+		return self._data[key]
+
+
+	def __setitem__(self, key, value):
+		self._data[key] = value
+
+
+	def __delitem__(self, key):
+		del self._data[key]
+
+
+	def __iter__(self):
+		return iter(self._data)
+
+
+	def __len__(self):
+		return len(self._data)
+
+
+	def getboolean(self, key):
+		value = self._data[key]
+		if isinstance(value, bool):
+			return value
+		if value.lower() not in configparser.ConfigParser.BOOLEAN_STATES:
+			raise ValueError('Not a boolean: %s' % value)
+		return configparser.ConfigParser.BOOLEAN_STATES[value.lower()]
+
