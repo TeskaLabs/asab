@@ -121,14 +121,33 @@ class Application(metaclass=Singleton):
 			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
 
 
-	def create_argument_parser(self):
+	def create_argument_parser(self,
+			prog=None,
+			usage=None,
+			description=None,
+			epilog=None,
+			prefix_chars='-',
+			fromfile_prefix_chars=None,
+			argument_default=None,
+			conflict_handler='error',
+			add_help=True
+		):
 		'''
-		This method can be overriden to adjust argparse configuration 
+		This method can be overriden to adjust argparse configuration.
+		Refer to the Python standard library to `argparse.ArgumentParser` for details of arguments.
 		'''
 
 		parser = argparse.ArgumentParser(
+			prog=prog,
+			usage=usage,
+			description=description if description is not None else self.Description,
+			epilog=epilog,
 			formatter_class=argparse.RawDescriptionHelpFormatter,
-			description=self.Description,
+			prefix_chars=prefix_chars,
+			fromfile_prefix_chars=fromfile_prefix_chars,
+			argument_default=argument_default,
+			conflict_handler=conflict_handler,
+			add_help=add_help
 		)
 		parser.add_argument('-c', '--config', help='specify a path to a configuration file')
 		parser.add_argument('-v', '--verbose', action='store_true', help='print more information (enable debug output)')
