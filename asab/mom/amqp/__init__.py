@@ -2,7 +2,6 @@ import os
 import socket
 import uuid
 import logging
-import time
 
 import asyncio
 
