@@ -198,6 +198,14 @@ A dictionary of registered services.
 Command-line parser
 -------------------
 
+.. py:method:: Application.create_argument_parser(prog=None, usage=None, description=None, epilog=None, prefix_chars='-', fromfile_prefix_chars=None, argument_default=None, conflict_handler='error', add_help=True ) -> argparse.ArgumentParser
+
+Creates an ``argparse.ArgumentParser``.
+This method can be overloaded to adjust command-line argument parser.
+
+Please refer to Python standard library ``argparse`` for more details about function arguments.
+
+
 .. py:method:: Application.parse_args()
 
 The application object calls this method during init-time to process a command-line arguments.
@@ -212,4 +220,15 @@ It is expected that own value will be provided.
 The default value is ``""`` (empty string).
 
 
+
+UTC Time
+--------
+
+.. py:method:: Application.time() -> float
+
+Return the current "event loop time" in seconds since the epoch as a floating point number.
+The specific date of the epoch and the handling of leap seconds is platform dependent. On Windows and most Unix systems, the epoch is January 1, 1970, 00:00:00 (UTC) and leap seconds are not counted towards the time in seconds since the epoch. This is commonly referred to as Unix time.
+
+A call of the ``time.time()`` function could be expensive.
+This method provides a cheaper version of the call that returns a current wall time in UTC.
 
