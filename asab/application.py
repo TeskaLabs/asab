@@ -90,10 +90,12 @@ class Application(metaclass=Singleton):
 		except NotImplementedError:
 			pass
 
-		try:
-			self.Loop.add_signal_handler(signal.SIGHUP, self._hup)
-		except NotImplementedError:
-			pass
+		if any(platform.win32_ver()) is False:
+
+			try:
+				self.Loop.add_signal_handler(signal.SIGHUP, self._hup)
+			except NotImplementedError:
+				pass
 
 		self._stop_event = asyncio.Event(loop = self.Loop)
 		self._stop_event.clear()
