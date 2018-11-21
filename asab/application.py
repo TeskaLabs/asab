@@ -61,6 +61,7 @@ class Application(metaclass=Singleton):
 
 		# Obtain the event loop
 		self.Loop = asyncio.get_event_loop()
+		self.BaseTime = time.time() - self.Loop.time()
 
 		# Setup logging
 		self.Logging = Logging(self)
@@ -405,7 +406,10 @@ class Application(metaclass=Singleton):
 				except asyncio.TimeoutError:
 					self.PubSub.publish("Application.tick!")
 					if (cycle_no % 10) == 0: self.PubSub.publish("Application.tick/10!")
-					if (cycle_no % 60) == 0: self.PubSub.publish("Application.tick/60!")
+					if (cycle_no % 60) == 0:
+						# Rebase a Loop time
+						self.BaseTime = time.time() - self.Loop.time()
+						self.PubSub.publish("Application.tick/60!")
 					if (cycle_no % 300) == 0: self.PubSub.publish("Application.tick/300!")
 					if (cycle_no % 600) == 0: self.PubSub.publish("Application.tick/600!")
 					if (cycle_no % 1800) == 0: self.PubSub.publish("Application.tick/1800!")
@@ -462,3 +466,12 @@ class Application(metaclass=Singleton):
 		if (self.ExitCode < exit_code) or force:
 			L.debug("Exit code set to {}",format(exit_code))
 			self.ExitCode = exit_code
+
+
+	# Time
+
+	def time(self):
+		'''
+		Return UTC unix timestamp using a loop time (a fast way how to get a wall clock time).
+		'''
+		return self.BaseTime + self.Loop.time()

@@ -28,7 +28,6 @@ class MetricsService(asab.Service):
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
-		self.Loop = app.Loop
 		
 		self.Metrics = {} # A key is dimension (combination of metric name and tags)
 		self.Targets = []
@@ -64,7 +63,7 @@ class MetricsService(asab.Service):
 
 	async def _on_flushing_event(self, event_type):
 		if len(self.Metrics) == 0: return
-		now = time.time()
+		now = self.App.time()
 
 		mlist = []
 		for metric in self.Metrics.values():
@@ -90,7 +89,7 @@ class MetricsService(asab.Service):
 		for target in self.Targets:
 			fs.append(target.process(now, mlist))
 		if len(fs) > 0:
-			done, pending = await asyncio.wait(fs, loop=self.Loop, timeout=5.0, return_when=asyncio.ALL_COMPLETED)
+			done, pending = await asyncio.wait(fs, loop=self.App.Loop, timeout=5.0, return_when=asyncio.ALL_COMPLETED)
 		
 			for f in pending:
 				L.warning("Target task {} failed to complete".format(f))
