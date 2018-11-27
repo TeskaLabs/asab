@@ -103,7 +103,7 @@ This is how you can extend configuration default values:
 Environment variables in configration
 -------------------------------------
 
-Environment variables found in values are automaticall expanded.
+Environment variables found in values are automatically expanded.
 
 .. code:: ini
 
