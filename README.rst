@@ -9,7 +9,6 @@ We make every effort to build ASAB container-friendly so that you can deploy ASA
 ASAB is the free and open-source software, available under BSD licence.
 It means that anyone is freely licenced to use, copy, study, and change the software in any way, and the source code is openly shared so that people could voluntarily improve the design of the software.
 Anyone can (and is encouraged to) use ASAB in his or her projects, for free.
-A current maintainer is a `TeskaLabs Ltd <https://teskalabs.com>`_ company.
 
 ASAB is currently used for `microservices <https://en.wikipedia.org/wiki/Microservices>`_, web application servers, ETL or `stream processors <https://github.com/TeskaLabs/bspump>`_.
 
