@@ -15,8 +15,8 @@ class StreamSocketServerService(Service):
 			await self.create_server(app, MyProtocol, [(host, port)])
 	'''
 
-	def __init__(self, app):
-		super().__init__(app)
+	def __init__(self, app, service_name):
+		super().__init__(app, service_name)
 		self._servers = []
 		app.PubSub.subscribe("Application.exit!", self._on_exit)
 
