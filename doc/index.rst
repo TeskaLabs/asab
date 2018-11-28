@@ -14,21 +14,24 @@
 
 .. toctree::
    :maxdepth: 2
+   :caption: Services
+
+   asab/web/index
+   asab/mom/index
+   asab/metrics
+
+.. toctree::
+   :maxdepth: 2
    :caption: Reference
 
    asab/application
    asab/config
    asab/log
-   asab/metrics
    asab/pubsub
    asab/service
    asab/module
 
    asab/various
-
-   asab/web/index
-   asab/mom/index
-
 
 .. toctree::
    :maxdepth: 2

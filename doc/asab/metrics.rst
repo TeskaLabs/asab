@@ -1,5 +1,5 @@
-Metrics
-=======
+Metrics service
+===============
 
 .. py:currentmodule:: asab.metrics
 

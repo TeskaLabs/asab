@@ -50,6 +50,11 @@ The :py:mod:`asyncio` event loop that is used by this application.
 Application Lifecycle
 ---------------------
 
+The ASAB is designed around the `Inversion of control <https://en.wikipedia.org/wiki/Inversion_of_control>`_ principle.
+It means that the ASAB is in control of the application lifecycle.
+The custom-written code receives the flow from ASAB via callbacks or handlers.
+Inversion of control is used to increase modularity of the code and make it extensible.
+
 The application lifecycle is divided into 3 phases: init-time, run-time and exit-time.
 
 Init-time

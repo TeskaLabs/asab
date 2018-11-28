@@ -86,6 +86,23 @@ Unsubscribe from a message delivery.
     :members:
     :undoc-members:
 
+The subscriber object can be also used as `an asynchonous generator`.
+The example of the subscriber object usage in `async for` statement:
+
+.. code:: python
+
+	async def my_coroutine(self):
+	    # Subscribe for a two application events
+	    subscriber = asab.Subscriber(
+	        self.PubSub,
+	        "Application.tick!",
+	        "Application.exit!"
+	    )
+	    async for message_type, args, kwargs in subscriber:
+	        if message_type == "Application.exit!":
+	            break;
+	        print("Tick.")
+
 
 Publishing
 ----------
@@ -140,6 +157,9 @@ The ASAB provides the application-wide Publish-Subscribe message bus.
 
 Well-Known Messages 
 ^^^^^^^^^^^^^^^^^^^
+
+This is a list of well-known messages, that are published on a ``Application.PubSub`` by ASAB itself.
+
 
 .. option:: Application.init!
 

@@ -22,20 +22,12 @@ Alternative logging strategies are also supported.
     
     ...
     
-    L.info("Hello world!")
+    L.warning("Hello world!")
 
 
 Example of the output to the console:
 
-``25-Mar-2018 23:33:58.044595 INFO myapp.mymodule : Hello world!``
-
-
-Verbose mode
-------------
-
-The command-line argument ``-v`` enables verbose logging, respectively sets ``logging.DEBUG`` and enables ``asyncio`` debug logging.
-
-The actual verbose mode is avaiable at ``asab.Config["logging"]["verbose"]`` boolean option.
+``25-Mar-2018 23:33:58.044595 WARNING myapp.mymodule Hello world!``
 
 
 Logging Levels
@@ -64,6 +56,19 @@ ASAB uses Python logging levels with the addition of ``LOG_NOTICE`` level.
 +----------------+---------------+------------------------------+
 
 
+Verbose mode
+------------
+
+The command-line argument ``-v`` enables verbose logging.
+It means that log entries with levels ``DEBUG`` and ``INFO`` will be visible.
+It also enables ``asyncio`` debug logging.
+
+The actual verbose mode is avaiable at ``asab.Config["logging"]["verbose"]`` boolean option.
+
+.. code:: python
+
+    L.debug("This message will be visible only in verbose mode.")
+
 
 Structured data
 ---------------
@@ -74,8 +79,12 @@ Structured data are a dictionary, that has to be seriazable to JSON.
 
 .. code:: python
 
-    L.info("Hello world!", struct_data={'key1':'value1', 'key2':2})
+    L.warning("Hello world!", struct_data={'key1':'value1', 'key2':2})
 
+
+Example of the output to the console:
+
+``25-Mar-2018 23:33:58.044595 WARNING myapp.mymodule [sd key1="value1" key2="2"] Hello world!``
 
 
 Logging to file

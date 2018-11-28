@@ -52,6 +52,11 @@ This is how a service is located and used:
 Each service is identified by its name.
 
 
+.. py:data:: Service.App
+
+A reference to an :py:class:`Application` object instance.
+
+
 Lifecycle
 ---------
 

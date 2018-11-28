@@ -179,23 +179,28 @@ Subscribe for more message types. This method can be called many times with vari
 Wait for a message asynchronously.
 Returns a three-members tuple ``(message_type, args, kwargs)``.
 
-# Use in await statement
-    message = await subscriber.message()
+Example of the `await message()` use:
+
+.. code:: python
+
+	async def my_coroutine(app):
+	    # Subscribe for a two application events
+	    subscriber = asab.Subscriber(
+	        app.PubSub,
+	        "Application.tick!",
+	        "Application.exit!"
+	    )
+	    while True:
+	        message_type, args, kwargs = await subscriber.message()
+	        if message_type == "Application.exit!":
+	            break
+	        print("Tick.")
+
 		'''
 		return self._q.get()
 
 
 	def __aiter__(self):
-		'''
-Wait for a message asynchronously.
-Returns a three-members tuple ``(message_type, args, kwargs)``.
-
-    # Use in a "async for" statement
-    async for message in subscriber:
-        handle(message)
-
-		'''
-
 		return self
 
 

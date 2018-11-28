@@ -50,6 +50,22 @@ And this is how you access configuration values:
 .. py:currentmodule:: asab
 
 
+Multiline configuration entry
+-----------------------------
+
+A multiline configuration entries are supported.
+An example:
+
+.. code:: ini
+
+	[section]
+	key=
+	  line1
+	  line2
+	  line3
+	another_key=foo
+
+
 Automatic load of configuration
 -------------------------------
 
@@ -98,6 +114,8 @@ This is how you can extend configuration default values:
 	    }
 	)
 
+Only simple types (``string``, ``int`` and ``float``) are allowed in the configuration values.
+Don't use complex types such as lists, dictionaries or objects because these are impossible to provide via configuration files etc.
 
 
 Environment variables in configration
