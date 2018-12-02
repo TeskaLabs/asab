@@ -4,20 +4,32 @@ import logging
 import aiohttp
 
 from ..config import ConfigObject
+from ..net import SSLContextBuilder
 from .accesslog import AccessLogger
+
 
 class WebContainer(ConfigObject):
 
 
 	ConfigDefaults = {
 		'listen': '0.0.0.0:8080', # Can be multiline
+		'backlog': 128,
 		'rootdir': '',
-		'servertokens': 'full' # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
+		'servertokens': 'full', # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
+		# + SSL key/values from SSLContextBuilder
 	}
 
 
 	def __init__(self, websvc, config_section_name, config=None):
 		super().__init__(config_section_name=config_section_name, config=config)
+
+		if 'ssl:cert' in self.Config:
+			builder = SSLContextBuilder(config_section_name, config=config)
+			self.SSLContext = builder.build()
+		else:
+			self.SSLContext = None
+
+		self.BackLog = int(self.Config.get("backlog"))
 
 		servertokens = self.Config.get("servertokens")
 		if servertokens == 'prod':
@@ -56,11 +68,13 @@ class WebContainer(ConfigObject):
 
 
 	async def initialize(self, app):
-
 		await self.WebAppRunner.setup()
 
 		for addr, port in self._listen:
-			site = aiohttp.web.TCPSite(self.WebAppRunner, addr, port)
+			site = aiohttp.web.TCPSite(self.WebAppRunner,
+				host=addr, port=port, backlog=self.BackLog,
+				ssl_context = self.SSLContext,
+			)
 			await site.start()
 
 
