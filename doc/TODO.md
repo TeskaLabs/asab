@@ -17,6 +17,7 @@ Undocumented items:
 	- LogMan.io service
 	- Web Rest object introspection (.get_rest() JSON serializer)
 	- ASAB networking (move StreamSocket class there)
+	- asab.web.auth.publickey.PublicKeyAuthorization
 
 Enhancements:
 
