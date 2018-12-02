@@ -154,9 +154,9 @@ class ConfigObject(object):
 			if len(base_class.ConfigDefaults) == 0: continue
 
 			# Merge config defaults of each base class in the 'inheritance' way
-			for k, v in base_class.ConfigDefaults.items():
-				if k not in self.Config:
-					self.Config[k] = v
+			for key, value in base_class.ConfigDefaults.items():
+				if key not in self.Config:
+					self.Config[key] = value
 		
 		if Config.has_section(config_section_name):
 			for key, value in Config.items(config_section_name):
