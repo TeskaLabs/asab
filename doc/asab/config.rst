@@ -121,7 +121,7 @@ Don't use complex types such as lists, dictionaries or objects because these are
 Environment variables in configration
 -------------------------------------
 
-Environment variables found in values are automaticall expanded.
+Environment variables found in values are automatically expanded.
 
 .. code:: ini
 
