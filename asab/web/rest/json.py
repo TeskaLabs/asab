@@ -77,17 +77,30 @@ async def JsonExceptionMiddleware(request, handler):
 		ex.text=json.dumps(respdict, indent=4)
 		raise ex
 
+	# KeyError translates to 404
+	except KeyError as e:
+		euuid = uuid.uuid4()
+		Lex.warning("KeyError when handling web request", exc_info=e, struct_data={'uuid':str(euuid)})
+		return aiohttp.web.Response(
+			text=json.dumps({
+				"status": 404,
+				"message": e.args[0] % e.args[1:],
+				"uuid": str(euuid),
+			}, indent=4),
+			status=404,
+			content_type='application/json'
+		)
+
 	# Other errors to JSON
 	except Exception as e:
 		euuid = uuid.uuid4()
-		Lex.exception("Exception when handling web request".format(euuid), struct_data={'uuid':str(euuid)})
+		Lex.exception("Exception when handling web request", exc_info=e, struct_data={'uuid':str(euuid)})
 		return aiohttp.web.Response(
 			text=json.dumps({
 				"status": 500,
 				"message": "Internal Server Error",
 				"uuid": str(euuid),
-			},
-			indent=4),
+			}, indent=4),
 			status=500,
 			content_type='application/json'
 		)
