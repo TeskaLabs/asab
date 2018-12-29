@@ -29,3 +29,14 @@ def publish(self, event_name, *args, **kwargs):
 	callback_set = self.subscribers.get(event_name)
 	...
 ```
+
+## Publishing to pypi.org
+
+1. Create a version tag.
+2. Push a tag to GitHub
+3. Release a package to pypi.org:
+
+```
+python3.7 setup.py sdist
+twine upload --repository-url https://upload.pypi.org/legacy/ dist/asab-18.12b1.tar.gz
+```
