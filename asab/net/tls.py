@@ -4,7 +4,7 @@ from ..config import ConfigObject
 class SSLContextBuilder(ConfigObject):
 
 	ConfigDefaults = {
-		'ssl:cert': 'cert.pem', # The certfile string must be the path to a PEM file containing the certificate as well as any number of CA certificates needed to establish the certificate’s authenticity.
+		'ssl:cert': '', # The certfile string must be the path to a PEM file containing the certificate as well as any number of CA certificates needed to establish the certificate’s authenticity.
 		'ssl:key': '', #The keyfile string, if present, must point to a file containing the private key in. Otherwise the private key will be taken from certfile as well.
 		'ssl:password': '',
 		'ssl:cafile': '',
