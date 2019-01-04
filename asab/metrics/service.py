@@ -88,7 +88,7 @@ class MetricsService(asab.Service):
 			self.App.PubSub.publish(
 				"asab.metrics.flush",
 				metric, values,
-				asynchronously=True
+				asynchronously=False
 			)
 
 		fs = []
