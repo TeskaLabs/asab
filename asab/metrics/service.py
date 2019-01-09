@@ -86,7 +86,7 @@ class MetricsService(asab.Service):
 			mlist.append((metric, values))
 
 			self.App.PubSub.publish(
-				"asab.metrics.flush",
+				"Application.Metrics.Flush!",
 				metric, values,
 				asynchronously=False
 			)
