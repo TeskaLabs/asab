@@ -85,6 +85,12 @@ class MetricsService(asab.Service):
 		
 			mlist.append((metric, values))
 
+			self.App.PubSub.publish(
+				"Application.Metrics.Flush!",
+				metric, values,
+				asynchronously=False
+			)
+
 		fs = []
 		for target in self.Targets:
 			fs.append(target.process(now, mlist))
