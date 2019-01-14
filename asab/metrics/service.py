@@ -8,6 +8,7 @@ import pprint
 import asab
 
 from .metrics import Metric, Counter, Gauge, DutyCycle
+from .memstor import MetricsMemstorTarget
 
 #
 
@@ -51,6 +52,10 @@ class MetricsService(asab.Service):
 				raise RuntimeError("Unknown target type {}".format(target_type))
 
 			self.Targets.append(target)
+
+		# Memory storage target
+		self.MemstorTarget = MetricsMemstorTarget(self, 'asab:metrics:memory')
+		self.Targets.append(self.MemstorTarget)
 
 
 	async def finalize(self, app):
