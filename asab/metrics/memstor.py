@@ -5,8 +5,10 @@ class MetricsMemstorTarget(asab.ConfigObject):
 	def __init__(self, svc, config_section_name, config=None):
 		self.Values = {}
 		self.Tags = {}
+		self.Timestamp = None
 
 	async def process(self, now, mlist):
+		self.Timestamp = now
 		for metric, values in mlist:
 			self.Tags[metric.Name] = metric.Tags
 			self.Values[metric.Name] = values
@@ -22,5 +24,6 @@ class MetricsMemstorTarget(asab.ConfigObject):
 				ret[name] = {}
 				ret[name]["Name"] = name
 			ret[name]["Tags"] = tags
+			ret[name]["Timestamp"] = self.Timestamp
 
 		return ret
