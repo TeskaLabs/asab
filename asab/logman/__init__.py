@@ -1,5 +1,5 @@
 import logging
-import asab
+from .. import Config, Module
 
 from .service import LogManIOService
 
@@ -9,7 +9,7 @@ L = logging.getLogger(__name__)
 
 #
 
-asab.Config.add_defaults(
+Config.add_defaults(
 	{
 		'logman.io': {
 			'url': 'amqps://{username}:{password}@lm-ha-01.logman.io:5477/{virtualhost}',
@@ -22,7 +22,7 @@ asab.Config.add_defaults(
 )
 
 
-class Module(asab.Module):
+class Module(Module):
 
 	def __init__(self, app):
 		super().__init__(app)
