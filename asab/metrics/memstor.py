@@ -3,9 +3,6 @@ import asab
 class MetricsMemstorTarget(asab.ConfigObject):
 
 	def __init__(self, svc, config_section_name, config=None):
-		self.Values = {}
-		self.Tags = {}
-		self.Timestamp = None
 		self.Metrics = {}
 
 
