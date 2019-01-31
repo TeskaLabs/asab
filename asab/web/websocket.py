@@ -57,7 +57,7 @@ class WebSocketFactory(object):
 
 		finally:
 			await self.on_close(request, ws)
-			self.WebSockets.remove(ws)
+			self.WebSockets.remove(ws)receive
 
 		return ws
 
@@ -90,6 +90,6 @@ class WebSocketFactory(object):
 
 	async def on_close(self, request, websocket):
 		'''
-		Override this method to receive messages from client over the websocket
+		Override this method to receive a notification that client closed the websocket connection
 		'''
 		pass
