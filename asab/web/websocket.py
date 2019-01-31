@@ -56,6 +56,7 @@ class WebSocketFactory(object):
 			await ws.close()
 
 		finally:
+			await self.on_close(request, ws)
 			self.WebSockets.remove(ws)
 
 		return ws
@@ -81,6 +82,13 @@ class WebSocketFactory(object):
 
 
 	async def on_message(self, request, websocket, message):
+		'''
+		Override this method to receive messages from client over the websocket
+		'''
+		pass
+
+
+	async def on_close(self, request, websocket):
 		'''
 		Override this method to receive messages from client over the websocket
 		'''
