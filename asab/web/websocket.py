@@ -57,7 +57,7 @@ class WebSocketFactory(object):
 
 		finally:
 			await self.on_close(request, ws)
-			self.WebSockets.remove(ws)receive
+			self.WebSockets.remove(ws)
 
 		return ws
 
