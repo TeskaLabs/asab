@@ -26,8 +26,8 @@ class LogManIOService(Service):
 		
 		self.OutboundQueue = asyncio.Queue(loop=app.Loop)
 
-		#from .amqp import LogManIOAMQPUplink as Uplink
-		from .websocket import LogManIOWebSocketUplink as Uplink
+		from .amqp import LogManIOAMQPUplink as Uplink
+		#from .websocket import LogManIOWebSocketUplink as Uplink
 		self.Uplink = Uplink(app, self.URL, self.OutboundQueue)
 
 
