@@ -16,6 +16,7 @@ Undocumented items:
 	- MOM topic subscriptions
 	- LogMan.io service
 	- Web Rest object introspection (.get_rest() JSON serializer)
+	- app.LaunchTime (and app.BaseTime)
 	- ASAB networking (move StreamSocket class there)
 
 Enhancements:
