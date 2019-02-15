@@ -43,6 +43,8 @@ class WebContainer(ConfigObject):
 		ls = self.Config.get("listen")
 		self._listen = []
 		for line in ls.split('\n'):
+			line = line.strip()
+			if len(line) == 0: continue
 			# Split the last token (separated by a ' ' or ':')
 			addr, port, _ = re.split(r"[: ](\d+)$", line)
 			port = int(port)
