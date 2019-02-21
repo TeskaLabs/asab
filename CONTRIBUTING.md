@@ -32,7 +32,8 @@ def publish(self, event_name, *args, **kwargs):
 
 ## Publishing to pypi.org
 
-1. Create a version tag.
+1. Adjust `asab.__init__.py` `__version__` string
+1. Create a version tag
 2. Push a tag to GitHub
 3. Release a package to pypi.org:
 
