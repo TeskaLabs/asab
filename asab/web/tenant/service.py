@@ -10,7 +10,7 @@ asab.Config.add_defaults({
 
 class TenantService(asab.Service):
 
-	def __init__(self, app, service_name="tenant_service"):
+	def __init__(self, app, service_name="asab.TenantService"):
 		super().__init__(app, service_name)
 		self.Tenants = {}
 		tenant_ids = asab.Config['tenants']['ids']
