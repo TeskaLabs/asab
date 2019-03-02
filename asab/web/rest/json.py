@@ -83,10 +83,18 @@ async def JsonExceptionMiddleware(request, handler):
 	except KeyError as e:
 		euuid = uuid.uuid4()
 		Lex.warning("KeyError when handling web request", exc_info=e, struct_data={'uuid': str(euuid)})
+
+		if len(e.args) > 1:
+			message = e.args[0] % e.args[1:]
+		elif e.args[0] is None:
+			message = "KeyError"
+		else:
+			message = e.args[0]
+
 		return aiohttp.web.Response(
 			text=json.dumps({
 				"status": 404,
-				"message": e.args[0] % e.args[1:],
+				"message": message,
 				"uuid": str(euuid),
 			}, indent=4),
 			status=404,
