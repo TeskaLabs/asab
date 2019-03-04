@@ -3,16 +3,16 @@ from .. import rest
 
 class TenantWebHandler(object):
 
-	def __init__(self, app, svc):
+	def __init__(self, app, svc, web_container):
 
 		self.TenantService = svc
 
-		web_app = app.WebContainer.WebApp
+		web_app = web_container.WebApp
 
-		web_app.router.add_get('/tenants', self.get_list_of_tenants)
+		web_app.router.add_get('/tenants', self.get_tenants)
 
-	async def get_list_of_tenants(self, request):
+	async def get_tenants(self, request):
 
-		tenants = self.TenantService.get_list_of_tenants()
+		tenants = self.TenantService.get_tenants()
 
 		return rest.json_response(request, data=tenants)
