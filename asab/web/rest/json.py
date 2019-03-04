@@ -34,7 +34,7 @@ class _Dumper(object):
 		try:
 			return json.JSONEncoder.default(self, o)
 		except TypeError:
-			return "Repr:{}".format(str(o))
+			return "{}".format(o)
 
 
 def json_response(request, data, pretty=None, **kwargs):
