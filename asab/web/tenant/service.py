@@ -23,10 +23,10 @@ class TenantService(asab.Service):
 	def locate_tenant(self, tenant_id):
 		return self.Tenants.get(tenant_id)
 
-	def get_list_of_tenants(self):
+	def get_tenants(self):
 		return self.TenantIds
 
-	def add_web_api(self):
+	def add_web_api(self, web_container):
 
 		from .web import TenantWebHandler
-		self.TenantWebHandler = TenantWebHandler(self.App, self)
+		self.TenantWebHandler = TenantWebHandler(self.App, self, web_container)
