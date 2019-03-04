@@ -12,12 +12,21 @@ class TenantService(asab.Service):
 
 	def __init__(self, app, service_name="asab.TenantService"):
 		super().__init__(app, service_name)
+		self.App = app
 		self.Tenants = {}
-		tenant_ids = asab.Config['tenants']['ids']
-		tenant_ids = tenant_ids.split(',')
+		self.TenantIds = asab.Config['tenants']['ids']
+		self.TenantIds = self.TenantIds.split(',')
 
-		for tenant_id in tenant_ids:
+		for tenant_id in self.TenantIds:
 			self.Tenants[tenant_id] = Tenant(tenant_id)
 
 	def locate_tenant(self, tenant_id):
 		return self.Tenants.get(tenant_id)
+
+	def get_tenants(self):
+		return self.TenantIds
+
+	def add_web_api(self, web_container):
+
+		from .web import TenantWebHandler
+		self.TenantWebHandler = TenantWebHandler(self.App, self, web_container)
