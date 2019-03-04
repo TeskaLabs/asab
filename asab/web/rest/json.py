@@ -31,7 +31,10 @@ class _Dumper(object):
 		if isinstance(o, datetime.datetime):
 			return o.isoformat()
 
-		return json.JSONEncoder.default(self, o)
+		try:
+			return json.JSONEncoder.default(self, o)
+		except TypeError:
+			return "Repr:{}".format(str(o))
 
 
 def json_response(request, data, pretty=None, **kwargs):
