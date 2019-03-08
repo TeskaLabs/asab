@@ -31,6 +31,9 @@ class _Dumper(object):
 		if isinstance(o, datetime.datetime):
 			return o.isoformat()
 
+		elif isinstance(o, bytes):
+			return o.hex()
+
 		try:
 			return json.JSONEncoder.default(self, o)
 		except TypeError:
