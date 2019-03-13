@@ -24,5 +24,6 @@ class ProactorService(asab.Service):
 			self.Loop.set_default_executor(self.Executor)
 
 
-	async def run(self, func, *args):
-		return await self.Loop.run_in_executor(self.Executor, func, *args)
+	# There was the method run, which is obsolete
+	def execute(self, func, *args):
+		return self.Loop.run_in_executor(self.Executor, func, *args)
