@@ -24,9 +24,14 @@ class WebSocketFactory(object):
 	'''
 
 
-	def __init__(self, app):
+	def __init__(self, app, *, timeout=10.0, protocols=(), compress=True, max_msg_size=4194304):
 		self.Loop = app.Loop
 		self.WebSockets = set([])
+
+		self.Timeout = timeout
+		self.Protocols = protocols
+		self.Compress = compress
+		self.MaxMsgSize = max_msg_size
 
 		app.PubSub.subscribe("Application.stop!", self._on_app_stop)
 
@@ -56,6 +61,7 @@ class WebSocketFactory(object):
 			await ws.close()
 
 		finally:
+			await self.on_close(request, ws)
 			self.WebSockets.remove(ws)
 
 		return ws
@@ -72,7 +78,12 @@ class WebSocketFactory(object):
 			return ws
 
 		'''
-		ws = aiohttp.web.WebSocketResponse()
+		ws = aiohttp.web.WebSocketResponse(
+			timeout = self.Timeout,
+			protocols = self.Protocols,
+			compress = self.Compress,
+			max_msg_size = self.MaxMsgSize,
+		)
 		session = request.get('Session')
 		if session is not None:
 			await session.Storage.set(session, ws)
@@ -83,5 +94,12 @@ class WebSocketFactory(object):
 	async def on_message(self, request, websocket, message):
 		'''
 		Override this method to receive messages from client over the websocket
+		'''
+		pass
+
+
+	async def on_close(self, request, websocket):
+		'''
+		Override this method to receive a notification that client closed the websocket connection
 		'''
 		pass

@@ -1,11 +1,13 @@
-Contributing to ASAB
-===
+# Contributing to ASAB
+
 
 This document outlines some of the conventions for contributing to ASAB code.
+
 
 ## Coding conventions
 
 ASAB is a Python project.
+
 
 ### Imports
 
@@ -17,6 +19,7 @@ import sys
 import logging
 ...
 ```
+
 
 ### Documenting functions, methods and classes
 
@@ -30,9 +33,11 @@ def publish(self, event_name, *args, **kwargs):
 	...
 ```
 
+
 ## Publishing to pypi.org
 
-1. Create a version tag.
+1. Adjust `asab.__init__.py` `__version__` string
+1. Create a version tag
 2. Push a tag to GitHub
 3. Release a package to pypi.org:
 
