@@ -61,7 +61,8 @@ class Application(metaclass=Singleton):
 
 		# Obtain the event loop
 		self.Loop = asyncio.get_event_loop()
-		self.BaseTime = time.time() - self.Loop.time()
+		self.LaunchTime = time.time() 
+		self.BaseTime = self.LaunchTime - self.Loop.time()
 
 		# Setup logging
 		self.Logging = Logging(self)

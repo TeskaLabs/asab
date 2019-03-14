@@ -3,11 +3,7 @@ import datetime
 import os
 import sys
 import platform
-import pprint
 import json
-
-import pika
-import asab
 
 from ..log import LOG_NOTICE
 
@@ -23,16 +19,6 @@ class LogmanIOLogHandler(logging.Handler):
 		self.Environment = None
 		self.Hostname = platform.node()
 		self.Program = os.path.basename(sys.argv[0])
-
-		self.Properties = pika.BasicProperties(
-			content_type='application/json',
-			delivery_mode=2, # Persistent delivery mode
-			headers = {
-				'H': self.Hostname,
-				'T': 'sj', # Syslog in JSON
-			}
-		)
-		self.RoutingKey = asab.Config.get('logman.io', 'routing_key')
 
 
 	def emit(self, record):
@@ -83,5 +69,4 @@ class LogmanIOLogHandler(logging.Handler):
 		if sd is not None:
 			log_entry['sd'] = sd
 
-		self.Service.OutboundQueue.put_nowait((self.RoutingKey, json.dumps(log_entry), self.Properties))
-
+		self.Service.OutboundQueue.put_nowait(('sj', json.dumps(log_entry)))
