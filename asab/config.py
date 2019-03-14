@@ -108,7 +108,13 @@ class ConfigParser(configparser.ConfigParser):
 			self.read(config_fname)
 
 		includes = self.get('general', 'include', fallback='')
-		for include_glob in includes.split(os.pathsep):
+		if '\n' in includes:
+			sep = '\n'
+		else:
+			sep = os.pathsep
+		for include_glob in includes.split(sep):
+			include_glob = include_glob.strip()
+			if len(include_glob) == 0: continue
 			for include in glob.glob(include_glob):
 				self.read(include)
 

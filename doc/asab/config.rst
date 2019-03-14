@@ -92,6 +92,16 @@ Included configuration files may not exists, this situation is silently ignored.
 	include=./etc/site.conf:./etc/site.d/*.conf
 
 
+You can also use a multiline configuration entry:
+
+.. code:: ini
+
+	[general]
+	include=
+		./etc/site.conf
+		./etc/site.d/*.conf
+
+
 
 Configuration default values
 ----------------------------
