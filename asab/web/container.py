@@ -68,14 +68,14 @@ listen:
 			addr = line.pop(0)
 			port = line.pop(0)
 			port = int(port)
-			ssl = None
+			ssl_context = None
 
 			for param in line:
 				if param.startswith('ssl:'):
-					ssl = SSLContextBuilder(param).build()
+					ssl_context = SSLContextBuilder(param).build()
 				else:
 					raise RuntimeError("Unknown asab:web listen parameter: '{}'".format(param))
-			self._listen.append((addr, port, ssl))
+			self._listen.append((addr, port, ssl_context))
 
 		self.WebApp = aiohttp.web.Application(loop=websvc.App.Loop)
 		self.WebApp.on_response_prepare.append(self._on_prepare_response)
