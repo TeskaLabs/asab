@@ -10,24 +10,42 @@ from .accesslog import AccessLogger
 
 class WebContainer(ConfigObject):
 
+	'''
+# Configuration examples
+
+## Simple HTTP on 8080
+
+[web]
+listen=0.0.0.0 8080
+
+## Multiple interfaces
+
+[web]
+listen:
+	0.0.0.0 8080
+	:: 8080
+
+
+## Multiple interfaces, one with HTTPS
+
+[web]
+listen:
+	0.0.0.0 8080
+	:: 8080
+	0.0.0.0 8443 ssl:web
+	'''
+
 
 	ConfigDefaults = {
-		'listen': '0.0.0.0:8080', # Can be multiline
+		'listen': '0.0.0.0 8080', # Can be multiline
 		'backlog': 128,
 		'rootdir': '',
 		'servertokens': 'full', # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
-		# + SSL key/values from SSLContextBuilder
 	}
 
 
 	def __init__(self, websvc, config_section_name, config=None):
 		super().__init__(config_section_name=config_section_name, config=config)
-
-		if 'ssl:cert' in self.Config:
-			builder = SSLContextBuilder(config_section_name, config=config)
-			self.SSLContext = builder.build()
-		else:
-			self.SSLContext = None
 
 		self.BackLog = int(self.Config.get("backlog"))
 
@@ -45,10 +63,19 @@ class WebContainer(ConfigObject):
 		for line in ls.split('\n'):
 			line = line.strip()
 			if len(line) == 0: continue
-			# Split the last token (separated by a ' ' or ':')
-			addr, port, _ = re.split(r"[: ](\d+)$", line)
+			line = re.split(r"\s+", line)
+			
+			addr = line.pop(0)
+			port = line.pop(0)
 			port = int(port)
-			self._listen.append((addr, port))
+			ssl = None
+
+			for param in line:
+				if param.startswith('ssl:'):
+					ssl = SSLContextBuilder(param).build()
+				else:
+					raise RuntimeError("Unknown asab:web listen parameter: '{}'".format(param))
+			self._listen.append((addr, port, ssl))
 
 		self.WebApp = aiohttp.web.Application(loop=websvc.App.Loop)
 		self.WebApp.on_response_prepare.append(self._on_prepare_response)
@@ -72,10 +99,10 @@ class WebContainer(ConfigObject):
 	async def initialize(self, app):
 		await self.WebAppRunner.setup()
 
-		for addr, port in self._listen:
+		for addr, port, ssl_context in self._listen:
 			site = aiohttp.web.TCPSite(self.WebAppRunner,
 				host=addr, port=port, backlog=self.BackLog,
-				ssl_context = self.SSLContext,
+				ssl_context = ssl_context,
 			)
 			await site.start()
 
