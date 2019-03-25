@@ -23,7 +23,7 @@ class WebContainer(ConfigObject):
 	def __init__(self, websvc, config_section_name, config=None):
 		super().__init__(config_section_name=config_section_name, config=config)
 
-		if 'ssl:cert' in self.Config:
+		if 'ssl_cert' in self.Config:
 			builder = SSLContextBuilder(config_section_name, config=config)
 			self.SSLContext = builder.build()
 		else:
