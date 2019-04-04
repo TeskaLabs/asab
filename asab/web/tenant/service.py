@@ -18,8 +18,11 @@ class TenantService(asab.Service):
 		self.TenantIds = self.TenantIds.split(',')
 
 		for tenant_id in self.TenantIds:
-			if asab.Config.has_section(tenant_id):
-				params = dict(asab.Config.items(tenant_id))
+
+			section = 'tenant:params:{}'.format(tenant_id)
+
+			if asab.Config.has_section(section):
+				params = dict(asab.Config.items(section))
 				self.Tenants[tenant_id] = Tenant(tenant_id, params)
 			else:
 				self.Tenants[tenant_id] = Tenant(tenant_id)
