@@ -18,13 +18,23 @@ class TenantService(asab.Service):
 		self.TenantIds = self.TenantIds.split(',')
 
 		for tenant_id in self.TenantIds:
-			self.Tenants[tenant_id] = Tenant(tenant_id)
+			if asab.Config.has_section(tenant_id):
+				params = dict(asab.Config.items(tenant_id))
+				self.Tenants[tenant_id] = Tenant(tenant_id, params)
+			else:
+				self.Tenants[tenant_id] = Tenant(tenant_id)
 
 	def locate_tenant(self, tenant_id):
 		return self.Tenants.get(tenant_id)
 
 	def get_tenants(self):
-		return self.TenantIds
+
+		tenants = []
+
+		for tenant in self.Tenants.values():
+			tenants.append(tenant.to_dict())
+
+		return tenants
 
 	def add_web_api(self, web_container):
 
