@@ -12,7 +12,7 @@ L = logging.getLogger(__name__)
 Config.add_defaults(
 	{
 		'logman.io': {
-			'url': 'amqps://{username}:{password}@lm-ha-01.logman.io:5477/{virtualhost}',
+			'url': 'amqps://{username}:{password}@feed.logman.io:5477/{virtualhost}',
 			'username': 'testuser',
 			'password': 'password',
 			'virtualhost': 'playground',
