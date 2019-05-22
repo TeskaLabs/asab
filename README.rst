@@ -32,6 +32,12 @@ Documentation
 * `Documentation on Readthedocs <http://asab.readthedocs.io/>`_
 * `Examples <https://github.com/TeskaLabs/asab/tree/master/examples>`_
 
+Video tutorial
+^^^^^^^^^^^^^^
+
+.. image:: http://img.youtube.com/vi/77StpWxOIBc/0.jpg
+   :target: https://www.youtube.com/watch?v=77StpWxOIBc&list=PLhdpLpq_tPSDb2YMDwyz431pM1BPDWHNK
+
 
 Example
 -------

@@ -63,10 +63,10 @@ listen:
 		for line in ls.split('\n'):
 			line = line.strip()
 			if len(line) == 0: continue
-			line = re.split(r"\s+", line)
+			line = re.split(r"[:\s]", line, 1)
 			
-			addr = line.pop(0)
-			port = line.pop(0)
+			addr = line.pop(0).strip()
+			port = line.pop(0).strip()
 			port = int(port)
 			ssl_context = None
 
