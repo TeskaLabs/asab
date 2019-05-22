@@ -7,10 +7,10 @@ class QueueSubscriptionObject(object):
 		self.QueueName = queue_name
 
 		def on_channel_open(channel):
-			channel.basic_qos(on_qos_applied, prefetch_count=int(self.Broker.Config['prefetch_count']))
+			channel.basic_qos(prefetch_count=int(self.Broker.Config['prefetch_count']), callback=on_qos_applied)
 
 		def on_qos_applied(method):
-			self.Channel.basic_consume(on_consume_message, self.QueueName)
+			self.Channel.basic_consume(self.QueueName, on_consume_message)
 
 		def on_consume_message(channel, method, properties, body):
 			try:
@@ -47,30 +47,28 @@ class ExchangeSubscriptionObject(object):
 
 		def on_channel_open(channel):
 			channel.queue_declare(
-				callback=on_queue_declared,
 				queue=self.QueueName,
 				exclusive=True,
 				auto_delete=True,
+				callback=on_queue_declared,
 			)
 		
 		def on_queue_declared(method):
 			self.Channel.basic_qos(
-				on_qos_applied,
 				prefetch_count=int(self.Broker.Config['prefetch_count']),
+				callback=on_qos_applied,
 			)
 			for rk in self.RoutingKey:
 				self.Channel.queue_bind(
-					None,
 					queue=self.QueueName,
 					exchange=self.ExchangeName,
-					routing_key=rk,
-					nowait=True, # We are not interested in the result
+					routing_key=rk
 				)
 
 		def on_qos_applied(method):
 			self.Channel.basic_consume(
-				on_consume_message,
 				self.QueueName,
+				on_consume_message,
 			)
 
 		def on_consume_message(channel, method, properties, body):
