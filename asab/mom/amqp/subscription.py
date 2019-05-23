@@ -1,5 +1,9 @@
 import itertools
 
+import pika
+from pkg_resources import parse_version
+
+
 class QueueSubscriptionObject(object):
 
 	def __init__(self, broker, queue_name, exchange:bool=False):
@@ -7,10 +11,13 @@ class QueueSubscriptionObject(object):
 		self.QueueName = queue_name
 
 		def on_channel_open(channel):
-			channel.basic_qos(prefetch_count=int(self.Broker.Config['prefetch_count']), callback=on_qos_applied)
+			channel.basic_qos(callback=on_qos_applied, prefetch_count=int(self.Broker.Config['prefetch_count']))
 
 		def on_qos_applied(method):
-			self.Channel.basic_consume(self.QueueName, on_consume_message)
+			if parse_version(pika.__version__) >= parse_version('1.0.0'):
+				self.Channel.basic_consume(self.QueueName, on_consume_message)
+			else:
+				self.Channel.basic_consume(on_consume_message, self.QueueName)
 
 		def on_consume_message(channel, method, properties, body):
 			try:
@@ -52,24 +59,40 @@ class ExchangeSubscriptionObject(object):
 				auto_delete=True,
 				callback=on_queue_declared,
 			)
-		
-		def on_queue_declared(method):
-			self.Channel.basic_qos(
-				prefetch_count=int(self.Broker.Config['prefetch_count']),
-				callback=on_qos_applied,
-			)
-			for rk in self.RoutingKey:
-				self.Channel.queue_bind(
-					queue=self.QueueName,
-					exchange=self.ExchangeName,
-					routing_key=rk
-				)
 
-		def on_qos_applied(method):
-			self.Channel.basic_consume(
-				self.QueueName,
-				on_consume_message,
-			)
+		if parse_version(pika.__version__) >= parse_version('1.0.0'):
+			def on_queue_declared(method):
+				self.Channel.basic_qos(
+					prefetch_count=int(self.Broker.Config['prefetch_count']),
+					callback=on_qos_applied,
+				)
+				for rk in self.RoutingKey:
+					self.Channel.queue_bind(
+						queue=self.QueueName,
+						exchange=self.ExchangeName,
+						routing_key=rk
+					)
+
+			def on_qos_applied(method):
+				self.Channel.basic_consume(self.QueueName, on_consume_message)
+
+		else:  # pika <= 13.0
+			def on_queue_declared(method):
+				self.Channel.basic_qos(
+					callback=on_qos_applied,
+					prefetch_count=int(self.Broker.Config['prefetch_count']),
+				)
+				for rk in self.RoutingKey:
+					self.Channel.queue_bind(
+						None,
+						queue=self.QueueName,
+						exchange=self.ExchangeName,
+						routing_key=rk,
+						nowait=True,  # We are not interested in the result
+					)
+
+			def on_qos_applied(method):
+				self.Channel.basic_consume(on_consume_message, self.QueueName)
 
 		def on_consume_message(channel, method, properties, body):
 			try:

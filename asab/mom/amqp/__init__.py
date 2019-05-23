@@ -93,8 +93,13 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 		asyncio.ensure_future(self.ensure_subscriptions(), loop=self.Loop)
 		self.Connection.channel(on_open_callback=self._on_sending_channel_open)
 
-	def _on_connection_close(self, connection, error):
-		L.warn("AMQP disconnected: {}".format(error))
+	def _on_connection_close(self, connection, *args):
+		try:
+			code, reason = args
+			L.warn("AMQP disconnected ({}): {}".format(code, reason))
+		except ValueError:
+			error, = args
+			L.warn("AMQP disconnected: {}".format(error))
 		self.Loop.call_later(float(self.Config['reconnect_delay']), self._reconnect)
 
 
