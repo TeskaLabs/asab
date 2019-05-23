@@ -14,7 +14,7 @@ class QueueSubscriptionObject(object):
 			channel.basic_qos(callback=on_qos_applied, prefetch_count=int(self.Broker.Config['prefetch_count']))
 
 		def on_qos_applied(method):
-			if parse_version(pika.__version__) >= parse_version('1.0.0'):
+			if parse_version(pika.__version__) > parse_version('0.13.1'):
 				self.Channel.basic_consume(self.QueueName, on_consume_message)
 			else:
 				self.Channel.basic_consume(on_consume_message, self.QueueName)
@@ -60,7 +60,7 @@ class ExchangeSubscriptionObject(object):
 				callback=on_queue_declared,
 			)
 
-		if parse_version(pika.__version__) >= parse_version('1.0.0'):
+		if parse_version(pika.__version__) > parse_version('0.13.1'):
 			def on_queue_declared(method):
 				self.Channel.basic_qos(
 					prefetch_count=int(self.Broker.Config['prefetch_count']),
