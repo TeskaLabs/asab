@@ -68,6 +68,7 @@ Principles
 * Single-threaded core but compatible with threads
 * Good support for `containerization <https://en.wikipedia.org/wiki/Operating-system-level_virtualization>`_
 * Compatible with `pypy <http://pypy.org>`_, Just-In-Time compiler capable of boosting Python code performace more then 5x times
+* Kappa architecture
 * Support for introspection
 * Modularized
 
