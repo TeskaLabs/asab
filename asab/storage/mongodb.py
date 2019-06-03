@@ -54,21 +54,19 @@ class StorageService(StorageServiceABC):
 
 
 	async def list(self, collection:str):
-		documents = []
 		coll = self.Database[collection]
-		cursor = coll.find({})
-		async for document in cursor:
-			documents.append(document)
-		return documents
+		ret = await coll.find({})
+		if ret is None:
+			raise KeyError("NOT-FOUND")
+		return ret
 
 
 	async def list_by(self, collection:str, key:str, value):
-		documents = []
 		coll = self.Database[collection]
-		cursor = coll.find({key: value})
-		async for document in cursor:
-			documents.append(document)
-		return documents
+		ret = await coll.find({key: value})
+		if ret is None:
+			raise KeyError("NOT-FOUND")
+		return ret
 
 
 	async def delete(self, collection:str, obj_id):
