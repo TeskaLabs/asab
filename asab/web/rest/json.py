@@ -42,6 +42,9 @@ class JSONDumper(object):
 
 def json_response(request, data, pretty=None, dumps=JSONDumper, **kwargs):
 	'''
+	argument `dumps` allows to specify custom JSON dumper for a serialization.
+	The default is `JSONDumper` class.
+	
 	## Pretty Result
 	When appending ?pretty=true to any request made, the JSON returned will be pretty formatted (use it for debugging only!).
 	'''
