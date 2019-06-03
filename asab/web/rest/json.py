@@ -40,16 +40,17 @@ class _Dumper(object):
 			return "{}".format(o)
 
 
-def json_response(request, data, pretty=None, dumps=None, **kwargs):
+def json_response(request, data, pretty=None, dumps=_Dumper, **kwargs):
 	'''
 	## Pretty Result
 	When appending ?pretty=true to any request made, the JSON returned will be pretty formatted (use it for debugging only!).
 	'''
+	assert issubclass(dumps, _Dumper)
 	pretty = request.query.get('pretty', 'no').lower() in frozenset(['true', '1', 't', 'y', 'yes']) or pretty
 
 	return aiohttp.web.json_response(
 		data,
-		dumps=dumps or _Dumper(pretty),
+		dumps=dumps(pretty),
 		**kwargs
 	)
 
