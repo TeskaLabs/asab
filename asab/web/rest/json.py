@@ -40,7 +40,7 @@ class _Dumper(object):
 			return "{}".format(o)
 
 
-def json_response(request, data, pretty=None, **kwargs):
+def json_response(request, data, pretty=None, dumps=None, **kwargs):
 	'''
 	## Pretty Result
 	When appending ?pretty=true to any request made, the JSON returned will be pretty formatted (use it for debugging only!).
@@ -49,7 +49,7 @@ def json_response(request, data, pretty=None, **kwargs):
 
 	return aiohttp.web.json_response(
 		data,
-		dumps=_Dumper(pretty),
+		dumps=dumps or _Dumper(pretty),
 		**kwargs
 	)
 
