@@ -73,6 +73,11 @@ class StorageService(StorageServiceABC):
 		return coll[obj_id]
 
 
+	async def list(self, collection:str):
+		coll = self.InMemoryCollections[collection]
+		return coll
+
+
 	async def delete(self, collection:str, obj_id):
 		coll = self.InMemoryCollections[collection]
 		del coll[obj_id]
