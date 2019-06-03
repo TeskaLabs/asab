@@ -12,7 +12,7 @@ Lex = logging.getLogger("asab.web")
 
 #
 
-class _Dumper(object):
+class JSONDumper(object):
 
 	def __init__(self, pretty):
 		self.pretty = pretty
@@ -40,16 +40,17 @@ class _Dumper(object):
 			return "{}".format(o)
 
 
-def json_response(request, data, pretty=None, **kwargs):
+def json_response(request, data, pretty=None, dumps=JSONDumper, **kwargs):
 	'''
 	## Pretty Result
 	When appending ?pretty=true to any request made, the JSON returned will be pretty formatted (use it for debugging only!).
 	'''
+	assert issubclass(dumps, JSONDumper)
 	pretty = request.query.get('pretty', 'no').lower() in frozenset(['true', '1', 't', 'y', 'yes']) or pretty
 
 	return aiohttp.web.json_response(
 		data,
-		dumps=_Dumper(pretty),
+		dumps=dumps(pretty),
 		**kwargs
 	)
 
