@@ -1,20 +1,15 @@
-import pprint
-
 '''
 apk add pymongo
 apk add motor
 '''
 
-import pymongo
-import bson.binary
 import motor.motor_asyncio
+import pymongo
 
 import asab
-
+from .exceptions import DuplicateError
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
-from .exceptions import DuplicateError
-
 
 asab.Config.add_defaults(
 	{
@@ -24,6 +19,7 @@ asab.Config.add_defaults(
 		}
 	}
 )
+
 
 class StorageService(StorageServiceABC):
 
@@ -37,7 +33,7 @@ class StorageService(StorageServiceABC):
 		return MongoDBUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection:str, obj_id):
+	async def get(self, collection:str, obj_id) -> dict:
 		coll = self.Database[collection]
 		ret = await coll.find_one({'_id': obj_id})
 		if ret is None:
@@ -45,7 +41,7 @@ class StorageService(StorageServiceABC):
 		return ret
 
 
-	async def get_by(self, collection:str, key:str, value):
+	async def get_by(self, collection:str, key:str, value) -> dict:
 		coll = self.Database[collection]
 		ret = await coll.find_one({key: value})
 		if ret is None:
@@ -53,20 +49,22 @@ class StorageService(StorageServiceABC):
 		return ret
 
 
-	async def list(self, collection:str):
+	async def list(self, collection:str) -> motor.motor_asyncio.AsyncIOMotorCursor:
 		coll = self.Database[collection]
-		ret = await coll.find({})
-		if ret is None:
+		cursor = coll.find({})
+		has_next = await cursor.fetch_next
+		if not has_next:
 			raise KeyError("NOT-FOUND")
-		return ret
+		return cursor
 
 
-	async def list_by(self, collection:str, key:str, value):
+	async def list_by(self, collection:str, key:str, value) -> motor.motor_asyncio.AsyncIOMotorCursor:
 		coll = self.Database[collection]
-		ret = await coll.find({key: value})
-		if ret is None:
+		cursor = coll.find({key: value})
+		has_next = await cursor.fetch_next
+		if not has_next:
 			raise KeyError("NOT-FOUND")
-		return ret
+		return cursor
 
 
 	async def delete(self, collection:str, obj_id):
