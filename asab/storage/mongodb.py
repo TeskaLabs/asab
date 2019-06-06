@@ -29,7 +29,7 @@ class StorageService(StorageServiceABC):
 		self.Database = self.Client[asab.Config.get('asab:storage', 'mongodb_database')]
 
 
-	def upsertor(self, collection, obj_id, version=None):
+	def upsertor(self, collection:str, obj_id, version=None):
 		return MongoDBUpsertor(self, collection, obj_id, version)
 
 
@@ -42,6 +42,17 @@ class StorageService(StorageServiceABC):
 
 
 	async def get_by(self, collection:str, key:str, value) -> dict:
+		"""
+		Get object from collection by its key/value
+
+		:param collection: Collection to get from
+		:param key: Key to filter on
+		:param value: Value to filter on
+		:return: dict -- The founded object
+
+		Raises:
+			KeyError: If object{key: value} not found in `collection`
+		"""
 		coll = self.Database[collection]
 		ret = await coll.find_one({key: value})
 		if ret is None:
@@ -50,6 +61,22 @@ class StorageService(StorageServiceABC):
 
 
 	async def list(self, collection:str) -> motor.motor_asyncio.AsyncIOMotorCursor:
+		"""
+		Get list from collection. Returns cursor to the list.
+
+		:param collection: Collection to list from
+		:return: AsyncIOMotorCursor -- Cursor to list of found objects
+
+		Examples:
+
+			>>> cursor = await storage.list("test-collection")
+			>>> while await cursor.fetch_next:
+			... 	obj = cursor.next_object()
+			... 	pprint.pprint(obj)
+
+		Raises:
+			KeyError: If `collection` is empty
+		"""
 		coll = self.Database[collection]
 		cursor = coll.find({})
 		has_next = await cursor.fetch_next
@@ -59,6 +86,24 @@ class StorageService(StorageServiceABC):
 
 
 	async def list_by(self, collection:str, key:str, value) -> motor.motor_asyncio.AsyncIOMotorCursor:
+		"""
+		Get list from collection. Returns cursor to the list.
+
+		:param collection: Collection to list from
+		:param key: Key to filter on
+		:param value: Value to filter on
+		:return: AsyncIOMotorCursor -- Cursor to list of found objects
+
+		Examples:
+
+			>>> cursor = await storage.list_by("test-collection", "key", "value")
+			>>> while await cursor.fetch_next:
+			... 	obj = cursor.next_object()
+			... 	pprint.pprint(obj)
+
+		Raises:
+			KeyError: If object{key: value} not found in `collection`
+		"""
 		coll = self.Database[collection]
 		cursor = coll.find({key: value})
 		has_next = await cursor.fetch_next
@@ -68,6 +113,16 @@ class StorageService(StorageServiceABC):
 
 
 	async def delete(self, collection:str, obj_id):
+		"""
+		Delete object from `collection` by its `obj_id`
+
+		:param collection: Collection to delete from
+		:param obj_id: Object identification
+		:return: `obj_id` -- Object identification
+
+		Raises:
+			KeyError: If `obj_id` not found in `collection`
+		"""
 		coll = self.Database[collection]
 		ret = await coll.find_one_and_delete({'_id': obj_id})
 		if ret is None:

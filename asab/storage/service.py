@@ -10,15 +10,25 @@ class StorageServiceABC(asab.Service):
 	@abc.abstractmethod
 	def upsertor(self, collection:str, obj_id, version=None):
 		'''
-		:param int version: Specify a current version of the object and hence prevent race conditions on updates.
-							If None, the check is skipped.
+		:param int version: Specify a current version of the object and hence prevent race conditions on updates. \
+							If None, the check is skipped. \
 							If 0, the insert operation is expected.
 		'''
 		pass
 
 
 	@abc.abstractmethod
-	async def get(self, collection:str, obj_id):
+	async def get(self, collection:str, obj_id) -> dict:
+		"""
+		Get object from collection
+
+		:param collection: Collection to get from
+		:param obj_id: Object identification
+		:return: dict -- The founded object
+
+		Raises:
+			KeyError: If `obj_id` not found in `collection`
+		"""
 		pass
 
 
