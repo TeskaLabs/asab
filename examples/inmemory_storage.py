@@ -1,5 +1,7 @@
 import pprint
 
+from asab.storage.mongodb import StorageService
+
 import asab
 import asab.storage
 
@@ -8,7 +10,7 @@ import asab.storage
 ../etc/site.conf
 
 [asab:storage]
-type=mongodb
+type=inmemory
 
 '''
 class MyApplication(asab.Application):
@@ -21,7 +23,7 @@ class MyApplication(asab.Application):
 	async def main(self):
 		storage = self.get_service("asab.StorageService")
 
-		u = storage.upsertor("test-collection", 1)
+		u = storage.upsertor("test-collection", 1, version=0)
 		u.set("foo", "bar")
 		objid = await u.execute()
 
@@ -29,11 +31,9 @@ class MyApplication(asab.Application):
 		print(f"Result of get by id: {objid}")
 		pprint.pprint(obj)
 
-		cursor = await storage.list("test-collection")
+		obj_list = await storage.list("test-collection")
 		print("Result of list")
-		while await cursor.fetch_next:
-			obj = cursor.next_object()
-			pprint.pprint(obj)
+		pprint.pprint(obj_list)
 
 		await storage.delete("test-collection", objid)
 
