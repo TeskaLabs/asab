@@ -29,7 +29,8 @@ class MyApplication(asab.Application):
 		print(f"Result of get by id: {objid}")
 		pprint.pprint(obj)
 
-		cursor = await storage.list("test-collection")
+		coll = await storage.collection("test-collection")
+		cursor = coll.find({})
 		print("Result of list")
 		while await cursor.fetch_next:
 			obj = cursor.next_object()

@@ -31,10 +31,6 @@ class MyApplication(asab.Application):
 		print(f"Result of get by id: {objid}")
 		pprint.pprint(obj)
 
-		obj_list = await storage.list("test-collection")
-		print("Result of list")
-		pprint.pprint(obj_list)
-
 		await storage.delete("test-collection", objid)
 
 		self.stop()
