@@ -60,56 +60,24 @@ class StorageService(StorageServiceABC):
 		return ret
 
 
-	async def list(self, collection:str) -> motor.motor_asyncio.AsyncIOMotorCursor:
+	async def collection(self, collection:str) -> motor.motor_asyncio.AsyncIOMotorCollection:
 		"""
-		Get list from collection. Returns cursor to the list.
+		Get collection. Useful for custom operations
 
-		:param collection: Collection to list from
-		:return: AsyncIOMotorCursor -- Cursor to list of found objects
+		:param collection: Collection to get
+		:return: AsyncIOMotorCollection
 
 		Examples:
 
-			>>> cursor = await storage.list("test-collection")
+			>>> coll = await storage.collection("test-collection")
+			>>> cursor = coll.find({})
 			>>> while await cursor.fetch_next:
 			... 	obj = cursor.next_object()
 			... 	pprint.pprint(obj)
 
-		Raises:
-			KeyError: If `collection` is empty
 		"""
-		coll = self.Database[collection]
-		cursor = coll.find({})
-		has_next = await cursor.fetch_next
-		if not has_next:
-			raise KeyError("NOT-FOUND")
-		return cursor
 
-
-	async def list_by(self, collection:str, key:str, value) -> motor.motor_asyncio.AsyncIOMotorCursor:
-		"""
-		Get list from collection. Returns cursor to the list.
-
-		:param collection: Collection to list from
-		:param key: Key to filter on
-		:param value: Value to filter on
-		:return: AsyncIOMotorCursor -- Cursor to list of found objects
-
-		Examples:
-
-			>>> cursor = await storage.list_by("test-collection", "key", "value")
-			>>> while await cursor.fetch_next:
-			... 	obj = cursor.next_object()
-			... 	pprint.pprint(obj)
-
-		Raises:
-			KeyError: If object{key: value} not found in `collection`
-		"""
-		coll = self.Database[collection]
-		cursor = coll.find({key: value})
-		has_next = await cursor.fetch_next
-		if not has_next:
-			raise KeyError("NOT-FOUND")
-		return cursor
+		return self.Database[collection]
 
 
 	async def delete(self, collection:str, obj_id):

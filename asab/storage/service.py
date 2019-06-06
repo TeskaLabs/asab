@@ -38,15 +38,5 @@ class StorageServiceABC(asab.Service):
 
 
 	@abc.abstractmethod
-	async def list(self, collection:str):
-		pass
-
-
-	@abc.abstractmethod
-	async def list_by(self, collection:str, key:str, value):
-		pass
-
-
-	@abc.abstractmethod
 	async def delete(self, collection:str, obj_id):
 		pass

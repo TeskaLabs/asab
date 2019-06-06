@@ -81,25 +81,6 @@ class StorageService(StorageServiceABC):
 		raise NotImplementedError()
 
 
-	async def list(self, collection:str) -> list:
-		"""
-		Get list from collection.
-
-		:param collection: Collection to list from
-		:return: list of collection
-		"""
-		coll = self.InMemoryCollections[collection]
-		return coll
-
-
-	async def list_by(self, collection:str, key:str, value):
-		"""
-		Raises:
-			NotImplementedError: Not implemented on InMemoryStorage
-		"""
-		raise NotImplementedError()
-
-
 	async def delete(self, collection:str, obj_id):
 		"""
 		Delete object from `collection` by its `obj_id`
