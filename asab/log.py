@@ -156,6 +156,21 @@ class Logging(object):
 
 ###
 
+class _StructuredLogRecord(logging.LogRecord):
+
+	def getMessage(self):
+		msg = self.msg
+		if self.args:
+			if isinstance(self.args, dict):
+				msg = msg.format(**self.args)
+			else:
+				msg = msg.format(*self.args)
+		return msg
+
+logging.setLogRecordFactory(_StructuredLogRecord)
+
+###
+
 class _StructuredDataLogger(logging.Logger):
 	'''
 This class extends a default python logger class, specifically by adding ``struct_data`` parameter to logging functions.
