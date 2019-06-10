@@ -48,7 +48,7 @@ class StorageService(StorageServiceABC):
 		:param collection: Collection to get from
 		:param key: Key to filter on
 		:param value: Value to filter on
-		:return: dict -- The founded object
+		:return: The object retrieved from a storage
 
 		Raises:
 			KeyError: If object{key: value} not found in `collection`
