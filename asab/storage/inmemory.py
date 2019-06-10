@@ -64,7 +64,7 @@ class StorageService(StorageServiceABC):
 		self.InMemoryCollections = {}
 
 
-	def upsertor(self, collection:str, obj_id, version=None):
+	def upsertor(self, collection:str, obj_id=None, version=0):
 		return InMemoryUpsertor(self, collection, obj_id, version)
 
 
@@ -73,7 +73,24 @@ class StorageService(StorageServiceABC):
 		return coll[obj_id]
 
 
+	async def get_by(self, collection:str, key:str, value):
+		"""
+		Raises:
+			NotImplementedError: Not implemented on InMemoryStorage
+		"""
+		raise NotImplementedError()
+
+
 	async def delete(self, collection:str, obj_id):
+		"""
+		Delete object from `collection` by its `obj_id`
+
+		:param collection: Collection to delete from
+		:param obj_id: Object identification
+
+		Raises:
+			KeyError: If `obj_id` not found in `collection`
+		"""
 		coll = self.InMemoryCollections[collection]
 		del coll[obj_id]
 

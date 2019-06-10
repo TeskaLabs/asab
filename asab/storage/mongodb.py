@@ -1,20 +1,15 @@
-import pprint
-
 '''
 apk add pymongo
 apk add motor
 '''
 
-import pymongo
-import bson.binary
 import motor.motor_asyncio
+import pymongo
 
 import asab
-
+from .exceptions import DuplicateError
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
-from .exceptions import DuplicateError
-
 
 asab.Config.add_defaults(
 	{
@@ -25,6 +20,7 @@ asab.Config.add_defaults(
 	}
 )
 
+
 class StorageService(StorageServiceABC):
 
 	def __init__(self, app, service_name):
@@ -33,11 +29,11 @@ class StorageService(StorageServiceABC):
 		self.Database = self.Client[asab.Config.get('asab:storage', 'mongodb_database')]
 
 
-	def upsertor(self, collection, obj_id, version=None):
+	def upsertor(self, collection:str, obj_id=None, version=0):
 		return MongoDBUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection:str, obj_id):
+	async def get(self, collection:str, obj_id) -> dict:
 		coll = self.Database[collection]
 		ret = await coll.find_one({'_id': obj_id})
 		if ret is None:
@@ -45,7 +41,18 @@ class StorageService(StorageServiceABC):
 		return ret
 
 
-	async def get_by(self, collection:str, key:str, value):
+	async def get_by(self, collection:str, key:str, value) -> dict:
+		"""
+		Get object from collection by its key/value
+
+		:param collection: Collection to get from
+		:param key: Key to filter on
+		:param value: Value to filter on
+		:return: The object retrieved from a storage
+
+		Raises:
+			KeyError: If object{key: value} not found in `collection`
+		"""
 		coll = self.Database[collection]
 		ret = await coll.find_one({key: value})
 		if ret is None:
@@ -53,7 +60,37 @@ class StorageService(StorageServiceABC):
 		return ret
 
 
+	async def collection(self, collection:str) -> motor.motor_asyncio.AsyncIOMotorCollection:
+		"""
+		Get collection. Useful for custom operations
+
+		:param collection: Collection to get
+		:return: AsyncIOMotorCollection
+
+		Examples:
+
+			>>> coll = await storage.collection("test-collection")
+			>>> cursor = coll.find({})
+			>>> while await cursor.fetch_next:
+			... 	obj = cursor.next_object()
+			... 	pprint.pprint(obj)
+
+		"""
+
+		return self.Database[collection]
+
+
 	async def delete(self, collection:str, obj_id):
+		"""
+		Delete object from `collection` by its `obj_id`
+
+		:param collection: Collection to delete from
+		:param obj_id: Object identification
+		:return: `obj_id` -- Object identification
+
+		Raises:
+			KeyError: If `obj_id` not found in `collection`
+		"""
 		coll = self.Database[collection]
 		ret = await coll.find_one_and_delete({'_id': obj_id})
 		if ret is None:
