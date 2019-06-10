@@ -29,7 +29,7 @@ class StorageService(StorageServiceABC):
 		self.Database = self.Client[asab.Config.get('asab:storage', 'mongodb_database')]
 
 
-	def upsertor(self, collection:str, obj_id, version=None):
+	def upsertor(self, collection:str, obj_id=None, version=0):
 		return MongoDBUpsertor(self, collection, obj_id, version)
 
 

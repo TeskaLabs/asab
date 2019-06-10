@@ -64,7 +64,7 @@ class StorageService(StorageServiceABC):
 		self.InMemoryCollections = {}
 
 
-	def upsertor(self, collection:str, obj_id, version=None):
+	def upsertor(self, collection:str, obj_id=None, version=0):
 		return InMemoryUpsertor(self, collection, obj_id, version)
 
 

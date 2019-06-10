@@ -8,7 +8,7 @@ class StorageServiceABC(asab.Service):
 
 
 	@abc.abstractmethod
-	def upsertor(self, collection:str, obj_id, version=None):
+	def upsertor(self, collection:str, obj_id=None, version=0):
 		'''
 		:param int version: Specify a current version of the object and hence prevent race conditions on updates. \
 							If None, the check is skipped. \
