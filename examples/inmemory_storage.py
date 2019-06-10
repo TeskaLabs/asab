@@ -23,8 +23,13 @@ class MyApplication(asab.Application):
 	async def main(self):
 		storage = self.get_service("asab.StorageService")
 
-		u = storage.upsertor("test-collection", 1, version=0)
+		u = storage.upsertor("test-collection")
 		u.set("foo", "bar")
+		objid = await u.execute()
+
+		obj = await storage.get("test-collection", objid)
+		u = storage.upsertor("test-collection", obj_id=objid, version=obj['_v'])
+		u.set("foo", "buzz")
 		objid = await u.execute()
 
 		obj = await storage.get("test-collection", objid)
