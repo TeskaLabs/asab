@@ -24,7 +24,7 @@ Following additional rules apply for imports:
 
 1. Use relative imports when you import locally from a package
 2. Use absolute imports when you import from external package
-3. Never use `from ... import XYZ` because it unnecessary increases complexity for readers (unless you have very very good reason for that)
+3. Never use from ... import XYZ because it unnecessarily increases complexity for readers (unless you have very good reason for that). The only exception is __init__.py where it is used for importing symbols that you want to expose as a given module public API
 
 ### Documenting functions, methods and classes
 
