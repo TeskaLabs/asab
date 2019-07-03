@@ -36,7 +36,7 @@ class Application(metaclass=Singleton):
 
 	Description = "This app is based on ASAB."
 
-	def __init__(self):
+	def __init__(self, args=None):
 
 		try:
 			# EX_OK code is not available on Windows
@@ -45,7 +45,7 @@ class Application(metaclass=Singleton):
 			self.ExitCode = 0
 
 		# Parse command line
-		args = self.parse_arguments()
+		args = self.parse_arguments(args=args)
 
 		# Load configuration
 		Config._load()
@@ -61,6 +61,10 @@ class Application(metaclass=Singleton):
 
 		# Obtain the event loop
 		self.Loop = asyncio.get_event_loop()
+		if self.Loop.is_closed():
+			self.Loop = asyncio.new_event_loop()
+			asyncio.set_event_loop(self.Loop)
+
 		self.LaunchTime = time.time() 
 		self.BaseTime = self.LaunchTime - self.Loop.time()
 
@@ -165,9 +169,9 @@ class Application(metaclass=Singleton):
 		return parser
 
 
-	def parse_arguments(self):
+	def parse_arguments(self, args=None):
 		parser = self.create_argument_parser()
-		args = parser.parse_args()
+		args = parser.parse_args(args=args)
 
 		if args.config is not None:
 			Config._default_values['general']['config_file'] = args.config
