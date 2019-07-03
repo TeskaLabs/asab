@@ -20,6 +20,11 @@ import logging
 ...
 ```
 
+Following additional rules apply for imports:
+
+1. Use relative imports when you import locally from a package
+2. Use absolute imports when you import from external package
+3. Never use `from ... import XYZ` because it unnecessary increases complexity for readers (unless you have very very good reason for that)
 
 ### Documenting functions, methods and classes
 
