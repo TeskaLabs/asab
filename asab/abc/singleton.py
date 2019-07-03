@@ -13,3 +13,13 @@ The `singleton pattern <https://en.wikipedia.org/wiki/Singleton_pattern>`_ is a 
 		if cls not in cls._instances:
 			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
 		return cls._instances[cls]
+
+	@classmethod
+	def delete(cls, singleton_cls):
+		'''
+		The method for an intentional removal of the singleton object.
+		It shouldn't be used unless you really know what you are doing.
+
+		One use case is a unit test, which removes an Application object after each iteration.
+		'''
+		del cls._instances[singleton_cls]
