@@ -13,7 +13,7 @@ class PubSub(object):
 
 
 	def __init__(self, app):
-		self.subscribers = {}
+		self.Subscribers = {}
 		self.Loop = app.Loop
 
 
@@ -31,10 +31,10 @@ class PubSub(object):
 		else:
 			callback = weakref.ref(callback)
 
-		if message_type not in self.subscribers:
-			self.subscribers[message_type] = set([callback])
+		if message_type not in self.Subscribers:
+			self.Subscribers[message_type] = [callback]
 		else:
-			self.subscribers[message_type].add(callback)
+			self.Subscribers[message_type].append(callback)
 
 
 	def subscribe_all(self, obj):
@@ -52,13 +52,13 @@ class PubSub(object):
 	def unsubscribe(self, message_type, callback):
 		""" Remove a subscriber of an message type from the set. """
 
-		callback_set = self.subscribers.get(message_type)
-		if callback_set is None:
+		callback_list = self.Subscribers.get(message_type)
+		if callback_list is None:
 			L.warning("Message type subscription '{}'' not found.".format(message_type))
 			return
 		else:
 			try:
-				callback_set.remove(callback)
+				callback_list.remove(callback)
 			except KeyError:
 				L.warning("Subscriber '{}'' not found for the message type '{}'.".format(message_type, callback))
 
@@ -68,20 +68,20 @@ class PubSub(object):
 		def _deliver_async(loop, callback, message_type, *args, **kwargs):
 			asyncio.ensure_future(callback(message_type, *args, **kwargs), loop=loop)
 
-		callback_set = self.subscribers.get(message_type)
-		if callback_set is None:
+		callback_list = self.Subscribers.get(message_type)
+		if callback_list is None:
 			return
 
-		remove_set = None
+		remove_list = None
 
-		for callback_ref in callback_set:
+		for callback_ref in callback_list:
 			callback = callback_ref()
 
 			# Check if a weak reference is working
 			if callback is None: # a reference is lost
-				if remove_set is None:
-					remove_set = set()
-				remove_set.add(callback_ref)
+				if remove_list is None:
+					remove_list = list()
+				remove_list.append(callback_ref)
 				continue
 
 			if asyncio.iscoroutinefunction(callback):
@@ -89,9 +89,9 @@ class PubSub(object):
 
 			yield callback
 
-		if remove_set is not None:
-			for callback_ref in remove_set:
-				callback_set.remove(callback_ref)
+		if remove_list is not None:
+			for callback_ref in remove_list:
+				callback_list.remove(callback_ref)
 
 
 	def publish(self, message_type, *args, **kwargs):
