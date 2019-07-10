@@ -22,11 +22,11 @@ class MyApplication(asab.Application):
 class DisapearingSubscriber(object):
 
 	async def on_non_ref(self, message_name):
-		print("---", message_name)
+		print("DisapearingSubscriber: ", message_name)
 
 
 def FunctionalSubscriber(message_name):
-	print("F:", message_name)
+	print("FunctionalSubscriber: ", message_name)
 
 
 
