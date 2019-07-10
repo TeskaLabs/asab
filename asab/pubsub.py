@@ -56,11 +56,33 @@ class PubSub(object):
 		if callback_list is None:
 			L.warning("Message type subscription '{}'' not found.".format(message_type))
 			return
+
+		remove_list = None
+
+		for i in range(len(callback_list)):
+			# Take an weakref entry in the callback list and references it
+			c = callback_list[i]()
+
+			# Check if a weak reference is working
+			if c is None: # a reference is lost, remove this entry
+				if remove_list is None:
+					remove_list = list()
+				remove_list.append(callback_ref)
+				continue
+
+			if c == callback:
+				callback_list.pop(i)
+				break
+
 		else:
-			try:
-				callback_list.remove(callback)
-			except KeyError:
-				L.warning("Subscriber '{}'' not found for the message type '{}'.".format(message_type, callback))
+			L.warning("Subscriber '{}'' not found for the message type '{}'.".format(message_type, callback))
+
+		if remove_list is not None:
+			for callback_ref in remove_list:
+				callback_list.remove(callback_ref)
+
+		if len(callback_list) == 0:
+			del self.Subscribers['message_type']
 
 
 	def _callback_iter(self, message_type):
