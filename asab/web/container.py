@@ -33,6 +33,7 @@ listen:
 	0.0.0.0 8080
 	:: 8080
 	0.0.0.0 8443 ssl:web
+	0.0.0.0:8001
 	'''
 
 
@@ -63,7 +64,13 @@ listen:
 		for line in ls.split('\n'):
 			line = line.strip()
 			if len(line) == 0: continue
-			line = re.split(r"[:\s]", line, 1)
+
+			if ' ' in line:
+				line = re.split(r"\s+", line)
+			else:
+				# This line allows the (obsolete) format of IPv4 with ':'
+				# such as "0.0.0.0:8001"
+				line = re.split(r"[:\s]", line, 1)
 			
 			addr = line.pop(0).strip()
 			port = line.pop(0).strip()
