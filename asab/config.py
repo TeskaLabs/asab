@@ -161,6 +161,10 @@ class ConfigObject(object):
 
 			# Merge config defaults of each base class in the 'inheritance' way
 			for key, value in base_class.ConfigDefaults.items():
+
+				if value is None:
+					raise ValueError("%s value for key %s in %s" % (value, key, base_class))
+
 				if key not in self.Config:
 					self.Config[key] = value
 		
