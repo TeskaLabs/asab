@@ -163,7 +163,7 @@ class ConfigObject(object):
 			for key, value in base_class.ConfigDefaults.items():
 
 				if value is None:
-					raise ValueError("%s value for key %s in %s" % (value, key, base_class))
+					raise ValueError("None value not allowed in ConfigDefaults. Found in %s:%s " % (config_section_name, key))
 
 				if key not in self.Config:
 					self.Config[key] = value
