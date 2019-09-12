@@ -65,6 +65,10 @@ class Application(metaclass=Singleton):
 			self.Loop = asyncio.new_event_loop()
 			asyncio.set_event_loop(self.Loop)
 
+		if args.profile:
+			from .metrics.profiling import EventLoopProfiler
+			self.Profiler = EventLoopProfiler(loop=self.Loop)
+
 		self.LaunchTime = time.time() 
 		self.BaseTime = self.LaunchTime - self.Loop.time()
 
@@ -160,6 +164,7 @@ class Application(metaclass=Singleton):
 		parser.add_argument('-c', '--config', help='specify a path to a configuration file')
 		parser.add_argument('-v', '--verbose', action='store_true', help='print more information (enable debug output)')
 		parser.add_argument('-s', '--syslog', action='store_true', help='enable logging to a syslog')
+		parser.add_argument('-p', '--profile', action='store_true', help='enable profiling of application')
 		parser.add_argument('-l', '--log-file', help='specify a path to a log file')
 
 		if daemon is not None:
@@ -181,6 +186,9 @@ class Application(metaclass=Singleton):
 
 		if args.syslog:
 			Config._default_values['logging:syslog']['enabled'] = True
+
+		if args.profile:
+			Config._default_values['general']['profile'] = True
 
 		if args.log_file:
 			Config._default_values['logging:file']['path'] = args.log_file

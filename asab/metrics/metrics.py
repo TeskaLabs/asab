@@ -72,6 +72,20 @@ class Counter(Metric):
 		return rest
 
 
+class ProfilingCounter(Counter):
+	"""
+	Counter used for profiling application
+	"""
+
+	def add_init_value(self, name, value):
+		self.Init[name] = value
+		self.Values[name] = value
+
+
+	def sub(self, *args):
+		raise NotImplementedError("Cannot subtract time spend on profiling")
+
+
 class DutyCycle(Metric):
 	'''
 	https://en.wikipedia.org/wiki/Duty_cycle

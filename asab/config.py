@@ -30,7 +30,7 @@ class ConfigParser(configparser.ConfigParser):
 			'config_file': os.environ.get('ASAB_CONFIG', ''),
 			'tick_period': 1, # In seconds
 			'var_dir': os.path.expanduser('~/.'+os.path.splitext(os.path.basename(sys.argv[0]))[0]),
-		
+			'profile': False,
 			# Daemonization
 			'pidfile': '!', # '!' has a special meaning => it transforms into platform specific location of pid file
 			'working_dir': '.',
