@@ -65,7 +65,7 @@ class Application(metaclass=Singleton):
 			self.Loop = asyncio.new_event_loop()
 			asyncio.set_event_loop(self.Loop)
 
-		if args.profile:
+		if args and args.profile:
 			from .metrics.profiling import EventLoopProfiler
 			self.Profiler = EventLoopProfiler(loop=self.Loop)
 
