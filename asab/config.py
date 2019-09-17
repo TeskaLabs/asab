@@ -106,6 +106,7 @@ class ConfigParser(configparser.ConfigParser):
 				sys.exit(1)
 
 			self.read(config_fname)
+
 		includes = self.get('general', 'include', fallback='')
 		if '\n' in includes:
 			sep = '\n'
