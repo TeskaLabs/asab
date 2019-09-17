@@ -113,8 +113,9 @@ class ConfigParser(configparser.ConfigParser):
 		else:
 			sep = os.pathsep
 		for include_glob in includes.split(sep):
-			include_glob = include_glob.strip()
+			include_glob = os.path.expandvars(include_glob.strip())
 			if len(include_glob) == 0: continue
+
 			for include in glob.glob(include_glob):
 				self.read(include)
 
