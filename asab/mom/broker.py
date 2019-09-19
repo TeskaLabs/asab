@@ -9,7 +9,30 @@ L = logging.getLogger(__name__)
 
 #
 
+
 class Broker(abc.ABC, asab.ConfigObject):
+	"""
+		Broker is implementation of object request broker (ORB) within the Message-oriented middleware concept.
+
+		Broker allows to register callbacks for "task" and "reply" procedures, via "add" method.
+		Tasks and replies are then distributed to the registered callbacks.
+
+			self.Broker.add("task", self.task_handler)
+			self.Broker.add("reply", self.reply_handler)
+
+		In order to connect broker with the middleware (such as RabbitMQ, see AMQPBroker in the "amqp" submodule),
+		it is needed that the broker is subscribed to task and reply queues in the middleware, via "subscribe" method.
+
+			self.Broker.subscribe("task.queue")
+
+		The method "publish" the serve to publish a task to the middleware.
+
+			await self.Broker.publish("Hello world!", target="task")
+
+		The brokers from different applications can be connected to the same middleware,
+		where one application may publish tasks, while others process them and publish replies.
+	"""
+
 
 	def __init__(self, app, accept_replies:bool, task_service, config_section_name:str, config=None):
 		if task_service == None:
