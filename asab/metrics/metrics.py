@@ -72,6 +72,45 @@ class Counter(Metric):
 		return rest
 
 
+class ProfilingCounter(Metric):
+	"""
+	Counter used for profiling application
+	"""
+
+	def __init__(self, name, tags, reset: bool = False):
+		super().__init__(name=name, tags=tags)
+		self.Reset = reset
+		self.Init = {}
+		self.Values = {}
+		self.ProfilingStarted = {}
+
+	def flush(self) -> dict:
+		ret = self.Values
+		if self.Reset:
+			self.Values = self.Init.copy()
+		return ret
+
+	def add_measured_time(self, processor, value):
+		"""
+		Add custom measured time to processor
+		"""
+		try:
+			measured, count = self.Values[processor.Id]
+		except KeyError:
+			self.Init[processor.Id] = (0, 0)
+			measured, count = self.Values[processor.Id] = (0,  0)
+
+		measured += value
+		count += 1
+
+		self.Values[processor.Id] = (measured, count)
+
+	def rest_get(self):
+		rest = super().rest_get()
+		rest['Values'] = self.Values
+		return rest
+
+
 class DutyCycle(Metric):
 	'''
 	https://en.wikipedia.org/wiki/Duty_cycle
