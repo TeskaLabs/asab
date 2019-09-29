@@ -20,6 +20,26 @@ L = logging.getLogger(__name__)
 
 #
 
+
+def pubkeyauth_direct_middleware_factory(app, *args, **kwargs):
+
+	@aiohttp.web.middleware
+	async def pubkeyauth_direct_middleware(request, handler):
+		return await handler(request)
+
+	return pubkeyauth_direct_middleware
+
+
+def pubkeyauth_proxy_middleware_factory(app, *args, **kwargs):
+
+	@aiohttp.web.middleware
+	async def pubkeyauth_proxy_middleware(request, handler):
+		return await handler(request)
+
+	return pubkeyauth_proxy_middleware
+
+
+
 class PublicKeyAuthorization(ConfigObject):
 
 	'''

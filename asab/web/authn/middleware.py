@@ -1,4 +1,5 @@
 import aiohttp
+import aiohttp.web
 
 import asab
 import asab.web.rest
@@ -14,6 +15,14 @@ def authn_middleware_factory(app, implementation, *args, **kwargs):
 		from .basicauth import basicauth_middleware_factory
 		return basicauth_middleware_factory(app, *args, **kwargs)
 
+	elif implementation == "pubkeyauth:direct":
+		from .pubkeyauth import pubkeyauth_direct_middleware_factory
+		return pubkeyauth_direct_middleware_factory(app, *args, **kwargs)
+
+	elif implementation == "pubkeyauth:proxy":
+		from .pubkeyauth import pubkeyauth_proxy_middleware_factory
+		return pubkeyauth_proxy_middleware_factory(app, *args, **kwargs)
+
 	elif factory_function is None:
 		raise RuntimeError("Unknown authentication implementation '{}'".format(implementation))
 
@@ -25,9 +34,7 @@ def authn_required_handler(func):
 		try:
 			kargs['identity'] = request.Identity
 		except AttributeError:
-			return asab.web.rest.json_response(request, {
-				'result': 'AUTHENTICATION-REQUIRED',
-			}, status=401)
+			raise aiohttp.web.HTTPUnauthorized()
 		return await func(*args, **kargs)
 
 	return wrapper
