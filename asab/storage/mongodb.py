@@ -117,11 +117,8 @@ class MongoDBUpsertor(UpsertorABC):
 
 
 		filter = {id_name : self.ObjId}
-		if self.Version is not None and self.Version != 0:
-			filter['_v'] = self.Version
-		elif self.Version == 0:
-			# This ensures a failure if version 0 is required (new insert) and a document already exists
-			filter['_v'] = 0
+		if self.Version is not None:
+			filter['_v'] = int(self.Version)
 
 		# First wave (adding stuff)
 		if len(addobj) > 0:
