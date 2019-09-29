@@ -15,15 +15,11 @@ def authn_middleware_factory(app, implementation, *args, **kwargs):
 		from .basicauth import basicauth_middleware_factory
 		return basicauth_middleware_factory(app, *args, **kwargs)
 
-	elif implementation == "pubkeyauth:direct":
-		from .pubkeyauth import pubkeyauth_direct_middleware_factory
-		return pubkeyauth_direct_middleware_factory(app, *args, **kwargs)
+	elif implementation == "pubkeyauth":
+		from .pubkeyauth import pubkeyauth_middleware_factory
+		return pubkeyauth_middleware_factory(app, *args, **kwargs)
 
-	elif implementation == "pubkeyauth:proxy":
-		from .pubkeyauth import pubkeyauth_proxy_middleware_factory
-		return pubkeyauth_proxy_middleware_factory(app, *args, **kwargs)
-
-	elif factory_function is None:
+	else:
 		raise RuntimeError("Unknown authentication implementation '{}'".format(implementation))
 
 

@@ -40,8 +40,13 @@ class MyApplication(asab.Application):
 		# Create a dedicated web container
 		container = asab.web.WebContainer(websvc, 'example:web')
 
+		self.PublicKeyAuthenticationService = asab.web.authn.pubkeyauth.PublicKeyAuthenticationService(
+			self,
+			config_section_name="authn:pubkey:example:web"
+		)
+
 		container.WebApp.middlewares.append(
-			asab.web.authn.authn_middleware_factory(self, "pubkeyauth:direct")
+			asab.web.authn.authn_middleware_factory(self, "pubkeyauth", service=self.PublicKeyAuthenticationService)
 		)
 
 		container.WebApp.router.add_get('/', self.handler)
