@@ -18,6 +18,7 @@ Undocumented items:
 	- Web Rest object introspection (.get_rest() JSON serializer)
 	- app.LaunchTime (and app.BaseTime)
 	- ASAB networking (move StreamSocket class there)
+	- asab.web.auth.publickey.PublicKeyAuthorization
 
 Enhancements:
 
