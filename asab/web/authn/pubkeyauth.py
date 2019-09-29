@@ -13,6 +13,7 @@ import cryptography.hazmat.primitives.serialization
 
 from ...pdict import PersistentDict
 from ...config import ConfigObject
+from ... import Service
 
 #
 
@@ -20,11 +21,49 @@ L = logging.getLogger(__name__)
 
 #
 
+'''
+This is an authentification that uses public keys of authorized clients.
+Clients should provide a certificate via TLS handshake (aka mutual TLS authorization).
+
+Client certificates are issued by a dedicated Certificate Authority. You can establish your own.
+A public certificate of the client has to be placed into a client certificate directory of the server.
+
+This authentication is designed from machine-to-machine websocket communication with small amount of requests.
+It validates the certificate/public keys every time the client hits the server.
+That is OK for long-lived WebSockets, but not scalable for a regular HTTP traffic.
+
+'''
+
+
 
 def pubkeyauth_direct_middleware_factory(app, *args, **kwargs):
 
 	@aiohttp.web.middleware
 	async def pubkeyauth_direct_middleware(request, handler):
+		'''
+		This middleware is used when ASAB is working directly with SSL socket
+		'''
+		ssl_object = request.transport.get_extra_info('ssl_object')
+		if ssl_object is None: 
+			# The connection is not a SSL
+			return await handler(request)
+
+		cert = ssl_object.getpeercert(binary_form=True)
+		if cert is None:
+			# The client doesn't provided a certificate
+			return await handler(request)
+
+		try:
+			cert = cryptography.x509.load_der_x509_certificate(
+				cert,
+				cryptography.hazmat.backends.default_backend()
+			)
+		except:
+			L.exception("Error when parsing a client certificate")
+			return await handler(request)
+		
+		request.Identity = cert.subject.rfc4514_string()
+
 		return await handler(request)
 
 	return pubkeyauth_direct_middleware
@@ -34,115 +73,6 @@ def pubkeyauth_proxy_middleware_factory(app, *args, **kwargs):
 
 	@aiohttp.web.middleware
 	async def pubkeyauth_proxy_middleware(request, handler):
-		return await handler(request)
-
-	return pubkeyauth_proxy_middleware
-
-
-
-class PublicKeyAuthorization(ConfigObject):
-
-	'''
-	This is an authorization middleware that uses the whitelist of public keys of authorized clients.
-	Clients should provide a certificate via TLS handshake (aka mutual TLS authorization).
-	The public key from a certificate is then matched with certificates that are stored in the directory cache.
-	A client is authorized when the matching certificate is found, otherwise "HTTPUnauthorized" (401) is raised.
-
-	Client certificates are issued by a dedicated Certificate Authority. You can establish your own.
-	A public certificate of the client has to be placed into a client certificate directory of the server.
-
-	This authorization is designed from machine-to-machine websocket communication with small amount of requests.
-	It validates the certificate/public keys every time the client hits the server.
-	That is OK for long-lived WebSockets, but not scalable for a regular HTTP traffic.
-
-	Example of use: 
-
-	pka = asab.web.auth.publickey.PublicKeyAuthorization(app)
-	app.WebContainer.WebApp.middlewares.append(pka.middleware)
-
-	'''
-
-	ConfigDefaults = {
-		'pubkeyauth:dir': './',
-		'pubkeyauth:glob': '*-cert.pem',
-		'pubkeyauth:index': '.index.bin',
-		'pubkeyauth:mode': 'ssl', # Or Proxy
-		'pubkeyauth:proxy-ssl-header': 'X-Forwarded-Client-Cert', # What header is used to transport client cert
-	}
-
-	def __init__(self, app, config_section_name='asab:web:auth:publickey', config=None):
-		super().__init__(config_section_name, config)
-
-		self.ClientCertDir = self.Config.get('pubkeyauth:dir')
-		self.ClientCertGlob = self.Config.get('pubkeyauth:glob')
-		self.IndexPDict = PersistentDict(os.path.join(self.ClientCertDir, self.Config.get('pubkeyauth:index')))
-
-		mode = self.Config.get('pubkeyauth:mode').lower()
-		if mode == 'ssl':
-			self.middleware = self.middleware_ssl
-		elif mode == 'proxy':
-			self.middleware = self.middleware_proxy
-			self.ProxySSLHeader = self.Config.get('pubkeyauth:proxy-ssl-header')
-		else:
-			raise RuntimeError("Unknown value '{}' for '{}'".format(mode, 'pubkeyauth:mode'))
-
-
-	def authorize(self, public_key):
-		pk_digest = self.get_public_key_digest(public_key)
-
-		entry = self.IndexPDict.get(pk_digest)
-		if entry is None:
-			# Key not found in the index, let's scan the directory
-			self._scan_dir()
-			entry = self.IndexPDict.get(pk_digest)
-		
-		if entry is None:
-			print("Authorization failed - public key not found")
-			return False
-
-		assert(entry is not None)
-
-		pk_digest1 = self.get_public_key_digest_from_filename(entry)
-		if pk_digest1 is None:
-			return False
-
-		return pk_digest == pk_digest1
-
-
-	def _scan_dir(self):
-		known_fnames = frozenset(self.IndexPDict.values())
-		for fname in glob.glob(os.path.join(self.ClientCertDir, self.ClientCertGlob)):
-			if fname in known_fnames: continue
-			pk_digest = self.get_public_key_digest_from_filename(fname)
-			self.IndexPDict[pk_digest] = fname
-
-
-	def get_public_key_digest_from_filename(self, fname):
-		try:
-			with open(fname, 'rb') as f:
-				# Load a client certificate in PEM format
-				cert = cryptography.x509.load_pem_x509_certificate(
-					f.read(),
-					cryptography.hazmat.backends.default_backend()
-				)
-		except:
-			return None
-
-		return self.get_public_key_digest(cert.public_key())
-
-
-	def get_public_key_digest(self, public_key):
-		# Hash the public key
-		public_key_bytes = public_key.public_bytes(
-			cryptography.hazmat.primitives.serialization.Encoding.DER,
-			cryptography.hazmat.primitives.serialization.PublicFormat.SubjectPublicKeyInfo
-		)
-		h = hashlib.blake2b(public_key_bytes)
-		return h.digest()
-
-
-	@aiohttp.web.middleware
-	async def middleware_proxy(self, request, handler):
 		'''
 		This middleware is used when ASAB is working behind a SSL-terminating proxy.
 		Client certificate is expected in X-SSL-Client-Cert
@@ -186,9 +116,9 @@ server {
 
 		'''
 
-		cert = request.headers.get(self.ProxySSLHeader)
+		cert = request.headers.get('X-Forwarded-Client-Cert')
 		if cert is None:
-			raise aiohttp.web.HTTPUnauthorized()
+			return await handler(request)
 		cert = urllib.parse.unquote_to_bytes(cert)
 
 		try:
@@ -198,39 +128,13 @@ server {
 			)
 		except:
 			L.exception("Error when parsing a client certificate")
-			raise aiohttp.web.HTTPUnauthorized()
+			return await handler(request)
 		
-		if not self.authorize(cert.public_key()):
-			raise aiohttp.web.HTTPUnauthorized()
+		request.Identity = cert.subject.rfc4514_string()
 
 		return await handler(request)
 
 
-	@aiohttp.web.middleware
-	async def middleware_ssl(self, request, handler):
-		'''
-		This middleware is used when ASAB is working directly with SSL socket
-		'''
-		ssl_object = request.transport.get_extra_info('ssl_object')
-		if ssl_object is None:
-			# The connection is not a SSL
-			raise aiohttp.web.HTTPUnauthorized()
+	return pubkeyauth_proxy_middleware
 
-		cert = ssl_object.getpeercert(binary_form=True)
-		if cert is None:
-			# The client doesn't provided a certificate
-			raise aiohttp.web.HTTPUnauthorized()
 
-		try:
-			cert = cryptography.x509.load_der_x509_certificate(
-				cert,
-				cryptography.hazmat.backends.default_backend()
-			)
-		except:
-			L.exception("Error when parsing a client certificate")
-			raise aiohttp.web.HTTPUnauthorized()
-		
-		if not self.authorize(cert.public_key()):
-			raise aiohttp.web.HTTPUnauthorized()
-
-		return await handler(request)

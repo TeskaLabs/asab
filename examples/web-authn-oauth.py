@@ -50,7 +50,9 @@ class MyOAuthSecuredApplication(asab.Application):
 		container = asab.web.WebContainer(websvc, 'example:oauth')
 
 		# Add middleware for authentication via oauth2
-		container.WebApp.middlewares.append(asab.web.authn.authn_middleware("oauth2client", asab.Config["general"]["oauth_user_info_url"]))
+		container.WebApp.middlewares.append(
+			asab.web.authn.authn_middleware_factory(self, "oauth2client", asab.Config["general"]["oauth_user_info_url"])
+		)
 
 		# Enable exception to JSON exception middleware
 		container.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
@@ -59,7 +61,7 @@ class MyOAuthSecuredApplication(asab.Application):
 		container.WebApp.router.add_get('/user', self.user)
 
 	@asab.web.authn.authn_required_handler
-	async def user(self, request, *, authn_identity):
+	async def user(self, request, *, identity):
 		return asab.web.rest.json_response(request=request, data={
 			'message': '"{}", you have accessed our secured "user" endpoint.'.format(
 				authn_identity.get("login", json.dumps(authn_identity))
