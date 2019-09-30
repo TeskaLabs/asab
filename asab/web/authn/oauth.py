@@ -11,9 +11,7 @@ def oauthclient_middleware_factory(app, *args, url, **kwargs):
 
 		authorization = request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
 		if authorization is None:
-			return asab.web.rest.json_response(request, {
-				"result": "AUTHORIZATION-NOT-PROVIDED"
-			})
+			return await handler(request)
 
 		async with aiohttp.ClientSession() as session:
 			async with session.get(url, headers={"Authorization": authorization}) as resp:
@@ -21,14 +19,9 @@ def oauthclient_middleware_factory(app, *args, url, **kwargs):
 					identity = await resp.json()
 					if identity is not None:
 						request.Identity = identity
-						return await handler(request)
 				else:
-					return asab.web.rest.json_response(request, {
-						"result": "AUTHORIZATION-FAILED"
-					})
+					raise RuntimeError("Call to OAuth server '{}' failed with status code '{}'.".format(url, resp.status))
 
-		return asab.web.rest.json_response(request, {
-			"result": "AUTHORIZATION-ERROR"
-		})
+		return await handler(request)
 
 	return oauthclient_middleware
