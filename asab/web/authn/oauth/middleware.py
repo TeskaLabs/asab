@@ -31,7 +31,8 @@ def oauthclient_middleware_factory(app, *args, methods, **kwargs):
 			return await handler(request)
 
 		oauth_server_id = oauth_server_id_access_token[0]
-		access_token = oauth_server_id_access_token[1]
+		access_token = '-'.join(oauth_server_id_access_token[1:])
+		print(access_token)
 
 		selected_method = None
 		for method in methods:
