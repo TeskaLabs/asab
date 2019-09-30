@@ -1,9 +1,6 @@
 import aiohttp
 import aiohttp.web
 
-import asab
-import asab.web.rest
-
 
 def authn_middleware_factory(app, implementation, *args, **kwargs):
 		
@@ -43,11 +40,6 @@ def authn_required_handler(func):
 		except AttributeError:
 			raise aiohttp.web.HTTPUnauthorized()
 
-		try:
-			kargs['oauth_user_info'] = request.OAuthUserInfo
-		except AttributeError:
-			kargs['oauth_user_info'] = None
-
 		return await func(*args, **kargs)
 
 	return wrapper
@@ -73,11 +65,6 @@ def authn_optional_handler(func):
 			kargs['identity'] = request.Identity
 		except AttributeError:
 			kargs['identity'] = None
-
-		try:
-			kargs['oauth_user_info'] = request.OAuthUserInfo
-		except AttributeError:
-			kargs['oauth_user_info'] = None
 
 		return await func(*args, **kargs)
 

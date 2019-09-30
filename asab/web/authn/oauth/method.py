@@ -19,7 +19,7 @@ class ABCOAuthMethod(abc.ABC):
 class GitHubOAuthMethod(ABCOAuthMethod):
 
 	def get_oauth_server_id(self):
-		return "github"
+		return "github.com"
 
 	def get_oauth_userinfo_url(self):
 		return 'https://api.github.com/user'
