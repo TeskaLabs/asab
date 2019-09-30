@@ -24,6 +24,16 @@ def authn_middleware_factory(app, implementation, *args, **kwargs):
 
 
 def authn_required_handler(func):
+	'''
+	The web handler method require the authentication.
+	The peer identity is available in the `identity` keywork argument.
+
+	Example of use:
+
+	@asab.web.authn.authn_required_handler
+	async def endpoint(self, request, *, identity):
+		...
+	'''
 
 	async def wrapper(*args, **kargs):
 		request = args[-1]
@@ -37,6 +47,17 @@ def authn_required_handler(func):
 
 
 def authn_optional_handler(func):
+	'''
+	The web handler method request the OPTINAL authentication.
+	The peer identity is available in the `identity` keywork argument.
+	`identity` is None if the peer has not provided authentication info.
+
+	Example of use:
+
+	@asab.web.authn.authn_optional_handler
+	async def endpoint(self, request, *, identity):
+		...
+	'''
 
 	async def wrapper(*args, **kargs):
 		request = args[-1]
