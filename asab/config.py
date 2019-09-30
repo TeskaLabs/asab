@@ -213,3 +213,7 @@ class ConfigObjectDict(MutableMapping):
 			raise ValueError('Not a boolean: %s' % value)
 		return configparser.ConfigParser.BOOLEAN_STATES[value.lower()]
 
+
+	def __repr__(self):
+		return "<%s %r>" % (self.__class__.__name__, self._data)
+

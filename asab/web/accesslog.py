@@ -21,6 +21,9 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 		if response.content_length is not None:
 			struct_data['al.b'] = response.content_length
 
+		if hasattr(request, 'Identity'):
+			struct_data['i'] = request.Identity
+
 		agent = request.headers.get('User-Agent')
 		if agent is not None:
 			struct_data['al.A'] = agent

@@ -1,38 +1,71 @@
 import aiohttp
-
-import asab
-import asab.web.rest
-
-from .oauth import oauthclient_middleware_factory
+import aiohttp.web
 
 
-def authn_middleware(implementation, url):
+def authn_middleware_factory(app, implementation, *args, **kwargs):
+		
+	if implementation == "oauth2client":
+		from .oauth import oauthclient_middleware_factory
+		return oauthclient_middleware_factory(app, *args, **kwargs)
 
-	FactoryFunctions = {
-		"oauth2client": oauthclient_middleware_factory
-	}
+	elif implementation == "basicauth":
+		from .basicauth import basicauth_middleware_factory
+		return basicauth_middleware_factory(app, *args, **kwargs)
 
-	@aiohttp.web.middleware
-	async def authn_middleware_factory(request, handler):
-		factory_function = FactoryFunctions.get(implementation, None)
-		if factory_function is None:
-			raise RuntimeError("Specified implementation '{}' is not available.".format(implementation))
+	elif implementation == "pubkeyauth":
+		from .pubkeyauth import pubkeyauth_middleware_factory
+		return pubkeyauth_middleware_factory(app, *args, **kwargs)
 
-		return await factory_function(request, handler, url)
-
-	return authn_middleware_factory
+	else:
+		raise RuntimeError("Unknown authentication implementation '{}'".format(implementation))
 
 
 def authn_required_handler(func):
+	'''
+	The web handler method require the authentication.
+	The peer identity is available in the `identity` keywork argument.
+
+	Example of use:
+
+	@asab.web.authn.authn_required_handler
+	async def endpoint(self, request, *, identity):
+		...
+	'''
 
 	async def wrapper(*args, **kargs):
 		request = args[-1]
+
 		try:
-			kargs['authn_identity'] = request.Identity
+			kargs['identity'] = request.Identity
 		except AttributeError:
-			return asab.web.rest.json_response(request, {
-				'result': 'IDENTITY-NOT-FOUND',
-			}, status=404)
+			raise aiohttp.web.HTTPUnauthorized()
+
+		return await func(*args, **kargs)
+
+	return wrapper
+
+
+def authn_optional_handler(func):
+	'''
+	The web handler method request the OPTINAL authentication.
+	The peer identity is available in the `identity` keywork argument.
+	`identity` is None if the peer has not provided authentication info.
+
+	Example of use:
+
+	@asab.web.authn.authn_optional_handler
+	async def endpoint(self, request, *, identity):
+		...
+	'''
+
+	async def wrapper(*args, **kargs):
+		request = args[-1]
+
+		try:
+			kargs['identity'] = request.Identity
+		except AttributeError:
+			kargs['identity'] = None
+
 		return await func(*args, **kargs)
 
 	return wrapper
