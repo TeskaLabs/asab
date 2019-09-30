@@ -37,10 +37,17 @@ def authn_required_handler(func):
 
 	async def wrapper(*args, **kargs):
 		request = args[-1]
+
 		try:
 			kargs['identity'] = request.Identity
 		except AttributeError:
 			raise aiohttp.web.HTTPUnauthorized()
+
+		try:
+			kargs['oauth_user_info'] = request.OAuthUserInfo
+		except AttributeError:
+			kargs['oauth_user_info'] = None
+
 		return await func(*args, **kargs)
 
 	return wrapper
@@ -61,10 +68,17 @@ def authn_optional_handler(func):
 
 	async def wrapper(*args, **kargs):
 		request = args[-1]
+
 		try:
 			kargs['identity'] = request.Identity
 		except AttributeError:
 			kargs['identity'] = None
+
+		try:
+			kargs['oauth_user_info'] = request.OAuthUserInfo
+		except AttributeError:
+			kargs['oauth_user_info'] = None
+
 		return await func(*args, **kargs)
 
 	return wrapper
