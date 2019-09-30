@@ -37,14 +37,14 @@ def oauthclient_middleware_factory(app, *args, methods, **kwargs):
 			return await handler(request)
 
 		bearer = bearer_oauth[0]
-		oauth_server_id_access_token = bearer_oauth[1].split('-')
+		oauth_server_id_access_token = bearer_oauth[1].split('-', 1)
 
 		if len(oauth_server_id_access_token) < 2:
 			L.warn("Authorization header's bearer '{}' is not in proper '<OAUTH-SERVER-ID>-<ACCESS_TOKEN>' format.".format(bearer_oauth[1]))
 			return await handler(request)
 
 		oauth_server_id = oauth_server_id_access_token[0]
-		access_token = '-'.join(oauth_server_id_access_token[1:])
+		access_token = oauth_server_id_access_token[1]
 
 		method = methods_dict.get(oauth_server_id)
 
