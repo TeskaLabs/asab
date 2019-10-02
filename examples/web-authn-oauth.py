@@ -44,7 +44,13 @@ class MyOAuthSecuredApplication(asab.Application):
 
 		# Add middleware for authentication via oauth2
 		container.WebApp.middlewares.append(
-			asab.web.authn.authn_middleware_factory(self, "oauth2client", methods=[asab.web.authn.oauth.GitHubOAuthMethod()])
+			asab.web.authn.authn_middleware_factory(self,
+				"oauth2client",
+				methods=[
+					# Use GitHub OAuth provider
+					asab.web.authn.oauth.GitHubOAuthMethod(),
+				],
+			)
 		)
 
 		# Enable exception to JSON exception middleware
