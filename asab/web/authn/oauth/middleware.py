@@ -9,13 +9,13 @@ L = logging.getLogger(__name__)
 #
 
 
-def oauthclient_middleware_factory(app, *args, methods, expiration_diff=60*60, **kwargs):
+def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity=60*60, **kwargs):
 	"""
 	Serves to connect with the user info endpoint of OAuth 2.0 server to obtain identity of the user
 	associated with the provided access token.
 
 	:methods is a list that specifies the identification of OAuth servers such as [asab.web.authn.oauth.GitHubOAuthMethod()]
-	:expiration_diff is an integer that specifies the number of seconds after which the cached identity expires
+	:identity_cache_longevity is an integer that specifies the number of seconds after which the cached identity expires
 
 	The expected format of Authorization header is:
 	Authorization: Bearer <OAUTH-SERVER-ID>-<ACCESS_TOKEN>
@@ -78,7 +78,7 @@ def oauthclient_middleware_factory(app, *args, methods, expiration_diff=60*60, *
 						cache[oauth_server_id_access_token] = {
 							"OAuthUserInfo": request.OAuthUserInfo,
 							"Identity": request.Identity,
-							"Expiration": time.time() + expiration_diff
+							"Expiration": time.time() + identity_cache_longevity
 						}
 				else:
 					raise RuntimeError("Call to OAuth server '{}' failed with status code '{}'.".format(oauth_userinfo_url, resp.status))
