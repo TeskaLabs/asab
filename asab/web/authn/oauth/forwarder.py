@@ -32,8 +32,12 @@ class OAuthForwarder(object):
 		container.WebApp.router.add_get('/identity', self.identity)
 		container.WebApp.router.add_post('/invalidate', self.invalidate)
 
-	# Forwards "Access Token Request", see https://tools.ietf.org/html/rfc6749#section-4.1.3
 	async def token(self, request):
+		"""
+		Forwards "Access Token Request", see https://tools.ietf.org/html/rfc6749#section-4.1.3
+		:param request: received aiohttp request
+		:return: json_response
+		"""
 		method = await self._get_method(request)
 		if method is None:
 			raise aiohttp.web.HTTPNotFound()
@@ -43,8 +47,12 @@ class OAuthForwarder(object):
 		response = await self._forward_post(request, method.Config["token_url"])
 		return json_response(request=request, data=response)
 
-	# Forwards "UserInfo Request", see https://connect2id.com/products/server/docs/api/userinfo
 	async def identity(self, request):
+		"""
+		Forwards "UserInfo Request", see https://connect2id.com/products/server/docs/api/userinfo
+		:param request: received aiohttp request
+		:return: json_response
+		"""
 		method = await self._get_method(request)
 		if method is None:
 			raise aiohttp.web.HTTPNotFound()
@@ -54,8 +62,12 @@ class OAuthForwarder(object):
 		response = await self._forward_get(request, method.Config["identity_url"])
 		return json_response(request=request, data=response)
 
-	# Forwards "Revocation Request", see https://tools.ietf.org/html/rfc7009#page-4
 	async def invalidate(self, request):
+		"""
+		Forwards "Revocation Request", see https://tools.ietf.org/html/rfc7009#page-4
+		:param request: received aiohttp request
+		:return: json_response
+		"""
 		method = await self._get_method(request)
 		if method is None:
 			raise aiohttp.web.HTTPNotFound()
