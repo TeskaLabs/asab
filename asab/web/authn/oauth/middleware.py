@@ -24,7 +24,7 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 	https://connect2id.com/products/server/docs/api/userinfo
 	"""
 
-	cache = {}
+	identity_cache = {}
 
 	methods_dict = {}
 	for method in methods:
@@ -49,11 +49,12 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 			L.warn("Authorization header's bearer '{}' is not in proper '<OAUTH-SERVER-ID>-<ACCESS_TOKEN>' format.".format(bearer_oauth[1]))
 			return await handler(request)
 
-		cached_identity_dict = cache.get(oauth_server_id_access_token)
+		cached_identity_dict = identity_cache.get(oauth_server_id_access_token)
 		if cached_identity_dict is not None:
+			# This is "cache hit" branch
 			expiration = cached_identity_dict.get("Expiration", time.time())
 			if expiration < time.time():
-				del cache[oauth_server_id_access_token]
+				del identity_cache[oauth_server_id_access_token]
 			else:
 				request.OAuthUserInfo = cached_identity_dict.get("OAuthUserInfo")
 				request.Identity = cached_identity_dict.get("Identity")
@@ -75,7 +76,7 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 					if oauth_user_info is not None:
 						request.OAuthUserInfo = oauth_user_info
 						request.Identity = method.get_identity_from_oauth_user_info(oauth_user_info)
-						cache[oauth_server_id_access_token] = {
+						identity_cache[oauth_server_id_access_token] = {
 							"OAuthUserInfo": request.OAuthUserInfo,
 							"Identity": request.Identity,
 							"Expiration": time.time() + identity_cache_longevity
