@@ -49,15 +49,15 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 			L.warn("Authorization header's bearer '{}' is not in proper '<OAUTH-SERVER-ID>-<ACCESS_TOKEN>' format.".format(bearer_oauth[1]))
 			return await handler(request)
 
-		cached_identity_dict = identity_cache.get(oauth_server_id_access_token)
-		if cached_identity_dict is not None:
+		identity = identity_cache.get(oauth_server_id_access_token)
+		if identity is not None:
 			# This is "cache hit" branch
-			expiration = cached_identity_dict.get("Expiration", time.time())
+			expiration = identity.get("Expiration", time.time())
 			if expiration < time.time():
 				del identity_cache[oauth_server_id_access_token]
 			else:
-				request.OAuthUserInfo = cached_identity_dict.get("OAuthUserInfo")
-				request.Identity = cached_identity_dict.get("Identity")
+				request.OAuthUserInfo = identity.get("OAuthUserInfo")
+				request.Identity = identity.get("Identity")
 				return await handler(request)
 
 		oauth_server_id, access_token = oauth_server_id_access_token.split('-', 1)
