@@ -57,11 +57,11 @@ class MyOAuthSecuredApplication(asab.Application):
 		container.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 
 		# Register useful OAuth endpoints
-		asab.web.authn.oauth.add_oauth_client(container=container, proxies=[asab.web.authn.oauth.OAuthProxy(config={
-				"oauth_server_id": "github.com",
-				"token_url": "https://github.com/login/oauth/access_token",
-				"identity_url": "https://api.github.com/user",
-			})])
+		asab.web.authn.oauth.OAuthForwarder(container=container, methods=[
+					# Use GitHub OAuth provider
+					asab.web.authn.oauth.GitHubOAuthMethod(),
+				]
+		)
 
 		# Add a route
 		container.WebApp.router.add_get('/user', self.user)
