@@ -28,7 +28,7 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 
 	methods_dict = {}
 	for method in methods:
-		methods_dict[method.get_oauth_server_id()] = method
+		methods_dict[method.Config["oauth_server_id"]] = method
 
 	@aiohttp.web.middleware
 	async def oauthclient_middleware(request, handler):
@@ -68,14 +68,14 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 			L.warn("Method for OAuth server id '{}' was not found.".format(oauth_server_id))
 			return await handler(request)
 
-		oauth_userinfo_url = method.get_oauth_userinfo_url()
+		oauth_userinfo_url = method.Config["identity_url"]
 		async with aiohttp.ClientSession() as session:
 			async with session.get(oauth_userinfo_url, headers={"Authorization": "{} {}".format(bearer, access_token)}) as resp:
 				if resp.status == 200:
 					oauth_user_info = await resp.json()
 					if oauth_user_info is not None:
 						request.OAuthUserInfo = oauth_user_info
-						request.Identity = method.get_identity_from_oauth_user_info(oauth_user_info)
+						request.Identity = method.extract_identity(oauth_user_info)
 						identity_cache[oauth_server_id_access_token] = {
 							"OAuthUserInfo": request.OAuthUserInfo,
 							"Identity": request.Identity,

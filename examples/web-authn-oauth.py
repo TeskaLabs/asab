@@ -56,6 +56,13 @@ class MyOAuthSecuredApplication(asab.Application):
 		# Enable exception to JSON exception middleware
 		container.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 
+		# Register useful OAuth endpoints
+		asab.web.authn.oauth.OAuthForwarder(container=container, methods=[
+					# Use GitHub OAuth provider
+					asab.web.authn.oauth.GitHubOAuthMethod(),
+				]
+		)
+
 		# Add a route
 		container.WebApp.router.add_get('/user', self.user)
 
