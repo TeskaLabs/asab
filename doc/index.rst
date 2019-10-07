@@ -17,6 +17,7 @@
    :caption: Services
 
    asab/web/index
+   asab/web/authn
    asab/mom/index
    asab/metrics
 

@@ -60,3 +60,16 @@ authorization and receive user identity in the :any:`identity` argument:
         return asab.web.rest.json_response(request=request, data={
             'message': '"{}", you have accessed our secured "user" endpoint.'.format(identity),
         })
+
+
+Example
+------------
+
+To see & try the full example which utilizes OAuth 2.0 middleware and decorators, please see the code
+in the following link:
+
+`https://github.com/TeskaLabs/asab/blob/master/examples/web-authn-oauth.py <https://github.com/TeskaLabs/asab/blob/master/examples/web-authn-oauth.py>`_
+
+Another example serves to demonstrate the public/private key authorization via ASAB web client ssl cert authorization:
+
+`https://github.com/TeskaLabs/asab/blob/master/examples/web-authn-pubkey.py <https://github.com/TeskaLabs/asab/blob/master/examples/web-authn-pubkey.py>`_
