@@ -7,10 +7,9 @@ class ABCOAuthMethod(abc.ABC, ConfigObject):
 
 	ConfigDefaults = {
 		"oauth_server_id": "teskalabs.com",
-		"token_url": "http://localhost:8080/token_endpoint/token_request",  # POST -> to receive access token and refresh token
-		"identity_url": "http://localhost:8080/identity_provider/identity",  # GET -> UserInfo identity
-		"invalidate_url": "",  # POST -> Invalidate a token
-		"forgot_url": "",  # POST -> Send request for a forgot password or other identity credentials
+		"token_url": "http://localhost:8080/token_endpoint/token_request",  # Forwards "Access Token Request", see https://tools.ietf.org/html/rfc6749#section-4.1.3
+		"identity_url": "http://localhost:8080/identity_provider/identity",  # Forwards "UserInfo Request", see https://connect2id.com/products/server/docs/api/userinfo
+		"invalidate_url": "",  # Forwards "Revocation Request", see https://tools.ietf.org/html/rfc7009#page-4
 	}
 
 	def __init__(self, config_section_name=None, config=None):

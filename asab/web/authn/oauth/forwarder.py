@@ -31,9 +31,8 @@ class OAuthForwarder(object):
 		container.WebApp.router.add_post('/token', self.token)
 		container.WebApp.router.add_get('/identity', self.identity)
 		container.WebApp.router.add_post('/invalidate', self.invalidate)
-		container.WebApp.router.add_post('/forgot', self.forgot)
 
-
+	# Forwards "Access Token Request", see https://tools.ietf.org/html/rfc6749#section-4.1.3
 	async def token(self, request):
 		method = await self._get_method(request)
 		if method is None:
@@ -44,6 +43,7 @@ class OAuthForwarder(object):
 		response = await self._forward_post(request, method.Config["token_url"])
 		return json_response(request=request, data=response)
 
+	# Forwards "UserInfo Request", see https://connect2id.com/products/server/docs/api/userinfo
 	async def identity(self, request):
 		method = await self._get_method(request)
 		if method is None:
@@ -54,6 +54,7 @@ class OAuthForwarder(object):
 		response = await self._forward_get(request, method.Config["identity_url"])
 		return json_response(request=request, data=response)
 
+	# Forwards "Revocation Request", see https://tools.ietf.org/html/rfc7009#page-4
 	async def invalidate(self, request):
 		method = await self._get_method(request)
 		if method is None:
@@ -62,16 +63,6 @@ class OAuthForwarder(object):
 			raise aiohttp.web.HTTPNotFound()
 
 		response = await self._forward_post(request, method.Config["invalidate_url"])
-		return json_response(request=request, data=response)
-
-	async def forgot(self, request):
-		method = await self._get_method(request)
-		if method is None:
-			raise aiohttp.web.HTTPNotFound()
-		if len(method.Config["forgot_url"]) == 0:
-			raise aiohttp.web.HTTPNotFound()
-
-		response = await self._forward_post(request, method.Config["forgot_url"])
 		return json_response(request=request, data=response)
 
 	async def _get_method(self, request):
