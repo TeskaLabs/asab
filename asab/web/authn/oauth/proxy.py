@@ -1,8 +1,8 @@
-import abc
 import aiohttp
 import logging
 
 from ...rest import json_response
+from ....config import ConfigObject
 
 #
 
@@ -11,48 +11,65 @@ L = logging.getLogger(__name__)
 #
 
 
-class ABCOAuthProxy(abc.ABC):
+class OAuthProxy(ConfigObject):
 
-	@abc.abstractmethod
-	def get_oauth_server_id(self):
-		pass
+	ConfigDefaults = {
+		"oauth_server_id": "teskalabs.com",
+		"token_url": "http://localhost:8080/token_endpoint/token_request",  # POST -> to receive access token and refresh token
+		"identity_url": "http://localhost:8080/identity_provider/identity",  # GET -> UserInfo identity
+		"invalidate_url": "",  # POST -> Invalidate a token
+		"forgot_url": "",  # POST -> Send request for a forgot password or other identity credentials
+	}
 
-	@abc.abstractmethod
-	def get_token_url(self):
-		pass
-
-	@abc.abstractmethod
-	def get_identity_url(self):
-		pass
-
-	@abc.abstractmethod
-	def get_invalidate_url(self):
-		pass
-
-	@abc.abstractmethod
-	def get_forgot_url(self):
-		pass
-
-
-class GitHubOAuthProxy(ABCOAuthProxy):
+	def __init__(self, config_section_name="OAuthProxy", config=None):
+		super().__init__(config_section_name=config_section_name, config=config)
 
 	def get_oauth_server_id(self):
-		return "github.com"
+		return self.Config["oauth_server_id"]
 
-	def get_token_url(self):
-		return "https://github.com/login/oauth/access_token"
+	async def token(self, request):
+		if len(self.Config["token_url"]) == 0:
+			raise aiohttp.web.HTTPNotFound()
+		response = await self._proxy_post(request, self.Config["token_url"])
+		return json_response(request=request, data=response)
 
-	def get_identity_url(self):
-		return "https://api.github.com/user"
+	async def identity(self, request):
+		if len(self.Config["identity_url"]) == 0:
+			raise aiohttp.web.HTTPNotFound()
+		response = await self._proxy_get(request, self.Config["identity_url"])
+		return json_response(request=request, data=response)
 
-	def get_invalidate_url(self):
-		return None
+	async def invalidate(self, request):
+		if len(self.Config["invalidate_url"]) == 0:
+			raise aiohttp.web.HTTPNotFound()
+		response = await self._proxy_post(request, self.Config["invalidate_url"])
+		return json_response(request=request, data=response)
 
-	def get_forgot_url(self):
-		return None
+	async def forgot(self, request):
+		if len(self.Config["forgot_url"]) == 0:
+			raise aiohttp.web.HTTPNotFound()
+		response = await self._proxy_post(request, self.Config["forgot_url"])
+		return json_response(request=request, data=response)
+
+	async def _proxy_get(self, request, url):
+		async with aiohttp.ClientSession() as session:
+			async with session.get(url, headers=request.headers, params=request.query) as resp:
+				if resp.status == 200:
+					return await resp.json()
+				else:
+					return await resp.text()
+
+	async def _proxy_post(self, request, url):
+		data = await request.post()
+		async with aiohttp.ClientSession() as session:
+			async with session.post(url, headers=request.headers, data=data) as resp:
+				if resp.status == 200:
+					return await resp.json()
+				else:
+					return await resp.text()
 
 
-def oauthclient_proxy_factory(*args, container, proxies, **kwargs):
+def add_oauth_client(*args, container, proxies, **kwargs):
 	"""
 	Serves to add proxy endpoints to the provided web server container,
 	so the client applications may get/post information about the OAuth login.
@@ -65,39 +82,31 @@ def oauthclient_proxy_factory(*args, container, proxies, **kwargs):
 	for proxy in proxies:
 		proxies_dict[proxy.get_oauth_server_id()] = proxy
 
-	# POST -> to receive access token and refresh token
 	async def token(request):
-		proxy = await _parse_proxy(request)
-		if proxy is None or proxy.get_token_url() is None:
+		proxy = await _get_proxy(request)
+		if proxy is None:
 			raise aiohttp.web.HTTPNotFound()
-		response = await _proxy_post(request, proxy.get_token_url())
-		return json_response(request=request, data=response)
+		return await proxy.token(request)
 
-	# GET -> UserInfo identity
 	async def identity(request):
-		proxy = await _parse_proxy(request)
-		if proxy is None or proxy.get_identity_url() is None:
+		proxy = await _get_proxy(request)
+		if proxy is None:
 			raise aiohttp.web.HTTPNotFound()
-		response = await _proxy_get(request, proxy.get_identity_url())
-		return json_response(request=request, data=response)
+		return await proxy.identity(request)
 
-	# POST -> Invalidate a token
 	async def invalidate(request):
-		proxy = await _parse_proxy(request)
-		if proxy is None or proxy.get_invalidate_url() is None:
+		proxy = await _get_proxy(request)
+		if proxy is None:
 			raise aiohttp.web.HTTPNotFound()
-		response = await _proxy_post(request, proxy.get_invalidate_url())
-		return json_response(request=request, data=response)
+		return await proxy.invalidate(request)
 
-	# POST -> Send request for a forgot password or other identity credentials
 	async def forgot(request):
-		proxy = await _parse_proxy(request)
-		if proxy is None or proxy.get_forgot_url() is None:
+		proxy = await _get_proxy(request)
+		if proxy is None:
 			raise aiohttp.web.HTTPNotFound()
-		response = await _proxy_post(request, proxy.get_forgot_url())
-		return json_response(request=request, data=response)
+		return await proxy.forgot(request)
 
-	async def _parse_proxy(request):
+	async def _get_proxy(request):
 		oauth_server_id = request.headers.get("X-OAuthServerId")
 
 		if oauth_server_id is None:
@@ -110,23 +119,6 @@ def oauthclient_proxy_factory(*args, container, proxies, **kwargs):
 			return None
 
 		return proxy
-
-	async def _proxy_get(request, url):
-		async with aiohttp.ClientSession() as session:
-			async with session.get(url, headers=request.headers, params=request.query) as resp:
-				if resp.status == 200:
-					return await resp.json()
-				else:
-					return await resp.text()
-
-	async def _proxy_post(request, url):
-		data = await request.post()
-		async with aiohttp.ClientSession() as session:
-			async with session.post(url, headers=request.headers, data=data) as resp:
-				if resp.status == 200:
-					return await resp.json()
-				else:
-					return await resp.text()
 
 	container.WebApp.router.add_post('/token', token)
 	container.WebApp.router.add_get('/identity', identity)
