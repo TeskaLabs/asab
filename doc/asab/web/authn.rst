@@ -30,7 +30,7 @@ implementation and GitHub method.
 
     container.WebApp.middlewares.append(
         asab.web.authn.authn_middleware_factory(self,
-            "oauth2client",
+            "oauth2client",  # other implementations include: "basicauth" and "pubkeyauth"
             methods=[
             # Use GitHub OAuth provider
             asab.web.authn.oauth.GitHubOAuthMethod(),
