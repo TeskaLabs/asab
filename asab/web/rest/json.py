@@ -74,7 +74,7 @@ async def JsonExceptionMiddleware(request, handler):
 	except aiohttp.web.HTTPError as ex:
 		respdict = {
 			'status': ex.status,
-			'mesage': ex.text[5:]
+			'message': ex.text[5:]
 		}
 		if ex.status >= 400:
 			euuid = uuid.uuid4()
