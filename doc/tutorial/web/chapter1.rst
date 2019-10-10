@@ -41,7 +41,7 @@ The :any:`Application.initialize()` method is an application lifecycle method th
     import asab.web
     import aiohttp.web
 
-The ASAB web server is a module of ASAB, that as available at `asab.web` for importing.
+The ASAB web server is a module of ASAB, that is available at `asab.web` for importing.
 ASAB web server is built on top of `aiohttp.web <https://docs.aiohttp.org/en/stable/web.html>`_ library.
 You can freely use any functionality from `aiohttp.web` library, ASAB is designed to be as much compatible as possible.
 
