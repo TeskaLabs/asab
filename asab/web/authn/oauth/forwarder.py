@@ -31,6 +31,7 @@ class OAuthForwarder(object):
 		container.WebApp.router.add_post('/token', self.token)
 		container.WebApp.router.add_get('/identity', self.identity)
 		container.WebApp.router.add_post('/invalidate', self.invalidate)
+		container.WebApp.router.add_post('/refresh', self.refresh)
 
 	async def token(self, request):
 		"""
@@ -75,6 +76,21 @@ class OAuthForwarder(object):
 			raise aiohttp.web.HTTPNotFound()
 
 		response = await self._forward_post(request, method.Config["invalidate_url"], method.Config["client_id"], method.Config["client_secret"])
+		return json_response(request=request, data=response)
+
+	async def refresh(self, request):
+		"""
+		Refreshes access token, see https://auth0.com/docs/tokens/refresh-token/current#use-a-refresh-token
+		:param request: received aiohttp request
+		:return: json_response
+		"""
+		method = await self._get_method(request)
+		if method is None:
+			raise aiohttp.web.HTTPNotFound()
+		if len(method.Config["refresh_url"]) == 0:
+			raise aiohttp.web.HTTPNotFound()
+
+		response = await self._forward_post(request, method.Config["refresh_url"], method.Config["client_id"], method.Config["client_secret"])
 		return json_response(request=request, data=response)
 
 	async def _get_method(self, request):

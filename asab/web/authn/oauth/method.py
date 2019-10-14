@@ -10,6 +10,7 @@ class ABCOAuthMethod(abc.ABC, ConfigObject):
 		"token_url": "http://localhost:8080/token_endpoint/token_request",  # Forwards "Access Token Request", see https://tools.ietf.org/html/rfc6749#section-4.1.3
 		"identity_url": "http://localhost:8080/identity_provider/identity",  # Forwards "UserInfo Request", see https://connect2id.com/products/server/docs/api/userinfo
 		"invalidate_url": "",  # Forwards "Revocation Request", see https://tools.ietf.org/html/rfc7009#page-4
+		"refresh_url": "",  # Refreshes access token, see https://auth0.com/docs/tokens/refresh-token/current#use-a-refresh-token
 		"client_id": "",  # Client ID of the current application, see https://tools.ietf.org/html/rfc6749#section-4.1.1
 		"client_secret": "",  # Client secret of the current application, see https://tools.ietf.org/html/rfc6749#section-4.1.1
 	}
