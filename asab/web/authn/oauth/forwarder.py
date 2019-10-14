@@ -94,16 +94,26 @@ class OAuthForwarder(object):
 	async def _forward_get(self, request, url):
 		async with aiohttp.ClientSession() as session:
 			async with session.get(url, headers=request.headers, params=request.query) as resp:
-				if resp.status == 200:
-					return await resp.json()
-				else:
-					return await resp.text()
+				response = {"status": resp.status}
+				try:
+					response["content"] = await resp.json()
+					response["Content-Type"] = "application/json"
+				except aiohttp.client_exceptions.ContentTypeError:
+					L.warn("The response from '{}' with status code '{}' is not JSON. Using text instead.".format(url, resp.status))
+					response["content"] = await resp.text()
+					response["Content-Type"] = "text/html"
+				return response
 
 	async def _forward_post(self, request, url):
 		data = await request.post()
 		async with aiohttp.ClientSession() as session:
 			async with session.post(url, headers=request.headers, data=data) as resp:
-				if resp.status == 200:
-					return await resp.json()
-				else:
-					return await resp.text()
+				response = {"status": resp.status}
+				try:
+					response["content"] = await resp.json()
+					response["Content-Type"] = "application/json"
+				except aiohttp.client_exceptions.ContentTypeError:
+					L.warn("The response from '{}' with status code '{}' is not JSON. Using text instead.".format(url, resp.status))
+					response["content"] = await resp.text()
+					response["Content-Type"] = "text/html"
+				return response

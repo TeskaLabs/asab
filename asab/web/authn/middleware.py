@@ -3,7 +3,7 @@ import aiohttp.web
 
 
 def authn_middleware_factory(app, implementation, *args, **kwargs):
-		
+
 	if implementation == "oauth2client":
 		from .oauth import oauthclient_middleware_factory
 		return oauthclient_middleware_factory(app, *args, **kwargs)
