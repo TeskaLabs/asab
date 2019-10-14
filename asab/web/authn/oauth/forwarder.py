@@ -44,7 +44,7 @@ class OAuthForwarder(object):
 		if len(method.Config["token_url"]) == 0:
 			raise aiohttp.web.HTTPNotFound()
 
-		response = await self._forward_post(request, method.Config["token_url"])
+		response = await self._forward_post(request, method.Config["token_url"], method.Config["client_id"], method.Config["client_secret"])
 		return json_response(request=request, data=response)
 
 	async def identity(self, request):
@@ -59,7 +59,7 @@ class OAuthForwarder(object):
 		if len(method.Config["identity_url"]) == 0:
 			raise aiohttp.web.HTTPNotFound()
 
-		response = await self._forward_get(request, method.Config["identity_url"])
+		response = await self._forward_get(request, method.Config["identity_url"], method.Config["client_id"], method.Config["client_secret"])
 		return json_response(request=request, data=response)
 
 	async def invalidate(self, request):
@@ -74,7 +74,7 @@ class OAuthForwarder(object):
 		if len(method.Config["invalidate_url"]) == 0:
 			raise aiohttp.web.HTTPNotFound()
 
-		response = await self._forward_post(request, method.Config["invalidate_url"])
+		response = await self._forward_post(request, method.Config["invalidate_url"], method.Config["client_id"], method.Config["client_secret"])
 		return json_response(request=request, data=response)
 
 	async def _get_method(self, request):
@@ -91,9 +91,11 @@ class OAuthForwarder(object):
 
 		return method
 
-	async def _forward_get(self, request, url):
+	async def _forward_get(self, request, url, client_id, client_secret):
+		headers = await self._remove_extra_headers(dict(request.headers))
+		data = dict(request.query)
 		async with aiohttp.ClientSession() as session:
-			async with session.get(url, headers=request.headers, params=request.query) as resp:
+			async with session.get(url, headers=headers, params=data) as resp:
 				response = {"status": resp.status}
 				try:
 					response["content"] = await resp.json()
@@ -104,10 +106,15 @@ class OAuthForwarder(object):
 					response["Content-Type"] = "text/html"
 				return response
 
-	async def _forward_post(self, request, url):
-		data = await request.post()
+	async def _forward_post(self, request, url, client_id, client_secret):
+		headers = await self._remove_extra_headers(dict(request.headers))
+		data = dict(await request.post())
+		if len(client_id) != 0:
+			data["client_id"] = client_id
+		if len(client_secret) != 0:
+			data["client_secret"] = client_secret
 		async with aiohttp.ClientSession() as session:
-			async with session.post(url, headers=request.headers, data=data) as resp:
+			async with session.post(url, headers=headers, data=data) as resp:
 				response = {"status": resp.status}
 				try:
 					response["content"] = await resp.json()
@@ -117,3 +124,11 @@ class OAuthForwarder(object):
 					response["content"] = await resp.text()
 					response["Content-Type"] = "text/html"
 				return response
+
+	async def _remove_extra_headers(self, headers):
+		if "X-OAuthServerId" in headers:
+			del headers["X-OAuthServerId"]
+		# "Host" is not used in redirection. When present, it confuses f. e. GitHub OAuth server.
+		if "Host" in headers:
+			del headers["Host"]
+		return headers
