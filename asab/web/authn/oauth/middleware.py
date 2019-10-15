@@ -118,7 +118,7 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 							"Expiration": time.time() + identity_cache_longevity
 						}
 				else:
-					raise RuntimeError("Call to OAuth server '{}' failed with status code '{}'.".format(oauth_userinfo_url, resp.status))
+					L.warn("Call to OAuth server '{}' failed with status code '{}'.".format(oauth_userinfo_url, resp.status))
 
 		return await handler(request)
 
