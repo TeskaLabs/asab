@@ -1,6 +1,11 @@
 import aiohttp
 import logging
 
+import time
+import jwt
+import base64
+import json
+
 from ...rest import json_response
 
 #
@@ -20,7 +25,10 @@ class OAuthForwarder(object):
 	Every OAuth 2.0 server is required to implement token and identity endpoints, while invalidate and forgot are optional.
 	"""
 
-	def __init__(self, *args, container, methods, **kwargs):
+	def __init__(self, *args, container, methods, identity_cache_longevity=60*60, identity_cache=None, **kwargs):
+
+		self.IdentityCache = identity_cache
+		self.IdentityCacheLongevity = identity_cache_longevity
 
 		# Load methods
 		self.MethodsDict = {}
@@ -46,6 +54,51 @@ class OAuthForwarder(object):
 			raise aiohttp.web.HTTPNotFound()
 
 		response = await self._forward_post(request, method.Config["token_url"], method.Config["client_id"], method.Config["client_secret"])
+
+		# Extract the identity from the token right now and store it in the identity cache
+		oauth_server_public_key = method.Config["oauth_server_public_key"].encode("utf-8")
+		if self.IdentityCache is not None and len(oauth_server_public_key) > 0 and response.get("status") == 200:
+
+			content = response.get("content")
+			if not isinstance(content, dict):
+				L.warn("The received response '{}' was not in expected format.".format(json.dumps(response)))
+				return json_response(request=request, data=response)
+
+			# Receive access token and token ID from the response
+			access_token = content.get("access_token")
+			token_id = content.get("token_id")
+			if access_token is None or token_id is None:
+				L.warn("Skipping identity store. The received response '{}' was not in expected format.".format(json.dumps(response)))
+				return json_response(request=request, data=response)
+
+			# Decode token from token id: https://www.oauth.com/oauth2-servers/access-tokens/self-encoded-access-tokens/
+			try:
+				token = jwt.decode(token_id.encode("utf-8"), oauth_server_public_key, audience='client_id="{}"'.format(method.Config["client_id"]), algorithm='RS256')
+			except (jwt.exceptions.DecodeError, jwt.exceptions.InvalidAudienceError):
+				L.warn("Token ID '{}' could not be decoded. Did you specify the OAuth server '{}' public key correctly?".format(token_id, method.Config["oauth_server_id"]))
+				return json_response(request=request, data=response)
+
+			# Access token validation: https://openid.net/specs/openid-connect-core-1_0.html#3.1.3.8
+			at_hash = token.get("at_hash")
+			computed_at_hash = base64.urlsafe_b64encode(access_token[0:len(access_token)//2].encode("utf-8")).decode("utf-8")
+			if computed_at_hash != at_hash:
+				L.warn("The access token '{}' from '{}' could not be validated.".format(access_token, method.Config["oauth_server_id"]))
+				return json_response(request=request, data=response)
+
+			# Identity format validation (OpenID Connect expects identity in "sub")
+			identity = token.get("sub")
+			if identity is None:
+				L.warn("Identity from '{}' was not in expected format.".format(method.Config["oauth_server_id"]))
+				return json_response(request=request, data=response)
+
+			# Store the identity in cache
+			oauth_server_id_access_token = "{}-{}".format(method.Config["oauth_server_id"], access_token)
+			self.IdentityCache[oauth_server_id_access_token] = {
+				"OAuthUserInfo": {"sub": identity},
+				"Identity": identity,
+				"Expiration": time.time() + self.IdentityCacheLongevity,
+			}
+
 		return json_response(request=request, data=response)
 
 	async def identity(self, request):
@@ -98,7 +151,7 @@ class OAuthForwarder(object):
 
 		if oauth_server_id is None:
 			L.warn("The 'X-OAuthServerId' header was not provided.")
-			return None
+			return self.MethodsDict.get("teskalabs.com")
 
 		method = self.MethodsDict.get(oauth_server_id)
 		if method is None:
