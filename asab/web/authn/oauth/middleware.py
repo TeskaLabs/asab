@@ -8,7 +8,7 @@ L = logging.getLogger(__name__)
 #
 
 
-def oauthclient_middleware_factory(app, *args, identity_cache, **kwargs):
+def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 	"""
 	Serves to connect with the user info endpoint of OAuth 2.0 server to obtain identity of the user
 	associated with the provided access token.
@@ -19,8 +19,6 @@ def oauthclient_middleware_factory(app, *args, identity_cache, **kwargs):
 	For more information about user info, visit:
 	https://connect2id.com/products/server/docs/api/userinfo
 	"""
-
-	methods_dict = identity_cache.get_methods()
 
 	@aiohttp.web.middleware
 	async def oauthclient_middleware(request, handler):
@@ -41,7 +39,7 @@ def oauthclient_middleware_factory(app, *args, identity_cache, **kwargs):
 			L.warn("Authorization header's bearer '{}' is not in proper '<OAUTH-SERVER-ID>-<ACCESS_TOKEN>' format.".format(bearer_oauth[1]))
 			return await handler(request)
 
-		identity = identity_cache.get_identity(oauth_server_id_access_token)
+		identity = oauth_client_service.IdentityCache[oauth_server_id_access_token]
 		if identity is not None:
 			# This is "cache hit" branch
 			request.OAuthUserInfo = identity.get("OAuthUserInfo")
@@ -50,7 +48,7 @@ def oauthclient_middleware_factory(app, *args, identity_cache, **kwargs):
 
 		oauth_server_id, access_token = oauth_server_id_access_token.split('-', 1)
 
-		method = methods_dict.get(oauth_server_id)
+		method = oauth_client_service.MethodsDict.get(oauth_server_id)
 
 		if method is None:
 			L.warn("Method for OAuth server id '{}' was not found.".format(oauth_server_id))
@@ -64,7 +62,7 @@ def oauthclient_middleware_factory(app, *args, identity_cache, **kwargs):
 					if oauth_user_info is not None:
 						request.OAuthUserInfo = oauth_user_info
 						request.Identity = method.extract_identity(oauth_user_info)
-						identity_cache.insert_identity(oauth_server_id_access_token, request.OAuthUserInfo, request.Identity)
+						oauth_client_service.IdentityCache[oauth_server_id_access_token] = (request.OAuthUserInfo, request.Identity)
 				else:
 					L.warn("Call to OAuth server '{}' failed with status code '{}'.".format(oauth_userinfo_url, resp.status))
 

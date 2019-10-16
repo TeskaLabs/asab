@@ -1,7 +1,6 @@
 import aiohttp
 import logging
 
-import time
 import jwt
 import base64
 import json
@@ -25,10 +24,10 @@ class OAuthForwarder(object):
 	Every OAuth 2.0 server is required to implement token and identity endpoints, while invalidate and forgot are optional.
 	"""
 
-	def __init__(self, *args, container, identity_cache, **kwargs):
+	def __init__(self, *args, container, identity_cache, methods_dict, **kwargs):
 
 		self.IdentityCache = identity_cache
-		self.MethodsDict = identity_cache.get_methods()
+		self.MethodsDict = methods_dict
 
 		# Register endpoints in the provided container
 		container.WebApp.router.add_post('/token', self.token)
@@ -87,7 +86,7 @@ class OAuthForwarder(object):
 
 			# Store the identity in cache
 			oauth_server_id_access_token = "{}-{}".format(method.Config["oauth_server_id"], access_token)
-			self.IdentityCache.insert_identity(oauth_server_id_access_token, {"sub": identity}, identity)
+			self.IdentityCache[oauth_server_id_access_token] = ({"sub": identity}, identity)
 
 		return json_response(request=request, data=response)
 
