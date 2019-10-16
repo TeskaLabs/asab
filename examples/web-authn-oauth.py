@@ -46,12 +46,16 @@ class MyOAuthSecuredApplication(asab.Application):
 
 		oauth_methods = [asab.web.authn.oauth.GitHubOAuthMethod()]
 
+		# Create cache for identities
+
+		oauth_identity_cache = asab.web.authn.oauth.OAuthIdentityCache(self, methods=oauth_methods)
+
 		# Add middleware for authentication via oauth2
 		container.WebApp.middlewares.append(
 			asab.web.authn.authn_middleware_factory(
 				self,
 				"oauth2client",
-				methods=oauth_methods,
+				identity_cache=oauth_identity_cache,
 			)
 		)
 
@@ -59,7 +63,7 @@ class MyOAuthSecuredApplication(asab.Application):
 		container.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 
 		# Register useful OAuth endpoints
-		asab.web.authn.oauth.OAuthForwarder(container=container, methods=oauth_methods)
+		asab.web.authn.oauth.OAuthForwarder(container=container, identity_cache=oauth_identity_cache)
 
 		# Add a route
 		container.WebApp.router.add_get('/user', self.user)

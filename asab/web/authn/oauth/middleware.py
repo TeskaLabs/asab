@@ -1,6 +1,5 @@
 import aiohttp
 import logging
-import time
 
 #
 
@@ -9,48 +8,10 @@ L = logging.getLogger(__name__)
 #
 
 
-identity_cache = {}
-methods_dict = {}
-g_identity_cache_longevity = 60
-
-
-async def oauthclient_refresh_identity_cache(message_type):
-	current_time = time.time()
-	for oauth_server_id_access_token, identity in identity_cache.items():
-		expiration = identity.get("Expiration", time.time())
-
-		# Refresh expired cache items
-		if expiration <= current_time:
-
-			oauth_server_id, access_token = oauth_server_id_access_token.split('-', 1)
-			method = methods_dict.get(oauth_server_id)
-
-			assert method is not None
-
-			oauth_userinfo_url = method.Config["identity_url"]
-			async with aiohttp.ClientSession() as session:
-				async with session.get(oauth_userinfo_url, headers={"Authorization": "Bearer {}".format(access_token)}) as resp:
-					if resp.status == 200:
-						oauth_user_info = await resp.json()
-						if oauth_user_info is not None:
-							identity_cache[oauth_server_id_access_token]["OAuthUserInfo"] = oauth_user_info
-							identity_cache[oauth_server_id_access_token]["Identity"] = method.extract_identity(
-								oauth_user_info)
-							identity_cache[oauth_server_id_access_token][
-								"Expiration"] = current_time + g_identity_cache_longevity
-					else:
-						# If there was an error, remove the cache item
-						L.warn("Identity '{}' could not be refreshed on ''.".format(identity, oauth_userinfo_url))
-						del identity_cache[oauth_server_id_access_token]
-
-
-def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity=60*60, **kwargs):
+def oauthclient_middleware_factory(app, *args, identity_cache, **kwargs):
 	"""
 	Serves to connect with the user info endpoint of OAuth 2.0 server to obtain identity of the user
 	associated with the provided access token.
-
-	:methods is a list that specifies the identification of OAuth servers such as [asab.web.authn.oauth.GitHubOAuthMethod()]
-	:identity_cache_longevity is an integer that specifies the number of seconds after which the cached identity expires
 
 	The expected format of Authorization header is:
 	Authorization: Bearer <OAUTH-SERVER-ID>-<ACCESS_TOKEN>
@@ -59,16 +20,7 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 	https://connect2id.com/products/server/docs/api/userinfo
 	"""
 
-	# Load methods
-	for method in methods:
-		methods_dict[method.Config["oauth_server_id"]] = method
-
-	# Store longevity for cache elements
-	global g_identity_cache_longevity
-	g_identity_cache_longevity = identity_cache_longevity
-
-	# Subscribe to periodically refresh cache
-	app.PubSub.subscribe("Application.tick/10!", oauthclient_refresh_identity_cache)
+	methods_dict = identity_cache.get_methods()
 
 	@aiohttp.web.middleware
 	async def oauthclient_middleware(request, handler):
@@ -89,7 +41,7 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 			L.warn("Authorization header's bearer '{}' is not in proper '<OAUTH-SERVER-ID>-<ACCESS_TOKEN>' format.".format(bearer_oauth[1]))
 			return await handler(request)
 
-		identity = identity_cache.get(oauth_server_id_access_token)
+		identity = identity_cache.get_identity(oauth_server_id_access_token)
 		if identity is not None:
 			# This is "cache hit" branch
 			request.OAuthUserInfo = identity.get("OAuthUserInfo")
@@ -112,11 +64,7 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 					if oauth_user_info is not None:
 						request.OAuthUserInfo = oauth_user_info
 						request.Identity = method.extract_identity(oauth_user_info)
-						identity_cache[oauth_server_id_access_token] = {
-							"OAuthUserInfo": request.OAuthUserInfo,
-							"Identity": request.Identity,
-							"Expiration": time.time() + identity_cache_longevity
-						}
+						identity_cache.insert_identity(oauth_server_id_access_token, request.OAuthUserInfo, request.Identity)
 				else:
 					L.warn("Call to OAuth server '{}' failed with status code '{}'.".format(oauth_userinfo_url, resp.status))
 
