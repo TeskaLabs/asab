@@ -64,6 +64,8 @@ def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 						request.Identity = method.extract_identity(oauth_user_info)
 						oauth_client_service.IdentityCache[oauth_server_id_access_token] = (request.OAuthUserInfo, request.Identity)
 				else:
+					# "authn_required_handler" decorator will then return "HTTPUnauthorized" to the client,
+					# because of missing identity in the request
 					L.warn("Call to OAuth server '{}' failed with status code '{}'.".format(oauth_userinfo_url, resp.status))
 
 		return await handler(request)

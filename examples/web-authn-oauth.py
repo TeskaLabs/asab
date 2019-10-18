@@ -47,7 +47,7 @@ class MyOAuthSecuredApplication(asab.Application):
 		oauth_client_service = self.get_service("asab.OAuthClientService")
 
 		# Select OAuth providers (only GitHub in our case)
-		oauth_client_service.add_oauth_methods([asab.web.authn.oauth.GitHubOAuthMethod()])
+		oauth_client_service.append_method(asab.web.authn.oauth.GitHubOAuthMethod())
 
 		# Add middleware for authentication via oauth2
 		container.WebApp.middlewares.append(
@@ -59,7 +59,7 @@ class MyOAuthSecuredApplication(asab.Application):
 		)
 
 		# Register useful OAuth endpoints
-		oauth_client_service.register_oauth_forwarder(container=container)
+		oauth_client_service.configure(container=container)
 
 		# Enable exception to JSON exception middleware
 		container.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
