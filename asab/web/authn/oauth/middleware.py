@@ -23,6 +23,9 @@ def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 	@aiohttp.web.middleware
 	async def oauthclient_middleware(request, handler):
 
+		# Check that the identity is not already inserted
+		assert not hasattr(request, "Identity")
+
 		authorization = request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
 		if authorization is None:
 			return await handler(request)
@@ -66,7 +69,6 @@ def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 				else:
 					# "authn_required_handler" decorator will then return "HTTPUnauthorized" to the client,
 					# because of missing identity in the request
-					assert not hasattr(request, "Identity")
 					L.warn("Call to OAuth server '{}' failed with status code '{}'.".format(oauth_userinfo_url, resp.status))
 
 		return await handler(request)
