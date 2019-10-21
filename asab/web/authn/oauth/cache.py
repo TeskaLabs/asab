@@ -1,4 +1,3 @@
-import time
 import logging
 import collections
 
@@ -21,10 +20,12 @@ class OAuthIdentityCache(collections.abc.MutableMapping):
 	"""
 
 	def __init__(self, app, methods_dict, identity_cache_longevity=60*60):
+		self.App = app
+
 		# Prepare empty cache
 		self.IdentityCache = {}
 		self.IdentityCacheLongevity = identity_cache_longevity
-		self.MethodsDict = methods_dict
+		self.Methods = methods_dict
 
 		# Subscribe to periodically refresh cache
 		app.PubSub.subscribe("Application.tick/10!", self._refresh)
@@ -35,7 +36,7 @@ class OAuthIdentityCache(collections.abc.MutableMapping):
 	def __setitem__(self, oauth_server_id_access_token, value):
 		if len(value) < 2:
 			raise ValueError("OAuthIdentityCache expends tuple with two items as value.")
-		expiration = time.time() + self.IdentityCacheLongevity
+		expiration = self.App.time() + self.IdentityCacheLongevity
 		self.IdentityCache[oauth_server_id_access_token] = {
 			"OAuthUserInfo": value[0],
 			"Identity": value[1],
@@ -55,14 +56,14 @@ class OAuthIdentityCache(collections.abc.MutableMapping):
 		return len(self.IdentityCache)
 
 	async def _refresh(self, message_type):
-		current_time = time.time()
+		current_time = self.App.time()
 		for oauth_server_id_access_token, identity in self.IdentityCache.items():
-			expiration = identity.get("Expiration", time.time())
+			expiration = identity.get("Expiration", current_time)
 
 			# Refresh expired cache items
 			if expiration <= current_time:
 				oauth_server_id, access_token = oauth_server_id_access_token.split('-', 1)
-				method = self.MethodsDict.get(oauth_server_id)
+				method = self.Methods.get(oauth_server_id)
 
 				assert method is not None
 

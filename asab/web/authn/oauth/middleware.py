@@ -48,7 +48,7 @@ def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 
 		oauth_server_id, access_token = oauth_server_id_access_token.split('-', 1)
 
-		method = oauth_client_service.MethodsDict.get(oauth_server_id)
+		method = oauth_client_service.Methods.get(oauth_server_id)
 
 		if method is None:
 			L.warn("Method for OAuth server id '{}' was not found.".format(oauth_server_id))
@@ -66,6 +66,7 @@ def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 				else:
 					# "authn_required_handler" decorator will then return "HTTPUnauthorized" to the client,
 					# because of missing identity in the request
+					assert not hasattr(request, "Identity")
 					L.warn("Call to OAuth server '{}' failed with status code '{}'.".format(oauth_userinfo_url, resp.status))
 
 		return await handler(request)

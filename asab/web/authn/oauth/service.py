@@ -20,17 +20,17 @@ class OAuthClientService(asab.Service):
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 		self.App = app
-		self.MethodsDict = {}
-		self.IdentityCache = OAuthIdentityCache(self.App, self.MethodsDict, int(asab.Config["OAuthClientService"]["identity_cache_longevity"]))
+		self.Methods = {}
+		self.IdentityCache = OAuthIdentityCache(self.App, self.Methods, int(asab.Config["OAuthClientService"]["identity_cache_longevity"]))
 		self.Forwarder = None
 
 	def append_method(self, method):
-		self.MethodsDict[method.Config["oauth_server_id"]] = method
-		self.IdentityCache.MethodsDict = self.MethodsDict
+		self.Methods[method.Config["oauth_server_id"]] = method
+		self.IdentityCache.Methods = self.Methods
 		if self.Forwarder is not None:
-			self.Forwarder.MethodsDict = self.MethodsDict
+			self.Forwarder.Methods = self.Methods
 
 	def configure(self, container):
-		if len(self.MethodsDict) == 0:
+		if len(self.Methods) == 0:
 			raise RuntimeError("OAuth methods need to be specified first. Call 'add_oauth_methods' before registering forwarder.")
-		self.Forwarder = OAuthForwarder(container=container, identity_cache=self.IdentityCache, methods_dict=self.MethodsDict)
+		self.Forwarder = OAuthForwarder(container=container, service=self)

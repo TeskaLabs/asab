@@ -24,10 +24,9 @@ class OAuthForwarder(object):
 	Every OAuth 2.0 server is required to implement token and identity endpoints, while invalidate and forgot are optional.
 	"""
 
-	def __init__(self, *args, container, identity_cache, methods_dict, **kwargs):
+	def __init__(self, *args, container, service, **kwargs):
 
-		self.IdentityCache = identity_cache
-		self.MethodsDict = methods_dict
+		self.Service = service
 
 		# Register endpoints in the provided container
 		container.WebApp.router.add_post('/token', self.token)
@@ -51,7 +50,7 @@ class OAuthForwarder(object):
 
 		# Extract the identity from the token right now and store it in the identity cache
 		oauth_server_public_key = method.Config["oauth_server_public_key"].encode("utf-8")
-		if self.IdentityCache is not None and len(oauth_server_public_key) > 0 and response.get("status") == 200:
+		if self.Service.IdentityCache is not None and len(oauth_server_public_key) > 0 and response.get("status") == 200:
 			content = response.get("content")
 			if not isinstance(content, dict):
 				L.warn("The received response '{}' was not in expected format.".format(json.dumps(response)))
@@ -86,7 +85,7 @@ class OAuthForwarder(object):
 
 			# Store the identity in cache
 			oauth_server_id_access_token = "{}-{}".format(method.Config["oauth_server_id"], access_token)
-			self.IdentityCache[oauth_server_id_access_token] = ({"sub": identity}, identity)
+			self.Service.IdentityCache[oauth_server_id_access_token] = ({"sub": identity}, identity)
 
 		return json_response(request=request, data=response)
 
@@ -142,7 +141,7 @@ class OAuthForwarder(object):
 			L.warn("The 'X-OAuthServerId' header was not provided.")
 			return None
 
-		method = self.MethodsDict.get(oauth_server_id)
+		method = self.Service.Methods.get(oauth_server_id)
 		if method is None:
 			L.warn("Method for OAuth server id '{}' was not found.".format(oauth_server_id))
 			return None
