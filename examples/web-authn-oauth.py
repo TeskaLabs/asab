@@ -42,24 +42,18 @@ class MyOAuthSecuredApplication(asab.Application):
 		# Create a dedicated web container
 		container = asab.web.WebContainer(websvc, 'example:oauth')
 
+		# Load the OAuth module
+		self.add_module(asab.web.authn.oauth.Module)
+		oauth_client_service = self.get_service("asab.OAuthClientService")
+
 		# Select OAuth providers (only GitHub in our case)
+		oauth_client_service.append_method(asab.web.authn.oauth.GitHubOAuthMethod())
 
-		oauth_methods = [asab.web.authn.oauth.GitHubOAuthMethod()]
-
-		# Add middleware for authentication via oauth2
-		container.WebApp.middlewares.append(
-			asab.web.authn.authn_middleware_factory(
-				self,
-				"oauth2client",
-				methods=oauth_methods,
-			)
-		)
+		# Add middleware for authentication via oauth2 and register useful OAuth endpoints
+		oauth_client_service.configure(container=container)
 
 		# Enable exception to JSON exception middleware
 		container.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
-
-		# Register useful OAuth endpoints
-		asab.web.authn.oauth.OAuthForwarder(container=container, methods=oauth_methods)
 
 		# Add a route
 		container.WebApp.router.add_get('/user', self.user)

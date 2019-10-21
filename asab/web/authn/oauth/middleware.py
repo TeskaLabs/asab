@@ -1,6 +1,5 @@
 import aiohttp
 import logging
-import time
 
 #
 
@@ -9,13 +8,10 @@ L = logging.getLogger(__name__)
 #
 
 
-def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity=60*60, **kwargs):
+def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 	"""
 	Serves to connect with the user info endpoint of OAuth 2.0 server to obtain identity of the user
 	associated with the provided access token.
-
-	:methods is a list that specifies the identification of OAuth servers such as [asab.web.authn.oauth.GitHubOAuthMethod()]
-	:identity_cache_longevity is an integer that specifies the number of seconds after which the cached identity expires
 
 	The expected format of Authorization header is:
 	Authorization: Bearer <OAUTH-SERVER-ID>-<ACCESS_TOKEN>
@@ -24,14 +20,11 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 	https://connect2id.com/products/server/docs/api/userinfo
 	"""
 
-	identity_cache = {}
-
-	methods_dict = {}
-	for method in methods:
-		methods_dict[method.Config["oauth_server_id"]] = method
-
 	@aiohttp.web.middleware
 	async def oauthclient_middleware(request, handler):
+
+		# Check that the identity is not already inserted
+		assert not hasattr(request, "Identity")
 
 		authorization = request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
 		if authorization is None:
@@ -49,20 +42,16 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 			L.warn("Authorization header's bearer '{}' is not in proper '<OAUTH-SERVER-ID>-<ACCESS_TOKEN>' format.".format(bearer_oauth[1]))
 			return await handler(request)
 
-		identity = identity_cache.get(oauth_server_id_access_token)
+		identity = oauth_client_service.IdentityCache[oauth_server_id_access_token]
 		if identity is not None:
 			# This is "cache hit" branch
-			expiration = identity.get("Expiration", time.time())
-			if expiration < time.time():
-				del identity_cache[oauth_server_id_access_token]
-			else:
-				request.OAuthUserInfo = identity.get("OAuthUserInfo")
-				request.Identity = identity.get("Identity")
-				return await handler(request)
+			request.OAuthUserInfo = identity.get("OAuthUserInfo")
+			request.Identity = identity.get("Identity")
+			return await handler(request)
 
 		oauth_server_id, access_token = oauth_server_id_access_token.split('-', 1)
 
-		method = methods_dict.get(oauth_server_id)
+		method = oauth_client_service.Methods.get(oauth_server_id)
 
 		if method is None:
 			L.warn("Method for OAuth server id '{}' was not found.".format(oauth_server_id))
@@ -76,13 +65,11 @@ def oauthclient_middleware_factory(app, *args, methods, identity_cache_longevity
 					if oauth_user_info is not None:
 						request.OAuthUserInfo = oauth_user_info
 						request.Identity = method.extract_identity(oauth_user_info)
-						identity_cache[oauth_server_id_access_token] = {
-							"OAuthUserInfo": request.OAuthUserInfo,
-							"Identity": request.Identity,
-							"Expiration": time.time() + identity_cache_longevity
-						}
+						oauth_client_service.IdentityCache[oauth_server_id_access_token] = (request.OAuthUserInfo, request.Identity)
 				else:
-					raise RuntimeError("Call to OAuth server '{}' failed with status code '{}'.".format(oauth_userinfo_url, resp.status))
+					# "authn_required_handler" decorator will then return "HTTPUnauthorized" to the client,
+					# because of missing identity in the request
+					L.warn("Call to OAuth server '{}' failed with status code '{}'.".format(oauth_userinfo_url, resp.status))
 
 		return await handler(request)
 
