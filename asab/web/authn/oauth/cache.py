@@ -44,10 +44,7 @@ class OAuthIdentityCache(collections.abc.MutableMapping):
 		}
 
 	def __delitem__(self, oauth_server_id_access_token):
-		if oauth_server_id_access_token in self.IdentityCache:
-			del self.IdentityCache[oauth_server_id_access_token]
-			return True
-		return False
+		del self.IdentityCache[oauth_server_id_access_token]
 
 	def __iter__(self):
 		return self.IdentityCache.__iter__()
