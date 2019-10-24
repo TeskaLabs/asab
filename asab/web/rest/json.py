@@ -3,6 +3,7 @@ import logging
 import uuid
 import datetime
 import aiohttp.web
+import fastjsonschema
 
 #
 
@@ -124,3 +125,45 @@ async def JsonExceptionMiddleware(request, handler):
 			status=500,
 			content_type='application/json'
 		)
+
+
+def json_schema_handler(schema, *_args, **_kwargs):
+
+	'''
+	The json schema handler implements validation of JSON documents by JSON schema.
+	The library of fastjsonschema implements JSON schema drafts 04, 06 and 07
+	https://horejsek.github.io/python-fastjsonschema/
+
+	Example of use:
+
+	@asab.web.rest.json_schema_handler({
+	'type': 'object',
+	'properties': {
+		'key1': {'type': 'string'},
+		'key2': {'type': 'number'},
+	}})
+	async def login(self, request):
+		...
+	'''
+
+	def decorator(func):
+
+		async def validator(*args, **kwargs):
+			# Initializing fastjsonschema.compile method and generating
+			# the validation function for validating JSON schema
+			validate = fastjsonschema.compile(schema)
+			request = args[-1]
+			data = await request.text()
+			# Checking the validation on JSON data set
+			try:
+				validate(json.loads(data))
+				kwargs['valid'] = json.loads(data)
+			except Exception as e:
+				raise e
+
+			return await func(args, kwargs)
+
+		return validator
+
+	return decorator
+
