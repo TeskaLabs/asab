@@ -149,10 +149,9 @@ class OAuthForwarder(object):
 		return method
 
 	async def _forward_get(self, request, url, client_id, client_secret):
-		headers = await self._remove_extra_headers(dict(request.headers))
 		data = dict(request.query)
 		async with aiohttp.ClientSession() as session:
-			async with session.get(url, headers=headers, params=data) as resp:
+			async with session.get(url, headers={"Authorization": request.headers.get("Authorization", "")}, params=data) as resp:
 				response = {"status": resp.status}
 				try:
 					response["content"] = await resp.json()
@@ -164,14 +163,13 @@ class OAuthForwarder(object):
 				return response
 
 	async def _forward_post(self, request, url, client_id, client_secret):
-		headers = await self._remove_extra_headers(dict(request.headers))
 		data = dict(await request.post())
 		if len(client_id) != 0:
 			data["client_id"] = client_id
 		if len(client_secret) != 0:
 			data["client_secret"] = client_secret
 		async with aiohttp.ClientSession() as session:
-			async with session.post(url, headers=headers, data=data) as resp:
+			async with session.post(url, data=data) as resp:
 				response = {"status": resp.status}
 				try:
 					response["content"] = await resp.json()
@@ -181,11 +179,3 @@ class OAuthForwarder(object):
 					response["content"] = await resp.text()
 					response["Content-Type"] = "text/html"
 				return response
-
-	async def _remove_extra_headers(self, headers):
-		if "X-OAuthServerId" in headers:
-			del headers["X-OAuthServerId"]
-		# "Host" is not used in redirection. When present, it confuses f. e. GitHub OAuth server.
-		if "Host" in headers:
-			del headers["Host"]
-		return headers
