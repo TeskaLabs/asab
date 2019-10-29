@@ -62,6 +62,10 @@ setup(
 	project_urls={
 		'Source': 'https://github.com/TeskaLabs/asab'
 	},
+	install_requires=[
+		'aiohttp>=3.5.4,<4.0',
+		'fastjsonschema>=2.14.1,<3.0',
+	],
 	cmdclass={
 		'build_py': custom_build_py,
 	},
