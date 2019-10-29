@@ -149,9 +149,15 @@ class OAuthForwarder(object):
 		return method
 
 	async def _forward_get(self, request, url, client_id, client_secret):
+		# Construct headers
+		headers = {}
+		auth = request.headers.get("Authorization")
+		if auth is not None:
+			headers["Authorization"] = auth
+		# Construct request
 		data = dict(request.query)
 		async with aiohttp.ClientSession() as session:
-			async with session.get(url, headers={"Authorization": request.headers.get("Authorization", "")}, params=data) as resp:
+			async with session.get(url, headers=headers, params=data) as resp:
 				response = {"status": resp.status}
 				try:
 					response["content"] = await resp.json()
