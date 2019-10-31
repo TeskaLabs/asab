@@ -105,10 +105,13 @@ class ConfigParser(configparser.ConfigParser):
 			if len(include_glob) == 0: continue
 
 			for include in glob.glob(include_glob):
-				self.set('general', 'include', '')
-				self.read(include)
-				includes = self.get('general', 'include', fallback='')
-				self._traverse_includes(includes)
+				if include not in self._included:
+					self._included.append(include)
+					self.read(include)
+					includes = self.get('general', 'include', fallback='')
+					self._traverse_includes(includes)
+				else:
+					L.warn("Config file '{}' can be included only once.".format(include))
 		return
 
 
@@ -124,8 +127,8 @@ class ConfigParser(configparser.ConfigParser):
 			self.read(config_fname)
 
 		includes = self.get('general', 'include', fallback='')
+		self._included = []
 		self._traverse_includes(includes)
-		print("traversed")
 
 		self.add_defaults(ConfigParser._default_values)
 
