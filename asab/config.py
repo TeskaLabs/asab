@@ -96,7 +96,6 @@ class ConfigParser(configparser.ConfigParser):
 					self.set(section, key, value)
 
 	def _traverse_includes(self, includes):
-		print(includes)
 		if '\n' in includes:
 			sep = '\n'
 		else:
@@ -106,10 +105,9 @@ class ConfigParser(configparser.ConfigParser):
 			if len(include_glob) == 0: continue
 
 			for include in glob.glob(include_glob):
-				# self.set('general', 'include', "FUBAR")
+				self.set('general', 'include', '')
 				self.read(include)
 				includes = self.get('general', 'include', fallback='')
-				# if includes is not None:
 				self._traverse_includes(includes)
 		return
 
