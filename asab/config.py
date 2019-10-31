@@ -96,6 +96,8 @@ class ConfigParser(configparser.ConfigParser):
 					self.set(section, key, value)
 
 	def _traverse_includes(self, includes):
+		""" Reads included config files. Supports nested including. """
+
 		if '\n' in includes:
 			sep = '\n'
 		else:
