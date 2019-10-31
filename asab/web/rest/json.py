@@ -127,14 +127,14 @@ async def JsonExceptionMiddleware(request, handler):
 		)
 
 
-def json_schema_handler(schema, *_args, **_kwargs):
+def json_schema_handler(json_schema, *_args, **_kwargs):
 
 	'''
 	The json schema handler implements validation of JSON documents by JSON schema.
 	The library of fastjsonschema implements JSON schema drafts 04, 06 and 07
 	https://horejsek.github.io/python-fastjsonschema/
 
-	Example of use:
+	Examples of use:
 
 	@asab.web.rest.json_schema_handler({
 	'type': 'object',
@@ -142,27 +142,37 @@ def json_schema_handler(schema, *_args, **_kwargs):
 		'key1': {'type': 'string'},
 		'key2': {'type': 'number'},
 	}})
-	async def login(self, request):
+	async def jsondict(self, request, *, json_data):
+		...
+
+...
+
+	@asab.web.rest.json_schema_handler('./data/sample_json_schema.json')
+	async def jsonfile(self, request, *, json_data):
 		...
 	'''
 
 	def decorator(func):
+		# Initializing fastjsonschema.compile method and generating
+		# the validation function for validating JSON schema
+
+		# JSON schema set as a dict
+		if isinstance(json_schema, dict):
+			validate = fastjsonschema.compile(json_schema)
+
+		# JSON schema set in a file
+		else:
+			with open(json_schema) as f:
+				schema = json.load(f)
+				validate = fastjsonschema.compile(schema)
 
 		async def validator(*args, **kwargs):
-			# Initializing fastjsonschema.compile method and generating
-			# the validation function for validating JSON schema
-			validate = fastjsonschema.compile(schema)
 			request = args[-1]
 			data = await request.text()
 			# Checking the validation on JSON data set
-			try:
-				validate(json.loads(data))
-				kwargs['valid'] = json.loads(data)
-			except Exception as e:
-				raise e
-
-			return await func(args, kwargs)
-
+			validate(json.loads(data))
+			kwargs['json_data'] = json.loads(data)
+			return await func(*args, **kwargs)
 		return validator
 
 	return decorator
