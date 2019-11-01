@@ -103,6 +103,7 @@ class ConfigParser(configparser.ConfigParser):
 		else:
 			sep = os.pathsep
 		for include_glob in includes.split(sep):
+			os.environ["THIS_DIR"] = "etc"
 			include_glob = os.path.expandvars(include_glob.strip())
 			if len(include_glob) == 0: continue
 
