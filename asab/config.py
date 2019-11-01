@@ -109,6 +109,7 @@ class ConfigParser(configparser.ConfigParser):
 			for include in glob.glob(include_glob):
 				if include not in self._included:
 					self._included.append(include)
+					self.set('general', 'include', '')
 					self.read(include)
 					includes = self.get('general', 'include', fallback='')
 					self._traverse_includes(includes)
