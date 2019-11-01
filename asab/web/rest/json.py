@@ -161,10 +161,13 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 			validate = fastjsonschema.compile(json_schema)
 
 		# JSON schema set in a file
-		else:
+		elif isinstance(json_schema, str):
 			with open(json_schema) as f:
 				schema = json.load(f)
 				validate = fastjsonschema.compile(schema)
+		else:
+			raise ValueError("JSON schema input must be type <class 'dict'> or type <class 'str'>, "
+							 "not type {}.".format(type(json_schema)))
 
 		async def validator(*args, **kwargs):
 			request = args[-1]

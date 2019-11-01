@@ -3,3 +3,5 @@
   "properties": {
     "key1": {"type": "string"},
     "key2": {"type": "number"}}}
+
+    
