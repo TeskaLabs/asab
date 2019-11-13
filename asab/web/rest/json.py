@@ -150,10 +150,11 @@ def json_schema_handler(schema, *_args, **_kwargs):
 
 	def decorator(func):
 
+		validate = fastjsonschema.compile(schema)
+
 		async def validator(*args, **kwargs):
 			# Initializing fastjsonschema.compile method and generating
 			# the validation function for validating JSON schema
-			validate = fastjsonschema.compile(schema)
 			request = args[-1]
 			if request.content_type == 'application/json':
 				data = await request.json()
