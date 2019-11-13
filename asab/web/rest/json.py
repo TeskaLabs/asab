@@ -129,7 +129,7 @@ async def JsonExceptionMiddleware(request, handler):
 
 def json_schema_handler(schema, *_args, **_kwargs):
 
-	'''
+	"""
 	The json schema handler implements validation of JSON documents by JSON schema.
 	The library of fastjsonschema implements JSON schema drafts 04, 06 and 07
 	https://horejsek.github.io/python-fastjsonschema/
@@ -142,9 +142,11 @@ def json_schema_handler(schema, *_args, **_kwargs):
 		'key1': {'type': 'string'},
 		'key2': {'type': 'number'},
 	}})
-	async def login(self, request):
+	async def login(self, request, *, validated_data):
 		...
-	'''
+
+	Works for `application/json`, `application/x-www-form-urlencoded` and `multipart/form-data` post requests
+	"""
 
 	def decorator(func):
 
@@ -153,15 +155,26 @@ def json_schema_handler(schema, *_args, **_kwargs):
 			# the validation function for validating JSON schema
 			validate = fastjsonschema.compile(schema)
 			request = args[-1]
-			data = await request.text()
+			if request.content_type == 'application/json':
+				data = await request.json()
+			elif request.content_type in ('', 'application/x-www-form-urlencoded', 'multipart/form-data'):
+				multi_dict = await request.post()
+				data = {k: v for k, v in multi_dict.items()}
+			else:
+				Lex.warning(f"Unsupported content-type {request.content_type} for request {request}")
+				raise aiohttp.web.HTTPBadRequest(reason=f"Unsupported content-type {request.content_type}")
 			# Checking the validation on JSON data set
 			try:
-				validate(json.loads(data))
-				kwargs['valid'] = json.loads(data)
+				validate(data)
+				kwargs['validated_data'] = data
+			except fastjsonschema.exceptions.JsonSchemaException as e:
+				Lex.warning(f"Can not validate request {request}. Reason: {e}")
+				raise aiohttp.web.HTTPBadRequest(reason=str(e))
 			except Exception as e:
+				Lex.error(f"Unknown validation error for request {request}. Reason: {e}")
 				raise e
 
-			return await func(args, kwargs)
+			return await func(*args, **kwargs)
 
 		return validator
 
