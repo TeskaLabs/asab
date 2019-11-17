@@ -95,6 +95,31 @@ class ConfigParser(configparser.ConfigParser):
 				else:
 					self.set(section, key, value)
 
+	def _traverse_includes(self, includes, this_dir):
+		""" Reads included config files. Supports nested including. """
+
+		# Directory of current config file
+		os.environ["THIS_DIR"] = this_dir
+
+		if '\n' in includes:
+			sep = '\n'
+		else:
+			sep = os.pathsep
+		for include_glob in includes.split(sep):
+			include_glob = os.path.expandvars(include_glob.strip())
+			if len(include_glob) == 0: continue
+
+			for include in glob.glob(include_glob):
+				if include not in self._included:
+					self._included.append(include)
+					self.set('general', 'include', '')
+					self.read(include)
+					includes = self.get('general', 'include', fallback='')
+					self._traverse_includes(includes, os.path.dirname(include_glob))
+				else:
+					L.warn("Config file '{}' can be included only once.".format(include))
+		return
+
 
 	def _load(self):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
@@ -108,16 +133,9 @@ class ConfigParser(configparser.ConfigParser):
 			self.read(config_fname)
 
 		includes = self.get('general', 'include', fallback='')
-		if '\n' in includes:
-			sep = '\n'
-		else:
-			sep = os.pathsep
-		for include_glob in includes.split(sep):
-			include_glob = os.path.expandvars(include_glob.strip())
-			if len(include_glob) == 0: continue
 
-			for include in glob.glob(include_glob):
-				self.read(include)
+		self._included = []
+		self._traverse_includes(includes, os.path.dirname(config_fname))
 
 		self.add_defaults(ConfigParser._default_values)
 
