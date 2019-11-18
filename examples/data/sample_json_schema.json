@@ -2,6 +2,6 @@
   "type": "object",
   "properties": {
     "key1": {"type": "string"},
-    "key2": {"type": "number"}}}
-
-    
+    "key2": {"type": "number"}
+  }
+}

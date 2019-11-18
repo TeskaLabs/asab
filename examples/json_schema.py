@@ -1,18 +1,13 @@
-import asyncio
-import asab
 import aiohttp
+import aiohttp.web
 
+import asab
 import asab.web
 import asab.web.rest
 import asab.web.session
 
 
 class MyApplication(asab.Application):
-
-	'''
-	Run by:
-	$ PYTHONPATH=.. ./json_schema.py
-	'''
 
 	async def initialize(self):
 		# Loading the web service module
@@ -24,29 +19,34 @@ class MyApplication(asab.Application):
 		# Create a dedicated web container
 		container = asab.web.WebContainer(websvc, 'example:web')
 
-
 		# Enable exception to JSON exception middleware
 		container.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 
 		# Add routes
 		container.WebApp.router.add_post('/api/jsonfile', self.jsonfile)
-		print("Test file schema example with curl:\n\t$ curl http://localhost:8080/api/jsonfile -d '{\"key2\":666}'")
+		print("""
+Test file schema example with curl:
+	$ curl http://localhost:8080/api/jsonfile -X POST -H "Content-Type: application/json" -d '{"key2":666}'
+""")
 
 		container.WebApp.router.add_post('/api/jsondict', self.jsondict)
-		print("Test dict schema example with curl:\n\t$ curl http://localhost:8080/api/jsondict -d '{\"key1\":\"sample text\"}'")
-
+		print("""
+Test dict schema example with curl:
+	$ curl http://localhost:8080/api/jsondict -X POST -H "Content-Type: application/json" -d '{"key1":"sample text"}'
+or as form
+	$ curl http://localhost:8080/api/jsondict -X POST -d "key1=sample%20text"
+""")
 
 	@asab.web.rest.json_schema_handler('./data/sample_json_schema.json')
 	async def jsonfile(self, request, *, json_data):
 		return aiohttp.web.Response(text='Valid data {}\n'.format(json_data))
 
-
 	@asab.web.rest.json_schema_handler({
-	'type': 'object',
-	'properties': {
-		'key1': {'type': 'string'},
-		'key2': {'type': 'number'},
-	}})
+		'type': 'object',
+		'properties': {
+			'key1': {'type': 'string'},
+			'key2': {'type': 'number'},
+		}})
 	async def jsondict(self, request, *, json_data):
 		return aiohttp.web.Response(text='Valid data {}\n'.format(json_data))
 
