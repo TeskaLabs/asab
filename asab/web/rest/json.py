@@ -151,6 +151,7 @@ def json_schema_handler(schema, *_args, **_kwargs):
 	def decorator(func):
 
 		validate = fastjsonschema.compile(schema)
+		form_content_types = frozenset(['', 'application/x-www-form-urlencoded', 'multipart/form-data'])
 
 		async def validator(*args, **kwargs):
 			# Initializing fastjsonschema.compile method and generating
@@ -158,7 +159,7 @@ def json_schema_handler(schema, *_args, **_kwargs):
 			request = args[-1]
 			if request.content_type == 'application/json':
 				data = await request.json()
-			elif request.content_type in ('', 'application/x-www-form-urlencoded', 'multipart/form-data'):
+			elif request.content_type in form_content_types:
 				multi_dict = await request.post()
 				data = {k: v for k, v in multi_dict.items()}
 			else:
