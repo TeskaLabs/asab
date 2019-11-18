@@ -142,7 +142,7 @@ def json_schema_handler(schema, *_args, **_kwargs):
 		'key1': {'type': 'string'},
 		'key2': {'type': 'number'},
 	}})
-	async def login(self, request, *, validated_data):
+	async def login(self, request, *, json_obj):
 		...
 
 	Works for `application/json`, `application/x-www-form-urlencoded` and `multipart/form-data` post requests
@@ -168,7 +168,7 @@ def json_schema_handler(schema, *_args, **_kwargs):
 			# Checking the validation on JSON data set
 			try:
 				validate(data)
-				kwargs['validated_data'] = data
+				kwargs['json_obj'] = data
 			except fastjsonschema.exceptions.JsonSchemaException as e:
 				Lex.warning(f"Can not validate request {request}. Reason: {e}")
 				raise aiohttp.web.HTTPBadRequest(reason=str(e))
