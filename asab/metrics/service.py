@@ -1,9 +1,7 @@
 import configparser
-import time
 import logging
 import platform
 import asyncio
-import pprint
 
 import asab
 
@@ -16,6 +14,7 @@ L = logging.getLogger(__name__)
 
 #
 
+
 def metric_dimension(metric_name, tags):
 	dim = metric_name
 	if tags is not None:
@@ -23,7 +22,6 @@ def metric_dimension(metric_name, tags):
 			dim += ',{}={}'.format(k, tags[k])
 	return dim
 
-#
 
 class MetricsService(asab.Service):
 
@@ -36,7 +34,7 @@ class MetricsService(asab.Service):
 			'host': platform.node(),
 		}
 
-		app.PubSub.subscribe("Application.tick/10!", self._on_flushing_event)
+		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
 
 		for target in asab.Config.get('asab:metrics', 'target').strip().split():
 			try:
