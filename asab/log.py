@@ -348,8 +348,8 @@ It implements a queue for decoupling logging from a networking. The networking i
 	def _reset(self):
 		self._write_ready = False
 		if self._socket is not None:
-			self._loop.remove_writer(self._socket, self._on_write)
-			self._loop.remove_reader(self._socket, self._on_read)
+			self._loop.remove_writer(self._socket)
+			self._loop.remove_reader(self._socket)
 			self._socket.close()
 			self._socket = None
 
