@@ -380,6 +380,13 @@ It implements a queue for decoupling logging from a networking. The networking i
 
 
 	def _on_read(self):
+		try:
+			_ = socket.recvfrom(1024)
+			# We receive "something" ... let's ignore that!
+			return
+		except Exception as e:
+			print("Error on the syslog socket '{}'".format(self._address), e, file=sys.stderr)
+
 		# Close a socket - there is no reason for reading or socket is actually closed
 		self._reset()
 
