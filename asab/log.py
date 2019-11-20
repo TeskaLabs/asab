@@ -381,7 +381,7 @@ It implements a queue for decoupling logging from a networking. The networking i
 
 	def _on_read(self):
 		try:
-			_ = socket.recvfrom(1024)
+			_ = self._socket.recvfrom(1024)
 			# We receive "something" ... let's ignore that!
 			return
 		except Exception as e:
