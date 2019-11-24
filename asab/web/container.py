@@ -42,6 +42,7 @@ listen:
 		'backlog': 128,
 		'rootdir': '',
 		'servertokens': 'full', # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
+		'cors': '',
 	}
 
 
@@ -49,6 +50,7 @@ listen:
 		super().__init__(config_section_name=config_section_name, config=config)
 
 		self.BackLog = int(self.Config.get("backlog"))
+		self.CORS = self.Config.get("cors")
 
 		servertokens = self.Config.get("servertokens")
 		if servertokens == 'prod':
@@ -121,4 +123,7 @@ listen:
 	async def _on_prepare_response(self, request, response):
 		response.headers['Server'] = self.ServerTokens
 
-		
+		if self.CORS == "*":
+			response.headers['Access-Control-Allow-Origin'] = "*"
+			response.headers['Access-Control-Allow-Methods'] = "GET, POST, DELETE, PUT, PATCH, OPTIONS"
+
