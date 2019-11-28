@@ -35,7 +35,8 @@ class PersistentDict(collections.MutableMapping):
 
 	def __iter__(self):
 		with shelve.open(self._path) as d:
-			return iter(d)
+			for key in d:
+				yield key
 
 	def __len__(self):
 		with shelve.open(self._path) as d:
@@ -43,7 +44,7 @@ class PersistentDict(collections.MutableMapping):
 
 	def __str__(self):
 		with shelve.open(self._path) as d:
-			return str(d)
+			return str(dict(d))
 
 	def load(self, *keys):
 		"""
