@@ -151,11 +151,11 @@ Config = ConfigParser()
 
 ###
 
-class ConfigObject(object):
+class Configurable(object):
 
 	'''
 	Usage:
-	class ConfigurableObject(asab.ConfigObject):
+	class ConfigurableObject(asab.Configurable):
 
 		ConfigDefaults = {
 			'foo': 'bar',
@@ -193,6 +193,9 @@ class ConfigObject(object):
 
 		if config is not None:
 			self.Config.update(config)
+
+# This is for backward compatibility
+ConfigObject = Configurable
 
 ###
 
