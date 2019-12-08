@@ -99,7 +99,7 @@ class ConfigParser(configparser.ConfigParser):
 		""" Reads included config files. Supports nested including. """
 
 		# Directory of current config file
-		os.environ["THIS_DIR"] = this_dir
+		os.environ["THIS_DIR"] = os.path.abspath(this_dir)
 
 		if '\n' in includes:
 			sep = '\n'
