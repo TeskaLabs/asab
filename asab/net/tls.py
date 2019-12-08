@@ -26,11 +26,13 @@ class SSLContextBuilder(ConfigObject):
 		password = self.Config.get("password")
 		if len(password) == 0: password = None
 
-		ctx.load_cert_chain(
-			self.Config.get("cert"),
-			keyfile = keyfile,
-			password = password,
-		)
+		cert = self.Config.get("cert")
+		if len(cert) != 0:
+			ctx.load_cert_chain(
+				cert,
+				keyfile = keyfile,
+				password = password,
+			)
 
 		cafile = self.Config.get("cafile")
 		if len(cafile) == 0: cafile = None
