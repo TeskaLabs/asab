@@ -93,10 +93,10 @@ The broker that uses Advanced Message Queuing Protocol (AMQP) and it can be used
 	def _on_connection_close(self, connection, *args):
 		try:
 			code, reason = args
-			L.warn("AMQP disconnected ({}): {}".format(code, reason))
+			L.warning("AMQP disconnected ({}): {}".format(code, reason))
 		except ValueError:
 			error, = args
-			L.warn("AMQP disconnected: {}".format(error))
+			L.warning("AMQP disconnected: {}".format(error))
 		self.Loop.call_later(float(self.Config['reconnect_delay']), self._reconnect)
 
 

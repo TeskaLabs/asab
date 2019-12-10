@@ -187,7 +187,7 @@ class PublicKeyAuthenticationService(Service, ConfigObject):
 			entry = self.IndexPDict.get(pk_digest)
 
 		if entry is None:
-			L.warn("Authentication failed, public key not found")
+			L.warning("Authentication failed, public key not found")
 			return False
 
 		assert(entry is not None)

@@ -70,10 +70,10 @@ class LogManIOAMQPUplink(object):
 	def _on_connection_close(self, connection, *args):
 		try:
 			code, reason = args
-			L.warn("LogMan.io disconnected ({}): {}".format(code, reason))
+			L.warning("LogMan.io disconnected ({}): {}".format(code, reason))
 		except ValueError:
 			error, = args
-			L.warn("LogMan.io disconnected: {}".format(error))
+			L.warning("LogMan.io disconnected: {}".format(error))
 		self.App.Loop.call_later(30, self._reconnect)
 
 

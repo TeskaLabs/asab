@@ -32,14 +32,14 @@ def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 
 		bearer_oauth = authorization.split(' ')
 		if len(bearer_oauth) < 2:
-			L.warn("Authorization header '{}' is not in proper 'Bearer <OAUTH-SERVER-ID>-<ACCESS_TOKEN>' format.".format(authorization))
+			L.warning("Authorization header '{}' is not in proper 'Bearer <OAUTH-SERVER-ID>-<ACCESS_TOKEN>' format.".format(authorization))
 			return await handler(request)
 
 		bearer = bearer_oauth[0]
 		oauth_server_id_access_token = bearer_oauth[1]
 
 		if "-" not in oauth_server_id_access_token:
-			L.warn("Authorization header's bearer '{}' is not in proper '<OAUTH-SERVER-ID>-<ACCESS_TOKEN>' format.".format(bearer_oauth[1]))
+			L.warning("Authorization header's bearer '{}' is not in proper '<OAUTH-SERVER-ID>-<ACCESS_TOKEN>' format.".format(bearer_oauth[1]))
 			return await handler(request)
 
 		identity = oauth_client_service.IdentityCache[oauth_server_id_access_token]
@@ -54,7 +54,7 @@ def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 		method = oauth_client_service.Methods.get(oauth_server_id)
 
 		if method is None:
-			L.warn("Method for OAuth server id '{}' was not found.".format(oauth_server_id))
+			L.warning("Method for OAuth server id '{}' was not found.".format(oauth_server_id))
 			return await handler(request)
 
 		oauth_userinfo_url = method.Config["identity_url"]
@@ -69,7 +69,7 @@ def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 				else:
 					# "authn_required_handler" decorator will then return "HTTPUnauthorized" to the client,
 					# because of missing identity in the request
-					L.warn("Call to OAuth server '{}' failed with status code '{}'.".format(oauth_userinfo_url, resp.status))
+					L.warning("Call to OAuth server '{}' failed with status code '{}'.".format(oauth_userinfo_url, resp.status))
 
 		return await handler(request)
 

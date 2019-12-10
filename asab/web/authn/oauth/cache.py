@@ -75,5 +75,5 @@ class OAuthIdentityCache(collections.abc.MutableMapping):
 								self[oauth_server_id_access_token] = (oauth_user_info, method.extract_identity(oauth_user_info))
 						else:
 							# If there was an error, remove the cache item
-							L.warn("Identity '{}' could not be refreshed on ''.".format(identity, oauth_userinfo_url))
+							L.warning("Identity '{}' could not be refreshed on ''.".format(identity, oauth_userinfo_url))
 							del self[oauth_server_id_access_token]

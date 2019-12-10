@@ -92,5 +92,5 @@ class LogManIOWebSocketUplink(object):
 			self.ReceiverFuture = None
 
 			if self.Running:
-				L.warn("LogMan.io reconnect in 5 secs.")
+				L.warning("LogMan.io reconnect in 5 secs.")
 				self.App.Loop.call_later(5, self._reconnect)

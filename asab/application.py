@@ -469,7 +469,7 @@ class Application(metaclass=Singleton):
 			await asyncio.sleep(1)
 
 		else:
-			L.warn("Exiting but {} async task(s) are still waiting".format(tasks_awaiting))
+			L.warning("Exiting but {} async task(s) are still waiting".format(tasks_awaiting))
 
 		future.set_result("exit")
 

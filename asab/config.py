@@ -116,7 +116,7 @@ class ConfigParser(configparser.ConfigParser):
 					includes = self.get('general', 'include', fallback='')
 					self._traverse_includes(includes, os.path.dirname(include_glob))
 				else:
-					L.warn("Config file '{}' can be included only once.".format(include))
+					L.warning("Config file '{}' can be included only once.".format(include))
 		return
 
 

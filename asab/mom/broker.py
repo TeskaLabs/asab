@@ -70,7 +70,7 @@ class Broker(abc.ABC, asab.ConfigObject):
 	async def dispatch(self, target, properties, body):
 		tlist = self.Targets.get(target)
 		if tlist is None:
-			L.warn("Received a message for an unknown target '{}'".format(target))
+			L.warning("Received a message for an unknown target '{}'".format(target))
 			return
 
 		for handler in tlist:
@@ -83,7 +83,7 @@ class Broker(abc.ABC, asab.ConfigObject):
 					correlation_id=properties.correlation_id,
 				)
 			elif reply is not None:
-				L.warn("Discart the reply from target '{}'".format(target))
+				L.warning("Discart the reply from target '{}'".format(target))
 
 
 
