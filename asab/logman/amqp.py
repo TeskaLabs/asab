@@ -53,7 +53,7 @@ class LogManIOAMQPUplink(object):
 			self.SenderFuture = None
 
 		self.Connection = pika.adapters.asyncio_connection.AsyncioConnection(
-			parameters = self.Parameters,
+			parameters=self.Parameters,
 			on_open_callback=self._on_connection_open,
 			on_open_error_callback=self._on_connection_open_error,
 			on_close_callback=self._on_connection_close
@@ -89,8 +89,8 @@ class LogManIOAMQPUplink(object):
 			msg_type, body = await self.OutboundQueue.get()
 			properties = pika.BasicProperties(
 				content_type='application/json' if msg_type == 'sj' else 'text/plain',
-				delivery_mode=2, # Persistent delivery mode
-				headers = {
+				delivery_mode=2,  # Persistent delivery mode
+				headers={
 					'H': self.Hostname,
 					'T': msg_type,
 				}

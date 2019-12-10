@@ -1,13 +1,12 @@
-import logging
-
 import aiohttp.abc
 
 from ..log import LOG_NOTICE
 
+
 class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 
 	def log(self, request, response, time):
-		struct_data={
+		struct_data = {
 			'I': request.remote,
 			'al.m': request.method,
 			'al.p': request.path,

@@ -22,7 +22,7 @@ L = logging.getLogger(__name__)
 #
 
 
-def pubkeyauth_middleware_factory(app, *args, mode = 'direct', service = None, **kwargs):
+def pubkeyauth_middleware_factory(app, *args, mode='direct', service=None, **kwargs):
 	'''
 	`service` is the instance of `PublicKeyAuthenticationService`.
 	If `service` is not provided, every SSL client with certificate is authenticated.
@@ -38,7 +38,7 @@ def pubkeyauth_middleware_factory(app, *args, mode = 'direct', service = None, *
 		'''
 
 		ssl_object = request.transport.get_extra_info('ssl_object')
-		if ssl_object is None: 
+		if ssl_object is None:
 			# The connection is not a SSL
 			return await handler(request)
 
@@ -52,10 +52,10 @@ def pubkeyauth_middleware_factory(app, *args, mode = 'direct', service = None, *
 				cert,
 				cryptography.hazmat.backends.default_backend()
 			)
-		except:
+		except Exception:
 			L.exception("Error when parsing a client certificate")
 			return await handler(request)
-		
+
 
 		if service is not None:
 			if not service.authenticate(cert):
@@ -123,10 +123,10 @@ server {
 				cert,
 				cryptography.hazmat.backends.default_backend()
 			)
-		except:
+		except Exception:
 			L.exception("Error when parsing a client certificate")
 			return await handler(request)
-		
+
 		if service is not None:
 			if not service.authenticate(cert):
 				return await handler(request)
@@ -185,7 +185,7 @@ class PublicKeyAuthenticationService(Service, ConfigObject):
 			# Key not found in the index, let's scan the directory
 			self._scan_dir()
 			entry = self.IndexPDict.get(pk_digest)
-		
+
 		if entry is None:
 			L.warn("Authentication failed, public key not found")
 			return False
@@ -202,7 +202,8 @@ class PublicKeyAuthenticationService(Service, ConfigObject):
 	def _scan_dir(self):
 		known_fnames = frozenset(self.IndexPDict.values())
 		for fname in glob.glob(os.path.join(self.ClientCertDir, self.ClientCertGlob)):
-			if fname in known_fnames: continue
+			if fname in known_fnames:
+				continue
 			pk_digest = self.get_public_key_digest_from_filename(fname)
 			self.IndexPDict[pk_digest] = fname
 
@@ -215,7 +216,7 @@ class PublicKeyAuthenticationService(Service, ConfigObject):
 					f.read(),
 					cryptography.hazmat.backends.default_backend()
 				)
-		except:
+		except Exception:
 			return None
 
 		return self.get_public_key_digest(cert.public_key())

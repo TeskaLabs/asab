@@ -65,7 +65,7 @@ class Application(metaclass=Singleton):
 			self.Loop = asyncio.new_event_loop()
 			asyncio.set_event_loop(self.Loop)
 
-		self.LaunchTime = time.time() 
+		self.LaunchTime = time.time()
 		self.BaseTime = self.LaunchTime - self.Loop.time()
 
 		# Setup logging
@@ -75,7 +75,7 @@ class Application(metaclass=Singleton):
 		self.Loop.set_exception_handler(_loop_exception_handler)
 		if Config["logging"].getboolean("verbose"):
 			self.Loop.set_debug(True)
-		
+
 		try:
 			# Signals are not available on Windows
 			self.Loop.add_signal_handler(signal.SIGINT, self.stop)
@@ -103,7 +103,7 @@ class Application(metaclass=Singleton):
 			except NotImplementedError:
 				pass
 
-		self._stop_event = asyncio.Event(loop = self.Loop)
+		self._stop_event = asyncio.Event(loop=self.Loop)
 		self._stop_event.clear()
 		self._stop_counter = 0
 
@@ -120,7 +120,7 @@ class Application(metaclass=Singleton):
 				self.initialize(),
 				self._init_time_governor(asyncio.Future()),
 			],
-			return_when = asyncio.FIRST_EXCEPTION
+			return_when=asyncio.FIRST_EXCEPTION
 		))
 		for task in finished_tasks:
 			# This one also raises exceptions from futures, which is perfectly ok
@@ -129,17 +129,18 @@ class Application(metaclass=Singleton):
 			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
 
 
-	def create_argument_parser(self,
-			prog=None,
-			usage=None,
-			description=None,
-			epilog=None,
-			prefix_chars='-',
-			fromfile_prefix_chars=None,
-			argument_default=None,
-			conflict_handler='error',
-			add_help=True
-		):
+	def create_argument_parser(
+		self,
+		prog=None,
+		usage=None,
+		description=None,
+		epilog=None,
+		prefix_chars='-',
+		fromfile_prefix_chars=None,
+		argument_default=None,
+		conflict_handler='error',
+		add_help=True
+	):
 		'''
 		This method can be overriden to adjust argparse configuration.
 		Refer to the Python standard library to `argparse.ArgumentParser` for details of arguments.
@@ -211,12 +212,14 @@ class Application(metaclass=Singleton):
 		working_dir = Config['general']['working_dir']
 
 		uid = Config['general']['uid']
-		if uid == "": uid = None
+		if uid == "":
+			uid = None
 
 		gid = Config['general']['gid']
-		if gid == "": gid = None
+		if gid == "":
+			gid = None
 
-		signal_map={
+		signal_map = {
 			signal.SIGTTIN: None,
 			signal.SIGTTOU: None,
 			signal.SIGTSTP: None,
@@ -280,7 +283,7 @@ class Application(metaclass=Singleton):
 				self.main(),
 				self._run_time_governor(asyncio.Future()),
 			],
-			return_when = asyncio.FIRST_EXCEPTION
+			return_when=asyncio.FIRST_EXCEPTION
 		))
 		for task in finished_tasks:
 			try:
@@ -288,7 +291,7 @@ class Application(metaclass=Singleton):
 			except BaseException:
 				L.exception("Exception in {}".format(task))
 
-		#TODO: Process pending_tasks tasks from above
+		# TODO: Process pending_tasks tasks from above
 
 		# Comence exit-time
 		L.info("Exiting ...")
@@ -297,7 +300,7 @@ class Application(metaclass=Singleton):
 				self.finalize(),
 				self._exit_time_governor(asyncio.Future()),
 			],
-			return_when = asyncio.FIRST_EXCEPTION
+			return_when=asyncio.FIRST_EXCEPTION
 		))
 		for task in finished_tasks:
 			try:
@@ -305,7 +308,7 @@ class Application(metaclass=Singleton):
 			except BaseException:
 				L.exception("Exception in {}".format(task))
 
-		#TODO: Process pending_tasks tasks from above (should be none)
+		# TODO: Process pending_tasks tasks from above (should be none)
 
 		# Python 3.5 lacks support for shutdown_asyncgens()
 		if hasattr(self.Loop, "shutdown_asyncgens"):
@@ -315,7 +318,7 @@ class Application(metaclass=Singleton):
 		return self.ExitCode
 
 
-	def stop(self, exit_code:int=None):
+	def stop(self, exit_code: int = None):
 		if exit_code is not None:
 			self.set_exit_code(exit_code)
 
@@ -335,7 +338,6 @@ class Application(metaclass=Singleton):
 		self.Logging.rotate()
 		self.PubSub.publish("Application.hup!")
 
-
 	# Modules
 
 	def add_module(self, module_class):
@@ -348,9 +350,8 @@ class Application(metaclass=Singleton):
 
 		module = module_class(self)
 		self.Modules.append(module)
-	
-		asyncio.ensure_future(module.initialize(self), loop=self.Loop)
 
+		asyncio.ensure_future(module.initialize(self), loop=self.Loop)
 
 	# Services
 
@@ -370,14 +371,13 @@ class Application(metaclass=Singleton):
 		""" Register a new service using its name. """
 
 		if service.Name in self.Services:
-			L.error("Service '{}' already registered (existing:{} new:{})"
-					.format(service.Name, self.Services[service.Name], service))
+			L.error("Service '{}' already registered (existing:{} new:{})".format(
+				service.Name, self.Services[service.Name], service))
 			raise RuntimeError("Service {} already registered".format(service.Name))
 
 		self.Services[service.Name] = service
 
 		asyncio.ensure_future(service.initialize(self), loop=self.Loop)
-
 
 	# Lifecycle callback
 
@@ -389,7 +389,6 @@ class Application(metaclass=Singleton):
 
 	async def finalize(self):
 		pass
-
 
 	# Governors
 
@@ -410,17 +409,24 @@ class Application(metaclass=Singleton):
 					break
 				except asyncio.TimeoutError:
 					self.PubSub.publish("Application.tick!")
-					if (cycle_no % 10) == 0: self.PubSub.publish("Application.tick/10!")
+					if (cycle_no % 10) == 0:
+						self.PubSub.publish("Application.tick/10!")
 					if (cycle_no % 60) == 0:
 						# Rebase a Loop time
 						self.BaseTime = time.time() - self.Loop.time()
 						self.PubSub.publish("Application.tick/60!")
-					if (cycle_no % 300) == 0: self.PubSub.publish("Application.tick/300!")
-					if (cycle_no % 600) == 0: self.PubSub.publish("Application.tick/600!")
-					if (cycle_no % 1800) == 0: self.PubSub.publish("Application.tick/1800!")
-					if (cycle_no % 3600) == 0: self.PubSub.publish("Application.tick/3600!")
-					if (cycle_no % 43200) == 0: self.PubSub.publish("Application.tick/43200!")
-					if (cycle_no % 86400) == 0: self.PubSub.publish("Application.tick/86400!")
+					if (cycle_no % 300) == 0:
+						self.PubSub.publish("Application.tick/300!")
+					if (cycle_no % 600) == 0:
+						self.PubSub.publish("Application.tick/600!")
+					if (cycle_no % 1800) == 0:
+						self.PubSub.publish("Application.tick/1800!")
+					if (cycle_no % 3600) == 0:
+						self.PubSub.publish("Application.tick/3600!")
+					if (cycle_no % 43200) == 0:
+						self.PubSub.publish("Application.tick/43200!")
+					if (cycle_no % 86400) == 0:
+						self.PubSub.publish("Application.tick/86400!")
 					continue
 
 		finally:
@@ -453,7 +459,8 @@ class Application(metaclass=Singleton):
 			ts = asyncio.Task.all_tasks(self.Loop)
 			tasks_awaiting = 0
 			for t in ts:
-				if t.done(): continue
+				if t.done():
+					continue
 				tasks_awaiting += 1
 			if tasks_awaiting <= 2:
 				# 2 is for _exit_time_governor and wait()
@@ -467,11 +474,10 @@ class Application(metaclass=Singleton):
 		future.set_result("exit")
 
 
-	def set_exit_code(self, exit_code:int, force:bool=False):
+	def set_exit_code(self, exit_code: int, force: bool = False):
 		if (self.ExitCode < exit_code) or force:
-			L.debug("Exit code set to {}",format(exit_code))
+			L.debug("Exit code set to {}".format(exit_code))
 			self.ExitCode = exit_code
-
 
 	# Time
 

@@ -17,15 +17,15 @@ class UpsertorABC(abc.ABC):
 
 		now = datetime.datetime.utcnow()
 		self.ModSet = {
-			'_m': now, # Set the modification timestamp
+			'_m': now,  # Set the modification timestamp
 		}
 		if version == 0:
-			self.ModSet['_c'] = now # Set the creation timestamp
+			self.ModSet['_c'] = now  # Set the creation timestamp
 
 		self.ModUnset = {}
 
 		self.ModInc = {
-			'_v' : 1, # Increment '_v' at every change
+			'_v': 1,  # Increment '_v' at every change
 		}
 
 		self.ModPush = {}

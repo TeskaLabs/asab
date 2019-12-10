@@ -34,8 +34,8 @@ class Broker(abc.ABC, asab.ConfigObject):
 	"""
 
 
-	def __init__(self, app, accept_replies:bool, task_service, config_section_name:str, config=None):
-		if task_service == None:
+	def __init__(self, app, accept_replies: bool, task_service, config_section_name: str, config=None):
+		if task_service is None:
 			task_service = app.get_service("asab.MOMService")
 
 		super().__init__(config_section_name=config_section_name, config=config)
@@ -54,12 +54,12 @@ class Broker(abc.ABC, asab.ConfigObject):
 		self.MainFuture.cancel()
 
 
-	def subscribe(self, subscription:str, **kwags):
+	def subscribe(self, subscription: str, **kwags):
 		self.Subscriptions[subscription] = kwags
 		asyncio.ensure_future(self.ensure_subscriptions(), loop=self.Loop)
 
 
-	def add(self, target:str, handler):
+	def add(self, target: str, handler):
 		t = self.Targets.get(target)
 		if t is None:
 			self.Targets[target] = [handler]
@@ -76,8 +76,9 @@ class Broker(abc.ABC, asab.ConfigObject):
 		for handler in tlist:
 			reply = await handler(properties, body)
 			if properties.reply_to is not None:
-				#TODO: If reply_to is URL, then use HTTP to deliver reply
-				await self.reply(reply,
+				# TODO: If reply_to is URL, then use HTTP to deliver reply
+				await self.reply(
+					reply,
 					reply_to=properties.reply_to,
 					correlation_id=properties.correlation_id,
 				)
@@ -94,19 +95,24 @@ class Broker(abc.ABC, asab.ConfigObject):
 		pass
 
 
-	async def publish(self, body, target:str='',
-		content_type:str=None,
-		content_encoding:str=None,
-		correlation_id:str=None,
-		reply_to:str=None,
-		):
+	async def publish(
+		self,
+		body,
+		target: str = '',
+		content_type: str = None,
+		content_encoding: str = None,
+		correlation_id: str = None,
+		reply_to: str = None,
+	):
 		pass
 
 
-	async def reply(self, body,
-		reply_to:str,
-		content_type:str=None,
-		content_encoding:str=None,
-		correlation_id:str=None,
-		):
+	async def reply(
+		self,
+		body,
+		reply_to: str,
+		content_type: str = None,
+		content_encoding: str = None,
+		correlation_id: str = None,
+	):
 		pass

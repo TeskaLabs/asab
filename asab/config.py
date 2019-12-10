@@ -28,11 +28,11 @@ class ConfigParser(configparser.ConfigParser):
 
 		'general': {
 			'config_file': os.environ.get('ASAB_CONFIG', ''),
-			'tick_period': 1, # In seconds
-			'var_dir': os.path.expanduser('~/.'+os.path.splitext(os.path.basename(sys.argv[0]))[0]),
-		
+			'tick_period': 1,  # In seconds
+			'var_dir': os.path.expanduser('~/.' + os.path.splitext(os.path.basename(sys.argv[0]))[0]),
+
 			# Daemonization
-			'pidfile': '!', # '!' has a special meaning => it transforms into platform specific location of pid file
+			'pidfile': '!',  # '!' has a special meaning => it transforms into platform specific location of pid file
 			'working_dir': '.',
 			'uid': '',
 			'gid': '',
@@ -41,7 +41,7 @@ class ConfigParser(configparser.ConfigParser):
 		"logging": {
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			"app_name": os.path.basename(sys.argv[0]),
-			"sd_id": "sd", # Structured data id, see RFC5424
+			"sd_id": "sd",  # Structured data id, see RFC5424
 		},
 
 		"logging:console": {
@@ -51,7 +51,7 @@ class ConfigParser(configparser.ConfigParser):
 
 		"logging:syslog": {
 			"enabled": "false",
-			#TODO: "facility": 'local1',
+			# TODO: "facility": 'local1',
 			"address": _syslog_sockets.get(platform.system(), "/dev/log"),
 			"format": _syslog_format.get(platform.system(), "3"),
 		},
@@ -85,13 +85,13 @@ class ConfigParser(configparser.ConfigParser):
 				key = self.optionxform(str(key))
 				if key in self._sections[section]:
 					# Value exists, no default needed
-					continue 
+					continue
 
 				if value is not None:
 					value = str(value)
 
 				if value is not None and "$" in value:
-					self.set(section, key, os.path.expandvars(value))				
+					self.set(section, key, os.path.expandvars(value))
 				else:
 					self.set(section, key, value)
 
@@ -107,7 +107,8 @@ class ConfigParser(configparser.ConfigParser):
 			sep = os.pathsep
 		for include_glob in includes.split(sep):
 			include_glob = os.path.expandvars(include_glob.strip())
-			if len(include_glob) == 0: continue
+			if len(include_glob) == 0:
+				continue
 
 			for include in glob.glob(include_glob):
 				if include not in self._included:
@@ -145,11 +146,9 @@ class ConfigParser(configparser.ConfigParser):
 				if "$" in each_val:
 					self.set(each_section, each_key, os.path.expandvars(each_val))
 
-###
 
 Config = ConfigParser()
 
-###
 
 class ConfigObject(object):
 
@@ -175,8 +174,10 @@ class ConfigObject(object):
 		self.Config = ConfigObjectDict()
 
 		for base_class in inspect.getmro(self.__class__):
-			if not hasattr(base_class, 'ConfigDefaults'): continue
-			if len(base_class.ConfigDefaults) == 0: continue
+			if not hasattr(base_class, 'ConfigDefaults'):
+				continue
+			if len(base_class.ConfigDefaults) == 0:
+				continue
 
 			# Merge config defaults of each base class in the 'inheritance' way
 			for key, value in base_class.ConfigDefaults.items():
@@ -186,7 +187,7 @@ class ConfigObject(object):
 
 				if key not in self.Config:
 					self.Config[key] = value
-		
+
 		if Config.has_section(config_section_name):
 			for key, value in Config.items(config_section_name):
 				self.Config[key] = value
@@ -234,4 +235,3 @@ class ConfigObjectDict(MutableMapping):
 
 	def __repr__(self):
 		return "<%s %r>" % (self.__class__.__name__, self._data)
-

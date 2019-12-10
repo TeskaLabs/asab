@@ -19,15 +19,15 @@ class LogManIOService(Service):
 		super().__init__(app, service_name)
 
 		self.URL = Config.get('logman.io', 'url').format(
-			username = Config.get('logman.io', 'username'),
-			password = Config.get('logman.io', 'password'),
-			virtualhost = Config.get('logman.io', 'virtualhost'),
+			username=Config.get('logman.io', 'username'),
+			password=Config.get('logman.io', 'password'),
+			virtualhost=Config.get('logman.io', 'virtualhost'),
 		)
-		
+
 		self.OutboundQueue = asyncio.Queue(loop=app.Loop)
 
 		from .amqp import LogManIOAMQPUplink as Uplink
-		#from .websocket import LogManIOWebSocketUplink as Uplink
+		# from .websocket import LogManIOWebSocketUplink as Uplink
 		self.Uplink = Uplink(app, self.URL, self.OutboundQueue)
 
 

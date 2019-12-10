@@ -27,8 +27,8 @@ class MetricsService(asab.Service):
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
-		
-		self.Metrics = {} # A key is dimension (combination of metric name and tags)
+
+		self.Metrics = {}  # A key is dimension (combination of metric name and tags)
 		self.Targets = []
 		self.Tags = {
 			'host': platform.node(),
@@ -38,7 +38,7 @@ class MetricsService(asab.Service):
 
 		for target in asab.Config.get('asab:metrics', 'target').strip().split():
 			try:
-				target_type =  asab.Config.get('asab:metrics:{}'.format(target), 'type')
+				target_type = asab.Config.get('asab:metrics:{}'.format(target), 'type')
 			except configparser.NoOptionError:
 				# This allows to specify the type of the target by its name
 				target_type = target
@@ -65,12 +65,13 @@ class MetricsService(asab.Service):
 
 
 	async def _on_flushing_event(self, event_type):
-		if len(self.Metrics) == 0: return
+		if len(self.Metrics) == 0:
+			return
 		now = self.App.time()
 
 		mlist = []
 		for metric in self.Metrics.values():
-			struct_data={
+			struct_data = {
 				'name': metric.Name,
 				'timestamp': now,
 			}
@@ -85,7 +86,7 @@ class MetricsService(asab.Service):
 				for tk, tv in tags.items():
 					struct_data['tag.{}'.format(tk)] = tv
 			L.log(asab.LOG_NOTICE, "", struct_data=struct_data)
-		
+
 			mlist.append((metric, values))
 
 			self.App.PubSub.publish(
@@ -99,13 +100,13 @@ class MetricsService(asab.Service):
 			fs.append(target.process(now, mlist))
 		if len(fs) > 0:
 			done, pending = await asyncio.wait(fs, loop=self.App.Loop, timeout=5.0, return_when=asyncio.ALL_COMPLETED)
-		
+
 			for f in pending:
 				L.warning("Target task {} failed to complete".format(f))
 				f.cancel()
 
 
-	def _add_metric(self, dimension, metric:Metric):
+	def _add_metric(self, dimension, metric: Metric):
 		dimension = metric_dimension(metric.Name, metric.Tags)
 		self.Metrics[dimension] = metric
 
@@ -126,7 +127,7 @@ class MetricsService(asab.Service):
 		return m
 
 
-	def create_counter(self, metric_name, tags=None, init_values=None, reset:bool=True):
+	def create_counter(self, metric_name, tags=None, init_values=None, reset: bool = True):
 		dimension = metric_dimension(metric_name, tags)
 		if dimension in self.Metrics:
 			raise RuntimeError("Metric '{}' already present".format(dimension))
@@ -157,4 +158,3 @@ class MetricsService(asab.Service):
 		m = DutyCycle(loop, metric_name, tags=t, init_values=init_values)
 		self._add_metric(dimension, m)
 		return m
-

@@ -26,7 +26,7 @@ class CookieSessionMixIn(object):
 
 
 	def _set_cookie(self, response, cookie_data, max_age=None):
-		params = {} #dict(self._cookie_params)
+		params = {}  # dict(self._cookie_params)
 		if max_age is not None:
 			params['max_age'] = max_age
 			params['expires'] = time.strftime("%a, %d-%b-%Y %T GMT", time.gmtime(time.time() + max_age))

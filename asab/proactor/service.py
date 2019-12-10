@@ -7,13 +7,14 @@ class ProactorService(asab.Service):
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 		self.Loop = app.Loop
-		
+
 		max_workers = asab.Config.get('asab:proactor', 'max_workers')
 		try:
 			max_workers = int(max_workers)
-		except:
+		except BaseException:
 			max_workers = None
-		if max_workers <= 0: max_workers = None
+		if max_workers <= 0:
+			max_workers = None
 
 		self.Executor = concurrent.futures.ThreadPoolExecutor(
 			max_workers=max_workers,
@@ -22,7 +23,6 @@ class ProactorService(asab.Service):
 
 		if asab.Config.get('asab:proactor', 'default_executor'):
 			self.Loop.set_default_executor(self.Executor)
-
 
 	# There was the method run, which is obsolete
 	def execute(self, func, *args):

@@ -18,3 +18,12 @@ class Module(asab.Module):
 	def __init__(self, app):
 		super().__init__(app)
 		self.Service = OAuthClientService(app, "asab.OAuthClientService")
+
+
+__all__ = (
+	'oauthclient_middleware_factory',
+	'ABCOAuthMethod',
+	'GitHubOAuthMethod',
+	'OpenIDConnectMethod',
+	'OAuthClientService',
+)

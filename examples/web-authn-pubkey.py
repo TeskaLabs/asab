@@ -4,7 +4,7 @@ import asab.web
 import asab.web.authn.pubkeyauth
 
 asab.Config.add_defaults({
-	'example:web' : {
+	'example:web': {
 		'listen': '0.0.0.0 8080 ssl:example:web',
 	},
 
@@ -15,7 +15,7 @@ asab.Config.add_defaults({
 		'verify_mode': 'CERT_OPTIONAL',
 	},
 
-	'authn:pubkey:example:web' : {
+	'authn:pubkey:example:web': {
 		'dir': "./ssl/clients/",
 	},
 

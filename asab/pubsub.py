@@ -64,7 +64,7 @@ class PubSub(object):
 			c = callback_list[i]()
 
 			# Check if a weak reference is working
-			if c is None: # a reference is lost, remove this entry
+			if c is None:  # a reference is lost, remove this entry
 				if remove_list is None:
 					remove_list = list()
 				remove_list.append(callback_ref)
@@ -100,7 +100,7 @@ class PubSub(object):
 			callback = callback_ref()
 
 			# Check if a weak reference is working
-			if callback is None: # a reference is lost
+			if callback is None:  # a reference is lost
 				if remove_list is None:
 					remove_list = list()
 				remove_list.append(callback_ref)
@@ -138,7 +138,7 @@ class subscribe(object):
 	Decorator
 
 	Usage:
-	
+
 	@asab.subscribe("tick")
 	def on_tick(self, message_type):
 	print("Service tick")
@@ -166,15 +166,15 @@ It works on FIFO basis (First message In, first message Out).
 If ``pubsub`` argument is None, the initial subscription is skipped.
 
 .. code:: python
-    
-    subscriber = asab.Subscriber(
-        app.PubSub,
-        "Application.tick!",
-        "Application.stop!"
-    )
+
+	subscriber = asab.Subscriber(
+		app.PubSub,
+		"Application.tick!",
+		"Application.stop!"
+	)
 	'''
 
-	def __init__(self, pubsub = None, *message_types):
+	def __init__(self, pubsub=None, *message_types):
 
 		self._q = asyncio.Queue()
 		self._subscriptions = []

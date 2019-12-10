@@ -29,7 +29,7 @@ class MyApplication(asab.Application):
 
 
 	def _on_tick(self, event_name):
-		L.warning("Tick: {}".format(event_name), struct_data={'key1':'value1', 'key2':2})
+		L.warning("Tick: {}".format(event_name), struct_data={'key1': 'value1', 'key2': 2})
 		self.Counter.add("test_value", 1)
 
 

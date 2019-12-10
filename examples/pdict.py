@@ -13,6 +13,7 @@ class MyApplication(asab.Application):
 
 		self.stop()
 
+
 if __name__ == '__main__':
 	app = MyApplication()
 	app.run()

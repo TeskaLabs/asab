@@ -72,7 +72,7 @@ class OAuthForwarder(object):
 
 			# Access token validation: https://openid.net/specs/openid-connect-core-1_0.html#3.1.3.8
 			at_hash = token.get("at_hash")
-			computed_at_hash = base64.urlsafe_b64encode(access_token[0:len(access_token)//2].encode("utf-8")).decode("utf-8")
+			computed_at_hash = base64.urlsafe_b64encode(access_token[0:len(access_token) // 2].encode("utf-8")).decode("utf-8")
 			if computed_at_hash != at_hash:
 				L.warn("The access token '{}' from '{}' could not be validated.".format(access_token, method.Config["oauth_server_id"]))
 				return json_response(request=request, data=response)

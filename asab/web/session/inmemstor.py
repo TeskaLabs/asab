@@ -13,7 +13,7 @@ L = logging.getLogger(__name__)
 class InMemorySessionStorage(SessionStorage, CookieSessionMixIn):
 
 
-	def __init__(self, app, session_class, max_age=60*15, cookie_name='SESSID'):
+	def __init__(self, app, session_class, max_age=60 * 15, cookie_name='SESSID'):
 		super().__init__(app, max_age=max_age, session_class=session_class)
 		self.set_cookie_name(cookie_name)
 
@@ -33,13 +33,13 @@ class InMemorySessionStorage(SessionStorage, CookieSessionMixIn):
 					return session
 
 			L.warning("Invalid session id '{}'".format(session_id))
-		
+
 		return await self.create(request)
 
 
 	async def set(self, session, response):
 		if session.is_new():
-			
+
 			while True:
 				session_id = uuid.uuid4().hex
 				if session_id not in self.Sessions:
@@ -68,4 +68,3 @@ class InMemorySessionStorage(SessionStorage, CookieSessionMixIn):
 
 		for session in expired_sessions:
 			await self.delete(session)
-

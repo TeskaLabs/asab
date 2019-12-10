@@ -62,7 +62,6 @@ class LogManIOWebSocketUplink(object):
 					self.SenderFuture = asyncio.ensure_future(self._sender(ws), loop=self.App.Loop)
 					self.SenderFuture.add_done_callback(self._on_done)
 
-					
 					async for msg in ws:
 						pass
 
@@ -83,7 +82,7 @@ class LogManIOWebSocketUplink(object):
 			future.result()
 		except asyncio.CancelledError:
 			pass
-		except:
+		except BaseException:
 			L.exception("Error in LogMan.io websocket:")
 
 		if self.SenderFuture is not None:

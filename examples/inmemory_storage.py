@@ -1,7 +1,5 @@
 import pprint
 
-from asab.storage.mongodb import StorageService
-
 import asab
 import asab.storage
 
@@ -13,6 +11,8 @@ import asab.storage
 type=inmemory
 
 '''
+
+
 class MyApplication(asab.Application):
 
 	async def initialize(self):

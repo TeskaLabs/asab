@@ -70,4 +70,3 @@ setup(
 		'build_py': custom_build_py,
 	},
 )
-

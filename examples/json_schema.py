@@ -54,4 +54,3 @@ or as form
 if __name__ == '__main__':
 	app = MyApplication()
 	app.run()
-

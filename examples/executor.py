@@ -28,7 +28,7 @@ class MyApplication(asab.Application):
 	asab.Config.add_defaults({
 		'asab': {
 			'workers': 3
-			}
+		}
 	})
 
 	def __init__(self):

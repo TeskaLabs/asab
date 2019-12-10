@@ -25,7 +25,7 @@ class Application(asab.Application):
 
 	def parse_arguments(self):
 		args = super().parse_arguments()
-		self.command =  args.command or ""
+		self.command = args.command or ""
 
 		if args.command == "command1":
 			self.command_args = {
