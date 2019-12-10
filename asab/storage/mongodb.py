@@ -102,7 +102,6 @@ class MongoDBUpsertor(UpsertorABC):
 
 
 	async def execute(self):
-
 		id_name = self.get_id_name()
 		addobj = {}
 
