@@ -7,11 +7,9 @@ from ..metrics.service import MetricsService
 from .metrics import LogmanIOMetrics
 from .log import LogmanIOLogHandler
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 class LogManIOService(Service):
 

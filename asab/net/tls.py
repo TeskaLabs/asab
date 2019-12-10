@@ -29,7 +29,6 @@ class SSLContextBuilder(ConfigObject):
 		if len(password) == 0:
 			password = None
 
-
 		cert = self.Config.get("cert")
 		if len(cert) != 0:
 			ctx.load_cert_chain(

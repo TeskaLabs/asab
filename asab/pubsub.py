@@ -3,11 +3,9 @@ import asyncio
 import weakref
 import functools
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 class PubSub(object):
 
@@ -206,17 +204,17 @@ Example of the `await message()` use:
 .. code:: python
 
 	async def my_coroutine(app):
-	    # Subscribe for a two application events
-	    subscriber = asab.Subscriber(
-	        app.PubSub,
-	        "Application.tick!",
-	        "Application.exit!"
-	    )
-	    while True:
-	        message_type, args, kwargs = await subscriber.message()
-	        if message_type == "Application.exit!":
-	            break
-	        print("Tick.")
+		# Subscribe for a two application events
+		subscriber = asab.Subscriber(
+			app.PubSub,
+			"Application.tick!",
+			"Application.exit!"
+		)
+		while True:
+			message_type, args, kwargs = await subscriber.message()
+			if message_type == "Application.exit!":
+				break
+			print("Tick.")
 
 		'''
 		return self._q.get()

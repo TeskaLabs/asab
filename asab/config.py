@@ -7,11 +7,9 @@ import platform
 import configparser
 from collections.abc import MutableMapping
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 class ConfigParser(configparser.ConfigParser):
 
@@ -195,10 +193,10 @@ class Configurable(object):
 		if config is not None:
 			self.Config.update(config)
 
+
 # This is for backward compatibility
 ConfigObject = Configurable
 
-###
 
 class ConfigObjectDict(MutableMapping):
 

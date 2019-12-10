@@ -5,11 +5,9 @@ import asab
 import asab.logman
 import asab.metrics
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 class MyApplication(asab.Application):
 

@@ -151,7 +151,6 @@ class Logging(object):
 			if self.FileHandler.stream.tell() > 1000:
 				self.rotate()
 
-###
 
 class _StructuredDataLogger(logging.Logger):
 	'''
@@ -170,7 +169,6 @@ It means that you can use expressions such as ``logger.info("Hello world!", stru
 
 logging.setLoggerClass(_StructuredDataLogger)
 
-###
 
 class StructuredDataFormatter(logging.Formatter):
 	'''
@@ -263,7 +261,6 @@ def _loop_exception_handler(loop, context):
 
 	logging.getLogger().error(message)
 
-##
 
 class MacOSXSyslogFormatter(StructuredDataFormatter):
 	"""
@@ -279,7 +276,6 @@ class MacOSXSyslogFormatter(StructuredDataFormatter):
 		# Initialize formatter
 		super().__init__(fmt=fmt, datefmt='%b %d %H:%M:%S', style=style, sd_id=sd_id)
 
-##
 
 class SyslogRFC3164Formatter(StructuredDataFormatter):
 	"""
@@ -296,7 +292,6 @@ class SyslogRFC3164Formatter(StructuredDataFormatter):
 		# Initialize formatter
 		super().__init__(fmt=fmt, datefmt='%b %d %H:%M:%S', style=style, sd_id=sd_id)
 
-##
 
 class SyslogRFC5424Formatter(StructuredDataFormatter):
 	"""

@@ -3,6 +3,7 @@ import uuid
 import hashlib
 import datetime
 
+
 class UpsertorABC(abc.ABC):
 
 	def __init__(self, storage, collection, obj_id, version=None):

@@ -7,11 +7,9 @@ import pika.adapters.asyncio_connection
 
 from .. import Config
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 class LogManIOAMQPUplink(object):
 

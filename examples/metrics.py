@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import asab
 
+
 class MyApplication(asab.Application):
 
 	async def initialize(self):

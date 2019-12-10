@@ -1,5 +1,6 @@
 import aiohttp.web
 
+
 def basicauth_middleware_factory(app, *args, **kwargs):
 
 	@aiohttp.web.middleware

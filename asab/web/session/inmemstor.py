@@ -4,11 +4,9 @@ import logging
 from .storage import SessionStorage
 from .cookies import CookieSessionMixIn
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 class InMemorySessionStorage(SessionStorage, CookieSessionMixIn):
 

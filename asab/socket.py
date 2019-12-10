@@ -1,5 +1,6 @@
 from .abc.service import Service
 
+
 class StreamSocketServerService(Service):
 
 	'''

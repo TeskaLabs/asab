@@ -7,6 +7,7 @@ import json
 
 from ..log import LOG_NOTICE
 
+
 class LogmanIOLogHandler(logging.Handler):
 
 	def __init__(self, svc, level=logging.NOTSET):

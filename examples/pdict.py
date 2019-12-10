@@ -2,6 +2,7 @@
 import os.path
 import asab
 
+
 class MyApplication(asab.Application):
 
 	async def main(self):

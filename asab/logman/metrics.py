@@ -2,11 +2,9 @@ import logging
 
 from ..metrics.influxdb import influxdb_format
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 class LogmanIOMetrics(object):
 

@@ -21,6 +21,7 @@ asab.Config.add_defaults({
 
 })
 
+
 class MyApplication(asab.Application):
 	'''
 	This is a demonstration of the ASAB Web client ssl cert authorization.

@@ -4,11 +4,9 @@ import asyncio
 
 import aiohttp
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 class LogManIOWebSocketUplink(object):
 
