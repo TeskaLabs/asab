@@ -99,35 +99,34 @@ class ConfigParser(configparser.ConfigParser):
 	def _traverse_includes(self, includes, this_dir):
 		""" Reads included config files. Supports nested including. """
 
-		assert(this_dir is not None)
-		self._load_dir_stack.append(this_dir)
+		if '\n' in includes:
+			sep = '\n'
+		else:
+			sep = os.pathsep
 
-		try:
-			if '\n' in includes:
-				sep = '\n'
-			else:
-				sep = os.pathsep
+		for include_glob in includes.split(sep):
+			include_glob = os.path.expandvars(include_glob.strip())
+			if len(include_glob) == 0: continue
 
-			for include_glob in includes.split(sep):
-				include_glob = os.path.expandvars(include_glob.strip())
-				if len(include_glob) == 0: continue
+			for include in glob.glob(include_glob):
+				include = os.path.abspath(include)
 
-				for include in glob.glob(include_glob):
-					include = os.path.abspath(include)
+				if include in self._included:
+					# Preventing infinite dependency looping
+					L.warn("Config file '{}' can be included only once.".format(include))
+					continue
 
-					if include in self._included:
-						# Preventing infinite dependency looping
-						L.warn("Config file '{}' can be included only once.".format(include))
-						continue
-
-					self._included.add(include)
-					self.set('general', 'include', '')
-					self.read(include)
-					includes = self.get('general', 'include', fallback='')
-					self._traverse_includes(includes, os.path.dirname(include_glob))						
+				self._included.add(include)
+				self.set('general', 'include', '')
 		
-		finally:
-			self._load_dir_stack.pop()
+				self._load_dir_stack.append(os.path.dirname(include))
+				try:
+					self.read(include)
+				finally:
+					self._load_dir_stack.pop()
+
+				includes = self.get('general', 'include', fallback='')
+				self._traverse_includes(includes, os.path.dirname(include_glob))						
 
 
 	def _load(self):
@@ -165,6 +164,9 @@ class _Interpolation(configparser.BasicInterpolation):
 		# Expand environment variables
 		if '$' in value:
 			os.environ['THIS_DIR'] = os.path.abspath(parser._load_dir_stack[-1])
+			print(">> 1", value)
+			print(">> 2", os.environ['THIS_DIR'])
+			print(">> 3", parser._load_dir_stack)
 			value = os.path.expandvars(value)
 
 		return super().before_read(parser, section, option, value)
