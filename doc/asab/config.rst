@@ -144,6 +144,7 @@ Environment variables found in values are automatically expanded.
 	'/home/user/.myapp/'
 
 There is a special environment variable `${THIS_DIR}` that is expanded to a directory that contains a current configuration file.
+It is useful in complex configurations that utilizes included configuration files etc.
 
 .. code:: ini
 
