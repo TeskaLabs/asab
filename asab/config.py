@@ -164,9 +164,6 @@ class _Interpolation(configparser.BasicInterpolation):
 		# Expand environment variables
 		if '$' in value:
 			os.environ['THIS_DIR'] = os.path.abspath(parser._load_dir_stack[-1])
-			print(">> 1", value)
-			print(">> 2", os.environ['THIS_DIR'])
-			print(">> 3", parser._load_dir_stack)
 			value = os.path.expandvars(value)
 
 		return super().before_read(parser, section, option, value)
