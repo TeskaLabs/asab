@@ -93,35 +93,45 @@ class ConfigParser(configparser.ConfigParser):
 				else:
 					self.set(section, key, value)
 
+
 	def _traverse_includes(self, includes, this_dir):
 		""" Reads included config files. Supports nested including. """
-
-		# Directory of current config file
-		os.environ["THIS_DIR"] = os.path.abspath(this_dir)
 
 		if '\n' in includes:
 			sep = '\n'
 		else:
 			sep = os.pathsep
+
 		for include_glob in includes.split(sep):
 			include_glob = os.path.expandvars(include_glob.strip())
 			if len(include_glob) == 0:
 				continue
 
 			for include in glob.glob(include_glob):
-				if include not in self._included:
-					self._included.append(include)
-					self.set('general', 'include', '')
+				include = os.path.abspath(include)
+
+				if include in self._included:
+					# Preventing infinite dependency looping
+					L.warn("Config file '{}' can be included only once.".format(include))
+					continue
+
+				self._included.add(include)
+				self.set('general', 'include', '')
+
+				self._load_dir_stack.append(os.path.dirname(include))
+				try:
 					self.read(include)
-					includes = self.get('general', 'include', fallback='')
-					self._traverse_includes(includes, os.path.dirname(include_glob))
-				else:
-					L.warning("Config file '{}' can be included only once.".format(include))
-		return
+				finally:
+					self._load_dir_stack.pop()
+
+				includes = self.get('general', 'include', fallback='')
+				self._traverse_includes(includes, os.path.dirname(include_glob))
 
 
 	def _load(self):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
+
+		self._load_dir_stack = []
 
 		config_fname = ConfigParser._default_values['general']['config_file']
 		if config_fname != '':
@@ -129,23 +139,35 @@ class ConfigParser(configparser.ConfigParser):
 				print("Config file '{}' not found".format(config_fname), file=sys.stderr)
 				sys.exit(1)
 
-			self.read(config_fname)
+			self._load_dir_stack.append(os.path.dirname(config_fname))
+			try:
+				self.read(config_fname)
+			finally:
+				self._load_dir_stack.pop()
 
 		includes = self.get('general', 'include', fallback='')
 
-		self._included = []
-		self._traverse_includes(includes, os.path.dirname(config_fname))
+		self._included = set()
+		self._traverse_includes(includes, this_dir=os.path.dirname(config_fname))
 
 		self.add_defaults(ConfigParser._default_values)
 
-		# Deals with environment variables
-		for each_section in self.sections():
-			for (each_key, each_val) in self.items(each_section):
-				if "$" in each_val:
-					self.set(each_section, each_key, os.path.expandvars(each_val))
+		del self._load_dir_stack
 
 
-Config = ConfigParser()
+class _Interpolation(configparser.BasicInterpolation):
+	"""Interpolation which expands environment variables in values."""
+
+	def before_read(self, parser, section, option, value):
+		# Expand environment variables
+		if '$' in value:
+			os.environ['THIS_DIR'] = os.path.abspath(parser._load_dir_stack[-1])
+			value = os.path.expandvars(value)
+
+		return super().before_read(parser, section, option, value)
+
+
+Config = ConfigParser(interpolation=_Interpolation())
 
 
 class Configurable(object):
