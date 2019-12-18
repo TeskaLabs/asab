@@ -28,4 +28,7 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 		if agent is not None:
 			struct_data['al.A'] = agent
 
+		if request.forwarded is not None:
+			struct_data['Ix'] =request.forwarded
+
 		self.logger.log(LOG_NOTICE, '', struct_data=struct_data)
