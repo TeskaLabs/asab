@@ -30,6 +30,7 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 
 		xfwd = request.headers.get('X-Forwarded-For')
 		if xfwd is not None:
-		 	struct_data['Ix'] = request.forwarded
+			#TODO: Sanitize xfwd
+		 	struct_data['Ix'] = xfwd[:128]
 
 		self.logger.log(LOG_NOTICE, '', struct_data=struct_data)
