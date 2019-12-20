@@ -1,25 +1,24 @@
-import os
-import sys
-import traceback
-import time
-import socket
+import asyncio
 import datetime
-import pprint
-import socket
-import queue
-import re
-import urllib.parse
 import logging
 import logging.handlers
-
-import asyncio
+import os
+import pprint
+import queue
+import re
+import socket
+import sys
+import time
+import traceback
+import urllib.parse
 
 from .config import Config
 from .timer import Timer
 
 # Non-error/warning type of message that is visible without -v flag
-LOG_NOTICE = 25 
+LOG_NOTICE = 25
 logging.addLevelName(LOG_NOTICE, "NOTICE")
+
 
 class Logging(object):
 
@@ -31,15 +30,15 @@ class Logging(object):
 		self.SyslogHandler = None
 
 		if not self.RootLogger.hasHandlers():
-			
+
 			# Add console logger
 			# Don't initialize this when not on console
 			if os.isatty(sys.stdin.fileno()):
 				self.ConsoleHandler = logging.StreamHandler(stream=sys.stderr)
 				self.ConsoleHandler.setFormatter(StructuredDataFormatter(
-					fmt = Config["logging:console"]["format"],
-					datefmt = Config["logging:console"]["datefmt"],
-					sd_id = Config["logging"]["sd_id"],
+					fmt=Config["logging:console"]["format"],
+					datefmt=Config["logging:console"]["datefmt"],
+					sd_id=Config["logging"]["sd_id"],
 				))
 				self.ConsoleHandler.setLevel(logging.DEBUG)
 				self.RootLogger.addHandler(self.ConsoleHandler)
@@ -51,13 +50,13 @@ class Logging(object):
 
 				self.FileHandler = logging.handlers.RotatingFileHandler(
 					file_path,
-					backupCount = Config.getint("logging:file", "backup_count"),
+					backupCount=Config.getint("logging:file", "backup_count"),
 				)
 				self.FileHandler.setLevel(logging.DEBUG)
 				self.FileHandler.setFormatter(StructuredDataFormatter(
-					fmt = Config["logging:file"]["format"],
-					datefmt = Config["logging:file"]["datefmt"],
-					sd_id = Config["logging"]["sd_id"],
+					fmt=Config["logging:file"]["format"],
+					datefmt=Config["logging:file"]["datefmt"],
+					sd_id=Config["logging"]["sd_id"],
 				))
 				self.RootLogger.addHandler(self.FileHandler)
 
@@ -88,12 +87,10 @@ class Logging(object):
 					else:
 						self.RootLogger.error("Invalid 'rotate_every' configuration value.")
 
-
 			# Initialize syslog
 			if Config["logging:syslog"].getboolean("enabled"):
 
 				address = Config["logging:syslog"]["address"]
-				h = None
 
 				if address[:1] == '/':
 					self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_DGRAM, address)
@@ -127,11 +124,11 @@ class Logging(object):
 					self.SyslogHandler.setLevel(logging.DEBUG)
 					format = Config["logging:syslog"]["format"]
 					if format == 'm':
-						self.SyslogHandler.setFormatter(MacOSXSyslogFormatter(sd_id = Config["logging"]["sd_id"]))
+						self.SyslogHandler.setFormatter(MacOSXSyslogFormatter(sd_id=Config["logging"]["sd_id"]))
 					elif format == '5':
-						self.SyslogHandler.setFormatter(SyslogRFC5424Formatter(sd_id = Config["logging"]["sd_id"]))
+						self.SyslogHandler.setFormatter(SyslogRFC5424Formatter(sd_id=Config["logging"]["sd_id"]))
 					else:
-						self.SyslogHandler.setFormatter(SyslogRFC3164Formatter(sd_id = Config["logging"]["sd_id"]))
+						self.SyslogHandler.setFormatter(SyslogRFC3164Formatter(sd_id=Config["logging"]["sd_id"]))
 					self.RootLogger.addHandler(self.SyslogHandler)
 
 		else:
@@ -154,7 +151,6 @@ class Logging(object):
 			if self.FileHandler.stream.tell() > 1000:
 				self.rotate()
 
-###
 
 class _StructuredDataLogger(logging.Logger):
 	'''
@@ -164,7 +160,8 @@ It means that you can use expressions such as ``logger.info("Hello world!", stru
 
 	def _log(self, level, msg, args, exc_info=None, struct_data=None, extra=None, stack_info=False):
 		if struct_data is not None:
-			if extra is None: extra = dict()
+			if extra is None:
+				extra = dict()
 			extra['_struct_data'] = struct_data
 
 		super()._log(level, msg, args, exc_info=exc_info, extra=extra, stack_info=stack_info)
@@ -172,7 +169,6 @@ It means that you can use expressions such as ``logger.info("Hello world!", stru
 
 logging.setLoggerClass(_StructuredDataLogger)
 
-###
 
 class StructuredDataFormatter(logging.Formatter):
 	'''
@@ -192,22 +188,21 @@ class StructuredDataFormatter(logging.Formatter):
 		Format the specified record as text.
 		'''
 
-		record.struct_data=self.render_struct_data(record.__dict__.get("_struct_data"))
-		
+		record.struct_data = self.render_struct_data(record.__dict__.get("_struct_data"))
+
 		# The Priority value is calculated by first multiplying the Facility number by 8 and then adding the numerical value of the Severity.
-		severity = 7 # Debug
 		if record.levelno > logging.DEBUG and record.levelno <= logging.INFO:
-			severity = 6 # Informational
+			severity = 6  # Informational
 		elif record.levelno <= LOG_NOTICE:
-			severity = 5 # Notice
+			severity = 5  # Notice
 		elif record.levelno <= logging.WARNING:
-			severity = 4 # Warning
+			severity = 4  # Warning
 		elif record.levelno <= logging.ERROR:
-			severity = 3 # Error
+			severity = 3  # Error
 		elif record.levelno <= logging.CRITICAL:
-			severity = 2 # Critical
+			severity = 2  # Critical
 		else:
-			severity = 1 # Alert
+			severity = 1  # Alert
 
 		record.priority = (self.Facility << 3) + severity
 		return super().format(record)
@@ -251,7 +246,7 @@ def _loop_exception_handler(loop, context):
 	'''
 
 	exception = context.pop('exception', None)
-	
+
 	message = context.pop('message', '')
 	if len(message) > 0:
 		message += '\n'
@@ -261,15 +256,14 @@ def _loop_exception_handler(loop, context):
 
 	if exception is not None:
 		ex_traceback = exception.__traceback__
-		tb_lines = [ line.rstrip('\n') for line in traceback.format_exception(exception.__class__, exception, ex_traceback)]
+		tb_lines = [line.rstrip('\n') for line in traceback.format_exception(exception.__class__, exception, ex_traceback)]
 		message += '\n' + '\n'.join(tb_lines)
 
 	logging.getLogger().error(message)
 
-##
 
 class MacOSXSyslogFormatter(StructuredDataFormatter):
-	""" 
+	"""
 	It implements Syslog formatting for Mac OSX syslog (aka format ``m``).
 	"""
 
@@ -282,10 +276,9 @@ class MacOSXSyslogFormatter(StructuredDataFormatter):
 		# Initialize formatter
 		super().__init__(fmt=fmt, datefmt='%b %d %H:%M:%S', style=style, sd_id=sd_id)
 
-##
 
 class SyslogRFC3164Formatter(StructuredDataFormatter):
-	""" 
+	"""
 	It implements Syslog formatting for Mac OSX syslog (aka format ``3``).
 	"""
 
@@ -299,10 +292,9 @@ class SyslogRFC3164Formatter(StructuredDataFormatter):
 		# Initialize formatter
 		super().__init__(fmt=fmt, datefmt='%b %d %H:%M:%S', style=style, sd_id=sd_id)
 
-##
 
 class SyslogRFC5424Formatter(StructuredDataFormatter):
-	""" 
+	"""
 	It implements Syslog formatting for Mac OSX syslog (aka format ``5``).
 	"""
 
@@ -372,7 +364,7 @@ It implements a queue for decoupling logging from a networking. The networking i
 	def _on_write(self):
 		self._write_ready = True
 		self._loop.remove_writer(self._socket)
-		
+
 		while not self._queue.empty():
 			# TODO: Handle eventual error in writing -> break the cycle and restart on write handler
 			msg = self._queue.get_nowait()

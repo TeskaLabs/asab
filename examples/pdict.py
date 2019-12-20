@@ -2,6 +2,7 @@
 import os.path
 import asab
 
+
 class MyApplication(asab.Application):
 
 	async def main(self):
@@ -12,6 +13,7 @@ class MyApplication(asab.Application):
 		print("Executed for {} times".format(counter))
 
 		self.stop()
+
 
 if __name__ == '__main__':
 	app = MyApplication()

@@ -1,13 +1,12 @@
-import logging
-
 import aiohttp.abc
 
 from ..log import LOG_NOTICE
 
+
 class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 
 	def log(self, request, response, time):
-		struct_data={
+		struct_data = {
 			'I': request.remote,
 			'al.m': request.method,
 			'al.p': request.path,
@@ -30,7 +29,7 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 
 		xfwd = request.headers.get('X-Forwarded-For')
 		if xfwd is not None:
-			#TODO: Sanitize xfwd
-		 	struct_data['Ix'] = xfwd[:128]
+			# TODO: Sanitize xfwd
+			struct_data['Ix'] = xfwd[:128]
 
 		self.logger.log(LOG_NOTICE, '', struct_data=struct_data)

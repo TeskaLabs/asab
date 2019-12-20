@@ -1,5 +1,6 @@
 import abc
 
+
 class Module(abc.ABC):
 	"""
 	Abstract module class
@@ -7,7 +8,6 @@ class Module(abc.ABC):
 
 	def __init__(self, app):
 		pass
-
 
 	# Lifecycle
 

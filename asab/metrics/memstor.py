@@ -1,8 +1,10 @@
 import asab
 
+
 class MetricsMemstorTarget(asab.ConfigObject):
 
 	def __init__(self, svc, config_section_name, config=None):
+		super().__init__(config_section_name, config)
 		self.Metrics = {}
 
 

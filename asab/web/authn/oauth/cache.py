@@ -19,7 +19,7 @@ class OAuthIdentityCache(collections.abc.MutableMapping):
 	:identity_cache_longevity is an integer that specifies the number of seconds after which the cached identity expires
 	"""
 
-	def __init__(self, app, methods_dict, identity_cache_longevity=60*60):
+	def __init__(self, app, methods_dict, identity_cache_longevity=60 * 60):
 		self.App = app
 
 		# Prepare empty cache
@@ -66,13 +66,14 @@ class OAuthIdentityCache(collections.abc.MutableMapping):
 
 				oauth_userinfo_url = method.Config["identity_url"]
 				async with aiohttp.ClientSession() as session:
-					async with session.get(oauth_userinfo_url,
-										   headers={"Authorization": "Bearer {}".format(access_token)}) as resp:
+					async with session.get(
+						oauth_userinfo_url,
+						headers={"Authorization": "Bearer {}".format(access_token)}) as resp:
 						if resp.status == 200:
 							oauth_user_info = await resp.json()
 							if oauth_user_info is not None:
 								self[oauth_server_id_access_token] = (oauth_user_info, method.extract_identity(oauth_user_info))
 						else:
 							# If there was an error, remove the cache item
-							L.warn("Identity '{}' could not be refreshed on ''.".format(identity, oauth_userinfo_url))
+							L.warning("Identity '{}' could not be refreshed on ''.".format(identity, oauth_userinfo_url))
 							del self[oauth_server_id_access_token]

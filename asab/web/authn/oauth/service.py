@@ -13,7 +13,7 @@ class OAuthClientService(asab.Service):
 
 	asab.Config.add_defaults({
 		"OAuthClientService": {
-			"identity_cache_longevity": 60*60,
+			"identity_cache_longevity": 60 * 60,
 		}
 	})
 

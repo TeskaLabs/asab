@@ -12,6 +12,7 @@ It provides the seamless integration with the async world so that the caller can
 Thanks to ThreadPoolExecutor, the worker threads are pre-created and managed in the pool.
 '''
 
+
 def task(n):
 	print("Executing our Task")
 	result = n
@@ -28,7 +29,7 @@ class MyApplication(asab.Application):
 	asab.Config.add_defaults({
 		'asab': {
 			'workers': 3
-			}
+		}
 	})
 
 	def __init__(self):
@@ -42,8 +43,8 @@ class MyApplication(asab.Application):
 	async def main(self):
 		tasks = []
 		for i in range(100):
-		 	t = self.Loop.run_in_executor(self.Executor, task, i)
-		 	tasks.append(t)
+			t = self.Loop.run_in_executor(self.Executor, task, i)
+			tasks.append(t)
 
 		results = await asyncio.gather(*tasks, loop=self.Loop)
 		print("Result:", sum(results))
