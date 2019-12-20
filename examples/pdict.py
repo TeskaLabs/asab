@@ -9,9 +9,13 @@ class MyApplication(asab.Application):
 		var_dir = asab.Config['general']['var_dir']
 		pdict = asab.PersistentDict(os.path.join(var_dir, 'pdict.bin'))
 
+		# Explicit load
+		pdict.load()
 		counter = pdict['counter'] = pdict.setdefault('counter', 0) + 1
 		print("Executed for {} times".format(counter))
 
+		# Explicit store
+		pdict.store()
 		self.stop()
 
 
