@@ -137,7 +137,7 @@ class Logging(object):
 		if Config["logging"].getboolean("verbose"):
 			self.RootLogger.setLevel(logging.DEBUG)
 		else:
-			self.RootLogger.setLevel(LOG_NOTICE)
+			self.RootLogger.setLevel(Config["logging"]["level"])
 
 
 	def rotate(self):
