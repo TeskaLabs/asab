@@ -39,7 +39,7 @@ class ConfigParser(configparser.ConfigParser):
 		"logging": {
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			"app_name": os.path.basename(sys.argv[0]),
-			"sd_id": "sd",  # Structured data id, see RFC5424,
+			"sd_id": "sd",  # Structured data id, see RFC5424
 			"level": "NOTICE",
 		},
 
