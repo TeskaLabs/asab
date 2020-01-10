@@ -1,7 +1,7 @@
 import asab
 import asab.web
 
-from .service import ApiService;
+from .service import ApiService
 
 
 class Module(asab.Module):

@@ -1,6 +1,4 @@
 import os
-import asyncio
-import aiohttp.web
 import asab
 import asab.web
 import asab.web.rest
