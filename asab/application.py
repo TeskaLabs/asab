@@ -113,6 +113,11 @@ class Application(metaclass=Singleton):
 		self.Modules = []
 		self.Services = {}
 
+		# Setup basicapi
+		if "basicapi" in Config['general']:
+			from asab.basicapi import Module
+			self.add_module(Module)
+
 		# Comence init-time governor
 		L.info("Initializing ...")
 		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
@@ -161,6 +166,8 @@ class Application(metaclass=Singleton):
 		parser.add_argument('-v', '--verbose', action='store_true', help='print more information (enable debug output)')
 		parser.add_argument('-s', '--syslog', action='store_true', help='enable logging to a syslog')
 		parser.add_argument('-l', '--log-file', help='specify a path to a log file')
+		parser.add_argument('-b', '--basic-api', help='activate basic api', const="0.0.0.0:8080", nargs="?")
+
 
 		if daemon is not None:
 			parser.add_argument('-d', '--daemonize', action='store_true', help='run daemonized (in the background)')
@@ -185,6 +192,8 @@ class Application(metaclass=Singleton):
 		if args.log_file:
 			Config._default_values['logging:file']['path'] = args.log_file
 
+		if args.basic_api:
+				Config._default_values['general']['basicapi'] = args.basic_api
 		return args
 
 
