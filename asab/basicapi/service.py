@@ -5,6 +5,7 @@ import asab.web.rest
 
 #
 
+
 class ApiService(asab.Service):
 
 	def __init__(self, app, service_name):
@@ -12,16 +13,17 @@ class ApiService(asab.Service):
 
 		listen = asab.Config["general"]["basicapi"]
 
-		self.Container = self._initialize_web (app, listen)
-
+		self.Container = self._initialize_web(app, listen)
 
 	def _initialize_web(self, app, listen):
-
 
 		websvc = app.get_service("asab.WebService")
 
 		# Create a dedicated web container
-		container = asab.web.WebContainer(websvc, 'bspump:web', config={"listen": listen})
+		container = asab.web.WebContainer(
+			websvc, 'bspump:web',
+			config={"listen": listen}
+		)
 
 		# Add routes
 		container.WebApp.router.add_get('/basicapi', basicapi)
