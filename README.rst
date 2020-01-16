@@ -15,6 +15,9 @@ ASAB is currently used for `microservices <https://en.wikipedia.org/wiki/Microse
 ASAB is developed on `GitHub <https://github.com/TeskaLabs/asab>`_.
 Contributions are welcome!
 
+.. image:: https://travis-ci.com/TeskaLabs/asab.svg?branch=master
+    :target: https://travis-ci.com/TeskaLabs/asab
+
 .. image:: https://badges.gitter.im/TeskaLabs/asab.svg
    :alt: Join the chat at https://gitter.im/TeskaLabs/asab
    :target: https://gitter.im/TeskaLabs/asab?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
