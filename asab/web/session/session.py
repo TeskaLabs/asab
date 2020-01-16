@@ -15,10 +15,7 @@ class Session(collections.MutableMapping):
 		self.MaxAge = max_age
 		self.Storage = storage
 
-		if new or created is None:
-			self._created = int(time.time())
-		else:
-			self._created = created
+		self._created = int(time.time())
 
 
 	def __hash__(self):
