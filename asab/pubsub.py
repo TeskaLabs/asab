@@ -65,7 +65,7 @@ class PubSub(object):
 			if c is None:  # a reference is lost, remove this entry
 				if remove_list is None:
 					remove_list = list()
-				remove_list.append(callback_ref)
+				remove_list.append(callback_list[i])
 				continue
 
 			if c == callback:

@@ -12,6 +12,7 @@ import random
 try:
 	import daemon
 	import daemon.pidfile
+	import lockfile
 except ImportError:
 	daemon = None
 
@@ -201,7 +202,7 @@ class Application(metaclass=Singleton):
 
 	def daemonize(self):
 		if daemon is None:
-			print("Install 'python-daemon' module to support daemonising.", file=sys.stderr)
+			print("Install 'python-daemon' module to support daemonizing.", file=sys.stderr)
 			sys.exit(1)
 
 		pidfilepath = self.get_pidfile_path()
