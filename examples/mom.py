@@ -24,7 +24,7 @@ class MyApplication(asab.Application):
 		# The timer will trigger a message publishing at every second
 		self.PubSub.subscribe("Application.tick!", self.on_tick)
 
-		# Add the route	
+		# Add the route
 		self.Broker.add("task", self.task_handler)
 		self.Broker.add("reply", self.reply_handler)
 

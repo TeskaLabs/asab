@@ -16,7 +16,7 @@ class SessionStorage(abc.ABC):
 		Load a session object from a persistent store
 		or create a new one using create() method, if needed
 		'''
-		raise NotImplemented()
+		raise NotImplementedError()
 
 
 	@abc.abstractmethod
@@ -24,7 +24,7 @@ class SessionStorage(abc.ABC):
 		'''
 		Set session object reference to a response
 		'''
-		raise NotImplemented()
+		raise NotImplementedError()
 
 
 	@abc.abstractmethod
@@ -32,7 +32,7 @@ class SessionStorage(abc.ABC):
 		'''
 		Delete session object from a persistent store
 		'''
-		raise NotImplemented()
+		raise NotImplementedError()
 
 
 	@abc.abstractmethod
@@ -40,7 +40,7 @@ class SessionStorage(abc.ABC):
 		'''
 		Store session object to persistent store (if needed)
 		'''
-		raise NotImplemented()
+		raise NotImplementedError()
 
 
 	async def create(self, request):

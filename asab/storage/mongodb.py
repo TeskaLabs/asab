@@ -29,11 +29,11 @@ class StorageService(StorageServiceABC):
 		self.Database = self.Client[asab.Config.get('asab:storage', 'mongodb_database')]
 
 
-	def upsertor(self, collection:str, obj_id=None, version=0):
+	def upsertor(self, collection: str, obj_id=None, version=0):
 		return MongoDBUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection:str, obj_id) -> dict:
+	async def get(self, collection: str, obj_id) -> dict:
 		coll = self.Database[collection]
 		ret = await coll.find_one({'_id': obj_id})
 		if ret is None:
@@ -41,7 +41,7 @@ class StorageService(StorageServiceABC):
 		return ret
 
 
-	async def get_by(self, collection:str, key:str, value) -> dict:
+	async def get_by(self, collection: str, key: str, value) -> dict:
 		"""
 		Get object from collection by its key/value
 
@@ -60,7 +60,7 @@ class StorageService(StorageServiceABC):
 		return ret
 
 
-	async def collection(self, collection:str) -> motor.motor_asyncio.AsyncIOMotorCollection:
+	async def collection(self, collection: str) -> motor.motor_asyncio.AsyncIOMotorCollection:
 		"""
 		Get collection. Useful for custom operations
 
@@ -80,7 +80,7 @@ class StorageService(StorageServiceABC):
 		return self.Database[collection]
 
 
-	async def delete(self, collection:str, obj_id):
+	async def delete(self, collection: str, obj_id):
 		"""
 		Delete object from `collection` by its `obj_id`
 
@@ -102,7 +102,6 @@ class MongoDBUpsertor(UpsertorABC):
 
 
 	async def execute(self):
-
 		id_name = self.get_id_name()
 		addobj = {}
 
@@ -113,15 +112,11 @@ class MongoDBUpsertor(UpsertorABC):
 			addobj['$inc'] = self.ModInc
 
 		if len(self.ModPush) > 0:
-			addobj['$push'] = { k : {'$each': v} for k, v in self.ModPush.items()}
+			addobj['$push'] = {k: {'$each': v} for k, v in self.ModPush.items()}
 
-
-		filter = {id_name : self.ObjId}
-		if self.Version is not None and self.Version != 0:
-			filter['_v'] = self.Version
-		elif self.Version == 0:
-			# This ensures a failure if version 0 is required (new insert) and a document already exists
-			filter['_v'] = 0
+		filter = {id_name: self.ObjId}
+		if self.Version is not None:
+			filter['_v'] = int(self.Version)
 
 		# First wave (adding stuff)
 		if len(addobj) > 0:
@@ -130,16 +125,15 @@ class MongoDBUpsertor(UpsertorABC):
 			try:
 				ret = await coll.find_one_and_update(
 					filter,
-					update = addobj,
-					upsert = True if (self.Version == 0) or (self.Version is None) else False,
-					return_document = pymongo.collection.ReturnDocument.AFTER
+					update=addobj,
+					upsert=True if (self.Version == 0) or (self.Version is None) else False,
+					return_document=pymongo.collection.ReturnDocument.AFTER
 				)
 			except pymongo.errors.DuplicateKeyError:
 				assert(self.Version == 0)
 				raise DuplicateError("Already exists", self.ObjId)
 
 			self.ObjId = ret[id_name]
-
 
 		# for k, v in self.ModUnset.items():
 		# 	obj.pop(k, None)

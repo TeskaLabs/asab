@@ -108,3 +108,4 @@ etc/site.conf
 etc/site.d/
 
 doc/_build
+examples/ssl/clients/.index.bin

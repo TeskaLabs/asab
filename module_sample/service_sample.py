@@ -37,5 +37,5 @@ class ServiceSample(asab.Service):
 
 	@asab.subscribe("Application.tick!")
 	async def on_tick(self, message_type):
-		self.counter=self.counter+1
-		L.info(message_type, struct_data={"counter":self.counter})
+		self.counter = self.counter + 1
+		L.info(message_type, struct_data={"counter": self.counter})

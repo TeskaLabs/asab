@@ -2,6 +2,7 @@ from .service import StorageServiceABC
 from .upsertor import UpsertorABC
 from .exceptions import DuplicateError
 
+
 class InMemoryUpsertor(UpsertorABC):
 
 
@@ -39,13 +40,15 @@ class InMemoryUpsertor(UpsertorABC):
 
 		for k, v in self.ModPush.items():
 			o = obj.pop(k, None)
-			if o is None: o = list()
+			if o is None:
+				o = list()
 			o.extend(v)
 			obj[k] = o
 
 		for k, v in self.ModPull.items():
 			o = obj.pop(k, None)
-			if o is None: o = list()
+			if o is None:
+				o = list()
 			for x in v:
 				try:
 					o.remove(x)
@@ -64,16 +67,16 @@ class StorageService(StorageServiceABC):
 		self.InMemoryCollections = {}
 
 
-	def upsertor(self, collection:str, obj_id=None, version=0):
+	def upsertor(self, collection: str, obj_id=None, version=0):
 		return InMemoryUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection:str, obj_id):
+	async def get(self, collection: str, obj_id):
 		coll = self.InMemoryCollections[collection]
 		return coll[obj_id]
 
 
-	async def get_by(self, collection:str, key:str, value):
+	async def get_by(self, collection: str, key: str, value):
 		"""
 		Raises:
 			NotImplementedError: Not implemented on InMemoryStorage
@@ -81,7 +84,7 @@ class StorageService(StorageServiceABC):
 		raise NotImplementedError()
 
 
-	async def delete(self, collection:str, obj_id):
+	async def delete(self, collection: str, obj_id):
 		"""
 		Delete object from `collection` by its `obj_id`
 
@@ -95,7 +98,7 @@ class StorageService(StorageServiceABC):
 		del coll[obj_id]
 
 
-	def _set(self, collection:str, obj_id, obj):
+	def _set(self, collection: str, obj_id, obj):
 		try:
 			coll = self.InMemoryCollections[collection]
 		except KeyError:
@@ -105,4 +108,3 @@ class StorageService(StorageServiceABC):
 		nobj = coll.setdefault(obj_id, obj)
 		if nobj != obj:
 			raise DuplicateError("Already exists", obj_id)
-

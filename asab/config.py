@@ -7,11 +7,9 @@ import platform
 import configparser
 from collections.abc import MutableMapping
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 class ConfigParser(configparser.ConfigParser):
 
@@ -28,11 +26,11 @@ class ConfigParser(configparser.ConfigParser):
 
 		'general': {
 			'config_file': os.environ.get('ASAB_CONFIG', ''),
-			'tick_period': 1, # In seconds
-			'var_dir': os.path.expanduser('~/.'+os.path.splitext(os.path.basename(sys.argv[0]))[0]),
-		
+			'tick_period': 1,  # In seconds
+			'var_dir': os.path.expanduser('~/.' + os.path.splitext(os.path.basename(sys.argv[0]))[0]),
+
 			# Daemonization
-			'pidfile': '!', # '!' has a special meaning => it transforms into platform specific location of pid file
+			'pidfile': '!',  # '!' has a special meaning => it transforms into platform specific location of pid file
 			'working_dir': '.',
 			'uid': '',
 			'gid': '',
@@ -41,7 +39,8 @@ class ConfigParser(configparser.ConfigParser):
 		"logging": {
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			"app_name": os.path.basename(sys.argv[0]),
-			"sd_id": "sd", # Structured data id, see RFC5424
+			"sd_id": "sd",  # Structured data id, see RFC5424
+			"level": "NOTICE",
 		},
 
 		"logging:console": {
@@ -51,7 +50,7 @@ class ConfigParser(configparser.ConfigParser):
 
 		"logging:syslog": {
 			"enabled": "false",
-			#TODO: "facility": 'local1',
+			# TODO: "facility": 'local1',
 			"address": _syslog_sockets.get(platform.system(), "/dev/log"),
 			"format": _syslog_format.get(platform.system(), "3"),
 		},
@@ -85,19 +84,55 @@ class ConfigParser(configparser.ConfigParser):
 				key = self.optionxform(str(key))
 				if key in self._sections[section]:
 					# Value exists, no default needed
-					continue 
+					continue
 
 				if value is not None:
 					value = str(value)
 
 				if value is not None and "$" in value:
-					self.set(section, key, os.path.expandvars(value))				
+					self.set(section, key, os.path.expandvars(value))
 				else:
 					self.set(section, key, value)
 
 
+	def _traverse_includes(self, includes, this_dir):
+		""" Reads included config files. Supports nested including. """
+
+		if '\n' in includes:
+			sep = '\n'
+		else:
+			sep = os.pathsep
+
+		for include_glob in includes.split(sep):
+			include_glob = os.path.expandvars(include_glob.strip())
+			if len(include_glob) == 0:
+				continue
+
+			for include in glob.glob(include_glob):
+				include = os.path.abspath(include)
+
+				if include in self._included:
+					# Preventing infinite dependency looping
+					L.warn("Config file '{}' can be included only once.".format(include))
+					continue
+
+				self._included.add(include)
+				self.set('general', 'include', '')
+
+				self._load_dir_stack.append(os.path.dirname(include))
+				try:
+					self.read(include)
+				finally:
+					self._load_dir_stack.pop()
+
+				includes = self.get('general', 'include', fallback='')
+				self._traverse_includes(includes, os.path.dirname(include_glob))
+
+
 	def _load(self):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
+
+		self._load_dir_stack = []
 
 		config_fname = ConfigParser._default_values['general']['config_file']
 		if config_fname != '':
@@ -105,39 +140,42 @@ class ConfigParser(configparser.ConfigParser):
 				print("Config file '{}' not found".format(config_fname), file=sys.stderr)
 				sys.exit(1)
 
-			self.read(config_fname)
+			self._load_dir_stack.append(os.path.dirname(config_fname))
+			try:
+				self.read(config_fname)
+			finally:
+				self._load_dir_stack.pop()
 
 		includes = self.get('general', 'include', fallback='')
-		if '\n' in includes:
-			sep = '\n'
-		else:
-			sep = os.pathsep
-		for include_glob in includes.split(sep):
-			include_glob = os.path.expandvars(include_glob.strip())
-			if len(include_glob) == 0: continue
 
-			for include in glob.glob(include_glob):
-				self.read(include)
+		self._included = set()
+		self._traverse_includes(includes, this_dir=os.path.dirname(config_fname))
 
 		self.add_defaults(ConfigParser._default_values)
 
-		# Deals with environment variables
-		for each_section in self.sections():
-			for (each_key, each_val) in self.items(each_section):
-				if "$" in each_val:
-					self.set(each_section, each_key, os.path.expandvars(each_val))
+		del self._load_dir_stack
 
-###
 
-Config = ConfigParser()
+class _Interpolation(configparser.BasicInterpolation):
+	"""Interpolation which expands environment variables in values."""
 
-###
+	def before_read(self, parser, section, option, value):
+		# Expand environment variables
+		if '$' in value:
+			os.environ['THIS_DIR'] = os.path.abspath(parser._load_dir_stack[-1])
+			value = os.path.expandvars(value)
 
-class ConfigObject(object):
+		return super().before_read(parser, section, option, value)
+
+
+Config = ConfigParser(interpolation=_Interpolation())
+
+
+class Configurable(object):
 
 	'''
 	Usage:
-	class ConfigurableObject(asab.ConfigObject):
+	class ConfigurableObject(asab.Configurable):
 
 		ConfigDefaults = {
 			'foo': 'bar',
@@ -157,8 +195,10 @@ class ConfigObject(object):
 		self.Config = ConfigObjectDict()
 
 		for base_class in inspect.getmro(self.__class__):
-			if not hasattr(base_class, 'ConfigDefaults'): continue
-			if len(base_class.ConfigDefaults) == 0: continue
+			if not hasattr(base_class, 'ConfigDefaults'):
+				continue
+			if len(base_class.ConfigDefaults) == 0:
+				continue
 
 			# Merge config defaults of each base class in the 'inheritance' way
 			for key, value in base_class.ConfigDefaults.items():
@@ -168,7 +208,7 @@ class ConfigObject(object):
 
 				if key not in self.Config:
 					self.Config[key] = value
-		
+
 		if Config.has_section(config_section_name):
 			for key, value in Config.items(config_section_name):
 				self.Config[key] = value
@@ -176,7 +216,10 @@ class ConfigObject(object):
 		if config is not None:
 			self.Config.update(config)
 
-###
+
+# This is for backward compatibility
+ConfigObject = Configurable
+
 
 class ConfigObjectDict(MutableMapping):
 
@@ -213,3 +256,6 @@ class ConfigObjectDict(MutableMapping):
 			raise ValueError('Not a boolean: %s' % value)
 		return configparser.ConfigParser.BOOLEAN_STATES[value.lower()]
 
+
+	def __repr__(self):
+		return "<%s %r>" % (self.__class__.__name__, self._data)

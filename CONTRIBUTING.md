@@ -24,7 +24,7 @@ Following additional rules apply for imports:
 
 1. Use relative imports when you import locally from a package
 2. Use absolute imports when you import from external package
-3. Never use from ... import XYZ because it unnecessarily increases complexity for readers (unless you have very good reason for that). The only exception is __init__.py where it is used for importing symbols that you want to expose as a given module public API
+3. Never use `from ... import ...` because it unnecessarily increases complexity for readers (unless you have very good reason for that). The only exception is `__init__.py` where it is used for importing symbols that you want to expose as a given module public API
 
 ### Documenting functions, methods and classes
 
@@ -41,12 +41,7 @@ def publish(self, event_name, *args, **kwargs):
 
 ## Publishing to pypi.org
 
-1. Adjust `asab.__init__.py` `__version__` string
-1. Create a version tag
-2. Push a tag to GitHub
-3. Release a package to pypi.org:
-
-```
-python3.7 setup.py sdist
-twine upload --repository-url https://upload.pypi.org/legacy/ dist/asab-18.12b1.tar.gz
-```
+1. Create a version tag (`git tag -a v19.10`)
+1. Push a tag to GitHub (`git push origin v19.10`)
+1. Make local build (`setup.py sdist bdist_wheel`)
+1. Publish a package to pypi.org (`twine upload dist/*`)

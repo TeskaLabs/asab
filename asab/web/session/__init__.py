@@ -11,10 +11,11 @@ L = logging.getLogger(__name__)
 
 #
 
-#TODO: Configure cookie name
-#TODO: Configure cookie http only / secure
-#TODO: Configure cookie domain
-#TODO: Configure max-age
+# TODO: Configure cookie name
+# TODO: Configure cookie http only / secure
+# TODO: Configure cookie domain
+# TODO: Configure max-age
+
 
 class ServiceWebSession(asab.Service):
 
@@ -48,11 +49,9 @@ def session_middleware(storage):
 		try:
 			response = await handler(request)
 			if session.Id is None:
-			 	await storage.set(session, response)
+				await storage.set(session, response)
 			return response
 		finally:
 			await storage.store(session)
 
 	return factory
-
-

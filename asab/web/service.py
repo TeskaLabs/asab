@@ -1,8 +1,6 @@
 import asyncio
-import aiohttp.web
 import asab
 
-#
 
 class WebService(asab.Service):
 

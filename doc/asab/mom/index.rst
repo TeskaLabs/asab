@@ -57,7 +57,7 @@ Sending messages
 
 .. py:method:: Broker.publish(self, body, target:str='', correlation_id:str=None)
 
-Publishe the message to a MQ server.
+Publish the message to a MQ server.
 
 .. code:: python
 
