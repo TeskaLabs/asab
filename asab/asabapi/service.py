@@ -27,9 +27,9 @@ class ApiService(asab.Service):
 		# TODO: refactor to use custom config section, instead of explicitly passing "listen" param?
 
 		# Add routes
-		container.WebApp.router.add_get('/asabapi/environ', environ)
+		container.WebApp.router.add_get('/asab/environ', environ)
 
-		container.WebApp.router.add_get('/asabapi/config', config)
+		container.WebApp.router.add_get('/asab/config', config)
 
 		return container
 
@@ -39,4 +39,4 @@ async def environ(request):
 
 
 async def config(request):
-	return asab.web.rest.json_response(request, {s:dict(asab.Config.items(s)) for s in asab.Config.sections()})
+	return asab.web.rest.json_response(request, {s: dict(asab.Config.items(s)) for s in asab.Config.sections()})
