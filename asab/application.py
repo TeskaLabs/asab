@@ -113,9 +113,9 @@ class Application(metaclass=Singleton):
 		self.Modules = []
 		self.Services = {}
 
-		# Setup basicapi
-		if "basicapi" in Config['general']:
-			from asab.basicapi import Module
+		# Setup ASAB API
+		if "asabapi" in Config['general']:
+			from asab.asabapi import Module
 			self.add_module(Module)
 
 		# Comence init-time governor
@@ -192,8 +192,8 @@ class Application(metaclass=Singleton):
 		if args.log_file:
 			Config._default_values['logging:file']['path'] = args.log_file
 
-		if args.basic_api:
-				Config._default_values['general']['basicapi'] = args.basic_api
+		if args.asab_api:
+				Config._default_values['general']['asabapi'] = args.asab_api
 		return args
 
 
