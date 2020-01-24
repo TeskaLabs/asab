@@ -119,21 +119,6 @@ class Application(metaclass=Singleton):
 			from asab.api import Module
 			self.add_module(Module)
 
-		# # Comence init-time governor
-		# L.info("Initializing ...")
-		# finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
-		# 	[
-		# 		self.initialize(),
-		# 		self._init_time_governor(asyncio.Future()),
-		# 	],
-		# 	return_when=asyncio.FIRST_EXCEPTION
-		# ))
-		# for task in finished_tasks:
-		# 	# This one also raises exceptions from futures, which is perfectly ok
-		# 	task.result()
-		# if len(pending_tasks) > 0:
-		# 	raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
-
 
 	def create_argument_parser(
 		self,
@@ -285,12 +270,28 @@ class Application(metaclass=Singleton):
 
 
 	def run(self):
+		# Comence init-time governor
+		L.info("Initializing ...")
+		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
+			[
+				self.initialize(),
+				self._init_time_governor(asyncio.Future()),
+			],
+			return_when=asyncio.FIRST_EXCEPTION
+		))
+		for task in finished_tasks:
+			# This one also raises exceptions from futures, which is perfectly ok
+			task.result()
+		if len(pending_tasks) > 0:
+			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
+
+		######
+
 		# Comence run-time and application main() function
 		L.info("Running ...")
 		self._stop_event.clear()
 		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
 			[
-				self.initialize(),
 				self.main(),
 				self._run_time_governor(asyncio.Future()),
 			],
