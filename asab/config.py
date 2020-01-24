@@ -63,6 +63,10 @@ class ConfigParser(configparser.ConfigParser):
 			"rotate_every": "",
 		},
 
+		"asab:web": {
+			"path": "",
+		}
+
 	}
 
 

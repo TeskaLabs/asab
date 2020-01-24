@@ -115,7 +115,7 @@ class Application(metaclass=Singleton):
 		self.Services = {}
 
 		# Setup ASAB API
-		if "asabapi" in Config['general']:
+		if len(Config['asab:web']["path"]) > 0:
 			from asab.api import Module
 			self.add_module(Module)
 
@@ -168,7 +168,7 @@ class Application(metaclass=Singleton):
 		parser.add_argument('-v', '--verbose', action='store_true', help='print more information (enable debug output)')
 		parser.add_argument('-s', '--syslog', action='store_true', help='enable logging to a syslog')
 		parser.add_argument('-l', '--log-file', help='specify a path to a log file')
-		parser.add_argument('-w', '--asab-api', help='activate asab web api', const="0.0.0.0:8080", nargs="?")
+		parser.add_argument('-w', '--web-api', help='activate Asab web api', const="0.0.0.0:80", nargs="?")
 
 
 		if daemon is not None:
@@ -194,8 +194,8 @@ class Application(metaclass=Singleton):
 		if args.log_file:
 			Config._default_values['logging:file']['path'] = args.log_file
 
-		if args.asab_api:
-				Config._default_values['general']['asabapi'] = args.asab_api
+		if args.web_api:
+				Config._default_values['asab:web']['path'] = args.web_api
 		return args
 
 
