@@ -21,7 +21,7 @@ class ApiService(asab.Service):
 
 		# Create a dedicated web container
 		container = asab.web.WebContainer(
-			websvc, "",
+			websvc, "asab:api",
 			config={"listen": listen}
 		)
 		# TODO: refactor to use custom config section, instead of explicitly passing "listen" param?
