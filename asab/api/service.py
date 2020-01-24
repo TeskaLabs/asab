@@ -11,7 +11,9 @@ class ApiService(asab.Service):
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 
-		listen = asab.Config["general"]["asabapi"]
+		print("asab api init")
+
+		listen = asab.Config["asab:web"]["path"]
 
 		self.Container = self._initialize_web(app, listen)
 
@@ -21,7 +23,7 @@ class ApiService(asab.Service):
 
 		# Create a dedicated web container
 		container = asab.web.WebContainer(
-			websvc, "asab:api",
+			websvc, "asab:web",
 			config={"listen": listen}
 		)
 		# TODO: refactor to use custom config section, instead of explicitly passing "listen" param?

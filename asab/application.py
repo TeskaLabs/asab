@@ -116,7 +116,7 @@ class Application(metaclass=Singleton):
 
 		# Setup ASAB API
 		if "asabapi" in Config['general']:
-			from asab.asabapi import Module
+			from asab.api import Module
 			self.add_module(Module)
 
 		# Comence init-time governor
