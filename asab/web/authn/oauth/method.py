@@ -10,16 +10,25 @@ class ABCOAuthMethod(abc.ABC, ConfigObject):
 	# "userinfo_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/userinfo",
 
 	# Configuration for SeaCat Auth
-	# "token_url": "http://localhost:8080/oidc/authorization",
-	# "userinfo_url": "http://localhost:8080/oidc/token",
+	# "token_url": "http://localhost:8080/oidc/token",
+	# "userinfo_url": "http://localhost:8080/oidc/userinfo",
 
 	ConfigDefaults = {
-		#TODO: Is this really needed?
+		#TODO: Is "asab-oauth" really needed?
 		"oauth_server_id": "asab-oauth",
-		"token_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/token",  # Forwards "Access Token Request", see https://tools.ietf.org/html/rfc6749#section-4.1.3
-		"userinfo_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/userinfo",  # Forwards "UserInfo Request", see https://connect2id.com/products/server/docs/api/userinfo
-		"invalidate_url": "",  # Forwards "Revocation Request", see https://tools.ietf.org/html/rfc7009#page-4
-		"refresh_url": "",  # Refreshes access token, see https://auth0.com/docs/tokens/refresh-token/current#use-a-refresh-token
+
+		# URL of "Access Token Request" endpoint, see https://tools.ietf.org/html/rfc6749#section-4.1.3
+		"token_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/token",  
+
+		# URL of "UserInfo Request" endpoint, see https://connect2id.com/products/server/docs/api/userinfo
+		"userinfo_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/userinfo", 
+
+		# URL of "Revocation Request" endpoint, see https://tools.ietf.org/html/rfc7009#page-4
+		"invalidate_url": "",  
+
+		# Refreshes access token, see https://auth0.com/docs/tokens/refresh-token/current#use-a-refresh-token
+		"refresh_url": "",
+		
 		"client_id": "",  # Client ID of the current application, see https://tools.ietf.org/html/rfc6749#section-4.1.1
 		"client_secret": "",  # Client secret of the current application, see https://tools.ietf.org/html/rfc6749#section-4.1.1
 		"oauth_server_public_key": "",  # To decode token from token id: https://www.oauth.com/oauth2-servers/access-tokens/self-encoded-access-tokens/
