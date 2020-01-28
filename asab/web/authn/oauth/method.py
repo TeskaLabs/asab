@@ -5,10 +5,19 @@ from ....config import ConfigObject
 
 class ABCOAuthMethod(abc.ABC, ConfigObject):
 
+	# Configuration for KeyCloak
+	# "token_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/token",
+	# "userinfo_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/userinfo",
+
+	# Configuration for SeaCat Auth
+	# "token_url": "http://localhost:8080/oidc/authorization",
+	# "userinfo_url": "http://localhost:8080/oidc/token",
+
 	ConfigDefaults = {
-		"oauth_server_id": "teskalabs.com",
-		"token_url": "http://localhost:8080/token_endpoint/token_request",  # Forwards "Access Token Request", see https://tools.ietf.org/html/rfc6749#section-4.1.3
-		"identity_url": "http://localhost:8080/identity_provider/identity",  # Forwards "UserInfo Request", see https://connect2id.com/products/server/docs/api/userinfo
+		#TODO: Is this really needed?
+		"oauth_server_id": "asab-oauth",
+		"token_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/token",  # Forwards "Access Token Request", see https://tools.ietf.org/html/rfc6749#section-4.1.3
+		"userinfo_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/userinfo",  # Forwards "UserInfo Request", see https://connect2id.com/products/server/docs/api/userinfo
 		"invalidate_url": "",  # Forwards "Revocation Request", see https://tools.ietf.org/html/rfc7009#page-4
 		"refresh_url": "",  # Refreshes access token, see https://auth0.com/docs/tokens/refresh-token/current#use-a-refresh-token
 		"client_id": "",  # Client ID of the current application, see https://tools.ietf.org/html/rfc6749#section-4.1.1
@@ -31,7 +40,7 @@ class GitHubOAuthMethod(ABCOAuthMethod):
 		super().__init__(config_section_name, {
 			"oauth_server_id": "github.com",
 			"token_url": "https://github.com/login/oauth/access_token",
-			"identity_url": "https://api.github.com/user",
+			"userinfo_url": "https://api.github.com/user",
 		})
 
 	def extract_identity(self, oauth_user_info):

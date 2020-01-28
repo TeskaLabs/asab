@@ -98,10 +98,15 @@ class OAuthForwarder(object):
 		method = await self._get_method(request)
 		if method is None:
 			raise aiohttp.web.HTTPNotFound()
-		if len(method.Config["identity_url"]) == 0:
+		if len(method.Config["userinfo_url"]) == 0:
 			raise aiohttp.web.HTTPNotFound()
 
-		response = await self._forward_get(request, method.Config["identity_url"], method.Config["client_id"], method.Config["client_secret"])
+		response = await self._forward_get(
+			request,
+			method.Config["userinfo"],
+			method.Config["client_id"],
+			method.Config["client_secret"]
+		)
 		return json_response(request=request, data=response)
 
 	async def invalidate(self, request):
