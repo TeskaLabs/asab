@@ -14,7 +14,7 @@ class ABCOAuthMethod(abc.ABC, ConfigObject):
 	# "userinfo_url": "http://localhost:8080/oidc/userinfo",
 
 	ConfigDefaults = {
-		#TODO: Is "asab-oauth" really needed?
+		#TODO: Is "oauth_server_id" really needed?
 		"oauth_server_id": "asab-oauth",
 
 		# URL of "Access Token Request" endpoint, see https://tools.ietf.org/html/rfc6749#section-4.1.3
