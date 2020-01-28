@@ -13,12 +13,11 @@ class ApiService(asab.Service):
 
 		print("asab api init")
 
-		listen = asab.Config["asab:web"]["path"]
+		listen = asab.Config["asab:web"]["listen"]
 
 		self.Container = self._initialize_web(app, listen)
 
 	def _initialize_web(self, app, listen):
-
 		websvc = app.get_service("asab.WebService")
 
 		# Create a dedicated web container

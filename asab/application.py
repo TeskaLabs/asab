@@ -115,7 +115,7 @@ class Application(metaclass=Singleton):
 		self.Services = {}
 
 		# Setup ASAB API
-		if len(Config['asab:web']["path"]) > 0:
+		if len(Config['asab:web']["listen"]) > 0:
 			from asab.api import Module
 			self.add_module(Module)
 
@@ -180,7 +180,7 @@ class Application(metaclass=Singleton):
 			Config._default_values['logging:file']['path'] = args.log_file
 
 		if args.web_api:
-				Config._default_values['asab:web']['path'] = args.web_api
+				Config._default_values['asab:web']['listen'] = args.web_api
 		return args
 
 
