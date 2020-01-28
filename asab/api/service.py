@@ -35,7 +35,7 @@ class ApiService(asab.Service):
 		return container
 
 
-	async def environ(self,request):
+	async def environ(self, request):
 		return asab.web.rest.json_response(request, dict(os.environ))
 
 
