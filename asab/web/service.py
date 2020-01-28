@@ -8,6 +8,7 @@ class WebService(asab.Service):
 		super().__init__(app, service_name)
 
 		self.Containers = {}
+		self.App = app
 
 
 	async def finalize(self, app):

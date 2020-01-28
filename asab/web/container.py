@@ -104,9 +104,10 @@ listen:
 		)
 
 		websvc._register_container(self, config_section_name)
+		websvc.App.PubSub.subscribe("Application.run!", self.start_container)
 
 	async def initialize(self, app):
-		app.PubSub.subscribe("Application.run!", self.start_container)
+		pass
 
 	async def start_container(self, event_type):
 		await self.WebAppRunner.setup()
