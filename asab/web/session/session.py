@@ -1,7 +1,7 @@
 import time
 import hashlib
-import asyncio
 import collections
+
 
 class Session(collections.MutableMapping):
 
@@ -15,10 +15,7 @@ class Session(collections.MutableMapping):
 		self.MaxAge = max_age
 		self.Storage = storage
 
-		if new or created is None:
-			self._created = int(time.time())
-		else:
-			self._created = created
+		self._created = int(time.time())
 
 
 	def __hash__(self):
@@ -29,15 +26,13 @@ class Session(collections.MutableMapping):
 		return '<{} [{}, new:{}, changed:{}, created:{} expired:{}] {!r}>'.format(
 			self.__class__.__name__,
 			hashlib.sha224(self._id.encode('utf-8')).hexdigest() if self._id is not None else "-",
-			self._new, self._changed ,self._created, self.is_expired(), self._mapping
+			self._new, self._changed, self._created, self.is_expired(), self._mapping
 		)
 
 
 	def is_expired(self):
 		expiration = self._created + self.MaxAge
-		if time.time() >= expiration: return True
-		return False
-
+		return time.time() >= expiration
 
 	def reset(self):
 		self._new = False
@@ -49,7 +44,7 @@ class Session(collections.MutableMapping):
 		return self._id
 
 	def set_id(self, id):
-		if self._id is not None or self._new == False:
+		if self._id is not None or not self._new:
 			raise RuntimeError("Session id is already set!")
 		self._id = id
 

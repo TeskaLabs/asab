@@ -7,11 +7,9 @@ import platform
 import configparser
 from collections.abc import MutableMapping
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 class ConfigParser(configparser.ConfigParser):
 
@@ -28,11 +26,11 @@ class ConfigParser(configparser.ConfigParser):
 
 		'general': {
 			'config_file': os.environ.get('ASAB_CONFIG', ''),
-			'tick_period': 1, # In seconds
-			'var_dir': os.path.expanduser('~/.'+os.path.splitext(os.path.basename(sys.argv[0]))[0]),
-		
+			'tick_period': 1,  # In seconds
+			'var_dir': os.path.expanduser('~/.' + os.path.splitext(os.path.basename(sys.argv[0]))[0]),
+
 			# Daemonization
-			'pidfile': '!', # '!' has a special meaning => it transforms into platform specific location of pid file
+			'pidfile': '!',  # '!' has a special meaning => it transforms into platform specific location of pid file
 			'working_dir': '.',
 			'uid': '',
 			'gid': '',
@@ -41,7 +39,8 @@ class ConfigParser(configparser.ConfigParser):
 		"logging": {
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			"app_name": os.path.basename(sys.argv[0]),
-			"sd_id": "sd", # Structured data id, see RFC5424
+			"sd_id": "sd",  # Structured data id, see RFC5424
+			"level": "NOTICE",
 		},
 
 		"logging:console": {
@@ -51,7 +50,7 @@ class ConfigParser(configparser.ConfigParser):
 
 		"logging:syslog": {
 			"enabled": "false",
-			#TODO: "facility": 'local1',
+			# TODO: "facility": 'local1',
 			"address": _syslog_sockets.get(platform.system(), "/dev/log"),
 			"format": _syslog_format.get(platform.system(), "3"),
 		},
@@ -85,13 +84,13 @@ class ConfigParser(configparser.ConfigParser):
 				key = self.optionxform(str(key))
 				if key in self._sections[section]:
 					# Value exists, no default needed
-					continue 
+					continue
 
 				if value is not None:
 					value = str(value)
 
 				if value is not None and "$" in value:
-					self.set(section, key, os.path.expandvars(value))				
+					self.set(section, key, os.path.expandvars(value))
 				else:
 					self.set(section, key, value)
 
@@ -106,7 +105,8 @@ class ConfigParser(configparser.ConfigParser):
 
 		for include_glob in includes.split(sep):
 			include_glob = os.path.expandvars(include_glob.strip())
-			if len(include_glob) == 0: continue
+			if len(include_glob) == 0:
+				continue
 
 			for include in glob.glob(include_glob):
 				include = os.path.abspath(include)
@@ -118,7 +118,7 @@ class ConfigParser(configparser.ConfigParser):
 
 				self._included.add(include)
 				self.set('general', 'include', '')
-		
+
 				self._load_dir_stack.append(os.path.dirname(include))
 				try:
 					self.read(include)
@@ -126,7 +126,7 @@ class ConfigParser(configparser.ConfigParser):
 					self._load_dir_stack.pop()
 
 				includes = self.get('general', 'include', fallback='')
-				self._traverse_includes(includes, os.path.dirname(include_glob))						
+				self._traverse_includes(includes, os.path.dirname(include_glob))
 
 
 	def _load(self):
@@ -155,7 +155,6 @@ class ConfigParser(configparser.ConfigParser):
 
 		del self._load_dir_stack
 
-###
 
 class _Interpolation(configparser.BasicInterpolation):
 	"""Interpolation which expands environment variables in values."""
@@ -168,11 +167,9 @@ class _Interpolation(configparser.BasicInterpolation):
 
 		return super().before_read(parser, section, option, value)
 
-###
 
 Config = ConfigParser(interpolation=_Interpolation())
 
-###
 
 class Configurable(object):
 
@@ -198,8 +195,10 @@ class Configurable(object):
 		self.Config = ConfigObjectDict()
 
 		for base_class in inspect.getmro(self.__class__):
-			if not hasattr(base_class, 'ConfigDefaults'): continue
-			if len(base_class.ConfigDefaults) == 0: continue
+			if not hasattr(base_class, 'ConfigDefaults'):
+				continue
+			if len(base_class.ConfigDefaults) == 0:
+				continue
 
 			# Merge config defaults of each base class in the 'inheritance' way
 			for key, value in base_class.ConfigDefaults.items():
@@ -209,7 +208,7 @@ class Configurable(object):
 
 				if key not in self.Config:
 					self.Config[key] = value
-		
+
 		if Config.has_section(config_section_name):
 			for key, value in Config.items(config_section_name):
 				self.Config[key] = value
@@ -217,10 +216,10 @@ class Configurable(object):
 		if config is not None:
 			self.Config.update(config)
 
+
 # This is for backward compatibility
 ConfigObject = Configurable
 
-###
 
 class ConfigObjectDict(MutableMapping):
 
@@ -260,4 +259,3 @@ class ConfigObjectDict(MutableMapping):
 
 	def __repr__(self):
 		return "<%s %r>" % (self.__class__.__name__, self._data)
-

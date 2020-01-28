@@ -6,7 +6,7 @@ from pkg_resources import parse_version
 
 class QueueSubscriptionObject(object):
 
-	def __init__(self, broker, queue_name, exchange:bool=False):
+	def __init__(self, broker, queue_name, exchange: bool = False):
 		self.Broker = broker
 		self.QueueName = queue_name
 
@@ -22,7 +22,7 @@ class QueueSubscriptionObject(object):
 		def on_consume_message(channel, method, properties, body):
 			try:
 				self.Broker.InboundQueue.put_nowait((channel, method, properties, body))
-			except:
+			except Exception:
 				channel.basic_nack(method.delivery_tag, requeue=True)
 
 		self.Channel = self.Broker.Connection.channel(on_open_callback=on_channel_open)
@@ -37,15 +37,15 @@ class ExchangeSubscriptionObject(object):
 	Broker.subscribe("amq.topic", topic="*.orange.*")
 
 	... or for multiple topics via subscription to an exchange
-	
+
 	Broker.subscribe("amq.topic", exchange=True, routing_key=["*.orange.*", "*.*.rabbit"])
 	'''
 
 	QueueNumberSeq = itertools.count(1)
 
-	def __init__(self, broker, exchange_name:str, exchange:bool=True, routing_key:str=None):
+	def __init__(self, broker, exchange_name: str, exchange: bool = True, routing_key: str = None):
 		self.Broker = broker
-		self.QueueName = "~T{}@".format(next(self.QueueNumberSeq))+broker.Origin
+		self.QueueName = "~T{}@".format(next(self.QueueNumberSeq)) + broker.Origin
 		self.ExchangeName = exchange_name
 		if isinstance(routing_key, list):
 			self.RoutingKey = routing_key
@@ -97,7 +97,7 @@ class ExchangeSubscriptionObject(object):
 		def on_consume_message(channel, method, properties, body):
 			try:
 				self.Broker.InboundQueue.put_nowait((channel, method, properties, body))
-			except:
+			except Exception:
 				channel.basic_nack(method.delivery_tag, requeue=True)
 
 		self.Channel = self.Broker.Connection.channel(on_open_callback=on_channel_open)

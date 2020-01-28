@@ -1,16 +1,12 @@
 import asab
 from .forwarder import OAuthForwarder
 
-
 class OAuthClientService(asab.Service):
 	"""
 	OAuthClientService serves to provide methods and cache to oauthclient_middleware_factory
 	and register OAuthForwarder, which serves to add forward endpoints to the provided web server container,
 	so the client applications may get/post information about the OAuth login.
 	"""
-
-	asab.Config.add_defaults({
-	})
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
