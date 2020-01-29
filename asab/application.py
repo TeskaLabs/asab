@@ -114,20 +114,12 @@ class Application(metaclass=Singleton):
 		self.Modules = []
 		self.Services = {}
 
-		# Comence init-time governor
+		# Setup ASAB API
+		if len(Config['asab:web']["listen"]) > 0:
+			from asab.api import Module
+			self.add_module(Module)
+
 		L.info("Initializing ...")
-		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
-			[
-				self.initialize(),
-				self._init_time_governor(asyncio.Future()),
-			],
-			return_when=asyncio.FIRST_EXCEPTION
-		))
-		for task in finished_tasks:
-			# This one also raises exceptions from futures, which is perfectly ok
-			task.result()
-		if len(pending_tasks) > 0:
-			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
 
 
 	def create_argument_parser(
@@ -163,6 +155,8 @@ class Application(metaclass=Singleton):
 		parser.add_argument('-v', '--verbose', action='store_true', help='print more information (enable debug output)')
 		parser.add_argument('-s', '--syslog', action='store_true', help='enable logging to a syslog')
 		parser.add_argument('-l', '--log-file', help='specify a path to a log file')
+		parser.add_argument('-w', '--web-api', help='activate Asab web api', const="0.0.0.0:80", nargs="?")
+
 
 		if daemon is not None:
 			parser.add_argument('-d', '--daemonize', action='store_true', help='run daemonized (in the background)')
@@ -187,6 +181,8 @@ class Application(metaclass=Singleton):
 		if args.log_file:
 			Config._default_values['logging:file']['path'] = args.log_file
 
+		if args.web_api:
+				Config._default_values['asab:web']['listen'] = args.web_api
 		return args
 
 
@@ -276,6 +272,27 @@ class Application(metaclass=Singleton):
 
 
 	def run(self):
+
+		# Comence init-time governor
+		tasks = asyncio.Task.all_tasks()
+		pending = [task for task in tasks if not task.done()]
+
+		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
+			[
+				self.initialize(),
+				self._init_time_governor(asyncio.Future()),
+				*pending
+			],
+			return_when=asyncio.FIRST_EXCEPTION
+		))
+		for task in finished_tasks:
+			# This one also raises exceptions from futures, which is perfectly ok
+			task.result()
+		if len(pending_tasks) > 0:
+			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
+
+		######
+
 		# Comence run-time and application main() function
 		L.info("Running ...")
 		self._stop_event.clear()
