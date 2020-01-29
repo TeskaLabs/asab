@@ -10,8 +10,8 @@ class ABCOAuthMethod(abc.ABC, ConfigObject):
 	# "userinfo_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/userinfo",
 
 	# Configuration for SeaCat Auth
-	# "token_url": "http://localhost:8080/oidc/token",
-	# "userinfo_url": "http://localhost:8080/oidc/userinfo",
+	# "token_url": "http://localhost:8080/openidconnect/token",
+	# "userinfo_url": "http://localhost:8080/openidconnect/userinfo",
 
 	ConfigDefaults = {
 		#TODO: Is "oauth_server_id" really needed?
@@ -34,9 +34,7 @@ class ABCOAuthMethod(abc.ABC, ConfigObject):
 		"oauth_server_public_key": "",  # To decode token from token id: https://www.oauth.com/oauth2-servers/access-tokens/self-encoded-access-tokens/
 	}
 
-	def __init__(self, config_section_name=None, config=None):
-		config_section_name = config_section_name if config_section_name is not None else self.__class__.__name__
-		super().__init__(config_section_name=config_section_name, config=config)
+	
 
 	@abc.abstractmethod
 	def extract_identity(self, oauth_user_info):
@@ -45,18 +43,23 @@ class ABCOAuthMethod(abc.ABC, ConfigObject):
 
 class GitHubOAuthMethod(ABCOAuthMethod):
 
-	def __init__(self, config_section_name=None):
-		super().__init__(config_section_name, {
-			"oauth_server_id": "github.com",
-			"token_url": "https://github.com/login/oauth/access_token",
-			"userinfo_url": "https://api.github.com/user",
-		})
+	ConfigDefaults = {
+		"oauth_server_id": "github.com",
+		"token_url": "https://github.com/login/oauth/access_token",
+		"userinfo_url": "https://api.github.com/user",
+	}
+
+	def __init__(self, config_section_name="oauth2:github", config=None):
+		super().__init__(config_section_name=config_section_name, config=config)
 
 	def extract_identity(self, oauth_user_info):
 		return oauth_user_info["email"]
 
 
 class OpenIDConnectMethod(ABCOAuthMethod):
+
+	def __init__(self, config_section_name="oauth2:oidc", config=None):
+		super().__init__(config_section_name=config_section_name, config=config)
 
 	def extract_identity(self, oauth_user_info):
 		return str(oauth_user_info["sub"])

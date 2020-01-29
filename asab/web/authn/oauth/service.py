@@ -13,8 +13,13 @@ class OAuthClientService(asab.Service):
 		self.App = app
 		self.Methods = {}
 		self.DefaultMethod = None
-		self.UserInfoCache = {}
 		self.Forwarder = None
+
+		self.UserInfoCache = {}
+		self.UserInfoCacheLongevity = 60 # In seconds
+
+		app.PubSub.subscribe("Application.tick/60!", self.on_tick60)
+
 
 	def append_method(self, method):
 		self.Methods[method.Config["oauth_server_id"]] = method
@@ -22,6 +27,7 @@ class OAuthClientService(asab.Service):
 			self.DefaultMethod = method
 		if self.Forwarder is not None:
 			self.Forwarder.Methods = self.Methods
+
 
 	def get_method(self, oauth_server_id):
 		if oauth_server_id is None:
@@ -57,3 +63,13 @@ class OAuthClientService(asab.Service):
 					oauth_client_service=self,
 				)
 			)
+
+
+	def on_tick60(self, event_name):
+		keys_to_remove = set()
+		for key, (_, _, expired_at) in self.UserInfoCache.items():
+			if expired_at < self.App.Loop.time():
+				keys_to_remove.add(key)
+
+		for key in keys_to_remove:
+			del self.UserInfoCache[key]

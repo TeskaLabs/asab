@@ -28,7 +28,6 @@ def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 	# Chapter 2.1. Authorization Request Header Field
 	AuthorizationHeaderRg = re.compile(r"^\s*Bearer ([A-Za-z0-9\-\.\+_~/=]*)")
 
-
 	@aiohttp.web.middleware
 	async def oauthclient_middleware(request, handler):
 
@@ -45,7 +44,12 @@ def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 			return await handler(request)
 		access_token = am.group(1)
 
-		method, oauth_user_info = oauth_client_service.UserInfoCache.get(access_token, (None, None))
+		method, oauth_user_info, expired_at = oauth_client_service.UserInfoCache.get(access_token, (None, None, None))
+		if expired_at is not None and expired_at < app.Loop.time():
+			# Cache entry is expired
+			del oauth_client_service.UserInfoCache[access_token]
+			method, oauth_user_info, expired_at = None, None, None
+
 		if oauth_user_info is None:
 			method = oauth_client_service.get_method(
 				request.headers.get('X-Authorization-OAuth-Server', None)
@@ -62,7 +66,9 @@ def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 				async with session.get(userinfo_url, headers=headers) as resp:
 					if resp.status == 200:
 						oauth_user_info = await resp.json()
-						oauth_client_service.UserInfoCache[access_token] = (method, oauth_user_info)
+
+						expired_at = app.Loop.time() + oauth_client_service.UserInfoCacheLongevity
+						oauth_client_service.UserInfoCache[access_token] = (method, oauth_user_info, expired_at)
 					else:
 						# "authn_required_handler" decorator will then return "HTTPUnauthorized" to the client,
 						# because of missing identity in the request
