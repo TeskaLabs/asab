@@ -64,7 +64,7 @@ class ConfigParser(configparser.ConfigParser):
 		},
 
 		"asab:web": {
-			"path": "",
+			"listen": "",
 		}
 
 	}
