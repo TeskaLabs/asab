@@ -119,6 +119,8 @@ class Application(metaclass=Singleton):
 			from asab.api import Module
 			self.add_module(Module)
 
+		L.info("Initializing ...")
+
 
 	def create_argument_parser(
 		self,
@@ -270,8 +272,8 @@ class Application(metaclass=Singleton):
 
 
 	def run(self):
+
 		# Comence init-time governor
-		L.info("Initializing ...")
 		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
 			[
 				self.initialize(),
