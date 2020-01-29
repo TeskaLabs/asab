@@ -28,9 +28,9 @@ class ApiService(asab.Service):
 		# TODO: refactor to use custom config section, instead of explicitly passing "listen" param?
 
 		# Add routes
-		container.WebApp.router.add_get('/asab/environ', self.environ)
+		container.WebApp.router.add_get('/asab/v1/environ', self.environ)
 
-		container.WebApp.router.add_get('/asab/config', self.config)
+		container.WebApp.router.add_get('/asab/v1/config', self.config)
 
 		return container
 
