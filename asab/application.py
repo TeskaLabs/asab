@@ -274,10 +274,14 @@ class Application(metaclass=Singleton):
 	def run(self):
 
 		# Comence init-time governor
+		tasks = asyncio.Task.all_tasks()
+		pending = [task for task in tasks if not task.done()]
+
 		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
 			[
 				self.initialize(),
 				self._init_time_governor(asyncio.Future()),
+				*pending
 			],
 			return_when=asyncio.FIRST_EXCEPTION
 		))
