@@ -3,6 +3,7 @@ import asab
 import asab.web
 import aiohttp.web
 
+
 class MyWebApplication(asab.Application):
 
 	async def initialize(self):
@@ -12,6 +13,7 @@ class MyWebApplication(asab.Application):
 
 	async def index(self, request):
 		return aiohttp.web.Response(text='Hello, world.\n')
+
 
 if __name__ == '__main__':
 	app = MyWebApplication()

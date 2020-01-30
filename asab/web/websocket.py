@@ -1,13 +1,13 @@
 import logging
 import asyncio
 import aiohttp
-import asab
 
 #
 
 L = logging.getLogger(__name__)
 
 #
+
 
 class WebSocketFactory(object):
 
@@ -43,9 +43,9 @@ class WebSocketFactory(object):
 
 
 	def send_parallely(self, send_futures):
-		#THIS METHOD IS OBSOLETED, DON'T USE IT IN A NEW CODE.
-	 	# Send messages parallely
-	 	asyncio.gather(*send_futures, loop=self.Loop)
+		# THIS METHOD IS OBSOLETED, DON'T USE IT IN A NEW CODE.
+		# Send messages in parallel
+		asyncio.gather(*send_futures, loop=self.Loop)
 
 
 	async def __call__(self, request):
@@ -79,10 +79,10 @@ class WebSocketFactory(object):
 
 		'''
 		ws = aiohttp.web.WebSocketResponse(
-			timeout = self.Timeout,
-			protocols = self.Protocols,
-			compress = self.Compress,
-			max_msg_size = self.MaxMsgSize,
+			timeout=self.Timeout,
+			protocols=self.Protocols,
+			compress=self.Compress,
+			max_msg_size=self.MaxMsgSize,
 		)
 		session = request.get('Session')
 		if session is not None:

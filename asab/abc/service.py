@@ -1,5 +1,6 @@
 import abc
 
+
 class Service(abc.ABC):
 	"""
 	Abstract service class
@@ -9,7 +10,6 @@ class Service(abc.ABC):
 		self.Name = service_name
 		self.App = app
 		app._register_service(self)
-
 
 	# Lifecycle
 

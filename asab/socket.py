@@ -1,5 +1,6 @@
 from .abc.service import Service
 
+
 class StreamSocketServerService(Service):
 
 	'''
@@ -22,7 +23,7 @@ class StreamSocketServerService(Service):
 
 
 	async def create_server(self, app, protocol, addrs):
-		#TODO: Paraelize this ...
+		# TODO: Parallelize this ...
 		for addr in addrs:
 			host, port = addr
 			server = await app.Loop.create_server(protocol, host, port)
@@ -35,6 +36,6 @@ class StreamSocketServerService(Service):
 
 
 	async def finalize(self, app):
-		#TODO: Paraelize this ...
+		# TODO: Parallelize this ...
 		for server in self._servers:
 			await server.wait_closed()

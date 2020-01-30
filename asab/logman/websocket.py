@@ -4,11 +4,9 @@ import asyncio
 
 import aiohttp
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 class LogManIOWebSocketUplink(object):
 
@@ -62,7 +60,6 @@ class LogManIOWebSocketUplink(object):
 					self.SenderFuture = asyncio.ensure_future(self._sender(ws), loop=self.App.Loop)
 					self.SenderFuture.add_done_callback(self._on_done)
 
-					
 					async for msg in ws:
 						pass
 
@@ -83,7 +80,7 @@ class LogManIOWebSocketUplink(object):
 			future.result()
 		except asyncio.CancelledError:
 			pass
-		except:
+		except BaseException:
 			L.exception("Error in LogMan.io websocket:")
 
 		if self.SenderFuture is not None:
@@ -95,5 +92,5 @@ class LogManIOWebSocketUplink(object):
 			self.ReceiverFuture = None
 
 			if self.Running:
-				L.warn("LogMan.io reconnect in 5 secs.")
+				L.warning("LogMan.io reconnect in 5 secs.")
 				self.App.Loop.call_later(5, self._reconnect)

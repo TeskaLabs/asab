@@ -1,11 +1,11 @@
-import re
-import asyncio
 import logging
+import re
+
 import aiohttp
 
+from .accesslog import AccessLogger
 from ..config import ConfigObject
 from ..net import SSLContextBuilder
-from .accesslog import AccessLogger
 
 
 class WebContainer(ConfigObject):
@@ -38,10 +38,11 @@ listen:
 
 
 	ConfigDefaults = {
-		'listen': '0.0.0.0 8080', # Can be multiline
+		'listen': '0.0.0.0 8080',  # Can be multiline
 		'backlog': 128,
 		'rootdir': '',
-		'servertokens': 'full', # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
+		'servertokens': 'full',  # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
+		'cors': '',
 	}
 
 
@@ -49,6 +50,7 @@ listen:
 		super().__init__(config_section_name=config_section_name, config=config)
 
 		self.BackLog = int(self.Config.get("backlog"))
+		self.CORS = self.Config.get("cors")
 
 		servertokens = self.Config.get("servertokens")
 		if servertokens == 'prod':
@@ -63,7 +65,8 @@ listen:
 		self._listen = []
 		for line in ls.split('\n'):
 			line = line.strip()
-			if len(line) == 0: continue
+			if len(line) == 0:
+				continue
 
 			if ' ' in line:
 				line = re.split(r"\s+", line)
@@ -71,7 +74,7 @@ listen:
 				# This line allows the (obsolete) format of IPv4 with ':'
 				# such as "0.0.0.0:8001"
 				line = re.split(r"[:\s]", line, 1)
-			
+
 			addr = line.pop(0).strip()
 			port = line.pop(0).strip()
 			port = int(port)
@@ -101,15 +104,19 @@ listen:
 		)
 
 		websvc._register_container(self, config_section_name)
-
+		websvc.App.PubSub.subscribe("Application.run!", self.start_container)
 
 	async def initialize(self, app):
+		pass
+
+	async def start_container(self, event_type):
 		await self.WebAppRunner.setup()
 
 		for addr, port, ssl_context in self._listen:
-			site = aiohttp.web.TCPSite(self.WebAppRunner,
+			site = aiohttp.web.TCPSite(
+				self.WebAppRunner,
 				host=addr, port=port, backlog=self.BackLog,
-				ssl_context = ssl_context,
+				ssl_context=ssl_context,
 			)
 			await site.start()
 
@@ -121,4 +128,6 @@ listen:
 	async def _on_prepare_response(self, request, response):
 		response.headers['Server'] = self.ServerTokens
 
-		
+		if self.CORS == "*":
+			response.headers['Access-Control-Allow-Origin'] = "*"
+			response.headers['Access-Control-Allow-Methods'] = "GET, POST, DELETE, PUT, PATCH, OPTIONS"

@@ -4,11 +4,9 @@ import urllib
 
 import asab
 
-#
 
 L = logging.getLogger(__name__)
 
-#
 
 def influxdb_format(now, mlist):
 	# CAREFUL: This function is used also in asab.logman.metrics
@@ -36,7 +34,6 @@ def influxdb_format(now, mlist):
 
 	return rb
 
-#
 
 class MetricsInfluxDB(asab.ConfigObject):
 

@@ -103,5 +103,5 @@ This is a standard way of how ASAB application is started.
 Next steps
 ----------
 
-Chech out tutorials about how to build ASAB based :doc:`web server <tutorial/web/chapter1>`.
+Check out tutorials about how to build ASAB based :doc:`web server <tutorial/web/chapter1>`.
 

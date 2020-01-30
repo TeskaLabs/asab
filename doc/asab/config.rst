@@ -143,5 +143,12 @@ Environment variables found in values are automatically expanded.
 	>>> asab.Config['section_name']['persistent_dir']
 	'/home/user/.myapp/'
 
+There is a special environment variable `${THIS_DIR}` that is expanded to a directory that contains a current configuration file.
+It is useful in complex configurations that utilizes included configuration files etc.
+
+.. code:: ini
+
+	[section_name]
+	my_file=${THIS_DIR}/my_file.txt
 
 

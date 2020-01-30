@@ -19,8 +19,6 @@ import sys
 root_directory = os.path.dirname(os.getcwd())
 sys.path.insert(0, root_directory)
 
-import asab
-
 
 # -- Project information -----------------------------------------------------
 

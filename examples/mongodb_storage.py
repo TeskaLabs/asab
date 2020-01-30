@@ -4,16 +4,14 @@ import asab
 import asab.storage
 
 
-'''
-../etc/site.conf
-
-[asab:storage]
-type=mongodb
-
-'''
 class MyApplication(asab.Application):
 
 	async def initialize(self):
+		# Fake config file
+		asab.Config.read_string("""
+[asab:storage]
+type=mongodb
+				""")
 		# Loading the web service module
 		self.add_module(asab.storage.Module)
 

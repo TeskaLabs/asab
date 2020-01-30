@@ -1,8 +1,6 @@
 import asyncio
-import aiohttp.web
 import asab
 
-#
 
 class WebService(asab.Service):
 
@@ -10,6 +8,7 @@ class WebService(asab.Service):
 		super().__init__(app, service_name)
 
 		self.Containers = {}
+		self.App = app
 
 
 	async def finalize(self, app):
@@ -19,7 +18,7 @@ class WebService(asab.Service):
 
 	def _register_container(self, container, config_section_name):
 		self.Containers[config_section_name] = container
-		asyncio.ensure_future(container.initialize(self.App.Loop))
+		asyncio.ensure_future(container.initialize(self.App))
 
 
 	@property
