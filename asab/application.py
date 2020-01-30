@@ -12,6 +12,7 @@ import random
 try:
 	import daemon
 	import daemon.pidfile
+	import lockfile
 except ImportError:
 	daemon = None
 
@@ -65,7 +66,7 @@ class Application(metaclass=Singleton):
 			self.Loop = asyncio.new_event_loop()
 			asyncio.set_event_loop(self.Loop)
 
-		self.LaunchTime = time.time() 
+		self.LaunchTime = time.time()
 		self.BaseTime = self.LaunchTime - self.Loop.time()
 
 		# Setup logging
@@ -75,7 +76,7 @@ class Application(metaclass=Singleton):
 		self.Loop.set_exception_handler(_loop_exception_handler)
 		if Config["logging"].getboolean("verbose"):
 			self.Loop.set_debug(True)
-		
+
 		try:
 			# Signals are not available on Windows
 			self.Loop.add_signal_handler(signal.SIGINT, self.stop)
@@ -103,7 +104,7 @@ class Application(metaclass=Singleton):
 			except NotImplementedError:
 				pass
 
-		self._stop_event = asyncio.Event(loop = self.Loop)
+		self._stop_event = asyncio.Event(loop=self.Loop)
 		self._stop_event.clear()
 		self._stop_counter = 0
 
@@ -113,38 +114,26 @@ class Application(metaclass=Singleton):
 		self.Modules = []
 		self.Services = {}
 
-		# Setup basicapi
-		if "basicapi" in Config['general']:
-			from asab.basicapi import Module
+		# Setup ASAB API
+		if len(Config['asab:web']["listen"]) > 0:
+			from asab.api import Module
 			self.add_module(Module)
 
-		# Comence init-time governor
 		L.info("Initializing ...")
-		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
-			[
-				self.initialize(),
-				self._init_time_governor(asyncio.Future()),
-			],
-			return_when = asyncio.FIRST_EXCEPTION
-		))
-		for task in finished_tasks:
-			# This one also raises exceptions from futures, which is perfectly ok
-			task.result()
-		if len(pending_tasks) > 0:
-			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
 
 
-	def create_argument_parser(self,
-			prog=None,
-			usage=None,
-			description=None,
-			epilog=None,
-			prefix_chars='-',
-			fromfile_prefix_chars=None,
-			argument_default=None,
-			conflict_handler='error',
-			add_help=True
-		):
+	def create_argument_parser(
+		self,
+		prog=None,
+		usage=None,
+		description=None,
+		epilog=None,
+		prefix_chars='-',
+		fromfile_prefix_chars=None,
+		argument_default=None,
+		conflict_handler='error',
+		add_help=True
+	):
 		'''
 		This method can be overriden to adjust argparse configuration.
 		Refer to the Python standard library to `argparse.ArgumentParser` for details of arguments.
@@ -166,7 +155,7 @@ class Application(metaclass=Singleton):
 		parser.add_argument('-v', '--verbose', action='store_true', help='print more information (enable debug output)')
 		parser.add_argument('-s', '--syslog', action='store_true', help='enable logging to a syslog')
 		parser.add_argument('-l', '--log-file', help='specify a path to a log file')
-		parser.add_argument('-b', '--basic-api', help='activate basic api', const="0.0.0.0:8080", nargs="?")
+		parser.add_argument('-w', '--web-api', help='activate Asab web api', const="0.0.0.0:80", nargs="?")
 
 
 		if daemon is not None:
@@ -192,8 +181,8 @@ class Application(metaclass=Singleton):
 		if args.log_file:
 			Config._default_values['logging:file']['path'] = args.log_file
 
-		if args.basic_api:
-				Config._default_values['general']['basicapi'] = args.basic_api
+		if args.web_api:
+				Config._default_values['asab:web']['listen'] = args.web_api
 		return args
 
 
@@ -209,7 +198,7 @@ class Application(metaclass=Singleton):
 
 	def daemonize(self):
 		if daemon is None:
-			print("Install 'python-daemon' module to support daemonising.", file=sys.stderr)
+			print("Install 'python-daemon' module to support daemonizing.", file=sys.stderr)
 			sys.exit(1)
 
 		pidfilepath = self.get_pidfile_path()
@@ -220,12 +209,14 @@ class Application(metaclass=Singleton):
 		working_dir = Config['general']['working_dir']
 
 		uid = Config['general']['uid']
-		if uid == "": uid = None
+		if uid == "":
+			uid = None
 
 		gid = Config['general']['gid']
-		if gid == "": gid = None
+		if gid == "":
+			gid = None
 
-		signal_map={
+		signal_map = {
 			signal.SIGTTIN: None,
 			signal.SIGTTOU: None,
 			signal.SIGTSTP: None,
@@ -281,6 +272,27 @@ class Application(metaclass=Singleton):
 
 
 	def run(self):
+
+		# Comence init-time governor
+		tasks = asyncio.Task.all_tasks()
+		pending = [task for task in tasks if not task.done()]
+
+		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
+			[
+				self.initialize(),
+				self._init_time_governor(asyncio.Future()),
+				*pending
+			],
+			return_when=asyncio.FIRST_EXCEPTION
+		))
+		for task in finished_tasks:
+			# This one also raises exceptions from futures, which is perfectly ok
+			task.result()
+		if len(pending_tasks) > 0:
+			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
+
+		######
+
 		# Comence run-time and application main() function
 		L.info("Running ...")
 		self._stop_event.clear()
@@ -289,7 +301,7 @@ class Application(metaclass=Singleton):
 				self.main(),
 				self._run_time_governor(asyncio.Future()),
 			],
-			return_when = asyncio.FIRST_EXCEPTION
+			return_when=asyncio.FIRST_EXCEPTION
 		))
 		for task in finished_tasks:
 			try:
@@ -297,7 +309,7 @@ class Application(metaclass=Singleton):
 			except BaseException:
 				L.exception("Exception in {}".format(task))
 
-		#TODO: Process pending_tasks tasks from above
+		# TODO: Process pending_tasks tasks from above
 
 		# Comence exit-time
 		L.info("Exiting ...")
@@ -306,7 +318,7 @@ class Application(metaclass=Singleton):
 				self.finalize(),
 				self._exit_time_governor(asyncio.Future()),
 			],
-			return_when = asyncio.FIRST_EXCEPTION
+			return_when=asyncio.FIRST_EXCEPTION
 		))
 		for task in finished_tasks:
 			try:
@@ -314,7 +326,7 @@ class Application(metaclass=Singleton):
 			except BaseException:
 				L.exception("Exception in {}".format(task))
 
-		#TODO: Process pending_tasks tasks from above (should be none)
+		# TODO: Process pending_tasks tasks from above (should be none)
 
 		# Python 3.5 lacks support for shutdown_asyncgens()
 		if hasattr(self.Loop, "shutdown_asyncgens"):
@@ -324,7 +336,7 @@ class Application(metaclass=Singleton):
 		return self.ExitCode
 
 
-	def stop(self, exit_code:int=None):
+	def stop(self, exit_code: int = None):
 		if exit_code is not None:
 			self.set_exit_code(exit_code)
 
@@ -344,7 +356,6 @@ class Application(metaclass=Singleton):
 		self.Logging.rotate()
 		self.PubSub.publish("Application.hup!")
 
-
 	# Modules
 
 	def add_module(self, module_class):
@@ -357,9 +368,8 @@ class Application(metaclass=Singleton):
 
 		module = module_class(self)
 		self.Modules.append(module)
-	
-		asyncio.ensure_future(module.initialize(self), loop=self.Loop)
 
+		asyncio.ensure_future(module.initialize(self), loop=self.Loop)
 
 	# Services
 
@@ -379,14 +389,13 @@ class Application(metaclass=Singleton):
 		""" Register a new service using its name. """
 
 		if service.Name in self.Services:
-			L.error("Service '{}' already registered (existing:{} new:{})"
-					.format(service.Name, self.Services[service.Name], service))
+			L.error("Service '{}' already registered (existing:{} new:{})".format(
+				service.Name, self.Services[service.Name], service))
 			raise RuntimeError("Service {} already registered".format(service.Name))
 
 		self.Services[service.Name] = service
 
 		asyncio.ensure_future(service.initialize(self), loop=self.Loop)
-
 
 	# Lifecycle callback
 
@@ -398,7 +407,6 @@ class Application(metaclass=Singleton):
 
 	async def finalize(self):
 		pass
-
 
 	# Governors
 
@@ -419,17 +427,24 @@ class Application(metaclass=Singleton):
 					break
 				except asyncio.TimeoutError:
 					self.PubSub.publish("Application.tick!")
-					if (cycle_no % 10) == 0: self.PubSub.publish("Application.tick/10!")
+					if (cycle_no % 10) == 0:
+						self.PubSub.publish("Application.tick/10!")
 					if (cycle_no % 60) == 0:
 						# Rebase a Loop time
 						self.BaseTime = time.time() - self.Loop.time()
 						self.PubSub.publish("Application.tick/60!")
-					if (cycle_no % 300) == 0: self.PubSub.publish("Application.tick/300!")
-					if (cycle_no % 600) == 0: self.PubSub.publish("Application.tick/600!")
-					if (cycle_no % 1800) == 0: self.PubSub.publish("Application.tick/1800!")
-					if (cycle_no % 3600) == 0: self.PubSub.publish("Application.tick/3600!")
-					if (cycle_no % 43200) == 0: self.PubSub.publish("Application.tick/43200!")
-					if (cycle_no % 86400) == 0: self.PubSub.publish("Application.tick/86400!")
+					if (cycle_no % 300) == 0:
+						self.PubSub.publish("Application.tick/300!")
+					if (cycle_no % 600) == 0:
+						self.PubSub.publish("Application.tick/600!")
+					if (cycle_no % 1800) == 0:
+						self.PubSub.publish("Application.tick/1800!")
+					if (cycle_no % 3600) == 0:
+						self.PubSub.publish("Application.tick/3600!")
+					if (cycle_no % 43200) == 0:
+						self.PubSub.publish("Application.tick/43200!")
+					if (cycle_no % 86400) == 0:
+						self.PubSub.publish("Application.tick/86400!")
 					continue
 
 		finally:
@@ -462,7 +477,8 @@ class Application(metaclass=Singleton):
 			ts = asyncio.Task.all_tasks(self.Loop)
 			tasks_awaiting = 0
 			for t in ts:
-				if t.done(): continue
+				if t.done():
+					continue
 				tasks_awaiting += 1
 			if tasks_awaiting <= 2:
 				# 2 is for _exit_time_governor and wait()
@@ -471,16 +487,15 @@ class Application(metaclass=Singleton):
 			await asyncio.sleep(1)
 
 		else:
-			L.warn("Exiting but {} async task(s) are still waiting".format(tasks_awaiting))
+			L.warning("Exiting but {} async task(s) are still waiting".format(tasks_awaiting))
 
 		future.set_result("exit")
 
 
-	def set_exit_code(self, exit_code:int, force:bool=False):
+	def set_exit_code(self, exit_code: int, force: bool = False):
 		if (self.ExitCode < exit_code) or force:
-			L.debug("Exit code set to {}",format(exit_code))
+			L.debug("Exit code set to {}".format(exit_code))
 			self.ExitCode = exit_code
-
 
 	# Time
 
