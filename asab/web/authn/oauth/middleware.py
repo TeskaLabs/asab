@@ -1,7 +1,6 @@
 import aiohttp
 import logging
 import re
-import pprint
 
 #
 
