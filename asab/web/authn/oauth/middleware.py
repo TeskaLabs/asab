@@ -51,9 +51,8 @@ def oauthclient_middleware_factory(app, *args, oauth_client_service, **kwargs):
 			method, oauth_user_info, expired_at = None, None, None
 
 		if oauth_user_info is None:
-			method = oauth_client_service.get_method(
-				request.headers.get('X-Authorization-OAuth-Server', None)
-			)
+			oauth_server_id = request.headers.get('X-Authorization-OAuth-Server', None)
+			method = oauth_client_service.get_method(oauth_server_id)
 			if method is None:
 				L.warn("Method for OAuth server id '{}' was not found.".format(oauth_server_id))
 				return await handler(request)

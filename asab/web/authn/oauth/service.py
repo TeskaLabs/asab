@@ -1,6 +1,7 @@
 import asab
 from .forwarder import OAuthForwarder
 
+
 class OAuthClientService(asab.Service):
 	"""
 	OAuthClientService serves to provide methods and cache to oauthclient_middleware_factory
@@ -16,7 +17,7 @@ class OAuthClientService(asab.Service):
 		self.Forwarder = None
 
 		self.UserInfoCache = {}
-		self.UserInfoCacheLongevity = 60 # In seconds
+		self.UserInfoCacheLongevity = 60  # In seconds
 
 		app.PubSub.subscribe("Application.tick/60!", self.on_tick60)
 
