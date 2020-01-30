@@ -79,7 +79,7 @@ def authorize_any(*authorizations):
 
 	Example:
 		@asab.web.authn.authorize_any(my_custom_authorization, allow_admin)
-		async def handler(self, request, *, authorized_prefixes):
+		async def handler(self, request, *):
 			...
 
 	:param authorizations: List of authorization functions
@@ -88,10 +88,9 @@ def authorize_any(*authorizations):
 
 		@functools.wraps(func)
 		async def wrapper_authorize_any(*args, **kwargs):
-			authorized_prefixes = {}
-			result = [await auth(*args, **kwargs, authorized_prefixes=authorized_prefixes) for auth in authorizations]
+			result = [await auth(args, kwargs) for auth in authorizations]
 			if any(result):
-				return await func(*args, **kwargs, authorized_prefixes=authorized_prefixes)
+				return await func(*args, **kwargs)
 			else:
 				raise aiohttp.web.HTTPForbidden()
 
@@ -106,7 +105,7 @@ def authorize_all(*authorizations):
 
 	Example:
 		@asab.web.authn.authorize_all(my_custom_authorization, allow_admin)
-		async def handler(self, request, *, authorized_prefixes):
+		async def handler(self, request, *):
 			...
 
 	:param authorizations: List of authorization functions
@@ -115,10 +114,9 @@ def authorize_all(*authorizations):
 
 		@functools.wraps(func)
 		async def wrapper_authorize_all(*args, **kwargs):
-			authorized_prefixes = {}
-			result = [await auth(*args, **kwargs, authorized_prefixes=authorized_prefixes) for auth in authorizations]
+			result = [await auth(args, kwargs) for auth in authorizations]
 			if all(result):
-				return await func(*args, **kwargs, authorized_prefixes=authorized_prefixes)
+				return await func(*args, **kwargs)
 			else:
 				raise aiohttp.web.HTTPForbidden()
 
