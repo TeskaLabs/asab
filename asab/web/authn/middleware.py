@@ -1,3 +1,5 @@
+import functools
+
 import aiohttp
 import aiohttp.web
 
@@ -69,3 +71,55 @@ def authn_optional_handler(func):
 		return await func(*args, **kargs)
 
 	return wrapper
+
+
+def authorize_any(*authorizations):
+	"""
+	The web handler that checks if ANY *authorizations* passed successfully.
+
+	Example:
+		@asab.web.authn.authorize_any(my_custom_authorization, allow_admin)
+		async def handler(self, request, *):
+			...
+
+	:param authorizations: List of authorization functions
+	"""
+	def decorator_authorize_any(func):
+
+		@functools.wraps(func)
+		async def wrapper_authorize_any(*args, **kwargs):
+			result = [await auth(args, kwargs) for auth in authorizations]
+			if any(result):
+				return await func(*args, **kwargs)
+			else:
+				raise aiohttp.web.HTTPForbidden()
+
+		return wrapper_authorize_any
+
+	return decorator_authorize_any
+
+
+def authorize_all(*authorizations):
+	"""
+	The web handler that checks if ALL *authorizations* passed successfully.
+
+	Example:
+		@asab.web.authn.authorize_all(my_custom_authorization, allow_admin)
+		async def handler(self, request, *):
+			...
+
+	:param authorizations: List of authorization functions
+	"""
+	def decorator_authorize_all(func):
+
+		@functools.wraps(func)
+		async def wrapper_authorize_all(*args, **kwargs):
+			result = [await auth(args, kwargs) for auth in authorizations]
+			if all(result):
+				return await func(*args, **kwargs)
+			else:
+				raise aiohttp.web.HTTPForbidden()
+
+		return wrapper_authorize_all
+
+	return decorator_authorize_all
