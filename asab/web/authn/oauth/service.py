@@ -1,6 +1,4 @@
 import asab
-
-from .cache import OAuthIdentityCache
 from .forwarder import OAuthForwarder
 
 
@@ -11,24 +9,32 @@ class OAuthClientService(asab.Service):
 	so the client applications may get/post information about the OAuth login.
 	"""
 
-	asab.Config.add_defaults({
-		"OAuthClientService": {
-			"identity_cache_longevity": 60 * 60,
-		}
-	})
-
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 		self.App = app
 		self.Methods = {}
-		self.IdentityCache = OAuthIdentityCache(self.App, self.Methods, int(asab.Config["OAuthClientService"]["identity_cache_longevity"]))
+		self.DefaultMethod = None
 		self.Forwarder = None
+
+		self.UserInfoCache = {}
+		self.UserInfoCacheLongevity = 60  # In seconds
+
+		app.PubSub.subscribe("Application.tick/60!", self.on_tick60)
+
 
 	def append_method(self, method):
 		self.Methods[method.Config["oauth_server_id"]] = method
-		self.IdentityCache.Methods = self.Methods
+		if self.DefaultMethod is None:
+			self.DefaultMethod = method
 		if self.Forwarder is not None:
 			self.Forwarder.Methods = self.Methods
+
+
+	def get_method(self, oauth_server_id):
+		if oauth_server_id is None:
+			return self.DefaultMethod
+		return self.Methods[oauth_server_id]
+
 
 	def configure(self, container, configure_forwarder=True, configure_middleware=True):
 		"""
@@ -58,3 +64,13 @@ class OAuthClientService(asab.Service):
 					oauth_client_service=self,
 				)
 			)
+
+
+	def on_tick60(self, event_name):
+		keys_to_remove = set()
+		for key, (_, _, expired_at) in self.UserInfoCache.items():
+			if expired_at < self.App.Loop.time():
+				keys_to_remove.add(key)
+
+		for key in keys_to_remove:
+			del self.UserInfoCache[key]

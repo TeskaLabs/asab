@@ -5,20 +5,36 @@ from ....config import ConfigObject
 
 class ABCOAuthMethod(abc.ABC, ConfigObject):
 
+	# Configuration for KeyCloak
+	# "token_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/token",
+	# "userinfo_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/userinfo",
+
+	# Configuration for SeaCat Auth
+	# "token_url": "http://localhost:8080/openidconnect/token",
+	# "userinfo_url": "http://localhost:8080/openidconnect/userinfo",
+
 	ConfigDefaults = {
-		"oauth_server_id": "teskalabs.com",
-		"token_url": "http://localhost:8080/token_endpoint/token_request",  # Forwards "Access Token Request", see https://tools.ietf.org/html/rfc6749#section-4.1.3
-		"identity_url": "http://localhost:8080/identity_provider/identity",  # Forwards "UserInfo Request", see https://connect2id.com/products/server/docs/api/userinfo
-		"invalidate_url": "",  # Forwards "Revocation Request", see https://tools.ietf.org/html/rfc7009#page-4
-		"refresh_url": "",  # Refreshes access token, see https://auth0.com/docs/tokens/refresh-token/current#use-a-refresh-token
+		# TODO: Is "oauth_server_id" really needed?
+		"oauth_server_id": "asab-oauth",
+
+		# URL of "Access Token Request" endpoint, see https://tools.ietf.org/html/rfc6749#section-4.1.3
+		"token_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/token",
+
+		# URL of "UserInfo Request" endpoint, see https://connect2id.com/products/server/docs/api/userinfo
+		"userinfo_url": "http://localhost:8080/auth/realms/teskalabs/protocol/openid-connect/userinfo",
+
+		# URL of "Revocation Request" endpoint, see https://tools.ietf.org/html/rfc7009#page-4
+		"invalidate_url": "",
+
+		# Refreshes access token, see https://auth0.com/docs/tokens/refresh-token/current#use-a-refresh-token
+		"refresh_url": "",
+
 		"client_id": "",  # Client ID of the current application, see https://tools.ietf.org/html/rfc6749#section-4.1.1
 		"client_secret": "",  # Client secret of the current application, see https://tools.ietf.org/html/rfc6749#section-4.1.1
 		"oauth_server_public_key": "",  # To decode token from token id: https://www.oauth.com/oauth2-servers/access-tokens/self-encoded-access-tokens/
 	}
 
-	def __init__(self, config_section_name=None, config=None):
-		config_section_name = config_section_name if config_section_name is not None else self.__class__.__name__
-		super().__init__(config_section_name=config_section_name, config=config)
+
 
 	@abc.abstractmethod
 	def extract_identity(self, oauth_user_info):
@@ -27,18 +43,23 @@ class ABCOAuthMethod(abc.ABC, ConfigObject):
 
 class GitHubOAuthMethod(ABCOAuthMethod):
 
-	def __init__(self, config_section_name=None):
-		super().__init__(config_section_name, {
-			"oauth_server_id": "github.com",
-			"token_url": "https://github.com/login/oauth/access_token",
-			"identity_url": "https://api.github.com/user",
-		})
+	ConfigDefaults = {
+		"oauth_server_id": "github.com",
+		"token_url": "https://github.com/login/oauth/access_token",
+		"userinfo_url": "https://api.github.com/user",
+	}
+
+	def __init__(self, config_section_name="oauth2:github", config=None):
+		super().__init__(config_section_name=config_section_name, config=config)
 
 	def extract_identity(self, oauth_user_info):
 		return oauth_user_info["email"]
 
 
 class OpenIDConnectMethod(ABCOAuthMethod):
+
+	def __init__(self, config_section_name="oauth2:oidc", config=None):
+		super().__init__(config_section_name=config_section_name, config=config)
 
 	def extract_identity(self, oauth_user_info):
 		return str(oauth_user_info["sub"])

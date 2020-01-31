@@ -46,7 +46,10 @@ class MyOAuthSecuredApplication(asab.Application):
 		self.add_module(asab.web.authn.oauth.Module)
 		oauth_client_service = self.get_service("asab.OAuthClientService")
 
-		# Select OAuth providers (only GitHub in our case)
+		# Select OAuth providers
+		oauth_client_service.append_method(asab.web.authn.oauth.OpenIDConnectMethod())
+
+		# Add a GitHub
 		oauth_client_service.append_method(asab.web.authn.oauth.GitHubOAuthMethod())
 
 		# Add middleware for authentication via oauth2 and register useful OAuth endpoints
@@ -58,10 +61,11 @@ class MyOAuthSecuredApplication(asab.Application):
 		# Add a route
 		container.WebApp.router.add_get('/user', self.user)
 
+
 	@asab.web.authn.authn_required_handler
 	async def user(self, request, *, identity):
 		return asab.web.rest.json_response(request=request, data={
-			'message': '"{}", you have accessed our secured "user" endpoint.'.format(identity),
+			'message': 'Hello "{}".'.format(identity),
 		})
 
 
