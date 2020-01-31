@@ -49,7 +49,7 @@ class ApiService(asab.Service):
 
 		container.WebApp.router.add_get('/asab/v1/config', self.config)
 
-		container.WebApp.router.add_get('/asab/logs', logs)
+		container.WebApp.router.add_get('/asab/v1/logs', logs)
 
 		return container
 
