@@ -10,7 +10,7 @@ class Application(asab.Application):
 		super().__init__()
 
 
-	def create_argument_parser(self):
+	def create_argument_parser(self, *args, **kwargs):
 		parser = super().create_argument_parser()
 
 		subparsers = parser.add_subparsers(dest="command")
@@ -23,7 +23,7 @@ class Application(asab.Application):
 		return parser
 
 
-	def parse_arguments(self):
+	def parse_arguments(self, args=None):
 		args = super().parse_arguments()
 		self.command = args.command or ""
 
