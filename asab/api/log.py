@@ -1,6 +1,6 @@
 import logging
 import datetime
-from .. log import LOG_NOTICE
+from asab.log import LOG_NOTICE
 
 
 class APIHandler(logging.Handler):
