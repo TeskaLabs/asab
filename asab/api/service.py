@@ -40,4 +40,4 @@ class ApiService(asab.Service):
 
 
 	async def config(self, request):
-		return asab.web.rest.json_response(request, {s: dict(asab.Config.items(s)) for s in asab.Config.sections()})
+		return asab.web.rest.json_response(request, asab.Config.get_items_without_passwords())
