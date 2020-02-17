@@ -193,7 +193,7 @@ class ConfigParser(configparser.ConfigParser):
 								key_password = value_by_password.split("$(")
 								password = str(self._passwords.get(key_password[1].lower(), ""))
 								if len(password) == 0:
-									L.warning("Password named '{}' could not be found in the password section.".format(key_password[1].lower()))
+									L.warning("Password named '{}' could not be found in the passwords section.".format(key_password[1].lower()))
 								new_value += key_password[0] + password
 							else:
 								new_value += value_by_password
