@@ -65,8 +65,22 @@ class ConfigParser(configparser.ConfigParser):
 
 		"asab:web": {
 			"listen": "",
-		}
+		},
 
+
+		# "passwords" section serve to securely store passwords
+		# in the configuration file; the passwords are not
+		# shown in the default API
+		#
+		# Usage in the configuration file:
+		#
+		# [connection:KafkaConnection]
+		# password=$(kafka_password)
+		#
+		# [passwords]
+		# kafka_password=<MY_SECRET_PASSWORD>
+		"passwords": {
+		}
 	}
 
 
@@ -132,11 +146,12 @@ class ConfigParser(configparser.ConfigParser):
 				includes = self.get('general', 'include', fallback='')
 				self._traverse_includes(includes, os.path.dirname(include_glob))
 
-
 	def _load(self):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
 
 		self._load_dir_stack = []
+		self._passwords = None
+		self._items_without_passwords = {}
 
 		config_fname = ConfigParser._default_values['general']['config_file']
 		if config_fname != '':
@@ -157,7 +172,38 @@ class ConfigParser(configparser.ConfigParser):
 
 		self.add_defaults(ConfigParser._default_values)
 
+		# Obtain password section
+		self._passwords = dict(self.items("passwords"))
+
+		# The password section is truly loaded after all other sections are interpolated
+		# Iterate through all configuration options and parse passwords
+		for section in self._sections.keys():
+			if section != "passwords":
+				# Store all items without mapped passwords
+				self._items_without_passwords[section] = dict(self.items(section))
+				# Iterate through every section and its configuration options
+				for option, value in self._items_without_passwords[section].items():
+					# Check if there is a password inside
+					if "$(" in value:
+						# Parse the password using passwords section
+						split_value_by_password = value.split(")")
+						new_value = ""
+						for value_by_password in split_value_by_password:
+							if "$(" in value_by_password:
+								key_password = value_by_password.split("$(")
+								password = str(self._passwords.get(key_password[1].lower(), ""))
+								if len(password) == 0:
+									L.warning("Password named '{}' could not be found in the password section.".format(key_password[1].lower()))
+								new_value += key_password[0] + password
+							else:
+								new_value += value_by_password
+						# Set the new value with parsed passwords
+						self.set(section, option, new_value)
+
 		del self._load_dir_stack
+
+	def get_items_without_passwords(self):
+		return self._items_without_passwords
 
 
 class _Interpolation(configparser.BasicInterpolation):
