@@ -44,7 +44,8 @@ class ApiService(asab.Service):
 		result = {}
 		for section in asab.Config.sections():
 			result[section] = {}
-			for option, value in asab.Config.items(section):
+			# Access items in the raw mode (they are not interpolated)
+			for option, value in asab.Config.items(section, raw=True):
 				if section == "passwords":
 					result[section][option] = "***"
 				else:
