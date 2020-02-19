@@ -44,8 +44,8 @@ class ConfigParser(configparser.ConfigParser):
 		},
 
 		"logging:console": {
-			"format": "%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s",
-			"datefmt": "%%d-%%b-%%Y %%H:%%M:%%S.%%f",
+			"format": "%(asctime)s %(levelname)s %(name)s %(struct_data)s%(message)s",
+			"datefmt": "%d-%b-%Y %H:%M:%S.%f",
 		},
 
 		"logging:syslog": {
@@ -57,16 +57,30 @@ class ConfigParser(configparser.ConfigParser):
 
 		"logging:file": {
 			"path": "",
-			"format": "%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s",
-			"datefmt": "%%d-%%b-%%Y %%H:%%M:%%S.%%f",
+			"format": "%(asctime)s %(levelname)s %(name)s %(struct_data)s%(message)s",
+			"datefmt": "%d-%b-%Y %H:%M:%S.%f",
 			"backup_count": 3,
 			"rotate_every": "",
 		},
 
 		"asab:web": {
 			"listen": "",
-		}
+		},
 
+
+		# "passwords" section serve to securely store passwords
+		# in the configuration file; the passwords are not
+		# shown in the default API
+		#
+		# Usage in the configuration file:
+		#
+		# [connection:KafkaConnection]
+		# password=${passwords:kafka_password}
+		#
+		# [passwords]
+		# kafka_password=<MY_SECRET_PASSWORD>
+		"passwords": {
+		}
 	}
 
 
@@ -132,7 +146,6 @@ class ConfigParser(configparser.ConfigParser):
 				includes = self.get('general', 'include', fallback='')
 				self._traverse_includes(includes, os.path.dirname(include_glob))
 
-
 	def _load(self):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
 
@@ -160,7 +173,7 @@ class ConfigParser(configparser.ConfigParser):
 		del self._load_dir_stack
 
 
-class _Interpolation(configparser.BasicInterpolation):
+class _Interpolation(configparser.ExtendedInterpolation):
 	"""Interpolation which expands environment variables in values."""
 
 	def before_read(self, parser, section, option, value):

@@ -40,4 +40,14 @@ class ApiService(asab.Service):
 
 
 	async def config(self, request):
-		return asab.web.rest.json_response(request, {s: dict(asab.Config.items(s)) for s in asab.Config.sections()})
+		# Copy the config and erase all passwords
+		result = {}
+		for section in asab.Config.sections():
+			result[section] = {}
+			# Access items in the raw mode (they are not interpolated)
+			for option, value in asab.Config.items(section, raw=True):
+				if section == "passwords":
+					result[section][option] = "***"
+				else:
+					result[section][option] = value
+		return asab.web.rest.json_response(request, result)
