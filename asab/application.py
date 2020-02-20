@@ -288,33 +288,6 @@ class Application(metaclass=Singleton):
 		if len(pending_tasks) > 0:
 			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
 
-		######
-
-		# await all futures until none pending
-		tasks = asyncio.Task.all_tasks()
-		pending = [task for task in tasks if not task.done()]
-
-		while len(pending) > 0:
-
-			finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
-				[
-					*pending
-				],
-				return_when=asyncio.FIRST_EXCEPTION
-			))
-
-			for task in finished_tasks:
-				# This one also raises exceptions from futures, which is perfectly ok
-				task.result()
-			if len(pending_tasks) > 0:
-				raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
-
-			tasks = asyncio.Task.all_tasks()
-			pending = [task for task in tasks if not task.done()]
-
-
-		######
-
 		# Comence run-time and application main() function
 		L.info("Running ...")
 		self._stop_event.clear()
