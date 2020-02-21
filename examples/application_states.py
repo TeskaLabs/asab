@@ -3,7 +3,7 @@ import asab
 import asyncio
 
 
-class RunPhasesExampleApplication(asab.Application):
+class StatesDemonstrationApplication(asab.Application):
 
 	def __init__(self, args=None):
 		super().__init__(args)
@@ -15,18 +15,23 @@ class RunPhasesExampleApplication(asab.Application):
 
 	async def initialize(self):
 		self.PubSub.subscribe("Application.tick!", self.when_done)
+		asyncio.ensure_future(self.async_initialize_task())
 
-		print("*****\n3-4. Asynchronous initializatin takes place.")
+		print("*****\n3-5. Asynchronous initializatin takes place.")
 		print("   app.initialize is run concurrently")
 		print("   \"Application.init!\" is published")
-		await asyncio.sleep(3)
-		print("*****\n5-6. app.initialize awaited")
+		await asyncio.sleep(1)
+		print("*****\n6-8. app.initialize awaited")
 
 	async def async_init_task(self):
-		print("*****\n3-4. Scheduled async tasks are run concurrently")
-		await asyncio.sleep(5)
-		print("*****\n5-6. All scheduled async tasks awaited")
+		print("*****\n3-5. Scheduled async tasks are run concurrently")
+		await asyncio.sleep(2)
+		print("*****\n6-8. All scheduled async tasks awaited")
 
+	async def async_initialize_task(self):
+		print("*****\n3-5. Even the ones scheuled in futures themselves.")
+		await asyncio.sleep(3)
+		print("*****\n6-8. Even the ones scheuled in futures themselves.")
 
 	async def main(self):
 		asyncio.ensure_future(self.async_main_task())
@@ -52,6 +57,6 @@ class RunPhasesExampleApplication(asab.Application):
 
 
 if __name__ == '__main__':
-	app = RunPhasesExampleApplication()
+	app = StatesDemonstrationApplication()
 	print("*****\n2. Now application waits for run method to be called")
 	app.run()
