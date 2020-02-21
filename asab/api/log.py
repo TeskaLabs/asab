@@ -60,4 +60,3 @@ class WebApiLoggingHandler(logging.Handler):
 
 	async def logs(self, request):
 		return asab.web.rest.json_response(request, self.buffer)
-
