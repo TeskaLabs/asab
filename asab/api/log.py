@@ -3,13 +3,14 @@ import datetime
 from asab.log import LOG_NOTICE
 
 
-class APIHandler(logging.Handler):
+class WebApiLoggingHandler(logging.Handler):
 
-	def __init__(self, level=logging.NOTSET, storage=None):
+	def __init__(self, level=logging.NOTSET, buffer_size: int = 10):
 		super().__init__(level=level)
 
-		self.level = level
-		self.buffer = storage
+		self._level = logging.Handler.level
+		self.buffer = []
+		self._buffer_size = buffer_size
 
 	def emit(self, record):
 		if record.name == 'asab.metrics.service' and record.levelno == LOG_NOTICE:
@@ -50,7 +51,7 @@ class APIHandler(logging.Handler):
 		if sd is not None:
 			log_entry['sd'] = sd
 
-		if len(self.buffer) > 10:
+		if len(self.buffer) > self._buffer_size:
 			del self.buffer[0]
 			self.buffer.append(log_entry)
 
