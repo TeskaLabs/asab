@@ -1,7 +1,8 @@
 import logging
 import datetime
-import asab.web.rest
-from asab.log import LOG_NOTICE
+
+from ..web.rest.json import json_response
+from ..log import LOG_NOTICE
 
 
 class WebApiLoggingHandler(logging.Handler):
@@ -59,4 +60,4 @@ class WebApiLoggingHandler(logging.Handler):
 			self.buffer.append(log_entry)
 
 	async def logs(self, request):
-		return asab.web.rest.json_response(request, self.buffer)
+		return json_response(request, self.buffer)
