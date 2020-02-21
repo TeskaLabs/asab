@@ -1,5 +1,6 @@
 import logging
 import datetime
+import asab.web.rest
 from asab.log import LOG_NOTICE
 
 
@@ -8,7 +9,6 @@ class WebApiLoggingHandler(logging.Handler):
 	def __init__(self, level=logging.NOTSET, buffer_size: int = 10):
 		super().__init__(level=level)
 
-		self._level = logging.Handler.level
 		self.buffer = []
 		self._buffer_size = buffer_size
 
@@ -58,4 +58,6 @@ class WebApiLoggingHandler(logging.Handler):
 		else:
 			self.buffer.append(log_entry)
 
-		return self.buffer
+	async def logs(self, request):
+		return asab.web.rest.json_response(request, self.buffer)
+
