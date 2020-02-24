@@ -21,9 +21,6 @@ class WebApiLoggingHandler(logging.Handler):
 		self._buffer_size = buffer_size
 
 	def emit(self, record):
-		if record.name == 'asab.metrics.service' and record.levelno == LOG_NOTICE:
-			return  # No metrics to be submitted this way
-
 		if logging.DEBUG < record.levelno <= logging.INFO:
 			severity = 6  # Informational
 		elif record.levelno <= LOG_NOTICE:
