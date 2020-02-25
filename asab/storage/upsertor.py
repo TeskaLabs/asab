@@ -37,12 +37,11 @@ class UpsertorABC(abc.ABC):
 		return "_id"
 
 
-	def generate_id(self):
-		m = hashlib.sha384()
+	@classmethod
+	def generate_id(cls):
+		m = hashlib.sha256()
 		m.update(uuid.uuid4().bytes)
-		m.update(uuid.uuid4().bytes)
-		m.update(uuid.uuid4().bytes)
-		return m.hexdigest()
+		return m.digest()
 
 
 	def set(self, objField, value):
