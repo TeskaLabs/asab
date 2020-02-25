@@ -155,7 +155,7 @@ class Application(metaclass=Singleton):
 		parser.add_argument('-v', '--verbose', action='store_true', help='print more information (enable debug output)')
 		parser.add_argument('-s', '--syslog', action='store_true', help='enable logging to a syslog')
 		parser.add_argument('-l', '--log-file', help='specify a path to a log file')
-		parser.add_argument('-w', '--web-api', help='activate Asab web api', const="0.0.0.0:80", nargs="?")
+		parser.add_argument('-w', '--web-api', help='activate Asab web API (default listening port is 0.0.0.0:8080)', const="0.0.0.0:8080", nargs="?")
 
 
 		if daemon is not None:

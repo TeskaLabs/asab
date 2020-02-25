@@ -11,10 +11,7 @@ class ApiService(asab.Service):
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 
-		print("asab api init")
-
 		listen = asab.Config["asab:web"]["listen"]
-
 		self.Container = self._initialize_web(app, listen)
 
 	def _initialize_web(self, app, listen):
@@ -29,7 +26,6 @@ class ApiService(asab.Service):
 
 		# Add routes
 		container.WebApp.router.add_get('/asab/v1/environ', self.environ)
-
 		container.WebApp.router.add_get('/asab/v1/config', self.config)
 
 		return container
