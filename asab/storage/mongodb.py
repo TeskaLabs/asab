@@ -5,6 +5,7 @@ apk add motor
 
 import motor.motor_asyncio
 import pymongo
+import bson
 
 import asab
 from .exceptions import DuplicateError
@@ -101,6 +102,11 @@ class StorageService(StorageServiceABC):
 class MongoDBUpsertor(UpsertorABC):
 
 
+	@classmethod
+	def generate_id(cls):
+		return bson.objectid.ObjectId()
+
+
 	async def execute(self):
 		id_name = self.get_id_name()
 		addobj = {}
@@ -114,7 +120,14 @@ class MongoDBUpsertor(UpsertorABC):
 		if len(self.ModPush) > 0:
 			addobj['$push'] = {k: {'$each': v} for k, v in self.ModPush.items()}
 
-		filter = {id_name: self.ObjId}
+		filter = {}
+
+		if self.ObjId is not None:
+			id_name: self.ObjId
+		else:
+			# We are going to insert a new object without explicit Id
+			assert (self.Version == 0) or (self.Version is None)
+
 		if self.Version is not None:
 			filter['_v'] = int(self.Version)
 
