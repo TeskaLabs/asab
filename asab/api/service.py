@@ -35,7 +35,8 @@ class ApiService(asab.Service):
 		self.APILogHandler = WebApiLoggingHandler(level=logging.NOTSET)
 		self.format = logging.Formatter("%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s")
 		self.APILogHandler.setFormatter(self.format)
-		self.Logging.RootLogger.addHandler(self.APILogHandler)
+		self.Logging = logging.getLogger()
+		self.Logging.addHandler(self.APILogHandler)
 
 		# Add routes
 		container.WebApp.router.add_get('/asab/v1/environ', self.environ)
