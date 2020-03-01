@@ -123,7 +123,7 @@ class MongoDBUpsertor(UpsertorABC):
 		filter = {}
 
 		if self.ObjId is not None:
-			id_name: self.ObjId
+			filter[id_name] = self.ObjId
 		else:
 			# We are going to insert a new object without explicit Id
 			assert (self.Version == 0) or (self.Version is None)
