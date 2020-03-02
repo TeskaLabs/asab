@@ -152,3 +152,21 @@ It is useful in complex configurations that utilizes included configuration file
 	my_file=${THIS_DIR}/my_file.txt
 
 
+Passwords in configration
+-------------------------------------
+
+[passwords] section in the configuration serves to securely store passwords,
+which are then not shown publicly in the default API config endpoint's output.
+
+It is convenient for the user to store passwords at one place,
+so that they are not repeated in many sections of the config file(s).
+
+Usage is as follows:
+
+.. code:: ini
+
+	[connection:KafkaConnection]
+	password=${passwords:kafka_password}
+
+	[passwords]
+	kafka_password=<MY_SECRET_PASSWORD>

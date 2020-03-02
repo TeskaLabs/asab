@@ -68,7 +68,7 @@ class ConfigParser(configparser.ConfigParser):
 		},
 
 
-		# "passwords" section serve to securely store passwords
+		# "passwords" section serves to securely store passwords
 		# in the configuration file; the passwords are not
 		# shown in the default API
 		#
