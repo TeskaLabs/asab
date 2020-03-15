@@ -37,6 +37,11 @@ ASAB uses Python logging levels with the addition of ``LOG_NOTICE`` level.
 ``LOG_NOTICE`` level is similar to ``logging.INFO`` level but it is visible in even in non-verbose mode.
 
 
+.. code:: python
+
+    L.log(asab.LOG_NOTICE, "This message will be visible regardless verbose configuration.")
+
+
 +----------------+---------------+------------------------------+
 | Level          | Numeric value | Syslog Severity level        |
 +================+===============+==============================+
