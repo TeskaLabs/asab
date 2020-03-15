@@ -23,10 +23,10 @@ class StorageService(StorageServiceABC):
 	'''
 
 
-	def __init__(self, app, service_name, config_section='asab:storage'):
+	def __init__(self, app, service_name, config_section_name='asab:storage'):
 		super().__init__(app, service_name)
-		self.Client = motor.motor_asyncio.AsyncIOMotorClient(asab.Config.get(config_section, 'mongodb_uri'))
-		self.Database = self.Client[asab.Config.get(config_section, 'mongodb_database')]
+		self.Client = motor.motor_asyncio.AsyncIOMotorClient(asab.Config.get(config_section_name, 'mongodb_uri'))
+		self.Database = self.Client[asab.Config.get(config_section_name, 'mongodb_database')]
 
 
 	def upsertor(self, collection: str, obj_id=None, version=0):
