@@ -43,7 +43,7 @@ class TenantService(Service):
 			self.LoadTenantsFuture = [asyncio.ensure_future(self._update_tenants(), loop=app.Loop)]
 			app.PubSub.subscribe("Application.exit!", self._on_exit)
 			# TODO: Websocket persistent API should be added to seacat auth to feed these changes in realtime (eventually)
-			app.PubSub.subscribe("Application.tick/10!", self._update_tenants)
+			app.PubSub.subscribe("Application.tick/300!", self._update_tenants)
 
 	def locate_tenant(self, tenant_id):
 		tenant = self.Tenants.get(tenant_id)
