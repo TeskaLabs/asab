@@ -1,3 +1,4 @@
+import asyncio
 import aiohttp
 
 from ...abc.service import Service
@@ -39,6 +40,9 @@ class TenantService(Service):
 		# Load tenants from URL
 		self.TenantUrl = Config["tenants"]["tenant_url"]
 		if len(self.TenantUrl) > 0:
+			self.LoadTenantsFuture = [asyncio.ensure_future(self._update_tenants(), loop=app.Loop)]
+			app.PubSub.subscribe("Application.exit!", self._on_exit)
+			# TODO: Websocket persistent API should be added to seacat auth to feed these changes in realtime (eventually)
 			app.PubSub.subscribe("Application.tick/10!", self._update_tenants)
 
 	def locate_tenant(self, tenant_id):
@@ -58,10 +62,14 @@ class TenantService(Service):
 		from .web import TenantWebHandler
 		self.TenantWebHandler = TenantWebHandler(self.App, self, web_container)
 
-	async def _update_tenants(self, message_name):
+	async def _update_tenants(self, message_name=None):
 		async with aiohttp.ClientSession() as session:
 			async with session.get(self.TenantUrl) as resp:
 				if resp.status == 200:
 					tenants_list = await resp.json()
 					for tenant in tenants_list:
 						self.Tenants[tenant["_id"]] = tenant
+
+	async def _on_exit(self, message_type=None):
+		if len(self.LoadTenantsFuture) > 0:
+			await asyncio.wait(self.LoadTenantsFuture, loop=self.App.Loop)
