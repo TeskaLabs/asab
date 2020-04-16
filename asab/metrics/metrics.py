@@ -53,12 +53,40 @@ class Counter(Metric):
 		self.Reset = reset
 
 
-	def add(self, name, value):
-		self.Values[name] += value
+	def add(self, name, value, init_value=None):
+		"""
+		Adds to the counter specified by `name` the `value`.
+		:param name: name of the counter
+		:param value: value to be added to the counter
+		:param init_value: init value, when the counter `name` is not yet set up (f. e. by init_values in the constructor)
+		If None, KeyError will be raised.
+		:return:
+		"""
+
+		try:
+			self.Values[name] += value
+		except KeyError as e:
+			if init_value is None:
+				raise e
+			self.Values[name] = init_value + value
 
 
-	def sub(self, name, value):
-		self.Values[name] -= value
+	def sub(self, name, value, init_value=None):
+		"""
+		Subtracts to the counter specified by `name` the `value`.
+		:param name: name of the counter
+		:param value: value to be subtracted from the counter
+		:param init_value: init value, when the counter `name` is not yet set up (f. e. by init_values in the constructor)
+		If None, KeyError will be raised.
+		:return:
+		"""
+
+		try:
+			self.Values[name] -= value
+		except KeyError as e:
+			if init_value is None:
+				raise e
+			self.Values[name] = init_value - value
 
 
 	def flush(self) -> dict:
