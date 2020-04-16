@@ -45,7 +45,7 @@ Flow:
 	.then(function(ciphertext){
 
 		axios.post('/api/...',
-			concatUint8ArrayAndArrayBuffer(iv, ciphertext), 
+			concatUint8ArrayAndArrayBuffer(iv, ciphertext),
 		)
 	}
 
@@ -57,13 +57,13 @@ Flow:
 '''
 
 
-def aes_gcm_decrypt(key:bytes, ciphertext:bytes, associated_data:bytes = None) -> bytes:
+def aes_gcm_decrypt(key: bytes, ciphertext: bytes, associated_data: bytes = None) -> bytes:
 	'''
 	Decrypt the ciphertext that is encrypted by AES GCM.
 	'''
 
 	iv = ciphertext[:12]
-	message =ciphertext[12:-16]
+	message = ciphertext[12:-16]
 	tag = ciphertext[-16:]
 
 	# Construct a Cipher object, with the key, iv, and additionally the
@@ -84,13 +84,13 @@ def aes_gcm_decrypt(key:bytes, ciphertext:bytes, associated_data:bytes = None) -
 	return decryptor.update(message) + decryptor.finalize()
 
 
-def aes_gcm_generate_key(key:bytes = None) -> dict:
+def aes_gcm_generate_key(key: bytes = None) -> dict:
 	'''
 	Generate JWT AES 256 GCM key.
 	'''
 
 	if key is None:
-		key = secrets.token_bytes(256//8)
+		key = secrets.token_bytes(256 // 8)
 
 	# JWT key
 	return {
