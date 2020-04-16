@@ -5,12 +5,13 @@ from ...config import Config
 
 from .tenant import Tenant
 
-# "url" is used to periodically refresh tenants from, expecting "_id" inside a JSON structure,
+# "tenant_url" is used to periodically refresh tenants from, expecting "_id" inside a JSON structure,
 # which is compatible with SeaCat Auth product
 Config.add_defaults({
 	'tenants': {
 		'ids': '',
-		'url': '',  # f. e. http://seacat-auth:8080/tenant
+		'tenant_url': '',  # f. e. http://seacat-auth:8080/tenant
+		'trusted': 0,  # makes sure the tenants are implicitly trusted, even though they are not located in IDs or tenant URL
 	}
 })
 
@@ -21,6 +22,7 @@ class TenantService(Service):
 		super().__init__(app, service_name)
 		self.App = app
 		self.TenantWebHandler = None
+		self.TenantsTrusted = int(Config['tenants']['trusted'])
 		self.Tenants = {}
 
 		# Load tenants from configuration
@@ -35,12 +37,16 @@ class TenantService(Service):
 				self.Tenants[tenant_id] = Tenant(tenant_id)
 
 		# Load tenants from URL
-		self.TenantUrl = Config["tenants"]["url"]
+		self.TenantUrl = Config["tenants"]["tenant_url"]
 		if len(self.TenantUrl) > 0:
 			app.PubSub.subscribe("Application.tick/10!", self._update_tenants)
 
 	def locate_tenant(self, tenant_id):
-		return self.Tenants.get(tenant_id)
+		tenant = self.Tenants.get(tenant_id)
+		if tenant is None and self.TenantsTrusted > 0:
+			tenant = {"_id": tenant_id}
+			self.Tenants[tenant_id] = tenant
+		return tenant
 
 	def get_tenants(self):
 		tenants = []
