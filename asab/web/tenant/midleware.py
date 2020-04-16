@@ -4,7 +4,15 @@ import asab
 import asab.web.rest
 
 
-def tenant_middleware_factory(app, svc):
+def tenant_middleware_factory(app, svc, trusted=False):
+	"""
+	Ensures the tenant is obtained from the TenantService.
+	:param app: application object
+	:param svc: TenantService
+	:param trusted: Makes sure the tenants are implicitly trusted,
+	even though they are not located via TenantService
+	:return: handler(request)
+	"""
 
 	@aiohttp.web.middleware
 	async def tenant_middleware(request, handler):
@@ -13,6 +21,8 @@ def tenant_middleware_factory(app, svc):
 			tenant = svc.locate_tenant(tenant_id)
 			if tenant is not None:
 				request.Tenant = tenant
+			elif trusted:
+				request.Tenant = {"_id": tenant_id, "located": False}
 		return await handler(request)
 
 	return tenant_middleware
