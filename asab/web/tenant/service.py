@@ -5,11 +5,11 @@ from ...config import Config
 
 from .tenant import Tenant
 
+# "url" is used to periodically refresh tenants from, expecting "_id" inside a JSON structure,
+# which is compatible with SeaCat Auth product
 Config.add_defaults({
 	'tenants': {
 		'ids': '',
-		# URL to periodically refresh tenants from, expecting "_id" inside a JSON structure,
-		# which is compatible with SeaCat Auth product
 		'url': '',  # f. e. http://seacat-auth:8080/tenant
 	}
 })
