@@ -10,7 +10,7 @@ Config.add_defaults({
 		'ids': '',
 		# URL to periodically refresh tenants from, expecting "_id" inside a JSON structure,
 		# which is compatible with SeaCat Auth product
-		'url': 'http://127.0.0.1:8080/tenant',  # f. e. http://seacat-auth:8080/tenant
+		'url': '',  # f. e. http://seacat-auth:8080/tenant
 	}
 })
 
