@@ -40,7 +40,7 @@ class TenantService(Service):
 		# Load tenants from URL
 		self.TenantUrl = Config["tenants"]["tenant_url"]
 		if len(self.TenantUrl) > 0:
-			self.LoadTenantsFuture = [asyncio.ensure_future(self._update_tenants(), loop=app.Loop)]
+			self.LoadTenantsFuture = asyncio.ensure_future(self._update_tenants(), loop=app.Loop)
 			app.PubSub.subscribe("Application.exit!", self._on_exit)
 			# TODO: Websocket persistent API should be added to seacat auth to feed these changes in realtime (eventually)
 			app.PubSub.subscribe("Application.tick/300!", self._update_tenants)
@@ -72,4 +72,4 @@ class TenantService(Service):
 
 	async def _on_exit(self, message_type=None):
 		if len(self.LoadTenantsFuture) > 0:
-			await asyncio.wait(self.LoadTenantsFuture, loop=self.App.Loop)
+			await asyncio.wait([self.LoadTenantsFuture], loop=self.App.Loop)
