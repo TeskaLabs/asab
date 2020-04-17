@@ -5,6 +5,12 @@ import asab.web.rest
 
 
 def tenant_middleware_factory(app, svc):
+	"""
+	Ensures the tenant is obtained from the TenantService.
+	:param app: application object
+	:param svc: TenantService
+	:return: handler(request)
+	"""
 
 	@aiohttp.web.middleware
 	async def tenant_middleware(request, handler):
