@@ -469,7 +469,7 @@ class Application(metaclass=Singleton):
 
 		tasks_awaiting = 0
 		for i in range(3):
-			ts = asyncio.Task.all_tasks(self.Loop)
+			ts = asyncio.all_tasks(self.Loop)
 			tasks_awaiting = 0
 			for t in ts:
 				if t.done():
