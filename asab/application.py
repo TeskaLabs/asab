@@ -20,15 +20,6 @@ from .config import Config
 from .abc.singleton import Singleton
 from .log import Logging, _loop_exception_handler
 
-# Importing the Win API library
-if platform.system() == "Windows":
-	try:
-		import win32api
-	except ModuleNotFoundError:
-		win32api = None
-else:
-	win32api = None
-
 
 L = logging.getLogger(__name__)
 
@@ -77,32 +68,24 @@ class Application(metaclass=Singleton):
 		if Config["logging"].getboolean("verbose"):
 			self.Loop.set_debug(True)
 
-		try:
-			# Signals are not available on Windows
+		# Adding a handler to listen to the interrupt event
+		if platform.system() == "Windows":
+
+			# Windows win32api import
+			import win32api
+
+			def handler(type):
+				self.stop()
+				return True
+
+			win32api.SetConsoleCtrlHandler(handler, True)
+
+		else:
+
+			# POSIX and other reasonable systems
 			self.Loop.add_signal_handler(signal.SIGINT, self.stop)
-		except NotImplementedError:
-			# Checking if the program runs on Windows
-			if any(platform.win32_ver()):
-				if win32api is not None:
-					callback = self.stop
-
-					# Adding a handler to listen to the interrupt event
-					def handler(type):
-						callback()
-						return True
-					win32api.SetConsoleCtrlHandler(handler, True)
-
-		try:
 			self.Loop.add_signal_handler(signal.SIGTERM, self.stop)
-		except NotImplementedError:
-			pass
-
-		if any(platform.win32_ver()) is False:
-
-			try:
-				self.Loop.add_signal_handler(signal.SIGHUP, self._hup)
-			except NotImplementedError:
-				pass
+			self.Loop.add_signal_handler(signal.SIGHUP, self._hup)
 
 		self._stop_event = asyncio.Event(loop=self.Loop)
 		self._stop_event.clear()
@@ -469,7 +452,11 @@ class Application(metaclass=Singleton):
 
 		tasks_awaiting = 0
 		for i in range(3):
-			ts = asyncio.all_tasks(self.Loop)
+			try:
+				ts = asyncio.all_tasks(self.Loop)
+			except AttributeError:
+				# Compatibility for Python 3.6-
+				ts = asyncio.Task.all_tasks(self.Loop)
 			tasks_awaiting = 0
 			for t in ts:
 				if t.done():
