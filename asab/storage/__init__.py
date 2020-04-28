@@ -7,14 +7,6 @@ L = logging.getLogger(__name__)
 
 #
 
-asab.Config.add_defaults(
-	{
-		'asab:storage': {
-			'type': 'inmemory',
-		}
-	}
-)
-
 
 class Module(asab.Module):
 
