@@ -51,6 +51,7 @@ class Logging(object):
 				self.FileHandler = logging.handlers.RotatingFileHandler(
 					file_path,
 					backupCount=Config.getint("logging:file", "backup_count"),
+					maxBytes=Config.getint("logging:file", "backup_max_bytes"),
 				)
 				self.FileHandler.setLevel(logging.DEBUG)
 				self.FileHandler.setFormatter(StructuredDataFormatter(
