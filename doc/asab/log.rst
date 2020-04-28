@@ -110,6 +110,14 @@ Example of the configuration file section:
     rotate_every=1d
 
 
+Logging to console
+------------------
+
+ASAB will log to the console only if it detects that it runs in the foreground respectively on the terminal using ``os.isatty``
+or if the environment variable ``ASABFORCECONSOLE`` is set to ``1``.
+This is useful setup for eg. PyCharm.
+
+
 Log rotation
 ^^^^^^^^^^^^
 

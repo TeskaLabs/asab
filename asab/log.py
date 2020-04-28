@@ -33,7 +33,7 @@ class Logging(object):
 
 			# Add console logger
 			# Don't initialize this when not on console
-			if os.isatty(sys.stdin.fileno()):
+			if os.isatty(sys.stdin.fileno()) or os.environ.get('ASABFORCECONSOLE', '0') != '0':
 				self.ConsoleHandler = logging.StreamHandler(stream=sys.stderr)
 				self.ConsoleHandler.setFormatter(StructuredDataFormatter(
 					fmt=Config["logging:console"]["format"],
