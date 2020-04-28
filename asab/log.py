@@ -140,6 +140,15 @@ class Logging(object):
 		else:
 			self.RootLogger.setLevel(Config["logging"]["level"])
 
+		# Fine-grained log level configurations
+		levels = Config["logging"].get('levels')
+		for levelconf in levels.split('\n'):
+			levelconf = levelconf.strip()
+			if len(levelconf) == 0 or levelconf.startswith('#'):
+				continue
+			loggername, levelname = levelconf.split(' ', 1)
+			level = logging.getLevelName(levelname.upper())
+			logging.getLogger(loggername).setLevel(level)
 
 	def rotate(self):
 		if self.FileHandler is not None:
