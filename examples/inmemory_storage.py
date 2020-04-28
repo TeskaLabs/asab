@@ -4,13 +4,13 @@ import asab
 import asab.storage
 
 
-'''
-../etc/site.conf
-
-[asab:storage]
-type=inmemory
-
-'''
+asab.Config.add_defaults(
+	{
+		'asab:storage': {
+			'type': 'inmemory',
+		}
+	}
+)
 
 
 class MyApplication(asab.Application):
