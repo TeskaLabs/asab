@@ -21,6 +21,7 @@ class ApiService(asab.Service):
 		listen = asab.Config["asab:web"]["listen"]
 		self.Container = self._initialize_web(app, listen)
 
+
 	def _initialize_web(self, app, listen):
 		websvc = app.get_service("asab.WebService")
 
@@ -32,7 +33,7 @@ class ApiService(asab.Service):
 		# TODO: refactor to use custom config section, instead of explicitly passing "listen" param?
 
 		# TODO: Logging level configurable via config file
-		self.APILogHandler = WebApiLoggingHandler(level=logging.NOTSET)
+		self.APILogHandler = WebApiLoggingHandler(app, level=logging.NOTSET)
 		self.format = logging.Formatter("%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s")
 		self.APILogHandler.setFormatter(self.format)
 		self.Logging = logging.getLogger()
@@ -42,12 +43,15 @@ class ApiService(asab.Service):
 		container.WebApp.router.add_get('/asab/v1/environ', self.environ)
 		container.WebApp.router.add_get('/asab/v1/config', self.config)
 
-		container.WebApp.router.add_get('/asab/v1/logs', WebApiLoggingHandler.logs)
+		container.WebApp.router.add_get('/asab/v1/logs', self.APILogHandler.get_logs)
+		container.WebApp.router.add_get('/asab/v1/logws', self.APILogHandler.ws)
 
 		return container
 
+
 	async def environ(self, request):
 		return asab.web.rest.json_response(request, dict(os.environ))
+
 
 	async def config(self, request):
 		# Copy the config and erase all passwords
