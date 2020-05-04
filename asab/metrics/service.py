@@ -10,7 +10,7 @@ from .memstor import MetricsMemstorTarget
 
 #
 
-L = logging.getLogger(__name__)
+L = logging.getLogger('asab.metrics')
 
 #
 
@@ -85,7 +85,14 @@ class MetricsService(asab.Service):
 			if tags is not None:
 				for tk, tv in tags.items():
 					struct_data['tag.{}'.format(tk)] = tv
-			L.log(asab.LOG_NOTICE, "", struct_data=struct_data)
+
+			# Log metrics into the logger
+			# To enable seing this in normal ASAB mode, use following configuration:
+			#
+			# [logging]
+			# levels=
+			#   asab.metric INFO
+			L.info("", struct_data=struct_data)
 
 			mlist.append((metric, values))
 

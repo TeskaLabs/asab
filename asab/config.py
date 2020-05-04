@@ -41,6 +41,7 @@ class ConfigParser(configparser.ConfigParser):
 			"app_name": os.path.basename(sys.argv[0]),
 			"sd_id": "sd",  # Structured data id, see RFC5424
 			"level": "NOTICE",
+			"levels": "",
 		},
 
 		"logging:console": {
