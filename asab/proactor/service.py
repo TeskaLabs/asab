@@ -24,6 +24,7 @@ class ProactorService(asab.Service):
 		if asab.Config.get('asab:proactor', 'default_executor'):
 			self.Loop.set_default_executor(self.Executor)
 
+
 	# There was the method run, which is obsolete
 	def execute(self, func, *args):
 		return self.Loop.run_in_executor(self.Executor, func, *args)
