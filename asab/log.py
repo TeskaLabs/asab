@@ -144,7 +144,7 @@ class Logging(object):
 		levels = Config["logging"].get('levels')
 		for levelconf in levels.split('\n'):
 			levelconf = levelconf.strip()
-			if len(levelconf) == 0 or levelconf.startswith('#'):
+			if len(levelconf) == 0 or levelconf.startswith('#') or levelconf.startswith(';'):
 				continue
 			loggername, levelname = levelconf.split(' ', 1)
 			level = logging.getLevelName(levelname.upper())
