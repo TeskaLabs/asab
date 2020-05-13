@@ -44,6 +44,8 @@ class ZooKeeperService(Service):
 
 	async def get_data(self, child, encoding="utf-8"):
 		raw_data = await self.get_raw_data(child)
+		if raw_data is None:
+			return {}
 		return json.loads(raw_data.decode(encoding))
 
 	async def get_raw_data(self, child):
