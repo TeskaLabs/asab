@@ -1,4 +1,5 @@
 import aiozk
+import asyncio
 import json
 
 from ..abc.service import Service
@@ -31,10 +32,19 @@ class ZooKeeperService(Service):
 	async def finalize(self, app):
 		await self.ZooKeeper.close()
 
-	async def create(self, data, encoding="utf-8"):
+	async def advertise(self, data, encoding="utf-8"):
+		if isinstance(data, dict):
+			data = json.dumps(data).encode(encoding)
+		elif isinstance(data, str):
+			data = data.encode(encoding)
+		elif asyncio.iscoroutinefunction(data):
+			data = await data
+		elif callable(data):
+			data = data()
+
 		return await self.ZooKeeper.create(
 			"{}/i".format(self.ZooKeeperPath),
-			data=json.dumps(data).encode(encoding),
+			data=data,
 			sequential=True,
 			ephemeral=True
 		)

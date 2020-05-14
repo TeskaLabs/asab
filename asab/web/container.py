@@ -131,3 +131,10 @@ listen:
 		if self.CORS == "*":
 			response.headers['Access-Control-Allow-Origin'] = "*"
 			response.headers['Access-Control-Allow-Methods'] = "GET, POST, DELETE, PUT, PATCH, OPTIONS"
+
+
+	def get_ports(self):
+		ports = []
+		for addr, port, ssl_context in self._listen:
+			ports.append(port)
+		return ports
