@@ -4,8 +4,8 @@ Creating REST HTTP webservice using  ASAB
 ## Overview
 
 On lines below, we will discuss a creation of a basic ASAB microservice application capable of 
-providing a REST interface. We will be using MongoDB as an example database we are trying to 
-perform the Create Read Update and Delete operations on.
+providing a REST HTTP API. We will be using MongoDB as an example database we perform the Create 
+Read Update and Delete operations on.
 
 ### Prerequisites
 
@@ -19,7 +19,7 @@ perform the Create Read Update and Delete operations on.
 Our sample microservice will consist of several modules, each one serving a logical purpose within the
 whole. The components are as follows (and they also hint a filestructure), and will be discussed in greater 
 detail in their respective sections below, we will go from top to bottom:   
-`myrestapi.py`, `./myrestapi/app.py`, `./myrestapi/crud/handler.py`, and `./myrestapi/crud/service.py`  
+`myrestapi.py`, `./myrestapi/app.py`, `./myrestapi/tutorial/handler.py`, and `./myrestapi/tutorial/service.py`  
 While we start working on the microservice, we should have a testing MongoDB instance running, we will touch briefly 
 on how to quickly do that.   
 We will be using Postman to test the API and to generate json collection of available endpoints.
@@ -33,16 +33,16 @@ Windows `#! python3`
 OS X `#!/usr/bin/env python3`
 
 We follow this up with imports, and all we will need here is our application:   
-`from myrestapi.app import CRUDApp`   
-Next, we instantiate an object of our CRUDApp class in the __main__ of the application, and we run the app:  
+`from myrestapi.app import TutorialApp`   
+Next, we instantiate an object of our TutorialApp class in the __main__ of the application, and we run the app:  
     
     if __name__ == __main__
-        app = CRUDApp()   
+        app = TutorialApp()   
         app.run()
         
 #### ./myrestapi/app.py
 
-Here, define our CRUDApp object, we will first need some imports:   
+Here, define our TutorialApp object, we will first need some imports:   
  
     import asab
     import asab.web
@@ -63,11 +63,11 @@ Next, we describe the class, it inherits from the basic ASAB Application class, 
 it a little (see comments in the code for more details):
     
     
-    class CRUDApp(asab.Application):
+    class TutorialApp(asab.Application):
 
 	    def __init__(self):
 		    super().__init__()
-		    # Circumvent the need for -w flag when starting the app
+		    # Alternative for command-line flag -w
 		    import asab.storage
 		    self.add_module(asab.web.Module)
 		    self.add_module(asab.storage.Module)
@@ -78,8 +78,8 @@ it a little (see comments in the code for more details):
 		    self.WebContainer.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 
 		    # Initialize services, we can initialize one, or several API handlers/services here
-		    from .crud.handler import CRUDWebHandler
-		    from .crud.service import CRUDService
+		    from .tutorial.handler import CRUDWebHandler
+		    from .tutorial.service import CRUDService
 		    self.CRUDService = CRUDService(self)
 		    # We need to pass the CRUDService as an argument, when instantiating the class
 		    self.CRUDWebHandler = CRUDWebHandler(self, self.CRUDService)
@@ -88,10 +88,12 @@ This could also be a BSPUMP.Application, enabling us to include a bspump pipelin
 To do this, inherit instead from bspump.BSPumpApplication and add service, connections and pipelines as 
 usual.
    
-#### ./myrestapi/crud/handler.py
+#### ./myrestapi/tutorial/handler.py
 
-The handler is where we define the operations our microservice will be able to perform. As the 
-name suggests, here we handle incoming requests and return the results back to the caller. It is strongly suggested, 
+The handler is where HTTP Rest calls are handled and transformed into the actual (internal) service calls. From another 
+perspective, the handler should contain only translation between REST calls and service interface. No actual 
+'business logic' should be here.   
+It is strongly suggested, 
 that we do these CRUD methods one by one and test them straight away (the way we do this, we create a Handler method for 
 creating first, then we create its Service method right after, and finally we test using Postman), if you did not set 
 up your database test instance yet, now will be time to do it. If you struggle, check section below, where we use docker 
@@ -111,7 +113,7 @@ Next is the CRUDWebhandler class:
 		web_app = app.WebContainer.WebApp
 		
 		web_app.router.add_put('/crud-api/{collection}', self.create) # Create endpoint url   
-		web_app.router.add_get('/crud-api/{collection}/{id}', self.read) # Read endpoint url
+		web_app.router.add_get('/crud-api/{collection}/{id}', self.read_one) # Read endpoint url
 		web_app.router.add_put('crud-api/{collection}/{id}', self.update) # Update endpoint url
 		web_app.router.add_delete('/crud-api/{collection}/{id}', self.delete) # Delete endpoint url
 				
@@ -133,10 +135,10 @@ Next is the CRUDWebhandler class:
 		else:
 			asab.web.rest.json_response(request, {"result": "FAIL"})
 
-	async def read(self, request):
+	async def read_one(self, request):
 	    collection = request.match_info['collection']
 	    key = sequest.match_info['id']
-		response = await self.CRUDService.read(collection, key)
+		response = await self.CRUDService.read_one(collection, key)
 		return asab.web.rest.json_response(request, response)
 		
 	@asab.web.rest.json_schema_handler({
@@ -169,7 +171,7 @@ As we have noticed, the handler only handles the incomming requests and returns 
 All of the "logic", be it the specifics of the database connection, additional validations and other 
 operations take place in the CRUDService.
 
-#### ./myrestapi/crud/service.py
+#### ./myrestapi/tutorial/service.py
 
 As mentioned above, this is where the inner workings of our microservice request processing actually is.   
 Let's start as usual, by importing the desired modules:
@@ -227,7 +229,7 @@ Now we define the CRUDService class which inherits from the asab.Service class:
 			L.warning("Document you are trying to create already exists.")
 			return None
 		
-	async def read(self, collection, key):
+	async def read_one(self, collection, key):
 		response = await self.MongoDBStorageService.get_by(collection, "_id", bson.ObjectId(key))
 		return response
 		
