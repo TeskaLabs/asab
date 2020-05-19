@@ -28,9 +28,7 @@ We will be using Postman to test the API and to generate json collection of avai
 
 This is the part, from where we run our app. We begin with the shebang line, that will tell the 
 executing operating system, that we want python to execute this program.  
-Linux: `#!/usr/bin/python3`  
-Windows `#! python3`   
-OS X `#!/usr/bin/env python3`
+`#!/usr/bin/env python3`
 
 We follow this up with imports, and all we will need here is our application:   
 `from myrestapi.app import TutorialApp`   
