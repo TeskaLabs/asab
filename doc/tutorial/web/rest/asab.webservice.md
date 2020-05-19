@@ -34,7 +34,7 @@ We follow this up with imports, and all we will need here is our application:
 `from myrestapi.app import TutorialApp`   
 Next, we instantiate an object of our TutorialApp class in the __main__ of the application, and we run the app:  
     
-    if __name__ == __main__
+    if __name__ == '__main__':
         app = TutorialApp()   
         app.run()
         
@@ -64,23 +64,23 @@ it a little (see comments in the code for more details):
     class TutorialApp(asab.Application):
 
 	    def __init__(self):
-		    super().__init__()
-		    # Alternative for command-line flag -w
-		    import asab.storage
-		    self.add_module(asab.web.Module)
-		    self.add_module(asab.storage.Module)
-
-		    # Locate the web service
-		    self.WebService = self.get_service("asab.WebService")
-		    self.WebContainer = asab.web.WebContainer(self.WebService, "web")
-		    self.WebContainer.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
-
-		    # Initialize services, we can initialize one, or several API handlers/services here
-		    from .tutorial.handler import CRUDWebHandler
-		    from .tutorial.service import CRUDService
-		    self.CRUDService = CRUDService(self)
-		    # We need to pass the CRUDService as an argument, when instantiating the class
-		    self.CRUDWebHandler = CRUDWebHandler(self, self.CRUDService)
+            super().__init__()
+            # Alternative for command-line flag -w
+            import asab.storage
+            self.add_module(asab.web.Module)
+            self.add_module(asab.storage.Module)
+    
+            # Locate the web service
+            self.WebService = self.get_service("asab.WebService")
+            self.WebContainer = asab.web.WebContainer(self.WebService, "web")
+            self.WebContainer.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
+    
+            # Initialize services, we can initialize one, or several API handlers/services here
+            from .tutorial.handler import CRUDWebHandler
+            from .tutorial.service import CRUDService
+            self.CRUDService = CRUDService(self)
+            # We need to pass the CRUDService as an argument, when instantiating the class
+            self.CRUDWebHandler = CRUDWebHandler(self, self.CRUDService)
 
 This could also be a BSPUMP.Application, enabling us to include a bspump pipeline in our microservice. 
 To do this, inherit instead from bspump.BSPumpApplication and add service, connections and pipelines as 
@@ -109,43 +109,46 @@ Next is the CRUDWebhandler class:
 		self.CRUDService = mongo_svc
 
 		web_app = app.WebContainer.WebApp
-		
-		web_app.router.add_put('/crud-api/{collection}', self.create) # Create endpoint url   
-		web_app.router.add_get('/crud-api/{collection}/{id}', self.read_one) # Read endpoint url
-		web_app.router.add_put('crud-api/{collection}/{id}', self.update) # Update endpoint url
-		web_app.router.add_delete('/crud-api/{collection}/{id}', self.delete) # Delete endpoint url
-				
-	# Usually we will need to validate the body of incomming request and verify if it contains all the 
-	# desired fields and also their types.	
+
+		web_app.router.add_put('/crud-myrestapi/{collection}', self.create)  # Create endpoint url
+		web_app.router.add_get('/crud-myrestapi/{collection}/{id}', self.read_one)  # Read endpoint url
+		web_app.router.add_put('/crud-myrestapi/{collection}/{id}', self.update)  # Update endpoint url
+		web_app.router.add_delete('/crud-myrestapi/{collection}/{id}', self.delete)  # Delete endpoint url
+
+	# Usually we will need to validate the body of incomming request and verify if it contains all the
+	# desired fields and also their types.
 	@asab.web.rest.json_schema_handler({
-	'type': 'object',
-	'properties': {
-	    '_id': {'type': 'string'},
-		'field1': {'type': 'string'},
-		'field2': {'type': 'integer'},
-		'field3': {'type': 'float'}
-	}})
+		'type': 'object',
+		'properties': {
+			'_id': {'type': 'string'},
+			'field1': {'type': 'string'},
+			'field2': {'type': 'number'},
+			'field3': {'type': 'number'}
+		}})
 	async def create(self, request, *, json_data):
-        collection = request.match_info['collection']
+		collection = request.match_info['collection']
+
 		result = await self.CRUDService.create(collection, json_data)
 		if result:
 			return asab.web.rest.json_response(request, {"result": "OK"})
 		else:
 			asab.web.rest.json_response(request, {"result": "FAIL"})
 
+
 	async def read_one(self, request):
-	    collection = request.match_info['collection']
-	    key = sequest.match_info['id']
+		collection = request.match_info['collection']
+		key = request.match_info['id']
 		response = await self.CRUDService.read_one(collection, key)
 		return asab.web.rest.json_response(request, response)
-		
+
+
 	@asab.web.rest.json_schema_handler({
-	'type': 'object',
-	'properties': {
-		'field1': {'type': 'string'},
-		'field2': {'type': 'integer'},
-		'field3': {'type': 'float'}
-	}})
+		'type': 'object',
+		'properties': {
+			'field1': {'type': 'string'},
+			'field2': {'type': 'number'},
+			'field3': {'type': 'number'}
+		}})
 	async def update(self, request, *, json_data):
 		collection = request.match_info['collection']
 		key = request.match_info["id"]
@@ -157,8 +160,9 @@ Next is the CRUDWebhandler class:
 			asab.web.rest.json_response(request, {"result": "FAIL"})
 
 	async def delete(self, request):
+		collection = request.match_info['collection']
 		key = request.match_info["id"]
-		result = await self.CRUDService.delete(key)
+		result = await self.CRUDService.delete(collection, key)
 
 		if result:
 			return asab.web.rest.json_response(request, {"result": "OK"})
@@ -175,8 +179,6 @@ As mentioned above, this is where the inner workings of our microservice request
 Let's start as usual, by importing the desired modules:
 
     import asab
-    import bson
-    from bson.errors import InvalidId
     import asab.storage.exceptions
     
     
@@ -194,28 +196,26 @@ Now we define the CRUDService class which inherits from the asab.Service class:
 
     class CRUDService(asab.Service):
 
-    # Using inheritance from the asab.Service allows us to register the service as 'crud.CRUDService',
-    # which would in turn enable us to call it by this name from elsewhere within the application. 
-    # We do not use this functionality for this service, but look around the code and we will find, 
-    # that it was silently used several times already for different ASAB services.
+	# Using inheritance from the asab.Service allows us to register the service as 'crud.CRUDService',
+	# which would in turn enable us to call it by this name from elsewhere within the application.
+	# We do not use this functionality for this service, but look around the code and we will find,
+	# that it was silently used several times already for different ASAB services.
 	def __init__(self, app, service_name='crud.CRUDService'):
 		super().__init__(app, service_name)
-		# And here we do it again, we use the "app.get_service()" to locate a service registered within 
+		# And here we do it again, we use the "app.get_service()" to locate a service registered within
 		# our app by its service name.
 		self.MongoDBStorageService = app.get_service("asab.StorageService")
 
-    # Below, we define class methods, that our handler will use to provide the desired functionality,
-    # requested by our microservice users. These may not be limited to the methods tied to the handler's
-    # CRUD functionality directly (e.g. the create, read, update and delete methods), but also any other
-    # logical extensions of these, that are desirable. Bear in mind however, that we should always 
-    # strive for the "simplest code possible that works".
-    
-    async def create(self, collection, json_data):
-		try:
-			obj_id = bson.ObjectId(json_data.pop("_id"))
-		except InvalidId as e:
-			L.warning("Invalid Id format. Must be a 12-byte input or a 24-character hex string")
-			return None
+	# Below, we define class methods, that our handler will use to provide the desired functionality,
+	# requested by our microservice users. These may not be limited to the methods tied to the handler's
+	# CRUD functionality directly (e.g. the create, read, update and delete methods), but also any other
+	# logical extensions of these, that are desirable. Bear in mind however, that we should always
+	# strive for the "simplest code possible that works".
+
+
+	async def create(self, collection, json_data):
+		obj_id = json_data.pop("_id")
+
 		cre = self.MongoDBStorageService.upsertor(collection, obj_id)
 		for key, value in zip(json_data.keys(), json_data.values()):
 			cre.set(key, value)
@@ -226,26 +226,30 @@ Now we define the CRUDService class which inherits from the asab.Service class:
 		except asab.storage.exceptions.DuplicateError as e:
 			L.warning("Document you are trying to create already exists.")
 			return None
-		
+
+
 	async def read_one(self, collection, key):
-		response = await self.MongoDBStorageService.get_by(collection, "_id", bson.ObjectId(key))
+		response = await self.MongoDBStorageService.get_by(collection, "_id", key)
 		return response
-		
+
+
 	async def update(self, collection, obj_id, document):
-		original = await self.get_document(collection, obj_id)
+		original = await self.read_one(collection, obj_id)
 		cre = self.MongoDBStorageService.upsertor(collection, original["_id"], original["_v"])
 		for key, value in zip(document.keys(), document.values()):
 			cre.set(key, value)
 
 		try:
-		    await cre.execute()
-		    return "OK"
-        except KeyError:
-            return None
-            
-     async def delete(self, collection, key):
+			await cre.execute()
+			return "OK"
+
+		except KeyError:
+			return None
+
+
+	async def delete(self, collection, key):
 		try:
-			await self.MongoDBStorageService.delete(collection, bson.ObjectId(key))
+			await self.MongoDBStorageService.delete(collection, key)
 			return True
 		except KeyError:
 			return False
