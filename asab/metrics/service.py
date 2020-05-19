@@ -91,7 +91,7 @@ class MetricsService(asab.Service):
 			#
 			# [logging]
 			# levels=
-			#   asab.metric INFO
+			#   asab.metrics INFO
 			L.info("", struct_data=struct_data)
 
 			mlist.append((metric, values))
