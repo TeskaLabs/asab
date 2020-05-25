@@ -17,6 +17,8 @@ class ZooKeeperService(Service):
 		"zookeeper": {
 			"urls": "zookeeper:12181",
 			"path": "/asab",
+			"sequential": True,
+			"ephemeral": True,
 		}
 	})
 
@@ -24,6 +26,8 @@ class ZooKeeperService(Service):
 		super().__init__(app, service_name)
 		self.ZooKeeper = aiozk.ZKClient(Config["zookeeper"]["urls"])
 		self.ZooKeeperPath = Config["zookeeper"]["path"]
+		self.Sequential = Config["zookeeper"].getboolean("sequential")
+		self.Ephemeral = Config["zookeeper"].getboolean("ephemeral")
 
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
@@ -45,8 +49,14 @@ class ZooKeeperService(Service):
 		return await self.ZooKeeper.create(
 			"{}/i".format(self.ZooKeeperPath),
 			data=data,
-			sequential=True,
-			ephemeral=True
+			sequential=self.Sequential,
+			ephemeral=self.Ephemeral,
+		)
+
+	async def delete(self):
+		return await self.ZooKeeper.delete(
+			"{}/i".format(self.ZooKeeperPath),
+			force=True,
 		)
 
 	async def get_children(self):
