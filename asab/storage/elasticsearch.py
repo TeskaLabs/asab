@@ -4,6 +4,7 @@ import json
 
 import asab
 from .service import StorageServiceABC
+from .upsertor import UpsertorABC
 
 #
 L = logging.getLogger(__name__)
@@ -12,14 +13,9 @@ L = logging.getLogger(__name__)
 asab.Config.add_defaults(
 	{
 		'asab:storage': {
-			'elasticsearch_url': 'http://localhost:9200/',  # Can be multi-URL. Each URL should be separated by ';' to a node in ElasticSearch cluster
+			'elasticsearch_url': 'http://localhost:9200/',
 			'elasticsearch_username': '',
 			'elasticsearch_password': '',
-			'elasticsearch_loader_per_url': 4,
-			'elasticsearch_output_queue_max_size': 10,
-			'elasticsearch_bulk_out_max_size': 1024 * 1024,
-			'elasticsearch_timeout': 300,
-			'elasticsearch_allowed_bulk_response_codes': '200,201,409',
 		}
 	}
 )
@@ -35,7 +31,7 @@ class StorageService(StorageServiceABC):
 		self.Loop = app.Loop
 
 		self.ESURL = asab.Config.get(config_section_name, 'elasticsearch_url')
-		#self._timeout = asab.Config.get(config_section_name, 'elasticsearch_timeout')
+		# self._timeout = asab.Config.get(config_section_name, 'elasticsearch_timeout')
 
 		username = asab.Config.get(config_section_name, 'elasticsearch_username')
 		password = asab.Config.get(config_section_name, 'elasticsearch_password')
@@ -46,41 +42,59 @@ class StorageService(StorageServiceABC):
 			self._auth = aiohttp.BasicAuth(login=username, password=password)
 		self.ClientSession = aiohttp.ClientSession(auth=self._auth, loop=self.Loop)
 
-	async def create_update(self, index, _id=None, data=None):
-		if _id:
-			url = "http://{}{}/_doc/{}".format(self.ESURL, index, _id)
-		else:
-			url = "http://{}{}/".format(self.ESURL, index)
-
-		async with self.ClientSession.request(method="PUT", url=url, data=json.dumps(data), headers={'Content-Type': 'application/json'}) as resp:
-			return await resp.json()
-
-	async def read_item(self, index, _id):
-		url = "http://{}{}/_doc/{}".format(self.ESURL, index, _id)
-		async with self.ClientSession.request(method="GET", url=url) as resp:
-			return resp
 
 	async def delete(self, index, _id=None):
 		if _id:
-			url = "http://{}{}/_doc/{}".format(self.ESURL, index, _id)
+			url = "{}{}/_doc/{}".format(self.ESURL, index, _id)
 		else:
-			url = "http://{}{}".format(self.ESURL, index)
+			url = "{}{}".format(self.ESURL, index)
 		async with self.ClientSession.request(method="DELETE", url=url) as resp:
 			return resp
 
-	async def list_items(self, index, size=10000):
-		url = "http://{}{}/_search?size={}".format(self.ESURL, index, size)
+
+	async def get_by(self, collection: str, key: str, value):
+		raise NotImplementedError("get_by")
+
+
+	async def get(self, index: str, obj_id) -> dict:
+		url = "{}{}/_doc/{}".format(self.ESURL, index, obj_id)
+		async with self.ClientSession.request(method="GET", url=url) as resp:
+			return resp
+
+
+	async def upsertor(self, collection: str, obj_id=None, version: int = 0):
+		return ElasicSearchUpsertor(self, collection, obj_id, version)
+
+
+	async def list(self, index, size=10000):
+		'''
+		Custom ElasticSearch method
+		'''
+		url = "{}{}/_search?size={}".format(self.ESURL, index, size)
 		async with self.ClientSession.request(method="GET", url=url) as resp:
 			return await resp.json()
 
-	async def list_indices(self, search_string=None):
-		url = "http://{}_cat/indices/{}?format=json".format(self.ESURL, search_string)
+
+	async def indices(self, search_string=None):
+		'''
+		Custom ElasticSearch method
+		'''
+		url = "{}_cat/indices/{}?format=json".format(self.ESURL, search_string)
 		resp = await self.ClientSession.request(method="GET", url=url)
 		return await resp.json()
 
-	async def get_by(self, collection: str, key: str, value):
-		pass
-	async def get(self, collection: str, obj_id) -> dict:
-		pass
-	async def upsertor(self, collection: str, obj_id=None, version: int = 0):
-		pass
+
+class ElasicSearchUpsertor(UpsertorABC):
+
+
+	@classmethod
+	def generate_id(cls):
+		return bson.objectid.ObjectId()
+
+
+	async def execute(self):
+		id_name = self.get_id_name()
+		addobj = {}
+
+
+		return self.ObjId
