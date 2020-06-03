@@ -64,7 +64,7 @@ class StorageService(StorageServiceABC):
 		async with self.session().request(method="DELETE", url=url) as resp:
 			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 			resp = await resp.json()
-			if resp["acknowledged"]:
+			if resp.get("acknowledged", False):
 				return resp
 			assert resp["result"] == "deleted", "Document was not deleted"
 			return resp
@@ -105,7 +105,7 @@ class StorageService(StorageServiceABC):
 			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 			return await resp.json()
 
-	async def create_index(self, index):
+	async def empty_index(self, index):
 		'''
 		Custom ElasticSearch method
 		'''
