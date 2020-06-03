@@ -22,5 +22,9 @@ class Module(asab.Module):
 			from .mongodb import StorageService
 			self.Service = StorageService(app, "asab.StorageService")
 
+		elif sttype == "elasticsearch":
+			from .elasticsearch import StorageService
+			self.Service = StorageService(app, "asab.StorageService")
+
 		else:
 			L.error("Unknown asab:storage type '{}'".format(sttype))
