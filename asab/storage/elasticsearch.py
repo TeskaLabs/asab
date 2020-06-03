@@ -105,7 +105,7 @@ class StorageService(StorageServiceABC):
 			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 			return await resp.json()
 
-	async def empty_index(self, index):
+	async def create_index(self, index):
 		'''
 		Custom ElasticSearch method
 		'''
