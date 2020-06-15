@@ -13,6 +13,6 @@ L = logging.getLogger(__name__)
 
 class Module(Module):
 
-	def __init__(self, app):
+	def __init__(self, app, config_section="zookeeper"):
 		super().__init__(app)
-		self.Service = ZooKeeperService(app, "asab.ZooKeeperService")
+		self.Service = ZooKeeperService(app, "asab.ZooKeeperService", config_section)

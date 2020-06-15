@@ -20,10 +20,10 @@ class ZooKeeperService(Service):
 		}
 	})
 
-	def __init__(self, app, service_name):
+	def __init__(self, app, service_name, config_section="zookeeper"):
 		super().__init__(app, service_name)
-		self.ZooKeeper = aiozk.ZKClient(Config["zookeeper"]["urls"])
-		self.ZooKeeperPath = Config["zookeeper"]["path"]
+		self.ZooKeeper = aiozk.ZKClient(Config[config_section]["urls"])
+		self.ZooKeeperPath = Config[config_section]["path"]
 
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
