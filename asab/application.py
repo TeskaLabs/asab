@@ -336,7 +336,7 @@ class Application(metaclass=Singleton):
 
 	# Modules
 
-	def add_module(self, module_class, *args, **kwargs):
+	def add_module(self, module_class):
 		""" Load a new module. """
 
 		for module in self.Modules:
@@ -344,7 +344,7 @@ class Application(metaclass=Singleton):
 				# Already loaded and registered
 				return
 
-		module = module_class(self, *args, **kwargs)
+		module = module_class(self)
 		self.Modules.append(module)
 
 		asyncio.ensure_future(module.initialize(self), loop=self.Loop)
