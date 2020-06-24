@@ -9,7 +9,7 @@ from .tenant import Tenant
 # which is compatible with SeaCat Auth product
 Config.add_defaults({
 	'tenants': {
-		'ids': '',
+		'ids': '', # List of tenant ids, entries can be separated by comma or newline
 		'tenant_url': '',  # f. e. http://seacat-auth:8080/tenant
 		'trusted': 0,  # makes sure the tenants are implicitly trusted, even though they are not located in IDs or tenant URL
 	}
