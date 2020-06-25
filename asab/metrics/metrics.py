@@ -48,7 +48,7 @@ class Counter(Metric):
 
 	def __init__(self, name, tags, init_values=None, reset: bool = True):
 		super().__init__(name=name, tags=tags)
-		self.Init = init_values
+		self.Init = init_values if init_values is not None else dict()
 		self.Values = self.Init.copy()
 		self.Reset = reset
 
@@ -94,6 +94,7 @@ class Counter(Metric):
 		if self.Reset:
 			self.Values = self.Init.copy()
 		return ret
+
 
 	def rest_get(self):
 		rest = super().rest_get()
