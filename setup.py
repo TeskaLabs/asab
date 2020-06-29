@@ -64,6 +64,7 @@ setup(
 	install_requires=[
 		'aiohttp>=3.6.2,<4.0',
 		'fastjsonschema>=2.14.4,<3.0',
+		'aiozk>=0.25.0',
 	],
 	cmdclass={
 		'build_py': custom_build_py,
