@@ -52,8 +52,7 @@ setup(
 	license='BSD License',
 	platforms='any',
 	classifiers=[
-		'Development Status :: 4 - Beta',
-		'Programming Language :: Python :: 3.5',
+		'Development Status :: 5 - Production/Stable',
 		'Programming Language :: Python :: 3.6',
 		'Programming Language :: Python :: 3.7',
 	],
@@ -63,8 +62,8 @@ setup(
 		'Source': 'https://github.com/TeskaLabs/asab'
 	},
 	install_requires=[
-		'aiohttp>=3.5.4,<4.0',
-		'fastjsonschema>=2.14.1,<3.0',
+		'aiohttp>=3.6.2,<4.0',
+		'fastjsonschema>=2.14.4,<3.0',
 	],
 	cmdclass={
 		'build_py': custom_build_py,
