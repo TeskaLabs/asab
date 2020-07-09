@@ -34,6 +34,30 @@ listen:
 	:: 8080
 	0.0.0.0 8443 ssl:web
 	0.0.0.0:8001
+
+[ssl:web]
+cert=...
+key=...
+...
+
+
+## Multiple interfaces, one with HTTPS (inline)
+
+[web]
+listen:
+	0.0.0.0 8080
+	:: 8080
+	0.0.0.0 8443 ssl
+	0.0.0.0:8001
+
+# The SSL parameters are inside of the WebContainer section
+cert=...
+key=...
+
+...
+
+
+
 	'''
 
 
@@ -82,7 +106,11 @@ listen:
 
 			for param in line:
 				if param.startswith('ssl:'):
+					# Dedicated section for SSL
 					ssl_context = SSLContextBuilder(param).build()
+					# SSL parameters are included in the current config section
+				elif param.startswith('ssl'):
+					ssl_context = SSLContextBuilder("<none>", config=self.Config).build()
 				else:
 					raise RuntimeError("Unknown asab:web listen parameter: '{}'".format(param))
 			self._listen.append((addr, port, ssl_context))
