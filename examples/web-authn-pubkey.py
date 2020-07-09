@@ -5,10 +5,8 @@ import asab.web.authn.pubkeyauth
 
 asab.Config.add_defaults({
 	'example:web': {
-		'listen': '0.0.0.0 8080 ssl:example:web',
-	},
+		'listen': '0.0.0.0 8080 ssl',
 
-	'ssl:example:web': {
 		'cert': './ssl/cert.pem',
 		'key': './ssl/key.pem',
 		'cafile': './ssl/client-ca-cert.pem',
