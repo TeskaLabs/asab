@@ -62,8 +62,8 @@ setup(
 		'Source': 'https://github.com/TeskaLabs/asab'
 	},
 	install_requires=[
-		'aiohttp>=3.6.2,<4.0',
-		'fastjsonschema>=2.14.4,<3.0',
+		'aiohttp>=3.6.2',
+		'fastjsonschema>=2.14.4',
 		'aiozk>=0.25.0',
 	],
 	cmdclass={
