@@ -140,8 +140,8 @@ want to allow OPTIONS method for preflight requests.
 		websvc.App.PubSub.subscribe("Application.run!", self.start_container)
 
 		if self.CORS != "":
-			preflight_str = self.Config.get("preflightpaths")
-			preflight_paths = preflight_str.replace(" ", "").replace("*", "{tail:.*}").split(",")
+			preflight_str = self.Config["preflightpaths"].strip("\n").replace("*","{tail:.*}")
+			preflight_paths = re.split(r"[,\s]+", preflight_str, re.MULTILINE)
 			self.add_preflight_handlers(preflight_paths)
 
 
