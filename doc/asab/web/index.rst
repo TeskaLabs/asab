@@ -26,10 +26,13 @@ This module offers an integration of a :py:mod:`aiohttp` `web server <http://aio
 	        self.add_module(Module)
 
 	        # Locate the web service
-	        svc = self.get_service("asab.WebService")
+	        websvc = self.get_service("asab.WebService")
+
+	        # Create a container
+	        container = asab.web.WebContainer(websvc, 'example:web', config={"listen": "0.0.0.0:8080"})
 
 	        # Add a route
-	        svc.WebApp.router.add_get('/hello', self.hello)
+	        container.WebApp.router.add_get('/hello', self.hello)
 
 	    # Simplistic view
 	    async def hello(self, request):

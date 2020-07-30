@@ -96,18 +96,26 @@ Logging to file
 ---------------
 
 The command-line argument ``-l`` on command-line enables logging to file.
-Also non-empty ``path`` option in the section ``[[logging:file]]`` of configuration file enables logging to file as well.
+Also non-empty ``path`` option in the section ``[logging:file]`` of configuration file enables logging to file as well.
 
 Example of the configuration file section:
 
 .. code:: ini
 
-    [[logging:file]]
+    [logging:file]
     path=/var/log/asab.log
     format="%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s",
     datefmt="%%d-%%b-%%Y %%H:%%M:%%S.%%f"
     backup_count=3
     rotate_every=1d
+
+
+Logging to console
+------------------
+
+ASAB will log to the console only if it detects that it runs in the foreground respectively on the terminal using ``os.isatty``
+or if the environment variable ``ASABFORCECONSOLE`` is set to ``1``.
+This is useful setup for eg. PyCharm.
 
 
 Log rotation
@@ -132,13 +140,13 @@ Logging to syslog
 
 The command-line argument ``-s`` enables logging to syslog.
 
-A configuration section ``[[logging:syslog]]`` can be used to specify details about desired syslog logging.
+A configuration section ``[logging:syslog]`` can be used to specify details about desired syslog logging.
 
 Example of the configuration file section:
 
 .. code:: ini
 
-	[[logging:syslog]]
+	[logging:syslog]
 	enabled=true
 	format=5
 	address=tcp://syslog.server.lan:1554/

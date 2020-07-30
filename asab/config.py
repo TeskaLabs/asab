@@ -41,6 +41,7 @@ class ConfigParser(configparser.ConfigParser):
 			"app_name": os.path.basename(sys.argv[0]),
 			"sd_id": "sd",  # Structured data id, see RFC5424
 			"level": "NOTICE",
+			"levels": "",
 		},
 
 		"logging:console": {
@@ -60,6 +61,7 @@ class ConfigParser(configparser.ConfigParser):
 			"format": "%(asctime)s %(levelname)s %(name)s %(struct_data)s%(message)s",
 			"datefmt": "%d-%b-%Y %H:%M:%S.%f",
 			"backup_count": 3,
+			"backup_max_bytes": 0,
 			"rotate_every": "",
 		},
 

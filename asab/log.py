@@ -33,7 +33,7 @@ class Logging(object):
 
 			# Add console logger
 			# Don't initialize this when not on console
-			if os.isatty(sys.stdin.fileno()):
+			if os.isatty(sys.stdin.fileno()) or os.environ.get('ASABFORCECONSOLE', '0') != '0':
 				self.ConsoleHandler = logging.StreamHandler(stream=sys.stderr)
 				self.ConsoleHandler.setFormatter(StructuredDataFormatter(
 					fmt=Config["logging:console"]["format"],
@@ -51,6 +51,7 @@ class Logging(object):
 				self.FileHandler = logging.handlers.RotatingFileHandler(
 					file_path,
 					backupCount=Config.getint("logging:file", "backup_count"),
+					maxBytes=Config.getint("logging:file", "backup_max_bytes"),
 				)
 				self.FileHandler.setLevel(logging.DEBUG)
 				self.FileHandler.setFormatter(StructuredDataFormatter(
@@ -139,6 +140,15 @@ class Logging(object):
 		else:
 			self.RootLogger.setLevel(Config["logging"]["level"])
 
+		# Fine-grained log level configurations
+		levels = Config["logging"].get('levels')
+		for levelconf in levels.split('\n'):
+			levelconf = levelconf.strip()
+			if len(levelconf) == 0 or levelconf.startswith('#') or levelconf.startswith(';'):
+				continue
+			loggername, levelname = levelconf.split(' ', 1)
+			level = logging.getLevelName(levelname.upper())
+			logging.getLogger(loggername).setLevel(level)
 
 	def rotate(self):
 		if self.FileHandler is not None:

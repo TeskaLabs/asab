@@ -7,14 +7,6 @@ L = logging.getLogger(__name__)
 
 #
 
-asab.Config.add_defaults(
-	{
-		'asab:storage': {
-			'type': 'inmemory',
-		}
-	}
-)
-
 
 class Module(asab.Module):
 
@@ -28,6 +20,10 @@ class Module(asab.Module):
 
 		elif sttype == 'mongodb':
 			from .mongodb import StorageService
+			self.Service = StorageService(app, "asab.StorageService")
+
+		elif sttype == "elasticsearch":
+			from .elasticsearch import StorageService
 			self.Service = StorageService(app, "asab.StorageService")
 
 		else:

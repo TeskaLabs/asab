@@ -9,7 +9,7 @@ from .tenant import Tenant
 # which is compatible with SeaCat Auth product
 Config.add_defaults({
 	'tenants': {
-		'ids': '',
+		'ids': '', # List of tenant ids, entries can be separated by comma or newline
 		'tenant_url': '',  # f. e. http://seacat-auth:8080/tenant
 		'trusted': 0,  # makes sure the tenants are implicitly trusted, even though they are not located in IDs or tenant URL
 	}
@@ -27,8 +27,14 @@ class TenantService(Service):
 
 		# Load tenants from configuration
 		self.TenantIds = Config['tenants']['ids']
-		self.TenantIds = self.TenantIds.split(',')
+		self.TenantIds = self.TenantIds.replace(',', '\n').split('\n')
+
 		for tenant_id in self.TenantIds:
+			tenant_id = tenant_id.strip()
+			if len(tenant_id) == 0: continue
+			if tenant_id[0] == '#': continue
+			if tenant_id[0] == ';': continue
+
 			section = 'tenant:params:{}'.format(tenant_id)
 			if Config.has_section(section):
 				params = dict(Config.items(section))
@@ -39,11 +45,13 @@ class TenantService(Service):
 		# Load tenants from URL
 		self.TenantUrl = Config["tenants"]["tenant_url"]
 
+
 	async def initialize(self, app):
 		if len(self.TenantUrl) > 0:
 			await self._update_tenants()
 			# TODO: Websocket persistent API should be added to seacat auth to feed these changes in realtime (eventually)
 			app.PubSub.subscribe("Application.tick/300!", self._update_tenants)
+
 
 	def locate_tenant(self, tenant_id):
 		tenant = self.Tenants.get(tenant_id)
@@ -52,15 +60,18 @@ class TenantService(Service):
 			self.Tenants[tenant_id] = tenant
 		return tenant
 
+
 	def get_tenants(self):
 		tenants = []
 		for tenant in self.Tenants.values():
 			tenants.append(tenant.to_dict())
 		return tenants
 
+
 	def add_web_api(self, web_container):
 		from .web import TenantWebHandler
 		self.TenantWebHandler = TenantWebHandler(self.App, self, web_container)
+
 
 	async def _update_tenants(self, message_name=None):
 		async with aiohttp.ClientSession() as session:

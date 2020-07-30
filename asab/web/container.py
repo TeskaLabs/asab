@@ -35,6 +35,27 @@ listen:
 	0.0.0.0 8443 ssl:web
 	0.0.0.0:8001
 
+[ssl:web]
+cert=...
+key=...
+...
+
+
+## Multiple interfaces, one with HTTPS (inline)
+
+[web]
+listen:
+	0.0.0.0 8080
+	:: 8080
+	0.0.0.0 8443 ssl
+	0.0.0.0:8001
+
+# The SSL parameters are inside of the WebContainer section
+cert=...
+key=...
+
+...
+
 # Preflight paths
 Preflight requests are sent by the browser, for some cross domain request (custom header etc.).
 Browser sends preflight request first. It is request on same endpoint as app demanded request, but of OPTIONS method.
@@ -90,7 +111,11 @@ want to allow OPTIONS method for preflight requests.
 
 			for param in line:
 				if param.startswith('ssl:'):
+					# Dedicated section for SSL
 					ssl_context = SSLContextBuilder(param).build()
+					# SSL parameters are included in the current config section
+				elif param.startswith('ssl'):
+					ssl_context = SSLContextBuilder("<none>", config=self.Config).build()
 				else:
 					raise RuntimeError("Unknown asab:web listen parameter: '{}'".format(param))
 			self._listen.append((addr, port, ssl_context))
@@ -163,3 +188,11 @@ want to allow OPTIONS method for preflight requests.
 			# TODO: Be more precise about "allow origin" header
 			response.headers['Access-Control-Allow-Origin'] = "*"
 			response.headers['Access-Control-Allow-Methods'] = "GET, POST, DELETE, PUT, PATCH, OPTIONS"
+
+
+	def get_ports(self):
+		ports = []
+		for addr, port, ssl_context in self._listen:
+			ports.append(port)
+		return ports
+

@@ -11,7 +11,7 @@ RUN apk add --no-cache ca-certificates
 
 RUN set -ex \
 	&& apk update \
-    && apk upgrade
+	&& apk upgrade
 
 RUN apk add --no-cache python3
 
