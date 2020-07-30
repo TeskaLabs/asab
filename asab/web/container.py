@@ -195,4 +195,3 @@ want to allow OPTIONS method for preflight requests.
 		for addr, port, ssl_context in self._listen:
 			ports.append(port)
 		return ports
-
