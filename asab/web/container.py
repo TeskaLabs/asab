@@ -36,7 +36,7 @@ listen:
 	0.0.0.0:8001
 
 # Preflight paths
-Preflight requests are sent by the browser, for some cross domain request (custom header etc.). 
+Preflight requests are sent by the browser, for some cross domain request (custom header etc.).
 Browser sends preflight request first. It is request on same endpoint as app demanded request, but of OPTIONS method.
 Only when satisfactory response is returned, browser proceeds with sending original request.
 Use `preflightpaths` to specify all paths and path prefixes (separated by comma) for which you
@@ -50,7 +50,7 @@ want to allow OPTIONS method for preflight requests.
 		'rootdir': '',
 		'servertokens': 'full',  # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
 		'cors': '',
-		'preflightpaths':'/openidconnect/*, /test/*',
+		'preflightpaths': '/openidconnect/*, /test/*',
 	}
 
 
@@ -116,7 +116,7 @@ want to allow OPTIONS method for preflight requests.
 
 		if self.CORS != "":
 			preflight_str = self.Config.get("preflightpaths")
-			preflight_paths = preflight_str.replace(" ","").replace("*","{tail:.*}").split(",")
+			preflight_paths = preflight_str.replace(" ", "").replace("*", "{tail:.*}").split(",")
 			self.add_preflight_handlers(preflight_paths)
 
 
@@ -137,18 +137,17 @@ want to allow OPTIONS method for preflight requests.
 
 	def add_preflight_handlers(self, preflight_paths):
 		for path in preflight_paths:
-			self.WebApp.router.add_route("OPTIONS",path, self.preflight_handler)
+			self.WebApp.router.add_route("OPTIONS", path, self.preflight_handler)
 
 
 	async def preflight_handler(self, request):
 			return aiohttp.web.HTTPNoContent(headers={
-				"Access-Control-Allow-Origin": request.headers.get("Origin","*"),
+				"Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
 				"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-				"Access-Control-Allow-Headers": "X-PINGOTHER, Content-Type",
+				"Access-Control-Allow-Headers": "X-PINGOTHER, Content-Type, Authorization",
 				"Access-Control-Allow-Credentials": "true",
-				"Access-Control-Allow-Headers": "Authorization",
 				"Access-Control-Max-Age": "86400",
-				})
+			})
 
 	async def finalize(self, app):
 		await self.WebAppRunner.cleanup()
