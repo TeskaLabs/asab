@@ -2,7 +2,6 @@ import logging
 import datetime
 import os
 import sys
-import platform
 import json
 
 from ..log import LOG_NOTICE
@@ -18,7 +17,7 @@ class LogmanIOLogHandler(logging.Handler):
 		self.Facility = None  # TODO: Read this from config
 		self.Pid = os.getpid()
 		self.Environment = None
-		self.Hostname = platform.node()
+		self.Hostname = svc.App.HostName
 		self.Program = os.path.basename(sys.argv[0])
 
 

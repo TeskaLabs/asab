@@ -8,6 +8,7 @@ import time
 import signal
 import platform
 import random
+import requests
 
 try:
 	import daemon
@@ -50,6 +51,9 @@ class Application(metaclass=Singleton):
 
 		# Seed the random generator
 		random.seed()
+
+		# Obtain HostName
+		self.HostName = self.load_hostname()
 
 		# Obtain the event loop
 		self.Loop = asyncio.get_event_loop()
@@ -104,6 +108,44 @@ class Application(metaclass=Singleton):
 
 		L.info("Initializing ...")
 
+	def _is_docker(self):
+		return (
+			os.path.exists('/.dockerenv') or
+			(os.path.isfile('/proc/self/cgroup') and any('docker' in line for line in open('/proc/self/cgroup')))
+		)
+
+	def load_hostname(self):
+		hostname = platform.node()
+
+		if self._is_docker():
+			# In docker, hostname defaults to container ID
+			# It is necessary to use container name for better readability of the metrics
+			remote_api = Config.get("general", "docker_remote_api")
+			if remote_api is None or len(remote_api) == 0:
+				L.warning("'docker_remote_api' in 'general' was not specified. Using container ID as hostname.")
+				return hostname
+
+			try:
+				docker_info_request = requests.get("{}/containers/{}/json".format(remote_api, hostname))
+				if docker_info_request.status_code != requests.codes.ok:
+					L.warning("Could not call the Docker remote API at '{}'. Is it enabled?".format(remote_api))
+					return hostname
+			except requests.exceptions.ConnectionError as e:
+				L.warning("Connection to Docker Remote API could not be established due to '{}'.".format(e))
+				return hostname
+
+			docker_info = docker_info_request.json()
+			container_name = docker_info.get("Name")
+			if container_name is None:
+				L.warning("Docker Remote API does not provide container name. Using container ID as hostname.")
+				return hostname
+
+			# Store the container name in tags as host
+			if container_name.startswith("/"):
+				container_name = container_name[1:]
+			return container_name
+
+		return hostname
 
 	def create_argument_parser(
 		self,
