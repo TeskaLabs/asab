@@ -140,7 +140,7 @@ class Application(metaclass=Singleton):
 			# Store the container name in tags as host
 			if container_name.startswith("/"):
 				container_name = container_name[1:]
-			return container_name
+			return "{}{}".format(Config.get("general", "docker_name_prefix"), container_name)
 
 		return hostname
 
