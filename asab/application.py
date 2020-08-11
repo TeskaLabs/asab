@@ -117,12 +117,11 @@ class Application(metaclass=Singleton):
 	def load_hostname(self):
 		hostname = platform.node()
 
-		if self._is_docker():
+		remote_api = Config.get("general", "docker_remote_api")
+
+		if self._is_docker() and remote_api is not None and len(remote_api) != 0:
 			# In docker, hostname defaults to container ID
 			# It is necessary to use container name for better readability of the metrics
-			# When in Docker, docker_remote_api should always be configured
-			remote_api = Config.get("general", "docker_remote_api")
-
 			try:
 				docker_info_request = requests.get("{}/containers/{}/json".format(remote_api, hostname))
 				if docker_info_request.status_code != requests.codes.ok:
