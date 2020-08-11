@@ -38,6 +38,7 @@ class ConfigParser(configparser.ConfigParser):
 			# Docker specific
 			# Used for detection of container name,
 			# see: https://medium.com/@ssmak/how-to-enable-docker-remote-api-on-docker-host-7b73bd3278c6
+			# example: http://myHost:2375
 			'docker_remote_api': '',
 		},
 

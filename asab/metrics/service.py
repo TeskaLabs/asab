@@ -30,7 +30,7 @@ class MetricsService(asab.Service):
 		self.Metrics = {}  # A key is dimension (combination of metric name and tags)
 		self.Targets = []
 		self.Tags = {
-			"host": app.HostName
+			"host": app.HostName,
 		}
 
 		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
