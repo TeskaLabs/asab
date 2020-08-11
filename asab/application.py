@@ -120,10 +120,8 @@ class Application(metaclass=Singleton):
 		if self._is_docker():
 			# In docker, hostname defaults to container ID
 			# It is necessary to use container name for better readability of the metrics
+			# When in Docker, docker_remote_api should always be configured
 			remote_api = Config.get("general", "docker_remote_api")
-			if remote_api is None or len(remote_api) == 0:
-				L.warning("'docker_remote_api' in 'general' was not specified. Using container ID as hostname.")
-				return hostname
 
 			try:
 				docker_info_request = requests.get("{}/containers/{}/json".format(remote_api, hostname))
