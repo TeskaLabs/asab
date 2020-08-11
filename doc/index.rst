@@ -39,6 +39,7 @@
    :caption: Administration
 
    admin/install
+   admin/docker
    admin/command-line
    admin/containers
    admin/systemd
