@@ -95,10 +95,25 @@ the Docker Remote API must be enabled.
 
 To do so:
 
-- Open the docker service file: `vi /lib/systemd/system/docker.service`
-- Find the line which starts with ExecStart and add `-H=tcp://0.0.0.0:2375`
-- Save the file
-- Reload the docker daemon and restart the Docker service: `systemctl daemon-reload && sudo service docker restart`
+1. Open the docker service file
+
+.. code-block:: bash
+
+	vi /lib/systemd/system/docker.service
+
+
+2. Find the line which starts with ExecStart and add `-H=tcp://0.0.0.0:2375`
+
+
+3. Save the file
+
+
+4. Reload the docker daemon and restart the Docker service
+
+.. code-block:: bash
+
+	sudo systemctl daemon-reload && sudo service docker restart
+
 
 Then in the ASAB application's configuration, provide
 the Docker Remote API URL in `docker_remote_api` configuration option:
