@@ -1,6 +1,5 @@
 import configparser
 import logging
-import platform
 import asyncio
 
 import asab
@@ -31,7 +30,7 @@ class MetricsService(asab.Service):
 		self.Metrics = {}  # A key is dimension (combination of metric name and tags)
 		self.Targets = []
 		self.Tags = {
-			'host': platform.node(),
+			"host": app.HostName,
 		}
 
 		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
@@ -54,7 +53,6 @@ class MetricsService(asab.Service):
 		# Memory storage target
 		self.MemstorTarget = MetricsMemstorTarget(self, 'asab:metrics:memory')
 		self.Targets.append(self.MemstorTarget)
-
 
 	async def finalize(self, app):
 		await self._on_flushing_event("finalize!")
