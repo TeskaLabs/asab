@@ -87,7 +87,7 @@ And removal of the build tools after pip install:
 	$ apk del .buildenv
 
 Docker Remote API
-------------
+---------------------------
 
 In order for ASAB applications to read the Docker container name
 as well as other information related to the container to be used in logs, metrics and other analysis,
