@@ -60,7 +60,7 @@ key=...
 Preflight requests are sent by the browser, for some cross domain request (custom header etc.).
 Browser sends preflight request first. It is request on same endpoint as app demanded request, but of OPTIONS method.
 Only when satisfactory response is returned, browser proceeds with sending original request.
-Use `preflightpaths` to specify all paths and path prefixes (separated by comma) for which you
+Use `cors_preflight_paths` to specify all paths and path prefixes (separated by comma) for which you
 want to allow OPTIONS method for preflight requests.
 	'''
 
@@ -71,7 +71,7 @@ want to allow OPTIONS method for preflight requests.
 		'rootdir': '',
 		'servertokens': 'full',  # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
 		'cors': '',
-		'preflightpaths': '/openidconnect/*, /test/*',
+		'cors_preflight_paths': '/openidconnect/*, /test/*',
 	}
 
 
@@ -140,7 +140,7 @@ want to allow OPTIONS method for preflight requests.
 		websvc.App.PubSub.subscribe("Application.run!", self.start_container)
 
 		if self.CORS != "":
-			preflight_str = self.Config["preflightpaths"].strip("\n").replace("*", "{tail:.*}")
+			preflight_str = self.Config["cors_preflight_paths"].strip("\n").replace("*", "{tail:.*}")
 			preflight_paths = re.split(r"[,\s]+", preflight_str, re.MULTILINE)
 			self.add_preflight_handlers(preflight_paths)
 
