@@ -181,10 +181,7 @@ want to allow OPTIONS method for preflight requests.
 	async def _on_prepare_response(self, request, response):
 		response.headers['Server'] = self.ServerTokens
 
-		if self.CORS == "*":
-			response.headers['Access-Control-Allow-Origin'] = "*"
-			response.headers['Access-Control-Allow-Methods'] = "GET, POST, DELETE, PUT, PATCH, OPTIONS"
-		elif self.CORS != "":
+		if self.CORS != "":
 			# TODO: Be more precise about "allow origin" header
 			response.headers['Access-Control-Allow-Origin'] = "*"
 			response.headers['Access-Control-Allow-Methods'] = "GET, POST, DELETE, PUT, PATCH, OPTIONS"
