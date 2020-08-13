@@ -8,7 +8,6 @@ import time
 import signal
 import platform
 import random
-import requests
 
 try:
 	import daemon
