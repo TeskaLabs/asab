@@ -177,7 +177,7 @@ class PagerDutyAlertProvider(AlertHTTPProviderABC):
 				"routing_key": self.IntegrationKey,
 				'dedup_key': '{}:{}:{}'.format(tenant_id, alert_cls, alert_id),
 
-				"client": "TeskaLabs Asab Alert Service",
+				"client": "Asab Alert Service",
 
 				'payload': {
 					'summary': title,
