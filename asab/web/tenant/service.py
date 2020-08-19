@@ -1,3 +1,5 @@
+import re
+
 import aiohttp
 
 from ...abc.service import Service
@@ -26,10 +28,7 @@ class TenantService(Service):
 		self.Tenants = {}
 
 		# Load tenants from configuration
-		ids = Config['tenants']['ids']
-		ids = ids.replace(',', '\n').split('\n')
-
-		for tenant_id in ids:
+		for tenant_id in re.split(r"[,\s]+", Config['tenants']['ids'], flags=re.MULTILINE):
 			tenant_id = tenant_id.strip()
 			if len(tenant_id) == 0:
 				continue
