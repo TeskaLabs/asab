@@ -1,4 +1,5 @@
 import re
+import logging
 
 import aiohttp
 
@@ -6,6 +7,13 @@ from ...abc.service import Service
 from ...config import Config
 
 from .tenant import Tenant
+
+#
+
+L = logging.getLogger(__name__)
+
+#
+
 
 # "tenant_url" is used to periodically refresh tenants from, expecting "_id" inside a JSON structure,
 # which is compatible with SeaCat Auth product
@@ -62,7 +70,7 @@ class TenantService(Service):
 		Remove after Jan 2022
 		'''
 		L.warning("The TenantService.TenantIds is deprecated, use TenantService.get_tenant_ids()")
-		return get_tenant_ids()
+		return self.get_tenant_ids()
 
 
 	def locate_tenant(self, tenant_id):
