@@ -13,6 +13,7 @@ L = logging.getLogger(__name__)
 
 #
 
+
 class AlertProviderABC(asab.ConfigObject, abc.ABC):
 
 	ConfigDefaults = {
@@ -20,7 +21,7 @@ class AlertProviderABC(asab.ConfigObject, abc.ABC):
 
 
 	def __init__(self, config_section_name):
-		super().__init__(config_section_name = config_section_name)
+		super().__init__(config_section_name=config_section_name)
 
 
 	async def initialize(self, app):
@@ -44,7 +45,7 @@ class AlertHTTPProviderABC(AlertProviderABC):
 
 
 	def __init__(self, config_section_name):
-		super().__init__(config_section_name = config_section_name)
+		super().__init__(config_section_name=config_section_name)
 		self.Queue = asyncio.Queue()
 		self.MainTask = None
 
@@ -70,7 +71,7 @@ class AlertHTTPProviderABC(AlertProviderABC):
 		assert(self.MainTask is None)
 		self.MainTask = asyncio.ensure_future(self._main())
 		self.MainTask.add_done_callback(self._main_done)
-			
+
 
 	def _main_done(self, x):
 		if self.MainTask is None:
@@ -78,7 +79,7 @@ class AlertHTTPProviderABC(AlertProviderABC):
 
 		try:
 			self.MainTask.result()
-		except:
+		except Exception:
 			L.exception("Exception in AlertService main task")
 
 		self.MainTask = None
@@ -107,7 +108,7 @@ class OpsGenieAlertProvider(AlertHTTPProviderABC):
 
 
 	def __init__(self, config_section_name):
-		super().__init__(config_section_name = config_section_name)
+		super().__init__(config_section_name=config_section_name)
 		self.APIKey = self.Config['api_key']
 		self.Tags = re.split(r"[,\s]+", self.Config['tags'], re.MULTILINE)
 		self.Hostname = socket.gethostname()
@@ -136,7 +137,7 @@ class OpsGenieAlertProvider(AlertHTTPProviderABC):
 			}
 
 			async with aiohttp.ClientSession(headers=headers) as session:
-				async with session.post(self.URL+"/v2/alerts", json=create_alert) as resp:
+				async with session.post(self.URL + "/v2/alerts", json=create_alert) as resp:
 					if resp.status != 202:
 						text = await resp.text()
 						L.warning("Failed to create the alert: {}".format(text))
@@ -159,7 +160,7 @@ class PagerDutyAlertProvider(AlertHTTPProviderABC):
 
 
 	def __init__(self, config_section_name):
-		super().__init__(config_section_name = config_section_name)
+		super().__init__(config_section_name=config_section_name)
 		self.APIKey = self.Config['api_key']
 		self.IntegrationKey = self.Config['integration_key']
 
@@ -182,7 +183,7 @@ class PagerDutyAlertProvider(AlertHTTPProviderABC):
 				'payload': {
 					'summary': title,
 					'severity': 'warning',
-					'source': tenant_id, #TODO: Hostname etc.
+					'source': tenant_id,  # TODO: Hostname etc.
 					'group': alert_cls,
 					"custom_details": {
 						'tenant_id': tenant_id,
@@ -193,18 +194,18 @@ class PagerDutyAlertProvider(AlertHTTPProviderABC):
 			}
 
 			async with aiohttp.ClientSession(headers=headers) as session:
-				async with session.post(self.URL+"/v2/enqueue", json=create_alert) as resp:
+				async with session.post(self.URL + "/v2/enqueue", json=create_alert) as resp:
 					if resp.status != 202:
 						text = await resp.text()
 						L.warning("Failed to create the alert ({}):\n{}".format(resp.status, text))
 					else:
-						x = await resp.text()
+						await resp.text()
 
 
 class AlertService(asab.Service):
 
 
-	def __init__(self, app, service_name = "seacatpki.AlertService"):
+	def __init__(self, app, service_name="seacatpki.AlertService"):
 		super().__init__(app, service_name)
 		self.Providers = []
 
@@ -235,6 +236,6 @@ class AlertService(asab.Service):
 		])
 
 
-	def trigger(self, tenant_id, alert_cls, alert_id, title, detail = ''):
+	def trigger(self, tenant_id, alert_cls, alert_id, title, detail=''):
 		for p in self.Providers:
 			p.trigger(tenant_id, alert_cls, alert_id, title, detail)

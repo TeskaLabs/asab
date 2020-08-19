@@ -109,8 +109,9 @@ class Application(metaclass=Singleton):
 
 	def _is_docker(self):
 		return (
-			os.path.exists('/.dockerenv') or
-			(os.path.isfile('/proc/self/cgroup') and any('docker' in line for line in open('/proc/self/cgroup')))
+			os.path.exists('/.dockerenv') or (
+				os.path.isfile('/proc/self/cgroup') and any('docker' in line for line in open('/proc/self/cgroup'))
+			)
 		)
 
 	def load_hostname(self):
