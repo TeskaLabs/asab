@@ -359,18 +359,25 @@ class Application(metaclass=Singleton):
 		self._stop_event.set()
 		self._stop_counter += 1
 		self.PubSub.publish("Application.stop!", self._stop_counter)
+
 		if self._stop_counter >= 3:
 			L.fatal("Emergency exit")
+			for task in asyncio.all_tasks():
+				L.warning("Pending task during emergency exit: {}".format(task))
 			try:
 				# EX_SOFTWARE code is not available on Windows
 				return os._exit(os.EX_SOFTWARE)
 			except AttributeError:
 				return os._exit(0)
 
+		elif self._stop_counter > 1:
+			L.warning("{} tasks still active".format(len(asyncio.all_tasks())))
+
 
 	def _hup(self):
 		self.Logging.rotate()
 		self.PubSub.publish("Application.hup!")
+
 
 	# Modules
 
