@@ -9,6 +9,7 @@ L = logging.getLogger(__name__)
 
 #
 
+
 class TaskService(asab.Service):
 
 	'''
@@ -21,7 +22,7 @@ class TaskService(asab.Service):
 	and if there was an exception, it will be printed to the log.
 	'''
 
-	def __init__(self, app, service_name = "seacatpki.TaskService"):
+	def __init__(self, app, service_name="seacatpki.TaskService"):
 		super().__init__(app, service_name)
 
 		self.NewTasks = []
@@ -41,7 +42,7 @@ class TaskService(asab.Service):
 
 	async def finalize(self, app):
 		if self.Main is not None:
-			
+
 			task = self.Main
 			self.Main = None
 
@@ -94,7 +95,6 @@ class TaskService(asab.Service):
 				await asyncio.sleep(5.0)
 			else:
 				done, self.PendingTasks = await asyncio.wait(self.PendingTasks, timeout=1.0)
-			
 				for task in done:
 					try:
 						await task
