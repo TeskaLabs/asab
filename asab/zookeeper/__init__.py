@@ -1,6 +1,7 @@
 import logging
 
 from .service import ZooKeeperService
+from .container import ZooKeeperContainer
 
 from ..abc.module import Module
 
