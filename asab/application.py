@@ -9,6 +9,9 @@ import signal
 import platform
 import random
 
+import http.client
+import json
+
 try:
 	import daemon
 	import daemon.pidfile
@@ -123,15 +126,22 @@ class Application(metaclass=Singleton):
 			# In docker, hostname defaults to container ID
 			# It is necessary to use container name for better readability of the metrics
 			try:
-				docker_info_request = requests.get("{}/containers/{}/json".format(remote_api, hostname))
-				if docker_info_request.status_code != requests.codes.ok:
+				if "https" in remote_api:
+					conn = http.client.HTTPSConnection(remote_api.replace("https://", ""))
+				else:
+					conn = http.client.HTTPConnection(remote_api.replace("http://", ""))
+				conn.request("GET", "/containers/{}/json".format(hostname))
+
+				docker_info_request = conn.getresponse()
+				if docker_info_request.status != 200:
 					L.warning("Could not call the Docker remote API at '{}'. Is it enabled?".format(remote_api))
 					return hostname
-			except requests.exceptions.ConnectionError as e:
+			except Exception as e:
 				L.warning("Connection to Docker Remote API could not be established due to '{}'.".format(e))
 				return hostname
 
-			docker_info = docker_info_request.json()
+			docker_info_data = docker_info_request.read()
+			docker_info = json.loads(docker_info_data.decode("utf-8"))
 			container_name = docker_info.get("Name")
 			if container_name is None:
 				L.warning("Docker Remote API does not provide container name. Using container ID as hostname.")
