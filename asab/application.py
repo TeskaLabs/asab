@@ -22,7 +22,7 @@ except ImportError:
 from .config import Config
 from .abc.singleton import Singleton
 from .log import Logging, _loop_exception_handler
-
+from .task import TaskService
 
 L = logging.getLogger(__name__)
 
@@ -102,6 +102,8 @@ class Application(metaclass=Singleton):
 
 		self.Modules = []
 		self.Services = {}
+
+		self.TaskService = TaskService(self)
 
 		# Setup ASAB API
 		if len(Config['asab:web']["listen"]) > 0:
