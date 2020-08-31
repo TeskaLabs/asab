@@ -9,9 +9,6 @@ import signal
 import platform
 import random
 
-import http.client
-import json
-
 try:
 	import daemon
 	import daemon.pidfile
@@ -55,7 +52,7 @@ class Application(metaclass=Singleton):
 		random.seed()
 
 		# Obtain HostName
-		self.HostName = self.load_hostname()
+		self.HostName = platform.node()
 
 		# Obtain the event loop
 		self.Loop = asyncio.get_event_loop()
@@ -105,6 +102,14 @@ class Application(metaclass=Singleton):
 
 		self.TaskService = TaskService(self)
 
+		# Check if the application is running in Docker,
+		# if so, add Docker service
+		if self._is_docker():
+			from .docker import Module
+			self.add_module(Module)
+			self.DockerService = self.get_service("asab.DockerService")
+			self.HostName = self.DockerService.load_hostname()
+
 		# Setup ASAB API
 		if len(Config['asab:web']["listen"]) > 0:
 			from asab.api import Module
@@ -118,43 +123,6 @@ class Application(metaclass=Singleton):
 				os.path.isfile('/proc/self/cgroup') and any('docker' in line for line in open('/proc/self/cgroup'))
 			)
 		)
-
-	def load_hostname(self):
-		hostname = platform.node()
-
-		remote_api = Config.get("general", "docker_remote_api")
-
-		if self._is_docker() and remote_api is not None and len(remote_api) != 0:
-			# In docker, hostname defaults to container ID
-			# It is necessary to use container name for better readability of the metrics
-			try:
-				if "https" in remote_api:
-					conn = http.client.HTTPSConnection(remote_api.replace("https://", ""))
-				else:
-					conn = http.client.HTTPConnection(remote_api.replace("http://", ""))
-				conn.request("GET", "/containers/{}/json".format(hostname))
-
-				docker_info_request = conn.getresponse()
-				if docker_info_request.status != 200:
-					L.warning("Could not call the Docker remote API at '{}'. Is it enabled?".format(remote_api))
-					return hostname
-			except Exception as e:
-				L.warning("Connection to Docker Remote API could not be established due to '{}'.".format(e))
-				return hostname
-
-			docker_info_data = docker_info_request.read()
-			docker_info = json.loads(docker_info_data.decode("utf-8"))
-			container_name = docker_info.get("Name")
-			if container_name is None:
-				L.warning("Docker Remote API does not provide container name. Using container ID as hostname.")
-				return hostname
-
-			# Store the container name in tags as host
-			if container_name.startswith("/"):
-				container_name = container_name[1:]
-			return "{}{}".format(Config.get("general", "docker_name_prefix"), container_name)
-
-		return hostname
 
 	def create_argument_parser(
 		self,
