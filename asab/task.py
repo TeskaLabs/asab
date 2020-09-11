@@ -22,7 +22,7 @@ class TaskService(asab.Service):
 	and if there was an exception, it will be printed to the log.
 	'''
 
-	def __init__(self, app, service_name="seacatpki.TaskService"):
+	def __init__(self, app, service_name="asab.TaskService"):
 		super().__init__(app, service_name)
 
 		self.NewTasks = []
