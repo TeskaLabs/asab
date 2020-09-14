@@ -65,7 +65,7 @@ class StorageService(StorageServiceABC):
 		if _id:
 			url = "{}{}/_doc/{}?refresh={}".format(self.ESURL, index, _id, self.Refresh)
 		else:
-			url = "{}{}?refresh={}".format(self.ESURL, index, self.Refresh)
+			url = "{}{}".format(self.ESURL, index)
 		async with self.session().request(method="DELETE", url=url) as resp:
 			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 			resp = await resp.json()
