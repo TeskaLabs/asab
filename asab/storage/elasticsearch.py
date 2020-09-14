@@ -63,9 +63,9 @@ class StorageService(StorageServiceABC):
 
 	async def delete(self, index, _id=None):
 		if _id:
-			url = "{}{}/_doc/{}".format(self.ESURL, index, _id)
+			url = "{}{}/_doc/{}?refresh={}".format(self.ESURL, index, _id, self.Refresh)
 		else:
-			url = "{}{}".format(self.ESURL, index)
+			url = "{}{}?refresh={}".format(self.ESURL, index, self.Refresh)
 		async with self.session().request(method="DELETE", url=url) as resp:
 			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 			resp = await resp.json()
