@@ -39,6 +39,7 @@ class Logging(object):
 					fmt=Config["logging:console"]["format"],
 					datefmt=Config["logging:console"]["datefmt"],
 					sd_id=Config["logging"]["sd_id"],
+					use_color=True
 				))
 				self.ConsoleHandler.setLevel(logging.DEBUG)
 				self.RootLogger.addHandler(self.ConsoleHandler)
@@ -186,11 +187,14 @@ class StructuredDataFormatter(logging.Formatter):
 	'''
 
 	empty_sd = ""
+	BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 
-	def __init__(self, facility=16, fmt=None, datefmt=None, style='%', sd_id='sd'):
+
+	def __init__(self, facility=16, fmt=None, datefmt=None, style='%', sd_id='sd', use_color: bool = False):
 		super().__init__(fmt, datefmt, style)
 		self.SD_id = sd_id
 		self.Facility = facility
+		self.UseColor = use_color
 
 
 	def format(self, record):
@@ -201,18 +205,32 @@ class StructuredDataFormatter(logging.Formatter):
 		record.struct_data = self.render_struct_data(record.__dict__.get("_struct_data"))
 
 		# The Priority value is calculated by first multiplying the Facility number by 8 and then adding the numerical value of the Severity.
-		if record.levelno > logging.DEBUG and record.levelno <= logging.INFO:
+		if record.levelno <= logging.DEBUG:
+			severity = 7  # Debug
+			color = self.BLUE
+		elif record.levelno <= logging.INFO:
 			severity = 6  # Informational
+			color = self.GREEN
 		elif record.levelno <= LOG_NOTICE:
 			severity = 5  # Notice
+			color = self.CYAN
 		elif record.levelno <= logging.WARNING:
 			severity = 4  # Warning
+			color = self.YELLOW
 		elif record.levelno <= logging.ERROR:
 			severity = 3  # Error
+			color = self.RED
 		elif record.levelno <= logging.CRITICAL:
 			severity = 2  # Critical
+			color = self.MAGENTA
 		else:
 			severity = 1  # Alert
+			color = self.WHITE
+
+		if self.UseColor:
+			levelname = record.levelname
+			levelname_color = _COLOR_SEQ % (30 + color) + levelname + _RESET_SEQ
+			record.levelname = levelname_color
 
 		record.priority = (self.Facility << 3) + severity
 		return super().format(record)
@@ -235,6 +253,7 @@ class StructuredDataFormatter(logging.Formatter):
 			print("ERROR when logging: {}".format(e), file=sys.stderr)
 			return str(ct)
 
+
 	def render_struct_data(self, struct_data):
 		'''
 		Return the string with structured data.
@@ -242,6 +261,7 @@ class StructuredDataFormatter(logging.Formatter):
 
 		if struct_data is None:
 			return self.empty_sd
+
 		else:
 			return "[{sd_id} {sd_params}] ".format(
 				sd_id=self.SD_id,
@@ -418,3 +438,8 @@ It implements a queue for decoupling logging from a networking. The networking i
 
 	def _enqueue(self, record):
 		self._queue.put(record)
+
+
+_RESET_SEQ = "\033[0m"
+_COLOR_SEQ = "\033[1;%dm"
+_BOLD_SEQ = "\033[1m"

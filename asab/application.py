@@ -18,7 +18,7 @@ except ImportError:
 
 from .config import Config
 from .abc.singleton import Singleton
-from .log import Logging, _loop_exception_handler
+from .log import Logging, _loop_exception_handler, LOG_NOTICE
 from .task import TaskService
 
 L = logging.getLogger(__name__)
@@ -291,7 +291,7 @@ class Application(metaclass=Singleton):
 			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
 
 		# Comence run-time and application main() function
-		L.info("Running ...")
+		L.log(LOG_NOTICE, "is ready.")
 		self._stop_event.clear()
 		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
 			[
@@ -309,7 +309,7 @@ class Application(metaclass=Singleton):
 		# TODO: Process pending_tasks tasks from above
 
 		# Comence exit-time
-		L.info("Exiting ...")
+		L.log(LOG_NOTICE, "is exiting ...")
 		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
 			[
 				self.finalize(),
