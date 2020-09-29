@@ -136,6 +136,9 @@ class ElasicSearchUpsertor(UpsertorABC):
 	async def _insert_noobjid(self):
 		setobj = {}
 
+		if self.Version is not None:
+			self.ModSet['_version'] = int(self.Version) + 1
+
 		if len(self.ModSet) > 0:
 			for k, v in self.ModSet.items():
 				setobj[k] = serialize(self.ModSet[k])
@@ -161,6 +164,9 @@ class ElasicSearchUpsertor(UpsertorABC):
 
 	async def _upsert(self):
 		upsertobj = {"doc": {}, "doc_as_upsert": True}
+
+		if self.Version is not None:
+			self.ModSet['_version'] = int(self.Version) + 1
 
 		if len(self.ModSet) > 0:
 			for k, v in self.ModSet.items():
