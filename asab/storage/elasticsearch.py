@@ -96,7 +96,7 @@ class StorageService(StorageServiceABC):
 		'''
 		Custom ElasticSearch method
 		'''
-		url = "{}{}/_search?size={}?version=true".format(self.ESURL, index, size)
+		url = "{}{}/_search?size={}&version=true".format(self.ESURL, index, size)
 		async with self.session().request(method="GET", url=url) as resp:
 			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 			return await resp.json()
