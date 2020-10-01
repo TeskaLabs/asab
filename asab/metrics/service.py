@@ -4,7 +4,7 @@ import asyncio
 
 import asab
 
-from .metrics import Metric, Counter, Gauge, DutyCycle
+from .metrics import Metric, Counter, EPSCounter, Gauge, DutyCycle
 from .memstor import MetricsMemstorTarget
 
 #
@@ -147,6 +147,21 @@ class MetricsService(asab.Service):
 		self._add_metric(dimension, m)
 		return m
 
+
+	def create_eps_counter(self, metric_name, tags=None, init_values=None, reset: bool = True):
+		dimension = metric_dimension(metric_name, tags)
+		if dimension in self.Metrics:
+			raise RuntimeError("Metric '{}' already present".format(dimension))
+
+		if tags is not None:
+			t = self.Tags.copy()
+			t.update(tags)
+		else:
+			t = self.Tags
+
+		m = EPSCounter(metric_name, tags=t, init_values=init_values, reset=reset)
+		self._add_metric(dimension, m)
+		return m
 
 
 	def create_duty_cycle(self, loop, metric_name, tags=None, init_values=None):
