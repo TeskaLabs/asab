@@ -104,6 +104,10 @@ class Counter(Metric):
 
 
 class EPSCounter(Counter):
+	"""
+	Event per Second Counter
+	Divides all values by delta time
+	"""
 
 	def __init__(self, name, tags, init_values=None, reset: bool = True):
 		super().__init__(name=name, tags=tags, init_values=init_values, reset=reset)
