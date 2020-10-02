@@ -1,4 +1,5 @@
 import abc
+import time
 
 
 class Metric(abc.ABC):
@@ -100,6 +101,37 @@ class Counter(Metric):
 		rest = super().rest_get()
 		rest['Values'] = self.Values
 		return rest
+
+
+class EPSCounter(Counter):
+	"""
+	Event per Second Counter
+	Divides all values by delta time
+	"""
+
+	def __init__(self, name, tags, init_values=None, reset: bool = True):
+		super().__init__(name=name, tags=tags, init_values=init_values, reset=reset)
+
+		# Using time library to avoid delay due to long synchronous operations
+		# which is important when calculating incoming events per second
+		self.LastTime = int(time.time())  # must be in seconds
+
+	def _calculate_eps(self):
+		eps_values = dict()
+		current_time = int(time.time())
+		time_difference = current_time - self.LastTime
+
+		for name, value in self.Values.items():
+			eps_values[name] = int(value / time_difference)
+
+		self.LastTime = current_time
+		return eps_values
+
+	def flush(self) -> dict:
+		ret = self._calculate_eps()
+		if self.Reset:
+			self.Values = self.Init.copy()
+		return ret
 
 
 class DutyCycle(Metric):
