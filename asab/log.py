@@ -309,11 +309,11 @@ class MacOSXSyslogFormatter(StructuredDataFormatter):
 
 class SyslogRFC3164Formatter(StructuredDataFormatter):
 	"""
-	It implements Syslog formatting for Mac OSX syslog (aka format ``3``).
+	Implementation of a legacy or BSD Syslog (RFC 3164) formatting (aka format ``3``).
 	"""
 
 	def __init__(self, fmt=None, datefmt=None, style='%', sd_id='sd'):
-		fmt = '<%(priority)s>%(asctime)s {app_name} {proc_id} %(levelname)s %(name)s %(struct_data)s%(message)s\000'.format(
+		fmt = '<%(priority)s>%(asctime)s {hostname} {app_name}[{proc_id}]:%(levelname)s %(name)s %(struct_data)s%(message)s\000'.format(
 			app_name=Config["logging"]["app_name"],
 			hostname=socket.gethostname(),
 			proc_id=os.getpid(),
