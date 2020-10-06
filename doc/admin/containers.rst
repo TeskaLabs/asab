@@ -12,7 +12,7 @@ ASAB in a LXC/LXD container
 
 .. code-block:: bash
 
-	$ lxc launch images:alpine/3.8 asab
+	$ lxc launch images:alpine/3.10 asab
 
 
 2. Swich into a container
@@ -31,15 +31,15 @@ ASAB in a LXC/LXD container
 	$ apk add --no-cache python3
 
 	$ python3 -m ensurepip
-	$ rm -r /usr/lib/python*/ensurepip
-	$ pip3 install --upgrade pip setuptools
 
 
 4. Deploy ASAB
 
 .. code-block:: bash
 
-	$ pip3 install asab
+	$ apk add --virtual .buildenv python3-dev gcc musl-dev git
+	$ pip3 install git+https://github.com/TeskaLabs/asab
+	$ apk del .buildenv
 
 
 5. Deploy dependencies
@@ -47,13 +47,6 @@ ASAB in a LXC/LXD container
 .. code-block:: bash
 
 	$ pip3 install python-daemon
-
-
-6. (Optionally if you want to use :py:mod:`asab.web` module) install aiohttp dependecy
-
-.. code-block:: bash
-
-	$ pip3 install aiohttp
 
 
 7. Use OpenRC to automatically start/stop ASAB application
