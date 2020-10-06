@@ -119,7 +119,7 @@ class EPSCounter(Counter):
 	def _calculate_eps(self):
 		eps_values = dict()
 		current_time = int(time.time())
-		time_difference = current_time - self.LastTime
+		time_difference = max(current_time - self.LastTime, 1)
 
 		for name, value in self.Values.items():
 			eps_values[name] = int(value / time_difference)
