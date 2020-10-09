@@ -92,7 +92,7 @@ class StorageService(StorageServiceABC):
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
 		return ElasicSearchUpsertor(self, index, obj_id, version)
 
-	async def list(self, index, size=10000):
+	async def list(self, index, _from=0, size=10000):
 		'''
 		Custom ElasticSearch method
 		'''
@@ -171,7 +171,8 @@ class ElasicSearchUpsertor(UpsertorABC):
 			for k, v in self.ModSet.items():
 				upsertobj["doc"][k] = serialize(self.ModSet[k])
 		url = "{}{}/_update/{}?refresh={}".format(self.Storage.ESURL, self.Collection, self.ObjId, self.Storage.Refresh)
-		async with self.Storage.session().request(method="POST", url=url, data=json.dumps(upsertobj), headers={'Content-Type': 'application/json'}) as resp:
+		async with self.Storage.session().request(method="POST", url=url, data=json.dumps(upsertobj),
+												  headers={'Content-Type': 'application/json'}) as resp:
 			assert resp.status == 200 or resp.status == 201, "Unexpected response code: {}".format(resp.status)
 			resp_json = await resp.json()
 			assert resp_json["result"] == "updated" or resp_json[
