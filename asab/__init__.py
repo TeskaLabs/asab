@@ -19,7 +19,7 @@ __all__ = (
 	'Application',
 	'Config',
 	'ConfigObject',
-	'Configurable,
+	'Configurable',
 	'LOG_NOTICE',
 	'PersistentDict',
 	'subscribe',
