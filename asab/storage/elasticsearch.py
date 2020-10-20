@@ -99,7 +99,20 @@ class StorageService(StorageServiceABC):
 		url = "{}{}/_search?size={}&from={}&version=true".format(self.ESURL, index, size, _from)
 		async with self.session().request(method="GET", url=url) as resp:
 			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			return await resp.json()
+			content = await resp.json()
+
+		return content
+
+	async def get_total_count(self, index):
+		'''
+		Custom ElasticSearch method
+		'''
+
+		count_url = "{}{}/_count".format(self.ESURL, index)
+		async with self.session().request(method="GET", url=count_url) as resp:
+			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+			total_count = await resp.json()
+		return total_count
 
 	async def indices(self, search_string=None):
 		'''
