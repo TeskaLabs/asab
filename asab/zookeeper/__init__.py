@@ -1,6 +1,6 @@
 from .service import ZooKeeperService
 from ..abc.module import Module
-
+from .container import ZooKeeperContainer
 
 class Module(Module):
 
