@@ -92,14 +92,27 @@ class StorageService(StorageServiceABC):
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
 		return ElasicSearchUpsertor(self, index, obj_id, version)
 
-	async def list(self, index, size=10000):
+	async def list(self, index, _from=0, size=10000):
 		'''
 		Custom ElasticSearch method
 		'''
-		url = "{}{}/_search?size={}&version=true".format(self.ESURL, index, size)
+		url = "{}{}/_search?size={}&from={}&version=true".format(self.ESURL, index, size, _from)
 		async with self.session().request(method="GET", url=url) as resp:
 			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			return await resp.json()
+			content = await resp.json()
+
+		return content
+
+	async def count(self, index):
+		'''
+		Custom ElasticSearch method
+		'''
+
+		count_url = "{}{}/_count".format(self.ESURL, index)
+		async with self.session().request(method="GET", url=count_url) as resp:
+			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+			total_count = await resp.json()
+		return total_count
 
 	async def indices(self, search_string=None):
 		'''
@@ -171,7 +184,8 @@ class ElasicSearchUpsertor(UpsertorABC):
 			for k, v in self.ModSet.items():
 				upsertobj["doc"][k] = serialize(self.ModSet[k])
 		url = "{}{}/_update/{}?refresh={}".format(self.Storage.ESURL, self.Collection, self.ObjId, self.Storage.Refresh)
-		async with self.Storage.session().request(method="POST", url=url, data=json.dumps(upsertobj), headers={'Content-Type': 'application/json'}) as resp:
+		async with self.Storage.session().request(method="POST", url=url, data=json.dumps(upsertobj),
+												  headers={'Content-Type': 'application/json'}) as resp:
 			assert resp.status == 200 or resp.status == 201, "Unexpected response code: {}".format(resp.status)
 			resp_json = await resp.json()
 			assert resp_json["result"] == "updated" or resp_json[
