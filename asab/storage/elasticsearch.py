@@ -103,7 +103,7 @@ class StorageService(StorageServiceABC):
 
 		return content
 
-	async def get_total_count(self, index):
+	async def count(self, index):
 		'''
 		Custom ElasticSearch method
 		'''
