@@ -20,6 +20,7 @@ from .config import Config
 from .abc.singleton import Singleton
 from .log import Logging, _loop_exception_handler, LOG_NOTICE
 from .task import TaskService
+from .docker import running_in_docker
 
 L = logging.getLogger(__name__)
 
@@ -104,7 +105,7 @@ class Application(metaclass=Singleton):
 
 		# Check if the application is running in Docker,
 		# if so, add Docker service
-		if self._is_docker():
+		if running_in_docker():
 			from .docker import Module
 			self.add_module(Module)
 			self.DockerService = self.get_service("asab.DockerService")
@@ -117,12 +118,6 @@ class Application(metaclass=Singleton):
 
 		L.info("Initializing ...")
 
-	def _is_docker(self):
-		return (
-			os.path.exists('/.dockerenv') or (
-				os.path.isfile('/proc/self/cgroup') and any('docker' in line for line in open('/proc/self/cgroup'))
-			)
-		)
 
 	def create_argument_parser(
 		self,

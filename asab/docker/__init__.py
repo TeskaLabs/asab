@@ -1,4 +1,5 @@
 import logging
+import os
 
 from ..abc.module import Module
 from ..config import Config
@@ -13,14 +14,23 @@ L = logging.getLogger(__name__)
 
 Config.add_defaults(
 	{
-		'general': {
-			# Used for detection of container name,
-			# example: /var/run/docker.sock
-			'docker_socket': '',
-			'docker_name_prefix': '',
+		'asab:docker': {
+			# Docker API or socket
+			# Could be `http://myHost:2375` or `/var/run/docker.sock`
+			'socket': '',
+			'name_prefix': '',
 		}
 	}
 )
+
+
+def running_in_docker():
+	return True
+	return (
+		os.path.exists('/.dockerenv') or (
+			os.path.isfile('/proc/self/cgroup') and any('docker' in line for line in open('/proc/self/cgroup'))
+		)
+	)
 
 
 class Module(Module):
