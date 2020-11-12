@@ -109,12 +109,12 @@ To do so:
 
 
 Then in the ASAB application's configuration, provide
-the Docker Remote API URL in `docker_remote_api` configuration option:
+the Docker Socket path in `docker_socket` configuration option:
 
 .. code-block:: bash
 
 	[general]
-	docker_remote_api=http://<YOUR_HOST_COMPUTER>:2375
+	docker_socket=<YOUR_DOCKER_SOCKET_FILE>
 
 Thus, the metric service as well as log manager can use the container
 name as hostname instead of container ID, which provides better readability

@@ -1,8 +1,7 @@
 import platform
 import logging
 
-import http.client
-import json
+import socket
 
 from ..abc.service import Service
 from ..config import Config
@@ -22,36 +21,37 @@ class DockerService(Service):
 	def load_hostname(self):
 		hostname = platform.node()
 
-		remote_api = Config.get("general", "docker_remote_api")
+		docker_socket = Config.get("general", "docker_socket")
 
-		if remote_api is not None and len(remote_api) != 0:
+		if docker_socket is not None and len(docker_socket) != 0:
+
 			# In docker, hostname defaults to container ID
 			# It is necessary to use container name for better readability of the metrics
 			try:
-				if "https" in remote_api:
-					conn = http.client.HTTPSConnection(remote_api.replace("https://", ""))
-				else:
-					conn = http.client.HTTPConnection(remote_api.replace("http://", ""))
-				conn.request("GET", "/containers/{}/json".format(hostname))
+				sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+				sock.connect(docker_socket)
+				sock.sendall(
+					"GET /v1.19/containers/{}/json HTTP/1.1\r\nHost: /var/run/docker.sock\r\n\r\n".format(
+						hostname
+					).encode("utf-8")
+				)
 
-				docker_info_request = conn.getresponse()
-				if docker_info_request.status != 200:
-					L.warning("Could not call the Docker remote API at '{}'. Is it enabled?".format(remote_api))
-					return hostname
+				socket_response = ""
+				sock.settimeout(5.0)
+				while "\n0" not in socket_response:
+					socket_response += sock.recv(1024).decode("utf-8")
+
+				# Extract the name
+				name_split = socket_response.split("\"Name\":\"")
+				if len(name_split) > 1:
+					name = name_split[1].split("\"")[0].replace("/", "")
+
+					# Store the container name in tags as host
+					return "{}{}".format(Config.get("general", "docker_name_prefix"), name)
+
 			except Exception as e:
 				L.warning("Connection to Docker Remote API could not be established due to '{}'.".format(e))
 				return hostname
 
-			docker_info_data = docker_info_request.read()
-			docker_info = json.loads(docker_info_data.decode("utf-8"))
-			container_name = docker_info.get("Name")
-			if container_name is None:
-				L.warning("Docker Remote API does not provide container name. Using container ID as hostname.")
-				return hostname
-
-			# Store the container name in tags as host
-			if container_name.startswith("/"):
-				container_name = container_name[1:]
-			return "{}{}".format(Config.get("general", "docker_name_prefix"), container_name)
-
+		L.warning("Docker Socket does not provide container name. Using container ID as hostname.")
 		return hostname
