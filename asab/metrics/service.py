@@ -54,6 +54,7 @@ class MetricsService(asab.Service):
 		self.MemstorTarget = MetricsMemstorTarget(self, 'asab:metrics:memory')
 		self.Targets.append(self.MemstorTarget)
 
+
 	async def finalize(self, app):
 		await self._on_flushing_event("finalize!")
 
