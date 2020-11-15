@@ -66,6 +66,7 @@ class MetricsInfluxDB(asab.ConfigObject):
 		try:
 			self.ProactorService = svc.App.get_service('asab.ProactorService')
 		except KeyError:
+			L.debug("Proactor service not found but recommende for InfluxDB, adjust your application init time.")
 			self.ProactorService = None
 
 
