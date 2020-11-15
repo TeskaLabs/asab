@@ -25,7 +25,6 @@ Config.add_defaults(
 
 
 def running_in_docker():
-	return True
 	return (
 		os.path.exists('/.dockerenv') or (
 			os.path.isfile('/proc/self/cgroup') and any('docker' in line for line in open('/proc/self/cgroup'))
