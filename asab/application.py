@@ -75,14 +75,21 @@ class Application(metaclass=Singleton):
 		# Adding a handler to listen to the interrupt event
 		if platform.system() == "Windows":
 
-			# Windows win32api import
-			import win32api
+			try:
 
-			def handler(type):
-				self.stop()
-				return True
+				# Windows win32api import
+				import win32api
 
-			win32api.SetConsoleCtrlHandler(handler, True)
+				def handler(type):
+					self.stop()
+					return True
+
+				win32api.SetConsoleCtrlHandler(handler, True)
+
+			except ImportError as e:
+				L.warning("win32api module could not be loaded, because '{}'".format(
+					e
+				))
 
 		else:
 

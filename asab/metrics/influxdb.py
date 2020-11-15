@@ -59,12 +59,32 @@ class MetricsInfluxDB(asab.ConfigObject):
 		if password is not None and len(password) > 0:
 			self.WriteURL += '&p={}'.format(urllib.parse.quote(password, safe=''))
 
+		# Proactor service is used for alternative delivery of the metrics into the InfluxDB
+		# It is handly when a main loop can become very busy
+		#
+		# In order to active this feature, the Metric service has to be initialized after Proactor service
+		try:
+			self.ProactorService = svc.App.get_service('asab.ProactorService')
+		except KeyError:
+			self.ProactorService = None
+
+
 	async def process(self, now, mlist):
 
 		rb = influxdb_format(now, mlist)
+
+		if self.ProactorService is not None:
+			self.ProactorService.Executor.submit(self._worker_upload, now, mlist, rb)
+			return
 
 		async with aiohttp.ClientSession() as session:
 			async with session.post(self.WriteURL, data=rb) as resp:
 				response = await resp.text()
 				if resp.status != 204:
 					L.warning("Error when sending metrics to Influx: {}\n{}".format(resp.status, response))
+
+
+	async def _worker_upload(self, now, mlist, rb):
+		# TODO: Synchronous HTTP upload (using python std library, not requests)
+		# WARNING: Cannot do logging here ...
+		pass
