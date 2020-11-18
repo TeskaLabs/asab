@@ -63,10 +63,11 @@ class MetricsInfluxDB(asab.ConfigObject):
 		# It is handly when a main loop can become very busy
 		#
 		# In order to active this feature, the Metric service has to be initialized after Proactor service
-		try:
-			self.ProactorService = svc.App.get_service('asab.ProactorService')
-		except KeyError:
-			self.ProactorService = None
+		# try:
+		# 	self.ProactorService = svc.App.get_service('asab.ProactorService')
+		# except KeyError:
+		# 	self.ProactorService = None
+		self.ProactorService = None
 
 
 	async def process(self, now, mlist):
