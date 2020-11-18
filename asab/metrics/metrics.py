@@ -109,29 +109,35 @@ class EPSCounter(Counter):
 	Divides all values by delta time
 	"""
 
-	def __init__(self, name, tags, init_values=None, reset: bool = True):
-		super().__init__(name=name, tags=tags, init_values=init_values, reset=reset)
+	def __init__(self, name, tags, init_values=None):
+		super().__init__(name=name, tags=tags, init_values=init_values, reset=True)
 
 		# Using time library to avoid delay due to long synchronous operations
 		# which is important when calculating incoming events per second
-		self.LastTime = int(time.time())  # must be in seconds
+		self.LastTime = time.time()  # must be in seconds
 
-	def _calculate_eps(self):
-		eps_values = dict()
-		current_time = int(time.time())
-		time_difference = max(current_time - self.LastTime, 1)
+	def _calculate(self):
+		current_time = time.time()
+		td = current_time - self.LastTime
+		if td < 0:
+			return None
 
-		for name, value in self.Values.items():
-			eps_values[name] = int(value / time_difference)
+		return {
+			name: value / td
+			for name, value in self.Values.items()
+		}
 
-		self.LastTime = current_time
-		return eps_values
 
 	def flush(self) -> dict:
-		ret = self._calculate_eps()
+		values = self._calculate()
+		if values is None:
+			return None
+
 		if self.Reset:
+			self.LastTime = time.time()
 			self.Values = self.Init.copy()
-		return ret
+
+		return values
 
 
 class DutyCycle(Metric):

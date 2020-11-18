@@ -149,7 +149,7 @@ class MetricsService(asab.Service):
 		return m
 
 
-	def create_eps_counter(self, metric_name, tags=None, init_values=None, reset: bool = True):
+	def create_eps_counter(self, metric_name, tags=None, init_values=None):
 		dimension = metric_dimension(metric_name, tags)
 		if dimension in self.Metrics:
 			raise RuntimeError("Metric '{}' already present".format(dimension))
@@ -160,7 +160,7 @@ class MetricsService(asab.Service):
 		else:
 			t = self.Tags
 
-		m = EPSCounter(metric_name, tags=t, init_values=init_values, reset=reset)
+		m = EPSCounter(metric_name, tags=t, init_values=init_values)
 		self._add_metric(dimension, m)
 		return m
 
