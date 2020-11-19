@@ -36,7 +36,12 @@ class DockerService(Service):
 				else:
 					conn = HTTPUnixConnection(remote_api)
 
-				conn.request("GET", "/containers/{}/json".format(hostname))
+				# TODO: Make more elegant
+				with open("/proc/self/cgroup", "r") as cgroup_file:
+					cgroup = cgroup_file.read()
+				conn.request("GET", "/containers/{}/json".format(
+					cgroup.split("\n")[0].split("/docker/")[1]
+				))
 
 				docker_info_request = conn.getresponse()
 				if docker_info_request.status != 200:
