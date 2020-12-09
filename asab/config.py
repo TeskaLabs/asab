@@ -1,6 +1,7 @@
 import os
 import sys
 import glob
+import asyncio
 import logging
 import inspect
 import platform
@@ -124,9 +125,16 @@ class ConfigParser(configparser.ConfigParser):
 			sep = os.pathsep
 
 		for include_glob in includes.split(sep):
-			include_glob = os.path.expandvars(include_glob.strip())
+			include_glob = include_glob.strip()
+
 			if len(include_glob) == 0:
 				continue
+
+			if include_glob.startswith('zookeeper://'):
+				self._include_from_zookeeper(include_glob)
+				continue
+
+			include_glob = os.path.expandvars(include_glob.strip())
 
 			for include in glob.glob(include_glob):
 				include = os.path.abspath(include)
@@ -147,6 +155,7 @@ class ConfigParser(configparser.ConfigParser):
 
 				includes = self.get('general', 'include', fallback='')
 				self._traverse_includes(includes, os.path.dirname(include_glob))
+
 
 	def _load(self):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
@@ -173,6 +182,23 @@ class ConfigParser(configparser.ConfigParser):
 		self.add_defaults(ConfigParser._default_values)
 
 		del self._load_dir_stack
+
+
+	def _include_from_zookeeper(self, zkurl):
+		import aiozk
+
+		loop = asyncio.get_event_loop()
+
+		async def download_from_zookeeper():
+			zk = aiozk.ZKClient('server1:2181,server2:2181,server3:2181')
+			await zk.start()
+			data = await zk.get_data('/greeting/to/world')
+			self.read_string(data)
+			await zk.close()
+			return data
+
+		x = loop.run_until_complete(download_from_zookeeper())
+		print("ret:", x)
 
 
 class _Interpolation(configparser.ExtendedInterpolation):
