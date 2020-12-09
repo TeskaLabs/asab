@@ -190,7 +190,11 @@ class ConfigParser(configparser.ConfigParser):
 		loop = asyncio.get_event_loop()
 
 		async def download_from_zookeeper():
-			zk = aiozk.ZKClient('server1:2181,server2:2181,server3:2181')
+			zk = aiozk.ZKClient(
+				'server1:2181,server2:2181,server3:2181'
+				allow_read_only=True,
+				read_timeout=60,  # seconds
+			)
 			await zk.start()
 			data = await zk.get_data('/greeting/to/world')
 			self.read_string(data)
