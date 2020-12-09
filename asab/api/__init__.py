@@ -11,4 +11,4 @@ class Module(asab.Module):
 		Module = asab.web.Module
 		app.add_module(Module)
 
-		self.service = ApiService(app, "asab.ApiService")
+		self.Service = ApiService(app, "asab.ApiService")

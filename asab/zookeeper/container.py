@@ -31,7 +31,7 @@ class ZooKeeperContainer(ConfigObject):
 	async def finalize(self, app):
 		await self.ZooKeeper.close()
 
-	async def advertise(self, data, encoding="utf-8"):
+	async def advertise(self, data, path, encoding="utf-8"):
 		if isinstance(data, dict):
 			data = json.dumps(data).encode(encoding)
 		elif isinstance(data, str):
@@ -42,7 +42,7 @@ class ZooKeeperContainer(ConfigObject):
 			data = data()
 
 		return await self.ZooKeeper.create(
-			"{}/i".format(self.ZooKeeperPath),
+			"{}/{}".format(self.ZooKeeperPath, path),
 			data=data,
 			sequential=True,
 			ephemeral=True

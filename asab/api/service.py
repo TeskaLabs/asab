@@ -19,8 +19,32 @@ class ApiService(asab.Service):
 		super().__init__(app, service_name)
 
 		listen = asab.Config["asab:web"]["listen"]
-		self.Container = self._initialize_web(app, listen)
+		self.WebContainer = self._initialize_web(app, listen)
 
+		if len(asab.Config["asab:zookeeper"]["urls"]) > 0:
+			self.ZkContainer = self._initialize_zookeeper(app)
+		else:
+			self.ZkContainer = None
+
+		# Backward compatability
+		self.Container = self.WebContainer
+
+
+	def _build_zookeeper_adv_data(self, app):
+		adv_data = {
+			'hostname': app.HostName,
+		}
+		if self.WebContainer is not None:
+			adv_data['web'] = self.WebContainer.Addresses
+		return adv_data
+
+	async def initialize(self, app):
+		if self.ZkContainer is not None:
+			await self.ZkContainer.ZooKeeper.ensure_path(self.ZkContainer.ZooKeeperPath + '/run')
+			await self.ZkContainer.advertise(
+				data=self._build_zookeeper_adv_data(app),
+				path="run/a.",
+			)
 
 	def _initialize_web(self, app, listen):
 		websvc = app.get_service("asab.WebService")
@@ -65,3 +89,15 @@ class ApiService(asab.Service):
 				else:
 					result[section][option] = value
 		return asab.web.rest.json_response(request, result)
+
+
+	def _initialize_zookeeper(self, app):
+		from ..zookeeper import Module as zkModule, ZooKeeperContainer
+		app.add_module(zkModule)
+
+		container = ZooKeeperContainer(app, "asab:zookeeper")
+
+		zksvc = app.get_service("asab.ZooKeeperService")
+		zksvc.register_container(container)
+
+		return container
