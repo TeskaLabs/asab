@@ -88,7 +88,11 @@ class TenantService(Service):
 	def get_tenants(self):
 		tenants = []
 		for tenant in self.Tenants.values():
-			tenants.append(tenant.to_dict())
+			# TODO: Unify (ids vs. tenants_url)
+			if isinstance(tenant, dict):
+				tenants.append(tenant)
+			else:
+				tenants.append(tenant.to_dict())
 		return tenants
 
 
