@@ -131,6 +131,7 @@ class ConfigParser(configparser.ConfigParser):
 				continue
 
 			if include_glob.startswith('zookeeper://'):
+			#	removexoo = include_glob[12:]
 				self._include_from_zookeeper(include_glob)
 				continue
 
@@ -186,23 +187,33 @@ class ConfigParser(configparser.ConfigParser):
 
 	def _include_from_zookeeper(self, zkurl):
 		import aiozk
-
+		from urllib.parse import urlparse
 		loop = asyncio.get_event_loop()
+
+		url_pieces = urlparse(zkurl)
+		url_path = url_pieces.path
+		url_netloc = url_pieces.netloc
 
 		async def download_from_zookeeper():
 			zk = aiozk.ZKClient(
-				'server1:2181,server2:2181,server3:2181'
+				url_netloc,
 				allow_read_only=True,
 				read_timeout=60,  # seconds
 			)
 			await zk.start()
-			data = await zk.get_data('/greeting/to/world')
-			self.read_string(data)
+			data = await zk.get_data(url_path)
+			encodeconfig = str(data,'utf-8')
+			#print("THIS IS ENCODED DATA" + encodeconfig)
+			self.read_string(encodeconfig)
 			await zk.close()
-			return data
 
-		x = loop.run_until_complete(download_from_zookeeper())
-		print("ret:", x)
+
+		loop.run_until_complete(download_from_zookeeper())
+		print(self["connection:SSHConnection2"]["host"])
+		sections = self.sections()
+		#opt = self.options(sections)
+		print(sections)
+		#print("This is options " + opt)
 
 
 class _Interpolation(configparser.ExtendedInterpolation):
