@@ -131,7 +131,6 @@ class ConfigParser(configparser.ConfigParser):
 				continue
 
 			if include_glob.startswith('zookeeper://'):
-			#	removexoo = include_glob[12:]
 				self._include_from_zookeeper(include_glob)
 				continue
 
@@ -190,6 +189,7 @@ class ConfigParser(configparser.ConfigParser):
 		from urllib.parse import urlparse
 
 		loop = asyncio.get_event_loop()
+
 		#parse include value into hostname and path
 		url_pieces = urlparse(zkurl)
 		url_path = url_pieces.path
@@ -206,16 +206,11 @@ class ConfigParser(configparser.ConfigParser):
 			data = await zk.get_data(url_path)
 			#convert bytes to string
 			encode_config = str(data,'utf-8')
-
-			#print("THIS IS ENCODED DATA" + encodeconfig)
 			self.read_string(encode_config)
 			await zk.close()
 
 
 		loop.run_until_complete(download_from_zookeeper())
-		print(self["connection:SSHConnection2"]["host"])
-		sections = self.sections()
-		print(sections)
 
 
 class _Interpolation(configparser.ExtendedInterpolation):
