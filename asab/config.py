@@ -188,8 +188,9 @@ class ConfigParser(configparser.ConfigParser):
 	def _include_from_zookeeper(self, zkurl):
 		import aiozk
 		from urllib.parse import urlparse
-		loop = asyncio.get_event_loop()
 
+		loop = asyncio.get_event_loop()
+		#parse include value into hostname and path
 		url_pieces = urlparse(zkurl)
 		url_path = url_pieces.path
 		url_netloc = url_pieces.netloc
@@ -201,19 +202,20 @@ class ConfigParser(configparser.ConfigParser):
 				read_timeout=60,  # seconds
 			)
 			await zk.start()
+
 			data = await zk.get_data(url_path)
-			encodeconfig = str(data,'utf-8')
+			#convert bytes to string
+			encode_config = str(data,'utf-8')
+
 			#print("THIS IS ENCODED DATA" + encodeconfig)
-			self.read_string(encodeconfig)
+			self.read_string(encode_config)
 			await zk.close()
 
 
 		loop.run_until_complete(download_from_zookeeper())
 		print(self["connection:SSHConnection2"]["host"])
 		sections = self.sections()
-		#opt = self.options(sections)
 		print(sections)
-		#print("This is options " + opt)
 
 
 class _Interpolation(configparser.ExtendedInterpolation):
