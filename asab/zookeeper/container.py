@@ -13,7 +13,11 @@ class ZooKeeperContainer(ConfigObject):
 	"""
 
 	ConfigDefaults = {
-		"urls": "zookeeper:12181",
+		# Server list to which ZooKeeper Client tries connecting.
+		# Specify a comma (,) separated server list.
+		# A server is defined as address:port format.
+		"servers": "zookeeper:12181",
+
 		"path": "/asab",
 	}
 
@@ -21,7 +25,7 @@ class ZooKeeperContainer(ConfigObject):
 		super().__init__(config_section_name=config_section_name, config=config)
 		self.App = app
 		self.ConfigSectionName = config_section_name
-		self.ZooKeeper = aiozk.ZKClient(self.Config["urls"])
+		self.ZooKeeper = aiozk.ZKClient(self.Config["servers"])
 		self.ZooKeeperPath = self.Config["path"]
 
 	async def initialize(self, app):
