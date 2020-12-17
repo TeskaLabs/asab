@@ -228,7 +228,6 @@ class ConfigParser(configparser.ConfigParser):
 				encode_config = str(data,'utf-8')
 				self.read_string(encode_config)
 				await zk.close()
-				return  data
 			except Exception as e:
 				L.warning("Connection to zookeeper could not be established: '{}'.".format(e))
 				sys.exit(1)
