@@ -6,6 +6,7 @@ import logging
 import inspect
 import platform
 import configparser
+from urllib.parse import urlparse , urlunparse
 from collections.abc import MutableMapping
 
 
@@ -118,7 +119,6 @@ class ConfigParser(configparser.ConfigParser):
 
 	def _traverse_includes(self, includes, this_dir):
 		""" Reads included config files. Supports nested including. """
-
 		if '\n' in includes:
 			sep = '\n'
 		else:
@@ -130,9 +130,14 @@ class ConfigParser(configparser.ConfigParser):
 			if len(include_glob) == 0:
 				continue
 
-			if include_glob.startswith('zookeeper://'):
-				self._include_from_zookeeper(include_glob)
-				continue
+			if include_glob.startswith("zookeeper"):
+
+				if include_glob.rfind("//") == 10:
+					self._include_from_zookeeper(include_glob)
+
+				else:
+					get_url = self._from_include_build_url(include_glob)
+					self._include_from_zookeeper(get_url)
 
 			include_glob = os.path.expandvars(include_glob.strip())
 
@@ -183,35 +188,52 @@ class ConfigParser(configparser.ConfigParser):
 
 		del self._load_dir_stack
 
+	def _from_include_build_url(self, purl):
+
+		parse_include = urlparse(purl)
+		url_path = parse_include.path
+		url_scheme = parse_include.scheme
+		url_netloc = self["asab.zookeeper"]["url"]
+
+		if purl.rfind("///") == 10:
+			url_comp = (url_scheme, url_netloc, url_path, '', '', '')
+
+		elif purl.rfind(":.") == 9:
+			new_url_path = self["asab.zookeeper"]["path"] + url_path[1:]
+			url_comp = (url_scheme, url_netloc, new_url_path, '', '', '')
+
+		#unparse  components into proper URL
+		url_built = urlunparse(url_comp)
+		return  url_built
 
 	def _include_from_zookeeper(self, zkurl):
 		import aiozk
-		from urllib.parse import urlparse
 
 		loop = asyncio.get_event_loop()
-
 		#parse include value into hostname and path
 		url_pieces = urlparse(zkurl)
 		url_path = url_pieces.path
 		url_netloc = url_pieces.netloc
 
 		async def download_from_zookeeper():
-			zk = aiozk.ZKClient(
-				url_netloc,
-				allow_read_only=True,
-				read_timeout=60,  # seconds
-			)
-			await zk.start()
-
-			data = await zk.get_data(url_path)
-			#convert bytes to string
-			encode_config = str(data,'utf-8')
-			self.read_string(encode_config)
-			await zk.close()
-
+			try:
+				zk = aiozk.ZKClient(
+					url_netloc,
+					allow_read_only=True,
+					read_timeout=60,  # seconds #
+			   	)
+				await zk.start()
+				data = await zk.get_data(url_path)
+				#convert bytes to string
+				encode_config = str(data,'utf-8')
+				self.read_string(encode_config)
+				await zk.close()
+				return  data
+			except Exception as e:
+				L.warning("Connection to zookeeper could not be established: '{}'.".format(e))
+				sys.exit(1)
 
 		loop.run_until_complete(download_from_zookeeper())
-
 
 class _Interpolation(configparser.ExtendedInterpolation):
 	"""Interpolation which expands environment variables in values."""
