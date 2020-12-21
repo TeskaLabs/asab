@@ -14,13 +14,13 @@ class ZooKeeperService(Service):
 	"""
 
 	Config.add_defaults({
-		"zookeeper": {  # create a default container, also ensures backward compatibility
-			"urls": "",  # zookeeper:12181
+		"asab:zookeeper": {  # create a default container, also ensures backward compatibility
+			"servers": "",  # zookeeper:12181
 			"path": "",  # /asab
 		}
 	})
 
-	def __init__(self, app, service_name, config_section="zookeeper"):
+	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 		self.App = app
 		self.DefaultContainer = None
@@ -30,9 +30,9 @@ class ZooKeeperService(Service):
 	async def initialize(self, app):
 		# Create a default container
 		# Default container ensures backward compatibility
-		urls = Config["zookeeper"]["urls"]
-		if len(urls) > 0:
-			self.DefaultContainer = ZooKeeperContainer(app, "zookeeper")
+		servers = Config["asab:zookeeper"]["servers"]
+		if len(servers) > 0:
+			self.DefaultContainer = ZooKeeperContainer(app, "asab:zookeeper")
 			await self.DefaultContainer.initialize(app)
 
 	async def finalize(self, app):

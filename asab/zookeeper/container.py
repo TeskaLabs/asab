@@ -13,7 +13,7 @@ class ZooKeeperContainer(ConfigObject):
 	"""
 
 	ConfigDefaults = {
-		"urls": "zookeeper:12181",
+		"servers": "zookeeper:12181",
 		"path": "/asab",
 	}
 
@@ -21,7 +21,7 @@ class ZooKeeperContainer(ConfigObject):
 		super().__init__(config_section_name=config_section_name, config=config)
 		self.App = app
 		self.ConfigSectionName = config_section_name
-		self.ZooKeeper = aiozk.ZKClient(self.Config["urls"])
+		self.ZooKeeper = aiozk.ZKClient(self.Config["servers"])
 		self.ZooKeeperPath = self.Config["path"]
 
 	async def initialize(self, app):
