@@ -20,7 +20,7 @@ class ZooKeeperService(Service):
 		}
 	})
 
-	def __init__(self, app, service_name, config_section="zookeeper"):
+	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 		self.App = app
 		self.DefaultContainer = None
