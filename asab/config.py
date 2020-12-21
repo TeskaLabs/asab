@@ -131,13 +131,7 @@ class ConfigParser(configparser.ConfigParser):
 				continue
 
 			if include_glob.startswith("zookeeper"):
-
-				if include_glob.rfind("//") == 10:
-					self._include_from_zookeeper(include_glob)
-
-				else:
-					get_url = self._from_include_build_url(include_glob)
-					self._include_from_zookeeper(get_url)
+				self._include_from_zookeeper(include_glob)
 
 			include_glob = os.path.expandvars(include_glob.strip())
 
@@ -188,24 +182,6 @@ class ConfigParser(configparser.ConfigParser):
 
 		del self._load_dir_stack
 
-	def _from_include_build_url(self, purl):
-
-		parse_include = urlparse(purl)
-		url_path = parse_include.path
-		url_scheme = parse_include.scheme
-		url_netloc = self["asab.zookeeper"]["url"]
-
-		if purl.rfind("///") == 10:
-			url_comp = (url_scheme, url_netloc, url_path, '', '', '')
-
-		elif purl.rfind(":.") == 9:
-			new_url_path = self["asab.zookeeper"]["path"] + url_path[1:]
-			url_comp = (url_scheme, url_netloc, new_url_path, '', '', '')
-
-		#unparse  components into proper URL
-		url_built = urlunparse(url_comp)
-		return  url_built
-
 	def _include_from_zookeeper(self, zkurl):
 		import aiozk
 
@@ -214,6 +190,12 @@ class ConfigParser(configparser.ConfigParser):
 		url_pieces = urlparse(zkurl)
 		url_path = url_pieces.path
 		url_netloc = url_pieces.netloc
+
+		if not url_netloc:
+			url_netloc = self["asab:zookeeper"]["servers"]
+
+		if url_path.startswith("./"):
+			url_path = self["asab:zookeeper"]["path"] + url_path[1:]
 
 		async def download_from_zookeeper():
 			try:
