@@ -181,10 +181,12 @@ class ConfigParser(configparser.ConfigParser):
 
 		del self._load_dir_stack
 
+
 	def _include_from_zookeeper(self, zkurl):
 		import aiozk
 
 		loop = asyncio.get_event_loop()
+
 		#parse include value into hostname and path
 		url_pieces = urlparse(zkurl)
 		url_path = url_pieces.path
@@ -217,10 +219,11 @@ class ConfigParser(configparser.ConfigParser):
 				# Re-enable logging output
 				logging.disable(logging.NOTSET)
 			except Exception as e:
-				L.warning("Failed to obtain configuration from zookeeper server(s):".format(e))
+				L.warning("Failed to obtain configuration from zookeeper server(s): '{}'.".format(e))
 				sys.exit(1)
 
 		loop.run_until_complete(download_from_zookeeper())
+
 
 class _Interpolation(configparser.ExtendedInterpolation):
 	"""Interpolation which expands environment variables in values."""
