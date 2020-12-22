@@ -6,9 +6,8 @@ import logging
 import inspect
 import platform
 import configparser
-from urllib.parse import urlparse , urlunparse
+from urllib.parse import urlparse
 from collections.abc import MutableMapping
-
 
 L = logging.getLogger(__name__)
 
@@ -199,6 +198,8 @@ class ConfigParser(configparser.ConfigParser):
 
 		async def download_from_zookeeper():
 			try:
+				root_logger = logging.getLogger()
+				root_logger.disabled = True
 				zk = aiozk.ZKClient(
 					url_netloc,
 					allow_read_only=True,
@@ -209,9 +210,14 @@ class ConfigParser(configparser.ConfigParser):
 				#convert bytes to string
 				encode_config = str(data,'utf-8')
 				self.read_string(encode_config)
+
+				#Supress logging output temorarily
+				logging.disable(logging.CRITICAL)
 				await zk.close()
+				# Re-enable logging output
+				logging.disable(logging.NOTSET)
 			except Exception as e:
-				L.warning("Connection to zookeeper could not be established: '{}'.".format(e))
+				L.warning("Failed to obtain configuration from zookeeper server(s):".format(e))
 				sys.exit(1)
 
 		loop.run_until_complete(download_from_zookeeper())
