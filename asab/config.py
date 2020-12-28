@@ -1,5 +1,4 @@
 import os
-import sys
 import glob
 import asyncio
 import logging
@@ -8,6 +7,8 @@ import platform
 import configparser
 from urllib.parse import urlparse
 from collections.abc import MutableMapping
+import sys, io
+
 
 L = logging.getLogger(__name__)
 
@@ -157,8 +158,8 @@ class ConfigParser(configparser.ConfigParser):
 
 	def _load(self):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
-
 		self._load_dir_stack = []
+		self.config_contents_list = []
 
 		config_fname = ConfigParser._default_values['general']['config_file']
 		if config_fname != '':
@@ -200,8 +201,6 @@ class ConfigParser(configparser.ConfigParser):
 
 		async def download_from_zookeeper():
 			try:
-				root_logger = logging.getLogger()
-				root_logger.disabled = True
 				zk = aiozk.ZKClient(
 					url_netloc,
 					allow_read_only=True,
@@ -212,18 +211,19 @@ class ConfigParser(configparser.ConfigParser):
 				#convert bytes to string
 				encode_config = str(data,'utf-8')
 				self.read_string(encode_config)
-
-				#Supress logging output temorarily
-				logging.disable(logging.CRITICAL)
+				#Include in the list of config file contents
+				self.config_contents_list.append(encode_config)
 				await zk.close()
 				# Re-enable logging output
-				logging.disable(logging.NOTSET)
 			except Exception as e:
-				L.warning("Failed to obtain configuration from zookeeper server(s): '{}'.".format(e))
+				L.error("Failed to obtain configuration from zookeeper server(s): '{}'.".format(e))
 				sys.exit(1)
 
 		loop.run_until_complete(download_from_zookeeper())
 
+
+	def get_config_contents_list(self):
+		return self.config_contents_list
 
 class _Interpolation(configparser.ExtendedInterpolation):
 	"""Interpolation which expands environment variables in values."""
