@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import sys
-import asab.zookeeper
 import configparser
 import asab.config
 from asab.config import Config
@@ -19,7 +18,6 @@ class MyApplication(asab.Application):
 
 	def __init__(self):
 		super().__init__()
-
 		 #Get the list with contents of the configuration files and its name respectively
 		config = configparser.ConfigParser()
 		cont_list ,cont_name = Config.get_config_contents_list()
