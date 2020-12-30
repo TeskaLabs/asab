@@ -160,6 +160,7 @@ class ConfigParser(configparser.ConfigParser):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
 		self._load_dir_stack = []
 		self.config_contents_list = []
+		self.config_name_list = []
 
 		config_fname = ConfigParser._default_values['general']['config_file']
 		if config_fname != '':
@@ -199,6 +200,9 @@ class ConfigParser(configparser.ConfigParser):
 		if url_path.startswith("./"):
 			url_path = self["asab:zookeeper"]["path"] + url_path[1:]
 
+		head, tail = os.path.split(url_path)
+		self.config_name_list.append(tail)
+
 		async def download_from_zookeeper():
 			try:
 				zk = aiozk.ZKClient(
@@ -223,7 +227,7 @@ class ConfigParser(configparser.ConfigParser):
 
 
 	def get_config_contents_list(self):
-		return self.config_contents_list
+		return self.config_contents_list ,self.config_name_list
 
 class _Interpolation(configparser.ExtendedInterpolation):
 	"""Interpolation which expands environment variables in values."""
