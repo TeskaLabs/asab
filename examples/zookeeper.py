@@ -22,9 +22,9 @@ class MyApplication(asab.Application):
 		config = configparser.ConfigParser()
 		cont_list ,cont_name = Config.get_config_contents_list()
 		for list,name in zip(cont_list,cont_name):
-			config.read_string(list)
-			with open(name, 'w') as wconfigfile:
-				config.write(wconfigfile)
+			print("Printing config file: " + name)
+			print()
+			print(list)
 		sys.exit(1)
 
 if __name__ == "__main__":
