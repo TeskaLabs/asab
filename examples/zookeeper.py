@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-import logging
+import sys
+import configparser
+import asab.config
+from asab.config import Config
 
-import asab
 
-L = logging.getLogger(__name__)
+L = asab.config.logging.getLogger(__name__)
 
 
 class MyApplication(asab.Application):
@@ -14,11 +16,18 @@ class MyApplication(asab.Application):
 	It downloads the configuration file from a zookeeper
 	'''
 
-
 	def __init__(self):
 		super().__init__()
-
+		 #Get the list with contents of the configuration files and its name respectively
+		config = configparser.ConfigParser()
+		cont_list ,cont_name = Config.get_config_contents_list()
+		for list,name in zip(cont_list,cont_name):
+			print("Printing config file: " + name)
+			print()
+			print(list)
+		sys.exit(1)
 
 if __name__ == "__main__":
 	app = MyApplication()
 	app.run()
+

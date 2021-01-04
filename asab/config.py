@@ -1,13 +1,13 @@
 import os
-import sys
 import glob
 import asyncio
 import logging
 import inspect
 import platform
 import configparser
-from urllib.parse import urlparse , urlunparse
+from urllib.parse import urlparse
 from collections.abc import MutableMapping
+import sys, io
 
 
 L = logging.getLogger(__name__)
@@ -131,13 +131,7 @@ class ConfigParser(configparser.ConfigParser):
 				continue
 
 			if include_glob.startswith("zookeeper"):
-
-				if include_glob.rfind("//") == 10:
-					self._include_from_zookeeper(include_glob)
-
-				else:
-					get_url = self._from_include_build_url(include_glob)
-					self._include_from_zookeeper(get_url)
+				self._include_from_zookeeper(include_glob)
 
 			include_glob = os.path.expandvars(include_glob.strip())
 
@@ -164,8 +158,9 @@ class ConfigParser(configparser.ConfigParser):
 
 	def _load(self):
 		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
-
 		self._load_dir_stack = []
+		self.config_contents_list = []
+		self.config_name_list = []
 
 		config_fname = ConfigParser._default_values['general']['config_file']
 		if config_fname != '':
@@ -188,32 +183,25 @@ class ConfigParser(configparser.ConfigParser):
 
 		del self._load_dir_stack
 
-	def _from_include_build_url(self, purl):
-
-		parse_include = urlparse(purl)
-		url_path = parse_include.path
-		url_scheme = parse_include.scheme
-		url_netloc = self["asab.zookeeper"]["url"]
-
-		if purl.rfind("///") == 10:
-			url_comp = (url_scheme, url_netloc, url_path, '', '', '')
-
-		elif purl.rfind(":.") == 9:
-			new_url_path = self["asab.zookeeper"]["path"] + url_path[1:]
-			url_comp = (url_scheme, url_netloc, new_url_path, '', '', '')
-
-		#unparse  components into proper URL
-		url_built = urlunparse(url_comp)
-		return  url_built
 
 	def _include_from_zookeeper(self, zkurl):
 		import aiozk
 
 		loop = asyncio.get_event_loop()
+
 		#parse include value into hostname and path
 		url_pieces = urlparse(zkurl)
 		url_path = url_pieces.path
 		url_netloc = url_pieces.netloc
+
+		if not url_netloc:
+			url_netloc = self["asab:zookeeper"]["servers"]
+
+		if url_path.startswith("./"):
+			url_path = self["asab:zookeeper"]["path"] + url_path[1:]
+
+		head, tail = os.path.split(url_path)
+		self.config_name_list.append(tail)
 
 		async def download_from_zookeeper():
 			try:
@@ -227,12 +215,19 @@ class ConfigParser(configparser.ConfigParser):
 				#convert bytes to string
 				encode_config = str(data,'utf-8')
 				self.read_string(encode_config)
+				#Include in the list of config file contents
+				self.config_contents_list.append(encode_config)
 				await zk.close()
+				# Re-enable logging output
 			except Exception as e:
-				L.warning("Connection to zookeeper could not be established: '{}'.".format(e))
+				L.error("Failed to obtain configuration from zookeeper server(s): '{}'.".format(e))
 				sys.exit(1)
 
 		loop.run_until_complete(download_from_zookeeper())
+
+
+	def get_config_contents_list(self):
+		return self.config_contents_list ,self.config_name_list
 
 class _Interpolation(configparser.ExtendedInterpolation):
 	"""Interpolation which expands environment variables in values."""
