@@ -92,12 +92,26 @@ class StorageService(StorageServiceABC):
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
 		return ElasicSearchUpsertor(self, index, obj_id, version)
 
-	async def list(self, index, _from=0, size=10000):
+	async def list(self, index, _from=0, size=10000, body=None):
 		'''
 		Custom ElasticSearch method
 		'''
+		if body is None:
+			body = {
+				'query': {
+					'bool': {
+						'must': {
+							'match_all': {}
+						}
+					}
+				}
+			}
 		url = "{}{}/_search?size={}&from={}&version=true".format(self.ESURL, index, size, _from)
-		async with self.session().request(method="GET", url=url) as resp:
+		async with self.session().request(method="GET",
+		                                  url=url,
+		                                  json=body,
+		                                  headers={'Content-Type': 'application/json'}
+		                                  ) as resp:
 			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 			content = await resp.json()
 
@@ -185,7 +199,7 @@ class ElasicSearchUpsertor(UpsertorABC):
 				upsertobj["doc"][k] = serialize(self.ModSet[k])
 		url = "{}{}/_update/{}?refresh={}".format(self.Storage.ESURL, self.Collection, self.ObjId, self.Storage.Refresh)
 		async with self.Storage.session().request(method="POST", url=url, data=json.dumps(upsertobj),
-												  headers={'Content-Type': 'application/json'}) as resp:
+		                                          headers={'Content-Type': 'application/json'}) as resp:
 			assert resp.status == 200 or resp.status == 201, "Unexpected response code: {}".format(resp.status)
 			resp_json = await resp.json()
 			assert resp_json["result"] == "updated" or resp_json[
