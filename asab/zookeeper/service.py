@@ -30,8 +30,8 @@ class ZooKeeperService(Service):
 	async def initialize(self, app):
 		# Create a default container
 		# Default container ensures backward compatibility
-		urls = Config["zookeeper"]["urls"]
-		if len(urls) > 0:
+		servers = Config["asab:zookeeper"]["servers"]
+		if len(servers) > 0:
 			self.DefaultContainer = ZooKeeperContainer(app, "asab:zookeeper")
 			await self.DefaultContainer.initialize(app)
 
