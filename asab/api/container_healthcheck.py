@@ -15,6 +15,7 @@ class ContainerHealthCheckHandler(logging.Handler):
 	def __init__(self, app):
 		super().__init__()
 		app.PubSub.subscribe("Application.exit!", self.application_exiting)
+		app.PubSub.subscribe("Application.stop!", self.application_exiting)
 		self.Exiting = False
 
 
@@ -23,5 +24,5 @@ class ContainerHealthCheckHandler(logging.Handler):
 			raise HTTPOk
 		raise HTTPServiceUnavailable
 
-	async def application_exiting(self):
+	async def application_exiting(self, x):
 		self.Exiting = True
