@@ -2,8 +2,11 @@ import os
 import asab
 import asab.web
 import asab.web.rest
-from asab.api.log import WebApiLoggingHandler
 import logging
+
+from asab.api.log import WebApiLoggingHandler
+from asab.api.container_healthcheck import ContainerHealthCheckHandler
+
 
 ##
 
@@ -38,6 +41,7 @@ class ApiService(asab.Service):
 		self.APILogHandler.setFormatter(self.format)
 		self.Logging = logging.getLogger()
 		self.Logging.addHandler(self.APILogHandler)
+		self.ContainerHealthcheckHandler = ContainerHealthCheckHandler(app)
 
 		# Add routes
 		container.WebApp.router.add_get('/asab/v1/environ', self.environ)
@@ -45,6 +49,8 @@ class ApiService(asab.Service):
 
 		container.WebApp.router.add_get('/asab/v1/logs', self.APILogHandler.get_logs)
 		container.WebApp.router.add_get('/asab/v1/logws', self.APILogHandler.ws)
+
+		container.WebApp.router.add_get('/asab/v1/container-healthcheck', self.ContainerHealthcheckHandler.docker)
 
 		return container
 
