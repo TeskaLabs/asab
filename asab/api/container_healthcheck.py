@@ -24,5 +24,5 @@ class ContainerHealthCheckHandler(logging.Handler):
 			raise HTTPOk
 		raise HTTPServiceUnavailable
 
-	async def application_exiting(self, message_type, callback):
+	async def application_exiting(self, message_type):
 		self.Exiting = True
