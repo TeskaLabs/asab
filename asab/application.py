@@ -38,15 +38,15 @@ class Application(metaclass=Singleton):
 			self.ExitCode = 0
 
 		# Parse command line
-		args = self.parse_arguments(args=args)
+		self.Args = self.parse_arguments(args=args)
 
 		# Load configuration
 		Config._load()
 
-		if hasattr(args, "daemonize") and args.daemonize:
+		if hasattr(self.Args, "daemonize") and self.Args.daemonize:
 			self.daemonize()
 
-		elif hasattr(args, "kill") and args.kill:
+		elif hasattr(self.Args, "kill") and self.Args.kill:
 			self.daemon_kill()
 
 		# Seed the random generator
