@@ -1,5 +1,5 @@
-import logging
 import re
+import logging
 
 import aiohttp
 
@@ -7,6 +7,11 @@ from .accesslog import AccessLogger
 from ..config import ConfigObject
 from ..net import SSLContextBuilder
 
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 class WebContainer(ConfigObject):
 
@@ -144,6 +149,8 @@ want to allow OPTIONS method for preflight requests.
 			preflight_paths = re.split(r"[,\s]+", preflight_str, re.MULTILINE)
 			self.add_preflight_handlers(preflight_paths)
 
+		self.Addresses = []
+
 
 	async def initialize(self, app):
 		pass
@@ -159,6 +166,9 @@ want to allow OPTIONS method for preflight requests.
 			)
 			await site.start()
 
+			if isinstance(site, aiohttp.web_runner.TCPSite):
+				for address in site._runner.addresses:
+					self.Addresses.append(address)
 
 	def add_preflight_handlers(self, preflight_paths):
 		for path in preflight_paths:

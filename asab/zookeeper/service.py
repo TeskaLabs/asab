@@ -47,12 +47,12 @@ class ZooKeeperService(Service):
 		self.Containers[container.ConfigSectionName] = container
 		self.Futures.append(asyncio.ensure_future(container.initialize(self.App)))
 
-	async def advertise(self, data, encoding="utf-8", container=None):
+	async def advertise(self, data, path, encoding="utf-8", container=None):
 		if container is None:
 			container = self.DefaultContainer
 		if container is None:
 			raise RuntimeError("The container must be specified.")
-		return await container.advertise(data, encoding)
+		return await container.advertise(data, path, encoding)
 
 	async def get_children(self, container=None):
 		if container is None:

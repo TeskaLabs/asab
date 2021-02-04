@@ -71,6 +71,11 @@ class ConfigParser(configparser.ConfigParser):
 			"listen": "",
 		},
 
+		"asab:zookeeper": {
+			"urls": "",
+			"path": "/asab",
+		},
+
 
 		# "passwords" section serves to securely store passwords
 		# in the configuration file; the passwords are not
