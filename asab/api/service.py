@@ -29,6 +29,21 @@ class ApiService(asab.Service):
 		# Backward compatability
 		self.Container = self.WebContainer
 
+		app.PubSub.subscribe("WebContainer.started!", self._initialize_after_start)
+
+
+	async def _initialize_after_start(self, event_name, container):
+
+		if self.WebContainer != container:
+			return
+
+		if self.ZkContainer is not None:
+			await self.ZkContainer.ZooKeeper.ensure_path(self.ZkContainer.ZooKeeperPath + '/run')
+			await self.ZkContainer.advertise(
+				data=self._build_zookeeper_adv_data(self.App),
+				path="run/a.",
+			)
+
 
 	def _build_zookeeper_adv_data(self, app):
 		adv_data = {
@@ -38,13 +53,6 @@ class ApiService(asab.Service):
 			adv_data['web'] = self.WebContainer.Addresses
 		return adv_data
 
-	async def initialize(self, app):
-		if self.ZkContainer is not None:
-			await self.ZkContainer.ZooKeeper.ensure_path(self.ZkContainer.ZooKeeperPath + '/run')
-			await self.ZkContainer.advertise(
-				data=self._build_zookeeper_adv_data(app),
-				path="run/a.",
-			)
 
 	def _initialize_web(self, app, listen):
 		websvc = app.get_service("asab.WebService")

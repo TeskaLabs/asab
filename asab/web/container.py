@@ -170,6 +170,9 @@ want to allow OPTIONS method for preflight requests.
 				for address in site._runner.addresses:
 					self.Addresses.append(address)
 
+		self.WebApp['app'].PubSub.publish("WebContainer.started!", self.start_container)
+
+
 	def add_preflight_handlers(self, preflight_paths):
 		for path in preflight_paths:
 			self.WebApp.router.add_route("OPTIONS", path, self.preflight_handler)
