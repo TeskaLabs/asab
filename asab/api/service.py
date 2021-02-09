@@ -21,7 +21,7 @@ class ApiService(asab.Service):
 		listen = asab.Config["asab:web"]["listen"]
 		self.WebContainer = self._initialize_web(app, listen)
 
-		if len(asab.Config["asab:zookeeper"]["servers"]) > 0:
+		if asab.Config.has_section("asab:zookeeper"]):
 			self.ZkContainer = self._initialize_zookeeper(app)
 		else:
 			self.ZkContainer = None
