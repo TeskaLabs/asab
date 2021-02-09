@@ -72,7 +72,7 @@ class ConfigParser(configparser.ConfigParser):
 		},
 
 		"asab:zookeeper": {
-			"urls": "",
+			"servers": "",
 			"path": "/asab",
 		},
 
