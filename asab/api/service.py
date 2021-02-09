@@ -29,10 +29,10 @@ class ApiService(asab.Service):
 		# Backward compatability
 		self.Container = self.WebContainer
 
-		app.PubSub.subscribe("WebContainer.started!", self._initialize_after_start)
+		app.PubSub.subscribe("WebContainer.started!", self._on_webcontainer_started)
 
 
-	async def _initialize_after_start(self, event_name, container):
+	async def _on_webcontainer_started(self, event_name, container):
 
 		if self.WebContainer != container:
 			return
