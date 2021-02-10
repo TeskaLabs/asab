@@ -1,9 +1,12 @@
 import os
+import datetime
+import logging
+
+# TODO: This must be a relative import
 import asab
 import asab.web
 import asab.web.rest
 from asab.api.log import WebApiLoggingHandler
-import logging
 
 ##
 
@@ -48,6 +51,7 @@ class ApiService(asab.Service):
 	def _build_zookeeper_adv_data(self):
 		adv_data = {
 			'appclass': self.App.__class__.__name__,
+			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat(),
 			'hostname': self.App.HostName,
 		}
 		if self.WebContainer is not None:
