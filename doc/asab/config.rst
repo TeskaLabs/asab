@@ -183,7 +183,7 @@ units specified in the configuration:
 	for=5.2s
 	joke=10d
 
-The available units are: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds), ms (milisecond)
+The available units are: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds), ms (miliseconds)
 
 If no unit is specified, float of seconds is expected.
 
