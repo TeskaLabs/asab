@@ -39,7 +39,7 @@ class ZooKeeperContainer(ConfigObject):
 	async def advertise(self,app):
 		app.PubSub.subscribe("Application.tick!", self.on_tick)
 
-	async def on_tick(self, app, data, path, encoding="utf-8"):
+	async def on_tick(self, data, path, encoding="utf-8"):
 		if isinstance(data, dict):
 			data = json.dumps(data).encode(encoding)
 		elif isinstance(data, str):
