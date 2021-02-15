@@ -170,3 +170,25 @@ Usage is as follows:
 
 	[passwords]
 	kafka_password=<MY_SECRET_PASSWORD>
+
+
+Obtaining seconds
+-------------------------------------
+
+The seconds can be obtained via asab.Config.getseconds() methods for values with different time
+units specified in the configuration:
+
+.. code:: ini
+	[sleep]
+	for=5.2s
+	joke=10d
+
+The available units are: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds), ms (milisecond)
+
+If no unit is specified, float of seconds is expected.
+
+The obtainment of the second value in the code can be achieved in two ways:
+
+.. code:: python
+	self.SleepFor = asab.Config["sleep"].getseconds("for")
+	self.SleepJoke = asab.Config.getseconds("sleep", "joke")
