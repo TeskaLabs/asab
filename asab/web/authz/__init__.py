@@ -7,8 +7,8 @@ Config.add_defaults({
 })
 
 
-from .decorator import authz_rbac_tenant
+from .decorator import required
 
 __all__ = (
-	"authz_rbac_tenant",
+	"required",
 )

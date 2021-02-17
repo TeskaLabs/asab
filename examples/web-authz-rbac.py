@@ -50,7 +50,7 @@ class MyRBACSecuredApplication(asab.Application):
 		container.WebApp.router.add_get('/{tenant}', self.tenant)
 
 	@asab.web.tenant.tenant_handler
-	@asab.web.authz.authz_rbac_tenant
+	@asab.web.authz.required("tenant:access")
 	async def tenant(self, request, *, tenant):
 		return asab.web.rest.json_response(request=request, data={
 			request.Tenant,

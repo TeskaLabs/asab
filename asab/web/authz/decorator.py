@@ -1,10 +1,12 @@
+import functools
+
 import aiohttp.web
 import aiohttp.hdrs
 
 from ...config import Config
 
 
-def authz_rbac_tenant(func):
+def required(*operations):
 	'''
 	Checks that user authorized with access token in
 	Authorization header has access to a given tenant space
@@ -13,37 +15,43 @@ def authz_rbac_tenant(func):
 	Example of use:
 
 	@asab.web.tenant.tenant_handler
-	@asab.web.authz.authz_rbac_tenant
+	@asab.web.authz.required("tenant:access")
 	async def endpoint(self, request, *, tenant):
 		...
 	'''
 
-	async def wrapper(*args, **kargs):
-		request = args[-1]
+	def decorator_required(func):
 
-		# Check if tenant exists in the request
-		if not hasattr(request, "Tenant"):
-			raise aiohttp.web.HTTPUnauthorized()
+		# TODO: Implement more RBAC operations
+		@functools.wraps(func)
+		async def wrapper(*args, **kargs):
+			request = args[-1]
 
-		tenant = request.Tenant
-		rbac_url = Config["authz"]["rbac_url"]
+			# Check if tenant exists in the request
+			if not hasattr(request, "Tenant"):
+				raise aiohttp.web.HTTPUnauthorized()
 
-		# Check authorization using RBAC
-		# Authorization header should already be part of the request
-		async with aiohttp.ClientSession() as session:
+			tenant = request.Tenant
+			rbac_url = Config["authz"]["rbac_url"]
 
-			async with session.get(
-					"{}/{}/tenant:access".format(
-						rbac_url,
-						tenant.Id if hasattr(tenant, "Id") else tenant["_id"]
-					),
-					headers={
-						"Authorization": request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
-					}
-			) as resp:
-				if resp.status != 200:
-					raise aiohttp.web.HTTPUnauthorized()
+			# Check authorization using RBAC
+			# Authorization header should already be part of the request
+			for operation in operations:
+				async with aiohttp.ClientSession() as session:
 
-		return await func(*args, **kargs)
+					async with session.get(
+							"{}/{}/{}".format(
+								rbac_url,
+								tenant.Id if hasattr(tenant, "Id") else tenant["_id"],
+								operation,
+							),
+							headers={
+								"Authorization": request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
+							}
+					) as resp:
+						if resp.status != 200:
+							raise aiohttp.web.HTTPUnauthorized()
 
-	return wrapper
+		return wrapper
+
+	return decorator_required
