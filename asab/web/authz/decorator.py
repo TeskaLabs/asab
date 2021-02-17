@@ -6,7 +6,7 @@ import aiohttp.hdrs
 from ...config import Config
 
 
-def required(*operations):
+def required(*resources):
 	'''
 	Checks that user authorized with access token in
 	Authorization header has access to a given tenant space
@@ -22,7 +22,7 @@ def required(*operations):
 
 	def decorator_required(func):
 
-		# TODO: Implement more RBAC operations
+		# TODO: Implement more RBAC resources
 		@functools.wraps(func)
 		async def wrapper(*args, **kargs):
 			request = args[-1]
@@ -36,14 +36,14 @@ def required(*operations):
 
 			# Check authorization using RBAC
 			# Authorization header should already be part of the request
-			for operation in operations:
+			for resource in resources:
 				async with aiohttp.ClientSession() as session:
 
 					async with session.get(
 							"{}/{}/{}".format(
 								rbac_url,
 								tenant.Id if hasattr(tenant, "Id") else tenant["_id"],
-								operation,
+								resource,
 							),
 							headers={
 								"Authorization": request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
