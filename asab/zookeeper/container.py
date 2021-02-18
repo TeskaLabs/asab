@@ -25,17 +25,8 @@ class ZooKeeperContainer(ConfigObject):
 		super().__init__(config_section_name=config_section_name, config=config)
 		self.App = app
 		self.ConfigSectionName = config_section_name
+		self.ZooKeeperPath = self.Config["servers"]
 		self.ZooKeeperPath = self.Config["path"]
-		asyncio.ensure_future(self.build_client())
-		#self.Servers= self.Config["servers"]
-
-
-	async def build_client(config, z_url):
-		url_pieces = urlparse(z_url)
-		url_netloc = url_pieces.netloc
-		if not url_netloc:
-			url_netloc = config["servers"]
-		return aiozk.ZKClient(url_netloc)
 
 
 	async def initialize(self, app):
@@ -79,3 +70,16 @@ class ZooKeeperContainer(ConfigObject):
 
 	async def get_raw_data(self, child):
 		return await self.ZooKeeper.get_data("{}/{}".format(self.ZooKeeperPath, child))
+
+	@staticmethod
+	async def build_client(Config, z_url):
+		#Parse URL
+		url_pieces = urlparse(z_url)
+		url_netloc = url_pieces.netloc
+
+		if not url_netloc:
+			url_netloc = Config["asab:zookeeper"]["servers"]
+
+		client =  aiozk.ZKClient(url_netloc)
+		return client
+
