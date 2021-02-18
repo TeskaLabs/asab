@@ -1,7 +1,7 @@
 import aiozk
 import asyncio
 import json
-
+from urllib.parse import urlparse
 from ..config import ConfigObject
 
 
@@ -25,8 +25,18 @@ class ZooKeeperContainer(ConfigObject):
 		super().__init__(config_section_name=config_section_name, config=config)
 		self.App = app
 		self.ConfigSectionName = config_section_name
-		self.ZooKeeper = aiozk.ZKClient(self.Config["servers"])
 		self.ZooKeeperPath = self.Config["path"]
+		asyncio.ensure_future(self.build_client())
+		#self.Servers= self.Config["servers"]
+
+
+	async def build_client(config, z_url):
+		url_pieces = urlparse(z_url)
+		url_netloc = url_pieces.netloc
+		if not url_netloc:
+			url_netloc = config["servers"]
+		return aiozk.ZKClient(url_netloc)
+
 
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
@@ -35,22 +45,24 @@ class ZooKeeperContainer(ConfigObject):
 	async def finalize(self, app):
 		await self.ZooKeeper.close()
 
+	async def advertise(self,data, path):
+		self.Data =data
+		self.Path = path
+		await self.on_tick()
+		self.App.PubSub.subscribe("Application.tick/300!", self.on_tick)
 
-	async def advertise(self,app):
-		app.PubSub.subscribe("Application.tick!", self.on_tick)
-
-	async def on_tick(self, data, path, encoding="utf-8"):
-		if isinstance(data, dict):
-			data = json.dumps(data).encode(encoding)
-		elif isinstance(data, str):
-			data = data.encode(encoding)
-		elif asyncio.iscoroutinefunction(data):
-			data = await data
-		elif callable(data):
-			data = data()
+	async def on_tick(self,encoding="utf-8"):
+		if isinstance(self.Data, dict):
+			data = json.dumps(self.Data).encode(encoding)
+		elif isinstance(self.Data, str):
+			data = self.Data.encode(encoding)
+		elif asyncio.iscoroutinefunction(self.Data):
+			data = await self.Data
+		elif callable(self.Data):
+			data = self.Data()
 
 		return await self.ZooKeeper.create(
-			"{}/{}".format(self.ZooKeeperPath, path),
+			"{}/{}".format(self.ZooKeeperPath, self.Path),
 			data=data,
 			sequential=True,
 			ephemeral=True
