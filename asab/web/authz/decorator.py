@@ -22,7 +22,6 @@ def required(*resources):
 
 	def decorator_required(func):
 
-		# TODO: Implement more RBAC resources
 		@functools.wraps(func)
 		async def wrapper(*args, **kargs):
 			request = args[-1]
