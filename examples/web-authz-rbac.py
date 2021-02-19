@@ -21,7 +21,7 @@ class MyRBACSecuredApplication(asab.Application):
 
 	1.) Run SeaCat Auth at: http://localhost:8081
 	2.) Perform OAuth authentication to obtain access token
-	3.) Run: curl -H "Authorization: <ACCESS_TOKEN>" http://localhost:8080/test
+	3.) Run: curl -H "Authorization: <ACCESS_TOKEN>" http://localhost:8089/test
 	"""
 
 	async def initialize(self):

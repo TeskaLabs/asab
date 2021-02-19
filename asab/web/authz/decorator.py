@@ -1,9 +1,6 @@
 import functools
 
 import aiohttp.web
-import aiohttp.hdrs
-
-from ...config import Config
 
 
 def required(*resources):
@@ -35,45 +32,12 @@ def required(*resources):
 			if not hasattr(request, "Tenant"):
 				raise aiohttp.web.HTTPUnauthorized()
 
-			tenant = request.Tenant
-			rbac_url = Config["authz"]["rbac_url"]
-
-			# TODO: Replace cache invalidation with more clever approach like session indicator in the HTTP request
-
-			# Check authorization using RBAC
-			# Authorization header should already be part of the request
-			for resource in resources:
-
-				# Check that the item is located in the cache
-				tenant_id = tenant.Id if hasattr(tenant, "Id") else tenant["_id"]
-				cache_key = "{};{}".format(tenant_id, resource)
-				authorized = authz_service.get_from_required_decorator_cache(cache_key)
-
-				if authorized is not None:
-
-					if not authorized:
-						raise aiohttp.web.HTTPUnauthorized()
-					else:
-						continue
-
-				async with aiohttp.ClientSession() as session:
-
-					async with session.get(
-							"{}/{}/{}".format(
-								rbac_url,
-								tenant_id,
-								resource,
-							),
-							headers={
-								"Authorization": request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
-							}
-					) as resp:
-
-						authorized = resp.status == 200
-						authz_service.set_to_required_decorator_cache(cache_key, authorized)
-
-						if not authorized:
-							raise aiohttp.web.HTTPUnauthorized()
+			if not await authz_service.authorize(
+				resources=resources,
+				tenant_id=request.Tenant.Id if hasattr(request.Tenant, "Id") else request.Tenant["_id"],
+				authorization_header=request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
+			):
+				raise aiohttp.web.HTTPUnauthorized()
 
 		return wrapper
 
