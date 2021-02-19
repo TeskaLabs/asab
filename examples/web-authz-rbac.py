@@ -32,7 +32,7 @@ class MyRBACSecuredApplication(asab.Application):
 		websvc = self.get_service("asab.WebService")
 
 		# Create a dedicated web container
-		container = asab.web.WebContainer(websvc, 'example:rbac')
+		container = asab.web.WebContainer(websvc, 'example:rbac', config={"listen": "0.0.0.0 8089"})
 
 		# Add tenants
 		# Tenants should be loaded from SeaCat Auth in your application
@@ -41,6 +41,13 @@ class MyRBACSecuredApplication(asab.Application):
 		tenant_service.add_web_api(container)
 		container.WebApp.middlewares.append(
 			asab.web.tenant.tenant_middleware_factory(self, tenant_service)
+		)
+
+		# Add authz service
+		# It is required by asab.web.authz.required decorator
+		authz_service = asab.web.authz.AuthzService(self)
+		container.WebApp.middlewares.append(
+			asab.web.authz.authz_middleware_factory(self, authz_service)
 		)
 
 		# Enable exception to JSON exception middleware

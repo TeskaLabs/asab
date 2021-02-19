@@ -1,12 +1,9 @@
 import functools
-import time
 
 import aiohttp.web
 import aiohttp.hdrs
 
 from ...config import Config
-
-required_cache_dict = dict()
 
 
 def required(*resources):
@@ -31,6 +28,9 @@ def required(*resources):
 		async def wrapper(*args, **kargs):
 			request = args[-1]
 
+			# Obtain authz service from the request
+			authz_service = request.AuthzService
+
 			# Check if tenant exists in the request
 			if not hasattr(request, "Tenant"):
 				raise aiohttp.web.HTTPUnauthorized()
@@ -38,18 +38,7 @@ def required(*resources):
 			tenant = request.Tenant
 			rbac_url = Config["authz"]["rbac_url"]
 
-			current_time = time.time()
-
 			# TODO: Replace cache invalidation with more clever approach like session indicator in the HTTP request
-			cache_keys_to_delete = list()
-
-			for cache_key, cache_value in required_cache_dict.items():
-				authorized, expiration = cache_value
-				if current_time >= expiration:
-					cache_keys_to_delete.append(cache_key)
-
-			for cache_key in cache_keys_to_delete:
-				del required_cache_dict[cache_key]
 
 			# Check authorization using RBAC
 			# Authorization header should already be part of the request
@@ -58,10 +47,9 @@ def required(*resources):
 				# Check that the item is located in the cache
 				tenant_id = tenant.Id if hasattr(tenant, "Id") else tenant["_id"]
 				cache_key = "{};{}".format(tenant_id, resource)
-				cache_value = required_cache_dict.get(cache_key)
+				authorized = authz_service.get_from_required_decorator_cache(cache_key)
 
-				if cache_value is not None:
-					authorized, expiration = cache_value
+				if authorized is not None:
 
 					if not authorized:
 						raise aiohttp.web.HTTPUnauthorized()
@@ -82,7 +70,7 @@ def required(*resources):
 					) as resp:
 
 						authorized = resp.status == 200
-						required_cache_dict[cache_key] = (authorized, current_time + 300)
+						authz_service.set_to_required_decorator_cache(cache_key, authorized)
 
 						if not authorized:
 							raise aiohttp.web.HTTPUnauthorized()
