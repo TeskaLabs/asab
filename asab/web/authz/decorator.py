@@ -1,4 +1,5 @@
 import functools
+import re
 
 import aiohttp.web
 
@@ -19,6 +20,8 @@ def required(*resources):
 		...
 	'''
 
+	authorization_header_rg = re.compile(r"^\s*Bearer ([A-Za-z0-9\-\.\+_~/=]*)")
+
 	def decorator_required(func):
 
 		@functools.wraps(func)
@@ -28,14 +31,19 @@ def required(*resources):
 			# Obtain authz service from the request
 			authz_service = request.AuthzService
 
-			# Check if tenant exists in the request
-			if not hasattr(request, "Tenant"):
-				raise aiohttp.web.HTTPUnauthorized()
+			access_token = None
+			authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
+
+			# Obtain access token from the authorization header
+			if authorization_header is not None:
+				authorization_match = authorization_header_rg.match(authorization_header)
+				if authorization_match is not None:
+					access_token = authorization_match.group(1)
 
 			if not await authz_service.authorize(
 				resources=resources,
-				tenant_id=request.Tenant.Id if hasattr(request.Tenant, "Id") else request.Tenant["_id"],
-				authorization_header=request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
+				access_token=access_token,
+				tenant=None if not hasattr(request, "Tenant") else request.Tenant,
 			):
 				raise aiohttp.web.HTTPUnauthorized()
 
