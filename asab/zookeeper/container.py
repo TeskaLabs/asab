@@ -78,7 +78,7 @@ class ZooKeeperContainer(ConfigObject):
 		url_netloc = url_pieces.netloc
 
 		if not url_netloc:
-			url_netloc = Config["asab:zookeeper"]["servers"]
+			url_netloc = Config["servers"]
 
 		client =  aiozk.ZKClient(url_netloc)
 		return client
