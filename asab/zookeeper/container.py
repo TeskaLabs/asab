@@ -71,15 +71,4 @@ class ZooKeeperContainer(ConfigObject):
 	async def get_raw_data(self, child):
 		return await self.ZooKeeper.get_data("{}/{}".format(self.ZooKeeperPath, child))
 
-	@staticmethod
-	async def build_client(Config, z_url):
-		#Parse URL
-		url_pieces = urlparse(z_url)
-		url_netloc = url_pieces.netloc
-
-		if not url_netloc:
-			url_netloc = Config["servers"]
-
-		client =  aiozk.ZKClient(url_netloc)
-		return client
 
