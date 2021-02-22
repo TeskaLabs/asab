@@ -1,9 +1,8 @@
 import aiozk
 import asyncio
 import json
-from asab.zookeeper.builder import build_client
 from ..config import ConfigObject
-
+from asab.zookeeper.builder import build_client
 
 class ZooKeeperContainer(ConfigObject):
 	"""
@@ -25,9 +24,8 @@ class ZooKeeperContainer(ConfigObject):
 		super().__init__(config_section_name=config_section_name, config=config)
 		self.App = app
 		self.ConfigSectionName = config_section_name
-		self.ZooKeeper = build_client(self.Config["servers"])
+		self.ZooKeeper = aiozk.ZKClient(self.Config["servers"])
 		self.ZooKeeperPath = self.Config["path"]
-
 
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
