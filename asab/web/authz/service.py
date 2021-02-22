@@ -47,13 +47,21 @@ class AuthzService(asab.Service):
 					resource_url,
 					headers=headers,
 			) as resp:
-				authorized = resp.status == 200
+				authorized = False
+
+				if resp.status == 200:
+					response_json = await resp.json()
+
+					if response_json.get("result") == "OK":
+						authorized = True
+
 				self._set_to_cache(cache_key, authorized)
 
-				if not authorized:
-					return False
+				if authorized:
+					return True
 
-		return True
+		# Be pessimistic
+		return False
 
 	async def _evaluate_expiration_in_cache(self, event_name):
 		cache_keys_to_delete = list()

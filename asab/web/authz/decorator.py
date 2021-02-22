@@ -40,6 +40,10 @@ def required(*resources):
 				if authorization_match is not None:
 					access_token = authorization_match.group(1)
 
+			# For resistancy against security attacks
+			if access_token is None:
+				raise aiohttp.web.HTTPUnauthorized()
+
 			if not await authz_service.authorize(
 				resources=resources,
 				access_token=access_token,
