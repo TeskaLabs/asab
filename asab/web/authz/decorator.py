@@ -44,12 +44,15 @@ def required(*resources):
 			if access_token is None:
 				raise aiohttp.web.HTTPUnauthorized()
 
-			if not await authz_service.authorize(
+			if await authz_service.authorize(
 				resources=resources,
 				access_token=access_token,
-				tenant=None if not hasattr(request, "Tenant") else request.Tenant,
+				tenant=getattr(request, "Tenant", None),
 			):
-				raise aiohttp.web.HTTPUnauthorized()
+				return
+
+			# Be defensive
+			raise aiohttp.web.HTTPUnauthorized()
 
 		return wrapper
 
