@@ -1,7 +1,7 @@
 import aiozk
 import asyncio
 import json
-from urllib.parse import urlparse
+from asab.zookeeper.builder import build_client
 from ..config import ConfigObject
 
 
@@ -25,13 +25,14 @@ class ZooKeeperContainer(ConfigObject):
 		super().__init__(config_section_name=config_section_name, config=config)
 		self.App = app
 		self.ConfigSectionName = config_section_name
-		self.ZooKeeper = aiozk.ZKClient(self.Config["servers"])
+		self.ZooKeeper = build_client(self.Config["servers"])
 		self.ZooKeeperPath = self.Config["path"]
 
 
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
 		await self.ZooKeeper.ensure_path(self.ZooKeeperPath)
+		await self.do_advertise(self)
 
 	async def finalize(self, app):
 		await self.ZooKeeper.close()
@@ -39,10 +40,12 @@ class ZooKeeperContainer(ConfigObject):
 	async def advertise(self,data, path):
 		self.Data =data
 		self.Path = path
-		await self.on_tick()
 		self.App.PubSub.subscribe("Application.tick/300!", self.on_tick)
 
-	async def on_tick(self,encoding="utf-8"):
+	async def on_tick(self):
+		self.do_advertise()
+
+	async def do_advertise(self,encoding="utf-8"):
 		if isinstance(self.Data, dict):
 			data = json.dumps(self.Data).encode(encoding)
 		elif isinstance(self.Data, str):
