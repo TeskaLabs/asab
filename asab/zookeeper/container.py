@@ -2,7 +2,7 @@ import aiozk
 import asyncio
 import json
 from ..config import ConfigObject
-from asab.zookeeper.builder import build_client
+
 
 class ZooKeeperContainer(ConfigObject):
 	"""
