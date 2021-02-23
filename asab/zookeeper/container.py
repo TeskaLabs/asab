@@ -31,6 +31,7 @@ class ZooKeeperContainer(ConfigObject):
 		await self.ZooKeeper.start()
 		await self.ZooKeeper.ensure_path(self.ZooKeeperPath)
 		await self.do_advertise(self)
+		self.App.PubSub.subscribe("Application.tick/300!", self.on_tick)
 
 	async def finalize(self, app):
 		await self.ZooKeeper.close()
@@ -38,7 +39,8 @@ class ZooKeeperContainer(ConfigObject):
 	async def advertise(self,data, path):
 		self.Data =data
 		self.Path = path
-		self.App.PubSub.subscribe("Application.tick/300!", self.on_tick)
+		print("Called advertise")
+		await self.do_advertise(self)
 
 	async def on_tick(self):
 		self.do_advertise()
