@@ -235,6 +235,42 @@ class ConfigParser(configparser.ConfigParser):
 	def get_config_contents_list(self):
 		return self.config_contents_list ,self.config_name_list
 
+
+	def getseconds(self, section, option, *, raw=False, vars=None, fallback=None, **kwargs):
+		if fallback is None:
+			fallback = object()
+
+		return self._get_conv(section, option, self._convert_to_seconds, raw=raw, vars=vars, fallback=fallback, **kwargs)
+
+
+	def _convert_to_seconds(self, value):
+		value = value.replace(" ", "")
+
+		try:
+			if value.endswith("ms"):
+				value = float(value[:-2]) / 1000.0
+			elif value.endswith("y"):
+				value = float(value[:-1]) * 86400 * 365
+			elif value.endswith("M"):
+				value = float(value[:-1]) * 86400 * 31
+			elif value.endswith("w"):
+				value = float(value[:-1]) * 86400 * 7
+			elif value.endswith("d"):
+				value = float(value[:-1]) * 86400
+			elif value.endswith("h"):
+				value = float(value[:-1]) * 3600
+			elif value.endswith("m"):
+				value = float(value[:-1]) * 60
+			elif value.endswith("s"):
+				value = float(value[:-1])
+			else:
+				value = float(value)
+		except ValueError as e:
+			raise ValueError("Not a proper time specification for '{}' with exception '{}'.".format(value, e))
+
+		return value
+
+
 class _Interpolation(configparser.ExtendedInterpolation):
 	"""Interpolation which expands environment variables in values."""
 

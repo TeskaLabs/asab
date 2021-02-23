@@ -30,7 +30,6 @@ class ZooKeeperContainer(ConfigObject):
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
 		await self.ZooKeeper.ensure_path(self.ZooKeeperPath)
-		await self.do_advertise(self)
 		self.App.PubSub.subscribe("Application.tick/300!", self.on_tick)
 
 	async def finalize(self, app):
@@ -39,17 +38,16 @@ class ZooKeeperContainer(ConfigObject):
 	async def advertise(self,data, path):
 		self.Data =data
 		self.Path = path
-		print("Called advertise")
-		await self.do_advertise(self)
+		await self.do_advertise()
 
 	async def on_tick(self):
 		self.do_advertise()
 
-	async def do_advertise(self,encoding="utf-8"):
+	async def do_advertise(self):
 		if isinstance(self.Data, dict):
-			data = json.dumps(self.Data).encode(encoding)
+			data = json.dumps(self.Data).encode("utf-8")
 		elif isinstance(self.Data, str):
-			data = self.Data.encode(encoding)
+			data = self.Data.encode("utf-8")
 		elif asyncio.iscoroutinefunction(self.Data):
 			data = await self.Data
 		elif callable(self.Data):
