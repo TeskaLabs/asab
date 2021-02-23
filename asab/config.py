@@ -5,6 +5,7 @@ import logging
 import inspect
 import platform
 import configparser
+from asab.zookeeper.builder import build_client
 from urllib.parse import urlparse
 from collections.abc import MutableMapping
 import sys, io
