@@ -1,7 +1,6 @@
 import aiozk
 import asyncio
 import json
-
 from ..config import ConfigObject
 
 
@@ -31,22 +30,31 @@ class ZooKeeperContainer(ConfigObject):
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
 		await self.ZooKeeper.ensure_path(self.ZooKeeperPath)
+		self.App.PubSub.subscribe("Application.tick/300!", self.on_tick)
 
 	async def finalize(self, app):
 		await self.ZooKeeper.close()
 
-	async def advertise(self, data, path, encoding="utf-8"):
-		if isinstance(data, dict):
-			data = json.dumps(data).encode(encoding)
-		elif isinstance(data, str):
-			data = data.encode(encoding)
-		elif asyncio.iscoroutinefunction(data):
-			data = await data
-		elif callable(data):
-			data = data()
+	async def advertise(self,data, path):
+		self.Data =data
+		self.Path = path
+		await self.do_advertise()
+
+	async def on_tick(self):
+		self.do_advertise()
+
+	async def do_advertise(self):
+		if isinstance(self.Data, dict):
+			data = json.dumps(self.Data).encode("utf-8")
+		elif isinstance(self.Data, str):
+			data = self.Data.encode("utf-8")
+		elif asyncio.iscoroutinefunction(self.Data):
+			data = await self.Data
+		elif callable(self.Data):
+			data = self.Data()
 
 		return await self.ZooKeeper.create(
-			"{}/{}".format(self.ZooKeeperPath, path),
+			"{}/{}".format(self.ZooKeeperPath, self.Path),
 			data=data,
 			sequential=True,
 			ephemeral=True
@@ -63,3 +71,5 @@ class ZooKeeperContainer(ConfigObject):
 
 	async def get_raw_data(self, child):
 		return await self.ZooKeeper.get_data("{}/{}".format(self.ZooKeeperPath, child))
+
+
