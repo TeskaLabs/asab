@@ -41,7 +41,7 @@ class ZooKeeperContainer(ConfigObject):
 		await self.do_advertise()
 
 	async def on_tick(self, event_name):
-		self.do_advertise()
+		await self.do_advertise()
 
 	async def do_advertise(self):
 		if isinstance(self.Data, dict):
