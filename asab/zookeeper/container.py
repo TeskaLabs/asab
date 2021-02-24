@@ -40,7 +40,7 @@ class ZooKeeperContainer(ConfigObject):
 		self.Path = path
 		await self.do_advertise()
 
-	async def on_tick(self):
+	async def on_tick(self, event_name):
 		self.do_advertise()
 
 	async def do_advertise(self):
