@@ -55,12 +55,12 @@ class ZooKeeperContainer(ConfigObject):
 			elif callable(self.Data):
 				data = self.Data()
 
-		return await self.ZooKeeper.create(
-			"{}/{}".format(self.ZooKeeperPath, self.Path),
-			data=data,
-			sequential=True,
-			ephemeral=True
-		)
+			return await self.ZooKeeper.create(
+				"{}/{}".format(self.ZooKeeperPath, self.Path),
+				data=data,
+				sequential=True,
+				ephemeral=True
+			)
 
 	async def get_children(self):
 		return await self.ZooKeeper.get_children(self.ZooKeeperPath)
