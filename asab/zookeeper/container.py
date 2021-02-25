@@ -23,6 +23,7 @@ class ZooKeeperContainer(ConfigObject):
 	def __init__(self, app, config_section_name, config=None):
 		super().__init__(config_section_name=config_section_name, config=config)
 		self.App = app
+		self.Data = None
 		self.ConfigSectionName = config_section_name
 		self.ZooKeeper = aiozk.ZKClient(self.Config["servers"])
 		self.ZooKeeperPath = self.Config["path"]
@@ -44,14 +45,15 @@ class ZooKeeperContainer(ConfigObject):
 		await self.do_advertise()
 
 	async def do_advertise(self):
-		if isinstance(self.Data, dict):
-			data = json.dumps(self.Data).encode("utf-8")
-		elif isinstance(self.Data, str):
-			data = self.Data.encode("utf-8")
-		elif asyncio.iscoroutinefunction(self.Data):
-			data = await self.Data
-		elif callable(self.Data):
-			data = self.Data()
+		if self.Data is not None:
+			if isinstance(self.Data, dict):
+				data = json.dumps(self.Data).encode("utf-8")
+			elif isinstance(self.Data, str):
+				data = self.Data.encode("utf-8")
+			elif asyncio.iscoroutinefunction(self.Data):
+				data = await self.Data
+			elif callable(self.Data):
+				data = self.Data()
 
 		return await self.ZooKeeper.create(
 			"{}/{}".format(self.ZooKeeperPath, self.Path),
