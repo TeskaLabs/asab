@@ -27,20 +27,20 @@ server=server1 server2 server3      <-- Default server
 path=/myfolder                      <-- Default path
 """
 
-async def build_client(Config, z_url):
 
-    # Parse URL
+def build_client(Config, z_url):
+	# Parse URL
 	url_pieces = urlparse(z_url)
 	url_netloc = url_pieces.netloc
 	url_path = url_pieces.path
 
-	#If there is no location, use implied
+	# If there is no location, use implied
 	if not url_netloc:
 		url_netloc = Config["asab:zookeeper"]["servers"]
 
 	if url_path.startswith("./"):
 		url_path = Config["asab:zookeeper"]["path"] + url_path[1:]
 
-	#Create and return the client and the url-path
+	# Create and return the client and the url-path
 	client = aiozk.ZKClient(url_netloc)
-	return client , url_path
+	return client, url_path
