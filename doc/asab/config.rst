@@ -188,14 +188,14 @@ units specified in the configuration:
 
 The available units are:
 
-  * y (years)
-  * M (months)
-  * w (weeks)
-  * d (days)
-  * h (hours)
-  * m (minutes)
-  * s (seconds)
-  * ms (miliseconds)
+  * ``y`` ... years
+  * ``M`` ... months
+  * ``w`` ... weeks
+  * ``d`` ... days
+  * ``h`` ... hours
+  * ``m`` ... minutes
+  * ``s`` ... seconds
+  * ``ms`` .. miliseconds
 
 If no unit is specified, float of seconds is expected.
 
