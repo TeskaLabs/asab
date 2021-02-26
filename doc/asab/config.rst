@@ -175,7 +175,9 @@ Usage is as follows:
 Obtaining seconds
 -------------------------------------
 
-The seconds can be obtained via asab.Config.getseconds() methods for values with different time
+.. py:method:: Config.getseconds()
+
+The seconds can be obtained using `getseconds()` method for values with different time
 units specified in the configuration:
 
 .. code:: ini
