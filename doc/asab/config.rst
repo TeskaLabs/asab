@@ -181,6 +181,7 @@ The seconds can be obtained using `getseconds()` method for values with differen
 units specified in the configuration:
 
 .. code:: ini
+
 	[sleep]
 	for=5.2s
 	joke=10d
@@ -192,5 +193,7 @@ If no unit is specified, float of seconds is expected.
 The obtainment of the second value in the code can be achieved in two ways:
 
 .. code:: python
+
 	self.SleepFor = asab.Config["sleep"].getseconds("for")
 	self.SleepJoke = asab.Config.getseconds("sleep", "joke")
+
