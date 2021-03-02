@@ -37,23 +37,23 @@ class ZooKeeperContainer(ConfigObject):
 		await self.ZooKeeper.close()
 
 
-	async def advertise(self):
-		if self.Data is not None:
-			if isinstance(self.Data, dict):
-				data = json.dumps(self.Data).encode("utf-8")
-			elif isinstance(self.Data, str):
-				data = self.Data.encode("utf-8")
-			elif asyncio.iscoroutinefunction(self.Data):
-				data = await self.Data
-			elif callable(self.Data):
-				data = self.Data()
+	async def advertise(self, data, encoding="utf-8"):
+		if isinstance(data, dict):
+			data = json.dumps(data).encode(encoding)
+		elif isinstance(data, str):
+			data = data.encode(encoding)
+		elif asyncio.iscoroutinefunction(data):
+			data = await data
+		elif callable(data):
+			data = data()
 
-			return await self.ZooKeeper.create(
-				"{}/{}".format(self.ZooKeeperPath, self.Path),
-				data=data,
-				sequential=True,
-				ephemeral=True
-			)
+		return await self.ZooKeeper.create(
+			"{}/i".format(self.ZooKeeperPath),
+			data=data,
+			sequential=True,
+			ephemeral=True
+		)
+
 
 	async def get_children(self):
 		return await self.ZooKeeper.get_children(self.ZooKeeperPath)
