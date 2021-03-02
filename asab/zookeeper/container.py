@@ -31,20 +31,13 @@ class ZooKeeperContainer(ConfigObject):
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
 		await self.ZooKeeper.ensure_path(self.ZooKeeperPath)
-		self.App.PubSub.subscribe("Application.tick/300!", self.on_tick)
+
 
 	async def finalize(self, app):
 		await self.ZooKeeper.close()
 
-	async def advertise(self,data, path):
-		self.Data =data
-		self.Path = path
-		await self.do_advertise()
 
-	async def on_tick(self, event_name):
-		await self.do_advertise()
-
-	async def do_advertise(self):
+	async def advertise(self):
 		if self.Data is not None:
 			if isinstance(self.Data, dict):
 				data = json.dumps(self.Data).encode("utf-8")
