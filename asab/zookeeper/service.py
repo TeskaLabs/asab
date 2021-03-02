@@ -30,6 +30,7 @@ class ZooKeeperService(Service):
 	async def initialize(self, app):
 		# Create a default container
 		# Default container ensures backward compatibility
+		self.App.PubSub.subscribe("Application.tick/300!", self.on_tick)
 		servers = Config["asab:zookeeper"]["servers"]
 		if len(servers) > 0:
 			self.DefaultContainer = ZooKeeperContainer(app, "asab:zookeeper")
@@ -46,6 +47,9 @@ class ZooKeeperService(Service):
 	def register_container(self, container):
 		self.Containers[container.ConfigSectionName] = container
 		self.Futures.append(asyncio.ensure_future(container.initialize(self.App)))
+
+	async def on_tick(self, event_name):
+		await self.advertise()
 
 	async def advertise(self, data, path, encoding="utf-8", container=None):
 		if container is None:
