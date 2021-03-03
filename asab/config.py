@@ -246,15 +246,16 @@ class ConfigParser(configparser.ConfigParser):
 		value = value.replace(" ", "")
 
 		try:
+			# Second condition in each IF is for backward compatibility
 			if value.endswith("ms"):
 				value = float(value[:-2]) / 1000.0
-			elif value.endswith("y"):
+			elif value.endswith("y") or value.endswith("Y"):
 				value = float(value[:-1]) * 86400 * 365
 			elif value.endswith("M"):
 				value = float(value[:-1]) * 86400 * 31
-			elif value.endswith("w"):
+			elif value.endswith("w") or value.endswith("W"):
 				value = float(value[:-1]) * 86400 * 7
-			elif value.endswith("d"):
+			elif value.endswith("d") or value.endswith("D"):
 				value = float(value[:-1]) * 86400
 			elif value.endswith("h"):
 				value = float(value[:-1]) * 3600

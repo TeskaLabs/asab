@@ -175,20 +175,34 @@ Usage is as follows:
 Obtaining seconds
 -------------------------------------
 
-The seconds can be obtained via asab.Config.getseconds() methods for values with different time
+.. py:method:: Config.getseconds()
+
+The seconds can be obtained using `getseconds()` method for values with different time
 units specified in the configuration:
 
 .. code:: ini
-	[sleep]
-	for=5.2s
-	joke=10d
 
-The available units are: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds), ms (miliseconds)
+	[sleep]
+	sleep_time=5.2s
+	another_sleep_time=10d
+
+The available units are:
+
+  * ``y`` ... years
+  * ``M`` ... months
+  * ``w`` ... weeks
+  * ``d`` ... days
+  * ``h`` ... hours
+  * ``m`` ... minutes
+  * ``s`` ... seconds
+  * ``ms`` .. miliseconds
 
 If no unit is specified, float of seconds is expected.
 
 The obtainment of the second value in the code can be achieved in two ways:
 
 .. code:: python
-	self.SleepFor = asab.Config["sleep"].getseconds("for")
-	self.SleepJoke = asab.Config.getseconds("sleep", "joke")
+
+	self.SleepTime = asab.Config["sleep"].getseconds("sleep_time")
+	self.AnotherSleepTime = asab.Config.getseconds("sleep", "another_sleep_time")
+

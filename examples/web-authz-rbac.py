@@ -21,7 +21,7 @@ class MyRBACSecuredApplication(asab.Application):
 
 	1.) Run SeaCat Auth at: http://localhost:8081
 	2.) Perform OAuth authentication to obtain access token
-	3.) Run: curl -H "Authorization: <ACCESS_TOKEN>" http://localhost:8089/test
+	3.) Run: curl -H "Authorization: <ACCESS_TOKEN>" http://localhost:8089/cars
 	"""
 
 	async def initialize(self):
@@ -34,15 +34,6 @@ class MyRBACSecuredApplication(asab.Application):
 		# Create a dedicated web container
 		container = asab.web.WebContainer(websvc, 'example:rbac', config={"listen": "0.0.0.0 8089"})
 
-		# Add tenants
-		# Tenants should be loaded from SeaCat Auth in your application
-		asab.Config["tenants"]["ids"] = "test"
-		tenant_service = asab.web.tenant.TenantService(self)
-		tenant_service.add_web_api(container)
-		container.WebApp.middlewares.append(
-			asab.web.tenant.tenant_middleware_factory(self, tenant_service)
-		)
-
 		# Add authz service
 		# It is required by asab.web.authz.required decorator
 		authz_service = asab.web.authz.AuthzService(self)
@@ -54,14 +45,12 @@ class MyRBACSecuredApplication(asab.Application):
 		container.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 
 		# Add a route
-		container.WebApp.router.add_get('/{tenant}', self.tenant)
+		container.WebApp.router.add_get('/cars', self.get_cars)
 
-	@asab.web.tenant.tenant_handler
-	@asab.web.authz.required("tenant:access")
-	async def tenant(self, request, *, tenant):
-		return asab.web.rest.json_response(request=request, data={
-			request.Tenant,
-		})
+	@asab.web.authz.required("car:list")
+	async def get_cars(self, request, *):
+		cars = ["Skoda", "Volvo", "Kia"]
+		return asab.web.rest.json_response(request=request, data=cars)
 
 
 if __name__ == '__main__':

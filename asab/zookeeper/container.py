@@ -32,10 +32,8 @@ class ZooKeeperContainer(ConfigObject):
 		await self.ZooKeeper.start()
 		await self.ZooKeeper.ensure_path(self.ZooKeeperPath)
 
-
 	async def finalize(self, app):
 		await self.ZooKeeper.close()
-
 
 	async def advertise(self, data, encoding="utf-8"):
 		if isinstance(data, dict):
