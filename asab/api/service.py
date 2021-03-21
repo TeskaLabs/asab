@@ -103,14 +103,8 @@ class ApiService(asab.Service):
 					result[section][option] = value
 		return asab.web.rest.json_response(request, result)
 
-
 	def _initialize_zookeeper(self):
-		from ..zookeeper import Module as zkModule, ZooKeeperContainer
-		self.App.add_module(zkModule)
 
-		container = ZooKeeperContainer(self.App, "asab:zookeeper")
-
+		#get zookeeper-serivice
 		zksvc = self.App.get_service("asab.ZooKeeperService")
-		zksvc.register_container(container)
-
-		return container
+		return zksvc.build_container()
