@@ -27,6 +27,7 @@ class ZooKeeperService(Service):
 		self.Containers = {}
 		self.Futures = []
 
+
 	async def initialize(self, app):
 		# Create a default container
 		# Default container ensures backward compatibility
@@ -43,9 +44,11 @@ class ZooKeeperService(Service):
 		for containers in self.Containers.values():
 			await containers.finalize(app)
 
-	def register_container(self, container):
+	def build_container(self):
+		container = ZooKeeperContainer(self.App, "asab:zookeeper")
 		self.Containers[container.ConfigSectionName] = container
 		self.Futures.append(asyncio.ensure_future(container.initialize(self.App)))
+		return container
 
 	async def advertise(self, data, path, encoding="utf-8", container=None):
 		if container is None:
