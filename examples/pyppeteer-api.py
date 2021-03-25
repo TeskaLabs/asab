@@ -25,7 +25,7 @@ class PyppeteerHandler(object):
 	async def capture(self, request, *, json_data):
 		url = json_data["url"]
 		file_name = json_data.get("file_name")
-		file_format = json_data.get("format")
+		file_format = json_data.get("format").lower()
 		success = await self.PyppeteerService.capture_screenshot(url, file_name, file_format)
 		if not success:
 			return asab.web.rest.json_response(
