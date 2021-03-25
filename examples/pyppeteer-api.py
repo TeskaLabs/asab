@@ -1,9 +1,11 @@
+import os
+
 import asab.web.rest
 import asab.pyppeteer
 
 asab.Config.add_defaults({
 	"general": {
-		"var_dir": "examples"
+		"var_dir": os.getcwd()
 	}
 })
 
@@ -12,7 +14,7 @@ class PyppeteerHandler(object):
 	def __init__(self, app, pyppeteer_service):
 		self.PyppeteerService = pyppeteer_service
 		web_app = app.WebContainer.WebApp
-		web_app.router.add_put(r"/screenshot_png", self.screenshot_png)
+		web_app.router.add_put(r"/capture", self.capture)
 
 	@asab.web.rest.json_schema_handler({
 		'type': 'object',
@@ -20,10 +22,11 @@ class PyppeteerHandler(object):
 			'url': {'type': 'string'},
 			'file_name': {'type': 'string'},
 		}})
-	async def screenshot_png(self, request, *, json_data):
+	async def capture(self, request, *, json_data):
 		url = json_data["url"]
 		file_name = json_data.get("file_name")
-		success = await self.PyppeteerService.capture_screenshot(url, file_name)
+		file_format = json_data.get("format")
+		success = await self.PyppeteerService.capture_screenshot(url, file_name, file_format)
 		if not success:
 			return asab.web.rest.json_response(
 				request,
