@@ -105,6 +105,9 @@ class ApiService(asab.Service):
 
 	def _initialize_zookeeper(self):
 
+		from ..zookeeper import Module as zkModule, ZooKeeperContainer
+		self.App.add_module(zkModule)
+
 		#get zookeeper-serivice
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		return zksvc.build_container()
