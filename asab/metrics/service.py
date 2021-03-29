@@ -69,6 +69,7 @@ class MetricsService(asab.Service):
 		now = self.App.time()
 
 		mlist = []
+
 		for metric in self.Metrics.values():
 			struct_data = {
 				'name': metric.Name,
@@ -76,6 +77,10 @@ class MetricsService(asab.Service):
 			}
 
 			values = metric.flush()
+
+			# Skip empty values
+			if len(values) == 0:
+				continue
 
 			for fk, fv in values.items():
 				struct_data['field.{}'.format(fk)] = fv
