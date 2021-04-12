@@ -74,6 +74,36 @@ class StorageService(StorageServiceABC):
 			assert resp["result"] == "deleted", "Document was not deleted"
 			return resp
 
+	async def reindex(self, previous_index, new_index):
+		if self.ESURL.endswith('/'):
+			url = "{}_reindex".format(self.ESURL)
+		else:
+			url = "{}/_reindex".format(self.ESURL)
+
+		async with self.session().request(
+			method="POST",
+			url=url,
+			headers={"Content-Type": "application/json"},
+			data=json.dumps({
+				"source": {
+					"index": previous_index,
+				},
+				"dest": {
+					"index": new_index,
+				}
+			})
+		) as resp:
+
+			if resp.status != 200:
+				raise AssertionError(
+					"Unexpected response code when reindexing: {}".format(
+						resp.status, await resp.text()
+					)
+				)
+
+			resp = await resp.json()
+			return resp
+
 	async def get_by(self, collection: str, key: str, value):
 		raise NotImplementedError("get_by")
 

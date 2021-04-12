@@ -8,7 +8,7 @@ asab.Config.add_defaults(
 	{
 		'asab:storage': {
 			'type': 'elasticsearch',
-			'elasticsearch_url': 'http://10.17.174.124:9200/',
+			'elasticsearch_url': 'http://localhost:9200/',
 		}
 	}
 )
@@ -29,8 +29,12 @@ class MyApplication(asab.Application):
 		# To create new object we keep default `version` to zero
 		print("Creating default id and version")
 		u = storage.upsertor("test-collection")
-		u.set("foo", "bar")
+		u.set("bar", {"data": "test"})
 		objid = await u.execute()
+
+		obj = await storage.get("test-collection", objid)
+		print("Result of get by id '{}'".format(objid))
+		pprint.pprint(obj)
 
 		obj = await storage.get("test-collection", objid)
 		# Obtain upsertor object for update - specify existing `version` number
@@ -43,6 +47,14 @@ class MyApplication(asab.Application):
 		print("Result of get by id '{}'".format(objid))
 		pprint.pprint(obj)
 
+		# Reindex the collection
+		await storage.reindex("test-collection", "test-collection-reindex")
+		await storage.reindex("test-collection-reindex", "test-collection")
+
+		# Remove the reindexed collection
+		await storage.delete("test-collection-reindex")
+
+		# Delete the item
 		await storage.delete("test-collection", objid)
 
 
