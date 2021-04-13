@@ -13,6 +13,7 @@ L = logging.getLogger(__name__)
 
 #
 
+
 class WebContainer(ConfigObject):
 
 	'''
@@ -83,6 +84,7 @@ want to allow OPTIONS method for preflight requests.
 	def __init__(self, websvc, config_section_name, config=None):
 		super().__init__(config_section_name=config_section_name, config=config)
 
+		self.Addresses = []
 		self.BackLog = int(self.Config.get("backlog"))
 		self.CORS = self.Config.get("cors")
 
@@ -142,20 +144,14 @@ want to allow OPTIONS method for preflight requests.
 		)
 
 		websvc._register_container(self, config_section_name)
-		websvc.App.PubSub.subscribe("Application.run!", self.start_container)
 
 		if self.CORS != "":
 			preflight_str = self.Config["cors_preflight_paths"].strip("\n").replace("*", "{tail:.*}")
 			preflight_paths = re.split(r"[,\s]+", preflight_str, re.MULTILINE)
 			self.add_preflight_handlers(preflight_paths)
 
-		self.Addresses = []
-
 
 	async def initialize(self, app):
-		pass
-
-	async def start_container(self, event_type):
 		await self.WebAppRunner.setup()
 
 		for addr, port, ssl_context in self._listen:
@@ -173,12 +169,17 @@ want to allow OPTIONS method for preflight requests.
 		self.WebApp['app'].PubSub.publish("WebContainer.started!", self)
 
 
+	async def finalize(self, app):
+		self.WebApp['app'].PubSub.publish("WebContainer.stoped!", self)
+		await self.WebAppRunner.cleanup()
+
+
 	def add_preflight_handlers(self, preflight_paths):
 		for path in preflight_paths:
-			self.WebApp.router.add_route("OPTIONS", path, self.preflight_handler)
+			self.WebApp.router.add_route("OPTIONS", path, self._preflight_handler)
 
 
-	async def preflight_handler(self, request):
+	async def _preflight_handler(self, request):
 			return aiohttp.web.HTTPNoContent(headers={
 				"Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
 				"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -186,9 +187,6 @@ want to allow OPTIONS method for preflight requests.
 				"Access-Control-Allow-Credentials": "true",
 				"Access-Control-Max-Age": "86400",
 			})
-
-	async def finalize(self, app):
-		await self.WebAppRunner.cleanup()
 
 
 	async def _on_prepare_response(self, request, response):
