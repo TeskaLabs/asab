@@ -3,6 +3,8 @@ import re
 
 import aiohttp.web
 
+from ...config import Config
+
 
 def required(*resources):
 	'''
@@ -26,6 +28,11 @@ def required(*resources):
 
 		@functools.wraps(func)
 		async def wrapper(*args, **kargs):
+
+			# RBAC URL is disabled, so no authorization can be performed
+			if Config["authz"]["rbac_url"] == "!DISABLED!":
+				return await func(*args, **kargs)
+
 			request = args[-1]
 
 			# Obtain authz service from the request
@@ -49,7 +56,7 @@ def required(*resources):
 				access_token=access_token,
 				tenant=getattr(request, "Tenant", None),
 			):
-				return
+				return await func(*args, **kargs)
 
 			# Be defensive
 			raise aiohttp.web.HTTPUnauthorized()

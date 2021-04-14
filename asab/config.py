@@ -71,6 +71,12 @@ class ConfigParser(configparser.ConfigParser):
 			"listen": "",
 		},
 
+		"authz": {
+			# RBAC URL
+			# If !DISABLED! is specified, all authorization checks will be skipped
+			"rbac_url": "http://localhost:8081/rbac",
+		},
+
 		"asab:zookeeper": {
 			"servers": "",
 			"path": "/asab",

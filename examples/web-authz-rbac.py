@@ -48,7 +48,7 @@ class MyRBACSecuredApplication(asab.Application):
 		container.WebApp.router.add_get('/cars', self.get_cars)
 
 	@asab.web.authz.required("car:list")
-	async def get_cars(self, request, *):
+	async def get_cars(self, request):
 		cars = ["Skoda", "Volvo", "Kia"]
 		return asab.web.rest.json_response(request=request, data=cars)
 
