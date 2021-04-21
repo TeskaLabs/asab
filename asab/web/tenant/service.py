@@ -107,4 +107,8 @@ class TenantService(Service):
 				if resp.status == 200:
 					tenants_list = await resp.json()
 					for tenant in tenants_list:
-						self.Tenants[tenant["_id"]] = tenant
+						# Hotfix: Because of the new version of SeaCat Auth
+						if isinstance(tenant, str):
+							self.Tenants[tenant] = {"_id": tenant}
+						else:
+							self.Tenants[tenant["_id"]] = tenant
