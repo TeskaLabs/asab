@@ -276,56 +276,27 @@ class Application(metaclass=Singleton):
 
 
 	def run(self):
-		# Comence init-time governor
-
-		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
-			[
-				self.initialize(),
-				self._init_time_governor(asyncio.Future()),
-			],
-			return_when=asyncio.FIRST_EXCEPTION
-		))
-
-		for task in finished_tasks:
-			# This one also raises exceptions from futures, which is perfectly ok
-			task.result()
-		if len(pending_tasks) > 0:
-			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
+		# Comence init-time
+		self.PubSub.publish("Application.init!")
+		self.Loop.run_until_complete(self.initialize())
 
 		# Comence run-time and application main() function
 		L.log(LOG_NOTICE, "is ready.")
 		self._stop_event.clear()
-		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
-			[
-				self.main(),
-				self._run_time_governor(asyncio.Future()),
-			],
-			return_when=asyncio.FIRST_EXCEPTION
+		self.Loop.run_until_complete(asyncio.gather(
+			self._run_time_governor(),
+			self.main(),
 		))
-		for task in finished_tasks:
-			try:
-				task.result()
-			except BaseException:
-				L.exception("Exception in {}".format(task))
-
-		# TODO: Process pending_tasks tasks from above
 
 		# Comence exit-time
 		L.log(LOG_NOTICE, "is exiting ...")
-		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
+		self.Loop.run_until_complete(asyncio.wait(
 			[
 				self.finalize(),
 				self._exit_time_governor(asyncio.Future()),
 			],
 			return_when=asyncio.FIRST_EXCEPTION
 		))
-		for task in finished_tasks:
-			try:
-				task.result()
-			except BaseException:
-				L.exception("Exception in {}".format(task))
-
-		# TODO: Process pending_tasks tasks from above (should be none)
 
 		# Python 3.5 lacks support for shutdown_asyncgens()
 		if hasattr(self.Loop, "shutdown_asyncgens"):
@@ -377,6 +348,7 @@ class Application(metaclass=Singleton):
 
 		asyncio.ensure_future(module.initialize(self), loop=self.Loop)
 
+
 	# Services
 
 	def get_service(self, service_name):
@@ -403,6 +375,7 @@ class Application(metaclass=Singleton):
 
 		asyncio.ensure_future(service.initialize(self), loop=self.Loop)
 
+
 	# Lifecycle callback
 
 	async def initialize(self):
@@ -414,47 +387,40 @@ class Application(metaclass=Singleton):
 	async def finalize(self):
 		pass
 
+
 	# Governors
 
-	async def _init_time_governor(self, future):
-		self.PubSub.publish("Application.init!")
-		future.set_result("initialize")
 
-
-	async def _run_time_governor(self, future):
+	async def _run_time_governor(self):
 		timeout = Config.getint('general', 'tick_period')
-		try:
-			self.PubSub.publish("Application.run!")
+		self.PubSub.publish("Application.run!")
 
-			# Wait for stop event & tick in meanwhile
-			for cycle_no in itertools.count(1):
-				try:
-					await asyncio.wait_for(self._stop_event.wait(), timeout=timeout)
-					break
-				except asyncio.TimeoutError:
-					self.PubSub.publish("Application.tick!")
-					if (cycle_no % 10) == 0:
-						self.PubSub.publish("Application.tick/10!")
-					if (cycle_no % 60) == 0:
-						# Rebase a Loop time
-						self.BaseTime = time.time() - self.Loop.time()
-						self.PubSub.publish("Application.tick/60!")
-					if (cycle_no % 300) == 0:
-						self.PubSub.publish("Application.tick/300!")
-					if (cycle_no % 600) == 0:
-						self.PubSub.publish("Application.tick/600!")
-					if (cycle_no % 1800) == 0:
-						self.PubSub.publish("Application.tick/1800!")
-					if (cycle_no % 3600) == 0:
-						self.PubSub.publish("Application.tick/3600!")
-					if (cycle_no % 43200) == 0:
-						self.PubSub.publish("Application.tick/43200!")
-					if (cycle_no % 86400) == 0:
-						self.PubSub.publish("Application.tick/86400!")
-					continue
-
-		finally:
-			future.set_result("run")
+		# Wait for stop event & tick in meanwhile
+		for cycle_no in itertools.count(1):
+			try:
+				await asyncio.wait_for(self._stop_event.wait(), timeout=timeout)
+				break
+			except asyncio.TimeoutError:
+				self.PubSub.publish("Application.tick!")
+				if (cycle_no % 10) == 0:
+					self.PubSub.publish("Application.tick/10!")
+				if (cycle_no % 60) == 0:
+					# Rebase a Loop time
+					self.BaseTime = time.time() - self.Loop.time()
+					self.PubSub.publish("Application.tick/60!")
+				if (cycle_no % 300) == 0:
+					self.PubSub.publish("Application.tick/300!")
+				if (cycle_no % 600) == 0:
+					self.PubSub.publish("Application.tick/600!")
+				if (cycle_no % 1800) == 0:
+					self.PubSub.publish("Application.tick/1800!")
+				if (cycle_no % 3600) == 0:
+					self.PubSub.publish("Application.tick/3600!")
+				if (cycle_no % 43200) == 0:
+					self.PubSub.publish("Application.tick/43200!")
+				if (cycle_no % 86400) == 0:
+					self.PubSub.publish("Application.tick/86400!")
+				continue
 
 
 	async def _exit_time_governor(self, future):
