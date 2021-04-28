@@ -11,7 +11,7 @@ The code
    :code: python
 
 | To start the application, store above code in a file ``app.py``.
-| Use ``python3 app.py`` to run it.
+| Use ``python3 app.py -w`` to run it.
 
 The ASAB web server is now available at http://localhost:8080/.
 
