@@ -19,7 +19,18 @@ Read Update and Delete operations on.
 
 Our sample microservice will consist of several modules, each one serving a logical purpose within the
 whole. The components are as follows (and they also hint a filestructure), and will be discussed in greater 
-detail in their respective sections below, we will go from top to bottom:   
+detail in their respective sections below, we will go from top to bottom: 
+```
+.
+└── myrestapi.py
+─── myrestapi
+    └── __init__.py
+    ─── app.py
+    ─── tutorial
+        └── handler.py
+	─── service.py
+```
+
 `myrestapi.py`, `./myrestapi/__init__.py`, `./myrestapi/app.py`, `./myrestapi/tutorial/handler.py`, and `./myrestapi/tutorial/service.py`  
 While we start working on the microservice, we should have a testing MongoDB instance running, we will touch briefly 
 on how to quickly do that.   
@@ -32,8 +43,15 @@ lets use a docker image (docker installation is not covered in this tutorial, bu
 should you run into any trouble). 
 Pull this image:  
 `https://hub.docker.com/_/mongo`   
-And follow the detailed instructions on how to run it, if you choose to run the instance without password, dont forget 
+And follow the detailed instructions (or use command below) on how to run it, if you choose to run the instance without password, dont forget 
 to adjust the related asab.Config in the `./myrestapi/app.py`
+
+```
+docker run -d -p 27017:27017 \
+    -e MONGO_INITDB_ROOT_USERNAME=user \
+    -e MONGO_INITDB_ROOT_PASSWORD=secret \
+    mongo
+```
  
 ### Postman
 
@@ -285,20 +303,21 @@ There, all done! Now we need to see if all this comes together nicely and test i
 
 The application is implicitly running on 8080 port (see ASAB documentation).
 
-We could try put method from mothod we choose PUT
-Into url we set
+We could try PUT method. 
+Into url we set:
 
     127.0.0.1:8080/crud-myrestapi/movie
    
-Into the request body we put 
+Into the request body we put: 
 
     {
+    "_id": "1",
     "field1": "something new",
     "field2": 5555,
     "field3": 44424
     }
 
-Get update and delete method we could test just as put before.
+To test update and delete methods, we use PUT and DELETE correspodingly.
 Into the url we just put after collection name id of requested object.
 For example:
     
