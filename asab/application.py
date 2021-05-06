@@ -290,12 +290,9 @@ class Application(metaclass=Singleton):
 
 		# Comence exit-time
 		L.log(LOG_NOTICE, "is exiting ...")
-		self.Loop.run_until_complete(asyncio.wait(
-			[
-				self.finalize(),
-				self._exit_time_governor(asyncio.Future()),
-			],
-			return_when=asyncio.FIRST_EXCEPTION
+		self.Loop.run_until_complete(asyncio.gather(
+			self.finalize(),
+			self._exit_time_governor(),
 		))
 
 		# Python 3.5 lacks support for shutdown_asyncgens()
@@ -423,27 +420,41 @@ class Application(metaclass=Singleton):
 				continue
 
 
-	async def _exit_time_governor(self, future):
+	async def _exit_time_governor(self):
 		self.PubSub.publish("Application.exit!")
 
 		# Finalize services
-		futures = []
+		futures = set()
 		for service in self.Services.values():
-			nf = asyncio.ensure_future(service.finalize(self), loop=self.Loop)
-			futures.append(nf)
-		if len(futures) > 0:
-			await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
-			# TODO: Handle expections (if needed) - probably only print them
+			futures.add(
+				service.finalize(self)
+			)
+
+		while len(futures) > 0:
+			done, futures = await asyncio.wait(futures, return_when=asyncio.FIRST_EXCEPTION)
+			for fut in done:
+				try:
+					fut.result()
+				except Exception:
+					L.exception("Error during finalize call")
+
 
 		# Finalize modules
-		futures = []
+		futures = set()
 		for module in self.Modules:
-			nf = asyncio.ensure_future(module.finalize(self), loop=self.Loop)
-			futures.append(nf)
-		if len(futures) > 0:
-			await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
-			# TODO: Handle expections (if needed) - probably only print them
+			futures.add(
+				module.finalize(self)
+			)
 
+		while len(futures) > 0:
+			done, futures = await asyncio.wait(futures, return_when=asyncio.FIRST_EXCEPTION)
+			for fut in done:
+				try:
+					fut.result()
+				except Exception:
+					L.exception("Error during finalize call")
+
+		# Wait for non-finalized tasks
 		tasks_awaiting = 0
 		for i in range(3):
 			try:
@@ -464,8 +475,6 @@ class Application(metaclass=Singleton):
 
 		else:
 			L.warning("Exiting but {} async task(s) are still waiting".format(tasks_awaiting))
-
-		future.set_result("exit")
 
 
 	def set_exit_code(self, exit_code: int, force: bool = False):
