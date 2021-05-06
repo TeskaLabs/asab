@@ -283,7 +283,11 @@ class Application(metaclass=Singleton):
 	def run(self):
 		# Comence init-time
 		self.PubSub.publish("Application.init!")
-		self.Loop.run_until_complete(self.initialize())
+		self.Loop.run_until_complete(asyncio.gather(
+			self._init_time_governor(),
+			self.initialize(),
+
+		))
 
 		# Comence run-time and application main() function
 		L.log(LOG_NOTICE, "is ready.")
@@ -394,6 +398,10 @@ class Application(metaclass=Singleton):
 
 	# Governors
 
+	async def _init_time_governor(self):
+		# Initialize all services that has been created during application construction
+		await self._ensure_initialization()
+
 
 	async def _run_time_governor(self):
 		timeout = Config.getint('general', 'tick_period')
@@ -402,21 +410,7 @@ class Application(metaclass=Singleton):
 		# Wait for stop event & tick in meanwhile
 		for cycle_no in itertools.count(1):
 
-			# Initialize modules
-			while len(self.InitModulesQueue) > 0:
-				module = self.InitModulesQueue.pop()
-				try:
-					await module.initialize(self)
-				except Exception:
-					L.exception("Error during module initialization")
-
-			# Initialize services
-			while len(self.InitServicesQueue) > 0:
-				service = self.InitServicesQueue.pop()
-				try:
-					await service.initialize(self)
-				except Exception:
-					L.exception("Error during service initialization")
+			await self._ensure_initialization()
 
 			try:
 				await asyncio.wait_for(self._stop_event.wait(), timeout=timeout)
@@ -478,6 +472,7 @@ class Application(metaclass=Singleton):
 				except Exception:
 					L.exception("Error during finalize call")
 
+
 		# Wait for non-finalized tasks
 		tasks_awaiting = 0
 		for i in range(3):
@@ -501,10 +496,36 @@ class Application(metaclass=Singleton):
 			L.warning("Exiting but {} async task(s) are still waiting".format(tasks_awaiting))
 
 
+	async def _ensure_initialization(self):
+		'''
+		This method ensures that any newly add module or registered service is initialized.
+		It is called from:
+		(1) init-time for modules&services added during application construction.
+		(2) run-time for modules&services added during aplication lifecycle.
+		'''
+
+		# Initialize modules
+		while len(self.InitModulesQueue) > 0:
+			module = self.InitModulesQueue.pop()
+			try:
+				await module.initialize(self)
+			except Exception:
+				L.exception("Error during module initialization")
+
+		# Initialize services
+		while len(self.InitServicesQueue) > 0:
+			service = self.InitServicesQueue.pop()
+			try:
+				await service.initialize(self)
+			except Exception:
+				L.exception("Error during service initialization")
+
+
 	def set_exit_code(self, exit_code: int, force: bool = False):
 		if (self.ExitCode < exit_code) or force:
 			L.debug("Exit code set to {}".format(exit_code))
 			self.ExitCode = exit_code
+
 
 	# Time
 
