@@ -37,6 +37,11 @@ class Application(metaclass=Singleton):
 		except AttributeError:
 			self.ExitCode = 0
 
+		# Queue of Services to be initialized
+		self.InitServicesQueue = []
+		# Queue of Modules to be initialized
+		self.InitModulesQueue = []
+
 		# Parse command line
 		self.Args = self.parse_arguments(args=args)
 
@@ -343,7 +348,8 @@ class Application(metaclass=Singleton):
 		module = module_class(self)
 		self.Modules.append(module)
 
-		asyncio.ensure_future(module.initialize(self), loop=self.Loop)
+		# Enqueue module for initialization (happens in run phase)
+		self.InitModulesQueue.append(module)
 
 
 	# Services
@@ -370,7 +376,8 @@ class Application(metaclass=Singleton):
 
 		self.Services[service.Name] = service
 
-		asyncio.ensure_future(service.initialize(self), loop=self.Loop)
+		# Enqueue service for initialization (happens in run phase)
+		self.InitServicesQueue.append(service)
 
 
 	# Lifecycle callback
@@ -394,6 +401,23 @@ class Application(metaclass=Singleton):
 
 		# Wait for stop event & tick in meanwhile
 		for cycle_no in itertools.count(1):
+
+			# Initialize modules
+			while len(self.InitModulesQueue) > 0:
+				module = self.InitModulesQueue.pop()
+				try:
+					await module.initialize(self)
+				except Exception:
+					L.exception("Error during module initialization")
+
+			# Initialize services
+			while len(self.InitServicesQueue) > 0:
+				service = self.InitServicesQueue.pop()
+				try:
+					await service.initialize(self)
+				except Exception:
+					L.exception("Error during service initialization")
+
 			try:
 				await asyncio.wait_for(self._stop_event.wait(), timeout=timeout)
 				break
@@ -467,7 +491,7 @@ class Application(metaclass=Singleton):
 				if t.done():
 					continue
 				tasks_awaiting += 1
-			if tasks_awaiting <= 2:
+			if tasks_awaiting <= 1:
 				# 2 is for _exit_time_governor and wait()
 				break
 
