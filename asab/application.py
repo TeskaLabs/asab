@@ -37,6 +37,11 @@ class Application(metaclass=Singleton):
 		except AttributeError:
 			self.ExitCode = 0
 
+		# Queue of Services to be initialized
+		self.InitServicesQueue = []
+		# Queue of Modules to be initialized
+		self.InitModulesQueue = []
+
 		# Parse command line
 		self.Args = self.parse_arguments(args=args)
 
@@ -276,56 +281,28 @@ class Application(metaclass=Singleton):
 
 
 	def run(self):
-		# Comence init-time governor
+		# Comence init-time
+		self.PubSub.publish("Application.init!")
+		self.Loop.run_until_complete(asyncio.gather(
+			self._init_time_governor(),
+			self.initialize(),
 
-		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
-			[
-				self.initialize(),
-				self._init_time_governor(asyncio.Future()),
-			],
-			return_when=asyncio.FIRST_EXCEPTION
 		))
-
-		for task in finished_tasks:
-			# This one also raises exceptions from futures, which is perfectly ok
-			task.result()
-		if len(pending_tasks) > 0:
-			raise RuntimeError("Failed to fully initialize. Here are pending tasks: {}".format(pending_tasks))
 
 		# Comence run-time and application main() function
 		L.log(LOG_NOTICE, "is ready.")
 		self._stop_event.clear()
-		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
-			[
-				self.main(),
-				self._run_time_governor(asyncio.Future()),
-			],
-			return_when=asyncio.FIRST_EXCEPTION
+		self.Loop.run_until_complete(asyncio.gather(
+			self._run_time_governor(),
+			self.main(),
 		))
-		for task in finished_tasks:
-			try:
-				task.result()
-			except BaseException:
-				L.exception("Exception in {}".format(task))
-
-		# TODO: Process pending_tasks tasks from above
 
 		# Comence exit-time
 		L.log(LOG_NOTICE, "is exiting ...")
-		finished_tasks, pending_tasks = self.Loop.run_until_complete(asyncio.wait(
-			[
-				self.finalize(),
-				self._exit_time_governor(asyncio.Future()),
-			],
-			return_when=asyncio.FIRST_EXCEPTION
+		self.Loop.run_until_complete(asyncio.gather(
+			self.finalize(),
+			self._exit_time_governor(),
 		))
-		for task in finished_tasks:
-			try:
-				task.result()
-			except BaseException:
-				L.exception("Exception in {}".format(task))
-
-		# TODO: Process pending_tasks tasks from above (should be none)
 
 		# Python 3.5 lacks support for shutdown_asyncgens()
 		if hasattr(self.Loop, "shutdown_asyncgens"):
@@ -375,7 +352,9 @@ class Application(metaclass=Singleton):
 		module = module_class(self)
 		self.Modules.append(module)
 
-		asyncio.ensure_future(module.initialize(self), loop=self.Loop)
+		# Enqueue module for initialization (happens in run phase)
+		self.InitModulesQueue.append(module)
+
 
 	# Services
 
@@ -401,7 +380,9 @@ class Application(metaclass=Singleton):
 
 		self.Services[service.Name] = service
 
-		asyncio.ensure_future(service.initialize(self), loop=self.Loop)
+		# Enqueue service for initialization (happens in run phase)
+		self.InitServicesQueue.append(service)
+
 
 	# Lifecycle callback
 
@@ -414,70 +395,85 @@ class Application(metaclass=Singleton):
 	async def finalize(self):
 		pass
 
+
 	# Governors
 
-	async def _init_time_governor(self, future):
-		self.PubSub.publish("Application.init!")
-		future.set_result("initialize")
+	async def _init_time_governor(self):
+		# Initialize all services that has been created during application construction
+		await self._ensure_initialization()
 
 
-	async def _run_time_governor(self, future):
+	async def _run_time_governor(self):
 		timeout = Config.getint('general', 'tick_period')
-		try:
-			self.PubSub.publish("Application.run!")
+		self.PubSub.publish("Application.run!")
 
-			# Wait for stop event & tick in meanwhile
-			for cycle_no in itertools.count(1):
-				try:
-					await asyncio.wait_for(self._stop_event.wait(), timeout=timeout)
-					break
-				except asyncio.TimeoutError:
-					self.PubSub.publish("Application.tick!")
-					if (cycle_no % 10) == 0:
-						self.PubSub.publish("Application.tick/10!")
-					if (cycle_no % 60) == 0:
-						# Rebase a Loop time
-						self.BaseTime = time.time() - self.Loop.time()
-						self.PubSub.publish("Application.tick/60!")
-					if (cycle_no % 300) == 0:
-						self.PubSub.publish("Application.tick/300!")
-					if (cycle_no % 600) == 0:
-						self.PubSub.publish("Application.tick/600!")
-					if (cycle_no % 1800) == 0:
-						self.PubSub.publish("Application.tick/1800!")
-					if (cycle_no % 3600) == 0:
-						self.PubSub.publish("Application.tick/3600!")
-					if (cycle_no % 43200) == 0:
-						self.PubSub.publish("Application.tick/43200!")
-					if (cycle_no % 86400) == 0:
-						self.PubSub.publish("Application.tick/86400!")
-					continue
+		# Wait for stop event & tick in meanwhile
+		for cycle_no in itertools.count(1):
 
-		finally:
-			future.set_result("run")
+			await self._ensure_initialization()
+
+			try:
+				await asyncio.wait_for(self._stop_event.wait(), timeout=timeout)
+				break
+			except asyncio.TimeoutError:
+				self.PubSub.publish("Application.tick!")
+				if (cycle_no % 10) == 0:
+					self.PubSub.publish("Application.tick/10!")
+				if (cycle_no % 60) == 0:
+					# Rebase a Loop time
+					self.BaseTime = time.time() - self.Loop.time()
+					self.PubSub.publish("Application.tick/60!")
+				if (cycle_no % 300) == 0:
+					self.PubSub.publish("Application.tick/300!")
+				if (cycle_no % 600) == 0:
+					self.PubSub.publish("Application.tick/600!")
+				if (cycle_no % 1800) == 0:
+					self.PubSub.publish("Application.tick/1800!")
+				if (cycle_no % 3600) == 0:
+					self.PubSub.publish("Application.tick/3600!")
+				if (cycle_no % 43200) == 0:
+					self.PubSub.publish("Application.tick/43200!")
+				if (cycle_no % 86400) == 0:
+					self.PubSub.publish("Application.tick/86400!")
+				continue
 
 
-	async def _exit_time_governor(self, future):
+	async def _exit_time_governor(self):
 		self.PubSub.publish("Application.exit!")
 
 		# Finalize services
-		futures = []
+		futures = set()
 		for service in self.Services.values():
-			nf = asyncio.ensure_future(service.finalize(self), loop=self.Loop)
-			futures.append(nf)
-		if len(futures) > 0:
-			await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
-			# TODO: Handle expections (if needed) - probably only print them
+			futures.add(
+				service.finalize(self)
+			)
+
+		while len(futures) > 0:
+			done, futures = await asyncio.wait(futures, return_when=asyncio.FIRST_EXCEPTION)
+			for fut in done:
+				try:
+					fut.result()
+				except Exception:
+					L.exception("Error during finalize call")
+
 
 		# Finalize modules
-		futures = []
+		futures = set()
 		for module in self.Modules:
-			nf = asyncio.ensure_future(module.finalize(self), loop=self.Loop)
-			futures.append(nf)
-		if len(futures) > 0:
-			await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
-			# TODO: Handle expections (if needed) - probably only print them
+			futures.add(
+				module.finalize(self)
+			)
 
+		while len(futures) > 0:
+			done, futures = await asyncio.wait(futures, return_when=asyncio.FIRST_EXCEPTION)
+			for fut in done:
+				try:
+					fut.result()
+				except Exception:
+					L.exception("Error during finalize call")
+
+
+		# Wait for non-finalized tasks
 		tasks_awaiting = 0
 		for i in range(3):
 			try:
@@ -490,7 +486,7 @@ class Application(metaclass=Singleton):
 				if t.done():
 					continue
 				tasks_awaiting += 1
-			if tasks_awaiting <= 2:
+			if tasks_awaiting <= 1:
 				# 2 is for _exit_time_governor and wait()
 				break
 
@@ -499,13 +495,37 @@ class Application(metaclass=Singleton):
 		else:
 			L.warning("Exiting but {} async task(s) are still waiting".format(tasks_awaiting))
 
-		future.set_result("exit")
+
+	async def _ensure_initialization(self):
+		'''
+		This method ensures that any newly add module or registered service is initialized.
+		It is called from:
+		(1) init-time for modules&services added during application construction.
+		(2) run-time for modules&services added during aplication lifecycle.
+		'''
+
+		# Initialize modules
+		while len(self.InitModulesQueue) > 0:
+			module = self.InitModulesQueue.pop()
+			try:
+				await module.initialize(self)
+			except Exception:
+				L.exception("Error during module initialization")
+
+		# Initialize services
+		while len(self.InitServicesQueue) > 0:
+			service = self.InitServicesQueue.pop()
+			try:
+				await service.initialize(self)
+			except Exception:
+				L.exception("Error during service initialization")
 
 
 	def set_exit_code(self, exit_code: int, force: bool = False):
 		if (self.ExitCode < exit_code) or force:
 			L.debug("Exit code set to {}".format(exit_code))
 			self.ExitCode = exit_code
+
 
 	# Time
 

@@ -21,6 +21,9 @@ class SSLContextBuilder(ConfigObject):
 	def build(self, protocol=ssl.PROTOCOL_TLS):
 		ctx = ssl.SSLContext(protocol=protocol)
 
+		ctx.options |= ssl.OP_NO_SSLv2
+		ctx.options |= ssl.OP_NO_SSLv3
+
 		keyfile = self.Config.get("key")
 		if len(keyfile) == 0:
 			keyfile = None
