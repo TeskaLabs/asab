@@ -22,6 +22,7 @@ logging.addLevelName(LOG_NOTICE, "NOTICE")
 
 class Logging(object):
 
+
 	def __init__(self, app):
 		self.RootLogger = logging.getLogger()
 
@@ -31,18 +32,9 @@ class Logging(object):
 
 		if not self.RootLogger.hasHandlers():
 
-			# Add console logger
-			# Don't initialize this when not on console
+			# Add console logger if needed
 			if os.isatty(sys.stdin.fileno()) or os.environ.get('ASABFORCECONSOLE', '0') != '0':
-				self.ConsoleHandler = logging.StreamHandler(stream=sys.stderr)
-				self.ConsoleHandler.setFormatter(StructuredDataFormatter(
-					fmt=Config["logging:console"]["format"],
-					datefmt=Config["logging:console"]["datefmt"],
-					sd_id=Config["logging"]["sd_id"],
-					use_color=True
-				))
-				self.ConsoleHandler.setLevel(logging.DEBUG)
-				self.RootLogger.addHandler(self.ConsoleHandler)
+				self._configure_console_logging()
 
 			# Initialize file handler
 			file_path = Config["logging:file"]["path"]
@@ -133,6 +125,13 @@ class Logging(object):
 						self.SyslogHandler.setFormatter(SyslogRFC3164Formatter(sd_id=Config["logging"]["sd_id"]))
 					self.RootLogger.addHandler(self.SyslogHandler)
 
+			# No logging is configured
+			if self.ConsoleHandler is None and self.FileHandler is None and self.SyslogHandler is None:
+				# Let's check if we run in Docker and if so, then log on stderr
+				from .docker import running_in_docker
+				if running_in_docker():
+					self._configure_console_logging()
+
 		else:
 			self.RootLogger.warning("Logging seems to be already configured. Proceed with caution.")
 
@@ -151,6 +150,7 @@ class Logging(object):
 			level = logging.getLevelName(levelname.upper())
 			logging.getLogger(loggername).setLevel(level)
 
+
 	def rotate(self):
 		if self.FileHandler is not None:
 			self.RootLogger.log(LOG_NOTICE, "Rotating logs")
@@ -161,6 +161,18 @@ class Logging(object):
 		if self.FileHandler is not None:
 			if self.FileHandler.stream.tell() > 1000:
 				self.rotate()
+
+
+	def _configure_console_logging(self):
+		self.ConsoleHandler = logging.StreamHandler(stream=sys.stderr)
+		self.ConsoleHandler.setFormatter(StructuredDataFormatter(
+			fmt=Config["logging:console"]["format"],
+			datefmt=Config["logging:console"]["datefmt"],
+			sd_id=Config["logging"]["sd_id"],
+			use_color=True
+		))
+		self.ConsoleHandler.setLevel(logging.DEBUG)
+		self.RootLogger.addHandler(self.ConsoleHandler)
 
 
 class _StructuredDataLogger(logging.Logger):
