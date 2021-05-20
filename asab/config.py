@@ -243,7 +243,7 @@ class ConfigParser(configparser.ConfigParser):
 
 	def getseconds(self, section, option, *, raw=False, vars=None, fallback=None, **kwargs):
 		if fallback is None:
-			fallback = object()
+			fallback = configparser._UNSET
 
 		return self._get_conv(section, option, self._convert_to_seconds, raw=raw, vars=vars, fallback=fallback, **kwargs)
 
