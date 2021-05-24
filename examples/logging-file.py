@@ -11,7 +11,7 @@ L = logging.getLogger(__name__)
 
 class MyApplication(asab.Application):
 	"""
-	
+	python3 logging-file.py -c ./data/logging-file.conf
 	"""
 
 	async def main(self):
