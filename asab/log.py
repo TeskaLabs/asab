@@ -47,7 +47,14 @@ class Logging(object):
 			# Initialize file handler
 			file_path = Config["logging:file"]["path"]
 
+			file_path = file_path.replace("{HOSTNAME}", app.HostName)
+
 			if len(file_path) > 0:
+
+				# Ensure file path
+				directory = os.path.dirname(file_path)
+				if not os.path.exists(directory):
+					os.makedirs(directory)
 
 				self.FileHandler = logging.handlers.RotatingFileHandler(
 					file_path,

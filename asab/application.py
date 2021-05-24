@@ -69,6 +69,17 @@ class Application(metaclass=Singleton):
 		self.LaunchTime = time.time()
 		self.BaseTime = self.LaunchTime - self.Loop.time()
 
+		self.Modules = []
+		self.Services = {}
+
+		# Check if the application is running in Docker,
+		# if so, add Docker service
+		if running_in_docker():
+			from .docker import Module
+			self.add_module(Module)
+			self.DockerService = self.get_service("asab.DockerService")
+			self.HostName = self.DockerService.load_hostname()
+
 		# Setup logging
 		self.Logging = Logging(self)
 
@@ -110,18 +121,7 @@ class Application(metaclass=Singleton):
 		from .pubsub import PubSub
 		self.PubSub = PubSub(self)
 
-		self.Modules = []
-		self.Services = {}
-
 		self.TaskService = TaskService(self)
-
-		# Check if the application is running in Docker,
-		# if so, add Docker service
-		if running_in_docker():
-			from .docker import Module
-			self.add_module(Module)
-			self.DockerService = self.get_service("asab.DockerService")
-			self.HostName = self.DockerService.load_hostname()
 
 		# Setup ASAB API
 		if len(Config['asab:web']["listen"]) > 0:
