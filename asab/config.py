@@ -283,7 +283,9 @@ class _Interpolation(configparser.ExtendedInterpolation):
 	def before_read(self, parser, section, option, value):
 		# Expand environment variables
 		if '$' in value:
+
 			os.environ['THIS_DIR'] = os.path.abspath(parser._load_dir_stack[-1])
+
 			value = os.path.expandvars(value)
 
 		return super().before_read(parser, section, option, value)

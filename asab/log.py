@@ -41,6 +41,11 @@ class Logging(object):
 
 			if len(file_path) > 0:
 
+				# Ensure file path
+				directory = os.path.dirname(file_path)
+				if not os.path.exists(directory):
+					os.makedirs(directory)
+
 				self.FileHandler = logging.handlers.RotatingFileHandler(
 					file_path,
 					backupCount=Config.getint("logging:file", "backup_count"),

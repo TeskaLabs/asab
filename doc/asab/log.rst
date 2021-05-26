@@ -110,6 +110,18 @@ Example of the configuration file section:
     rotate_every=1d
 
 
+When the deployment expects more instances of the same application to be logging into the same file, 
+it is recommended, that the variable hostname is used in the file path:
+
+.. code:: ini
+
+    [logging:file]
+    path=/var/log/${HOSTNAME}/asab.log
+
+In this way, the applications will log to seperate log files in different folders,
+which is an intended behavior, since race conditions may occur when different application instances
+log into the same file.
+
 Logging to console
 ------------------
 

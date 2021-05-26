@@ -46,6 +46,10 @@ class Application(metaclass=Singleton):
 		self.Args = self.parse_arguments(args=args)
 
 		# Load configuration
+
+		# Obtain HostName
+		self.HostName = platform.node()
+		os.environ['HOSTNAME'] = self.HostName
 		Config._load()
 
 		if hasattr(self.Args, "daemonize") and self.Args.daemonize:
@@ -57,9 +61,6 @@ class Application(metaclass=Singleton):
 		# Seed the random generator
 		random.seed()
 
-		# Obtain HostName
-		self.HostName = platform.node()
-
 		# Obtain the event loop
 		self.Loop = asyncio.get_event_loop()
 		if self.Loop.is_closed():
@@ -68,6 +69,20 @@ class Application(metaclass=Singleton):
 
 		self.LaunchTime = time.time()
 		self.BaseTime = self.LaunchTime - self.Loop.time()
+
+		self.Modules = []
+		self.Services = {}
+
+		# Check if the application is running in Docker,
+		# if so, add Docker service
+		if running_in_docker():
+			from .docker import Module
+			self.add_module(Module)
+			self.DockerService = self.get_service("asab.DockerService")
+
+			self.HostName = self.DockerService.load_hostname()
+			os.environ['HOSTNAME'] = self.HostName 
+			Config._load()
 
 		# Setup logging
 		self.Logging = Logging(self)
@@ -110,18 +125,7 @@ class Application(metaclass=Singleton):
 		from .pubsub import PubSub
 		self.PubSub = PubSub(self)
 
-		self.Modules = []
-		self.Services = {}
-
 		self.TaskService = TaskService(self)
-
-		# Check if the application is running in Docker,
-		# if so, add Docker service
-		if running_in_docker():
-			from .docker import Module
-			self.add_module(Module)
-			self.DockerService = self.get_service("asab.DockerService")
-			self.HostName = self.DockerService.load_hostname()
 
 		# Setup ASAB API
 		if len(Config['asab:web']["listen"]) > 0:
