@@ -151,6 +151,12 @@ It is useful in complex configurations that utilizes included configuration file
 	[section_name]
 	my_file=${THIS_DIR}/my_file.txt
 
+Another environment variable `${HOSTNAME}` contains the application hostname to be used f. e. in logging file path.
+
+.. code:: ini
+
+	[section_name]
+	my_file=${THIS_DIR}/${HOSTNAME}/my_file.txt
 
 Passwords in configration
 -------------------------------------
