@@ -1,25 +1,26 @@
 from urllib.parse import urlparse
 import aiozk
+import logging
+
+L = logging.getLogger(__name__)
+
 
 """
 This module builds ZooKeeper clients from Configs and urls
 urls supported :
- 1. Absolute url 
-	Example: zookeeper://zookeeper:12181/etc/configs/file1
-	
- 2. Relative ur1 with full path
+1. Absolute url.
+Example: zookeeper://zookeeper:12181/etc/configs/file1
+2. Relative ur1 with full path
 	Example: zookeeper:///etc/configs/file1
 	In this case the relative url is expanded as follows:
 	zookeeper://{default_server}/etc/configs/file1
 	Where {default_server} is substituted with the server entry of the [asab:zookeeper] configuration file section.
-
- 3. Relative url with relative path
-	Example: zookeeper:./etc/configs/file1
+3. Relative url with relative path
+Example: zookeeper:./etc/configs/file1
 	In this case, the relative url is expanded as follows:
 	zookeper://{default_server}/{default_path}/etc/configs/file1
 	Where {default_server} is substituted with the "server" entry of the [asab:zookeeper] configuration file section and
 	{default_path} is substituted with the "path" entry of the [asab:zookeeper] configuration file section.
-
 Sample config file:
 
 [asab.zookeeper]
@@ -33,6 +34,9 @@ def build_client(Config, z_url):
 	url_pieces = urlparse(z_url)
 	url_netloc = url_pieces.netloc
 	url_path = url_pieces.path
+
+	if Config.has_option("asab:zookeeper", "servers"):
+		L.error("Servers entry not passes")
 
 	# If there is no location, use implied
 	if not url_netloc:
