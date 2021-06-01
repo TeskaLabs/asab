@@ -115,20 +115,23 @@ class ApiService(asab.Service):
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		return zksvc.build_container()
 
+	def changelog_path(self):
+		path = asab.Config.get('general', 'changelog_path')
+		if os.path.isfile(path):
+			return path
+		if os.path.isfile('/CHANGELOG.md'):
+			return '/CHANGELOG.md'
+		if os.path.isfile('CHANGELOG.md'):
+			return 'CHANGELOG.md'
+		return None
+
 	def changelog(self, request):
-		try:
-			path = asab.Config.get('general', 'changelog_path')
-			with open(path) as f:
-				result = f.read()
-		except FileNotFoundError:
-			try:
-				with open('/CHANGELOG.md') as f:
-					result = f.read()
-			except FileNotFoundError:
-				try:
-					with open('CHANGELOG.md') as f:
-						result = f.read()
-				except FileNotFoundError:
-					result = "CHANGELOG.md not found"
+		path = self.changelog_path()
+
+		if path is None:
+			return aiohttp.web.HTTPNotFound()
+
+		with open(path) as f:
+			result = f.read()
 		return aiohttp.web.Response(text=result, content_type='text/markdown') # ??? should we stick with plain text or always use md?
 
