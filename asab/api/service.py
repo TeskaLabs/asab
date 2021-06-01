@@ -6,6 +6,7 @@ import logging
 import asab
 import asab.web
 import asab.web.rest
+import aiohttp
 from asab.api.log import WebApiLoggingHandler
 
 ##
@@ -83,6 +84,8 @@ class ApiService(asab.Service):
 		container.WebApp.router.add_get('/asab/v1/logs', self.APILogHandler.get_logs)
 		container.WebApp.router.add_get('/asab/v1/logws', self.APILogHandler.ws)
 
+		container.WebApp.router.add_get('/asab/v1/changelog', self.changelog)
+
 		return container
 
 
@@ -111,3 +114,21 @@ class ApiService(asab.Service):
 		# get zookeeper-serivice
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		return zksvc.build_container()
+
+	def changelog(self, request):
+		try:
+			path = asab.Config.get('general', 'changelog_path')
+			with open(path) as f:
+				result = f.read()
+		except FileNotFoundError:
+			try:
+				with open('/CHANGELOG.md') as f:
+					result = f.read()
+			except FileNotFoundError:
+				try:
+					with open('CHANGELOG.md') as f:
+						result = f.read()
+				except FileNotFoundError:
+					result = "CHANGELOG.md not found"
+		return aiohttp.web.Response(text=result, content_type='text/markdown') # ??? should we stick with plain text or always use md?
+
