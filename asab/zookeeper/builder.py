@@ -46,7 +46,7 @@ def build_client(Config, z_url):
 	if url_path.startswith("./"):
 		# if path entry is missing exit
 		if Config.has_option("asab:zookeeper", "path"):
-			L.error("Servers entry not passes")
+			L.error("Path entry not passes")
 			return
 		url_path = Config["asab:zookeeper"]["path"] + url_path[1:]
 
