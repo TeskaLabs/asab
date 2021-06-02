@@ -7,7 +7,7 @@ import platform
 import configparser
 from urllib.parse import urlparse
 from collections.abc import MutableMapping
-import sys, io
+import sys
 
 
 L = logging.getLogger(__name__)
@@ -200,7 +200,7 @@ class ConfigParser(configparser.ConfigParser):
 
 		loop = asyncio.get_event_loop()
 
-		#parse include value into hostname and path
+		# parse include value into hostname and path
 		url_pieces = urlparse(zkurl)
 		url_path = url_pieces.path
 		url_netloc = url_pieces.netloc
@@ -220,13 +220,13 @@ class ConfigParser(configparser.ConfigParser):
 					url_netloc,
 					allow_read_only=True,
 					read_timeout=60,  # seconds #
-			   	)
+				)
 				await zk.start()
 				data = await zk.get_data(url_path)
-				#convert bytes to string
-				encode_config = str(data,'utf-8')
+				# convert bytes to string
+				encode_config = str(data, 'utf-8')
 				self.read_string(encode_config)
-				#Include in the list of config file contents
+				# Include in the list of config file contents
 				self.config_contents_list.append(encode_config)
 				await zk.close()
 				# Re-enable logging output
@@ -238,7 +238,7 @@ class ConfigParser(configparser.ConfigParser):
 
 
 	def get_config_contents_list(self):
-		return self.config_contents_list ,self.config_name_list
+		return self.config_contents_list, self.config_name_list
 
 
 	def getseconds(self, section, option, *, raw=False, vars=None, fallback=None, **kwargs):

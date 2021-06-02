@@ -37,8 +37,8 @@ class ZooKeeperContainer(ConfigObject):
 	async def finalize(self, app):
 		await self.ZooKeeper.close()
 
-	async def advertise(self,data, path):
-		self.Data =data
+	async def advertise(self, data, path):
+		self.Data = data
 		self.Path = path
 		await self.do_advertise()
 
@@ -57,7 +57,7 @@ class ZooKeeperContainer(ConfigObject):
 		elif callable(self.Data):
 			data = self.Data()
 
-		#if application is advertised do not create a replica
+		# if application is advertised do not create a replica
 		if await self.ZooKeeper.exists(self.ZooNode):
 			return
 
@@ -80,5 +80,3 @@ class ZooKeeperContainer(ConfigObject):
 
 	async def get_raw_data(self, child):
 		return await self.ZooKeeper.get_data("{}/{}".format(self.ZooKeeperPath, child))
-
-

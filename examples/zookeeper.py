@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import sys
-import configparser
 import asab.config
 from asab.config import Config
 
@@ -18,16 +17,15 @@ class MyApplication(asab.Application):
 
 	def __init__(self):
 		super().__init__()
-		 #Get the list with contents of the configuration files and its name respectively
-		config = configparser.ConfigParser()
-		cont_list ,cont_name = Config.get_config_contents_list()
-		for list,name in zip(cont_list,cont_name):
+		# Get the list with contents of the configuration files and its name respectively
+		cont_list, cont_name = Config.get_config_contents_list()
+		for list, name in zip(cont_list, cont_name):
 			print("Printing config file: " + name)
 			print()
 			print(list)
 		sys.exit(1)
 
+
 if __name__ == "__main__":
 	app = MyApplication()
 	app.run()
-
