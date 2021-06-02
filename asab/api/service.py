@@ -133,5 +133,5 @@ class ApiService(asab.Service):
 
 		with open(path) as f:
 			result = f.read()
-		return aiohttp.web.Response(text=result, content_type='text/markdown') # ??? should we stick with plain text or always use md?
+		return aiohttp.web.Response(text=result, content_type='text/markdown')
 
