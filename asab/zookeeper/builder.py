@@ -39,15 +39,17 @@ def build_client(Config, z_url):
 	if not url_netloc:
 		# if server entry is missing exit
 		if Config.has_option("asab:zookeeper", "servers"):
-			L.error("Servers entry not passes")
-			return
+			L.error("Servers entry not passed in the configuration.")
+			return None, None
+
 		url_netloc = Config["asab:zookeeper"]["servers"]
 
 	if url_path.startswith("./"):
 		# if path entry is missing exit
 		if Config.has_option("asab:zookeeper", "path"):
-			L.error("Path entry not passes")
-			return
+			L.error("Path entry not passed in the configuration.")
+			return None, None
+
 		url_path = Config["asab:zookeeper"]["path"] + url_path[1:]
 
 	# Create and return the client and the url-path
