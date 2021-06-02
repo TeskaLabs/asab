@@ -80,4 +80,3 @@ class ZooKeeperContainer(ConfigObject):
 
 	async def get_raw_data(self, child):
 		return await self.ZooKeeper.get_data("{}/{}".format(self.ZooKeeperPath, child))
-
