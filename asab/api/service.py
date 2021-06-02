@@ -6,6 +6,7 @@ import logging
 import asab
 import asab.web
 import asab.web.rest
+import aiohttp
 from asab.api.log import WebApiLoggingHandler
 
 ##
@@ -83,6 +84,8 @@ class ApiService(asab.Service):
 		container.WebApp.router.add_get('/asab/v1/logs', self.APILogHandler.get_logs)
 		container.WebApp.router.add_get('/asab/v1/logws', self.APILogHandler.ws)
 
+		container.WebApp.router.add_get('/asab/v1/changelog', self.changelog)
+
 		return container
 
 
@@ -111,3 +114,24 @@ class ApiService(asab.Service):
 		# get zookeeper-serivice
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		return zksvc.build_container()
+
+	def changelog_path(self):
+		path = asab.Config.get('general', 'changelog_path')
+		if os.path.isfile(path):
+			return path
+		if os.path.isfile('/CHANGELOG.md'):
+			return '/CHANGELOG.md'
+		if os.path.isfile('CHANGELOG.md'):
+			return 'CHANGELOG.md'
+		return None
+
+	def changelog(self, request):
+		path = self.changelog_path()
+
+		if path is None:
+			return aiohttp.web.HTTPNotFound()
+
+		with open(path) as f:
+			result = f.read()
+		return aiohttp.web.Response(text=result, content_type='text/markdown')
+

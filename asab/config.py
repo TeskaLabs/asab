@@ -36,6 +36,7 @@ class ConfigParser(configparser.ConfigParser):
 			'working_dir': '.',
 			'uid': '',
 			'gid': '',
+			'changelog_path': '/CHANGELOG.md',
 		},
 
 		"logging": {
