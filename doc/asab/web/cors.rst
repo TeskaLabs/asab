@@ -9,7 +9,8 @@ When you create a web container, you specify a config section name. In the examp
 
 You can then configure CORS by running your app with a config file with this contents:
 
-.. code::
+.. code:: INI
+
 	[myapp:web]
 	cors=*
 	cors_preflight_paths=/*
