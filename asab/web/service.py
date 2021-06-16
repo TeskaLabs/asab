@@ -12,6 +12,7 @@ class WebService(asab.Service):
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 
+		self.WebConfigName = "web"
 		self.Containers = {}
 		self.App = app
 
@@ -31,14 +32,12 @@ class WebService(asab.Service):
 		'''
 		This is here to maintain backward compatibility.
 		'''
-		if "web" in asab.Config.sections():
-			# The WebContainer should be configured in the config section [web]
-			config_section_name = "web"
-		else:
-			# Supporting other section names for backwards compatibility
+		# The WebContainer should be configured in the config section [web]
+		if self.WebConfigName not in asab.Config.sections():
+			# If there is no [web] section, try other aliases for backwards compatibility
 			for alias in self.ObsoleteConfigAliases:
 				if alias in asab.Config.sections():
-					config_section_name = alias
+					self.WebConfigName = alias
 					L.warning("Using obsolete web config alias [{}]. Preferred section name is [web]. ".format(alias))
 					break
 			else:
