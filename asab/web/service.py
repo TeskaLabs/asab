@@ -1,8 +1,13 @@
+import logging
 import asyncio
 import asab
 
 
+L = logging.getLogger(__name__)
+
+
 class WebService(asab.Service):
+	ObsoleteConfigAliases = ["asab:web"]
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
@@ -26,8 +31,21 @@ class WebService(asab.Service):
 		'''
 		This is here to maintain backward compatibility.
 		'''
+		if "web" in asab.Config.sections():
+			# The WebContainer should be configured in the config section [web]
+			config_section_name = "web"
+		else:
+			# Supporting other section names for backwards compatibility
+			for alias in self.ObsoleteConfigAliases:
+				if alias in asab.Config.sections():
+					config_section_name = alias
+					L.warning("Using obsolete web config alias [{}]. Preferred section name is [web]. ".format(alias))
+					break
+			else:
+				raise RuntimeError("No [web] section configured.")
+
 		try:
-			return self.Containers['asab:web'].WebApp
+			return self.Containers[config_section_name].WebApp
 		except KeyError:
 			from .container import WebContainer
-			return WebContainer(self, 'asab:web').WebApp
+			return WebContainer(self, config_section_name).WebApp
