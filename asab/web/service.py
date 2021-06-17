@@ -44,7 +44,7 @@ class WebService(asab.Service):
 				raise RuntimeError("No [web] section configured.")
 
 		try:
-			return self.Containers[config_section_name].WebApp
+			return self.Containers[self.WebConfigName].WebApp
 		except KeyError:
 			from .container import WebContainer
-			return WebContainer(self, config_section_name).WebApp
+			return WebContainer(self, self.WebConfigName).WebApp

@@ -62,8 +62,7 @@ class ApiService(asab.Service):
 	def _initialize_web(self):
 		websvc = self.App.get_service("asab.WebService")
 
-		container = websvc.Containers.get(websvc.WebConfigName)
-		# TODO: refactor to use custom config section, instead of explicitly passing "listen" param?
+		container = websvc.Container
 
 		# TODO: Logging level configurable via config file
 		self.APILogHandler = WebApiLoggingHandler(self.App, level=logging.NOTSET)
