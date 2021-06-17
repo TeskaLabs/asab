@@ -62,7 +62,7 @@ class ApiService(asab.Service):
 	def _initialize_web(self):
 		websvc = self.App.get_service("asab.WebService")
 
-		container = websvc.Container
+		container = websvc.Containers.get(websvc.WebConfigName)
 
 		# TODO: Logging level configurable via config file
 		self.APILogHandler = WebApiLoggingHandler(self.App, level=logging.NOTSET)
