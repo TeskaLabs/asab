@@ -128,11 +128,11 @@ class Application(metaclass=Singleton):
 		self.TaskService = TaskService(self)
 
 		# Setup ASAB API
-		web_config = Config.get("web")
-		if web_config is None or len(web_config["listen"]) == 0:
+		if (
+			Config.has_option("web", "listen") and len(Config.get("web", "listen")) > 0
 			# Backward compatibility: try fallback to "asab:web"
-			web_config = Config.get("asab:web")
-		if len(web_config["listen"]) > 0:
+			or Config.has_option("asab:web", "listen") and len(Config.get("asab:web", "listen")) > 0
+		):
 			from asab.api import Module
 			self.add_module(Module)
 
