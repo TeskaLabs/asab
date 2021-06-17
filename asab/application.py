@@ -129,7 +129,8 @@ class Application(metaclass=Singleton):
 
 		# Setup ASAB API
 		web_config = Config.get("web")
-		if web_config is None:
+		if web_config is None or len(web_config["listen"]) == 0:
+			# Backward compatibility: try fallback to "asab:web"
 			web_config = Config.get("asab:web")
 		if len(web_config["listen"]) > 0:
 			from asab.api import Module
