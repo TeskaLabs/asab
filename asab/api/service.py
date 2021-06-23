@@ -22,18 +22,12 @@ class ApiService(asab.Service):
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 
-		listen = asab.Config["asab:web"]["listen"]
-		self.WebContainer = self._initialize_web(listen)
+		self.WebApp = self._initialize_web()
 
 		if len(asab.Config["asab:zookeeper"]["servers"]) > 0:
 			self.ZkContainer = self._initialize_zookeeper()
 		else:
 			self.ZkContainer = None
-
-		# Backward compatability
-		self.Container = self.WebContainer
-
-		app.PubSub.subscribe("WebContainer.started!", self._on_webcontainer_started)
 
 
 	async def _on_webcontainer_started(self, event_name, container):
@@ -60,15 +54,8 @@ class ApiService(asab.Service):
 		return adv_data
 
 
-	def _initialize_web(self, listen):
+	def _initialize_web(self):
 		websvc = self.App.get_service("asab.WebService")
-
-		# Create a dedicated web container
-		container = asab.web.WebContainer(
-			websvc, "asab:web",
-			config={"listen": listen}
-		)
-		# TODO: refactor to use custom config section, instead of explicitly passing "listen" param?
 
 		# TODO: Logging level configurable via config file
 		self.APILogHandler = WebApiLoggingHandler(self.App, level=logging.NOTSET)
@@ -78,15 +65,15 @@ class ApiService(asab.Service):
 		self.Logging.addHandler(self.APILogHandler)
 
 		# Add routes
-		container.WebApp.router.add_get('/asab/v1/environ', self.environ)
-		container.WebApp.router.add_get('/asab/v1/config', self.config)
+		websvc.WebApp.router.add_get('/asab/v1/environ', self.environ)
+		websvc.WebApp.router.add_get('/asab/v1/config', self.config)
 
-		container.WebApp.router.add_get('/asab/v1/logs', self.APILogHandler.get_logs)
-		container.WebApp.router.add_get('/asab/v1/logws', self.APILogHandler.ws)
+		websvc.WebApp.router.add_get('/asab/v1/logs', self.APILogHandler.get_logs)
+		websvc.WebApp.router.add_get('/asab/v1/logws', self.APILogHandler.ws)
 
-		container.WebApp.router.add_get('/asab/v1/changelog', self.changelog)
+		websvc.WebApp.router.add_get('/asab/v1/changelog', self.changelog)
 
-		return container
+		return websvc.WebApp
 
 
 	async def environ(self, request):
@@ -106,6 +93,7 @@ class ApiService(asab.Service):
 					result[section][option] = value
 		return asab.web.rest.json_response(request, result)
 
+
 	def _initialize_zookeeper(self):
 
 		from ..zookeeper import Module as zkModule
@@ -114,6 +102,7 @@ class ApiService(asab.Service):
 		# get zookeeper-serivice
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		return zksvc.build_container()
+
 
 	def changelog_path(self):
 		path = asab.Config.get('general', 'changelog_path')
@@ -125,6 +114,7 @@ class ApiService(asab.Service):
 			return 'CHANGELOG.md'
 		return None
 
+
 	def changelog(self, request):
 		path = self.changelog_path()
 
@@ -134,4 +124,3 @@ class ApiService(asab.Service):
 		with open(path) as f:
 			result = f.read()
 		return aiohttp.web.Response(text=result, content_type='text/markdown')
-
