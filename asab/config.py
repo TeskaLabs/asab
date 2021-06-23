@@ -68,7 +68,7 @@ class ConfigParser(configparser.ConfigParser):
 			"rotate_every": "",
 		},
 
-		"web": {
+		"asab:web": {
 			"listen": "",
 		},
 

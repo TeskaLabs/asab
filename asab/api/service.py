@@ -22,7 +22,8 @@ class ApiService(asab.Service):
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 
-		self.WebContainer = self._initialize_web()
+		listen = asab.Config["asab:web"]["listen"]
+		self.WebContainer = self._initialize_web(listen)
 
 		if len(asab.Config["asab:zookeeper"]["servers"]) > 0:
 			self.ZkContainer = self._initialize_zookeeper()
@@ -59,10 +60,15 @@ class ApiService(asab.Service):
 		return adv_data
 
 
-	def _initialize_web(self):
+	def _initialize_web(self, listen):
 		websvc = self.App.get_service("asab.WebService")
 
-		container = websvc.WebApp.Container
+		# Create a dedicated web container
+		container = asab.web.WebContainer(
+			websvc, "asab:web",
+			config={"listen": listen}
+		)
+		# TODO: refactor to use custom config section, instead of explicitly passing "listen" param?
 
 		# TODO: Logging level configurable via config file
 		self.APILogHandler = WebApiLoggingHandler(self.App, level=logging.NOTSET)
