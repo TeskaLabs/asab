@@ -6,7 +6,7 @@ import asab
 import asab.web
 import asab.web.rest
 
-from web_handler import APIWebHandler
+from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
 
 ##
@@ -20,7 +20,7 @@ L = logging.getLogger(__name__)
 class ApiService(asab.Service):
 
 
-	def __init__(self, app, service_name):
+	def __init__(self, app, service_name="asab.ApiService"):
 		super().__init__(app, service_name)
 		self.WebHandler = None
 		self.ZkContainer = None
@@ -42,7 +42,7 @@ class ApiService(asab.Service):
 		self.Logging = logging.getLogger()
 		self.Logging.addHandler(self.APILogHandler)
 
-		self.WebHandler = APIWebHandler(self.App, webapp)
+		self.WebHandler = APIWebHandler(self.App, webapp, self.APILogHandler)
 
 
 	def initialize_zookeeper(self, zksvc):

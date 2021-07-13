@@ -5,13 +5,13 @@ import aiohttp.web
 
 class APIWebHandler(object):
 
-	def __init__(self, app, webapp):
+	def __init__(self, app, webapp, log_handler):
 		# Add routes
 		webapp.router.add_get('/asab/v1/environ', self.environ)
 		webapp.router.add_get('/asab/v1/config', self.config)
 
-		webapp.router.add_get('/asab/v1/logs', self.APILogHandler.get_logs)
-		webapp.router.add_get('/asab/v1/logws', self.APILogHandler.ws)
+		webapp.router.add_get('/asab/v1/logs', log_handler.get_logs)
+		webapp.router.add_get('/asab/v1/logws', log_handler.ws)
 
 		webapp.router.add_get('/asab/v1/changelog', self.changelog)
 

@@ -7,6 +7,7 @@ import aiohttp
 import asab.web
 import asab.web.rest
 import asab.web.session
+import asab.api
 
 
 class MyApplication(asab.Application):
@@ -43,6 +44,10 @@ class MyApplication(asab.Application):
 
 		# Add a websocket handler
 		container.WebApp.router.add_get('/subscribe', MyWebSocketFactory(self))
+
+		# Also use API Service
+		svc = asab.api.ApiService(self)
+		svc.initialize_web(container.WebApp)
 
 
 	async def login(self, request):
