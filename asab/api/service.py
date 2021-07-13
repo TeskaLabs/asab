@@ -26,15 +26,23 @@ class ApiService(asab.Service):
 		self.ZkContainer = None
 
 
-	def initialize_web(self, webcontainer):
+	def initialize_web(self, webcontainer=None):
 		'''
 		Example:
 
 		websvc = self.App.get_service("asab.WebService")
 		webcontainer = asab.web.WebContainer(websvc, 'web')
 		ApiService.initialize_web(webcontainer)
+
+		Initialize into a default web container:
+		ApiService.initialize_web()
 		'''
 		assert self.WebContainer is None
+
+		if webcontainer is None:
+			websvc = self.App.get_service("asab.WebService")
+			webcontainer = websvc.WebContainer
+
 		self.WebContainer = webcontainer
 
 		# TODO: Logging level configurable via config file
@@ -47,25 +55,30 @@ class ApiService(asab.Service):
 		self.WebHandler = APIWebHandler(self.App, self.WebContainer.WebApp, self.APILogHandler)
 
 
-	def initialize_zookeeper(self, zksvc):
+	def initialize_zookeeper(self, zoocontainer=None):
 		'''
 		Example:
 
 		zksvc = self.App.get_service("asab.ZooKeeperService")
+		zoocontainer = zksvc.DefaultContainer
 		ApiService.initialize_zookeeper(zksvc)
+
+
+		Initialize into a default zookeeper container:
+		ApiService.initialize_zookeeper()
 		'''
 		assert self.ZkContainer is None
 
+		if zoocontainer is None:
+			zksvc = self.App.get_service("asab.ZooKeeperService")
+			zoocontainer = zksvc.DefaultContainer
+
 		# get zookeeper-serivice
-		self.ZkContainer = zksvc.build_container()
-		# TODO: There is something likely missing
-
-
-		# await self.ZkContainer.ZooKeeper.ensure_path(self.ZkContainer.ZooKeeperPath + '/run')
-		# await self.ZkContainer.advertise(
-		# 	data=self._build_zookeeper_adv_data(),
-		# 	path="run/{}.".format(self.App.__class__.__name__),
-		# )
+		self.ZkContainer = zoocontainer
+		self.ZkContainer.advertise(
+			data=self._build_zookeeper_adv_data(),
+			path="/run/{}.".format(self.App.__class__.__name__),
+		)
 
 
 	def _build_zookeeper_adv_data(self):

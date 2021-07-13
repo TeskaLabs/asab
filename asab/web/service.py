@@ -32,6 +32,14 @@ class WebService(asab.Service):
 		'''
 		This is here to maintain backward compatibility.
 		'''
+		return self.WebContainer.WebApp
+
+
+	@property
+	def WebContainer(self):
+		'''
+		This is here to maintain backward compatibility.
+		'''
 		config_section = "web"
 
 		# The WebContainer should be configured in the config section [web]
@@ -46,7 +54,7 @@ class WebService(asab.Service):
 				raise RuntimeError("No [web] section configured.")
 
 		try:
-			return self.Containers[config_section].WebApp
+			return self.Containers[config_section]
 		except KeyError:
 			from .container import WebContainer
-			return WebContainer(self, config_section).WebApp
+			return WebContainer(self, config_section)

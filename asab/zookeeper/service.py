@@ -14,41 +14,49 @@ class ZooKeeperService(Service):
 	"""
 
 	Config.add_defaults({
-		"asab:zookeeper": {  # create a default container, also ensures backward compatibility
-			"servers": "",  # zookeeper:12181
-			"path": "",  # /asab
+		"asab:zookeeper": {
+			# Server list to which ZooKeeper Client tries connecting.
+			# Specify a comma (,) separated server list.
+			# A server is defined as address:port format.
+			# "servers": "zookeeper:12181",
+			"servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
+			"path": "/asab",
 		}
 	})
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 		self.App = app
-		self.DefaultContainer = None
 		self.Containers = {}
 		self.Futures = []
 
 
-	async def initialize(self, app):
-		# Create a default container
-		# Default container ensures backward compatibility
-		servers = Config["asab:zookeeper"]["servers"]
-		if len(servers) > 0:
-			self.DefaultContainer = ZooKeeperContainer(app, "asab:zookeeper")
-			await self.DefaultContainer.initialize(app)
-
 	async def finalize(self, app):
 		if len(self.Futures) > 0:
 			await asyncio.wait(self.Futures)
-		if self.DefaultContainer is not None:
-			await self.DefaultContainer.finalize(app)
 		for containers in self.Containers.values():
 			await containers.finalize(app)
 
-	def build_container(self):
-		container = ZooKeeperContainer(self.App, "asab:zookeeper")
-		self.Containers[container.ConfigSectionName] = container
-		self.Futures.append(asyncio.ensure_future(container.initialize(self.App)))
+
+	@property
+	def DefaultContainer(self):
+		'''
+		This is here to maintain backward compatibility.
+		'''
+		container = self.Containers.get('asab:zookeeper')
+		if container is None:
+			container = self.build_container()
 		return container
+
+
+	def build_container(self, config_section_name="asab:zookeeper"):
+		container = ZooKeeperContainer(self.App, config_section_name)
+		self.Containers[container.ConfigSectionName] = container
+		self.Futures.append(asyncio.ensure_future(
+			container.initialize(self.App)
+		))
+		return container
+
 
 	async def advertise(self, data, path, encoding="utf-8", container=None):
 		if container is None:
@@ -56,6 +64,7 @@ class ZooKeeperService(Service):
 		if container is None:
 			raise RuntimeError("The container must be specified.")
 		return await container.advertise(data, path, encoding)
+
 
 	async def get_children(self, container=None):
 		if container is None:
