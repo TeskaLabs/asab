@@ -127,15 +127,6 @@ class Application(metaclass=Singleton):
 
 		self.TaskService = TaskService(self)
 
-		# Setup ASAB API
-		if (
-			(Config.has_option("web", "listen") and len(Config.get("web", "listen")) > 0)
-			# Backward compatibility: try fallback to "asab:web"
-			or (Config.has_option("asab:web", "listen") and len(Config.get("asab:web", "listen")) > 0)
-		):
-			from asab.api import Module
-			self.add_module(Module)
-
 		L.info("Initializing ...")
 
 
