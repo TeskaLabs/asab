@@ -191,6 +191,7 @@ class Application(metaclass=Singleton):
 
 		if args.web_api:
 			Config._default_values['web']['listen'] = args.web_api
+
 		return args
 
 
