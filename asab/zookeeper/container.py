@@ -1,7 +1,16 @@
-import aiozk
-import asyncio
 import json
+import asyncio
+import logging
+
+import aiozk
+
 from ..config import ConfigObject
+
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 
 class ZooKeeperContainer(ConfigObject):
@@ -11,63 +20,43 @@ class ZooKeeperContainer(ConfigObject):
 	https://pypi.org/project/aiozk/
 	"""
 
-	ConfigDefaults = {
-		# Server list to which ZooKeeper Client tries connecting.
-		# Specify a comma (,) separated server list.
-		# A server is defined as address:port format.
-		"servers": "zookeeper:12181",
-
-		"path": "/asab",
-	}
-
 	def __init__(self, app, config_section_name, config=None):
 		super().__init__(config_section_name=config_section_name, config=config)
 		self.App = app
-		self.Data = None
-		self.ZooNode = '/defaultpath'
 		self.ConfigSectionName = config_section_name
+
+		self.Advertisments = set()
+
 		self.ZooKeeper = aiozk.ZKClient(self.Config["servers"])
 		self.ZooKeeperPath = self.Config["path"]
+
 
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
 		await self.ZooKeeper.ensure_path(self.ZooKeeperPath)
-		self.App.PubSub.subscribe("Application.tick/300!", self.on_tick)
+
+		self.App.PubSub.subscribe("Application.tick/300!", self._do_advertise)
+		self.App.PubSub.subscribe("ZooKeeper.advertise!", self._do_advertise)
+
+		# Force advertisement immediatelly after initialization
+		self.App.PubSub.publish("ZooKeeper.advertise!")
+
 
 	async def finalize(self, app):
 		await self.ZooKeeper.close()
 
-	async def advertise(self, data, path):
-		self.Data = data
-		self.Path = path
-		await self.do_advertise()
 
-	async def on_tick(self, event_name):
-		await self.do_advertise()
-
-	async def do_advertise(self):
-		if self.Data is None:
-			return
-		if isinstance(self.Data, dict):
-			data = json.dumps(self.Data).encode("utf-8")
-		elif isinstance(self.Data, str):
-			data = self.Data.encode("utf-8")
-		elif asyncio.iscoroutinefunction(self.Data):
-			data = await self.Data
-		elif callable(self.Data):
-			data = self.Data()
-
-		# if application is advertised do not create a replica
-		if await self.ZooKeeper.exists(self.ZooNode):
-			return
-
-		self.ZooNode = await self.ZooKeeper.create(
-			"{}/{}".format(self.ZooKeeperPath, self.Path),
-			data=data,
-			sequential=True,
-			ephemeral=True
+	def advertise(self, data, path):
+		self.Advertisments.add(
+			ZooKeeperAdvertisement(self.ZooKeeperPath + path, data)
 		)
-		return self.ZooNode
+		self.App.PubSub.publish("ZooKeeper.advertise!")
+
+
+	async def _do_advertise(self, event_name):
+		for adv in self.Advertisments:
+			await adv._do_advertise(self)
+
 
 	async def get_children(self):
 		return await self.ZooKeeper.get_children(self.ZooKeeperPath)
@@ -80,3 +69,33 @@ class ZooKeeperContainer(ConfigObject):
 
 	async def get_raw_data(self, child):
 		return await self.ZooKeeper.get_data("{}/{}".format(self.ZooKeeperPath, child))
+
+
+class ZooKeeperAdvertisement(object):
+
+	def __init__(self, path, data):
+		self.Path = path
+
+		if isinstance(data, dict):
+			self.Data = json.dumps(data).encode("utf-8")
+		elif isinstance(data, str):
+			self.Data = data.encode("utf-8")
+		else:
+			self.Data = data
+
+		self.Node = None
+		self.Lock = asyncio.Lock()
+
+
+	async def _do_advertise(self, zoocontainer):
+		async with self.Lock:
+			if self.Node is not None and await zoocontainer.ZooKeeper.exists(self.Node):
+				# if node is advertised do not create a replica
+				return
+
+			self.Node = await zoocontainer.ZooKeeper.create(
+				self.Path,
+				data=self.Data,
+				sequential=True,
+				ephemeral=True
+			)

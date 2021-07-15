@@ -124,8 +124,13 @@ want to allow OPTIONS method for preflight requests.
 				elif param.startswith('ssl'):
 					ssl_context = SSLContextBuilder("<none>", config=self.Config).build()
 				else:
-					raise RuntimeError("Unknown asab:web listen parameter: '{}'".format(param))
+					raise RuntimeError(
+						"Unknown listen parameter in section [{}]: {}".format(config_section_name, param)
+					)
 			self._listen.append((addr, port, ssl_context))
+
+		if len(self._listen) == 0:
+			L.warning("Missing configuration.")
 
 		self.WebApp = aiohttp.web.Application(loop=websvc.App.Loop)
 		self.WebApp.on_response_prepare.append(self._on_prepare_response)

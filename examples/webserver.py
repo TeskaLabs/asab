@@ -7,6 +7,7 @@ import aiohttp
 import asab.web
 import asab.web.rest
 import asab.web.session
+import asab.api
 
 
 class MyApplication(asab.Application):
@@ -24,7 +25,7 @@ class MyApplication(asab.Application):
 		websvc = self.get_service("asab.WebService")
 
 		# Create a dedicated web container
-		container = asab.web.WebContainer(websvc, 'example:web')
+		container = asab.web.WebContainer(websvc, 'web')
 
 		# Add a web session service
 		asab.web.session.ServiceWebSession(self, "asab.ServiceWebSession", container.WebApp, session_class=MySession)
@@ -43,6 +44,10 @@ class MyApplication(asab.Application):
 
 		# Add a websocket handler
 		container.WebApp.router.add_get('/subscribe', MyWebSocketFactory(self))
+
+		# Also use API Service
+		svc = asab.api.ApiService(self)
+		svc.initialize_web(container)
 
 
 	async def login(self, request):

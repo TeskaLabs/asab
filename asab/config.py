@@ -68,8 +68,10 @@ class ConfigParser(configparser.ConfigParser):
 			"rotate_every": "",
 		},
 
-		"asab:web": {
-			"listen": "",
+		"web": {
+			# This is commented b/c `-w` switch fills this value
+			# The same `listen` configuration is in a ConfigDefault of the web container
+			# "listen": "0.0.0.0 8080",
 		},
 
 		"authz": {

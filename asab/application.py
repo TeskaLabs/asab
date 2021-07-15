@@ -127,11 +127,6 @@ class Application(metaclass=Singleton):
 
 		self.TaskService = TaskService(self)
 
-		# Setup ASAB API
-		if len(Config['asab:web']["listen"]) > 0:
-			from asab.api import Module
-			self.add_module(Module)
-
 		L.info("Initializing ...")
 
 
@@ -195,7 +190,8 @@ class Application(metaclass=Singleton):
 			Config._default_values['logging:file']['path'] = args.log_file
 
 		if args.web_api:
-				Config._default_values['asab:web']['listen'] = args.web_api
+			Config._default_values['web']['listen'] = args.web_api
+
 		return args
 
 
