@@ -129,6 +129,9 @@ want to allow OPTIONS method for preflight requests.
 					)
 			self._listen.append((addr, port, ssl_context))
 
+		if len(self._listen) == 0:
+			L.warning("Missing configuration.")
+
 		self.WebApp = aiohttp.web.Application(loop=websvc.App.Loop)
 		self.WebApp.on_response_prepare.append(self._on_prepare_response)
 		self.WebApp['app'] = websvc.App
