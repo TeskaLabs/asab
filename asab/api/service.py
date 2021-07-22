@@ -24,6 +24,14 @@ class ApiService(asab.Service):
 		super().__init__(app, service_name)
 		self.WebContainer = None
 		self.ZkContainer = None
+		self.Attention_req = [] # content is JSON/dict
+
+
+	def attention_required(self):
+		pass
+
+	def remove_attention(self):
+		pass
 
 
 	def initialize_web(self, webcontainer=None):
@@ -84,9 +92,14 @@ class ApiService(asab.Service):
 	def _build_zookeeper_adv_data(self):
 		adv_data = {
 			'appclass': self.App.__class__.__name__,
-			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat(),
+			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
 		}
+
+
+		if len(self.Attention_req) > 0:
+			adv_data['attention'] = self.Attention_req
+
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
 		return adv_data
