@@ -27,11 +27,11 @@ class ApiService(asab.Service):
 		self.Attention_req = [] # content is JSON/dict
 
 
-	def attention_required(self):
-		pass
+	def attention_required(self ,atten_dict):
+		self.Attention_req.append(atten_dict)
 
-	def remove_attention(self):
-		pass
+	def remove_attention(self,atten_dict):
+		self.Attention_req.remove(atten_dict)
 
 
 	def initialize_web(self, webcontainer=None):
