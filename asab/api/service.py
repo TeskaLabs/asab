@@ -28,7 +28,9 @@ class ApiService(asab.Service):
 
 
 	def attention_required(self ,atten_dict):
+		# update the list with attention field
 		self.Attention_req.append(atten_dict)
+
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
 				data=self._build_zookeeper_adv_data(),
@@ -36,7 +38,9 @@ class ApiService(asab.Service):
 			)
 
 	def remove_attention(self,atten_dict):
+		# remove from the list with attention field
 		self.Attention_req.remove(atten_dict)
+
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
 				data=self._build_zookeeper_adv_data(),
@@ -105,7 +109,6 @@ class ApiService(asab.Service):
 			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
 		}
-
 
 		if len(self.Attention_req) > 0:
 			adv_data['attention'] = self.Attention_req
