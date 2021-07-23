@@ -29,9 +29,19 @@ class ApiService(asab.Service):
 
 	def attention_required(self ,atten_dict):
 		self.Attention_req.append(atten_dict)
+		if self.ZkContainer is not None:
+			self.ZkContainer.advertise(
+				data=self._build_zookeeper_adv_data(),
+				path="/run/{}.".format(self.App.__class__.__name__),
+			)
 
 	def remove_attention(self,atten_dict):
 		self.Attention_req.remove(atten_dict)
+		if self.ZkContainer is not None:
+			self.ZkContainer.advertise(
+				data=self._build_zookeeper_adv_data(),
+				path="/run/{}.".format(self.App.__class__.__name__),
+			)
 
 
 	def initialize_web(self, webcontainer=None):
