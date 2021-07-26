@@ -1,9 +1,5 @@
 import datetime
 import logging
-
-# TODO: This must be a relative import
-import asab
-import asab.web
 import asab.web.rest
 
 from .web_handler import APIWebHandler
