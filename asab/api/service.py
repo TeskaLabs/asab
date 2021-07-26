@@ -1,6 +1,7 @@
 import datetime
 import logging
 import asab.web.rest
+import uuid
 
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
@@ -20,12 +21,14 @@ class ApiService(asab.Service):
 		super().__init__(app, service_name)
 		self.WebContainer = None
 		self.ZkContainer = None
-		self.Attention_req = [] # content is JSON/dict
+		self.Attention_req = {} # content is JSON/dict
 
 
 	def attention_required(self ,atten_dict):
+
 		# update the list with attention field
-		self.Attention_req.append(atten_dict)
+		euuid = uuid.uuid4()
+		self.Attention_req['attenion_flag'] = str(euuid)
 
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
