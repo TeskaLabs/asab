@@ -21,7 +21,7 @@ class ApiService(asab.Service):
 		super().__init__(app, service_name)
 		self.WebContainer = None
 		self.ZkContainer = None
-		self.Attention_req = {}
+		self.Attention_Required = {}
 
 	def attention_required(self, adv_data , attention_key = None):
 
@@ -32,19 +32,17 @@ class ApiService(asab.Service):
 
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
-				data=self._build_zookeeper_adv_data(adv_data),
+				data=self._build_zookeeper_adv_data(),
 				path="/run/{}.".format(self.App.__class__.__name__),
 			)
 		return attention_key
 
-	def remove_attention(self, adv_data):
+	def remove_attention(self, attention_key):
 
 		# remove from the list with attention field
-		adv_data.update({'attention_flag': 0})
-
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
-				data=self._build_zookeeper_adv_data(adv_data),
+				data=self._build_zookeeper_adv_data(),
 				path="/run/{}.".format(self.App.__class__.__name__),
 			)
 
@@ -99,20 +97,20 @@ class ApiService(asab.Service):
 		# get zookeeper-serivice
 		self.ZkContainer = zoocontainer
 		self.ZkContainer.advertise(
-			data=self._build_zookeeper_adv_data(adv_data = None),
+			data=self._build_zookeeper_adv_data(),
 			path="/run/{}.".format(self.App.__class__.__name__),
 		)
 
 
-	def _build_zookeeper_adv_data(self ,adv_data):
+	def _build_zookeeper_adv_data(self):
 		adv_data = {
 			'appclass': self.App.__class__.__name__,
 			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
 		}
 
-		if len(self.Attention_req) > 0:
-			adv_data['attention'] = self.Attention_req
+		if len(self.Attention_Required) > 0:
+			adv_data['attention'] = self.Attention_Required
 
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
