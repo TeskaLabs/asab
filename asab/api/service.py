@@ -21,7 +21,7 @@ class ApiService(asab.Service):
 		super().__init__(app, service_name)
 		self.WebContainer = None
 		self.ZkContainer = None
-		self.Attention_Required = {}
+		self.AttentionRequired = {}
 
 	def attention_required(self, adv_data , attention_key = None):
 
