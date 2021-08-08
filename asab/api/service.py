@@ -39,7 +39,7 @@ class ApiService(asab.Service):
 
 	def remove_attention(self,attention_key):
 		if attention_key != 0:
-			self.AttentionRequired.pop(attention_key)
+			self.AttentionRequired.update({attention_key: 0})
 			# remove from the list with attention field
 			if self.ZkContainer is not None:
 				self.ZkContainer.advertise(
