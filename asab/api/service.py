@@ -23,12 +23,12 @@ class ApiService(asab.Service):
 		self.ZkContainer = None
 		self.AttentionRequired = {}
 
-	def attention_required(self, attention_key = None):
+	def attention_required(self, attention_key = 0):
 
-		if attention_key is None:
+		if attention_key is 0:
 			# update the list with attention field
-			euuid = uuid.uuid4()
-			self.AttentionRequired.update({'attention_key' : str(euuid)})
+			attention_key = str(uuid.uuid4())
+			self.AttentionRequired.update({'attention_status' : attention_key})
 
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
@@ -37,9 +37,8 @@ class ApiService(asab.Service):
 			)
 		return attention_key
 
-	def remove_attention(self, attention_key):
-
-		self.AttentionRequired.pop(attention_key)
+	def remove_attention(self):
+		self.AttentionRequired.pop('attention_status')
 		# remove from the list with attention field
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
@@ -111,7 +110,7 @@ class ApiService(asab.Service):
 		}
 
 		if len(self.AttentionRequired) > 0:
-			adv_data['attention_required'] = self.AttentionRequired
+			adv_data.update(self.AttentionRequired)
 
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
