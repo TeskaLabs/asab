@@ -25,10 +25,10 @@ class ApiService(asab.Service):
 
 	def attention_required(self, attention_key = 0):
 
-		if attention_key is 0:
+		if attention_key == 0:
 			# update the list with attention field
 			attention_key = str(uuid.uuid4())
-			self.AttentionRequired.update({'attention_status' : attention_key})
+			self.AttentionRequired.update({attention_key: 1})
 
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
@@ -37,14 +37,15 @@ class ApiService(asab.Service):
 			)
 		return attention_key
 
-	def remove_attention(self):
-		self.AttentionRequired.pop('attention_status')
-		# remove from the list with attention field
-		if self.ZkContainer is not None:
-			self.ZkContainer.advertise(
-				data=self._build_zookeeper_adv_data(),
-				path="/run/{}.".format(self.App.__class__.__name__),
-			)
+	def remove_attention(self,attention_key):
+		if attention_key != 0:
+			self.AttentionRequired.pop(attention_key)
+			# remove from the list with attention field
+			if self.ZkContainer is not None:
+				self.ZkContainer.advertise(
+					data=self._build_zookeeper_adv_data(),
+					path="/run/{}.".format(self.App.__class__.__name__),
+				)
 
 
 	def initialize_web(self, webcontainer=None):
