@@ -38,14 +38,13 @@ class ApiService(asab.Service):
 		return attention_key
 
 	def remove_attention(self,attention_key):
-		if attention_key is not None:
-			self.AttentionRequired.pop(attention_key)
-			# remove from the list with attention field
-			if self.ZkContainer is not None:
-				self.ZkContainer.advertise(
-					data=self._build_zookeeper_adv_data(),
-					path="/run/{}.".format(self.App.__class__.__name__),
-				)
+		self.AttentionRequired.pop(attention_key)
+		# remove from the list with attention field
+		if self.ZkContainer is not None:
+			self.ZkContainer.advertise(
+				data=self._build_zookeeper_adv_data(),
+				path="/run/{}.".format(self.App.__class__.__name__),
+			)
 
 
 	def initialize_web(self, webcontainer=None):
