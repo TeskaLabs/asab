@@ -38,7 +38,11 @@ class ApiService(asab.Service):
 		return attention_key
 
 	def remove_attention(self,attention_key):
-		self.AttentionRequired.pop(attention_key)
+		try:
+			self.AttentionRequired.pop(attention_key)
+		except KeyError:
+			L.warning("Key none does not exist.")
+			raise Exception("Key none does not exist.")
 		# remove from the list with attention field
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
