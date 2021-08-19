@@ -1,7 +1,7 @@
 import abc
 import uuid
 import hashlib
-import datetime
+import time
 
 
 class UpsertorABC(abc.ABC):
@@ -16,7 +16,7 @@ class UpsertorABC(abc.ABC):
 
 		self.Version = version
 
-		now = datetime.datetime.utcnow()
+		now = int(time.time())
 		self.ModSet = {
 			'_m': now,  # Set the modification timestamp
 		}
