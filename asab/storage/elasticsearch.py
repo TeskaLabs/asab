@@ -1,6 +1,7 @@
 import aiohttp
 import logging
 import datetime
+import time
 import json
 
 import asab
@@ -8,7 +9,9 @@ from .service import StorageServiceABC
 from .upsertor import UpsertorABC
 
 #
+
 L = logging.getLogger(__name__)
+
 #
 
 asab.Config.add_defaults(
@@ -179,6 +182,17 @@ class StorageService(StorageServiceABC):
 
 
 class ElasicSearchUpsertor(UpsertorABC):
+
+	def __init__(self, storage, collection, obj_id, version=None):
+		super().__init__(storage, collection, obj_id, version)
+
+		now = int(time.time())
+
+		self.ModSet['_m'] = now
+
+		if version == 0:
+			self.ModSet['_c'] = now  # Set the creation timestamp
+
 
 	@classmethod
 	def generate_id(cls):
