@@ -1,6 +1,7 @@
 import motor.motor_asyncio
 import pymongo
 import bson
+import datetime
 
 import asab
 from .exceptions import DuplicateError
@@ -99,6 +100,17 @@ class StorageService(StorageServiceABC):
 
 
 class MongoDBUpsertor(UpsertorABC):
+
+
+	def __init__(self, storage, collection, obj_id, version=None):
+		super().__init__(storage, collection, obj_id, version)
+
+		now = datetime.datetime.utcnow()
+
+		self.ModSet['_m'] = now
+
+		if version == 0:
+			self.ModSet['_c'] = now  # Set the creation timestamp
 
 
 	@classmethod
