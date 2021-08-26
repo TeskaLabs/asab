@@ -119,16 +119,19 @@ class MongoDBUpsertor(UpsertorABC):
 		if len(self.ModPush) > 0:
 			addobj['$push'] = {k: {'$each': v} for k, v in self.ModPush.items()}
 
-		filter = {}
+		if len(self.ModUnset) > 0:
+			addobj['$unset'] = {k: "" for k in self.ModUnset}
+
+		filtr = {}
 
 		if self.ObjId is not None:
-			filter[id_name] = self.ObjId
+			filtr[id_name] = self.ObjId
 		else:
 			# We are going to insert a new object without explicit Id
 			assert (self.Version == 0) or (self.Version is None)
 
 		if self.Version is not None:
-			filter['_v'] = int(self.Version)
+			filtr['_v'] = int(self.Version)
 
 		# First wave (adding stuff)
 		if len(addobj) > 0:
@@ -136,7 +139,7 @@ class MongoDBUpsertor(UpsertorABC):
 
 			try:
 				ret = await coll.find_one_and_update(
-					filter,
+					filtr,
 					update=addobj,
 					upsert=True if (self.Version == 0) or (self.Version is None) else False,
 					return_document=pymongo.collection.ReturnDocument.AFTER
@@ -146,9 +149,6 @@ class MongoDBUpsertor(UpsertorABC):
 				raise DuplicateError("Already exists", self.ObjId)
 
 			self.ObjId = ret[id_name]
-
-		# for k, v in self.ModUnset.items():
-		# 	obj.pop(k, None)
 
 		# for k, v in self.ModPull.items():
 		# 	o = obj.pop(k, None)
