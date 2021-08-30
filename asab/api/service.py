@@ -28,7 +28,7 @@ class ApiService(asab.Service):
 		if attention_key is None:
 			# update the list with attention field
 			attention_key = str(uuid.uuid4())
-			self.AttentionRequired.update({attention_key: 1})
+			self.AttentionRequired.update({'id': attention_key})
 
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
