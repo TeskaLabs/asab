@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 import asab
 import os
-from pathlib import Path
+import time
 import asab.api
 import asab.zookeeper
+
+from pathlib import Path
+
+#
 
 L = asab.config.logging.getLogger(__name__)
 
@@ -44,13 +48,13 @@ class MyApplication(asab.Application):
             f.write(my_key)
         f.close()
 
-        # run this code second time to remove key
+        time.sleep(60)
 
         # delete attention required
-        # with open(key_path, 'r') as f:
-        #    get_key = f.read()
-        # svc.remove_attention(get_key)
-        # os.remove(key_path)
+        with open(key_path, 'r') as f:
+            get_key = f.read()
+        svc.remove_attention(get_key)
+        os.remove(key_path)
 
 
 if __name__ == "__main__":
