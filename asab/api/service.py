@@ -114,8 +114,7 @@ class ApiService(asab.Service):
 		}
 
 		if len(self.AttentionRequired) > 0:
-			adv_data.update(self.AttentionRequired)
-			adv_data['attention_required'] = self.AttentionRequired
+			adv_data.update({"attention_required" : self.AttentionRequired})
 
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
