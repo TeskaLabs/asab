@@ -47,10 +47,10 @@ class MyApplication(asab.Application):
         # run this code second time to remove key
 
         # delete attention required
-        #with open(key_path, 'r') as f:
+        # with open(key_path, 'r') as f:
         #    get_key = f.read()
-        #svc.remove_attention(get_key)
-        #os.remove(key_path)
+        # svc.remove_attention(get_key)
+        # os.remove(key_path)
 
 
 if __name__ == "__main__":
