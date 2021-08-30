@@ -21,9 +21,9 @@ class ApiService(asab.Service):
 		super().__init__(app, service_name)
 		self.WebContainer = None
 		self.ZkContainer = None
-		self.AttentionRequired = {} # dictionary of keys
+		self.AttentionRequired = {}  # dictionary of keys
 
-	def attention_required(self, attention_key = None):
+	def attention_required(self, attention_key=None):
 
 		if attention_key is None:
 			# update the list with attention field
@@ -37,7 +37,7 @@ class ApiService(asab.Service):
 			)
 		return attention_key
 
-	def remove_attention(self,attention_key):
+	def remove_attention(self, attention_key):
 		try:
 			self.AttentionRequired.pop(attention_key)
 		except KeyError:
@@ -114,7 +114,7 @@ class ApiService(asab.Service):
 		}
 
 		if len(self.AttentionRequired) > 0:
-			adv_data.update({"attention_required" : self.AttentionRequired})
+			adv_data.update({"attention_required": self.AttentionRequired})
 
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
