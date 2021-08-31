@@ -26,11 +26,12 @@ class ApiService(asab.Service):
 	def attention_required(self, attention_key_value=None):
 
 		if attention_key_value is None:
-			# update the list with attention field
+			# add new error id to list
 			attention_key_value = str(uuid.uuid4())
 			new_key = {'id': attention_key_value}
 			self.AttentionRequired.append(new_key)
 
+		# update the microservice json/dict section attention_required
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
 				data=self._build_zookeeper_adv_data(),
@@ -40,6 +41,7 @@ class ApiService(asab.Service):
 
 	def remove_attention(self, attention_key):
 		try:
+			# find the error value that is resolved and remove it.
 			for error_key_dict in self.AttentionRequired:
 				for err_key,err_value in error_key_dict.items():
 					if err_value == attention_key:
