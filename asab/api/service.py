@@ -43,7 +43,7 @@ class ApiService(asab.Service):
 		try:
 			# find the error value that is resolved and remove it.
 			for error_key_dict in self.AttentionRequired:
-				for err_key,err_value in error_key_dict.items():
+				for err_key, err_value in error_key_dict.items():
 					if err_value == attention_key:
 						del error_key_dict[err_key]
 						break
