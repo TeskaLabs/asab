@@ -40,13 +40,15 @@ class ApiService(asab.Service):
 
 	def remove_attention(self, attention_key):
 		try:
-			for key, value in self.AttentionRequired.items():
-				if value == attention_key:
-					self.AttentionRequired.pop(key)
+			for error_key_dict in self.AttentionRequired:
+				for err_key,err_value in error_key_dict.items():
+					if err_value == attention_key:
+						del error_key_dict[err_key]
+						break
 		except KeyError:
 			L.warning("Key None does not exist.")
 			raise Exception("Key None does not exist.")
-		# remove from the list with attention field
+
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
 				data=self._build_zookeeper_adv_data(),
