@@ -21,25 +21,28 @@ class ApiService(asab.Service):
 		super().__init__(app, service_name)
 		self.WebContainer = None
 		self.ZkContainer = None
-		self.AttentionRequired = {}  # dictionary of keys
+		self.AttentionRequired = []  # dictionary of keys
 
-	def attention_required(self, attention_key=None):
+	def attention_required(self, attention_key_value=None):
 
-		if attention_key is None:
+		if attention_key_value is None:
 			# update the list with attention field
-			attention_key = str(uuid.uuid4())
-			self.AttentionRequired.update({'id': attention_key})
+			attention_key_value = str(uuid.uuid4())
+			new_key = {'id': attention_key_value}
+			self.AttentionRequired.append(new_key)
 
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
 				data=self._build_zookeeper_adv_data(),
 				path="/run/{}.".format(self.App.__class__.__name__),
 			)
-		return attention_key
+		return attention_key_value
 
 	def remove_attention(self, attention_key):
 		try:
-			self.AttentionRequired.pop(attention_key)
+			for key, value in self.AttentionRequired.items():
+				if value == attention_key:
+					self.AttentionRequired.pop(key)
 		except KeyError:
 			L.warning("Key None does not exist.")
 			raise Exception("Key None does not exist.")
