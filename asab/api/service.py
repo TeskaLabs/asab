@@ -21,15 +21,14 @@ class ApiService(asab.Service):
 		super().__init__(app, service_name)
 		self.WebContainer = None
 		self.ZkContainer = None
-		self.AttentionRequired = []  # list of errors found.
+		self.AttentionRequired = {}  # list of errors found.
 
-	def attention_required(self, att_id=None):
+	def attention_required(self, att: dict, att_id=None):
 
 		if att_id is None:
 			# add new error id to list
-			att_id = str(uuid.uuid4())
-			new_error_key = {'id': att_id}
-			self.AttentionRequired.append(new_error_key)
+			att_id = uuid.uuid4().hex
+			self.AttentionRequired[att_id] = att
 
 		# add to microservice json/dict section attention_required
 		# with a list of errors
