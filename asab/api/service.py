@@ -31,7 +31,7 @@ class ApiService(asab.Service):
 			new_err_key = {'id': attention_key_value}
 			self.AttentionRequired.append(new_err_key)
 
-		# update the microservice json/dict section attention_required
+		# add to microservice json/dict section attention_required
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
 				data=self._build_zookeeper_adv_data(),
