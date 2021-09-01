@@ -28,8 +28,8 @@ class ApiService(asab.Service):
 		if attention_key_value is None:
 			# add new error id to list
 			attention_key_value = str(uuid.uuid4())
-			new_key = {'id': attention_key_value}
-			self.AttentionRequired.append(new_key)
+			new_err_key = {'id': attention_key_value}
+			self.AttentionRequired.append(new_err_key)
 
 		# update the microservice json/dict section attention_required
 		if self.ZkContainer is not None:
