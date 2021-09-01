@@ -30,8 +30,11 @@ class ApiService(asab.Service):
 			att_id = uuid.uuid4().hex
 			self.AttentionRequired[att_id] = att
 
+		# if creation time for att_id is not present then add
+		if "_c" not in att:
+			att["_c"] = datetime.datetime.utcnow().isoformat() + 'Z'
+
 		# add to microservice json/dict section attention_required
-		# with a list of errors
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
 				data=self._build_zookeeper_adv_data(),
