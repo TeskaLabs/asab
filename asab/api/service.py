@@ -21,15 +21,15 @@ class ApiService(asab.Service):
 		super().__init__(app, service_name)
 		self.WebContainer = None
 		self.ZkContainer = None
-		self.AttentionRequired = []  # list of errors
+		self.AttentionRequired = []  # list of errors found.
 
-	def attention_required(self, attention_key_value=None):
+	def attention_required(self, error_id=None):
 
-		if attention_key_value is None:
+		if error_id is None:
 			# add new error id to list
-			attention_key_value = str(uuid.uuid4())
-			new_err_key = {'id': attention_key_value}
-			self.AttentionRequired.append(new_err_key)
+			error_id = str(uuid.uuid4())
+			new_error_key = {'id': error_id}
+			self.AttentionRequired.append(new_error_key)
 
 		# add to microservice json/dict section attention_required
 		# with a list of errors
@@ -38,15 +38,15 @@ class ApiService(asab.Service):
 				data=self._build_zookeeper_adv_data(),
 				path="/run/{}.".format(self.App.__class__.__name__),
 			)
-		return attention_key_value
+		return error_id
 
-	def remove_attention(self, attention_key):
+	def remove_attention(self, error_id):
 		try:
 			# find the error value that is resolved and remove it.
 			for error_key_dict in self.AttentionRequired:
-				for err_key, err_value in error_key_dict.items():
-					if err_value == attention_key:
-						del error_key_dict[err_key]
+				for error_key, error_value in error_key_dict.items():
+					if error_value == error_id:
+						del error_key_dict[error_key]
 						break
 		except KeyError:
 			L.warning("Key None does not exist.")
