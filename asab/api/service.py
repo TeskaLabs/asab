@@ -39,14 +39,12 @@ class ApiService(asab.Service):
 			)
 		return att_id
 
-	def remove_attention(self, error_id):
+	def remove_attention(self, att_id):
 		try:
 			# find the error value that is resolved and remove it.
-			for error_key_dict in self.AttentionRequired:
-				for error_key, error_value in error_key_dict.items():
-					if error_value == error_id:
-						del error_key_dict[error_key]
-						break
+			for error_key, error_value in self.AttentionRequired.items():
+				if error_key == att_id:
+					del self.AttentionRequired[att_id]
 		except KeyError:
 			L.warning("Key None does not exist.")
 			raise Exception("Key None does not exist.")
