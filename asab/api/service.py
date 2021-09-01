@@ -23,12 +23,12 @@ class ApiService(asab.Service):
 		self.ZkContainer = None
 		self.AttentionRequired = []  # list of errors found.
 
-	def attention_required(self, error_id=None):
+	def attention_required(self, att_id=None):
 
-		if error_id is None:
+		if att_id is None:
 			# add new error id to list
-			error_id = str(uuid.uuid4())
-			new_error_key = {'id': error_id}
+			att_id = str(uuid.uuid4())
+			new_error_key = {'id': att_id}
 			self.AttentionRequired.append(new_error_key)
 
 		# add to microservice json/dict section attention_required
@@ -38,7 +38,7 @@ class ApiService(asab.Service):
 				data=self._build_zookeeper_adv_data(),
 				path="/run/{}.".format(self.App.__class__.__name__),
 			)
-		return error_id
+		return att_id
 
 	def remove_attention(self, error_id):
 		try:
