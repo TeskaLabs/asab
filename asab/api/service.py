@@ -32,6 +32,7 @@ class ApiService(asab.Service):
 			self.AttentionRequired.append(new_err_key)
 
 		# add to microservice json/dict section attention_required
+		# with a list of errors
 		if self.ZkContainer is not None:
 			self.ZkContainer.advertise(
 				data=self._build_zookeeper_adv_data(),
