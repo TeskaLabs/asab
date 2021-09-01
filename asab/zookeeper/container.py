@@ -90,7 +90,7 @@ class ZooKeeperAdvertisement(object):
 	async def _do_advertise(self, zoocontainer):
 		async with self.Lock:
 			if self.Node is not None and await zoocontainer.ZooKeeper.exists(self.Node):
-				zoocontainer.ZooKeeper.set_data(self.Path, self.Data)
+				await zoocontainer.ZooKeeper.set_data(self.Path, self.Data)
 				return
 
 			self.Node = await zoocontainer.ZooKeeper.create(
