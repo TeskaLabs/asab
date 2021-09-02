@@ -21,7 +21,7 @@ class ApiService(asab.Service):
 		super().__init__(app, service_name)
 		self.WebContainer = None
 		self.ZkContainer = None
-		self.AttentionRequired = {}  # list of errors found.
+		self.AttentionRequired = {}  # dict of errors found.
 
 	def attention_required(self, att: dict, att_id=None):
 
