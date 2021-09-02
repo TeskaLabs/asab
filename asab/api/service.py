@@ -123,6 +123,7 @@ class ApiService(asab.Service):
 		}
 
 		if len(self.AttentionRequired) > 0:
+			# add sttention required status
 			adv_data.update({"attention_required": self.AttentionRequired})
 
 		if self.WebContainer is not None:
