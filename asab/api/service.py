@@ -26,7 +26,7 @@ class ApiService(asab.Service):
 	def attention_required(self, att: dict, att_id=None):
 
 		if att_id is None:
-			# add new error id to list
+			# add new attention id to list
 			att_id = uuid.uuid4().hex
 			self.AttentionRequired[att_id] = att
 
@@ -44,7 +44,7 @@ class ApiService(asab.Service):
 
 	def remove_attention(self, att_id):
 		try:
-			# find the error value that is resolved and remove it.
+			# find the attention id value and remove it.
 			for error_key, error_value in self.AttentionRequired.items():
 				if error_key == att_id:
 					del self.AttentionRequired[att_id]
