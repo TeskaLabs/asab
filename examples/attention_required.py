@@ -35,7 +35,8 @@ class MyApplication(asab.Application):
         key1 = None
 
         print("In attention-required")
-        my_key = svc.attention_required(key1)
+        info_dict = {"details": "I got problems!"}
+        my_key = svc.attention_required(info_dict, key1)
         current_path = Path(os.path.dirname(os.path.realpath(__file__)))
         key_path = os.path.join(current_path, "data", "my_error_id.txt")
 
@@ -51,15 +52,16 @@ class MyApplication(asab.Application):
         print()
         print("Error id created is : " + str(my_key))
         print("Error id being deleted is : " + str(get_key))
+
         start = time.time()
 
-        while time.time() < start + 10:
-            svc.remove_attention(get_key)
+        while time.time() < start + 30:
+            pass
+        svc.remove_attention(get_key)
 
         # remove thw key file
         os.remove(key_path)
-
-    print("Done!")
+        print("Done!")
 
 
 if __name__ == "__main__":
