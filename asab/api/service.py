@@ -48,6 +48,7 @@ class ApiService(asab.Service):
 			for error_key, error_value in self.AttentionRequired.items():
 				if error_key == att_id:
 					del self.AttentionRequired[att_id]
+					break
 		except KeyError:
 			L.warning("Key None does not exist.")
 			raise Exception("Key None does not exist.")
