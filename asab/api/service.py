@@ -28,7 +28,7 @@ class ApiService(asab.Service):
 		if att_id is None:
 			# add new attention id to list
 			att_id = uuid.uuid4().hex
-			self.AttentionRequired[att_id] = att
+		self.AttentionRequired[att_id] = att
 
 		# if creation time for att_id is not present then add
 		if "_c" not in att:
