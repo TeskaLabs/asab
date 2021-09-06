@@ -52,10 +52,10 @@ class StorageService(StorageServiceABC):
 
 		self._ClientSession = None
 		# get list of servers
-		self.ESURL = self.get_servers()
+		self.ESURL = self.get_servers_urls()
 
 
-	def get_servers(self):
+	def get_servers_urls(self):
 		if self.URL.startswith("http://"):
 			self.ServerUrls = []
 			servers_stripped = self.URL.strip("http:/")
@@ -292,9 +292,9 @@ class ElasicSearchUpsertor(UpsertorABC):
 						resp_json = await resp.json()
 						assert resp_json["result"] == "updated" or resp_json[
 							"result"] == "created", "Creating/updating was unsuccessful"
+						return self.ObjId
 				except aiohttp.client_exceptions.InvalidURL:
 					continue
-				return self.ObjId
 
 
 def serialize(v):
