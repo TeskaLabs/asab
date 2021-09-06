@@ -82,15 +82,14 @@ class StorageService(StorageServiceABC):
 			try:
 				if _id:
 					url = "{}{}/_doc/{}?refresh={}".format(url, index, _id, self.Refresh)
-					url = "http://" + url
 				else:
 					url = "{}{}".format(self.ESURL, index)
-					url = "http://" + url
 				async with self.session().request(method="DELETE", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+					resp = await resp.json()
 			except aiohttp.client_exceptions.InvalidURL:
 				continue
-			resp = await resp.json()
+
 			if resp.get("acknowledged", False):
 				return resp
 			assert resp["result"] == "deleted", "Document was not deleted"
@@ -125,10 +124,10 @@ class StorageService(StorageServiceABC):
 								resp.status, await resp.text()
 							)
 						)
+					resp = await resp.json()
+					return resp
 			except aiohttp.client_exceptions.InvalidURL:
 				continue
-			resp = await resp.json()
-			return resp
 
 	async def get_by(self, collection: str, key: str, value):
 		raise NotImplementedError("get_by")
