@@ -87,13 +87,13 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(method="DELETE", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					resp = await resp.json()
+
+					if resp.get("acknowledged", False):
+						return resp
+					assert resp["result"] == "deleted", "Document was not deleted"
+					return resp
 			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 				continue
-
-			if resp.get("acknowledged", False):
-				return resp
-			assert resp["result"] == "deleted", "Document was not deleted"
-			return resp
 
 	async def reindex(self, previous_index, new_index):
 		for url in self.ServerUrls:
@@ -145,10 +145,8 @@ class StorageService(StorageServiceABC):
 			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 				continue
 
-
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
 		return ElasicSearchUpsertor(self, index, obj_id, version)
-
 
 	async def list(self, index, _from=0, size=10000, body=None):
 		'''
@@ -271,11 +269,10 @@ class ElasicSearchUpsertor(UpsertorABC):
 				async with self.Storage.session().request(method="POST", url=url, json=setobj) as resp:
 					assert resp.status == 201, "Unexpected response code: {}".format(resp.status)
 					resp_json = await resp.json()
+					self.ObjId = resp_json['_id']
+					return self.ObjId
 			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 				continue
-			self.ObjId = resp_json['_id']
-
-		return self.ObjId
 
 	async def _upsert(self):
 		upsertobj = {"doc": {}, "doc_as_upsert": True}
