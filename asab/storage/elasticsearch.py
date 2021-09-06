@@ -310,7 +310,6 @@ class ElasicSearchUpsertor(UpsertorABC):
 					continue
 
 
-
 def serialize(v):
 	if isinstance(v, datetime.datetime):
 		return v.timestamp()
