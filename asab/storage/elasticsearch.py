@@ -74,12 +74,16 @@ class StorageService(StorageServiceABC):
 		return self._ClientSession
 
 	async def delete(self, index, _id=None):
-		if _id:
-			url = "{}{}/_doc/{}?refresh={}".format(self.ESURL, index, _id, self.Refresh)
-		else:
-			url = "{}{}".format(self.ESURL, index)
-		async with self.session().request(method="DELETE", url=url) as resp:
-			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+		for url in self.ServersList:
+			try:
+				if _id:
+					url = "{}{}/_doc/{}?refresh={}".format(url, index, _id, self.Refresh)
+				else:
+					url = "{}{}".format(self.ESURL, index)
+				async with self.session().request(method="DELETE", url=url) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+			except aiohttp.client_exceptions.InvalidURL:
+				continue
 			resp = await resp.json()
 			if resp.get("acknowledged", False):
 				return resp
@@ -87,32 +91,36 @@ class StorageService(StorageServiceABC):
 			return resp
 
 	async def reindex(self, previous_index, new_index):
-		if self.ESURL.endswith('/'):
-			url = "{}_reindex".format(self.ESURL)
-		else:
-			url = "{}/_reindex".format(self.ESURL)
+		for url in self.ServersList:
+			try:
+				self.ESURL =url
+				if self.ESURL.endswith('/'):
+					url = "{}_reindex".format(self.ESURL)
+				else:
+					url = "{}/_reindex".format(self.ESURL)
 
-		async with self.session().request(
-			method="POST",
-			url=url,
-			headers={"Content-Type": "application/json"},
-			data=json.dumps({
-				"source": {
-					"index": previous_index,
-				},
-				"dest": {
-					"index": new_index,
-				}
-			})
-		) as resp:
+				async with self.session().request(
+					method="POST",
+					url=url,
+					headers={"Content-Type": "application/json"},
+					data=json.dumps({
+						"source": {
+							"index": previous_index,
+						},
+						"dest": {
+							"index": new_index,
+						}
+					})
+				) as resp:
 
-			if resp.status != 200:
-				raise AssertionError(
-					"Unexpected response code when reindexing: {}".format(
-						resp.status, await resp.text()
-					)
-				)
-
+					if resp.status != 200:
+						raise AssertionError(
+							"Unexpected response code when reindexing: {}".format(
+								resp.status, await resp.text()
+							)
+						)
+			except aiohttp.client_exceptions.InvalidURL:
+				continue
 			resp = await resp.json()
 			return resp
 
@@ -134,7 +142,6 @@ class StorageService(StorageServiceABC):
 			return ret
 
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
-		print(obj_id)
 		return ElasicSearchUpsertor(self, index, obj_id, version)
 
 	async def list(self, index, _from=0, size=10000, body=None):
@@ -151,13 +158,17 @@ class StorageService(StorageServiceABC):
 					}
 				}
 			}
-		url = "{}{}/_search?size={}&from={}&version=true".format(self.ESURL, index, size, _from)
-		async with self.session().request(method="GET",
-										  url=url,
-										  json=body,
-										  headers={'Content-Type': 'application/json'}
-										  ) as resp:
-			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+		for url in self.ServersList:
+			try:
+				url = "{}{}/_search?size={}&from={}&version=true".format(url, index, size, _from)
+				async with self.session().request(method="GET",
+												  url=url,
+												  json=body,
+												  headers={'Content-Type': 'application/json'}
+												  ) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+			except aiohttp.client_exceptions.InvalidURL:
+				continue
 			content = await resp.json()
 
 		return content
