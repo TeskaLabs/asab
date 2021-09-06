@@ -87,7 +87,7 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(method="DELETE", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					resp = await resp.json()
-			except aiohttp.client_exceptions.InvalidURL:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 				continue
 
 			if resp.get("acknowledged", False):
@@ -126,7 +126,7 @@ class StorageService(StorageServiceABC):
 						)
 					resp = await resp.json()
 					return resp
-			except aiohttp.client_exceptions.InvalidURL:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 				continue
 
 	async def get_by(self, collection: str, key: str, value):
@@ -138,12 +138,12 @@ class StorageService(StorageServiceABC):
 			try:
 				async with self.session().request(method="GET", url=url) as resp:
 					obj = await resp.json()
-			except aiohttp.client_exceptions.InvalidURL:
+					ret = obj['_source']
+					ret['_v'] = obj['_version']
+					ret['_id'] = obj['_id']
+					return ret
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 				continue
-			ret = obj['_source']
-			ret['_v'] = obj['_version']
-			ret['_id'] = obj['_id']
-			return ret
 
 
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
@@ -173,7 +173,7 @@ class StorageService(StorageServiceABC):
 												  headers={'Content-Type': 'application/json'}
 												  ) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			except aiohttp.client_exceptions.InvalidURL:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 				continue
 			content = await resp.json()
 			return content
@@ -188,7 +188,7 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(method="GET", url=count_url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					total_count = await resp.json()
-			except aiohttp.client_exceptions.InvalidURL:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 				continue
 		return total_count
 
@@ -201,7 +201,7 @@ class StorageService(StorageServiceABC):
 				url = "{}_cat/indices/{}?format=json".format(url, search_string)
 				async with self.session().request(method="GET", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			except aiohttp.client_exceptions.InvalidURL:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 				continue
 			return await resp.json()
 
@@ -215,7 +215,7 @@ class StorageService(StorageServiceABC):
 				url = "{}{}".format(url, index)
 				async with self.session().request(method="PUT", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			except aiohttp.client_exceptions.InvalidURL:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 				continue
 			return await resp.json()
 
@@ -271,7 +271,7 @@ class ElasicSearchUpsertor(UpsertorABC):
 				async with self.Storage.session().request(method="POST", url=url, json=setobj) as resp:
 					assert resp.status == 201, "Unexpected response code: {}".format(resp.status)
 					resp_json = await resp.json()
-			except aiohttp.client_exceptions.InvalidURL:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 				continue
 			self.ObjId = resp_json['_id']
 
@@ -293,7 +293,7 @@ class ElasicSearchUpsertor(UpsertorABC):
 						assert resp_json["result"] == "updated" or resp_json[
 							"result"] == "created", "Creating/updating was unsuccessful"
 						return self.ObjId
-				except aiohttp.client_exceptions.InvalidURL:
+				except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 					continue
 
 
