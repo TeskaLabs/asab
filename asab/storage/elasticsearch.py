@@ -92,13 +92,15 @@ class StorageService(StorageServiceABC):
 						return resp
 					assert resp["result"] == "deleted", "Document was not deleted"
 					return resp
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.InvalidURL:
+				continue
+			except aiohttp.client_exceptions.ClientConnectorError:
 				continue
 
 	async def reindex(self, previous_index, new_index):
 		for url in self.ServerUrls:
 			try:
-				self.ESURL =url
+				self.ESURL= url
 				if self.ESURL.endswith('/'):
 					url = "{}_reindex".format(self.ESURL)
 				else:
@@ -126,7 +128,9 @@ class StorageService(StorageServiceABC):
 						)
 					resp = await resp.json()
 					return resp
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.InvalidURL:
+				continue
+			except aiohttp.client_exceptions.ClientConnectorError:
 				continue
 
 	async def get_by(self, collection: str, key: str, value):
@@ -142,7 +146,9 @@ class StorageService(StorageServiceABC):
 					ret['_v'] = obj['_version']
 					ret['_id'] = obj['_id']
 					return ret
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.InvalidURL:
+				continue
+			except aiohttp.client_exceptions.ClientConnectorError:
 				continue
 
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
@@ -186,9 +192,11 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(method="GET", url=count_url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					total_count = await resp.json()
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+					return total_count
+			except aiohttp.client_exceptions.InvalidURL:
 				continue
-		return total_count
+			except aiohttp.client_exceptions.ClientConnectorError:
+				continue
 
 	async def indices(self, search_string=None):
 		'''
@@ -199,9 +207,12 @@ class StorageService(StorageServiceABC):
 				url = "{}_cat/indices/{}?format=json".format(url, search_string)
 				async with self.session().request(method="GET", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				return await resp.json()
+			except aiohttp.client_exceptions.InvalidURL:
 				continue
-			return await resp.json()
+			except aiohttp.client_exceptions.ClientConnectorError:
+				continue
+
 
 	async def empty_index(self, index):
 		'''
@@ -213,10 +224,11 @@ class StorageService(StorageServiceABC):
 				url = "{}{}".format(url, index)
 				async with self.session().request(method="PUT", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				return await resp.json()
+			except aiohttp.client_exceptions.InvalidURL:
 				continue
-			return await resp.json()
-
+			except aiohttp.client_exceptions.ClientConnectorError:
+				continue
 
 class ElasicSearchUpsertor(UpsertorABC):
 
@@ -271,7 +283,9 @@ class ElasicSearchUpsertor(UpsertorABC):
 					resp_json = await resp.json()
 					self.ObjId = resp_json['_id']
 					return self.ObjId
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.InvalidURL:
+				continue
+			except aiohttp.client_exceptions.ClientConnectorError:
 				continue
 
 	async def _upsert(self):
@@ -284,14 +298,17 @@ class ElasicSearchUpsertor(UpsertorABC):
 				try:
 					url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId, self.Storage.Refresh)
 					async with self.Storage.session().request(method="POST", url=url, data=json.dumps(upsertobj),
-															  headers={'Content-Type': 'application/json'}) as resp:
+																headers={'Content-Type': 'application/json'}) as resp:
 						assert resp.status == 200 or resp.status == 201, "Unexpected response code: {}".format(resp.status)
 						resp_json = await resp.json()
 						assert resp_json["result"] == "updated" or resp_json[
 							"result"] == "created", "Creating/updating was unsuccessful"
 						return self.ObjId
-				except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				except aiohttp.client_exceptions.InvalidURL:
 					continue
+				except aiohttp.client_exceptions.ClientConnectorError:
+					continue
+
 
 
 def serialize(v):
