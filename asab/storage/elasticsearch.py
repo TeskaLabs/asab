@@ -51,7 +51,7 @@ class StorageService(StorageServiceABC):
 			self._auth = aiohttp.BasicAuth(login=username, password=password)
 
 		self._ClientSession = None
-		# get list of servers
+		# get the first server
 		self.ESURL = self.get_servers_urls()
 
 	# store the severs into list
