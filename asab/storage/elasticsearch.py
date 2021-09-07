@@ -123,17 +123,28 @@ class StorageService(StorageServiceABC):
 		return ret
 
 
-	async def get_templete(self,index, template_name) -> dict:
-		url = "{}{}/_template/{}?include_type_name".format(self.ESURL, index, template_name)
+	async def get_templete(self, template_name) -> dict:
+		url = "{}_template/{}?include_type_name".format(self.ESURL, template_name)
 
-		async with self.ESStorageService.session().request(method="GET", url=url, headers={
+		async with self.session().request(method="GET", url=url, headers={
 			'Content-Type': 'application/json'
 		}) as resp:
 
 			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 		content = await resp.json()
+
 		return content
 
+	async def put_templete(self, template_name, templete):
+		url = "{}_template/{}?include_type_name/{}?format=json".format(self.ESURL, template_name, templete)
+		async with self.session().request(method="PUT", url=url, data=json.dumps(templete), headers={
+			'Content-Type': 'application/json'
+		}) as resp:
+
+			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+
+		resp = await resp.json()
+		return resp
 
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
 		return ElasicSearchUpsertor(self, index, obj_id, version)
