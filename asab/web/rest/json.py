@@ -30,7 +30,12 @@ class JSONDumper(object):
 			return m()
 
 		if isinstance(o, datetime.datetime):
-			return o.isoformat()
+			if o.tzinfo is None or o.tzinfo.utcoffset(o) is None:
+				# The datetime object is timezone-naive -> interpret it as UTC
+				return o.isoformat() + "Z"
+			else:
+				# The datetime object is timezone-aware
+				return o.isoformat()
 
 		elif isinstance(o, bytes):
 			return o.hex()
