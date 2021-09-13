@@ -175,7 +175,8 @@ class StorageService(StorageServiceABC):
 					}
 				}
 			}
-		for url in self.ServerUrls:
+		total_urls = 0
+		for url in range(len(self.ServerUrls)):
 			try:
 				url = "{}{}/_search?size={}&from={}&version=true".format(url, index, size, _from)
 				async with self.session().request(method="GET",
@@ -184,26 +185,32 @@ class StorageService(StorageServiceABC):
 												  headers={'Content-Type': 'application/json'}
 												  ) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+					content = await resp.json()
+					return content
 			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
 				continue
-			content = await resp.json()
-			return content
 
 	async def count(self, index):
 		'''
 		Custom ElasticSearch method
 		'''
-		for count_url in self.ServerUrls:
+		total_urls = 0
+		for url in range(len(self.ServerUrls)):
 			try:
 				count_url = "{}{}/_count".format(count_url, index)
 				async with self.session().request(method="GET", url=count_url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					total_count = await resp.json()
 					return total_count
-			except aiohttp.client_exceptions.InvalidURL:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
 				continue
-			except aiohttp.client_exceptions.ClientConnectorError:
-				continue
+
 
 	async def indices(self, search_string=None):
 		'''
