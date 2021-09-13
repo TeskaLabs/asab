@@ -78,7 +78,8 @@ class StorageService(StorageServiceABC):
 		return self._ClientSession
 
 	async def delete(self, index, _id=None):
-		for url in self.ServerUrls:
+		total_urls = 0
+		for url in range(len(self.ServerUrls)):
 			try:
 				if _id:
 					url = "{}{}/_doc/{}?refresh={}".format(url, index, _id, self.Refresh)
@@ -92,9 +93,10 @@ class StorageService(StorageServiceABC):
 						return resp
 					assert resp["result"] == "deleted", "Document was not deleted"
 					return resp
-			except aiohttp.client_exceptions.InvalidURL:
-				continue
-			except aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
 				continue
 
 	async def reindex(self, previous_index, new_index):
