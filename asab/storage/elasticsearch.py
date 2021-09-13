@@ -123,7 +123,7 @@ class StorageService(StorageServiceABC):
 		return ret
 
 
-	async def get_templete(self, template_name) -> dict:
+	async def get_index_templete(self, template_name) -> dict:
 		url = "{}_index_template/{}?include_index_name".format(self.ESURL, template_name)
 
 		async with self.session().request(method="GET", url=url, headers={
@@ -135,7 +135,7 @@ class StorageService(StorageServiceABC):
 
 		return content
 
-	async def put_templete(self, template_name, templete):
+	async def put_index_templete(self, template_name, templete):
 		url = "{}_index_template/{}?include_index_name/{}?format=json".format(self.ESURL, template_name, templete)
 		async with self.session().request(method="PUT", url=url, data=json.dumps(templete), headers={
 			'Content-Type': 'application/json'
