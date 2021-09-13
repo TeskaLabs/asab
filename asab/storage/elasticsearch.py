@@ -124,7 +124,7 @@ class StorageService(StorageServiceABC):
 
 
 	async def get_templete(self, template_name) -> dict:
-		url = "{}_template/{}?include_type_name".format(self.ESURL, template_name)
+		url = "{}_index_template/{}?include_index_name".format(self.ESURL, template_name)
 
 		async with self.session().request(method="GET", url=url, headers={
 			'Content-Type': 'application/json'
@@ -136,7 +136,7 @@ class StorageService(StorageServiceABC):
 		return content
 
 	async def put_templete(self, template_name, templete):
-		url = "{}_template/{}?include_type_name/{}?format=json".format(self.ESURL, template_name, templete)
+		url = "{}_index_template/{}?include_index_name/{}?format=json".format(self.ESURL, template_name, templete)
 		async with self.session().request(method="PUT", url=url, data=json.dumps(templete), headers={
 			'Content-Type': 'application/json'
 		}) as resp:
