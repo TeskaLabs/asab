@@ -234,15 +234,17 @@ class StorageService(StorageServiceABC):
 		Custom ElasticSearch method
 		'''
 		# TODO: There is an option here to specify settings (e.g. shard number, replica number etc) and mappings here
-		for url in self.ServerUrls:
+		total_urls = 0
+		for url in range(len(self.ServerUrls)):
 			try:
 				url = "{}{}".format(url, index)
 				async with self.session().request(method="PUT", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 				return await resp.json()
-			except aiohttp.client_exceptions.InvalidURL:
-				continue
-			except aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
 				continue
 
 class ElasicSearchUpsertor(UpsertorABC):
