@@ -216,17 +216,18 @@ class StorageService(StorageServiceABC):
 		'''
 		Custom ElasticSearch method
 		'''
-		for url in self.ServerUrls:
+		total_urls = 0
+		for url in range(len(self.ServerUrls)):
 			try:
 				url = "{}_cat/indices/{}?format=json".format(url, search_string)
 				async with self.session().request(method="GET", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 				return await resp.json()
-			except aiohttp.client_exceptions.InvalidURL:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
 				continue
-			except aiohttp.client_exceptions.ClientConnectorError:
-				continue
-
 
 	async def empty_index(self, index):
 		'''
