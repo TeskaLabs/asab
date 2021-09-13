@@ -142,7 +142,8 @@ class StorageService(StorageServiceABC):
 		raise NotImplementedError("get_by")
 
 	async def get(self, index: str, obj_id) -> dict:
-		for url in self.ServerUrls:
+		total_urls = 0
+		for url in range(len(self.ServerUrls)):
 			url = "{}{}/_doc/{}".format(url, index, obj_id)
 			try:
 				async with self.session().request(method="GET", url=url) as resp:
@@ -151,9 +152,10 @@ class StorageService(StorageServiceABC):
 					ret['_v'] = obj['_version']
 					ret['_id'] = obj['_id']
 					return ret
-			except aiohttp.client_exceptions.InvalidURL:
-				continue
-			except aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
 				continue
 
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
