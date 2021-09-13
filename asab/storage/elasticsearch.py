@@ -100,7 +100,8 @@ class StorageService(StorageServiceABC):
 				continue
 
 	async def reindex(self, previous_index, new_index):
-		for url in self.ServerUrls:
+		total_urls = 0
+		for url in range(len(self.ServerUrls)):
 			try:
 				self.ESURL= url
 				if self.ESURL.endswith('/'):
@@ -130,10 +131,12 @@ class StorageService(StorageServiceABC):
 						)
 					resp = await resp.json()
 					return resp
-			except aiohttp.client_exceptions.InvalidURL:
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
 				continue
-			except aiohttp.client_exceptions.ClientConnectorError:
-				continue
+
 
 	async def get_by(self, collection: str, key: str, value):
 		raise NotImplementedError("get_by")
