@@ -112,6 +112,7 @@ class StorageService(StorageServiceABC):
 
 	async def get(self, index: str, obj_id) -> dict:
 		url = "{}{}/_doc/{}".format(self.ESURL, index, obj_id)
+		print("Url is : " + str(url))
 		async with self.session().request(method="GET", url=url) as resp:
 			obj = await resp.json()
 
@@ -124,7 +125,7 @@ class StorageService(StorageServiceABC):
 
 
 	async def get_index_templete(self, template_name) -> dict:
-		url = "{}_index_template/{}?include_index_name".format(self.ESURL, template_name)
+		url = "{}_index_template/{}?format=json".format(self.ESURL, template_name)
 
 		async with self.session().request(method="GET", url=url, headers={
 			'Content-Type': 'application/json'
@@ -135,9 +136,11 @@ class StorageService(StorageServiceABC):
 
 		return content
 
-	async def put_index_templete(self, template_name, templete):
-		url = "{}_index_template/{}?include_index_name/{}?format=json".format(self.ESURL, template_name, templete)
-		async with self.session().request(method="PUT", url=url, data=json.dumps(templete), headers={
+	async def put_index_templete(self, template_name, templete ,objid):
+		print(templete)
+		url = "{}{}/_templete/{}".format(self.ESURL, template_name, objid)
+		print(url)
+		async with self.session().request(method="POST", url=url, data=json.dumps(templete), headers={
 			'Content-Type': 'application/json'
 		}) as resp:
 
@@ -261,11 +264,13 @@ class ElasicSearchUpsertor(UpsertorABC):
 
 	async def _upsert(self):
 		upsertobj = {"doc": {}, "doc_as_upsert": True}
+		print("Data is : " + str(upsertobj))
 
 		if len(self.ModSet) > 0:
 			for k, v in self.ModSet.items():
 				upsertobj["doc"][k] = serialize(self.ModSet[k])
 		url = "{}{}/_update/{}?refresh={}".format(self.Storage.ESURL, self.Collection, self.ObjId, self.Storage.Refresh)
+		print(url)
 		async with self.Storage.session().request(method="POST", url=url, data=json.dumps(upsertobj),
 		                                          headers={'Content-Type': 'application/json'}) as resp:
 			assert resp.status == 200 or resp.status == 201, "Unexpected response code: {}".format(resp.status)
