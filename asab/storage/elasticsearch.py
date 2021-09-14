@@ -112,7 +112,6 @@ class StorageService(StorageServiceABC):
 
 	async def get(self, index: str, obj_id) -> dict:
 		url = "{}{}/_doc/{}".format(self.ESURL, index, obj_id)
-		print("Url is : " + str(url))
 		async with self.session().request(method="GET", url=url) as resp:
 			obj = await resp.json()
 
@@ -125,29 +124,26 @@ class StorageService(StorageServiceABC):
 
 
 	async def get_index_templete(self, template_name) -> dict:
-		url = "{}_index_template/{}?format=json".format(self.ESURL, template_name)
-
+		url = "{}_template/{}?format=json".format(self.ESURL, template_name)
 		async with self.session().request(method="GET", url=url, headers={
 			'Content-Type': 'application/json'
 		}) as resp:
 
 			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-		content = await resp.json()
+			content = await resp.json()
 
-		return content
+			return content
 
-	async def put_index_templete(self, template_name, templete ,objid):
-		print(templete)
-		url = "{}{}/_templete/{}".format(self.ESURL, template_name, objid)
-		print(url)
-		async with self.session().request(method="POST", url=url, data=json.dumps(templete), headers={
+	async def put_index_template(self, template_name, template):
+		url = "{}_template/{}?include_type_name".format(self.ESURL, template_name)
+		async with self.session().request(method="POST", url=url, data=json.dumps(template), headers={
 			'Content-Type': 'application/json'
 		}) as resp:
 
 			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+			resp = await resp.json()
 
-		resp = await resp.json()
-		return resp
+			return resp
 
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
 		return ElasicSearchUpsertor(self, index, obj_id, version)
