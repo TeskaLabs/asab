@@ -54,7 +54,7 @@ class StorageService(StorageServiceABC):
 		# get the first server
 		self.ESURL = self.get_servers_urls()
 
-	# store the severs into list
+	# store the severs into list and return the first server
 	def get_servers_urls(self):
 		if self.URL.startswith("http://"):
 			self.ServerUrls = []
