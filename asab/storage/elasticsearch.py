@@ -260,13 +260,11 @@ class ElasicSearchUpsertor(UpsertorABC):
 
 	async def _upsert(self):
 		upsertobj = {"doc": {}, "doc_as_upsert": True}
-		print("Data is : " + str(upsertobj))
 
 		if len(self.ModSet) > 0:
 			for k, v in self.ModSet.items():
 				upsertobj["doc"][k] = serialize(self.ModSet[k])
 		url = "{}{}/_update/{}?refresh={}".format(self.Storage.ESURL, self.Collection, self.ObjId, self.Storage.Refresh)
-		print(url)
 		async with self.Storage.session().request(method="POST", url=url, data=json.dumps(upsertobj),
 		                                          headers={'Content-Type': 'application/json'}) as resp:
 			assert resp.status == 200 or resp.status == 201, "Unexpected response code: {}".format(resp.status)
