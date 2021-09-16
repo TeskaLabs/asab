@@ -40,7 +40,6 @@ class ZooKeeperContainer(ConfigObject):
 
 		# Force advertisement immediatelly after initialization
 		self.App.PubSub.publish("ZooKeeper.advertise!")
-		return self.ZooKeeper
 
 
 	async def finalize(self, app):
@@ -91,7 +90,7 @@ class ZooKeeperAdvertisement(object):
 	async def _do_advertise(self, zoocontainer):
 		async with self.Lock:
 			if self.Node is not None and await zoocontainer.ZooKeeper.exists(self.Node):
-				await zoocontainer.ZooKeeper.set_data(self.Path, self.Data)
+				# if node is advertised do not create a replica
 				return
 
 			self.Node = await zoocontainer.ZooKeeper.create(

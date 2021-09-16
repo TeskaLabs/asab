@@ -1,7 +1,10 @@
 import datetime
 import logging
+
+# TODO: This must be a relative import
+import asab
+import asab.web
 import asab.web.rest
-import uuid
 
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
@@ -21,43 +24,6 @@ class ApiService(asab.Service):
 		super().__init__(app, service_name)
 		self.WebContainer = None
 		self.ZkContainer = None
-		self.AttentionRequired = {}  # dict of errors found.
-
-	def attention_required(self, att: dict, att_id=None):
-
-		if att_id is None:
-			# add new attention id to list
-			att_id = uuid.uuid4().hex
-		self.AttentionRequired[att_id] = att
-
-		# if creation time for att_id is not present then add
-		if "_c" not in att:
-			att["_c"] = datetime.datetime.utcnow().isoformat() + 'Z'
-
-		# add to microservice json/dict section attention_required
-		if self.ZkContainer is not None:
-			self.ZkContainer.advertise(
-				data=self._build_zookeeper_adv_data(),
-				path="/run/{}.".format(self.App.__class__.__name__),
-			)
-		return att_id
-
-	def remove_attention(self, att_id):
-		try:
-			# find the attention id value and remove it.
-			for error_key, error_value in self.AttentionRequired.items():
-				if error_key == att_id:
-					del self.AttentionRequired[att_id]
-					break
-		except KeyError:
-			L.warning("Key None does not exist.")
-			raise Exception("Key None does not exist.")
-
-		if self.ZkContainer is not None:
-			self.ZkContainer.advertise(
-				data=self._build_zookeeper_adv_data(),
-				path="/run/{}.".format(self.App.__class__.__name__),
-			)
 
 
 	def initialize_web(self, webcontainer=None):
@@ -118,14 +84,9 @@ class ApiService(asab.Service):
 	def _build_zookeeper_adv_data(self):
 		adv_data = {
 			'appclass': self.App.__class__.__name__,
-			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
+			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat(),
 			'hostname': self.App.HostName,
 		}
-
-		if len(self.AttentionRequired) > 0:
-			# add sttention required status
-			adv_data.update({"attention_required": self.AttentionRequired})
-
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
 		return adv_data
