@@ -122,6 +122,29 @@ class StorageService(StorageServiceABC):
 
 		return ret
 
+
+	async def get_index_template(self, template_name) -> dict:
+		url = "{}_template/{}?format=json".format(self.ESURL, template_name)
+		async with self.session().request(method="GET", url=url, headers={
+			'Content-Type': 'application/json'
+		}) as resp:
+
+			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+			content = await resp.json()
+
+			return content
+
+	async def put_index_template(self, template_name, template):
+		url = "{}_template/{}?include_type_name".format(self.ESURL, template_name)
+		async with self.session().request(method="POST", url=url, data=json.dumps(template), headers={
+			'Content-Type': 'application/json'
+		}) as resp:
+
+			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+			resp = await resp.json()
+
+			return resp
+
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
 		return ElasicSearchUpsertor(self, index, obj_id, version)
 
