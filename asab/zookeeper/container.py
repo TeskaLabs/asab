@@ -40,6 +40,7 @@ class ZooKeeperContainer(ConfigObject):
 
 		# Force advertisement immediatelly after initialization
 		self.App.PubSub.publish("ZooKeeper.advertise!")
+		return self.ZooKeeper
 
 
 	async def finalize(self, app):
