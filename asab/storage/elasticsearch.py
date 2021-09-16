@@ -123,7 +123,7 @@ class StorageService(StorageServiceABC):
 		return ret
 
 
-	async def get_index_templete(self, template_name) -> dict:
+	async def get_index_template(self, template_name) -> dict:
 		url = "{}_template/{}?format=json".format(self.ESURL, template_name)
 		async with self.session().request(method="GET", url=url, headers={
 			'Content-Type': 'application/json'
