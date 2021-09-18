@@ -178,15 +178,22 @@ class StorageService(StorageServiceABC):
 
 
 	async def put_index_template(self, template_name, template):
-		url = "{}_template/{}?include_type_name".format(self.ESURL, template_name)
-		async with self.session().request(method="POST", url=url, data=json.dumps(template), headers={
-			'Content-Type': 'application/json'
-		}) as resp:
+		total_urls = 0
+		for url in range(len(self.ServerUrls)):
+			url = "{}_template/{}?include_type_name".format(url, template_name)
+			try:
+				async with self.session().request(method="POST", url=url, data=json.dumps(template), headers={
+					'Content-Type': 'application/json'
+				}) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+					resp = await resp.json()
+					return resp
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
+				continue
 
-			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			resp = await resp.json()
-
-			return resp
 
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
 		return ElasicSearchUpsertor(self, index, obj_id, version)
