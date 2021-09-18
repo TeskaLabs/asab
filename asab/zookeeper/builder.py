@@ -38,7 +38,7 @@ def build_client(Config, z_url):
 	# If there is no location, use implied
 	if not url_netloc:
 		# if server entry is missing exit
-		if Config.has_option("asab:zookeeper", "servers"):
+		if not Config.has_option("asab:zookeeper", "servers"):
 			L.error("Servers entry not passed in the configuration.")
 			return None, None
 		else:
@@ -46,7 +46,7 @@ def build_client(Config, z_url):
 
 	if url_path.startswith("./"):
 		# if path entry is missing retun with only client and path as none.
-		if Config.has_option("asab:zookeeper", "path"):
+		if not Config.has_option("asab:zookeeper", "path"):
 			L.error("Path entry not passed in the configuration.")
 			return url_netloc, None
 		if url_path.startswith("/"):
