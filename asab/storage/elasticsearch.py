@@ -160,15 +160,22 @@ class StorageService(StorageServiceABC):
 
 
 	async def get_index_template(self, template_name) -> dict:
-		url = "{}_template/{}?format=json".format(self.ESURL, template_name)
-		async with self.session().request(method="GET", url=url, headers={
-			'Content-Type': 'application/json'
-		}) as resp:
+		total_urls = 0
+		for url in range(len(self.ServerUrls)):
+			url = "{}_template/{}?format=json".format(url, template_name)
+			try:
+				async with self.session().request(method="GET", url=url, headers={
+					'Content-Type': 'application/json'
+				}) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+					content = await resp.json()
+					return content
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
+				continue
 
-			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			content = await resp.json()
-
-			return content
 
 	async def put_index_template(self, template_name, template):
 		url = "{}_template/{}?include_type_name".format(self.ESURL, template_name)
