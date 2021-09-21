@@ -36,7 +36,7 @@ def build_client(Config, z_url):
 	url_path = url_pieces.path
 
 	# If there is no location, use implied
-	if not url_netloc:
+	if url_netloc == '':
 		# if server entry is missing exit
 		if not Config.has_option("asab:zookeeper", "servers"):
 			L.error("Servers entry not passed in the configuration.")
