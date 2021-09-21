@@ -44,15 +44,15 @@ def build_client(Config, z_url):
 		else:
 			url_netloc = Config["asab:zookeeper"]["servers"]
 
-	if url_path.startswith("./"):
+	if url_path == '':
 		# if path entry is missing retun with only client and path as none.
 		if not Config.has_option("asab:zookeeper", "path"):
 			L.error("Path entry not passed in the configuration.")
 			return url_netloc, None
+	else:
+		url_path = Config["asab:zookeeper"]["path"]
 		if url_path.startswith("/"):
 			url_path = Config["asab:zookeeper"]["path"] + url_path[1:]
-		else:
-			url_path = Config["asab:zookeeper"]["path"]
 
 	# Create and return the client and the url-path
 	client = aiozk.ZKClient(url_netloc)
