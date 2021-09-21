@@ -22,11 +22,7 @@ class ZooKeeperContainer(ConfigObject):
 
 	def __init__(self, app, config_section_name, config=None, z_path=None):
 		super().__init__(config_section_name=config_section_name, config=config)
-		'''
-		Alternative 1) - call with config section
 
-		Alternative 2) - call with z_path
-		'''
 		self.App = app
 		self.ConfigSectionName = config_section_name
 		self.ZooKeeper, self.ZooKeeperPath = asab.zookeeper.build_client(asab.Config, z_path)
