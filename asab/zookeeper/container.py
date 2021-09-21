@@ -1,7 +1,7 @@
 import json
 import asyncio
 import logging
-
+import asab.zookeeper.builder
 import aiozk
 
 from ..config import ConfigObject
@@ -20,16 +20,17 @@ class ZooKeeperContainer(ConfigObject):
 	https://pypi.org/project/aiozk/
 	"""
 
-	def __init__(self, app, config_section_name, config=None):
+	def __init__(self, app, config_section_name, config=None, z_path=None):
 		super().__init__(config_section_name=config_section_name, config=config)
+		'''
+		Alternative 1) - call with config section
+
+		Alternative 2) - call with z_path
+		'''
 		self.App = app
 		self.ConfigSectionName = config_section_name
-
+		self.ZooKeeper, self.ZooKeeperPath = asab.zookeeper.build_client(asab.Config, z_path)
 		self.Advertisments = set()
-
-		self.ZooKeeper = aiozk.ZKClient(self.Config["servers"])
-		self.ZooKeeperPath = self.Config["path"]
-
 
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
