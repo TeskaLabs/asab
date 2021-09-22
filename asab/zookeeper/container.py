@@ -26,6 +26,9 @@ class ZooKeeperContainer(ConfigObject):
 				Alternative 1) - Obtain Zookeeper container with config-section
 
 				Alternative 2) - Obtain Zookeeper container with call z_path
+				
+				example : ZooKeeperContainer(app, config_section_name='', z_path=z_path)
+				
 				'''
 
 		self.App = app
