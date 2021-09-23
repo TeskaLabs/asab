@@ -2,7 +2,6 @@ import json
 import asyncio
 import logging
 import asab.zookeeper.builder
-import aiozk
 
 from ..config import ConfigObject
 
@@ -45,7 +44,7 @@ class ZooKeeperContainer(ConfigObject):
 
 		# Force advertisement immediatelly after initialization
 		self.App.PubSub.publish("ZooKeeper.advertise!")
-		return self.ZooKeeper ,self.ZooKeeperPath
+		return self.ZooKeeper, self.ZooKeeperPath
 
 
 	async def finalize(self, app):
