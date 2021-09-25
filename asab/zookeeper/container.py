@@ -44,7 +44,6 @@ class ZooKeeperContainer(ConfigObject):
 
 		# Force advertisement immediatelly after initialization
 		self.App.PubSub.publish("ZooKeeper.advertise!")
-		return self.ZooKeeper, self.ZooKeeperPath
 
 
 	async def finalize(self, app):
