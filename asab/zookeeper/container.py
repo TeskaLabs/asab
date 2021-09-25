@@ -35,6 +35,7 @@ class ZooKeeperContainer(ConfigObject):
 		self.ZooKeeper, self.ZooKeeperPath = asab.zookeeper.build_client(asab.Config, z_path)
 		self.Advertisments = set()
 
+
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
 		await self.ZooKeeper.ensure_path(self.ZooKeeperPath)
