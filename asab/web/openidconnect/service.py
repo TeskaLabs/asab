@@ -1,7 +1,14 @@
+import logging
 import asab
 
 import aiohttp
 import hashlib
+
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 
 asab.Config.add_defaults({
@@ -40,9 +47,9 @@ class OpenIDConnectService(asab.Service):
 
 		async with aiohttp.ClientSession() as session:
 			if tenant_id is not None:
-				userinfo_url = "{}/userinfo".format(self.OIDCUrl)
-			else:
 				userinfo_url = "{}/userinfo?tenant={}".format(self.OIDCUrl, tenant_id)
+			else:
+				userinfo_url = "{}/userinfo".format(self.OIDCUrl)
 
 			headers = {}
 			if access_token is not None:
@@ -53,14 +60,13 @@ class OpenIDConnectService(asab.Service):
 					headers=headers,
 			) as response:
 				userinfo = None
-
 				if response.status == 200:
 					response_json = await response.json()
 
 					if len(response_json) > 0:
 						userinfo = response_json
 
-				self._set_to_cache(access_token, tenant_id, response)
+				self._set_to_cache(access_token, tenant_id, userinfo)
 
 		# Be pessimistic
 		return userinfo
@@ -77,7 +83,7 @@ class OpenIDConnectService(asab.Service):
 			del self.UserinfoCache[cache_key]
 
 	def _get_from_cache(self, access_token, tenant_id):
-		key = "{} {}".format(access_token, tenant_id)
+		key = "{} {}".format(access_token, tenant_id).encode("utf-8")
 		hashed = hashlib.sha256(key).digest()
 		cache_value = self.UserinfoCache.get(hashed)
 		if cache_value is None:
@@ -86,6 +92,6 @@ class OpenIDConnectService(asab.Service):
 		return cache_value[0]
 
 	def _set_to_cache(self, access_token, tenant_id, userinfo):
-		key = "{} {}".format(access_token, tenant_id)
+		key = "{} {}".format(access_token, tenant_id).encode("utf-8")
 		hashed = hashlib.sha256(key).digest()
 		self.UserinfoCache[hashed] = (userinfo, self.App.time() + self.CacheExpiration)
