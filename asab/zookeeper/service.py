@@ -50,7 +50,7 @@ class ZooKeeperService(Service):
 
 
 	def build_container(self, config_section_name="asab:zookeeper"):
-		container = ZooKeeperContainer(self.App, config_section_name,z_path=None)
+		container = ZooKeeperContainer(self.App, config_section_name, z_path=None)
 		self.Containers[container.ConfigSectionName] = container
 		self.Futures.append(asyncio.ensure_future(
 			container.initialize(self.App)
