@@ -47,7 +47,7 @@ class MyApplication(asab.Application):
 		# Add a route
 		container.WebApp.router.add_get('/user', self.get_userinfo)
 
-	@asab.web.authz.userinfo
+	@asab.web.authz.userinfo_handler
 	async def get_userinfo(self, request, *, userinfo):
 		message = "Hi {}, your email is {}".format(
 			userinfo.get("preferred_username"),

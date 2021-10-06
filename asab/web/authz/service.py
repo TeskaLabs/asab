@@ -6,7 +6,7 @@ import asab
 
 asab.Config.add_defaults({
 	"authz": {
-		"userinfo_url": "",
+		"oauth2_url": "",
 		"cache_expiration": "1 m"
 	}
 })
@@ -17,7 +17,7 @@ class AuthzService(asab.Service):
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
 
-		self.UserInfoUrl = asab.Config.get("authz", "userinfo_url")
+		self.OAuth2Url = asab.Config.get("authz", "oauth2_url")
 		self.CacheExpiration = asab.Config.getseconds("authz", "cache_expiration")
 
 		self.Cache = {}
@@ -62,9 +62,9 @@ class AuthzService(asab.Service):
 
 		async with aiohttp.ClientSession() as session:
 			if tenant_id is not None:
-				userinfo_url = "{}?tenant={}".format(self.UserInfoUrl, tenant_id)
+				userinfo_url = "{}?tenant={}".format(self.OAuth2Url, tenant_id)
 			else:
-				userinfo_url = self.UserInfoUrl
+				userinfo_url = self.OAuth2Url
 
 			headers = {}
 			if access_token is not None:

@@ -57,7 +57,7 @@ def required(*resources):
 	return decorator_required
 
 
-def userinfo(func):
+def userinfo_handler(func):
 	"""
 	Fetches userinfo and passes the response dict to the decorated function.
 
@@ -105,12 +105,12 @@ def userinfo(func):
 def _get_access_token(request):
 	authorization_header_rg = re.compile(r"^\s*Bearer ([A-Za-z0-9\-\.\+_~/=]*)")
 
-	authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
+	authorization_value = request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
 	access_token = None
 
 	# Obtain access token from the authorization header
-	if authorization_header is not None:
-		authorization_match = authorization_header_rg.match(authorization_header)
+	if authorization_value is not None:
+		authorization_match = authorization_header_rg.match(authorization_value)
 		if authorization_match is not None:
 			access_token = authorization_match.group(1)
 
