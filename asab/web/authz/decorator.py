@@ -28,7 +28,7 @@ def required(*resources):
 		async def wrapper(*args, **kargs):
 
 			# RBAC URL is disabled, so no authorization can be performed
-			if Config["authz"]["rbac_url"] == "!DISABLED!":
+			if Config["authz"]["oauth2_url"] == "!DISABLED!":
 				return await func(*args, **kargs)
 
 			request = args[-1]
@@ -75,7 +75,7 @@ def userinfo_handler(func):
 	async def wrapper(*args, **kargs):
 
 		# RBAC URL is disabled, so no authorization can be performed
-		if Config["authz"]["rbac_url"] == "!DISABLED!":
+		if Config["authz"]["oauth2_url"] == "!DISABLED!":
 			return await func(*args, **kargs)
 
 		request = args[-1]
