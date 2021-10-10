@@ -21,6 +21,7 @@ class AuthzService(asab.Service):
 		self.OAuth2Url = asab.Config.get("authz", "oauth2_url")
 		if self.OAuth2Url.endswith("/"):
 			self.OAuth2Url = self.OAuth2Url[:-1]
+
 		self.UserInfoEndpoint = asab.Config.get("authz", "userinfo_endpoint")
 		self.CacheExpiration = asab.Config.getseconds("authz", "cache_expiration")
 
@@ -75,8 +76,8 @@ class AuthzService(asab.Service):
 				headers["Authorization"] = "Bearer {}".format(access_token)
 
 			async with session.get(
-					userinfo_url,
-					headers=headers,
+				userinfo_url,
+				headers=headers,
 			) as response:
 				if response.status == 200:
 					response_json = await response.json()

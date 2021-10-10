@@ -1,9 +1,14 @@
-import functools
 import re
+import logging
+import functools
 
 import aiohttp.web
 
-from ...config import Config
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 
 def required(*resources):
@@ -26,15 +31,18 @@ def required(*resources):
 
 		@functools.wraps(func)
 		async def wrapper(*args, **kargs):
-
-			# RBAC URL is disabled, so no authorization can be performed
-			if Config["authz"]["oauth2_url"] == "!DISABLED!":
-				return await func(*args, **kargs)
-
 			request = args[-1]
 
 			# Obtain authz service from the request
 			authz_service = request.AuthzService
+
+			# RBAC URL is disabled, so no authorization can be performed
+			if request.AuthzService.OAuth2Url == "!DISABLED!":
+				return await func(*args, **kargs)
+			
+			elif request.AuthzService.OAuth2Url == "":
+				L.error("oauth2_url is not configured ;-(")
+				raise aiohttp.web.HTTPUnauthorized()
 
 			access_token = _get_access_token(request)
 
@@ -73,20 +81,24 @@ def userinfo_handler(func):
 
 	@functools.wraps(func)
 	async def wrapper(*args, **kargs):
-
-		# RBAC URL is disabled, so no authorization can be performed
-		if Config["authz"]["oauth2_url"] == "!DISABLED!":
-			return await func(*args, **kargs)
-
 		request = args[-1]
 
 		# Obtain authz service from the request
 		authz_service = request.AuthzService
 
+		# RBAC URL is disabled, so no authorization can be performed
+		if request.AuthzService.OAuth2Url == "!DISABLED!":
+			return await func(*args, **kargs)
+		
+		elif request.AuthzService.OAuth2Url == "":
+			L.error("oauth2_url is not configured ;-(")
+			raise aiohttp.web.HTTPUnauthorized()
+
 		access_token = _get_access_token(request)
 
 		# Fail if no access token is found in the request
 		if access_token is None:
+			L.warning("Access token has not been provided in the request - unauthorized.")
 			raise aiohttp.web.HTTPUnauthorized()
 
 		userinfo_data = await authz_service.userinfo(
@@ -97,6 +109,7 @@ def userinfo_handler(func):
 			return await func(*args, userinfo=userinfo_data, **kargs)
 
 		# Be defensive
+		L.warning("Failure to get userinfo  - unauthorized.")
 		raise aiohttp.web.HTTPUnauthorized()
 
 	return wrapper
