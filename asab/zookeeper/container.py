@@ -1,8 +1,7 @@
 import json
 import asyncio
 import logging
-
-import aiozk
+import asab.zookeeper.builder
 
 from ..config import ConfigObject
 
@@ -20,15 +19,21 @@ class ZooKeeperContainer(ConfigObject):
 	https://pypi.org/project/aiozk/
 	"""
 
-	def __init__(self, app, config_section_name, config=None):
+	def __init__(self, app, config_section_name, config=None, z_path=None):
 		super().__init__(config_section_name=config_section_name, config=config)
+		'''
+				Alternative 1) - Obtain Zookeeper container with config-section
+
+				Alternative 2) - Obtain Zookeeper container with call z_path
+				
+				example : ZooKeeperContainer(app, config_section_name='', z_path=z_path)
+				
+				'''
+
 		self.App = app
 		self.ConfigSectionName = config_section_name
-
+		self.ZooKeeper, self.ZooKeeperPath = asab.zookeeper.build_client(asab.Config, z_path)
 		self.Advertisments = set()
-
-		self.ZooKeeper = aiozk.ZKClient(self.Config["servers"])
-		self.ZooKeeperPath = self.Config["path"]
 
 
 	async def initialize(self, app):
@@ -90,7 +95,7 @@ class ZooKeeperAdvertisement(object):
 	async def _do_advertise(self, zoocontainer):
 		async with self.Lock:
 			if self.Node is not None and await zoocontainer.ZooKeeper.exists(self.Node):
-				# if node is advertised do not create a replica
+				await zoocontainer.ZooKeeper.set_data(self.Path, self.Data)
 				return
 
 			self.Node = await zoocontainer.ZooKeeper.create(

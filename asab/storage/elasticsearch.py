@@ -37,7 +37,7 @@ class StorageService(StorageServiceABC):
 		super().__init__(app, service_name)
 		self.Loop = app.Loop
 
-		self.ESURL = asab.Config.get(config_section_name, 'elasticsearch_url')
+		self.URL = asab.Config.get(config_section_name, 'elasticsearch_url')
 		# self._timeout = asab.Config.get(config_section_name, 'elasticsearch_timeout')
 
 		username = asab.Config.get(config_section_name, 'elasticsearch_username')
@@ -51,6 +51,19 @@ class StorageService(StorageServiceABC):
 			self._auth = aiohttp.BasicAuth(login=username, password=password)
 
 		self._ClientSession = None
+		# get the first server
+		self.ESURL = self.get_servers_urls()
+
+	# store the severs into list and return the first server
+	def get_servers_urls(self):
+		if self.URL.startswith("http://"):
+			self.ServerUrls = []
+			servers_stripped = self.URL.strip("http:/")
+			self.ServersList = servers_stripped.split(",")
+			for each_server in self.ServersList:
+				sever_url = "http://" + each_server + "/"
+				self.ServerUrls.append(sever_url)
+			return self.ServerUrls[0]
 
 	async def finalize(self, app):
 		if self._ClientSession is not None and not self._ClientSession.closed:
@@ -65,62 +78,122 @@ class StorageService(StorageServiceABC):
 		return self._ClientSession
 
 	async def delete(self, index, _id=None):
-		if _id:
-			url = "{}{}/_doc/{}?refresh={}".format(self.ESURL, index, _id, self.Refresh)
-		else:
-			url = "{}{}".format(self.ESURL, index)
-		async with self.session().request(method="DELETE", url=url) as resp:
-			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			resp = await resp.json()
-			if resp.get("acknowledged", False):
-				return resp
-			assert resp["result"] == "deleted", "Document was not deleted"
-			return resp
+		total_urls = 0
+		for url in self.ServerUrls:
+			try:
+				if _id:
+					url = "{}{}/_doc/{}?refresh={}".format(url, index, _id, self.Refresh)
+				else:
+					url = "{}{}".format(self.ESURL, index)
+				async with self.session().request(method="DELETE", url=url) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+					resp = await resp.json()
+
+					if resp.get("acknowledged", False):
+						return resp
+					assert resp["result"] == "deleted", "Document was not deleted"
+					return resp
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
+				continue
 
 	async def reindex(self, previous_index, new_index):
-		if self.ESURL.endswith('/'):
-			url = "{}_reindex".format(self.ESURL)
-		else:
-			url = "{}/_reindex".format(self.ESURL)
+		total_urls = 0
+		for url in self.ServerUrls:
+			try:
+				self.ESURL= url
+				if self.ESURL.endswith('/'):
+					url = "{}_reindex".format(self.ESURL)
+				else:
+					url = "{}/_reindex".format(self.ESURL)
 
-		async with self.session().request(
-			method="POST",
-			url=url,
-			headers={"Content-Type": "application/json"},
-			data=json.dumps({
-				"source": {
-					"index": previous_index,
-				},
-				"dest": {
-					"index": new_index,
-				}
-			})
-		) as resp:
+				async with self.session().request(
+					method="POST",
+					url=url,
+					headers={"Content-Type": "application/json"},
+					data=json.dumps({
+						"source": {
+							"index": previous_index,
+						},
+						"dest": {
+							"index": new_index,
+						}
+					})
+				) as resp:
 
-			if resp.status != 200:
-				raise AssertionError(
-					"Unexpected response code when reindexing: {}".format(
-						resp.status, await resp.text()
-					)
-				)
+					if resp.status != 200:
+						raise AssertionError(
+							"Unexpected response code when reindexing: {}".format(
+								resp.status, await resp.text()
+							)
+						)
+					resp = await resp.json()
+					return resp
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
+				continue
 
-			resp = await resp.json()
-			return resp
 
 	async def get_by(self, collection: str, key: str, value):
 		raise NotImplementedError("get_by")
 
 	async def get(self, index: str, obj_id) -> dict:
-		url = "{}{}/_doc/{}".format(self.ESURL, index, obj_id)
-		async with self.session().request(method="GET", url=url) as resp:
-			obj = await resp.json()
+		total_urls = 0
+		for url in self.ServerUrls:
+			url = "{}{}/_doc/{}".format(url, index, obj_id)
+			try:
+				async with self.session().request(method="GET", url=url) as resp:
+					obj = await resp.json()
+					ret = obj['_source']
+					ret['_v'] = obj['_version']
+					ret['_id'] = obj['_id']
+					return ret
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
+				continue
 
-		# Manipulate the output so that it is a requested object
-		ret = obj['_source']
-		ret['_v'] = obj['_version']
-		ret['_id'] = obj['_id']
 
-		return ret
+	async def get_index_template(self, template_name) -> dict:
+		total_urls = 0
+		for url in self.ServerUrls:
+			url = "{}_template/{}?format=json".format(url, template_name)
+			try:
+				async with self.session().request(method="GET", url=url, headers={
+					'Content-Type': 'application/json'
+				}) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+					content = await resp.json()
+					return content
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
+				continue
+
+
+	async def put_index_template(self, template_name, template):
+		total_urls = 0
+		for url in self.ServerUrls:
+			url = "{}_template/{}?include_type_name".format(url, template_name)
+			try:
+				async with self.session().request(method="POST", url=url, data=json.dumps(template), headers={
+					'Content-Type': 'application/json'
+				}) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+					resp = await resp.json()
+					return resp
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
+				continue
+
 
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
 		return ElasicSearchUpsertor(self, index, obj_id, version)
@@ -139,47 +212,77 @@ class StorageService(StorageServiceABC):
 					}
 				}
 			}
-		url = "{}{}/_search?size={}&from={}&version=true".format(self.ESURL, index, size, _from)
-		async with self.session().request(method="GET",
-		                                  url=url,
-		                                  json=body,
-		                                  headers={'Content-Type': 'application/json'}
-		                                  ) as resp:
-			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			content = await resp.json()
-
-		return content
+		total_urls = 0
+		for url in self.ServerUrls:
+			try:
+				url = "{}{}/_search?size={}&from={}&version=true".format(url, index, size, _from)
+				async with self.session().request(method="GET",
+												  url=url,
+												  json=body,
+												  headers={'Content-Type': 'application/json'}
+												  ) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+					content = await resp.json()
+					return content
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
+				continue
 
 	async def count(self, index):
 		'''
 		Custom ElasticSearch method
 		'''
+		total_urls = 0
+		for url in self.ServerUrls:
+			try:
+				count_url = "{}{}/_count".format(count_url, index)
+				async with self.session().request(method="GET", url=count_url) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+					total_count = await resp.json()
+					return total_count
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
+				continue
 
-		count_url = "{}{}/_count".format(self.ESURL, index)
-		async with self.session().request(method="GET", url=count_url) as resp:
-			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			total_count = await resp.json()
-		return total_count
 
 	async def indices(self, search_string=None):
 		'''
 		Custom ElasticSearch method
 		'''
-		url = "{}_cat/indices/{}?format=json".format(self.ESURL, search_string)
-		async with self.session().request(method="GET", url=url) as resp:
-			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			return await resp.json()
+		total_urls = 0
+		for url in self.ServerUrls:
+			try:
+				url = "{}_cat/indices/{}?format=json".format(url, search_string)
+				async with self.session().request(method="GET", url=url) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+				return await resp.json()
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
+				continue
 
 	async def empty_index(self, index):
 		'''
 		Custom ElasticSearch method
 		'''
 		# TODO: There is an option here to specify settings (e.g. shard number, replica number etc) and mappings here
-		url = "{}{}".format(self.ESURL, index)
-		async with self.session().request(method="PUT", url=url) as resp:
-			assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-			return await resp.json()
-
+		total_urls = 0
+		for url in self.ServerUrls:
+			try:
+				url = "{}{}".format(url, index)
+				async with self.session().request(method="PUT", url=url) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+				return await resp.json()
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
+				continue
 
 class ElasicSearchUpsertor(UpsertorABC):
 
@@ -224,16 +327,22 @@ class ElasicSearchUpsertor(UpsertorABC):
 			raise NotImplementedError("yet")
 
 		# This is insert of the new document, the ObjId is to be generated by the ElasicSearch
-		url = "{}{}/_doc?refresh={}".format(
-			self.Storage.ESURL, self.Collection, self.Storage.Refresh
-		)
-		async with self.Storage.session().request(method="POST", url=url, json=setobj) as resp:
-			assert resp.status == 201, "Unexpected response code: {}".format(resp.status)
-			resp_json = await resp.json()
-
-		self.ObjId = resp_json['_id']
-
-		return self.ObjId
+		total_urls = 0
+		for url in self.Storage.ServerUrls:
+			url = "{}{}/_doc?refresh={}".format(
+				url, self.Collection, self.Storage.Refresh
+				)
+			try:
+				async with self.Storage.session().request(method="POST", url=url, json=setobj) as resp:
+					assert resp.status == 201, "Unexpected response code: {}".format(resp.status)
+					resp_json = await resp.json()
+					self.ObjId = resp_json['_id']
+					return self.ObjId
+			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				total_urls += 1
+				if total_urls == len(self.Storage.ServerUrls):
+					raise Exception("Servers {} provided are invalid".format(self.Storage.ServerUrls))
+				continue
 
 	async def _upsert(self):
 		upsertobj = {"doc": {}, "doc_as_upsert": True}
@@ -241,15 +350,22 @@ class ElasicSearchUpsertor(UpsertorABC):
 		if len(self.ModSet) > 0:
 			for k, v in self.ModSet.items():
 				upsertobj["doc"][k] = serialize(self.ModSet[k])
-		url = "{}{}/_update/{}?refresh={}".format(self.Storage.ESURL, self.Collection, self.ObjId, self.Storage.Refresh)
-		async with self.Storage.session().request(method="POST", url=url, data=json.dumps(upsertobj),
-		                                          headers={'Content-Type': 'application/json'}) as resp:
-			assert resp.status == 200 or resp.status == 201, "Unexpected response code: {}".format(resp.status)
-			resp_json = await resp.json()
-			assert resp_json["result"] == "updated" or resp_json[
-				"result"] == "created", "Creating/updating was unsuccessful"
-
-		return self.ObjId
+			total_urls = 0
+			for url in self.Storage.ServerUrls:
+				try:
+					url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId, self.Storage.Refresh)
+					async with self.Storage.session().request(method="POST", url=url, data=json.dumps(upsertobj),
+																headers={'Content-Type': 'application/json'}) as resp:
+						assert resp.status == 200 or resp.status == 201, "Unexpected response code: {}".format(resp.status)
+						resp_json = await resp.json()
+						assert resp_json["result"] == "updated" or resp_json[
+							"result"] == "created", "Creating/updating was unsuccessful"
+						return self.ObjId
+				except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+					total_urls += 1
+					if total_urls == len(self.ServerUrls):
+						raise Exception("Servers {} provided are invalid".format(self.Storage.ServerUrls))
+					continue
 
 
 def serialize(v):
