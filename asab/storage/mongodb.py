@@ -136,7 +136,6 @@ class MongoDBUpsertor(UpsertorABC):
 		# First wave (adding stuff)
 		if len(addobj) > 0:
 			coll = self.Storage.Database[self.Collection]
-
 			try:
 				ret = await coll.find_one_and_update(
 					filtr,
@@ -144,7 +143,14 @@ class MongoDBUpsertor(UpsertorABC):
 					upsert=True if (self.Version == 0) or (self.Version is None) else False,
 					return_document=pymongo.collection.ReturnDocument.AFTER
 				)
-			except pymongo.errors.DuplicateKeyError:
+			except pymongo.errors.DuplicateKeyError as e:
+				# Check if the conflict is caused by "_id" or other field
+				if hasattr(e, "details"):
+					key_value = e.details.get("keyValue")
+					key, value = key_value.popitem()
+					if key != "_id":
+						raise DuplicateError("Already in use", self.ObjId, key_value=key_value)
+
 				assert(self.Version == 0)
 				raise DuplicateError("Already exists", self.ObjId)
 
