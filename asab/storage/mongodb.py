@@ -149,7 +149,7 @@ class MongoDBUpsertor(UpsertorABC):
 					key_value = e.details.get("keyValue")
 					key, value = key_value.popitem()
 					if key != "_id":
-						raise DuplicateError("Already in use", self.ObjId, key_value=key_value)
+						raise DuplicateError("Already in use", self.ObjId, key_value=(key, value))
 
 				assert(self.Version == 0)
 				raise DuplicateError("Already exists", self.ObjId)
