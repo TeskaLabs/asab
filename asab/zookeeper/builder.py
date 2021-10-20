@@ -41,7 +41,7 @@ def build_client(Config, z_url):
 		url_path = url_pieces.path
 
 	# If there is no location, use implied
-	if url_netloc == b'':
+	if url_netloc == b'' or url_netloc =='':
 		# if server entry is missing exit
 		if not Config.has_option("asab:zookeeper", "servers"):
 			L.error("Servers entry not passed in the configuration.")
@@ -49,7 +49,7 @@ def build_client(Config, z_url):
 		else:
 			url_netloc = Config["asab:zookeeper"]["servers"]
 
-	if url_path == b'':
+	if url_path == b'' or url_path == '':
 		# if path entry is missing retun with only client and path as none.
 		if not Config.has_option("asab:zookeeper", "path"):
 			L.error("Path entry not passed in the configuration.")
@@ -57,7 +57,7 @@ def build_client(Config, z_url):
 	else:
 		url_path = Config["asab:zookeeper"]["path"]
 		if url_path.startswith("/"):
-			url_path = Config["asab:zookeeper"]["path"] + url_path[1:]
+			url_path = url_path.strip("/")
 
 	# Create and return the client and the url-path
 	client = aiozk.ZKClient(url_netloc)
