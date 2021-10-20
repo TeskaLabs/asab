@@ -35,9 +35,10 @@ def build_client(Config, z_url):
 	url_path = ''
 
 	# Parse URL
-	url_pieces = urlparse(z_url)
-	url_netloc = url_pieces.netloc
-	url_path = url_pieces.path
+	if z_url is not None:
+		url_pieces = urlparse(z_url)
+		url_netloc = url_pieces.netloc
+		url_path = url_pieces.path
 
 	# If there is no location, use implied
 	if url_netloc == b'':
