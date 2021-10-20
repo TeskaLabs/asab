@@ -30,6 +30,10 @@ path=/myfolder                      <-- Default path
 
 
 def build_client(Config, z_url):
+	# initialize vaiables
+	url_netloc = ''
+	url_path = ''
+
 	# Parse URL
 	url_pieces = urlparse(z_url)
 	url_netloc = url_pieces.netloc
