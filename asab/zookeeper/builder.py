@@ -30,10 +30,15 @@ path=/myfolder                      <-- Default path
 
 
 def build_client(Config, z_url):
+	# initialize vaiables
+	url_netloc = ''
+	url_path = ''
+
 	# Parse URL
-	url_pieces = urlparse(z_url)
-	url_netloc = url_pieces.netloc
-	url_path = url_pieces.path
+	if z_url is not None:
+		url_pieces = urlparse(z_url)
+		url_netloc = url_pieces.netloc
+		url_path = url_pieces.path
 
 	# If there is no location, use implied
 	if url_netloc == '':
@@ -49,10 +54,10 @@ def build_client(Config, z_url):
 		if not Config.has_option("asab:zookeeper", "path"):
 			L.error("Path entry not passed in the configuration.")
 			return url_netloc, None
-	else:
-		url_path = Config["asab:zookeeper"]["path"]
-		if url_path.startswith("/"):
-			url_path = Config["asab:zookeeper"]["path"] + url_path[1:]
+		else:
+			url_path = Config["asab:zookeeper"]["path"]
+			if url_path.startswith("/"):
+				url_path = url_path.strip("/")
 
 	# Create and return the client and the url-path
 	client = aiozk.ZKClient(url_netloc)
