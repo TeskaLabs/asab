@@ -144,14 +144,13 @@ class MongoDBUpsertor(UpsertorABC):
 					return_document=pymongo.collection.ReturnDocument.AFTER
 				)
 			except pymongo.errors.DuplicateKeyError as e:
-				# Check if the conflict is caused by "_id" or other field
 				if hasattr(e, "details"):
-					key_value = e.details.get("keyValue")
-					key, value = key_value.popitem()
-					if key != "_id":
-						raise DuplicateError("Already in use", self.ObjId, key_value=(key, value))
-
-				assert(self.Version == 0)
+					if '_id_' in e.details['errmsg']:
+						# Check if the conflict is caused by "_id" or other field
+						assert(self.Version == 0)
+					else:
+						raise e
+				
 				raise DuplicateError("Already exists", self.ObjId)
 
 			self.ObjId = ret[id_name]
