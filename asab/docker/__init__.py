@@ -25,11 +25,12 @@ Config.add_defaults(
 
 
 def running_in_docker():
-	return (
-		os.path.exists('/.dockerenv') or (
-			os.path.isfile('/proc/self/cgroup') and any('docker' in line for line in open('/proc/self/cgroup'))
-		)
-	)
+	in_docker = os.path.exists('/.dockerenv') or os.path.isfile('/proc/self/cgroup')
+	if in_docker:
+		with open('/proc/self/cgroup', "r") as f:
+			if not any('docker' in line for line in f.readlines()):
+				in_docker = False
+	return in_docker
 
 
 class Module(Module):
