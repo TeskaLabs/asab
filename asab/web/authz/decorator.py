@@ -39,7 +39,7 @@ def required(*resources):
 			# RBAC URL is disabled, so no authorization can be performed
 			if request.AuthzService.OAuth2Url == "!DISABLED!":
 				return await func(*args, **kargs)
-			
+
 			elif request.AuthzService.OAuth2Url == "":
 				L.error("oauth2_url is not configured ;-(")
 				raise aiohttp.web.HTTPUnauthorized()
@@ -89,7 +89,7 @@ def userinfo_handler(func):
 		# RBAC URL is disabled, so no authorization can be performed
 		if request.AuthzService.OAuth2Url == "!DISABLED!":
 			return await func(*args, **kargs)
-		
+
 		elif request.AuthzService.OAuth2Url == "":
 			L.error("oauth2_url is not configured ;-(")
 			raise aiohttp.web.HTTPUnauthorized()

@@ -108,7 +108,7 @@ class TenantService(Service):
 					tenants_list = await resp.json()
 					for tenant in tenants_list:
 						if isinstance(tenant, str):
-							self.Tenants[tenant] =  Tenant(tenant)
+							self.Tenants[tenant] = Tenant(tenant)
 						else:
 							self.Tenants[tenant["_id"]] = Tenant(
 								tenant["_id"],

@@ -103,7 +103,7 @@ class StorageService(StorageServiceABC):
 		total_urls = 0
 		for url in self.ServerUrls:
 			try:
-				self.ESURL= url
+				self.ESURL = url
 				if self.ESURL.endswith('/'):
 					url = "{}_reindex".format(self.ESURL)
 				else:
@@ -125,7 +125,7 @@ class StorageService(StorageServiceABC):
 
 					if resp.status != 200:
 						raise AssertionError(
-							"Unexpected response code when reindexing: {}".format(
+							"Unexpected response code when reindexing: {}, {}".format(
 								resp.status, await resp.text()
 							)
 						)
@@ -216,11 +216,12 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 			try:
 				url = "{}{}/_search?size={}&from={}&version=true".format(url, index, size, _from)
-				async with self.session().request(method="GET",
-												  url=url,
-												  json=body,
-												  headers={'Content-Type': 'application/json'}
-												  ) as resp:
+				async with self.session().request(
+					method="GET",
+					url=url,
+					json=body,
+					headers={'Content-Type': 'application/json'}
+				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					content = await resp.json()
 					return content
@@ -237,7 +238,7 @@ class StorageService(StorageServiceABC):
 		total_urls = 0
 		for url in self.ServerUrls:
 			try:
-				count_url = "{}{}/_count".format(count_url, index)
+				count_url = "{}{}/_count".format(url, index)
 				async with self.session().request(method="GET", url=count_url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					total_count = await resp.json()
@@ -283,6 +284,7 @@ class StorageService(StorageServiceABC):
 				if total_urls == len(self.ServerUrls):
 					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
 				continue
+
 
 class ElasicSearchUpsertor(UpsertorABC):
 
@@ -331,7 +333,7 @@ class ElasicSearchUpsertor(UpsertorABC):
 		for url in self.Storage.ServerUrls:
 			url = "{}{}/_doc?refresh={}".format(
 				url, self.Collection, self.Storage.Refresh
-				)
+			)
 			try:
 				async with self.Storage.session().request(method="POST", url=url, json=setobj) as resp:
 					assert resp.status == 201, "Unexpected response code: {}".format(resp.status)

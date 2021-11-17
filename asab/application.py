@@ -81,7 +81,7 @@ class Application(metaclass=Singleton):
 			self.DockerService = self.get_service("asab.DockerService")
 
 			self.HostName = self.DockerService.load_hostname()
-			os.environ['HOSTNAME'] = self.HostName 
+			os.environ['HOSTNAME'] = self.HostName
 			Config._load()
 
 		# Setup logging

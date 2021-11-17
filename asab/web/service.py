@@ -7,7 +7,7 @@ L = logging.getLogger(__name__)
 
 
 class WebService(asab.Service):
-	
+
 	ConfigSectionAliases = ["asab:web"]
 
 	def __init__(self, app, service_name):

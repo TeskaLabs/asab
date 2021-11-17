@@ -151,7 +151,7 @@ class MongoDBUpsertor(UpsertorABC):
 						assert(self.Version == 0)
 					else:
 						raise e
-				
+
 				raise DuplicateError("Already exists", self.ObjId)
 
 			self.ObjId = ret[id_name]
