@@ -2,6 +2,7 @@ import json
 import asyncio
 import logging
 import asab.zookeeper.builder
+import aiozk
 
 from ..config import ConfigObject
 
