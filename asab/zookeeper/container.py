@@ -92,8 +92,11 @@ class ZooKeeperAdvertisement(object):
 	async def _do_advertise(self, zoocontainer):
 		async with self.Lock:
 			if self.Node is not None and await zoocontainer.ZooKeeper.exists(self.Node):
-				await zoocontainer.ZooKeeper.set_data(self.Path, self.Data)
-				return
+				try:
+					await zoocontainer.ZooKeeper.set_data(self.Path, self.Data)
+					return
+				except aiozk.exc.NoNode:
+					L.exception("The path {} does nor exist in zookeeper.".format(self.Path))
 
 			self.Node = await zoocontainer.ZooKeeper.create(
 				self.Path,
