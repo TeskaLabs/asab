@@ -97,8 +97,8 @@ class ZooKeeperAdvertisement(object):
 					await zoocontainer.ZooKeeper.set_data(self.Path, self.Data)
 					return
 				except aiozk.exc.NoNode:
-					L.exception("The path {} does nor exist in zookeeper.".format(self.Path))
-					raise Exception("The path {} does nor exist in zookeeper.".format(self.Path))
+					L.exception("The path entry is missing ")
+					raise Exception("The path entry is missing")
 
 			self.Node = await zoocontainer.ZooKeeper.create(
 				self.Path,
