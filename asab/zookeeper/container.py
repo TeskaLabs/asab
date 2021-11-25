@@ -57,9 +57,12 @@ class ZooKeeperContainer(ConfigObject):
 
 
 	async def _do_advertise(self, event_name):
-		for adv in self.Advertisments:
-			await adv._do_advertise(self)
-
+		try:
+			for adv in self.Advertisments:
+				await adv._do_advertise(self)
+		except aiozk.exc.NoNode:
+			L.exception("The path entry is missing ")
+			raise Exception("The path entry is missing")
 
 	async def get_children(self):
 		return await self.ZooKeeper.get_children(self.ZooKeeperPath)
@@ -93,12 +96,8 @@ class ZooKeeperAdvertisement(object):
 	async def _do_advertise(self, zoocontainer):
 		async with self.Lock:
 			if self.Node is not None and await zoocontainer.ZooKeeper.exists(self.Node):
-				try:
-					await zoocontainer.ZooKeeper.set_data(self.Path, self.Data)
-					return
-				except aiozk.exc.NoNode:
-					L.exception("The path entry is missing ")
-					raise Exception("The path entry is missing")
+				await zoocontainer.ZooKeeper.set_data(self.Path, self.Data)
+				return
 
 			self.Node = await zoocontainer.ZooKeeper.create(
 				self.Path,
