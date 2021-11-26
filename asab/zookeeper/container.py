@@ -61,8 +61,7 @@ class ZooKeeperContainer(ConfigObject):
 			for adv in self.Advertisments:
 				await adv._do_advertise(self)
 		except aiozk.exc.NoNode:
-			L.exception("The path entry is missing ")
-			raise Exception("The path entry is missing")
+			raise RuntimeError("Failed to write data to zookeeper because the node {} does not exist.".format(self.Path))
 
 	async def get_children(self):
 		return await self.ZooKeeper.get_children(self.ZooKeeperPath)
