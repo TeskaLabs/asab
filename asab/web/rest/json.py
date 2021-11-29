@@ -184,7 +184,10 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 			# the validation function for validating JSON schema
 			request = args[-1]
 			if request.content_type == 'application/json':
-				data = await request.json()
+				try:
+					data = await request.json()
+				except json.decoder.JSONDecodeError:
+					raise aiohttp.web.HTTPBadRequest(reason=f"JSON decode error")
 			elif request.content_type in form_content_types:
 				multi_dict = await request.post()
 				data = {k: v for k, v in multi_dict.items()}
