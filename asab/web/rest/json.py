@@ -187,7 +187,7 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 				try:
 					data = await request.json()
 				except json.decoder.JSONDecodeError:
-					raise aiohttp.web.HTTPBadRequest(reason="JSON Decode Error")
+					raise aiohttp.web.HTTPBadRequest(reason="Failed to parse JSON request")
 			elif request.content_type in form_content_types:
 				multi_dict = await request.post()
 				data = {k: v for k, v in multi_dict.items()}
