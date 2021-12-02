@@ -57,8 +57,11 @@ class ZooKeeperContainer(ConfigObject):
 
 
 	async def _do_advertise(self, event_name):
-		for adv in self.Advertisments:
-			await adv._do_advertise(self)
+		try:
+			for adv in self.Advertisments:
+				await adv._do_advertise(self)
+		except Exception as e:
+			raise RuntimeError("Zookeeper error {}".format(e))
 
 	async def get_children(self):
 		return await self.ZooKeeper.get_children(self.ZooKeeperPath)
@@ -92,12 +95,8 @@ class ZooKeeperAdvertisement(object):
 	async def _do_advertise(self, zoocontainer):
 		async with self.Lock:
 			if self.Node is not None and await zoocontainer.ZooKeeper.exists(self.Node):
-				try:
-					await zoocontainer.ZooKeeper.set_data(self.Path, self.Data)
-					return
-				except aiozk.exc.NoNode:
-					raise RuntimeError(
-						"Failed to write data to zookeeper because the node does not exist.".format(self.Path))
+				await zoocontainer.ZooKeeper.set_data(self.Path, self.Data)
+				return
 
 			self.Node = await zoocontainer.ZooKeeper.create(
 				self.Path,
