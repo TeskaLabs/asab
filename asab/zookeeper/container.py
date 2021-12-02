@@ -61,7 +61,7 @@ class ZooKeeperContainer(ConfigObject):
 				await adv._do_advertise(self)
 		except Exception as e:
 			L.exception("Zookeeper error {}".format(e))
-			raise RuntimeError("Zookeeper error {}".format(e))
+			raise Exception("Zookeeper error {}".format(e))
 
 	async def get_children(self):
 		return await self.ZooKeeper.get_children(self.ZooKeeperPath)
