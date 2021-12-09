@@ -76,7 +76,6 @@ class StorageService(StorageServiceABC):
 
 
 	async def delete(self, index, _id=None):
-		total_urls = 0
 		for url in self.ServerUrls:
 			try:
 				if _id:
@@ -98,7 +97,6 @@ class StorageService(StorageServiceABC):
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 	async def reindex(self, previous_index, new_index):
-		total_urls = 0
 		for url in self.ServerUrls:
 			try:
 				self.ESURL = url
@@ -245,10 +243,9 @@ class StorageService(StorageServiceABC):
 		'''
 		Custom ElasticSearch method
 		'''
-		total_urls = 0
 		for url in self.ServerUrls:
 			try:
-				url = "{}_cat/indices/{}?format=json".format(url, search_string)
+				url = "{}_cat/indices/{}?format=json".format(url, search_string if search_string is not None else "*.lkp")
 				async with self.session().request(method="GET", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					return await resp.json()
@@ -265,7 +262,6 @@ class StorageService(StorageServiceABC):
 		Custom ElasticSearch method
 		'''
 		# TODO: There is an option here to specify settings (e.g. shard number, replica number etc) and mappings here
-		total_urls = 0
 		for url in self.ServerUrls:
 			try:
 				url = "{}{}".format(url, index)
@@ -351,7 +347,6 @@ class ElasicSearchUpsertor(UpsertorABC):
 			for k, v in self.ModSet.items():
 				upsertobj["doc"][k] = serialize(self.ModSet[k])
 
-			total_urls = 0
 			for url in self.Storage.ServerUrls:
 				try:
 					url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId, self.Storage.Refresh)
