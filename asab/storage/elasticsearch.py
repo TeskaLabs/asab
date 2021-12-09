@@ -278,7 +278,7 @@ class StorageService(StorageServiceABC):
 				url = "{}{}".format(url, index)
 				async with self.session().request(method="PUT", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-				return await resp.json()
+					return await resp.json()
 			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
 				total_urls += 1
 				if total_urls == len(self.ServerUrls):
