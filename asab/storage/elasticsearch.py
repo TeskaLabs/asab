@@ -18,8 +18,9 @@ L = logging.getLogger(__name__)
 Config.add_defaults(
 	{
 		'asab:storage': {
-			# You can use multiple ElasticSearch nodes by e.g. http://es01:9200,es02:9200,es03:9200/
+			# You may specify multiple ElasticSearch nodes by e.g. http://es01:9200,es02:9200,es03:9200/
 			'elasticsearch_url': 'http://localhost:9200/',
+
 			'elasticsearch_username': '',
 			'elasticsearch_password': '',
 
