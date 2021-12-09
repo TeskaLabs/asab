@@ -18,9 +18,8 @@ L = logging.getLogger(__name__)
 Config.add_defaults(
 	{
 		'asab:storage': {
-			# You can use multiple ElasticSearch nodes by e.g. http://es01:9200,es02:9200,es03:9200/ 
+			# You can use multiple ElasticSearch nodes by e.g. http://es01:9200,es02:9200,es03:9200/
 			'elasticsearch_url': 'http://localhost:9200/',
-
 			'elasticsearch_username': '',
 			'elasticsearch_password': '',
 
@@ -42,7 +41,6 @@ class StorageService(StorageServiceABC):
 		self.Loop = app.Loop
 
 		self.URL = Config.get(config_section_name, 'elasticsearch_url')
-		
 		parsed_url = urllib.parse.urlparse(self.URL)
 		self.ServerUrls = [
 			urllib.parse.urlunparse((parsed_url.scheme, netloc, parsed_url.path, None, None, None))
@@ -274,6 +272,7 @@ class StorageService(StorageServiceABC):
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
+
 class ElasicSearchUpsertor(UpsertorABC):
 
 	def __init__(self, storage, collection, obj_id, version=None):
@@ -362,6 +361,7 @@ class ElasicSearchUpsertor(UpsertorABC):
 						raise Exception("Failed to connect to '{}'".format(url))
 					else:
 						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
 
 def serialize(v):
 	if isinstance(v, datetime.datetime):
