@@ -79,7 +79,7 @@ class StorageService(StorageServiceABC):
 				if _id:
 					url = "{}{}/_doc/{}?refresh={}".format(url, index, _id, self.Refresh)
 				else:
-					url = "{}{}".format(self.ESURL, index)
+					url = "{}{}".format(url, index)
 				async with self.session().request(method="DELETE", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					resp = await resp.json()
@@ -97,11 +97,10 @@ class StorageService(StorageServiceABC):
 	async def reindex(self, previous_index, new_index):
 		for url in self.ServerUrls:
 			try:
-				self.ESURL = url
-				if self.ESURL.endswith('/'):
-					url = "{}_reindex".format(self.ESURL)
+				if url.endswith('/'):
+					url = "{}_reindex".format(url)
 				else:
-					url = "{}/_reindex".format(self.ESURL)
+					url = "{}/_reindex".format(url)
 
 				async with self.session().request(
 					method="POST",
