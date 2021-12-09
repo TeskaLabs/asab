@@ -1,12 +1,13 @@
+import time
+import json
 import aiohttp
 import logging
 import datetime
-import time
-import json
+import urllib.parse
 
-import asab
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
+from ..config import Config
 
 #
 
@@ -14,12 +15,15 @@ L = logging.getLogger(__name__)
 
 #
 
-asab.Config.add_defaults(
+Config.add_defaults(
 	{
 		'asab:storage': {
+			# You can use multiple ElasticSearch nodes by e.g. http://es01:9200,es02:9200,es03:9200/ 
 			'elasticsearch_url': 'http://localhost:9200/',
+
 			'elasticsearch_username': '',
 			'elasticsearch_password': '',
+
 			# make the operation visible to search directly, options: true, false, wait_for
 			# see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-index_.html
 			'refresh': 'true',
@@ -37,38 +41,31 @@ class StorageService(StorageServiceABC):
 		super().__init__(app, service_name)
 		self.Loop = app.Loop
 
-		self.URL = asab.Config.get(config_section_name, 'elasticsearch_url')
-		# self._timeout = asab.Config.get(config_section_name, 'elasticsearch_timeout')
+		self.URL = Config.get(config_section_name, 'elasticsearch_url')
+		
+		parsed_url = urllib.parse.urlparse(self.URL)
+		self.ServerUrls = [
+			urllib.parse.urlunparse((parsed_url.scheme, netloc, parsed_url.path, None, None, None))
+			for netloc in parsed_url.netloc.split(',')
+		]
 
-		username = asab.Config.get(config_section_name, 'elasticsearch_username')
-		password = asab.Config.get(config_section_name, 'elasticsearch_password')
+		self.Refresh = Config.get(config_section_name, 'refresh')
 
-		self.Refresh = asab.Config.get(config_section_name, 'refresh')
-
+		username = Config.get(config_section_name, 'elasticsearch_username')
 		if username == '':
 			self._auth = None
 		else:
+			password = Config.get(config_section_name, 'elasticsearch_password')
 			self._auth = aiohttp.BasicAuth(login=username, password=password)
 
 		self._ClientSession = None
-		# get the first server
-		self.ESURL = self.get_servers_urls()
 
-	# store the severs into list and return the first server
-	def get_servers_urls(self):
-		if self.URL.startswith("http://"):
-			self.ServerUrls = []
-			servers_stripped = self.URL.strip("http:/")
-			self.ServersList = servers_stripped.split(",")
-			for each_server in self.ServersList:
-				sever_url = "http://" + each_server + "/"
-				self.ServerUrls.append(sever_url)
-			return self.ServerUrls[0]
 
 	async def finalize(self, app):
 		if self._ClientSession is not None and not self._ClientSession.closed:
 			await self._ClientSession.close()
 			self._ClientSession = None
+
 
 	def session(self):
 		if self._ClientSession is None:
@@ -76,6 +73,7 @@ class StorageService(StorageServiceABC):
 		elif self._ClientSession.closed:
 			self._ClientSession = aiohttp.ClientSession(auth=self._auth, loop=self.Loop)
 		return self._ClientSession
+
 
 	async def delete(self, index, _id=None):
 		total_urls = 0
@@ -93,11 +91,12 @@ class StorageService(StorageServiceABC):
 						return resp
 					assert resp["result"] == "deleted", "Document was not deleted"
 					return resp
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.ClientConnectorError:
 				total_urls += 1
 				if total_urls == len(self.ServerUrls):
 					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
 				continue
+
 
 	async def reindex(self, previous_index, new_index):
 		total_urls = 0
@@ -131,7 +130,7 @@ class StorageService(StorageServiceABC):
 						)
 					resp = await resp.json()
 					return resp
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.ClientConnectorError:
 				total_urls += 1
 				if total_urls == len(self.ServerUrls):
 					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
@@ -141,7 +140,9 @@ class StorageService(StorageServiceABC):
 	async def get_by(self, collection: str, key: str, value):
 		raise NotImplementedError("get_by")
 
+
 	async def get(self, index: str, obj_id) -> dict:
+
 		total_urls = 0
 		for url in self.ServerUrls:
 			url = "{}{}/_doc/{}".format(url, index, obj_id)
@@ -152,7 +153,7 @@ class StorageService(StorageServiceABC):
 					ret['_v'] = obj['_version']
 					ret['_id'] = obj['_id']
 					return ret
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.ClientConnectorError:
 				total_urls += 1
 				if total_urls == len(self.ServerUrls):
 					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
@@ -170,7 +171,7 @@ class StorageService(StorageServiceABC):
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					content = await resp.json()
 					return content
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.ClientConnectorError:
 				total_urls += 1
 				if total_urls == len(self.ServerUrls):
 					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
@@ -188,7 +189,7 @@ class StorageService(StorageServiceABC):
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					resp = await resp.json()
 					return resp
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.ClientConnectorError:
 				total_urls += 1
 				if total_urls == len(self.ServerUrls):
 					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
@@ -197,6 +198,7 @@ class StorageService(StorageServiceABC):
 
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
 		return ElasicSearchUpsertor(self, index, obj_id, version)
+
 
 	async def list(self, index, _from=0, size=10000, body=None):
 		'''
@@ -225,11 +227,12 @@ class StorageService(StorageServiceABC):
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					content = await resp.json()
 					return content
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.ClientConnectorError:
 				total_urls += 1
 				if total_urls == len(self.ServerUrls):
 					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
 				continue
+
 
 	async def count(self, index):
 		'''
@@ -243,7 +246,7 @@ class StorageService(StorageServiceABC):
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					total_count = await resp.json()
 					return total_count
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.ClientConnectorError:
 				total_urls += 1
 				if total_urls == len(self.ServerUrls):
 					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
@@ -261,11 +264,13 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(method="GET", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					return await resp.json()
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+
+			except aiohttp.client_exceptions.ClientConnectorError:
 				total_urls += 1
 				if total_urls == len(self.ServerUrls):
 					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
 				continue
+
 
 	async def empty_index(self, index):
 		'''
@@ -279,7 +284,7 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(method="PUT", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					return await resp.json()
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+			except aiohttp.client_exceptions.ClientConnectorError:
 				total_urls += 1
 				if total_urls == len(self.ServerUrls):
 					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
@@ -303,11 +308,13 @@ class ElasicSearchUpsertor(UpsertorABC):
 	def generate_id(cls):
 		raise NotImplementedError("generate_id")
 
+
 	async def execute(self):
 		if self.ObjId is None:
 			return await self._insert_noobjid()
 		else:
 			return await self._upsert()
+
 
 	async def _insert_noobjid(self):
 		setobj = {}
@@ -329,22 +336,26 @@ class ElasicSearchUpsertor(UpsertorABC):
 			raise NotImplementedError("yet")
 
 		# This is insert of the new document, the ObjId is to be generated by the ElasicSearch
-		total_urls = 0
 		for url in self.Storage.ServerUrls:
 			url = "{}{}/_doc?refresh={}".format(
 				url, self.Collection, self.Storage.Refresh
 			)
+
 			try:
 				async with self.Storage.session().request(method="POST", url=url, json=setobj) as resp:
-					assert resp.status == 201, "Unexpected response code: {}".format(resp.status)
+					if resp.status != 201:
+						raise RuntimeError("Unexpected response code: {}".format(resp.status))
+
 					resp_json = await resp.json()
 					self.ObjId = resp_json['_id']
 					return self.ObjId
-			except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
-				total_urls += 1
-				if total_urls == len(self.Storage.ServerUrls):
-					raise Exception("Servers {} provided are invalid".format(self.Storage.ServerUrls))
-				continue
+
+			except aiohttp.client_exceptions.ClientConnectorError:
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
 
 	async def _upsert(self):
 		upsertobj = {"doc": {}, "doc_as_upsert": True}
@@ -352,6 +363,7 @@ class ElasicSearchUpsertor(UpsertorABC):
 		if len(self.ModSet) > 0:
 			for k, v in self.ModSet.items():
 				upsertobj["doc"][k] = serialize(self.ModSet[k])
+
 			total_urls = 0
 			for url in self.Storage.ServerUrls:
 				try:
@@ -363,7 +375,7 @@ class ElasicSearchUpsertor(UpsertorABC):
 						assert resp_json["result"] == "updated" or resp_json[
 							"result"] == "created", "Creating/updating was unsuccessful"
 						return self.ObjId
-				except aiohttp.client_exceptions.InvalidURL and aiohttp.client_exceptions.ClientConnectorError:
+				except aiohttp.client_exceptions.ClientConnectorError:
 					total_urls += 1
 					if total_urls == len(self.ServerUrls):
 						raise Exception("Servers {} provided are invalid".format(self.Storage.ServerUrls))
