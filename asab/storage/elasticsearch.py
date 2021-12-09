@@ -243,7 +243,7 @@ class StorageService(StorageServiceABC):
 		'''
 		for url in self.ServerUrls:
 			try:
-				url = "{}_cat/indices/{}?format=json".format(url, search_string if search_string is not None else "*.lkp")
+				url = "{}_cat/indices/{}?format=json".format(url, search_string if search_string is not None else "*")
 				async with self.session().request(method="GET", url=url) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					return await resp.json()
