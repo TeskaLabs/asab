@@ -92,11 +92,10 @@ class StorageService(StorageServiceABC):
 					assert resp["result"] == "deleted", "Document was not deleted"
 					return resp
 			except aiohttp.client_exceptions.ClientConnectorError:
-				total_urls += 1
-				if total_urls == len(self.ServerUrls):
-					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
-				continue
-
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 	async def reindex(self, previous_index, new_index):
 		total_urls = 0
@@ -131,19 +130,16 @@ class StorageService(StorageServiceABC):
 					resp = await resp.json()
 					return resp
 			except aiohttp.client_exceptions.ClientConnectorError:
-				total_urls += 1
-				if total_urls == len(self.ServerUrls):
-					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
-				continue
-
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 	async def get_by(self, collection: str, key: str, value):
 		raise NotImplementedError("get_by")
 
 
 	async def get(self, index: str, obj_id) -> dict:
-
-		total_urls = 0
 		for url in self.ServerUrls:
 			url = "{}{}/_doc/{}".format(url, index, obj_id)
 			try:
@@ -154,14 +150,12 @@ class StorageService(StorageServiceABC):
 					ret['_id'] = obj['_id']
 					return ret
 			except aiohttp.client_exceptions.ClientConnectorError:
-				total_urls += 1
-				if total_urls == len(self.ServerUrls):
-					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
-				continue
-
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 	async def get_index_template(self, template_name) -> dict:
-		total_urls = 0
 		for url in self.ServerUrls:
 			url = "{}_template/{}?format=json".format(url, template_name)
 			try:
@@ -172,14 +166,12 @@ class StorageService(StorageServiceABC):
 					content = await resp.json()
 					return content
 			except aiohttp.client_exceptions.ClientConnectorError:
-				total_urls += 1
-				if total_urls == len(self.ServerUrls):
-					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
-				continue
-
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 	async def put_index_template(self, template_name, template):
-		total_urls = 0
 		for url in self.ServerUrls:
 			url = "{}_template/{}?include_type_name".format(url, template_name)
 			try:
@@ -190,10 +182,10 @@ class StorageService(StorageServiceABC):
 					resp = await resp.json()
 					return resp
 			except aiohttp.client_exceptions.ClientConnectorError:
-				total_urls += 1
-				if total_urls == len(self.ServerUrls):
-					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
-				continue
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
@@ -214,7 +206,6 @@ class StorageService(StorageServiceABC):
 					}
 				}
 			}
-		total_urls = 0
 		for url in self.ServerUrls:
 			try:
 				url = "{}{}/_search?size={}&from={}&version=true".format(url, index, size, _from)
@@ -228,17 +219,15 @@ class StorageService(StorageServiceABC):
 					content = await resp.json()
 					return content
 			except aiohttp.client_exceptions.ClientConnectorError:
-				total_urls += 1
-				if total_urls == len(self.ServerUrls):
-					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
-				continue
-
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 	async def count(self, index):
 		'''
 		Custom ElasticSearch method
 		'''
-		total_urls = 0
 		for url in self.ServerUrls:
 			try:
 				count_url = "{}{}/_count".format(url, index)
@@ -247,11 +236,10 @@ class StorageService(StorageServiceABC):
 					total_count = await resp.json()
 					return total_count
 			except aiohttp.client_exceptions.ClientConnectorError:
-				total_urls += 1
-				if total_urls == len(self.ServerUrls):
-					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
-				continue
-
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 	async def indices(self, search_string=None):
 		'''
@@ -266,10 +254,10 @@ class StorageService(StorageServiceABC):
 					return await resp.json()
 
 			except aiohttp.client_exceptions.ClientConnectorError:
-				total_urls += 1
-				if total_urls == len(self.ServerUrls):
-					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
-				continue
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 
 	async def empty_index(self, index):
@@ -285,11 +273,10 @@ class StorageService(StorageServiceABC):
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					return await resp.json()
 			except aiohttp.client_exceptions.ClientConnectorError:
-				total_urls += 1
-				if total_urls == len(self.ServerUrls):
-					raise Exception("Servers {} provided are invalid".format(self.ServerUrls))
-				continue
-
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 class ElasicSearchUpsertor(UpsertorABC):
 
@@ -376,11 +363,10 @@ class ElasicSearchUpsertor(UpsertorABC):
 							"result"] == "created", "Creating/updating was unsuccessful"
 						return self.ObjId
 				except aiohttp.client_exceptions.ClientConnectorError:
-					total_urls += 1
-					if total_urls == len(self.ServerUrls):
-						raise Exception("Servers {} provided are invalid".format(self.Storage.ServerUrls))
-					continue
-
+					if url == self.Storage.ServerUrls[-1]:
+						raise Exception("Failed to connect to '{}'".format(url))
+					else:
+						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 def serialize(v):
 	if isinstance(v, datetime.datetime):
