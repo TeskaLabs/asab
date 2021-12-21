@@ -71,6 +71,14 @@ async def JsonExceptionMiddleware(request, handler):
 
 	websvc.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 	'''
+	result_names = {
+		400: "BAD-REQUEST",
+		401: "NOT-AUTHORIZED",
+		403: "FORBIDDEN",
+		404: "NOT-FOUND",
+		405: "NOT-ALLOWED",
+		500: "SERVER-ERROR",
+	}
 
 	try:
 		response = await handler(request)
@@ -79,7 +87,7 @@ async def JsonExceptionMiddleware(request, handler):
 	# HTTP errors to JSON
 	except aiohttp.web.HTTPError as ex:
 		respdict = {
-			'status': ex.status,
+			'result': result_names.get(ex.status, "FAILED"),
 			'message': ex.text[5:]
 		}
 		if ex.status >= 400:
@@ -109,7 +117,7 @@ async def JsonExceptionMiddleware(request, handler):
 
 		return aiohttp.web.Response(
 			text=json.dumps({
-				"status": 404,
+				"result": result_names.get(404),
 				"message": message,
 				"uuid": str(euuid),
 			}, indent=4),
@@ -123,7 +131,7 @@ async def JsonExceptionMiddleware(request, handler):
 		Lex.exception("Exception when handling web request", exc_info=e, struct_data={'uuid': str(euuid)})
 		return aiohttp.web.Response(
 			text=json.dumps({
-				"status": 500,
+				"result": result_names.get(500),
 				"message": "Internal Server Error",
 				"uuid": str(euuid),
 			}, indent=4),
