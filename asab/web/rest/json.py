@@ -78,8 +78,15 @@ async def JsonExceptionMiddleware(request, handler):
 
 	# HTTP errors to JSON
 	except aiohttp.web.HTTPError as ex:
+		if ex.status == 401:
+			result = "NOT-AUTHORIZED"
+		elif ex.status == 404:
+			result = "NOT-FOUND"
+		else:
+			result = "ERROR"
+
 		respdict = {
-			'result': "ERROR",
+			'result': result,
 			'message': ex.text[5:]
 		}
 		if ex.status >= 400:
