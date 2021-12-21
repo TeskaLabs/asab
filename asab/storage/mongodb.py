@@ -154,6 +154,10 @@ class MongoDBUpsertor(UpsertorABC):
 
 				raise DuplicateError("Already exists", self.ObjId)
 
+			if ret is None:
+				# Object might have been changed in the meantime
+				raise KeyError("NOT-FOUND")
+
 			self.ObjId = ret[id_name]
 
 		# for k, v in self.ModPull.items():
