@@ -78,8 +78,15 @@ async def JsonExceptionMiddleware(request, handler):
 
 	# HTTP errors to JSON
 	except aiohttp.web.HTTPError as ex:
+		if ex.status == 401:
+			result = "NOT-AUTHORIZED"
+		elif ex.status == 404:
+			result = "NOT-FOUND"
+		else:
+			result = "ERROR"
+
 		respdict = {
-			'status': ex.status,
+			'result': result,
 			'message': ex.text[5:]
 		}
 		if ex.status >= 400:
@@ -109,7 +116,7 @@ async def JsonExceptionMiddleware(request, handler):
 
 		return aiohttp.web.Response(
 			text=json.dumps({
-				"status": 404,
+				"result": "NOT-FOUND",
 				"message": message,
 				"uuid": str(euuid),
 			}, indent=4),
@@ -123,7 +130,7 @@ async def JsonExceptionMiddleware(request, handler):
 		Lex.exception("Exception when handling web request", exc_info=e, struct_data={'uuid': str(euuid)})
 		return aiohttp.web.Response(
 			text=json.dumps({
-				"status": 500,
+				"result": "ERROR",
 				"message": "Internal Server Error",
 				"uuid": str(euuid),
 			}, indent=4),
