@@ -87,9 +87,9 @@ class AuthzService(asab.Service):
 				headers=headers,
 			) as response:
 				if response.status != 200:
-					L.error("Userinfo request failed", struct_data={
+					L.error("Failed to fetch userinfo", struct_data={
 						"status": response.status,
-						"text": await response.text()
+						**dict(response.headers),
 					})
 					return None
 
