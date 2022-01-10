@@ -2,6 +2,13 @@ import hashlib
 import aiohttp
 
 import asab
+import logging
+
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 
 asab.Config.add_defaults({
@@ -79,10 +86,16 @@ class AuthzService(asab.Service):
 				userinfo_url,
 				headers=headers,
 			) as response:
-				if response.status == 200:
-					response_json = await response.json()
-					if len(response_json) > 0:
-						userinfo = response_json
+				if response.status != 200:
+					L.error("Failed to fetch userinfo", struct_data={
+						"status": response.status,
+						**dict(response.headers),
+					})
+					return None
+
+				response_json = await response.json()
+				if len(response_json) > 0:
+					userinfo = response_json
 
 				self._set_to_cache(access_token, tenant_id, userinfo)
 

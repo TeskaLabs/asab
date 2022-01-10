@@ -17,11 +17,15 @@ class MyApplication(asab.Application):
 	"""
 	MyApplication serves endpoints which may use user info obtained from the authentication server.
 
-	Test by:
+	Run this app with config file:
+	```sh
+	python3 examples/web-authz-userinfo.py -c examples/web-authz-userinfo.conf
+	```
 
-	1.) Run SeaCat Auth at: http://localhost:8081
-	2.) Perform OAuth authentication to obtain access token
-	3.) Run: curl -H "Authorization: <ACCESS_TOKEN>" http://localhost:8089/user
+	Test by:
+	1) Run SeaCat Auth at: http://localhost:8081
+	2) Perform OAuth authentication to obtain access token
+	3) Run: curl -H "Authorization: <ACCESS_TOKEN>" http://localhost:8089/user
 	"""
 
 	async def initialize(self):
@@ -32,7 +36,7 @@ class MyApplication(asab.Application):
 		websvc = self.get_service("asab.WebService")
 
 		# Create a dedicated web container
-		container = asab.web.WebContainer(websvc, 'example:rbac', config={"listen": "0.0.0.0 8089"})
+		container = asab.web.WebContainer(websvc, "web")
 
 		# Add authz service
 		# It is required by asab.web.authz.required decorator
