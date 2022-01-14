@@ -38,25 +38,32 @@ class APIWebHandler(object):
 		# print(request)
 		# return aiohttp.web.Response(text=text, content_type='text/plain')
 
+		lines = []
 		for mname, metrics in metrics_service.Metrics.items():
 			if isinstance(metrics, asab.metrics.metrics.Counter):
 				print("counter!")
 				type = "counter"
 				counter_info = metrics.rest_get()
-				name = counter_info.get("Name")
+				m_name = counter_info.get("Name")
 				tags = counter_info.get("Tags")
+				# If a unit is specified it MUST be provided in a UNIT metadata line. In addition, an underscore and the unit MUST be the suffix of the MetricFamily name.
 				if "unit" in tags.keys():
 					unit = tags.get("unit")
-				for vname, value in counter_info.get("Values").items():
-					result_name = "_".join([name, vname])
-					lines = []
-					lines.append("# TYPE {} {}".format(result_name, type))
-					lines.append("# UNIT {} {}".format(result_name, unit))
-					lines.append("{} {}".format(result_name, value))
-					lines.append("# EOF")
-					text = '\n'.join(lines)
-					print(text)
-					return aiohttp.web.Response(text=text, content_type='text/plain')
+					m_name += "_{}".format(unit)
+					lines.append("# TYPE {} {}".format(m_name, type))
+					lines.append("# UNIT {} {}".format(m_name, unit))
+				else:
+					unit = None
+					lines.append("# TYPE {} {}".format(m_name, type))
+				
+				for v_name, value in counter_info.get("Values").items():
+					name = "_".join([m_name, v_name])
+					lines.append("{} {}".format(name, value))
+
+		lines.append("# EOF\n")
+		text = '\n'.join(lines)
+		print(text)
+		return aiohttp.web.Response(text=text, content_type='text/plain')
 
 
 
