@@ -21,48 +21,13 @@ class APIWebHandler(object):
 
 	async def metrics(self, request):
 		metrics_service = self.App.get_service('asab.MetricsService')
-		print(request)
 		if metrics_service is None:
 			raise RuntimeError('asab.MetricsService is not available')
-
-		# lines = []
-		# lines.append('# TYPE asab_response summary')
-		# lines.append('# UNIT asab_response seconds')	
-
-		# for mname, metrics in metrics_service.Metrics.items():
-		# 	lines.append(metrics.build_openmetrics_line())
-
-		# lines.append('# EOF')
-
-		# text = '\n'.join(lines)
-		# print(request)
-		# return aiohttp.web.Response(text=text, content_type='text/plain')
-
-		lines = []
-		for mname, metrics in metrics_service.Metrics.items():
-			if isinstance(metrics, asab.metrics.metrics.Counter):
-				print("counter!")
-				type = "counter"
-				counter_info = metrics.rest_get()
-				m_name = counter_info.get("Name")
-				tags = counter_info.get("Tags")
-				# If a unit is specified it MUST be provided in a UNIT metadata line. In addition, an underscore and the unit MUST be the suffix of the MetricFamily name.
-				if "unit" in tags.keys():
-					unit = tags.get("unit")
-					m_name += "_{}".format(unit)
-					lines.append("# TYPE {} {}".format(m_name, type))
-					lines.append("# UNIT {} {}".format(m_name, unit))
-				else:
-					unit = None
-					lines.append("# TYPE {} {}".format(m_name, type))
-				
-				for v_name, value in counter_info.get("Values").items():
-					name = "_".join([m_name, v_name])
-					lines.append("{} {}".format(name, value))
-
-		lines.append("# EOF\n")
-		text = '\n'.join(lines)
+		
+		from asab.metrics.prometheus import to_openmetrics
+		text = to_openmetrics(metrics_service)
 		print(text)
+
 		return aiohttp.web.Response(text=text, content_type='text/plain')
 
 
