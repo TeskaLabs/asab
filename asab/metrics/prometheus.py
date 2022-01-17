@@ -1,4 +1,14 @@
 import asab
+import re
+
+
+def validate_format(name):
+    name = name.lower()
+    regex = r"[\WÁ-ž]+"
+    subst = "_"
+    result = re.sub(regex, subst, name)
+    return result
+
 
 def get_labels(tags):
     labels_str = "{"
@@ -6,7 +16,7 @@ def get_labels(tags):
         if tag == "host" or tag == "unit" or tag == "help":
             continue
         else:
-            labels_str += '{}="{}",'.format(tag, tags.get(tag))
+            labels_str += '{}="{}",'.format(validate_format(tag), validate_format(tags.get(tag)))
     labels_str = labels_str.rstrip(",")
     labels_str += "}"
     if labels_str == "{}":
@@ -15,20 +25,20 @@ def get_labels(tags):
         return labels_str
 
 
-
 def counter_to_om(counter):
     counter_lines = []
     type = "counter"
     m_name = counter.get("Name")
     tags = counter.get("Tags")
     labels_str = get_labels(tags)
-    
+
     for v_name, value in counter.get("Values").items():
         name = "_".join([m_name, v_name])
-
+        name = validate_format(name)
         # If a unit is specified it MUST be provided in a UNIT metadata line. In addition, an underscore and the unit MUST be the suffix of the MetricFamily name.
         if tags.get("unit"):
             unit = tags.get("unit")
+            unit = validate_format(unit)
             name += "_{}".format(unit)
             counter_lines.append("# TYPE {} {}".format(name, type))
             counter_lines.append("# UNIT {} {}".format(name, unit))

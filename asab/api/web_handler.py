@@ -23,10 +23,9 @@ class APIWebHandler(object):
 		metrics_service = self.App.get_service('asab.MetricsService')
 		if metrics_service is None:
 			raise RuntimeError('asab.MetricsService is not available')
-		
+
 		from asab.metrics.prometheus import to_openmetrics
 		text = to_openmetrics(metrics_service)
-		print(text)
 
 		return aiohttp.web.Response(text=text, content_type='text/plain')
 
