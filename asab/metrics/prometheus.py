@@ -7,105 +7,105 @@ L = logging.getLogger(__name__)
 
 
 def validate_format(name):
-    regex = r"[a-zA-Z:][a-zA-Z0-9_:]*"
-    match = re.fullmatch(regex, name)
-    if match is None:
-        L.warning("Invalid Prometheus format. {} must match the regex [a-zA-Z:][a-zA-Z0-9_:]*".format(name))
-        regex_sub = r"[^a-zA-Z0-9_:]"
-        name = re.sub(regex_sub, "_", name)
-        name = name.lstrip("_0123456789")
-        if name.endswith(("total", "created")):
-            L.warning("Invalid OpenMetrics format. Name MUST NOT end with total or created.")
-    return name
+	regex = r"[a-zA-Z:][a-zA-Z0-9_:]*"
+	match = re.fullmatch(regex, name)
+	if match is None:
+		L.warning("Invalid Prometheus format. {} must match the regex [a-zA-Z:][a-zA-Z0-9_:]*".format(name))
+		regex_sub = r"[^a-zA-Z0-9_:]"
+		name = re.sub(regex_sub, "_", name)
+		name = name.lstrip("_0123456789")
+		if name.endswith(("total", "created")):
+			L.warning("Invalid OpenMetrics format. Name MUST NOT end with total or created.")
+	return name
 
 
 def validate_value(value):
-    return isinstance(value, [int, float])
+	return isinstance(value, [int, float])
 
 
 def get_labels(tags):
-    labels_str = "{"
-    for tag in tags.keys():
-        if tag in {"host", "unit", "help"}:
-            continue
-        else:
-            label_name = validate_format(tag)
-            label_value = validate_format(tags.get(tag))
-            labels_str += '{}="{}",'.format(label_name, label_value)
-    labels_str = labels_str.rstrip(",")
-    labels_str += "}"
-    if len(labels_str) <= 2:
-        return None
-    else:
-        return labels_str
+	labels_str = "{"
+	for tag in tags.keys():
+		if tag in {"host", "unit", "help"}:
+			continue
+		else:
+			label_name = validate_format(tag)
+			label_value = validate_format(tags.get(tag))
+			labels_str += '{}="{}",'.format(label_name, label_value)
+	labels_str = labels_str.rstrip(",")
+	labels_str += "}"
+	if len(labels_str) <= 2:
+		return None
+	else:
+		return labels_str
 
 
 def metric_to_text(metric, type):
-    metric_lines = []
-    m_name = metric.get("Name")
-    tags = metric.get("Tags")
-    labels_str = get_labels(tags)
+	metric_lines = []
+	m_name = metric.get("Name")
+	tags = metric.get("Tags")
+	labels_str = get_labels(tags)
 
-    for v_name, value in metric.get("Values").items():
-        if validate_value is False:
-            L.warning("Invalid OpenMetrics format. Value must be float or integer. {} omitted.".format(m_name))
-            continue
-        else:
-            name = "_".join([m_name, v_name])
-            name = validate_format(name)
-            # If a unit is specified it MUST be provided in a UNIT metadata line. In addition, an underscore and the unit MUST be the suffix of the MetricFamily name.
-            if tags.get("unit"):
-                unit = tags.get("unit")
-                unit = validate_format(unit)
-                name += "_{}".format(unit)
-                metric_lines.append("# TYPE {} {}".format(name, type))
-                metric_lines.append("# UNIT {} {}".format(name, unit))
-            else:
-                unit = None
-                metric_lines.append("# TYPE {} {}".format(name, type))
-                L.warning("Invalid OpenMetrics format. Please, add 'unit' in 'Tags'.")
+	for v_name, value in metric.get("Values").items():
+		if validate_value is False:
+			L.warning("Invalid OpenMetrics format. Value must be float or integer. {} omitted.".format(m_name))
+			continue
+		else:
+			name = "_".join([m_name, v_name])
+			name = validate_format(name)
+			# If a unit is specified it MUST be provided in a UNIT metadata line. In addition, an underscore and the unit MUST be the suffix of the MetricFamily name.
+			if tags.get("unit"):
+				unit = tags.get("unit")
+				unit = validate_format(unit)
+				name += "_{}".format(unit)
+				metric_lines.append("# TYPE {} {}".format(name, type))
+				metric_lines.append("# UNIT {} {}".format(name, unit))
+			else:
+				unit = None
+				metric_lines.append("# TYPE {} {}".format(name, type))
+				L.warning("Invalid OpenMetrics format. Please, add 'unit' in 'Tags'.")
 
-            if tags.get("help"):
-                metric_lines.append("# HELP {} {}".format(name, tags.get("help")))
-            else:
-                L.warning("Invalid OpenMetrics format. Please, add 'help' in 'Tags'.")
+			if tags.get("help"):
+				metric_lines.append("# HELP {} {}".format(name, tags.get("help")))
+			else:
+				L.warning("Invalid OpenMetrics format. Please, add 'help' in 'Tags'.")
 
-            if type == "counter":
-                metricpoint = "_total"
-            if type == "gauge":
-                metricpoint = ""
-            if labels_str:
-                metric_lines.append("{}{}{} {}".format(name, metricpoint, labels_str, value))
-            else:
-                metric_lines.append("{}{} {}".format(name, metricpoint, value))
-    metric_text = '\n'.join(metric_lines)
-    return metric_text
+			if type == "counter":
+				metricpoint = "_total"
+			if type == "gauge":
+				metricpoint = ""
+			if labels_str:
+				metric_lines.append("{}{}{} {}".format(name, metricpoint, labels_str, value))
+			else:
+				metric_lines.append("{}{} {}".format(name, metricpoint, value))
+	metric_text = '\n'.join(metric_lines)
+	return metric_text
 
 
 def to_openmetrics(metrics_service):
-    lines = []
-    for mname, metrics in metrics_service.Metrics.items():
-        if isinstance(metrics, asab.metrics.metrics.Counter):
-            counter_text = metric_to_text(metrics.rest_get(), type="counter")
-            lines.append(counter_text)
+	lines = []
+	for mname, metrics in metrics_service.Metrics.items():
+		if isinstance(metrics, asab.metrics.metrics.Counter):
+			counter_text = metric_to_text(metrics.rest_get(), type="counter")
+			lines.append(counter_text)
 
-        if isinstance(metrics, asab.metrics.metrics.Gauge):
-            gauge_text = metric_to_text(metrics.rest_get(), type="gauge")
-            lines.append(gauge_text)
+		if isinstance(metrics, asab.metrics.metrics.Gauge):
+			gauge_text = metric_to_text(metrics.rest_get(), type="gauge")
+			lines.append(gauge_text)
 
-    lines.append("# EOF\n")
-    text = '\n'.join(lines)
-    return text
+	lines.append("# EOF\n")
+	text = '\n'.join(lines)
+	return text
 
 
 # HOW TO FULLFIL OPEMETRICS STANDARD
 
-# ONLY Gauge and Counters translated into Prometheus. Other Metrics are omitted.
+# ONLY Gauge and Counters are translated into Prometheus. Other Metrics are omitted.
 # Metrics MUST have "unit" and "help" Tags
 # Help is a string and SHOULD be non-empty. It is used to give a brief description of the MetricFamily for human consumption and SHOULD be short enough to be used as a tooltip.
 # Metrics MUST have Lables - also added as items in Tags
 # Values MUST be float or integer. Boolean values MUST follow 1==true, 0==false.
-# Colons in MetricFamily names are RESERVED to signal that the MetricFamily is the result of a calculation or aggregation of a general purpose monitoring system. MetricFamily names beginning with underscores are RESERVED and MUST NOT be used unless specified by this standard. - Anything that is not A-Z, a-z or digit is transformed into "_" and leading "_" is stripped.
+# Colons in MetricFamily names are RESERVED to signal that the MetricFamily is the result of a calculation or aggregation of a general purpose monitoring system. MetricFamily names beginning with underscores are RESERVED and MUST NOT be used unless specified by OpenMetric standard. - Anything that is not A-Z, a-z or digit is transformed into "_" and leading "_" is stripped.
 # NaN is a number like any other in OpenMetrics, usually resulting from a division by zero such as for a summary quantile if there have been no observations recently. NaN does not have any special meaning in OpenMetrics, and in particular MUST NOT be used as a marker for missing or otherwise bad data.
 
-# Feel free to read more about OpenMetrics standard from here: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md
+# Feel free to read more about OpenMetrics standard here: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md
