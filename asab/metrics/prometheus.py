@@ -130,13 +130,11 @@ class PrometheusTarget(asab.ConfigObject):
 		self.MetricsService = svc
 
 	async def process(self, now, mlist):
-
+		counter_lines = []
 		for metric, values in mlist:
 			if isinstance(metric, asab.metrics.metrics.Counter):
-				counter_lines = []
 				counter_lines.append(metric_to_text(metric.rest_get(), "counter", values, now))
-				self.countertext = '\n'.join(counter_lines)
-				print("proces!")
+		self.countertext = '\n'.join(counter_lines)
 
 	def rest_get(self):
 		gauge_text = gauge_to_openmetrics(self.MetricsService)
