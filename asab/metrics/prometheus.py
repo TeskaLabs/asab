@@ -98,6 +98,28 @@ def to_openmetrics(metrics_service):
 	return text
 
 
+
+import asab
+
+
+class PrometheusTarget(asab.ConfigObject):
+
+	def __init__(self, svc, config_section_name, config=None):
+		super().__init__(config_section_name, config)
+		self.Metrics = {}
+
+
+	async def process(self, now, mlist):
+
+		for metric, values in mlist:
+			if isinstance(metric, asab.metrics.metrics.Counter):
+				pass
+
+
+	def rest_get(self):
+		return self.Metrics
+
+
 # HOW TO FULLFIL OPEMETRICS STANDARD
 
 # ONLY Gauge and Counters are translated into Prometheus. Other Metrics are omitted.

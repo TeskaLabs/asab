@@ -6,6 +6,7 @@ import asab
 
 from .metrics import Metric, Counter, EPSCounter, Gauge, DutyCycle
 from .memstor import MetricsMemstorTarget
+from. prometheus import PrometheusTarget
 
 #
 
@@ -53,6 +54,10 @@ class MetricsService(asab.Service):
 		# Memory storage target
 		self.MemstorTarget = MetricsMemstorTarget(self, 'asab:metrics:memory')
 		self.Targets.append(self.MemstorTarget)
+
+		# Prometheus Target
+		self.PrometheusTarget = PrometheusTarget(self, 'asab:metrics:prometheus')
+		self.Targets.append(self.PrometheusTarget)
 
 
 	async def finalize(self, app):
