@@ -65,22 +65,22 @@ def translate_metadata(name, type, unit, help):
 	return metadata
 
 
-def translate_value(name, type, labels_str, value, created=None):
-	if type == "counter":
-		if labels_str:
-			total_line = ("{}{}{} {}".format(name, "_total", labels_str, value))
-			created_line = ("{}{}{} {}".format(name, "_created", labels_str, created))
-		else:
-			total_line = ("{}{} {}".format(name, "_total", value))
-			created_line = ("{}{} {}".format(name, "_created", created))
-		return '\n'.join([total_line, created_line])
+def translate_counter(name, labels_str, value, created):
+	if labels_str:
+		total_line = ("{}{}{} {}".format(name, "_total", labels_str, value))
+		created_line = ("{}{}{} {}".format(name, "_created", labels_str, created))
+	else:
+		total_line = ("{}{} {}".format(name, "_total", value))
+		created_line = ("{}{} {}".format(name, "_created", created))
+	return '\n'.join([total_line, created_line])
 
-	if type == "gauge":
-		if labels_str:
-			line = ("{}{} {}".format(name, labels_str, value))
-		else:
-			line = ("{} {}".format(name, value))
-		return line
+
+def translate_gauge(name, labels_str, value):
+	if labels_str:
+		line = ("{}{} {}".format(name, labels_str, value))
+	else:
+		line = ("{} {}".format(name, value))
+	return line
 
 
 def metric_to_text(metric, type, values=None, created=None):
@@ -93,10 +93,10 @@ def metric_to_text(metric, type, values=None, created=None):
 	help = tags.get("help")
 	labels_str = get_labels(tags)
 	if type == "counter":
-		value_items = values.items()
+		values_items = values.items()
 	if type == "gauge":
-		value_items = metric.get("Values").items()
-	for v_name, value in value_items:
+		values_items = metric.get("Values").items()
+	for v_name, value in values_items:
 		if validate_value(value) is False:
 			L.warning("Invalid OpenMetrics format. Value must be float or integer. {} omitted.".format(m_name))
 			continue
@@ -104,9 +104,9 @@ def metric_to_text(metric, type, values=None, created=None):
 			name = get_full_name(m_name, v_name, unit)
 			metric_lines.append(translate_metadata(name, type, unit, help))
 			if type == "counter":
-				metric_lines.append(translate_value(name, type, labels_str, value, created))
+				metric_lines.append(translate_counter(name, labels_str, value, created))
 			if type == "gauge":
-				metric_lines.append(translate_value(name, type, labels_str, value))
+				metric_lines.append(translate_gauge(name, labels_str, value))
 
 	metric_text = '\n'.join(metric_lines)
 	return metric_text
