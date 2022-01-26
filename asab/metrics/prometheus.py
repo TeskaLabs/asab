@@ -112,35 +112,27 @@ def metric_to_text(metric, type, values=None, created=None):
 	return metric_text
 
 
-def gauge_to_openmetrics(metrics_service):
-	lines = []
-	for metrics in metrics_service.Metrics.values():
-		if isinstance(metrics, asab.metrics.metrics.Gauge):
-			gauge_text = metric_to_text(metrics.rest_get(), "gauge")
-			lines.append(gauge_text)
-	text = '\n'.join(lines)
-	return text
-
-
 class PrometheusTarget(asab.ConfigObject):
 
 	def __init__(self, svc, config_section_name, config=None):
 		super().__init__(config_section_name, config)
-		self.countertext = ""
-		self.MetricsService = svc
+		self.mlist = None
 
 	async def process(self, now, mlist):
-		counter_lines = []
-		for metric, values in mlist:
-			if isinstance(metric, asab.metrics.metrics.Counter):
-				counter_lines.append(metric_to_text(metric.rest_get(), "counter", values, now))
-		self.countertext = '\n'.join(counter_lines)
+		self.now = now
+		self.mlist = mlist
 
-	def rest_get(self):
-		gauge_text = gauge_to_openmetrics(self.MetricsService)
-		counter_text = self.countertext
-		end = "# EOF\n"
-		return '\n'.join([counter_text, gauge_text, end])
+	def get_open_metric(self):
+		if self.mlist:
+			lines = []
+			for metric, values in self.mlist:
+				kwargs = {"values": values, "created": self.now}
+				record = metric.get_open_metric(**kwargs)
+				if record:
+					lines.append(record)
+			lines.append("# EOF\n")
+			text = '\n'.join(lines)
+			return text
 
 
 # HOW TO FULLFIL OPEMETRICS STANDARD

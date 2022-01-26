@@ -1,4 +1,5 @@
 import os
+import asab
 import asab.web
 import aiohttp.web
 
@@ -16,16 +17,14 @@ class APIWebHandler(object):
 
 		webapp.router.add_get("/asab/v1/changelog", self.changelog)
 
-		webapp.router.add_get("/asab/v1/metrics", self.metrics)
+		if "asab:metrics:prometheus" in asab.Config.sections():
+			self.metrics_service = self.App.get_service("asab.MetricsService")
+			if self.metrics_service is None:
+				raise RuntimeError("asab.MetricsService is not available")
+			webapp.router.add_get("/asab/v1/metrics", self.metrics)
 
 	async def metrics(self, request):
-		metrics_service = self.App.get_service("asab.MetricsService")
-		if metrics_service is None:
-			raise RuntimeError("asab.MetricsService is not available")
-
-		for target in metrics_service.Targets:
-			if isinstance(target, asab.metrics.prometheus.PrometheusTarget):
-				text = target.rest_get()
+		text = self.metrics_service.PrometheusTarget.get_open_metric()
 
 		return aiohttp.web.Response(
 			text=text,
