@@ -9,11 +9,13 @@ class MyApplication(asab.Application):
 		# Fake config file
 		asab.Config.read_string("""
 [asab:metrics]
-target=influxdb
+target=influxdb prometheus
 
 [asab:metrics:influxdb]
 url=http://localhost:8086/
 db=mydb
+
+[asab:metrics:prometheus]
 		""")
 
 		from asab.metrics import Module

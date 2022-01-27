@@ -34,6 +34,8 @@ class MetricsService(asab.Service):
 			"host": app.HostName,
 		}
 
+		self.PrometheusTarget = None
+
 		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
 
 		for target in asab.Config.get('asab:metrics', 'target').strip().split():
@@ -47,10 +49,11 @@ class MetricsService(asab.Service):
 				from .influxdb import MetricsInfluxDB
 				target = MetricsInfluxDB(self, 'asab:metrics:{}'.format(target))
 
-			if target_type == "prometheus":
+			elif target_type == "prometheus":
 				from. prometheus import PrometheusTarget
 				target = PrometheusTarget(self, 'asab:metrics:prometheus')
 				self.PrometheusTarget = target
+
 			else:
 				raise RuntimeError("Unknown target type {}".format(target_type))
 
