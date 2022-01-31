@@ -1,5 +1,6 @@
 import abc
 import time
+from .prometheus import metric_to_text
 
 
 class Metric(abc.ABC):
@@ -13,6 +14,10 @@ class Metric(abc.ABC):
 
 	@abc.abstractmethod
 	def flush(self) -> dict:
+		pass
+
+	@abc.abstractmethod
+	def get_open_metric(self) -> str:
 		pass
 
 	def rest_get(self):
@@ -42,6 +47,9 @@ class Gauge(Metric):
 		rest = super().rest_get()
 		rest['Values'] = self.Values
 		return rest
+
+	def get_open_metric(self, **kwargs):
+		return metric_to_text(self.rest_get(), "gauge")
 
 
 class Counter(Metric):
@@ -101,6 +109,9 @@ class Counter(Metric):
 		rest = super().rest_get()
 		rest['Values'] = self.Values
 		return rest
+
+	def get_open_metric(self, **kwargs):
+		return metric_to_text(self.rest_get(), "counter", kwargs["values"], kwargs["created"])
 
 
 class EPSCounter(Counter):
@@ -202,3 +213,6 @@ class DutyCycle(Metric):
 		rest = super().rest_get()
 		rest['Values'] = self.Values
 		return rest
+
+	def get_open_metric(self, **kwargs):
+		return None

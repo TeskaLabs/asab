@@ -20,7 +20,7 @@ def validate_format(name):
 
 
 def validate_value(value):
-	return isinstance(value, [int, float])
+	return isinstance(value, (int, float))
 
 
 def get_labels(tags):
@@ -40,62 +40,99 @@ def get_labels(tags):
 		return labels_str
 
 
-def metric_to_text(metric, type):
+def get_full_name(m_name, v_name, unit):
+	name = "_".join([m_name, v_name])
+	name = validate_format(name)
+	if unit:
+		name += "_{}".format(unit)
+	return name
+
+
+def translate_metadata(name, type, unit, help):
+	meta_lines = []
+	# If a unit is specified it MUST be provided in a UNIT metadata line. In addition, an underscore and the unit MUST be the suffix of the MetricFamily name.
+	meta_lines.append("# TYPE {} {}".format(name, type))
+	if unit:
+		meta_lines.append("# UNIT {} {}".format(name, unit))
+	else:
+		L.warning("Invalid OpenMetrics format. Please, add 'unit' in 'Tags'.")
+
+	if help:
+		meta_lines.append("# HELP {} {}".format(name, help))
+	else:
+		L.warning("Invalid OpenMetrics format. Please, add 'help' in 'Tags'.")
+	metadata = '\n'.join(meta_lines)
+	return metadata
+
+
+def translate_counter(name, labels_str, value, created):
+	if labels_str:
+		total_line = ("{}{}{} {}".format(name, "_total", labels_str, value))
+		created_line = ("{}{}{} {}".format(name, "_created", labels_str, created))
+	else:
+		total_line = ("{}{} {}".format(name, "_total", value))
+		created_line = ("{}{} {}".format(name, "_created", created))
+	return '\n'.join([total_line, created_line])
+
+
+def translate_gauge(name, labels_str, value):
+	if labels_str:
+		line = ("{}{} {}".format(name, labels_str, value))
+	else:
+		line = ("{} {}".format(name, value))
+	return line
+
+
+def metric_to_text(metric, type, values=None, created=None):
 	metric_lines = []
 	m_name = metric.get("Name")
 	tags = metric.get("Tags")
+	unit = tags.get("unit")
+	if unit:
+		unit = validate_format(unit)
+	help = tags.get("help")
 	labels_str = get_labels(tags)
-
-	for v_name, value in metric.get("Values").items():
-		if validate_value is False:
+	if type == "counter":
+		values_items = values.items()
+	if type == "gauge":
+		values_items = metric.get("Values").items()
+	for v_name, value in values_items:
+		if validate_value(value) is False:
 			L.warning("Invalid OpenMetrics format. Value must be float or integer. {} omitted.".format(m_name))
 			continue
 		else:
-			name = "_".join([m_name, v_name])
-			name = validate_format(name)
-			# If a unit is specified it MUST be provided in a UNIT metadata line. In addition, an underscore and the unit MUST be the suffix of the MetricFamily name.
-			if tags.get("unit"):
-				unit = tags.get("unit")
-				unit = validate_format(unit)
-				name += "_{}".format(unit)
-				metric_lines.append("# TYPE {} {}".format(name, type))
-				metric_lines.append("# UNIT {} {}".format(name, unit))
-			else:
-				unit = None
-				metric_lines.append("# TYPE {} {}".format(name, type))
-				L.warning("Invalid OpenMetrics format. Please, add 'unit' in 'Tags'.")
-
-			if tags.get("help"):
-				metric_lines.append("# HELP {} {}".format(name, tags.get("help")))
-			else:
-				L.warning("Invalid OpenMetrics format. Please, add 'help' in 'Tags'.")
-
+			name = get_full_name(m_name, v_name, unit)
+			metric_lines.append(translate_metadata(name, type, unit, help))
 			if type == "counter":
-				metricpoint = "_total"
+				metric_lines.append(translate_counter(name, labels_str, value, created))
 			if type == "gauge":
-				metricpoint = ""
-			if labels_str:
-				metric_lines.append("{}{}{} {}".format(name, metricpoint, labels_str, value))
-			else:
-				metric_lines.append("{}{} {}".format(name, metricpoint, value))
+				metric_lines.append(translate_gauge(name, labels_str, value))
+
 	metric_text = '\n'.join(metric_lines)
 	return metric_text
 
 
-def to_openmetrics(metrics_service):
-	lines = []
-	for mname, metrics in metrics_service.Metrics.items():
-		if isinstance(metrics, asab.metrics.metrics.Counter):
-			counter_text = metric_to_text(metrics.rest_get(), type="counter")
-			lines.append(counter_text)
+class PrometheusTarget(asab.ConfigObject):
 
-		if isinstance(metrics, asab.metrics.metrics.Gauge):
-			gauge_text = metric_to_text(metrics.rest_get(), type="gauge")
-			lines.append(gauge_text)
+	def __init__(self, svc, config_section_name, config=None):
+		super().__init__(config_section_name, config)
+		self.mlist = None
 
-	lines.append("# EOF\n")
-	text = '\n'.join(lines)
-	return text
+	async def process(self, now, mlist):
+		self.now = now
+		self.mlist = mlist
+
+	def get_open_metric(self):
+		if self.mlist:
+			lines = []
+			for metric, values in self.mlist:
+				kwargs = {"values": values, "created": self.now}
+				record = metric.get_open_metric(**kwargs)
+				if record:
+					lines.append(record)
+			lines.append("# EOF\n")
+			text = '\n'.join(lines)
+			return text
 
 
 # HOW TO FULLFIL OPEMETRICS STANDARD
