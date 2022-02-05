@@ -36,9 +36,10 @@ class MyApplication(asab.Application):
 		container.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 
 		# Add a route
-		container.WebApp.router.add_get('/api/login', self.login)
-		print("Test with curl:\n\t$ curl http://localhost:8080/api/login")
+		container.WebApp.router.add_get('/', self.index)
+		print("Test with curl:\n\t$ curl http://localhost:8080/")
 
+		container.WebApp.router.add_get('/api/login', self.login)
 		container.WebApp.router.add_get('/error', self.error)
 
 		# Add a web app
@@ -50,6 +51,10 @@ class MyApplication(asab.Application):
 		# Also use API Service
 		svc = asab.api.ApiService(self)
 		svc.initialize_web(container)
+
+
+	async def index(self, request):
+		return aiohttp.web.Response(text="Hello, world!\n")
 
 
 	async def login(self, request):
