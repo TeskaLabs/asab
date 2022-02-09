@@ -7,6 +7,7 @@ L = logging.getLogger(__name__)
 
 
 def validate_format(name):
+	name = str(name)
 	regex = r"[a-zA-Z:][a-zA-Z0-9_:]*"
 	match = re.fullmatch(regex, name)
 	if match is None:
