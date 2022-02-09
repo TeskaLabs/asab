@@ -24,15 +24,33 @@ def validate_value(value):
 	return isinstance(value, (int, float))
 
 
-def get_labels(tags):
-	labels_str = "{"
-	for tag in tags.keys():
+def get_tags_labels(tags):
+	labels_dict = {}
+	for tag, tag_v in tags.items():
 		if tag in {"host", "unit", "help"}:
 			continue
 		else:
-			label_name = validate_format(tag)
-			label_value = validate_format(tags.get(tag))
-			labels_str += '{}="{}",'.format(label_name, label_value)
+			labels_dict[validate_format(tag)] = validate_format(tag_v)
+	return labels_dict
+
+
+def get_value_labels(labels_dict, v_name):
+	labels_str = "{"
+	if labels_dict != {}:
+		for k, v in labels_dict.items():
+				labels_str += '{}="{}",'.format(k, v)
+	regex = r"(\w+=['\"][\w\/]+['\"])"
+	capturing_groups = re.findall(regex, v_name)
+	if capturing_groups != []:
+		for group in capturing_groups:
+			label_lst = group.split("=")
+			k = label_lst[0]
+			v = label_lst[1].strip("'")
+			v = v.strip('"')
+			labels_str += '{}="{}",'.format(k, v)
+	else:
+		labels_str += 'value_name="{}",'.format(v_name)
+
 	labels_str = labels_str.rstrip(",")
 	labels_str += "}"
 	if len(labels_str) <= 2:
@@ -41,9 +59,8 @@ def get_labels(tags):
 		return labels_str
 
 
-def get_full_name(m_name, v_name, unit):
-	name = "_".join([m_name, v_name])
-	name = validate_format(name)
+def get_full_name(m_name, unit):
+	name = validate_format(m_name)
 	if unit:
 		name += "_{}".format(unit)
 	return name
@@ -67,13 +84,13 @@ def translate_metadata(name, type, unit, help):
 
 
 def translate_counter(name, labels_str, value, created):
-	if labels_str:
-		total_line = ("{}{}{} {}".format(name, "_total", labels_str, value))
+	lines = []
+	total_line = ("{}{}{} {}".format(name, "_total", labels_str, value))
+	lines.append(total_line)
+	if created:
 		created_line = ("{}{}{} {}".format(name, "_created", labels_str, created))
-	else:
-		total_line = ("{}{} {}".format(name, "_total", value))
-		created_line = ("{}{} {}".format(name, "_created", created))
-	return '\n'.join([total_line, created_line])
+		lines.append(created_line)
+	return "\n".join(lines)
 
 
 def translate_gauge(name, labels_str, value):
@@ -91,19 +108,20 @@ def metric_to_text(metric, type, values=None, created=None):
 	unit = tags.get("unit")
 	if unit:
 		unit = validate_format(unit)
+	name = get_full_name(m_name, unit)
 	help = tags.get("help")
-	labels_str = get_labels(tags)
-	if type == "counter":
+	labels_dict = get_tags_labels(tags)
+	if values:
 		values_items = values.items()
-	if type == "gauge":
+	else:
 		values_items = metric.get("Values").items()
+	metric_lines.append(translate_metadata(name, type, unit, help))
 	for v_name, value in values_items:
 		if validate_value(value) is False:
 			L.warning("Invalid OpenMetrics format. Value must be float or integer. {} omitted.".format(m_name))
 			continue
 		else:
-			name = get_full_name(m_name, v_name, unit)
-			metric_lines.append(translate_metadata(name, type, unit, help))
+			labels_str = get_value_labels(labels_dict, str(v_name))
 			if type == "counter":
 				metric_lines.append(translate_counter(name, labels_str, value, created))
 			if type == "gauge":
@@ -122,6 +140,7 @@ class PrometheusTarget(asab.ConfigObject):
 	async def process(self, now, mlist):
 		self.now = now
 		self.mlist = mlist
+		print("process!")
 
 	def get_open_metric(self):
 		if self.mlist:
@@ -133,6 +152,7 @@ class PrometheusTarget(asab.ConfigObject):
 					lines.append(record)
 			lines.append("# EOF\n")
 			text = '\n'.join(lines)
+			print(text)
 			return text
 
 
