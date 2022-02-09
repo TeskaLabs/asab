@@ -111,7 +111,10 @@ class Counter(Metric):
 		return rest
 
 	def get_open_metric(self, **kwargs):
-		return metric_to_text(self.rest_get(), "counter", kwargs["values"], kwargs["created"])
+		if self.Reset is True:
+			return metric_to_text(self.rest_get(), "counter", kwargs["values"], kwargs["created"])
+		else:
+			return metric_to_text(self.rest_get(), "counter")
 
 
 class EPSCounter(Counter):
