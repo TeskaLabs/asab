@@ -39,7 +39,7 @@ class DockerService(Service):
 				# TODO: Make more elegant
 				with open("/proc/self/cgroup", "r") as cgroup_file:
 					cgroup = cgroup_file.read()
-				conn.request("GET", "/containers/{}/json".format(
+				conn.request("GET", "http://localhost/containers/{}/json".format(
 					cgroup.split("\n")[0].split("/docker/")[1]
 				))
 
