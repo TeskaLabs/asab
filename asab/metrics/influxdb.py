@@ -41,7 +41,20 @@ def influxdb_format(now, mlist):
 
 
 class MetricsInfluxDB(asab.ConfigObject):
+	"""
+		InfluxDB 2.0 API parameters:
+			url - [required] url string of your influxDB
+			bucket - [required] the destination bucket for writes
+			org - [required] the parameter value specifies the destination organization for writes
+			orgid - [optional] the parameter value specifies the ID of the destination organization for writes
+				NOTE: If both orgID and org are specified, org takes precedence
+			token - [required] API token to authenticate to the InfluxDB
 
+		InfluxDB <1.8 API parameters:
+			url - [required] url string of your influxDB
+			username - [required] name of influxDB user
+			password - [required] password of influxDB user
+	"""
 
 	ConfigDefaults = {
 		'url': 'http://localhost:8086/',
