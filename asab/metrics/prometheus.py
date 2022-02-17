@@ -43,7 +43,8 @@ class OpenMetric:
 			name = re.sub(regex_sub, "_", name)
 			name = name.lstrip("_0123456789")
 		if name.endswith(("total", "created")):
-			L.warning("Invalid OpenMetrics format in {}. Name MUST NOT end with total or created.".format(self.Metric.get("Name")))
+			pass
+			# L.warning("Invalid OpenMetrics format in {}. Name MUST NOT end with total or created.".format(self.Metric.get("Name")))
 		return name
 
 
@@ -99,12 +100,12 @@ class OpenMetric:
 		if unit:
 			meta_lines.append("# UNIT {} {}".format(name, unit))
 		else:
-			L.warning("Invalid OpenMetrics format in {} {}. Please, add 'unit' in 'Tags'.".format(name, type))
+			# L.warning("Invalid OpenMetrics format in {} {}. Please, add 'unit' in 'Tags'.".format(name, type))
 
 		if help:
 			meta_lines.append("# HELP {} {}".format(name, help))
 		else:
-			L.warning("Invalid OpenMetrics format in {} {}. Please, add 'help' in 'Tags'.".format(name, type))
+			# L.warning("Invalid OpenMetrics format in {} {}. Please, add 'help' in 'Tags'.".format(name, type))
 		metadata = '\n'.join(meta_lines)
 		return metadata
 
@@ -135,7 +136,7 @@ class OpenMetric:
 		metric_lines.append(self.translate_metadata(name, type, unit, help))
 		for v_name, value in values_items:
 			if self.validate_value(value) is False:
-				L.warning("Invalid OpenMetrics format in {} {}. Value must be float or integer. {} omitted.".format(m_name, type, v_name))
+				# L.warning("Invalid OpenMetrics format in {} {}. Value must be float or integer. {} omitted.".format(m_name, type, v_name))
 				continue
 			else:
 				labels_str = self.get_value_labels(labels_dict, str(v_name))

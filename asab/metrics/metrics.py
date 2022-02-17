@@ -111,6 +111,8 @@ class Counter(Metric):
 		rest['Values'] = self.Values
 		return rest
 
+
+	# TODO Enforce in code "help" and "unit" Tags, values int or float
 	def get_open_metric(self, **kwargs):
 		om = OpenMetric()
 		if self.Reset is True:
