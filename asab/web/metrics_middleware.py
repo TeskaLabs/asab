@@ -11,16 +11,7 @@ def metrics_middleware_factory(metrics_service):
 			"help": "Counts requests to asab endpoints.",
 		},
 	)
-	# delete no flush counter!!
-	NoFlushCounter = metrics_service.create_counter(
-		"noflush_web_requests",
-		tags={
-			"help": "Counts requests to asab endpoints.",
-			"unit": "requests",
-			"default-label": "RequestMetrics",
-		},
-		reset=False,
-	)
+
 
 	@aiohttp.web.middleware
 	async def metrics_middleware(request, handler):
@@ -28,19 +19,7 @@ def metrics_middleware_factory(metrics_service):
 		response = await handler(request)
 
 		ResponseCounter.add(
-			CounterTuple(
-				method=request.method, path=request.path, status=str(response.status)
-			),
-			1,
-			init_value=0,
-		)
-		NoFlushCounter.add(
-			CounterTuple(
-				method=request.method, path=request.path, status=str(response.status)
-			),
-			1,
-			init_value=0,
-		)
+			CounterTuple(method=request.method, path=request.path, status=str(response.status)), 1, init_value=0,)
 
 		return response
 
