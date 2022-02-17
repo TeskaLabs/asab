@@ -1,6 +1,6 @@
 import abc
 import time
-from .prometheus import OpenMetric
+from .openmetric import metric_to_text
 
 
 class Metric(abc.ABC):
@@ -49,8 +49,7 @@ class Gauge(Metric):
 		return rest
 
 	def get_open_metric(self, **kwargs):
-		om = OpenMetric()
-		return OpenMetric.metric_to_text(om, self.rest_get(), "gauge")
+		return metric_to_text(self.rest_get(), "gauge")
 
 
 class Counter(Metric):
@@ -114,12 +113,10 @@ class Counter(Metric):
 
 	# TODO Enforce in code "help" and "unit" Tags, values int or float
 	def get_open_metric(self, **kwargs):
-		om = OpenMetric()
 		if self.Reset is True:
-			return OpenMetric.metric_to_text(om, self.rest_get(), "gauge", kwargs["values"])
+			return metric_to_text(self.rest_get(), "gauge", kwargs["values"])
 		else:
-			return OpenMetric.metric_to_text(om, self.rest_get(), "counter")
-
+			return metric_to_text(self.rest_get(), "counter")
 
 class EPSCounter(Counter):
 	"""
