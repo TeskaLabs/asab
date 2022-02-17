@@ -2,8 +2,8 @@ import re
 import logging
 
 
-L = logging.getLogger(__name__)	
-	
+L = logging.getLogger(__name__)
+
 
 def validate_format(name):
 	name = str(name)
@@ -37,7 +37,7 @@ def get_value_labels(labels_dict, v_name):
 	labels_str = "{"
 	if labels_dict != {}:
 		for k, v in labels_dict.items():
-				labels_str += '{}="{}",'.format(k, v)
+			labels_str += '{}="{}",'.format(k, v)
 	regex = r"(\w+=['\"][\w\/]+['\"])"
 	capturing_groups = re.findall(regex, v_name)
 	if capturing_groups != []:
@@ -79,15 +79,15 @@ def translate_metadata(name, type, unit, help):
 	else:
 		pass
 		# L.warning("Invalid OpenMetrics format in {} {}. Please, add 'help' in 'Tags'.".format(name, type))
-	metadata = '\n'.join(meta_lines)
+	metadata = "\n".join(meta_lines)
 	return metadata
 
 
 def translate_metric(type, name, labels_str, value):
 	if type == "counter":
-		line = ("{}{}{} {}".format(name, "_total", labels_str, value))
+		line = "{}{}{} {}".format(name, "_total", labels_str, value)
 	if type == "gauge":
-		line = ("{}{} {}".format(name, labels_str, value))
+		line = "{}{} {}".format(name, labels_str, value)
 	return line
 
 
@@ -114,7 +114,7 @@ def metric_to_text(metric, type, values=None):
 			labels_str = get_value_labels(labels_dict, str(v_name))
 			metric_lines.append(translate_metric(type, name, labels_str, value))
 
-	metric_text = '\n'.join(metric_lines)
+	metric_text = "\n".join(metric_lines)
 	return metric_text
 
 

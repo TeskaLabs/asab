@@ -22,5 +22,3 @@ class PrometheusTarget(asab.ConfigObject):
 			lines.append("# EOF\n")
 			text = '\n'.join(lines)
 			return text
-
-
