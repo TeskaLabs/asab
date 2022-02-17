@@ -83,25 +83,15 @@ def translate_metadata(name, type, unit, help):
 	return metadata
 
 
-def translate_counter(name, labels_str, value, created):
-	lines = []
-	total_line = ("{}{}{} {}".format(name, "_total", labels_str, value))
-	lines.append(total_line)
-	if created:
-		created_line = ("{}{}{} {}".format(name, "_created", labels_str, created))
-		lines.append(created_line)
-	return "\n".join(lines)
-
-
-def translate_gauge(name, labels_str, value):
-	if labels_str:
+def translate_metric(type, name, labels_str, value):
+	if type == "counter":
+		line = ("{}{}{} {}".format(name, "_total", labels_str, value))
+	if type == "gauge":
 		line = ("{}{} {}".format(name, labels_str, value))
-	else:
-		line = ("{} {}".format(name, value))
 	return line
 
 
-def metric_to_text(metric, type, values=None, created=None):
+def metric_to_text(metric, type, values=None):
 	metric_lines = []
 	m_name = metric.get("Name")
 	tags = metric.get("Tags")
@@ -122,10 +112,7 @@ def metric_to_text(metric, type, values=None, created=None):
 			continue
 		else:
 			labels_str = get_value_labels(labels_dict, str(v_name))
-			if type == "counter":
-				metric_lines.append(translate_counter(name, labels_str, value, created))
-			if type == "gauge":
-				metric_lines.append(translate_gauge(name, labels_str, value))
+			metric_lines.append(translate_metric(type, name, labels_str, value))
 
 	metric_text = '\n'.join(metric_lines)
 	return metric_text
@@ -140,19 +127,17 @@ class PrometheusTarget(asab.ConfigObject):
 	async def process(self, now, mlist):
 		self.now = now
 		self.mlist = mlist
-		print("process!")
 
 	def get_open_metric(self):
 		if self.mlist:
 			lines = []
 			for metric, values in self.mlist:
-				kwargs = {"values": values, "created": self.now}
+				kwargs = {"values": values}
 				record = metric.get_open_metric(**kwargs)
 				if record:
 					lines.append(record)
 			lines.append("# EOF\n")
 			text = '\n'.join(lines)
-			print(text)
 			return text
 
 
@@ -161,7 +146,6 @@ class PrometheusTarget(asab.ConfigObject):
 # ONLY Gauge and Counters are translated into Prometheus. Other Metrics are omitted.
 # Metrics MUST have "unit" and "help" Tags
 # Help is a string and SHOULD be non-empty. It is used to give a brief description of the MetricFamily for human consumption and SHOULD be short enough to be used as a tooltip.
-# Metrics MUST have Lables - also added as items in Tags
 # Values MUST be float or integer. Boolean values MUST follow 1==true, 0==false.
 # Colons in MetricFamily names are RESERVED to signal that the MetricFamily is the result of a calculation or aggregation of a general purpose monitoring system. MetricFamily names beginning with underscores are RESERVED and MUST NOT be used unless specified by OpenMetric standard. - Anything that is not A-Z, a-z or digit is transformed into "_" and leading "_" is stripped.
 # NaN is a number like any other in OpenMetrics, usually resulting from a division by zero such as for a summary quantile if there have been no observations recently. NaN does not have any special meaning in OpenMetrics, and in particular MUST NOT be used as a marker for missing or otherwise bad data.

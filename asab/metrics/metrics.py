@@ -112,7 +112,7 @@ class Counter(Metric):
 
 	def get_open_metric(self, **kwargs):
 		if self.Reset is True:
-			return metric_to_text(self.rest_get(), "counter", kwargs["values"], kwargs["created"])
+			return metric_to_text(self.rest_get(), "gauge", kwargs["values"])
 		else:
 			return metric_to_text(self.rest_get(), "counter")
 
