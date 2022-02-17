@@ -11,7 +11,6 @@ def validate_format(name):
 	regex = r"[a-zA-Z:][a-zA-Z0-9_:]*"
 	match = re.fullmatch(regex, name)
 	if match is None:
-		L.warning("Invalid Prometheus format. {} must match the regex [a-zA-Z:][a-zA-Z0-9_:]*".format(name))
 		regex_sub = r"[^a-zA-Z0-9_:]"
 		name = re.sub(regex_sub, "_", name)
 		name = name.lstrip("_0123456789")
@@ -30,7 +29,7 @@ def get_tags_labels(tags):
 		if tag in {"host", "unit", "help"}:
 			continue
 		else:
-			labels_dict[validate_format(tag)] = validate_format(tag_v)
+			labels_dict[validate_format(tag)] = tag_v
 	return labels_dict
 
 
@@ -44,7 +43,7 @@ def get_value_labels(labels_dict, v_name):
 	if capturing_groups != []:
 		for group in capturing_groups:
 			label_lst = group.split("=")
-			k = label_lst[0]
+			k = validate_format(label_lst[0])
 			v = label_lst[1].strip("'")
 			v = v.strip('"')
 			labels_str += '{}="{}",'.format(k, v)
