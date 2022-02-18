@@ -38,7 +38,7 @@ def get_value_labels(labels_dict, v_name):
 	if labels_dict != {}:
 		for k, v in labels_dict.items():
 			labels_str += '{}="{}",'.format(k, v)
-	regex = r"(\w+=['\"][\w\/]+['\"])"
+	regex = r"([^,()]*=['\"][^,]*['\"])"
 	capturing_groups = re.findall(regex, v_name)
 	if capturing_groups != []:
 		for group in capturing_groups:
