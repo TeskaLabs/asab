@@ -5,7 +5,7 @@ import asab
 class MyApplication(asab.Application):
 
 	async def main(self):
-		task_service = app.get_service("seacatpki.TaskService")
+		task_service = app.get_service("asab.TaskService")
 
 		# Schedule tasks to be executed
 		# They will be executed in ~ 5 seconds

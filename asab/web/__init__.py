@@ -4,6 +4,7 @@ from .service import WebService
 from .websocket import WebSocketFactory
 from .staticdir import StaticDirProvider
 from .container import WebContainer
+from .metrics_middleware import metrics_middleware_factory
 
 
 class Module(asab.Module):
@@ -19,4 +20,5 @@ __all__ = (
 	'StaticDirProvider',
 	'WebContainer',
 	'Module',
+	"metrics_middleware_factory",
 )
