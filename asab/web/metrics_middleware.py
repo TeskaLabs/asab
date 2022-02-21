@@ -10,7 +10,7 @@ def metrics_middleware_factory(metrics_service):
 	RequestCounter = metrics_service.create_counter(
 		"web_requests",
 		tags={
-			"unit": "requests_per_minute",
+			"unit": "events_per_minute",
 			"help": "Counts requests to asab endpoints.",
 		},
 	)
