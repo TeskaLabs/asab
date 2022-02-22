@@ -70,15 +70,8 @@ def translate_metadata(name, type, unit, help):
 	meta_lines.append("# TYPE {} {}".format(name, type))
 	if unit:
 		meta_lines.append("# UNIT {} {}".format(name, unit))
-	else:
-		pass
-		# L.warning("Invalid OpenMetrics format in {} {}. Please, add 'unit' in 'Tags'.".format(name, type))
-
 	if help:
 		meta_lines.append("# HELP {} {}".format(name, help))
-	else:
-		pass
-		# L.warning("Invalid OpenMetrics format in {} {}. Please, add 'help' in 'Tags'.".format(name, type))
 	metadata = "\n".join(meta_lines)
 	return metadata
 
