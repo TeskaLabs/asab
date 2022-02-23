@@ -2,6 +2,7 @@ import datetime
 import logging
 import asab.web.rest
 import uuid
+import os
 
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
@@ -22,6 +23,19 @@ class ApiService(asab.Service):
 		self.WebContainer = None
 		self.ZkContainer = None
 		self.AttentionRequired = {}  # dict of errors found.
+
+		path = asab.Config.get("general", "manifest_json_path")
+		if not os.path.isfile(path):
+			if os.path.isfile("/MANIFEST.json"):
+				path = "/MANIFEST.json"
+			elif os.path.isfile("MANIFEST.json"):
+				path = "MANIFEST.json"
+			else:
+				L.warning("MANIFEST.json file not found")
+
+		with open(path) as f:
+			result = f.read()
+
 
 	def attention_required(self, att: dict, att_id=None):
 
@@ -121,6 +135,9 @@ class ApiService(asab.Service):
 			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
 		}
+
+		if self.Manifest is not None:
+			adv_data.update(self.Manifest)
 
 		if len(self.AttentionRequired) > 0:
 			# add sttention required status
