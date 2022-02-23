@@ -33,9 +33,11 @@ class ApiService(asab.Service):
 				path = "MANIFEST.json"
 			else:
 				L.warning("MANIFEST.json file not found")
-
-		with open(path) as f:
-			self.Manifest = json.load(f)
+		try:
+			with open(path) as f:
+				self.Manifest = json.load(f)
+		except Exception as e:
+			L.error("Loading MANIFEST.json file failed for reason {}".format(e))
 
 
 	def attention_required(self, att: dict, att_id=None):
