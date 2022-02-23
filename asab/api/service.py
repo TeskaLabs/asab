@@ -1,3 +1,4 @@
+import json
 import datetime
 import logging
 import asab.web.rest
@@ -34,7 +35,7 @@ class ApiService(asab.Service):
 				L.warning("MANIFEST.json file not found")
 
 		with open(path) as f:
-			result = f.read()
+			self.Manifest = json.load(f)
 
 
 	def attention_required(self, att: dict, att_id=None):
