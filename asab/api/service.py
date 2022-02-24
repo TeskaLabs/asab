@@ -25,14 +25,12 @@ class ApiService(asab.Service):
 		self.ZkContainer = None
 		self.AttentionRequired = {}  # dict of errors found.
 
-		path = asab.Config.get("general", "manifest_json_path")
-		if not os.path.isfile(path):
+		path = asab.Config.get("general", "manifest")
+		if len(path) == 0:
 			if os.path.isfile("/MANIFEST.json"):
 				path = "/MANIFEST.json"
 			elif os.path.isfile("MANIFEST.json"):
 				path = "MANIFEST.json"
-			else:
-				L.warning("MANIFEST.json file not found")
 		try:
 			with open(path) as f:
 				self.Manifest = json.load(f)
