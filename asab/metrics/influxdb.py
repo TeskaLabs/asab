@@ -41,7 +41,33 @@ def influxdb_format(now, mlist):
 
 
 class MetricsInfluxDB(asab.ConfigObject):
+	"""
+		InfluxDB 2.0 API parameters:
+			url - [required] url string of your influxDB
+			bucket - [required] the destination bucket for writes
+			org - [required] the parameter value specifies the destination organization for writes
+			orgid - [optional] the parameter value specifies the ID of the destination organization for writes
+				NOTE: If both orgID and org are specified, org takes precedence
+			token - [required] API token to authenticate to the InfluxDB
+			Example:
+				[asab:metrics:influxdb]
+				url=http://localhost:8086
+				bucket=test
+				org=test
+				orgid=test
+				token=your_token
 
+		InfluxDB <1.8 API parameters:
+			url - [required] url string of your influxDB
+			username - [required] name of influxDB user
+			password - [required] password of influxDB user
+			Example:
+				[asab:metrics:influxdb]
+				url=http://localhost:8086
+				username=test
+				password=testtest
+				db=test
+	"""
 
 	ConfigDefaults = {
 		'url': 'http://localhost:8086/',
@@ -54,7 +80,7 @@ class MetricsInfluxDB(asab.ConfigObject):
 
 	def __init__(self, svc, config_section_name, config=None):
 		super().__init__(config_section_name=config_section_name, config=config)
-
+		self.Headers = {}
 		self.BaseURL = self.Config.get('url').rstrip('/')
 		self.WriteRequest = '/write?db={}'.format(self.Config.get('db'))
 
@@ -65,6 +91,23 @@ class MetricsInfluxDB(asab.ConfigObject):
 		password = self.Config.get('password')
 		if password is not None and len(password) > 0:
 			self.WriteRequest += '&p={}'.format(urllib.parse.quote(password, safe=''))
+
+		# If org is specified we are buildig write request for InfluxDB 2.0 API
+		org = self.Config.get('org')
+		if org is not None:
+			self.WriteRequest = '/api/v2/write?org={}'.format(org)
+
+		bucket = self.Config.get('bucket')
+		if bucket is not None:
+			self.WriteRequest += '&bucket={}'.format(bucket)
+
+		orgid = self.Config.get('orgid')
+		if orgid is not None:
+			self.WriteRequest += '&orgID={}'.format(orgid)
+
+		token = self.Config.get('token')
+		if token is not None:
+			self.Headers = {'Authorization': 'Token {}'.format(token)}
 
 		self.WriteURL = "{}{}".format(self.BaseURL, self.WriteRequest)
 
@@ -99,7 +142,7 @@ class MetricsInfluxDB(asab.ConfigObject):
 
 		rb = influxdb_format(now, mlist)
 
-		async with aiohttp.ClientSession() as session:
+		async with aiohttp.ClientSession(headers=self.Headers) as session:
 			async with session.post(self.WriteURL, data=rb) as resp:
 				response = await resp.text()
 				if resp.status != 204:
@@ -115,7 +158,7 @@ class MetricsInfluxDB(asab.ConfigObject):
 		else:
 			conn = http.client.HTTPConnection(self.BaseURL.replace("http://", ""))
 
-		conn.request("POST", self.WriteRequest, rb)
+		conn.request("POST", self.WriteRequest, rb, self.Headers)
 
 		response = conn.getresponse()
 		if response.status != 204:
