@@ -141,10 +141,13 @@ want to allow OPTIONS method for preflight requests.
 			from .staticdir import StaticDirProvider
 			self.WebApp['rootdir'] = StaticDirProvider(self.WebApp, root='/', path=rootdir)
 
+		access_log = logging.getLogger(__name__[:__name__.rfind('.')] + '.al')
+		access_log.App = websvc.App
+
 		self.WebAppRunner = aiohttp.web.AppRunner(
 			self.WebApp,
 			handle_signals=False,
-			access_log=logging.getLogger(__name__[:__name__.rfind('.')] + '.al'),
+			access_log=access_log,
 			access_log_class=AccessLogger,
 		)
 

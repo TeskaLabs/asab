@@ -98,7 +98,6 @@ class Counter(Metric):
 		rest["Values"] = self.Values
 		return rest
 
-	# TODO Enforce in code "help" and "unit" Tags, values int or float
 	def get_open_metric(self, **kwargs):
 		if self.Reset is True:
 			return metric_to_text(self.rest_get(), "gauge", kwargs["values"])
@@ -208,3 +207,22 @@ class DutyCycle(Metric):
 
 	def get_open_metric(self, **kwargs):
 		return None
+
+
+class ResetableGauge(Counter):
+	# TODO komentář
+
+	def set(self, name, value, init_value=None):
+		try:
+			self.Values[name] = value
+		except KeyError as e:
+			if init_value is None:
+				raise e
+			self.Values[name] = value
+
+	def add(self, name, value, init_value=None):
+		# TODO
+		raise NotImplementedError("dont use this")
+
+	def sub(self, name, value, init_value=None):
+		pass

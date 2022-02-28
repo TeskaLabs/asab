@@ -1,9 +1,43 @@
+import collections
+
 import aiohttp.abc
 
 from ..log import LOG_NOTICE
 
 
 class AccessLogger(aiohttp.abc.AbstractAccessLogger):
+
+	def __init__(self, logger, log_format) -> None:
+		super().__init__(logger, log_format)
+		self.App = logger.App
+		metrics_service = self.App.get_service("asab.MetricsService")
+		self.MetricNameTuple = collections.namedtuple("labels", ["method", "path", "status"])
+
+		self.MaxDurationGauge = metrics_service.create_resetable_gauge(
+			"web_requests_duration_max",
+			tags={"help": "Counts maximum request duration to asab endpoints per minute."}
+		)
+
+		self.MinDurationGauge = metrics_service.create_resetable_gauge(
+			"web_requests_duration_min",
+			tags={"help": "Counts minimal request duration to asab endpoints per minute."}
+		)
+
+		self.RequestCounter = metrics_service.create_counter(
+			"web_requests",
+			tags={
+				"unit": "epm",
+				"help": "Counts requests to asab endpoints as events per second.",
+			},
+		)
+
+		self.DurationCounter = metrics_service.create_counter(
+			"web_requests_duration",
+			tags={
+				"unit": "seconds_per_minute",
+				"help": "Counts total requests duration to asab endpoints per minute.",
+			},
+		)
 
 	def log(self, request, response, time):
 		struct_data = {
@@ -34,3 +68,26 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 			struct_data['Ix'] = xfwd[:128]
 
 		self.logger.log(LOG_NOTICE, '', struct_data=struct_data)
+
+		# Metrics
+		value_name = self.MetricNameTuple(method=request.method, path=request.path, status=response.status)
+
+		# max
+		if value_name in self.MaxDurationGauge.rest_get().get("Values"):
+			if time > self.MaxDurationGauge.rest_get().get("Values").get(value_name):
+				self.MaxDurationGauge.set(value_name, time, init_value=0)
+		else:
+			self.MaxDurationGauge.set(value_name, time, init_value=0)
+
+		# min
+		if value_name in self.MinDurationGauge.rest_get().get("Values"):
+			if time < self.MinDurationGauge.rest_get().get("Values").get(value_name):
+				self.MinDurationGauge.set(value_name, time, init_value=1000)
+		else:
+			self.MinDurationGauge.set(value_name, time, init_value=1000)
+
+		# count
+		self.RequestCounter.add(value_name, 1, init_value=0)
+
+		# total duration
+		self.DurationCounter.add(value_name, time, init_value=0)

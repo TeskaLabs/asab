@@ -53,12 +53,6 @@ target=prometheus
 		self.ApiService = ApiService(self)
 		self.ApiService.initialize_web(container)
 
-		# Add Metrics middleware
-		self.MetricsService = self.get_service("asab.MetricsService")
-
-		container.WebApp.middlewares.append(
-			asab.web.metrics_middleware_factory(self.MetricsService)
-		)
 		container.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 
 		# Add a route
@@ -89,6 +83,7 @@ target=prometheus
 				"name": {"type": "string"},
 				"favourite_food": {"type": "string"},
 			},
+			"required": ["name", "favourite_food"]
 		}
 	)
 	async def get_dolphin(self, request, *, json_data):
