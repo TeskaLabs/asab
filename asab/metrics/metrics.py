@@ -209,20 +209,28 @@ class DutyCycle(Metric):
 		return None
 
 
-class ResetableGauge(Counter):
+class ExtremeCounter(Counter):
 	# TODO komentář
+	def __init__(self, name, tags, init_values=None, reset: bool = True, extreme: str = "max"):
+		super().__init__(name=name, tags=tags, init_values=init_values, reset=reset)
+		if extreme not in ["max", "min"]:
+			raise ValueError("Error during {} ExtremeCounter initialization. Argument 'extreme' must be 'max' or 'min'.".format(name))
+		else:
+			self.extreme = extreme
 
 	def set(self, name, value, init_value=None):
 		try:
-			self.Values[name] = value
+			if self.extreme == "max" and value > self.Values[name]:
+				self.Values[name] = value
+			if self.extreme == "min" and value < self.Values[name]:
+				self.Values[name] = value
 		except KeyError as e:
 			if init_value is None:
 				raise e
 			self.Values[name] = value
 
 	def add(self, name, value, init_value=None):
-		# TODO
-		raise NotImplementedError("dont use this")
+		raise NotImplementedError("Do not use add() method with ExtremeCounter. Use set() instead.")
 
 	def sub(self, name, value, init_value=None):
-		pass
+		raise NotImplementedError("Do not use sub() method with ExtremeCounter. Use set() instead.")

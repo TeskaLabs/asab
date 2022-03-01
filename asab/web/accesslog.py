@@ -13,14 +13,15 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 		metrics_service = self.App.get_service("asab.MetricsService")
 		self.MetricNameTuple = collections.namedtuple("labels", ["method", "path", "status"])
 
-		self.MaxDurationGauge = metrics_service.create_resetable_gauge(
+		self.MaxDurationCounter = metrics_service.create_extreme_counter(
 			"web_requests_duration_max",
 			tags={"help": "Counts maximum request duration to asab endpoints per minute."}
 		)
 
-		self.MinDurationGauge = metrics_service.create_resetable_gauge(
+		self.MinDurationCounter = metrics_service.create_extreme_counter(
 			"web_requests_duration_min",
-			tags={"help": "Counts minimal request duration to asab endpoints per minute."}
+			tags={"help": "Counts minimal request duration to asab endpoints per minute."},
+			extreme="min"
 		)
 
 		self.RequestCounter = metrics_service.create_counter(
@@ -70,24 +71,22 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 		self.logger.log(LOG_NOTICE, '', struct_data=struct_data)
 
 		# Metrics
-		value_name = self.MetricNameTuple(method=request.method, path=request.path, status=response.status)
+		value_name = self.MetricNameTuple(method=request.method, path=request.path, status=str(response.status))
 
 		# max
-		if value_name in self.MaxDurationGauge.rest_get().get("Values"):
-			if time > self.MaxDurationGauge.rest_get().get("Values").get(value_name):
-				self.MaxDurationGauge.set(value_name, time, init_value=0)
-		else:
-			self.MaxDurationGauge.set(value_name, time, init_value=0)
+		self.MaxDurationCounter.set(value_name, time, init_value=0)
 
 		# min
-		if value_name in self.MinDurationGauge.rest_get().get("Values"):
-			if time < self.MinDurationGauge.rest_get().get("Values").get(value_name):
-				self.MinDurationGauge.set(value_name, time, init_value=1000)
-		else:
-			self.MinDurationGauge.set(value_name, time, init_value=1000)
+		self.MinDurationCounter.set(value_name, time, init_value=1000)
 
 		# count
 		self.RequestCounter.add(value_name, 1, init_value=0)
 
 		# total duration
 		self.DurationCounter.add(value_name, time, init_value=0)
+
+		print("-----------------------------")
+		print(self.MaxDurationCounter.rest_get())
+		print(self.MinDurationCounter.rest_get())
+		print(self.RequestCounter.rest_get())
+		print(self.DurationCounter.rest_get())
