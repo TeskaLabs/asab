@@ -28,7 +28,7 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 			"web_requests",
 			tags={
 				"unit": "epm",
-				"help": "Counts requests to asab endpoints as events per second.",
+				"help": "Counts requests to asab endpoints as events per minute.",
 			},
 		)
 

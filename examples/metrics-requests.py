@@ -41,6 +41,13 @@ target=prometheus
 		self.add_module(asab.web.Module)
 		self.add_module(asab.metrics.Module)
 
+		# initialize random metric
+		self.metricsvc = self.get_service("asab.MetricsService")
+		self.TestCounter = self.metricsvc.create_counter(
+			"debug_counter", reset=True,
+		)
+		self.PubSub.subscribe("Application.tick!", self.on_tick)
+
 		# Locate web service
 		websvc = self.get_service("asab.WebService")
 
@@ -61,6 +68,9 @@ target=prometheus
 		container.WebApp.router.add_get("/jellyfish", self.get_jellyfish)
 		container.WebApp.router.add_put("/dolphin", self.get_dolphin)
 
+	async def on_tick(self, event_type):
+		self.TestCounter.add("debug", 1, init_value=0)
+		print("\N{lady beetle} {}".format(self.TestCounter.rest_get()))
 
 	async def get_racoon(self, request):
 		message = "Hi, I am racoon."
