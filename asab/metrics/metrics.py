@@ -98,7 +98,6 @@ class Counter(Metric):
 		rest["Values"] = self.Values
 		return rest
 
-	# TODO Enforce in code "help" and "unit" Tags, values int or float
 	def get_open_metric(self, **kwargs):
 		if self.Reset is True:
 			return metric_to_text(self.rest_get(), "gauge", kwargs["values"])
@@ -208,3 +207,28 @@ class DutyCycle(Metric):
 
 	def get_open_metric(self, **kwargs):
 		return None
+
+
+class AggregationCounter(Counter):
+	'''
+	Takes a function object as the agg argument.
+	The aggregation function can take two arguments only - previous value and the new value to be set.
+	Maximum is used as default aggregation.
+	'''
+	def __init__(self, name, tags, init_values=None, reset: bool = True, agg=max):
+		super().__init__(name=name, tags=tags, init_values=init_values, reset=reset)
+		self.Agg = agg
+
+	def set(self, name, value, init_value=None):
+		try:
+			self.Values[name] = self.Agg(value, self.Values[name])
+		except KeyError as e:
+			if init_value is None:
+				raise e
+			self.Values[name] = self.Agg(value, init_value)
+
+	def add(self, name, value, init_value=None):
+		raise NotImplementedError("Do not use add() method with ExtremeCounter. Use set() instead.")
+
+	def sub(self, name, value, init_value=None):
+		raise NotImplementedError("Do not use sub() method with ExtremeCounter. Use set() instead.")

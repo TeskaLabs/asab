@@ -1,12 +1,10 @@
 import unittest
-from asab.metrics.prometheus import (
+from asab.metrics.openmetric import (
     metric_to_text,
     validate_format,
     validate_value,
     get_full_name,
     translate_metadata,
-    translate_counter,
-    translate_gauge,
     get_tags_labels,
     get_value_labels,
 )
@@ -28,14 +26,12 @@ class TestPrometheus(unittest.TestCase):
             },
             "Values": {"v1": 15, "v2": 50},
         }
-        expected_output = """# TYPE mycounter_bytes counter
+        expected_output = """# TYPE mycounter_bytes gauge
 # UNIT mycounter_bytes bytes
 # HELP mycounter_bytes The most important counter ever.
-mycounter_bytes_total{label="sth",other_label="sth_else",value_name="v1"} 10
-mycounter_bytes_created{label="sth",other_label="sth_else",value_name="v1"} 1643118797.4816716
-mycounter_bytes_total{label="sth",other_label="sth_else",value_name="v2"} 5
-mycounter_bytes_created{label="sth",other_label="sth_else",value_name="v2"} 1643118797.4816716"""
-        output = metric_to_text(input_counter, "counter", {"v1": 10, "v2": 5}, 1643118797.4816716)
+mycounter_bytes{label="sth",other_label="sth_else",value_name="v1"} 10
+mycounter_bytes{label="sth",other_label="sth_else",value_name="v2"} 5"""
+        output = metric_to_text(input_counter, "gauge", {"v1": 10, "v2": 5})
         self.assertEqual(expected_output, output)
 
 
@@ -47,7 +43,7 @@ mycounter_bytes_created{label="sth",other_label="sth_else",value_name="v2"} 1643
             "label": "sth.",
             "other_label": "_sth_Else",
         }
-        expected_output = {"label": "sth_", "other_label": "sth_Else"}
+        expected_output = {"label": "sth.", "other_label": "_sth_Else"}
         output = get_tags_labels(input_tags)
         self.assertEqual(expected_output, output)
 
@@ -93,21 +89,3 @@ mycounter_bytes_created{label="sth",other_label="sth_else",value_name="v2"} 1643
         expected_output = "# TYPE Metrics_Value_Unit counter"
         output = translate_metadata(name, type, unit, help)
         self.assertEqual(expected_output, output)
-
-    def test_translate_counter(self):
-        name, labels_str, value, created = (
-            "Metrics_Value_Unit",
-            '{labelname:"label"}',
-            5,
-            1643118797.4816716
-        )
-        output = translate_counter(name, labels_str, value, created)
-        self.assertEqual('Metrics_Value_Unit_total{labelname:"label"} 5\nMetrics_Value_Unit_created{labelname:"label"} 1643118797.4816716', output)
-
-    def test_translate_gauge(self):
-        name, labels_str, value = (
-            "Metrics_Value_Unit",
-            '{labelname:"label"}',
-            5)
-        output = translate_gauge(name, labels_str, value)
-        self.assertEqual('Metrics_Value_Unit{labelname:"label"} 5', output)

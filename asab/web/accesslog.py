@@ -1,9 +1,17 @@
+import collections
+
 import aiohttp.abc
 
 from ..log import LOG_NOTICE
 
 
 class AccessLogger(aiohttp.abc.AbstractAccessLogger):
+
+	def __init__(self, logger, log_format) -> None:
+		super().__init__(logger, log_format)
+		self.App = logger.App
+		self.WebService = self.App.get_service("asab.WebService")
+		self.MetricNameTuple = collections.namedtuple("labels", ["method", "path", "status"])
 
 	def log(self, request, response, time):
 		struct_data = {
@@ -34,3 +42,14 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 			struct_data['Ix'] = xfwd[:128]
 
 		self.logger.log(LOG_NOTICE, '', struct_data=struct_data)
+
+		# Metrics
+		value_name = self.MetricNameTuple(method=request.method, path=request.path, status=str(response.status))
+		# max
+		self.WebService.MaxDurationCounter.set(value_name, time, init_value=0)
+		# min
+		self.WebService.MinDurationCounter.set(value_name, time, init_value=1000)
+		# count
+		self.WebService.RequestCounter.add(value_name, 1, init_value=0)
+		# total duration
+		self.WebService.DurationCounter.add(value_name, time, init_value=0)
