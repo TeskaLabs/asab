@@ -3,7 +3,6 @@ import logging
 import asab
 import asab.web
 import asab.web.rest
-import asab.metrics
 
 #
 

@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import asab
+import asab.metrics
 
 
 L = logging.getLogger(__name__)
