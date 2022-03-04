@@ -209,25 +209,23 @@ class DutyCycle(Metric):
 		return None
 
 
-class ExtremeCounter(Counter):
-	# TODO komentář
-	def __init__(self, name, tags, init_values=None, reset: bool = True, extreme: str = "max"):
+class AggregationCounter(Counter):
+	'''
+	Takes a function object as the agg argument.
+	The aggregation function can take two arguments only - previous value and the new value to be set.
+	Maximum is used as default aggregation.
+	'''
+	def __init__(self, name, tags, init_values=None, reset: bool = True, agg=max):
 		super().__init__(name=name, tags=tags, init_values=init_values, reset=reset)
-		if extreme not in ["max", "min"]:
-			raise ValueError("Error during {} ExtremeCounter initialization. Argument 'extreme' must be 'max' or 'min'.".format(name))
-		else:
-			self.extreme = extreme
+		self.Agg = agg
 
 	def set(self, name, value, init_value=None):
 		try:
-			if self.extreme == "max" and value > self.Values[name]:
-				self.Values[name] = value
-			if self.extreme == "min" and value < self.Values[name]:
-				self.Values[name] = value
+			self.Values[name] = self.Agg(value, self.Values[name])
 		except KeyError as e:
 			if init_value is None:
 				raise e
-			self.Values[name] = value
+			self.Values[name] = self.Agg(value, init_value)
 
 	def add(self, name, value, init_value=None):
 		raise NotImplementedError("Do not use add() method with ExtremeCounter. Use set() instead.")

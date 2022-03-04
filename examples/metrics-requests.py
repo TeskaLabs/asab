@@ -14,15 +14,18 @@ L = logging.getLogger(__name__)
 
 class MyApplication(asab.Application):
 	"""
-	accepts get requests on port 8089 and uses asab metrics-middleware to count requests
-	to see data in Prometheus, add these lines into scrape_configs section in your prometheus.yml config file:
+	Use Prometheus to track and visualize ASAB metrics.
+	Accepts requests on port 8089.
+	To see data in Prometheus, add these lines into scrape_configs section in your prometheus.yml config file:
+	scrape_configs:
 	- job_name: 'metrics_animal_example'
 			metrics_path: '/asab/v1/metrics'
 			scrape_interval: 10s
 			static_configs:
 			- targets: ['127.0.0.1:8089']
 
-	there might be 60s lag in asab-Prometheus data transfer
+	There is 60s lag in ASAB-Prometheus data transfer.
+	Call the unicorn and see what happens!
 	"""
 
 	async def initialize(self):
@@ -37,17 +40,8 @@ target=prometheus
 [asab:metrics:prometheus]
 		"""
 		)
-		# Loading the web service and metrics modules
+		# Loading the web service module
 		self.add_module(asab.web.Module)
-		self.add_module(asab.metrics.Module)
-
-		# initialize random metric
-		self.metricsvc = self.get_service("asab.MetricsService")
-		self.TestCounter = self.metricsvc.create_counter(
-			"debug_counter", reset=True,
-		)
-		self.PubSub.subscribe("Application.tick!", self.on_tick)
-
 		# Locate web service
 		websvc = self.get_service("asab.WebService")
 
@@ -67,10 +61,6 @@ target=prometheus
 		container.WebApp.router.add_get("/unicorn", self.get_unicorn)
 		container.WebApp.router.add_get("/jellyfish", self.get_jellyfish)
 		container.WebApp.router.add_put("/dolphin", self.get_dolphin)
-
-	async def on_tick(self, event_type):
-		self.TestCounter.add("debug", 1, init_value=0)
-		print("\N{lady beetle} {}".format(self.TestCounter.rest_get()))
 
 	async def get_racoon(self, request):
 		message = "Hi, I am racoon."

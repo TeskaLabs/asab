@@ -13,13 +13,43 @@ class WebService(asab.Service):
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 
+		# Web service is dependent on Metrics service
+		app.add_module(asab.metrics.Module)
+		self.MetricsService = app.get_service("asab.MetricsService")
+		self.initialize_metrics()
+
 		self.Containers = {}
-		self.App = app
 
 
 	async def finalize(self, app):
 		for containers in self.Containers.values():
 			await containers.finalize(app)
+
+
+	def initialize_metrics(self):
+		self.MaxDurationCounter = self.MetricsService.create_agg_counter(
+			"web_requests_duration_max",
+			tags={"help": "Counts maximum request duration to asab endpoints per minute."},
+		)
+		self.MinDurationCounter = self.MetricsService.create_agg_counter(
+			"web_requests_duration_min",
+			tags={"help": "Counts minimal request duration to asab endpoints per minute."},
+			agg=min
+		)
+		self.RequestCounter = self.MetricsService.create_counter(
+			"web_requests",
+			tags={
+				"unit": "epm",
+				"help": "Counts requests to asab endpoints as events per minute.",
+			},
+		)
+		self.DurationCounter = self.MetricsService.create_counter(
+			"web_requests_duration",
+			tags={
+				"unit": "seconds",
+				"help": "Counts total requests duration to asab endpoints per minute.",
+			},
+		)
 
 
 	def _register_container(self, container, config_section_name):

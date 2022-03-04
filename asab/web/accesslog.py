@@ -10,35 +10,8 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 	def __init__(self, logger, log_format) -> None:
 		super().__init__(logger, log_format)
 		self.App = logger.App
-		metrics_service = self.App.get_service("asab.MetricsService")
+		self.WebService = self.App.get_service("asab.WebService")
 		self.MetricNameTuple = collections.namedtuple("labels", ["method", "path", "status"])
-
-		self.MaxDurationCounter = metrics_service.create_extreme_counter(
-			"web_requests_duration_max",
-			tags={"help": "Counts maximum request duration to asab endpoints per minute."}
-		)
-
-		self.MinDurationCounter = metrics_service.create_extreme_counter(
-			"web_requests_duration_min",
-			tags={"help": "Counts minimal request duration to asab endpoints per minute."},
-			extreme="min"
-		)
-
-		self.RequestCounter = metrics_service.create_counter(
-			"web_requests",
-			tags={
-				"unit": "epm",
-				"help": "Counts requests to asab endpoints as events per minute.",
-			},
-		)
-
-		self.DurationCounter = metrics_service.create_counter(
-			"web_requests_duration",
-			tags={
-				"unit": "seconds_per_minute",
-				"help": "Counts total requests duration to asab endpoints per minute.",
-			},
-		)
 
 	def log(self, request, response, time):
 		struct_data = {
@@ -72,21 +45,11 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 
 		# Metrics
 		value_name = self.MetricNameTuple(method=request.method, path=request.path, status=str(response.status))
-
 		# max
-		self.MaxDurationCounter.set(value_name, time, init_value=0)
-
+		self.WebService.MaxDurationCounter.set(value_name, time, init_value=0)
 		# min
-		self.MinDurationCounter.set(value_name, time, init_value=1000)
-
+		self.WebService.MinDurationCounter.set(value_name, time, init_value=1000)
 		# count
-		self.RequestCounter.add(value_name, 1, init_value=0)
-
+		self.WebService.RequestCounter.add(value_name, 1, init_value=0)
 		# total duration
-		self.DurationCounter.add(value_name, time, init_value=0)
-
-		print("-----------------------------")
-		print(self.MaxDurationCounter.rest_get())
-		print(self.MinDurationCounter.rest_get())
-		print(self.RequestCounter.rest_get())
-		print(self.DurationCounter.rest_get())
+		self.WebService.DurationCounter.add(value_name, time, init_value=0)

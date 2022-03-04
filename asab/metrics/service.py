@@ -4,7 +4,7 @@ import asyncio
 
 import asab
 
-from .metrics import Metric, Counter, EPSCounter, Gauge, DutyCycle, ExtremeCounter
+from .metrics import Metric, Counter, EPSCounter, Gauge, DutyCycle, AggregationCounter
 from .memstor import MetricsMemstorTarget
 
 
@@ -73,7 +73,6 @@ class MetricsService(asab.Service):
 
 
 	async def _on_flushing_event(self, event_type):
-		print("flush!")
 		if len(self.Metrics) == 0:
 			return
 		now = self.App.time()
@@ -195,7 +194,7 @@ class MetricsService(asab.Service):
 		self._add_metric(dimension, m)
 		return m
 
-	def create_extreme_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, extreme: str = "max"):
+	def create_agg_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, agg=max):
 		dimension = metric_dimension(metric_name, tags)
 		if dimension in self.Metrics:
 			raise RuntimeError("Metric '{}' already present".format(dimension))
@@ -206,6 +205,6 @@ class MetricsService(asab.Service):
 		else:
 			t = self.Tags
 
-		m = ExtremeCounter(metric_name, tags=t, init_values=init_values, reset=reset, extreme=extreme)
+		m = AggregationCounter(metric_name, tags=t, init_values=init_values, reset=reset, agg=agg)
 		self._add_metric(dimension, m)
 		return m
