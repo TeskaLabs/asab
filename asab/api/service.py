@@ -17,7 +17,7 @@ L = logging.getLogger(__name__)
 
 asab.Config.add_defaults({
 	"general": {
-		"manifest": "/MANIFEST.json",
+		"manifest": "",
 	}
 })
 
@@ -26,22 +26,22 @@ class ApiService(asab.Service):
 
 	def __init__(self, app, service_name="asab.ApiService"):
 		super().__init__(app, service_name)
+
 		self.WebContainer = None
 		self.ZkContainer = None
 		self.AttentionRequired = {}  # dict of errors found.
 		path = asab.Config.get("general", "manifest")
-
 		if len(path) == 0:
 			if os.path.isfile("/MANIFEST.json"):
 				path = "/MANIFEST.json"
 			elif os.path.isfile("MANIFEST.json"):
 				path = "MANIFEST.json"
-		try:
-			with open(path) as f:
-				self.Manifest = json.load(f)
-		except Exception as e:
-			self.Manifest = None
-			L.warning("Loading MANIFEST.json failed for reason {}".format(e))
+			try:
+				with open(path) as f:
+					self.Manifest = json.load(f)
+			except FileNotFoundError:
+				self.Manifest = None
+
 
 	def attention_required(self, att: dict, att_id=None):
 
