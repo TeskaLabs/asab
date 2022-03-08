@@ -21,6 +21,7 @@ asab.Config.add_defaults({
 	}
 })
 
+
 class ApiService(asab.Service):
 
 	def __init__(self, app, service_name="asab.ApiService"):
