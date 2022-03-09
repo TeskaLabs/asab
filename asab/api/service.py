@@ -41,7 +41,7 @@ class ApiService(asab.Service):
 				with open(path) as f:
 					self.Manifest = json.load(f)
 			except Exception as e:
-				L.exception(e)
+				L.log(e)
 		else:
 			self.Manifest = None
 
