@@ -36,11 +36,17 @@ class ApiService(asab.Service):
 				path = "/MANIFEST.json"
 			elif os.path.isfile("MANIFEST.json"):
 				path = "MANIFEST.json"
+		if len(path) != 0:
 			try:
 				with open(path) as f:
 					self.Manifest = json.load(f)
-			except FileNotFoundError:
-				self.Manifest = None
+			except Exception as e:
+				L.exception(e)
+		else:
+			self.Manifest = None
+
+
+
 
 
 	def attention_required(self, att: dict, att_id=None):
