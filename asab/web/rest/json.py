@@ -199,17 +199,15 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 				multi_dict = await request.post()
 				data = {k: v for k, v in multi_dict.items()}
 			else:
-				Lex.warning(f"Unsupported content-type {request.content_type} for request {request}")
-				raise aiohttp.web.HTTPBadRequest(reason=f"Unsupported content-type {request.content_type}")
+				raise aiohttp.web.HTTPBadRequest(reason="Unsupported content-type {}".format(request.content_type))
 			# Checking the validation on JSON data set
 			try:
 				validate(data)
 				kwargs['json_data'] = data
 			except fastjsonschema.exceptions.JsonSchemaException as e:
-				Lex.warning(f"Can not validate request {request}. Reason: {e}")
 				raise aiohttp.web.HTTPBadRequest(reason=str(e))
 			except Exception as e:
-				Lex.error(f"Unknown validation error for request {request}. Reason: {e}")
+				Lex.error("JSON validation error. Reason: {}".format(e), struct_data={"path": request.path, "method": request.method})
 				raise e
 
 			return await func(*args, **kwargs)
