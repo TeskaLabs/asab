@@ -1,7 +1,9 @@
+import json
 import datetime
 import logging
 import asab.web.rest
 import uuid
+import os
 
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
@@ -13,15 +15,39 @@ L = logging.getLogger(__name__)
 
 ##
 
+asab.Config.add_defaults({
+	"general": {
+		"manifest": "",
+	}
+})
+
 
 class ApiService(asab.Service):
 
-
 	def __init__(self, app, service_name="asab.ApiService"):
 		super().__init__(app, service_name)
+
 		self.WebContainer = None
 		self.ZkContainer = None
 		self.AttentionRequired = {}  # dict of errors found.
+		path = asab.Config.get("general", "manifest")
+		if len(path) == 0:
+			if os.path.isfile("/MANIFEST.json"):
+				path = "/MANIFEST.json"
+			elif os.path.isfile("MANIFEST.json"):
+				path = "MANIFEST.json"
+		if len(path) != 0:
+			try:
+				with open(path) as f:
+					self.Manifest = json.load(f)
+			except Exception as e:
+				L.exception("Error when reading manifest for reason {}".format(e))
+		else:
+			self.Manifest = None
+
+
+
+
 
 	def attention_required(self, att: dict, att_id=None):
 
@@ -121,6 +147,9 @@ class ApiService(asab.Service):
 			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
 		}
+
+		if self.Manifest is not None:
+			adv_data.update(self.Manifest)
 
 		if len(self.AttentionRequired) > 0:
 			# add sttention required status
