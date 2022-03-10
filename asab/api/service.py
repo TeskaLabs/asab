@@ -41,7 +41,7 @@ class ApiService(asab.Service):
 				with open(path) as f:
 					self.Manifest = json.load(f)
 			except Exception as e:
-				L.log(e)
+				L.exception("Error when reading manifest for reason {}".format(e))
 		else:
 			self.Manifest = None
 
