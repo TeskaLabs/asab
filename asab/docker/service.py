@@ -40,7 +40,7 @@ class DockerService(Service):
 				with open("/proc/self/cgroup", "r") as cgroup_file:
 					cgroup = cgroup_file.read()
 				conn.request("GET", "http://localhost/containers/{}/json".format(
-					cgroup.split("\n")[0].split("/docker/")[1]
+					cgroup.split("/docker/")[1].split("\n")[0]
 				))
 
 				docker_info_request = conn.getresponse()
