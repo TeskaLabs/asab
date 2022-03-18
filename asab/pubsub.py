@@ -80,7 +80,7 @@ class PubSub(object):
 				callback_list.remove(callback_ref)
 
 		if len(callback_list) == 0:
-			del self.Subscribers['message_type']
+			del self.Subscribers[message_type]
 
 
 	def _callback_iter(self, message_type):
