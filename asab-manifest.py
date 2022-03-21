@@ -6,6 +6,9 @@ import datetime
 import subprocess
 
 
+# TODO: Document the purpose of this file etc.
+
+
 def create_manifest(args):
 	manifest = {
 		'created_at': datetime.datetime.utcnow().isoformat() + 'Z',
