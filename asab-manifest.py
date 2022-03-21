@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import json
 import argparse
 import datetime
@@ -10,12 +11,18 @@ def create_manifest(args):
 		'created_at': datetime.datetime.utcnow().isoformat() + 'Z',
 	}
 
-	gitr = subprocess.run(["git", "describe", "--abbrev=7", "--tags", "--dirty", "--always"], capture_output=True)
-	if gitr.returncode == 0:
+	try:
+		gitr = subprocess.run(["git", "describe", "--abbrev=7", "--tags", "--dirty", "--always"], capture_output=True)
+	except FileNotFoundError:
+		gitr = None
+		print("FAILED: Command 'git' not found")
+		sys.exit(1)
+
+	if gitr is not None and gitr.returncode == 0:
 		manifest['version'] = gitr.stdout.decode('ascii').strip()
 	else:
-		pass	
-		# TODO: Print warning if returncode is not 0
+		print("FAILED: Command 'git' responded with {}\n{}\n{}".format(gitr.returncode, gitr.stdout, gitr.strerr))
+		sys.exit(1)
 
 	with open(args.manifest, "w") as f:
 		json.dump(manifest, f, indent='\t')
