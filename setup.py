@@ -70,4 +70,7 @@ setup(
 	cmdclass={
 		'build_py': custom_build_py,
 	},
+	scripts=[
+		'asab-manifest.py'
+	],
 )
