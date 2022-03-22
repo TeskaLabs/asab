@@ -10,11 +10,11 @@ import subprocess
 The purpose of this script is to generate a MANIFEST.json and populate it with container creation time
 and the version of the service running in the container. The MANIFEST.json is produced during the creation 
 of docker image. When the MANIFEST.json is populated it could look something similar to illustration below 
-with the help of the current script.
+when generated the help of the current script.
 
 {
 		'created_at': 2022-03-21T15:49:37.14000,
-		'version' :V22.9-4
+		'version' :v22.9-4
 }
 
 """
