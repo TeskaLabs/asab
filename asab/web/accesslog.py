@@ -44,7 +44,10 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 		self.logger.log(LOG_NOTICE, '', struct_data=struct_data)
 
 		# Metrics
-		value_name = self.MetricNameTuple(method=request.method, path=request.path, status=str(response.status))
+		path = request.match_info.get_info().get("formatter")
+		if path is None:
+			path = request.path
+		value_name = self.MetricNameTuple(method=request.method, path=path, status=str(response.status))
 		# max
 		self.WebService.MaxDurationCounter.set(value_name, time, init_value=0)
 		# min
