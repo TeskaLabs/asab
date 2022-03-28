@@ -361,5 +361,15 @@ class ConfigObjectDict(MutableMapping):
 		return utils.convert_to_seconds(value)
 
 
+	def getint(self, key):
+		value = self._data[key]
+		return int(value)
+
+
+	def getfloat(self, key):
+		value = self._data[key]
+		return float(value)
+
+
 	def __repr__(self):
 		return "<%s %r>" % (self.__class__.__name__, self._data)
