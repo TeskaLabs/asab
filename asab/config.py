@@ -352,7 +352,7 @@ class ConfigObjectDict(MutableMapping):
 		if isinstance(value, bool):
 			return value
 		if value.lower() not in configparser.ConfigParser.BOOLEAN_STATES:
-			raise ValueError('Not a boolean: %s' % value)
+			raise ValueError("Not a boolean: {}".format(value))
 		return configparser.ConfigParser.BOOLEAN_STATES[value.lower()]
 
 
