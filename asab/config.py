@@ -356,5 +356,10 @@ class ConfigObjectDict(MutableMapping):
 		return configparser.ConfigParser.BOOLEAN_STATES[value.lower()]
 
 
+	def getseconds(self, key):
+		value = self._data[key]
+		return utils.convert_to_seconds(value)
+
+
 	def __repr__(self):
 		return "<%s %r>" % (self.__class__.__name__, self._data)
