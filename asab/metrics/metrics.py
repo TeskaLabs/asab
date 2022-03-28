@@ -55,12 +55,13 @@ class Counter(Metric):
 
 	def add(self, name, value, init_value=None):
 		"""
-		Adds to the counter specified by `name` the `value`.
 		:param name: name of the counter
 		:param value: value to be added to the counter
 		:param init_value: init value, when the counter `name` is not yet set up (f. e. by init_values in the constructor)
-		If None, KeyError will be raised.
-		:return:
+
+		Adds to the counter specified by `name` the `value`.
+		If name is not in Counter Values, it will be added to Values.
+
 		"""
 
 		try:
@@ -72,12 +73,13 @@ class Counter(Metric):
 
 	def sub(self, name, value, init_value=None):
 		"""
-		Subtracts to the counter specified by `name` the `value`.
 		:param name: name of the counter
 		:param value: value to be subtracted from the counter
 		:param init_value: init value, when the counter `name` is not yet set up (f. e. by init_values in the constructor)
-		If None, KeyError will be raised.
-		:return:
+
+		Subtracts to the counter specified by `name` the `value`.
+		If name is not in Counter Values, it will be added to Values.
+
 		"""
 
 		try:
