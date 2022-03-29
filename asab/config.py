@@ -9,6 +9,8 @@ from urllib.parse import urlparse
 from collections.abc import MutableMapping
 import sys
 
+from . import utils
+
 
 L = logging.getLogger(__name__)
 
@@ -248,36 +250,7 @@ class ConfigParser(configparser.ConfigParser):
 		if fallback is None:
 			fallback = configparser._UNSET
 
-		return self._get_conv(section, option, self._convert_to_seconds, raw=raw, vars=vars, fallback=fallback, **kwargs)
-
-
-	def _convert_to_seconds(self, value):
-		value = value.replace(" ", "")
-
-		try:
-			# Second condition in each IF is for backward compatibility
-			if value.endswith("ms"):
-				value = float(value[:-2]) / 1000.0
-			elif value.endswith("y") or value.endswith("Y"):
-				value = float(value[:-1]) * 86400 * 365
-			elif value.endswith("M"):
-				value = float(value[:-1]) * 86400 * 31
-			elif value.endswith("w") or value.endswith("W"):
-				value = float(value[:-1]) * 86400 * 7
-			elif value.endswith("d") or value.endswith("D"):
-				value = float(value[:-1]) * 86400
-			elif value.endswith("h"):
-				value = float(value[:-1]) * 3600
-			elif value.endswith("m"):
-				value = float(value[:-1]) * 60
-			elif value.endswith("s"):
-				value = float(value[:-1])
-			else:
-				value = float(value)
-		except ValueError as e:
-			raise ValueError("Not a proper time specification for '{}' with exception '{}'.".format(value, e))
-
-		return value
+		return self._get_conv(section, option, utils.convert_to_seconds, raw=raw, vars=vars, fallback=fallback, **kwargs)
 
 
 class _Interpolation(configparser.ExtendedInterpolation):
@@ -379,8 +352,23 @@ class ConfigObjectDict(MutableMapping):
 		if isinstance(value, bool):
 			return value
 		if value.lower() not in configparser.ConfigParser.BOOLEAN_STATES:
-			raise ValueError('Not a boolean: %s' % value)
+			raise ValueError("Not a boolean: {}".format(value))
 		return configparser.ConfigParser.BOOLEAN_STATES[value.lower()]
+
+
+	def getseconds(self, key):
+		value = self._data[key]
+		return utils.convert_to_seconds(value)
+
+
+	def getint(self, key):
+		value = self._data[key]
+		return int(value)
+
+
+	def getfloat(self, key):
+		value = self._data[key]
+		return float(value)
 
 
 	def __repr__(self):
