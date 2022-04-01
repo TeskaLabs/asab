@@ -33,7 +33,11 @@ def create_manifest(args):
 	if gitr.returncode == 0:
 		manifest['version'] = gitr.stdout.decode('ascii').strip()
 	else:
-		print("FAILED: Command 'git' responded with {}\n{}\n{}".format(gitr.returncode, gitr.stdout, gitr.stderr))
+		print("FAILED: Command 'git' responded with {}\n{}\n{}".format(
+			gitr.returncode,
+			gitr.stdout.decode('ascii'),
+			gitr.stderr.decode('ascii')
+		))
 		sys.exit(1)
 
 	with open(args.manifest, "w") as f:
