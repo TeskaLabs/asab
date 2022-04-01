@@ -27,14 +27,17 @@ def create_manifest(args):
 	try:
 		gitr = subprocess.run(["git", "describe", "--abbrev=7", "--tags", "--dirty", "--always"], capture_output=True)
 	except FileNotFoundError:
-		gitr = None
 		print("FAILED: Command 'git' not found")
 		sys.exit(1)
 
-	if gitr is not None and gitr.returncode == 0:
+	if gitr.returncode == 0:
 		manifest['version'] = gitr.stdout.decode('ascii').strip()
 	else:
-		print("FAILED: Command 'git' responded with {}\n{}\n{}".format(gitr.returncode, gitr.stdout, gitr.strerr))
+		print("FAILED: Command 'git' responded with {}\n{}\n{}".format(
+			gitr.returncode,
+			gitr.stdout.decode('ascii'),
+			gitr.stderr.decode('ascii')
+		))
 		sys.exit(1)
 
 	with open(args.manifest, "w") as f:
