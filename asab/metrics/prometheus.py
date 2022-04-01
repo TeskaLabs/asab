@@ -23,6 +23,12 @@ class PrometheusTarget(asab.ConfigObject):
 			return text
 
 	def watch_table(self, request):
+		"""
+		Extension of Prometheus Target to list ASAB metrics in the command line.
+		Example commands:
+		watch curl localhost:8080/asab/v1/metrics/watch
+		watch curl localhost:8080/asab/v1/metrics/watch?agg=sum
+		"""
 		agg = request.query.get("agg")
 		lines = []
 		if self.mlist:
