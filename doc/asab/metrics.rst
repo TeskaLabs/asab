@@ -50,6 +50,98 @@ When using Prometheus, metrics name must fit regex ``[a-zA-Z:][a-zA-Z0-9_:]*`` .
 
 Reference
 =========
+
+Metrics types
+-------------
+
+Gauge
+------
+.. autoclass:: Gauge
+    :show-inheritance:
+
+    Values (their names and init_values) must be provided when initializing the metrics. 
+
+    :param str name: name of the metric
+    :param dict tags: provide "help" and "unit" metadata used by Prometheus database
+    :param dict init_values: dict of inital values with value names as keys
+
+    .. automethod:: add
+
+    :param name: name of the value
+    :param value: value itself (int/float)
+
+
+Counter
+-------
+
+.. autoclass:: Counter
+    :show-inheritance:
+
+    :param str name: name of the metric
+    :param dict tags: provide "help" and "unit" metadata used by Prometheus database
+    :param dict init_values: dict of inital values with value names as keys
+    :param bool reset: if True, Counter resets when flushed
+
+    Values (their names and init_values) can be provided when initializing the metrics or added with :func:`add` or :func:`sub` methods.
+
+
+    .. automethod:: add
+
+        :param name: name of the value
+        :param value: value itself (int/float)
+        :param init-value: initial value, required when the counter name is not yet set up (i. e. by init_values in the constructor)
+
+    .. automethod:: sub
+
+        :param value: value itself (int/float)
+        :param init-value: initial value, required when the counter name is not yet set up (i. e. by init_values in the constructor)
+
+
+
+EPSCounter
+----------
+.. autoclass:: EPSCounter
+    :show-inheritance:
+
+    Values (their names and init_values) can be provided when initializing the metrics or added with :func:`add` or :func:`sub` methods.
+
+    :param str name: name of the metric
+    :param dict tags: provide "help" and "unit" metadata used by Prometheus database
+    :param dict init_values: dict of inital values with value names as keys
+    :param bool reset: if True, Counter resets when flushed
+
+
+
+
+DutyCycle
+----------
+.. autoclass:: DutyCycle
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+AggregationCounter
+-------------------
+.. autoclass:: AggregationCounter
+    :show-inheritance:
+
+    Values (their names and init_values) can be provided when initializing the metrics or added with :func:`set` method.
+    :func:`add` and :func:`sub` methods are not implemented.
+
+    :param str name: name of the metric
+    :param dict tags: provide "help" and "unit" metadata used by Prometheus database
+    :param dict init_values: dictionary of metric value names and initial values
+    :param bool reset: if True, Counter resets when flushed
+    :param agg: aggregation function
+
+    .. automethod:: set
+
+        :param name: name of the value
+        :param value: value itself (int/float)
+        :param init-value: initial value, required when the counter name is not yet set up (i. e. by init_values in the constructor)
+
+
 Metric
 ------
 Abstract class
@@ -72,109 +164,6 @@ Abstract class
     .. automethod:: rest_get
 
         Returns dict with current metric state.
-
-
-Gauge
-------
-.. autoclass:: Gauge
-    :show-inheritance:
-
-    :param str name: name of the metric
-    :param dict tags: provide "help" and "unit" metadata used by Prometheus database
-    :param dict init_values: dict of inital values with value names as keys
-
-    Values (their names and init_values) must be provided when initializing the metrics. 
-
-    .. automethod:: flush
-
-        Returns dictionary of current values.
-
-    .. automethod:: get_open_metric
-
-        Returns current metric state in OpenMetric format.
-
-    .. automethod:: rest_get
-
-        Returns dictionary with current metric state.
-
-
-Counter
--------
-
-.. autoclass:: Counter
-    :show-inheritance:
-
-    :param str name: name of the metric
-    :param dict tags: provide "help" and "unit" metadata used by Prometheus database
-    :param dict init_values: dict of inital values with value names as keys
-    :param bool reset: if True, Counter resets when flushed
-
-    Values (their names and init_values) can be provided when initializing the metrics or added with :func:`add` or :func:`sub` methods.
-
-
-    .. automethod:: add
-
-    .. automethod:: sub
-
-    .. automethod:: flush
-
-        Resets Counter if reset is True.
-        Returns dictionary of current Values.
-
-    .. automethod:: rest_get
-
-        Returns dictionary with current metric state.
-
-    .. automethod:: get_open_metric
-
-
-EPSCounter
-----------
-.. autoclass:: EPSCounter
-    :show-inheritance:
-
-    :param str name: name of the metric
-    :param dict tags: provide "help" and "unit" metadata used by Prometheus database
-    :param dict init_values: dict of inital values with value names as keys
-    :param bool reset: if True, Counter resets when flushed
-
-    Values (their names and init_values) can be provided when initializing the metrics or added with :func:`add` or :func:`sub` methods.
-
-    .. automethod:: flush
-
-        Resets Counter if reset is True.
-        Returns dictionary of current Values.
-
-
-DutyCycle
-----------
-.. autoclass:: DutyCycle
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-AggregationCounter
--------------------
-.. autoclass:: AggregationCounter
-    :show-inheritance:
-
-    Values (their names and init_values) can be provided when initializing the metrics or added with :func:`set` method.
-    :func:`add` and :func:`sub` methods are not implemented.
-
-    :param str name: name of the metric
-    :param dict tags: provide "help" and "unit" metadata used by Prometheus database
-    :param dict init_values:
-    :param bool reset: if True, Counter resets when flushed
-    :param agg: aggregation function 
-
-    .. automethod:: set
-
-        :param name: name of the value
-        :param value: value itself (int/float)
-        :param init-value: initial value, required when the counter name is not yet set up (f. e. by init_values in the constructor)
-
-
 
 
 
