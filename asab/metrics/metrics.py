@@ -18,7 +18,7 @@ class Metric(abc.ABC):
 	def get_open_metric(self) -> str:
 		pass
 
-	def rest_get(self):
+	def rest_get(self) -> dict:
 		return {
 			'Name': self.Name,
 			'Tags': self.Tags,
