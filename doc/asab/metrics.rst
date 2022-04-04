@@ -139,6 +139,7 @@ Web Requests Metrics
 --------------------
 There are default metrics in ASAB framework. :class:`WebService` class automatically provides with metrics counting web requests. 
 There are 4 Counters quantifying requests to all ASAB endpoints. 
+
 - `web_requests` - Counts requests to asab endpoints as events per minute.
 - `web_requests_duration` - Counts total requests duration to asab endpoints per minute.
 - `web_requests_duration_min` - Counts minimal request duration to asab endpoints per minute.
