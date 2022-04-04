@@ -2,7 +2,6 @@ import json
 import asyncio
 import logging
 import asab.zookeeper.builder
-import aiozk.exc
 
 from ..config import ConfigObject
 
@@ -36,7 +35,7 @@ class ZooKeeperContainer(ConfigObject):
 
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
-		await self.ZooKeeper.ensure_path(self.ZooKeeperPath)
+		await self.ZooKeeper.ensure_path(self.ZooKeeperPath + "/run")
 
 		self.App.PubSub.subscribe("Application.tick/300!", self._do_advertise)
 		self.App.PubSub.subscribe("ZooKeeper.advertise!", self._do_advertise)
@@ -95,19 +94,9 @@ class ZooKeeperAdvertisement(object):
 				await zoocontainer.ZooKeeper.set_data(self.Node, self.Data)
 				return
 
-			try:
-				self.Node = await zoocontainer.ZooKeeper.create(
-					self.Path,
-					data=self.Data,
-					sequential=True,
-					ephemeral=True
-				)
-			except aiozk.exc.NoNode:
-				missing_node = self.Path.rstrip(self.Path.split("/")[-1])
-				await zoocontainer.ZooKeeper.create(missing_node)
-				self.Node = await zoocontainer.ZooKeeper.create(
-					self.Path,
-					data=self.Data,
-					sequential=True,
-					ephemeral=True
-				)
+			self.Node = await zoocontainer.ZooKeeper.create(
+				self.Path,
+				data=self.Data,
+				sequential=True,
+				ephemeral=True
+			)
