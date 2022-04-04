@@ -214,8 +214,8 @@ class DutyCycle(Metric):
 class AggregationCounter(Counter):
 	'''
 	Takes a function object as the agg argument.
-	The aggregation function can take two arguments only - previous value and the new value to be set.
-	Maximum is used as default aggregation.
+	The aggregation function can take two arguments only.
+	Maximum is used as a default aggregation function.
 	'''
 	def __init__(self, name, tags, init_values=None, reset: bool = True, agg=max):
 		super().__init__(name=name, tags=tags, init_values=init_values, reset=reset)
@@ -230,7 +230,7 @@ class AggregationCounter(Counter):
 			self.Values[name] = self.Agg(value, init_value)
 
 	def add(self, name, value, init_value=None):
-		raise NotImplementedError("Do not use add() method with ExtremeCounter. Use set() instead.")
+		raise NotImplementedError("Do not use add() method with AggregationCounter. Use set() instead.")
 
 	def sub(self, name, value, init_value=None):
-		raise NotImplementedError("Do not use sub() method with ExtremeCounter. Use set() instead.")
+		raise NotImplementedError("Do not use sub() method with AggregationCounter. Use set() instead.")
