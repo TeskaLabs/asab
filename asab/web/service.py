@@ -51,6 +51,14 @@ class WebService(asab.Service):
 				"help": "Counts total requests duration to asab endpoints per minute.",
 			},
 		)
+		self.DurationHistogram = self.MetricsService.create_histogram(
+			"web_requests_duration_hist",
+			buckets=[0.0001, 0.0005, 0.001, 0.005, 0.01, 0.1, 1, 10],
+			tags={
+				"unit": "seconds",
+				"help": "Categorizes requests based on their duration.",
+			},
+		)
 
 
 	def _register_container(self, container, config_section_name):

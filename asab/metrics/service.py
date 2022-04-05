@@ -4,7 +4,7 @@ import asyncio
 
 import asab
 
-from .metrics import Metric, Counter, EPSCounter, Gauge, DutyCycle, AggregationCounter
+from .metrics import Metric, Counter, EPSCounter, Gauge, DutyCycle, AggregationCounter, Histogram
 from .memstor import MetricsMemstorTarget
 
 
@@ -36,7 +36,7 @@ class MetricsService(asab.Service):
 
 		self.PrometheusTarget = None
 
-		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
+		app.PubSub.subscribe("Application.tick/10!", self._on_flushing_event)
 
 		for target in asab.Config.get('asab:metrics', 'target').strip().split():
 			try:
@@ -206,5 +206,20 @@ class MetricsService(asab.Service):
 			t = self.Tags
 
 		m = AggregationCounter(metric_name, tags=t, init_values=init_values, reset=reset, agg=agg)
+		self._add_metric(dimension, m)
+		return m
+
+	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True):
+		dimension = metric_dimension(metric_name, tags)
+		if dimension in self.Metrics:
+			raise RuntimeError("Metric '{}' already present".format(dimension))
+
+		if tags is not None:
+			t = self.Tags.copy()
+			t.update(tags)
+		else:
+			t = self.Tags
+
+		m = Histogram(metric_name, buckets=buckets, tags=t, reset=reset)
 		self._add_metric(dimension, m)
 		return m

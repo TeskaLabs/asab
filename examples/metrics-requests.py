@@ -34,7 +34,13 @@ class MyApplication(asab.Application):
 listen=0.0.0.0 8089
 
 [asab:metrics]
-target=prometheus
+target=prometheus influxdb
+
+[asab:metrics:influxdb]
+url=http://localhost:8086
+username=test
+password=testtest
+db=test
 
 [asab:metrics:prometheus]
 		"""
