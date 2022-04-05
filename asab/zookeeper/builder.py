@@ -60,5 +60,5 @@ def build_client(Config, z_url):
 				url_path = url_path.strip("/")
 
 	# Create and return the client and the url-path
-	client = aiozk.ZKClient(url_netloc,session_timeout=900, read_timeout=900)
+	client = aiozk.ZKClient(url_netloc, session_timeout=900, read_timeout=900)
 	return client, url_path
