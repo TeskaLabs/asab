@@ -21,22 +21,23 @@ def influxdb_format(now, mlist):
 
 		field_set = []
 		for fk, fv in values.items():
-			if isinstance(fv, int):
-				field_set.append("{}={}i".format(fk, fv))
+			if isinstance(fk, tuple):
+				field_set.append("," + ",".join(['{}={}'.format(k.replace(" ", "_"), v.replace(" ", "_")) for k, v in fk._asdict().items()]) + " {}={}".format(name, fv))
+			elif isinstance(fv, int):
+				field_set.append(" {}={}i".format(fk, fv))
 			elif isinstance(fv, float):
-				field_set.append("{}={}".format(fk, fv))
+				field_set.append(" {}={}".format(fk, fv))
 			elif isinstance(fv, str):
-				field_set.append('{}="{}"'.format(fk, fv.replace('"', r'\"')))
+				field_set.append(' {}="{}"'.format(fk, fv.replace('"', r'\"')))
 			elif isinstance(fv, bool):
-				field_set.append("{}={}".format(fk, 't' if fv else 'f'))
+				field_set.append(" {}={}".format(fk, 't' if fv else 'f'))
 			else:
-				raise RuntimeError("Unknown/invalud type of the metrics field: {} {}".format(type(fv), fk))
+				raise RuntimeError("Unknown/invalid type of the metrics field: {} {}".format(type(fv), fk))
 
 		for tk, tv in metric.Tags.items():
-			name += ',{}={}'.format(tk, tv)
+			name += ',{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_"))
 
-		rb += "{} {} {}\n".format(name, ','.join(field_set), int(now * 1e9))
-
+		rb += "{}{} {}\n".format(name, ','.join(field_set), int(now * 1e9))
 	return rb
 
 
