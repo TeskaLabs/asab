@@ -3,15 +3,15 @@
 Metrics service
 ===============
 Metrics document state of the application in a timescale manner. 
-For further analysis, connect your ASAB application with a time-series database. ASAB supports Influx and Prometheus databases.
+For further analysis, connect your ASAB application to a time-series database. ASAB supports Influx and Prometheus databases.
 Default ASAB metrics counting web requests are provided together with :class:`WebService`.
 
 
 MetricsService
 --------------
-Create new metrics using MetricsService. 
+Create new metrics using :class:`MetricsService`. 
 
-Example of new counter initialization:
+Example of counter initialization:
 
 .. code:: python 
 
@@ -34,10 +34,10 @@ Metrics
 -------------
 
 - :class:`Gauge` stores single numerical values which can go up and down. Implements :func:`set` method to set the metric values.
-- :class:`Counter` is a cumulative metric whose values can increase or decrease. Implements :func:`add` and :func:`sub` to add or substract from metric values.
+- :class:`Counter` is a cumulative metric whose values can increase or decrease. Implements :func:`add` and :func:`sub` methods.
 - Event per Second Counter (:class:`EPSCounter`) divides all values by delta time. 
 - :class:`DutyCycle` https://en.wikipedia.org/wiki/Duty_cycle
-- :class:`AggregationCounter` allows to set new value based on aggregation function. :func:`max` function is default. Implements :func:`set`.
+- :class:`AggregationCounter` allows to :func:`set` values based on an aggregation function. :func:`max` function is default.
 
 All metrics types inherit from :class:`Metric` class.
 
@@ -58,7 +58,7 @@ Influx
 ------
 Metrics can be collected in Influx time-series database.
 
-Example of your ASAB application configuration to enable Influx connection. Provide your Influx database url and database name. 
+Example of your ASAB application configuration enabeling Influx connection.
 
 .. code:: ini
 
@@ -189,7 +189,7 @@ Gauge
     .. automethod:: set
 
     :param name: name of the value
-    :param value: value itself (int/float)
+    :param value: value itself
 
 
 Counter
@@ -199,7 +199,7 @@ Counter
     :show-inheritance:
 
     Initial values (`init_values` - dictionary of inital values with value names as keys) can be provided when initializing the metrics or added with :func:`add` or :func:`sub` methods.
-    If reset is True, Counter resets when flushed. 
+    If reset is True, Counter resets every 60 seconds. 
 
     .. automethod:: add
 
@@ -233,7 +233,7 @@ AggregationCounter
     Applies aggregation function on recent Counter value and value in argument and sets the result as new value of the Counter.
 
     :param str name: name of the value
-    :param int value: value itself (int/float)
+    :param int value: value itself
     :param dict init-value: initial value, required when the counter name is not yet set up (i. e. by init_values in the constructor)
 
 
@@ -245,7 +245,7 @@ Metric
     :show-inheritance:
 
     :param str name: name of the metric
-    :param dict tags: "host" tag is provided at default. "help" and "unit" tags are used as metadata by Prometheus database
+    :param dict tags: "host" tag is provided by default. "help" and "unit" tags are used as metadata by Prometheus database
         
     .. automethod:: flush
 
