@@ -105,7 +105,6 @@ def metric_to_text(metric, type, values=None):
 		count = str(values.get("values").pop("count"))
 		buckets = values.get("values")
 		for upper_bound, bucket in buckets.items():
-			print(upper_bound, bucket)
 			for v_name, value in bucket.items():
 				labels_dict["le"] = str(upper_bound)
 				labels_str = get_value_labels(labels_dict, str(v_name))
