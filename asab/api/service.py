@@ -135,6 +135,9 @@ class ApiService(asab.Service):
 
 		# get zookeeper-service
 		self.ZkContainer = zoocontainer
+		taskservice = self.App.get_service("asab.TaskService")
+		zookeeperpath = asab.Config.get("asab:zookeeper", "path")
+		taskservice.schedule(self.ZkContainer.ZooKeeper.ensure_path(zookeeperpath + "/run"))
 		self.ZkContainer.advertise(
 			data=self._build_zookeeper_adv_data(),
 			path="/run/{}.".format(self.App.__class__.__name__),

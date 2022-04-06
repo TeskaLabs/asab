@@ -35,7 +35,7 @@ class ZooKeeperContainer(ConfigObject):
 
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
-		await self.ZooKeeper.ensure_path(self.ZooKeeperPath + "/run")
+		await self.ZooKeeper.ensure_path(self.ZooKeeperPath)
 
 		self.App.PubSub.subscribe("Application.tick/300!", self._do_advertise)
 		self.App.PubSub.subscribe("ZooKeeper.advertise!", self._do_advertise)
