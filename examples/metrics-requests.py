@@ -1,4 +1,5 @@
 import logging
+import time
 
 import asab
 import asab.web
@@ -93,6 +94,7 @@ db=test
 	)
 	async def get_dolphin(self, request, *, json_data):
 		message = "Hi, I am dolphin {} and I like {}!".format(json_data.get("name"), json_data.get("favourite_food"))
+		time.sleep(0.05)
 		return asab.web.rest.json_response(request=request, data={"message": message})
 
 

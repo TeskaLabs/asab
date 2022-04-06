@@ -14,7 +14,7 @@ class PrometheusTarget(asab.ConfigObject):
 		if self.mlist:
 			lines = []
 			for metric, values in self.mlist:
-				kwargs = {"values": values}
+				kwargs = {"values": values.copy()}
 				record = metric.get_open_metric(**kwargs)
 				if record:
 					lines.append(record)

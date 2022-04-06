@@ -3,6 +3,7 @@ import copy
 import abc
 import time
 from .openmetric import metric_to_text
+from .influxdb import metric_to_influxdb
 
 
 class Metric(abc.ABC):
@@ -18,6 +19,10 @@ class Metric(abc.ABC):
 
 	@abc.abstractmethod
 	def get_open_metric(self) -> str:
+		pass
+
+	@abc.abstractmethod
+	def get_influxdb_format(self) -> str:
 		pass
 
 	def rest_get(self):
@@ -46,6 +51,10 @@ class Gauge(Metric):
 
 	def get_open_metric(self, **kwargs):
 		return metric_to_text(self.rest_get(), "gauge")
+
+	def get_influxdb_format(self, values, now):
+		return metric_to_influxdb(self, values, now, "gauge")
+
 
 
 class Counter(Metric):
@@ -105,6 +114,10 @@ class Counter(Metric):
 			return metric_to_text(self.rest_get(), "gauge", kwargs["values"])
 		else:
 			return metric_to_text(self.rest_get(), "counter")
+
+
+	def get_influxdb_format(self, values, now):
+		return metric_to_influxdb(self, values, now, "counter")
 
 
 class EPSCounter(Counter):
@@ -210,6 +223,9 @@ class DutyCycle(Metric):
 	def get_open_metric(self, **kwargs):
 		return None
 
+	def get_influxdb_format(self, values, now):
+		return None
+
 
 class AggregationCounter(Counter):
 	'''
@@ -237,6 +253,9 @@ class AggregationCounter(Counter):
 
 
 class Histogram(Metric):
+	"""
+	Creates cumulative histograms.
+	"""
 	def __init__(self, name, buckets: list, tags, reset=True):
 		super().__init__(name=name, tags=tags)
 		self.Reset = reset
@@ -271,9 +290,6 @@ class Histogram(Metric):
 		rest["Count"] = self.Count
 		return rest
 
-	def get_open_metric(self, **kwargs):
-		return metric_to_text(self.rest_get(), "histogram", values=kwargs)
-
 	def set(self, value_name, value):
 		for upper_bound in self.Buckets:
 			if value <= upper_bound:
@@ -283,3 +299,9 @@ class Histogram(Metric):
 					self.Buckets[upper_bound][value_name] += 1
 		self.Sum += value
 		self.Count += 1
+
+	def get_open_metric(self, **kwargs):
+		return metric_to_text(self.rest_get(), "histogram", values=kwargs)
+
+	def get_influxdb_format(self, values, now):
+		return metric_to_influxdb(self, values, now, "histogram")
