@@ -18,6 +18,7 @@
 
    asab/web/index
    asab/web/authn
+   asab/web/cors
    asab/mom/index
    asab/metrics
 
