@@ -13,30 +13,61 @@ L = logging.getLogger(__name__)
 #
 
 
+
+def get_field(fk, fv):
+	if isinstance(fv, bool):
+		field = "{}={}".format(fk, 't' if fv else 'f')
+	elif isinstance(fv, int):
+		field = "{}={}i".format(fk, fv)
+	elif isinstance(fv, float):
+		field = "{}={}".format(fk, fv)
+	elif isinstance(fv, str):
+		field = '{}="{}"'.format(fk, fv.replace('"', r'\"'))
+	else:
+		raise RuntimeError("Unknown/invalid type of the metrics field: {} {}".format(type(fv), fk))
+
+	return field
+
+
+def metric_to_influxdb(metric, values, now, type: str):
+	name = metric.Name
+
+	if type == "histogram":
+		L.warning("Histogram not yet implemented.")
+		influxdb_format = ""
+
+	else:
+		if all([isinstance(fk, tuple) for fk in values.keys()]):
+			field_set = []
+			for fk, fv in values.items():
+				tags = "," + ",".join(['{}={}'.format(k.replace(" ", "_"), v.replace(" ", "_")) for k, v in fk._asdict().items()])
+				field = get_field(name, fv)
+				field_set.append(tags + " " + field)
+			for tk, tv in metric.Tags.items():
+				name += ',{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_"))
+
+			influxdb_format = "".join(["{}{} {}\n".format(name, field, int(now * 1e9)) for field in field_set])
+
+		elif all([isinstance(fk, (str, int, float)) for fk in values.keys()]):
+			field_set = []
+			for fk, fv in values.items():
+				field_set.append(get_field(fk, fv))
+			for tk, tv in metric.Tags.items():
+				name += ',{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_"))
+
+			influxdb_format = "{} {} {}\n".format(name, ', '.join(field_set), int(now * 1e9))
+
+		else:
+			raise RuntimeError("Unknown/invalid types of the metric {} value names: {}".format(name, [type(fk) for fk in values.keys()]))
+
+	return influxdb_format
+
+
 def influxdb_format(now, mlist):
 	# CAREFUL: This function is used also in asab.logman.metrics
 	rb = ""
 	for metric, values in mlist:
-		name = metric.Name
-
-		field_set = []
-		for fk, fv in values.items():
-			if isinstance(fv, int):
-				field_set.append("{}={}i".format(fk, fv))
-			elif isinstance(fv, float):
-				field_set.append("{}={}".format(fk, fv))
-			elif isinstance(fv, str):
-				field_set.append('{}="{}"'.format(fk, fv.replace('"', r'\"')))
-			elif isinstance(fv, bool):
-				field_set.append("{}={}".format(fk, 't' if fv else 'f'))
-			else:
-				raise RuntimeError("Unknown/invalud type of the metrics field: {} {}".format(type(fv), fk))
-
-		for tk, tv in metric.Tags.items():
-			name += ',{}={}'.format(tk, tv)
-
-		rb += "{} {} {}\n".format(name, ','.join(field_set), int(now * 1e9))
-
+		rb += metric.get_influxdb_format(values, now)
 	return rb
 
 

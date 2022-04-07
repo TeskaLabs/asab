@@ -1,4 +1,5 @@
 import logging
+import time
 
 import asab
 import asab.web
@@ -34,7 +35,13 @@ class MyApplication(asab.Application):
 listen=0.0.0.0 8089
 
 [asab:metrics]
-target=prometheus
+target=prometheus influxdb
+
+[asab:metrics:influxdb]
+url=http://localhost:8086
+username=test
+password=testtest
+db=test
 
 [asab:metrics:prometheus]
 		"""
@@ -87,6 +94,7 @@ target=prometheus
 	)
 	async def get_dolphin(self, request, *, json_data):
 		message = "Hi, I am dolphin {} and I like {}!".format(json_data.get("name"), json_data.get("favourite_food"))
+		time.sleep(0.05)
 		return asab.web.rest.json_response(request=request, data={"message": message})
 
 

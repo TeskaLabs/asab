@@ -56,3 +56,5 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 		self.WebService.RequestCounter.add(value_name, 1, init_value=0)
 		# total duration
 		self.WebService.DurationCounter.add(value_name, time, init_value=0)
+		# counts in buckets
+		self.WebService.DurationHistogram.set(value_name, time)

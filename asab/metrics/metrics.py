@@ -1,6 +1,9 @@
+from collections import OrderedDict
+import copy
 import abc
 import time
 from .openmetric import metric_to_text
+from .influxdb import metric_to_influxdb
 
 
 class Metric(abc.ABC):
@@ -16,6 +19,10 @@ class Metric(abc.ABC):
 
 	@abc.abstractmethod
 	def get_open_metric(self) -> str:
+		pass
+
+	@abc.abstractmethod
+	def get_influxdb_format(self) -> str:
 		pass
 
 	def rest_get(self) -> dict:
@@ -44,6 +51,10 @@ class Gauge(Metric):
 
 	def get_open_metric(self, **kwargs):
 		return metric_to_text(self.rest_get(), "gauge")
+
+	def get_influxdb_format(self, values, now):
+		return metric_to_influxdb(self, values, now, "gauge")
+
 
 
 class Counter(Metric):
@@ -105,6 +116,10 @@ class Counter(Metric):
 			return metric_to_text(self.rest_get(), "gauge", kwargs["values"])
 		else:
 			return metric_to_text(self.rest_get(), "counter")
+
+
+	def get_influxdb_format(self, values, now):
+		return metric_to_influxdb(self, values, now, "counter")
 
 
 class EPSCounter(Counter):
@@ -210,6 +225,9 @@ class DutyCycle(Metric):
 	def get_open_metric(self, **kwargs):
 		return None
 
+	def get_influxdb_format(self, values, now):
+		return None
+
 
 class AggregationCounter(Counter):
 	'''
@@ -234,3 +252,58 @@ class AggregationCounter(Counter):
 
 	def sub(self, name, value, init_value=None):
 		raise NotImplementedError("Do not use sub() method with AggregationCounter. Use set() instead.")
+
+
+class Histogram(Metric):
+	"""
+	Creates cumulative histograms.
+	"""
+	def __init__(self, name, buckets: list, tags, reset=True):
+		super().__init__(name=name, tags=tags)
+		self.Reset = reset
+		_buckets = [float(b) for b in buckets]
+
+		if _buckets != sorted(buckets):
+			raise ValueError("Buckets not in sorted order")
+
+		if _buckets and _buckets[-1] != float("inf"):
+			_buckets.append(float("inf"))
+
+		if len(_buckets) < 2:
+			raise ValueError("Must have at least two buckets")
+
+		self.InitBuckets = OrderedDict([(b, dict()) for b in _buckets])
+		self.Buckets = copy.deepcopy(self.InitBuckets)
+		self.Count = 0
+		self.Sum = 0.0
+
+	def flush(self):
+		ret = {**self.Buckets, "sum": self.Sum, "count": self.Count}
+		if self.Reset:
+			self.Buckets = copy.deepcopy(self.InitBuckets)
+			self.Count = 0
+			self.Sum = 0.0
+		return ret
+
+	def rest_get(self):
+		rest = super().rest_get()
+		rest["Values"] = self.Buckets
+		rest["Sum"] = self.Sum
+		rest["Count"] = self.Count
+		return rest
+
+	def set(self, value_name, value):
+		for upper_bound in self.Buckets:
+			if value <= upper_bound:
+				if self.Buckets[upper_bound].get(value_name) is None:
+					self.Buckets[upper_bound][value_name] = 1
+				else:
+					self.Buckets[upper_bound][value_name] += 1
+		self.Sum += value
+		self.Count += 1
+
+	def get_open_metric(self, **kwargs):
+		return metric_to_text(self.rest_get(), "histogram", values=kwargs)
+
+	def get_influxdb_format(self, values, now):
+		return metric_to_influxdb(self, values, now, "histogram")

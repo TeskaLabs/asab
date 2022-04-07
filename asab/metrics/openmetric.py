@@ -99,13 +99,27 @@ def metric_to_text(metric, type, values=None):
 	else:
 		values_items = metric.get("Values").items()
 	metric_lines.append(translate_metadata(name, type, unit, help))
-	for v_name, value in values_items:
-		if validate_value(value) is False:
-			# L.warning("Invalid OpenMetrics format in {} {}. Value must be float or integer. {} omitted.".format(m_name, type, v_name))
-			continue
-		else:
-			labels_str = get_value_labels(labels_dict, str(v_name))
-			metric_lines.append(translate_metric(type, name, labels_str, value))
+
+	if type == "histogram":
+		sum = str(values.get("values").pop("sum"))
+		count = str(values.get("values").pop("count"))
+		buckets = values.get("values")
+		for upper_bound, bucket in buckets.items():
+			for v_name, value in bucket.items():
+				labels_dict["le"] = str(upper_bound)
+				labels_str = get_value_labels(labels_dict, str(v_name))
+				line = "{}{}{} {}".format(m_name, "_bucket", labels_str, value)
+				metric_lines.append(line)
+		metric_lines.append("{}{} {}".format(m_name, "_count", count))
+		metric_lines.append("{}{} {}".format(m_name, "_sum", sum))
+
+	else:
+		for v_name, value in values_items:
+			if validate_value(value) is False:
+				continue
+			else:
+				labels_str = get_value_labels(labels_dict, str(v_name))
+				metric_lines.append(translate_metric(type, name, labels_str, value))
 
 	metric_text = "\n".join(metric_lines)
 	return metric_text
