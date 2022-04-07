@@ -8,7 +8,9 @@ import asab.web
 class MyApplication(asab.Application):
 	"""
 	Listens on localhost:8080
+	Talks to websocket client
 	"""
+
 	def __init__(self):
 		super().__init__()
 
@@ -19,7 +21,7 @@ class MyApplication(asab.Application):
 
 		# Create remote connection endpoint
 		web_app = self.WebContainer.WebApp
-		web_app.router.add_get('/rc', self.rc)
+		web_app.router.add_get("/rc", self.rc)
 
 		# To store future websocket connection
 		self.WS = None
@@ -28,16 +30,20 @@ class MyApplication(asab.Application):
 		self.PubSub.subscribe("Application.tick/10!", self._on_tick)
 
 
-	# Ensure that websocket gets closed in Application exit time
 	async def finalize(self):
+		"""
+		Ensures that websocket gets closed in Application exit time
+		"""
 		if self.WS is not None:
 			print("\N{PRINCESS} closing websocket connection...")
 			await self.WS.send_str("Goodbye!")
 			await self.WS.close()
 
 
-	# Create websocket connection and waits for incoming messages
 	async def rc(self, request):
+		"""
+		Creates websocket connection and waits for incoming messages
+		"""
 		self.WS = aiohttp.web.WebSocketResponse()
 		await self.WS.prepare(request)
 
@@ -46,11 +52,27 @@ class MyApplication(asab.Application):
 			await self.WS.send_str("I got your message :)")
 
 
-	# Chat with client
 	async def _on_tick(self, message_type):
-		messages = ["Hi again!", "Server here!", "Next message in 10 seconds!", "I am a talkative server!", "I love to talk!", "Hi!", ":)"]
+		"""
+		Chats with client
+		"""
+		messages = [
+			"Hi, who's there?",
+			"How much is 5 + 2 ?",
+			"Next message in 10 seconds!",
+			"I am a talkative server!",
+			"I love to talk!",
+			"Hi!",
+			"I'm tired. Get off!",
+		]
 		if self.WS is not None:
+			try:
+				await self.WS.ping()
+			except (ConnectionResetError, RuntimeError):
+				print("Connection in dead :(")
+				return
 			await self.WS.send_str(random.choice(messages))
+
 
 
 if __name__ == "__main__":
