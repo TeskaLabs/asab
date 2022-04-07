@@ -25,7 +25,7 @@ class Metric(abc.ABC):
 	def get_influxdb_format(self) -> str:
 		pass
 
-	def rest_get(self):
+	def rest_get(self) -> dict:
 		return {
 			'Name': self.Name,
 			'Tags': self.Tags,
@@ -66,12 +66,13 @@ class Counter(Metric):
 
 	def add(self, name, value, init_value=None):
 		"""
-		Adds to the counter specified by `name` the `value`.
 		:param name: name of the counter
 		:param value: value to be added to the counter
 		:param init_value: init value, when the counter `name` is not yet set up (f. e. by init_values in the constructor)
-		If None, KeyError will be raised.
-		:return:
+
+		Adds to the counter specified by `name` the `value`.
+		If name is not in Counter Values, it will be added to Values.
+
 		"""
 
 		try:
@@ -83,12 +84,13 @@ class Counter(Metric):
 
 	def sub(self, name, value, init_value=None):
 		"""
-		Subtracts to the counter specified by `name` the `value`.
 		:param name: name of the counter
 		:param value: value to be subtracted from the counter
 		:param init_value: init value, when the counter `name` is not yet set up (f. e. by init_values in the constructor)
-		If None, KeyError will be raised.
-		:return:
+
+		Subtracts to the counter specified by `name` the `value`.
+		If name is not in Counter Values, it will be added to Values.
+
 		"""
 
 		try:
@@ -230,8 +232,8 @@ class DutyCycle(Metric):
 class AggregationCounter(Counter):
 	'''
 	Takes a function object as the agg argument.
-	The aggregation function can take two arguments only - previous value and the new value to be set.
-	Maximum is used as default aggregation.
+	The aggregation function can take two arguments only.
+	Maximum is used as a default aggregation function.
 	'''
 	def __init__(self, name, tags, init_values=None, reset: bool = True, agg=max):
 		super().__init__(name=name, tags=tags, init_values=init_values, reset=reset)
@@ -246,10 +248,10 @@ class AggregationCounter(Counter):
 			self.Values[name] = self.Agg(value, init_value)
 
 	def add(self, name, value, init_value=None):
-		raise NotImplementedError("Do not use add() method with ExtremeCounter. Use set() instead.")
+		raise NotImplementedError("Do not use add() method with AggregationCounter. Use set() instead.")
 
 	def sub(self, name, value, init_value=None):
-		raise NotImplementedError("Do not use sub() method with ExtremeCounter. Use set() instead.")
+		raise NotImplementedError("Do not use sub() method with AggregationCounter. Use set() instead.")
 
 
 class Histogram(Metric):
