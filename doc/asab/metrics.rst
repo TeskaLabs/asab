@@ -122,21 +122,23 @@ Example of ``prometheus.yaml`` configuration file:
       - targets: ['127.0.0.1:8080']
 
 
-.. note:: 
-    **ASAB Metrics Interpretation**
 
-    To understand better how to interpret the ASAB metrics, you need to know a little bit more about the role of Metrics Service. 
-    Not only it creates new metrics, but Metrics Service also periodically collects their values and sends them to selected databases. 
-    Every 60 seconds in the application lifetime, Metrics Service gathers values of all ASAB metrics using :func:`flush` method implemented by each metric object.
-    All Counters (and metric types that inherit from :class:`Counter`) reset at this event to their initial values by default.
-    Interpretation of ASAB Counters is affected by their resetable nature. Even though they monotonously increase, reseting every minute gives them different meaning.
-    In a long term observation (that's how you most probably monitor the metric in time-series databases), these metrics count **events per minute**. 
-    Thus, resetable Counters are presented to Prometheus database as gauge type metrics. Set the `reset` argument to `False` when creating new Counter to disable Counter reseting.
-    This periodic "flush" cycle also causes 60s delay of metric propagation into supported time-series databases.
+ASAB Metrics Interpretation
+--------------------
+
+To understand better how to interpret the ASAB metrics, you need to know a little bit more about the role of Metrics Service. 
+Not only it creates new metrics, but Metrics Service also periodically collects their values and sends them to selected databases. 
+Every 60 seconds in the application lifetime, Metrics Service gathers values of all ASAB metrics using :func:`flush` method implemented by each metric object.
+All Counters (and metric types that inherit from :class:`Counter`) reset at this event to their initial values by default.
+Interpretation of ASAB Counters is affected by their resetable nature. Even though they monotonously increase, reseting every minute gives them different meaning.
+In a long term observation (that's how you most probably monitor the metric in time-series databases), these metrics count **events per minute**. 
+Thus, resetable Counters are presented to Prometheus database as gauge type metrics. Set the `reset` argument to `False` when creating new Counter to disable Counter reseting.
+This periodic "flush" cycle also causes 60s delay of metric propagation into supported time-series databases.
 
 
 Web Requests Metrics
 --------------------
+
 There are default metrics in ASAB framework. :class:`WebService` class automatically provides with metrics counting web requests. 
 There are 4 Counters quantifying requests to all ASAB endpoints. 
 
@@ -146,11 +148,9 @@ There are 4 Counters quantifying requests to all ASAB endpoints.
 - `web_requests_duration_max` - Counts maximum request duration to asab endpoints per minute.
 
 
-Reference
-=========
+MetricsService
+--------------
 
-Metrics Service
----------------
 .. autoclass:: MetricsService
     :show-inheritance:
 
@@ -176,8 +176,8 @@ Metrics Service
 
 
 
-**Metrics**
------------
+Metrics
+-------
 
 Gauge
 ------
