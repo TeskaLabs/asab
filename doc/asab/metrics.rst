@@ -3,12 +3,13 @@
 Metrics service
 ===============
 Metrics document state of the application in a timescale manner. 
-For further analysis, connect your ASAB application to a time-series database. ASAB supports Influx and Prometheus databases.
-Default ASAB metrics counting web requests are provided together with :class:`WebService`.
+For further analysis, connect your ASAB application to a time-series database.
+ASAB could feed metrica into InfluxDB and Prometheus.
 
 
-MetricsService
---------------
+Use of a Metrics Service
+------------------------
+
 Create new metrics using :class:`MetricsService`. 
 
 Example of counter initialization:
@@ -30,8 +31,8 @@ See full example here: https://github.com/TeskaLabs/asab/blob/master/examples/me
 
 
 
-Metrics
--------------
+Lisf of Metrics
+---------------
 
 - :class:`Gauge` stores single numerical values which can go up and down. Implements :func:`set` method to set the metric values.
 - :class:`Counter` is a cumulative metric whose values can increase or decrease. Implements :func:`add` and :func:`sub` methods.
@@ -54,8 +55,8 @@ In order to enable this, enter following lines in the configuration:
     levels=
        asab.metrics INFO
 
-Influx
-------
+InfluxDB
+--------
 Metrics can be collected in Influx time-series database.
 
 Example of your ASAB application configuration enabeling Influx connection.
@@ -124,7 +125,7 @@ Example of ``prometheus.yaml`` configuration file:
 
 
 ASAB Metrics Interpretation
---------------------
+----------------------------
 
 To understand better how to interpret the ASAB metrics, you need to know a little bit more about the role of Metrics Service. 
 Not only it creates new metrics, but Metrics Service also periodically collects their values and sends them to selected databases. 
@@ -258,10 +259,4 @@ Metric
     .. automethod:: rest_get
 
         Provides information about current metric state.
-
-
-
-
-
-
 
