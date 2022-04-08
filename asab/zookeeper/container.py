@@ -94,10 +94,16 @@ class ZooKeeperAdvertisement(object):
 				await zoocontainer.ZooKeeper.set_data(self.Node, self.Data)
 				return
 
-			await zoocontainer.ZooKeeper.ensure_path(self.Path.rstrip(self.Path.split("/")[-1]))
-			self.Node = await zoocontainer.ZooKeeper.create(
-				self.Path,
-				data=self.Data,
-				sequential=True,
-				ephemeral=True
-			)
+			async def create():
+				self.Node = await zoocontainer.ZooKeeper.create(
+					self.Path,
+					data=self.Data,
+					sequential=True,
+					ephemeral=True
+				)
+
+			try:
+				await create()
+			except ...:
+				await zoocontainer.ZooKeeper.ensure_path(self.Path.rstrip(self.Path.split("/")[-1]))
+				await create()
