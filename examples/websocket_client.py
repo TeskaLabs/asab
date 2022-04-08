@@ -18,8 +18,7 @@ ws=http://localhost:8080/rc
 
 class MyApplication(asab.Application):
 	"""
-	Listens on localhost:8080
-	Talks to websocket client
+	Talks to "websocket_server" example
 	"""
 	def __init__(self):
 		super().__init__()

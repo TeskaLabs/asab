@@ -8,7 +8,7 @@ import asab.web
 class MyApplication(asab.Application):
 	"""
 	Listens on localhost:8080
-	Talks to websocket client
+	Talks to "websocket_client" example
 	"""
 
 	def __init__(self):
@@ -54,7 +54,8 @@ class MyApplication(asab.Application):
 
 	async def _on_tick(self, message_type):
 		"""
-		Chats with client
+		Chats with client.
+		If there is connection, checks whther is it alive. If yes, it sends message to the websocket. Otherwise discards the connection (self.WS = None).
 		"""
 		messages = [
 			"Hi, who's there?",
@@ -65,11 +66,13 @@ class MyApplication(asab.Application):
 			"Hi!",
 			"I'm tired. Get off!",
 		]
+
 		if self.WS is not None:
 			try:
 				await self.WS.ping()
 			except (ConnectionResetError, RuntimeError):
-				print("Connection in dead :(")
+				print("Connection is dead :(")
+				self.WS = None
 				return
 			await self.WS.send_str(random.choice(messages))
 
