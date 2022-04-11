@@ -1,5 +1,5 @@
 from urllib.parse import urlparse
-import aiozk
+import kazoo.client
 import logging
 
 L = logging.getLogger(__name__)
@@ -60,5 +60,5 @@ def build_client(Config, z_url):
 				url_path = url_path.strip("/")
 
 	# Create and return the client and the url-path
-	client = aiozk.ZKClient(url_netloc, session_timeout=900, read_timeout=900)
+	client = kazoo.client.KazooClient(url_netloc)
 	return client, url_path
