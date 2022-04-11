@@ -2,6 +2,7 @@ import json
 import asyncio
 import logging
 import asab.zookeeper.builder
+import aiozk.exc
 
 from ..config import ConfigObject
 
@@ -104,6 +105,6 @@ class ZooKeeperAdvertisement(object):
 
 			try:
 				await create()
-			except ...:
+			except aiozk.exc.NoNode:
 				await zoocontainer.ZooKeeper.ensure_path(self.Path.rstrip(self.Path.split("/")[-1]))
 				await create()
