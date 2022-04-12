@@ -133,7 +133,7 @@ class ApiService(asab.Service):
 			zksvc = self.App.get_service("asab.ZooKeeperService")
 			zoocontainer = zksvc.DefaultContainer
 
-		# get zookeeper-serivice
+		# get zookeeper-service
 		self.ZkContainer = zoocontainer
 		self.ZkContainer.advertise(
 			data=self._build_zookeeper_adv_data(),
