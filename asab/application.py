@@ -84,6 +84,8 @@ class Application(metaclass=Singleton):
 			self.ServerName = self.DockerService.load_servername()
 			os.environ['HOSTNAME'] = self.HostName
 			Config._load()
+		else:
+			self.ServerName = self.HostName
 
 		# Setup logging
 		self.Logging = Logging(self)
