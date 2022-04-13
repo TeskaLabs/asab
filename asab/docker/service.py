@@ -19,10 +19,22 @@ class DockerService(Service):
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
+		self.ContainerName = None
+		self.ServerName = None
+		self.get_docker_info()
 
 	def load_hostname(self):
 		hostname = platform.node()
+		if self.ContainerName is not None:
+			hostname = "{}{}".format(Config.get("asab:docker", "name_prefix"), self.ContainerName)
+		else:
+			L.warning("Failed to obtain docker container name from Docker API.")
+		return hostname
 
+	def load_servername(self):
+		return self.ServerName
+
+	def get_docker_info(self):
 		remote_api = Config.get("asab:docker", "socket")
 		if len(remote_api) > 0:
 			# In docker, hostname defaults to container ID
@@ -49,27 +61,26 @@ class DockerService(Service):
 						"Docker API call at '{}' failed.".format(remote_api),
 						struct_data={'status': docker_info_request.status}
 					)
-					return hostname
+					return
 
 			except Exception as e:
 				L.warning("Connection to Docker API could not be established: '{}'.".format(e))
-				return hostname
+				return
 
 			docker_info_data = docker_info_request.read()
 			docker_info = json.loads(docker_info_data.decode("utf-8"))
 			container_name = docker_info.get("Name")
 			if container_name is None:
 				L.warning("Docker API does not provide container name. Using container ID as hostname.")
-				return hostname
+				return
 
 			# Store the container name in tags as host
 			if container_name.startswith("/"):
-				container_name = container_name[1:]
-			return "{}{}".format(Config.get("asab:docker", "name_prefix"), container_name)
+				self.ContainerName = container_name[1:]
 
+			# ServerName is also good to know
+			self.ServerName = docker_info.get("Config").get("Hostname")
 
-		L.warning("Failed to obtain docker container name from Docker API.")
-		return hostname
 
 
 class HTTPUnixConnection(http.client.HTTPConnection):
