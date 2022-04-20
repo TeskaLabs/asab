@@ -146,6 +146,7 @@ class ApiService(asab.Service):
 			'appclass': self.App.__class__.__name__,
 			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
+			'servername': self.App.ServerName,
 		}
 
 		if self.Manifest is not None:
