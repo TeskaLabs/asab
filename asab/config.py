@@ -219,6 +219,7 @@ class ConfigParser(configparser.ConfigParser):
 		head, tail = os.path.split(url_path)
 		self.config_name_list.append(tail)
 
+		# TODO: Switch to kazoo - synchronous, and that's what we need.
 		async def download_from_zookeeper():
 			try:
 				zk = aiozk.ZKClient(

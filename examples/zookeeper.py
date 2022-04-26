@@ -17,9 +17,8 @@ class MyApplication(asab.Application):
 
 		# Advertise self thru ZooKeeper
 		zksvc = self.get_service("asab.ZooKeeperService")
+		zkcntr = zksvc.DefaultContainer
 
-		svc = asab.api.ApiService(self)
-		svc.initialize_zookeeper(zksvc.DefaultContainer)
 
 
 if __name__ == "__main__":
