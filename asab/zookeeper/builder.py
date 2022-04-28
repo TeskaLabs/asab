@@ -82,7 +82,7 @@ class KazooWrapper(object):
 		return ret
 
 
-	async def close(self):
+	async def stop(self):
 		ret = await self.ProactorService.execute(
 			self.Client.stop,
 		)
@@ -95,22 +95,20 @@ class KazooWrapper(object):
 		)
 		return ret
 
-	async def exists(self):
+	async def exists(self, path):
 		ret = await self.ProactorService.execute(
-			self.Client.exists,
+			self.Client.exists, path
 		)
 		return ret
 
 	async def get_children(self, path):
-
 		children = await self.ProactorService.execute(
-			self.Client.get, path
+			self.Client.get_children, path
 		)
 		return children
 
 
 	async def get_data(self, path):
-
 		data, stat = await self.ProactorService.execute(
 			self.Client.get, path
 		)
@@ -124,10 +122,10 @@ class KazooWrapper(object):
 		return ret
 
 	# write methods
-	async def get_data(self, path):
+	async def set_data(self, path):
 
 		ret = await self.ProactorService.execute(
-			self.Client.get, path
+			self.Client.set, path
 		)
 		return ret
 
@@ -137,3 +135,14 @@ class KazooWrapper(object):
 			self.Client.delete, path
 		)
 		return ret
+
+	async def create(self, path, data, sequential=True, ephemeral=True):
+
+		ret = await self.ProactorService.execute(
+			self.Client.delete, path,
+				data=self.Data,
+				sequential=True,
+				ephemeral=True
+		)
+		return ret
+
