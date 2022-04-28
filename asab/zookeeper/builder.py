@@ -114,18 +114,11 @@ class KazooWrapper(object):
 		)
 		return data
 
+	# write methods
 	async def set_data(self, path, data):
 
 		ret = await self.ProactorService.execute(
 			self.Client.set, path, data
-		)
-		return ret
-
-	# write methods
-	async def set_data(self, path):
-
-		ret = await self.ProactorService.execute(
-			self.Client.set, path
 		)
 		return ret
 
@@ -135,14 +128,3 @@ class KazooWrapper(object):
 			self.Client.delete, path
 		)
 		return ret
-
-	async def create(self, path, data, sequential=True, ephemeral=True):
-
-		ret = await self.ProactorService.execute(
-			self.Client.delete, path,
-				data=self.Data,
-				sequential=True,
-				ephemeral=True
-		)
-		return ret
-
