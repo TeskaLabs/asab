@@ -93,3 +93,23 @@ class KazooWrapper(object):
 			self.Client.ensure_path, path
 		)
 		return ret
+
+	async def close(self):
+		ret = await self.ProactorService.execute(
+			self.Client.stop,
+		)
+		return ret
+
+	async def exists(self):
+		ret = await self.ProactorService.execute(
+			self.Client.exists,
+		)
+		return ret
+
+	async def get_data(self):
+
+		ret = await self.ProactorService.execute(
+			self.Client.exists,
+		)
+		return ret
+
