@@ -123,3 +123,17 @@ class KazooWrapper(object):
 		)
 		return ret
 
+	# write methods
+	async def get_data(self, path):
+
+		ret = await self.ProactorService.execute(
+			self.Client.get, path
+		)
+		return ret
+
+	async def delete(self, path):
+
+		ret = await self.ProactorService.execute(
+			self.Client.delete, path
+		)
+		return ret
