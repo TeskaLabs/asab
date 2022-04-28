@@ -30,7 +30,7 @@ class ZooKeeperContainer(ConfigObject):
 		self.App = app
 		self.ConfigSectionName = config_section_name
 		self.ZooKeeper = KazooWrapper(app, self.Config, z_path)
-		
+		self.ZooKeeperPath = self.ZooKeeper.Path
 		self.Advertisments = set()
 
 
