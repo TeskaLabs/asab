@@ -73,6 +73,7 @@ class KazooWrapper(object):
 		# Create and return the client and the url-path
 		self.Client = kazoo.client.KazooClient(hosts=url_netloc)
 
+	# connection start/close calls
 
 	async def start(self):
 		ret = await self.ProactorService.execute(
@@ -81,22 +82,16 @@ class KazooWrapper(object):
 		return ret
 
 
-	async def stop(self):
-		ret = await self.ProactorService.execute(
-			self.Client.stop,
-		)
-		return ret
-
-
-	async def ensure_path(self, path):
-		ret = await self.ProactorService.execute(
-			self.Client.ensure_path, path
-		)
-		return ret
-
 	async def close(self):
 		ret = await self.ProactorService.execute(
 			self.Client.stop,
+		)
+		return ret
+
+	# read-only calls
+	async def ensure_path(self, path):
+		ret = await self.ProactorService.execute(
+			self.Client.ensure_path, path
 		)
 		return ret
 
@@ -106,10 +101,25 @@ class KazooWrapper(object):
 		)
 		return ret
 
-	async def get_data(self):
+	async def get_children(self, path):
+
+		children = await self.ProactorService.execute(
+			self.Client.get, path
+		)
+		return children
+
+
+	async def get_data(self, path):
+
+		data, stat = await self.ProactorService.execute(
+			self.Client.get, path
+		)
+		return data
+
+	async def set_data(self, path, data):
 
 		ret = await self.ProactorService.execute(
-			self.Client.exists,
+			self.Client.set, path, data
 		)
 		return ret
 
