@@ -128,3 +128,9 @@ class KazooWrapper(object):
 			self.Client.delete, path
 		)
 		return ret
+
+	async def create(self, path, value, sequential, ephemeral):
+
+		ret = await self.ProactorService.execute(
+			self.Client.create, path, value, None, ephemeral, sequential,  False)
+		return ret

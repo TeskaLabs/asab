@@ -95,9 +95,4 @@ class ZooKeeperAdvertisement(object):
 				await zoocontainer.ZooKeeper.set_data(self.Node, self.Data)
 				return
 
-			self.Node = await zoocontainer.ZooKeeper.create(
-				self.Path,
-				data=self.Data,
-				sequential=True,
-				ephemeral=True
-			)
+			self.Node = await zoocontainer.ZooKeeper.create(self.Path, self.Data, True, True)
