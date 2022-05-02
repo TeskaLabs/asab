@@ -2,8 +2,6 @@ from collections import OrderedDict
 import copy
 import abc
 import time
-from .openmetric import metric_to_text
-from .influxdb import metric_to_influxdb
 
 
 class Metric(abc.ABC):
@@ -12,24 +10,41 @@ class Metric(abc.ABC):
 		assert(tags is not None)
 		self.Name = name
 		self.Tags = tags
+		self.Type = None
 
 	@abc.abstractmethod
 	def flush(self) -> dict:
 		pass
 
-	@abc.abstractmethod
-	def get_open_metric(self) -> str:
-		pass
-
-	@abc.abstractmethod
-	def get_influxdb_format(self) -> str:
-		pass
-
 	def rest_get(self) -> dict:
-		return {
+		rest = {
 			'Name': self.Name,
 			'Tags': self.Tags,
+			"Type": self.Type
 		}
+		values = list()
+		for value_name, value in self.Values.items():
+			value_name = self._transform_namedtuple_valuename_to_labelset_dict(value_name)
+			values.append({
+				"value_name": value_name,
+				"value": value,
+			})
+
+		rest["Values"] = values
+
+		return rest
+
+	def _transform_namedtuple_valuename_to_labelset_dict(self, value_name):
+		"""
+		Makes value names JSON serializable.
+		"""
+		if isinstance(value_name, tuple):
+			try:
+				value_name = value_name._asdict()
+			except AttributeError:
+				# "normal" tuple should be JSON serializable as array
+				pass
+		return value_name
 
 
 class Gauge(Metric):
@@ -37,24 +52,17 @@ class Gauge(Metric):
 		super().__init__(name=name, tags=tags)
 		self.Init = init_values
 		self.Values = self.Init.copy()
+		self.Type = "gauge"
 
 	def set(self, name, value):
 		self.Values[name] = value
 
 	def flush(self) -> dict:
-		return self.Values.copy()
+		return self.rest_get()
 
 	def rest_get(self):
 		rest = super().rest_get()
-		rest["Values"] = self.Values
 		return rest
-
-	def get_open_metric(self, **kwargs):
-		return metric_to_text(self.rest_get(), "gauge")
-
-	def get_influxdb_format(self, values, now):
-		return metric_to_influxdb(self, values, now, "gauge")
-
 
 
 class Counter(Metric):
@@ -63,6 +71,9 @@ class Counter(Metric):
 		self.Init = init_values if init_values is not None else dict()
 		self.Values = self.Init.copy()
 		self.Reset = reset
+		self.LastValues = dict()
+		self.Type = "counter"
+
 
 	def add(self, name, value, init_value=None):
 		"""
@@ -100,26 +111,17 @@ class Counter(Metric):
 				raise e
 			self.Values[name] = init_value - value
 
+
 	def flush(self) -> dict:
-		ret = self.Values
+		ret = self.rest_get()
 		if self.Reset:
+			self.LastValues = ret
 			self.Values = self.Init.copy()
 		return ret
 
 	def rest_get(self):
 		rest = super().rest_get()
-		rest["Values"] = self.Values
 		return rest
-
-	def get_open_metric(self, **kwargs):
-		if self.Reset is True:
-			return metric_to_text(self.rest_get(), "gauge", kwargs["values"])
-		else:
-			return metric_to_text(self.rest_get(), "counter")
-
-
-	def get_influxdb_format(self, values, now):
-		return metric_to_influxdb(self, values, now, "counter")
 
 
 class EPSCounter(Counter):
@@ -149,11 +151,13 @@ class EPSCounter(Counter):
 	def flush(self) -> dict:
 		ret = self._calculate_eps()
 		if self.Reset:
+			self.LastValues = ret
 			self.Values = self.Init.copy()
 		return ret
 
 
 class DutyCycle(Metric):
+	# TODO: totally unsupported right now!!
 	'''
 	https://en.wikipedia.org/wiki/Duty_cycle
 
@@ -231,6 +235,7 @@ class DutyCycle(Metric):
 
 class AggregationCounter(Counter):
 	'''
+	Sets value aggregated with the last one.
 	Takes a function object as the agg argument.
 	The aggregation function can take two arguments only.
 	Maximum is used as a default aggregation function.
@@ -272,25 +277,57 @@ class Histogram(Metric):
 		if len(_buckets) < 2:
 			raise ValueError("Must have at least two buckets")
 
-		self.InitBuckets = OrderedDict([(b, dict()) for b in _buckets])
+		self.InitBuckets = OrderedDict((b, dict()) for b in _buckets)
 		self.Buckets = copy.deepcopy(self.InitBuckets)
 		self.Count = 0
 		self.Sum = 0.0
+		self.LastValues = dict()
+		self.Type = "histogram"
 
 	def flush(self):
-		ret = {**self.Buckets, "sum": self.Sum, "count": self.Count}
+		ret = self.rest_get()
 		if self.Reset:
+			self.LastValues = ret
 			self.Buckets = copy.deepcopy(self.InitBuckets)
 			self.Count = 0
 			self.Sum = 0.0
 		return ret
 
 	def rest_get(self):
-		rest = super().rest_get()
-		rest["Values"] = self.Buckets
-		rest["Sum"] = self.Sum
-		rest["Count"] = self.Count
+		rest = {
+			'Name': self.Name,
+			'Tags': self.Tags,
+			"Type": self.Type
+		}
+		values = list()
+		for upper_bound, metric_point in self.Buckets.items():
+			if metric_point == dict():
+				continue
+			for value_name, value in metric_point.items():
+				value_name = self._transform_namedtuple_valuename_to_labelset_dict(value_name, upper_bound)
+				values.append({
+					"value_name": value_name,
+					"value": value,
+				})
+		rest["Values"] = values
+		rest["Values"].append({"value_name": "Sum", "value": self.Sum})
+		rest["Values"].append({"value_name": "Count", "value": self.Count})
+		rest["Type"] = "histogram"
 		return rest
+
+	def _transform_namedtuple_valuename_to_labelset_dict(self, value_name, upper_bound):
+		"""
+		Makes value names JSON serializable.
+		"""
+		if isinstance(value_name, tuple):
+			try:
+				value_name = value_name._asdict()
+				value_name["le"] = str(upper_bound)
+				return value_name
+			except AttributeError:
+				# "normal" tuple should be JSON serializable as array
+				pass
+		return {"value_name": value_name, "le": str(upper_bound)}
 
 	def set(self, value_name, value):
 		for upper_bound in self.Buckets:
@@ -301,9 +338,3 @@ class Histogram(Metric):
 					self.Buckets[upper_bound][value_name] += 1
 		self.Sum += value
 		self.Count += 1
-
-	def get_open_metric(self, **kwargs):
-		return metric_to_text(self.rest_get(), "histogram", values=kwargs)
-
-	def get_influxdb_format(self, values, now):
-		return metric_to_influxdb(self, values, now, "histogram")

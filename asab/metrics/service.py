@@ -5,7 +5,6 @@ import asyncio
 import asab
 
 from .metrics import Metric, Counter, EPSCounter, Gauge, DutyCycle, AggregationCounter, Histogram
-from .memstor import MetricsMemstorTarget
 
 
 #
@@ -34,9 +33,11 @@ class MetricsService(asab.Service):
 			"host": app.HostName,
 		}
 
+		# Helps API Handler to check whether PrometheusTarget exists
 		self.PrometheusTarget = None
 
-		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
+		# TODO: přehodit zpátky na 60s !!!
+		app.PubSub.subscribe("Application.tick/10!", self._on_flushing_event)
 
 		for target in asab.Config.get('asab:metrics', 'target').strip().split():
 			try:
@@ -50,18 +51,19 @@ class MetricsService(asab.Service):
 				target = MetricsInfluxDB(self, 'asab:metrics:{}'.format(target))
 
 			elif target_type == "prometheus":
-				from. prometheus import PrometheusTarget
+				from .prometheus import PrometheusTarget
 				target = PrometheusTarget(self, 'asab:metrics:prometheus')
 				self.PrometheusTarget = target
+
+			elif target_type == 'http':
+				from .http_target import HTTPTarget
+				target = HTTPTarget(self, 'asab:metrics:{}'.format(target))
 
 			else:
 				raise RuntimeError("Unknown target type {}".format(target_type))
 
 			self.Targets.append(target)
 
-		# Memory storage target
-		self.MemstorTarget = MetricsMemstorTarget(self, 'asab:metrics:memory')
-		self.Targets.append(self.MemstorTarget)
 
 
 	async def finalize(self, app):
@@ -80,19 +82,20 @@ class MetricsService(asab.Service):
 		mlist = []
 
 		for metric in self.Metrics.values():
+			# TODO: otestovat, jestli ještě funguje logování metrik
 			struct_data = {
 				'name': metric.Name,
 				'timestamp': now,
 			}
 
-			values = metric.flush()
+			record = metric.flush()
 
 			# Skip empty values
-			if len(values) == 0:
+			if len(record.get("Values")) == 0:
 				continue
 
-			for fk, fv in values.items():
-				struct_data['field.{}'.format(fk)] = fv
+			for i in record.get("Values"):
+				struct_data['field.{}'.format(i.get("value_name"))] = i.get("value")
 
 			tags = metric.Tags
 			if tags is not None:
@@ -107,17 +110,19 @@ class MetricsService(asab.Service):
 			#   asab.metrics INFO
 			L.info("", struct_data=struct_data)
 
-			mlist.append((metric, values))
+			record["@timestamp"] = now
+			mlist.append(record)
+
 
 			self.App.PubSub.publish(
 				"Application.Metrics.Flush!",
-				metric, values,
+				metric, record,
 				asynchronously=False
 			)
 
 		fs = []
 		for target in self.Targets:
-			fs.append(target.process(now, mlist))
+			fs.append(target.process(mlist))
 		if len(fs) > 0:
 			done, pending = await asyncio.wait(fs, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
 
