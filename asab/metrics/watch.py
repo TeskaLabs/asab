@@ -7,64 +7,57 @@ class WatchTarget(object):
 
 	def watch_table(self, request):
 		"""
-		Extension of Prometheus Target to list ASAB metrics in the command line.
+		Pull model target to list ASAB metrics in the command line.
 		Example commands:
-		watch curl localhost:8080/asab/v1/metrics/watch
-		watch curl localhost:8080/asab/v1/metrics/watch?agg=sum
+		watch curl localhost:8080/asab/v1/metrics_watch
+		watch curl localhost:8080/asab/v1/metrics_watch?name=web_requests_duration_max
 		"""
-		agg = request.query.get("agg")
+		filter = request.query.get("name")
+
+		metric_records = list()
+		for metric_name, metric in self.MetricsService.Metrics.items():
+			try:
+				metric_record = metric_records.append(metric.LastValues)
+			except AttributeError:
+				metric_record = metric_records.append(metric.rest_get())
+
 		lines = []
-		if self.mlist:
-			m_name_len = max([len(metric.Name) for metric, values in self.mlist])
-			v_name_len = max(
-				[
-					len(str(value_name))
-					for metric, values in self.mlist
-					for value_name in values.keys()
-				]
+		m_name_len = max([len(metric_record.get("Name")) for metric_record in metric_records])
+		v_name_len = max(
+			[
+				len(str(value.get("value_name")))
+				for i in metric_records
+				for value in i.get("Values")
+			]
+		)
+
+		separator = "-" * (m_name_len + v_name_len + 30 + 2)
+		lines.append(separator)
+		lines.append(
+			"{:<{m_name_len}} | {:<{v_name_len}} | {:<30}".format(
+				"Metric name",
+				"Value name",
+				"Value",
+				v_name_len=v_name_len,
+				m_name_len=m_name_len,
 			)
+		)
+		lines.append(separator)
 
-			if agg == "sum":
-				separator = "-" * (m_name_len + 30 + 2)
-				lines.append(separator)
-				lines.append(
-					"{:<{m_name_len}} | {:<30}".format(
-						"Metric name", "Metric values SUM", m_name_len=m_name_len
-					)
-				)
-				lines.append(separator)
-				for metric, values in self.mlist:
-					name = metric.Name
-					lines.append(
-						"{:<{m_name_len}} | {:<30}".format(
-							str(name), sum(values.values()), m_name_len=m_name_len
-						)
-					)
-
-			else:
-				separator = "-" * (m_name_len + v_name_len + 30 + 2)
-				lines.append(separator)
+		for metric_record in metric_records:
+			name = metric_record.get("Name")
+			if filter is not None and not name.startswith(filter):
+				continue
+			for i in metric_record.get("Values"):
 				lines.append(
 					"{:<{m_name_len}} | {:<{v_name_len}} | {:<30}".format(
-						"Metric name",
-						"Value name",
-						"Value",
+						str(name),
+						str(i.get("value_name")),
+						str(i.get("value")),
 						v_name_len=v_name_len,
 						m_name_len=m_name_len,
 					)
 				)
-				lines.append(separator)
-				for metric, values in self.mlist:
-					name = metric.Name
-					for value_name, value in values.items():
-						lines.append(
-							"{:<{m_name_len}} | {:<{v_name_len}} | {:<30}".format(
-								str(name),
-								str(value_name),
-								str(value),
-								v_name_len=v_name_len,
-								m_name_len=m_name_len,
-							)
-						)
+
 		text = "\n".join(lines)
 		return text
