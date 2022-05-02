@@ -17,13 +17,13 @@ class APIWebHandler(object):
 
 		webapp.router.add_get("/asab/v1/changelog", self.changelog)
 
-		if "asab:metrics:prometheus" in asab.Config.sections():
-			self.MetricsService = self.App.get_service("asab.MetricsService")
-			if self.MetricsService is None:
-				raise RuntimeError("asab.MetricsService is not available")
-			if self.MetricsService.PrometheusTarget is not None:
-				webapp.router.add_get("/asab/v1/metrics", self.metrics)
-				webapp.router.add_get("/asab/v1/metrics/watch", self.watch)
+		# TODO: Can these endpoints be accessible everytime automatically?
+		self.MetricsService = self.App.get_service("asab.MetricsService")
+		if self.MetricsService is None:
+			raise RuntimeError("asab.MetricsService is not available")
+		webapp.router.add_get("/asab/v1/metrics", self.metrics)
+		webapp.router.add_get("/asab/v1/watch_metrics", self.watch)
+		webapp.router.add_get("/asab/v1/metrics_json", self.metrics_json)
 
 	async def metrics(self, request):
 		text = self.MetricsService.PrometheusTarget.get_open_metric()
@@ -35,12 +35,25 @@ class APIWebHandler(object):
 		)
 
 	async def watch(self, request):
-		text = self.MetricsService.PrometheusTarget.watch_table(request)
+		text = self.MetricsService.WatchTarget.watch_table(request)
 
 		return aiohttp.web.Response(
 			text=text,
 			content_type="text/plain",
 			charset="utf-8",
+		)
+
+	async def metrics_json(self, request):
+		metrics_list = list()
+		for metric_name, metric in self.MetricsService.Metrics.items():
+			try:
+				if metric.LastValues is not dict():
+					metrics_list.append(metric.LastValues)
+			except AttributeError:
+				metrics_list.append(metric.rest_get())
+
+		return aiohttp.web.json_response(
+			metrics_list
 		)
 
 	async def changelog(self, request):

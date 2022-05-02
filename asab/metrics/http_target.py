@@ -17,8 +17,6 @@ class HTTPTarget(asab.ConfigObject):
 
 
 	async def process(self, mlist):
-		# TODO: Is ProactorService required?
-
 		async with aiohttp.ClientSession() as session:
 			async with session.post(self.URL, json=mlist) as resp:
 				response = await resp.text()

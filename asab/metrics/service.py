@@ -33,12 +33,10 @@ class MetricsService(asab.Service):
 			"host": app.HostName,
 		}
 
-		# Helps API Handler to check whether PrometheusTarget exists
-		self.PrometheusTarget = None
-
 		# TODO: přehodit zpátky na 60s !!!
 		app.PubSub.subscribe("Application.tick/10!", self._on_flushing_event)
 
+		# Push targets are configured, pull targets (PrometheusTagret, WatchTarget) are available w/o configuration.
 		for target in asab.Config.get('asab:metrics', 'target').strip().split():
 			try:
 				target_type = asab.Config.get('asab:metrics:{}'.format(target), 'type')
@@ -50,11 +48,6 @@ class MetricsService(asab.Service):
 				from .influxdb import MetricsInfluxDB
 				target = MetricsInfluxDB(self, 'asab:metrics:{}'.format(target))
 
-			elif target_type == "prometheus":
-				from .prometheus import PrometheusTarget
-				target = PrometheusTarget(self, 'asab:metrics:prometheus')
-				self.PrometheusTarget = target
-
 			elif target_type == 'http':
 				from .http_target import HTTPTarget
 				target = HTTPTarget(self, 'asab:metrics:{}'.format(target))
@@ -63,6 +56,14 @@ class MetricsService(asab.Service):
 				raise RuntimeError("Unknown target type {}".format(target_type))
 
 			self.Targets.append(target)
+
+
+		from .prometheus import PrometheusTarget
+		self.PrometheusTarget = PrometheusTarget(self)
+
+		from .watch import WatchTarget
+		self.WatchTarget = WatchTarget(self)
+
 
 
 

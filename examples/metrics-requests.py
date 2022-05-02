@@ -35,7 +35,7 @@ class MyApplication(asab.Application):
 listen=0.0.0.0 8089
 
 # [asab:metrics]
-# target=prometheus influxdb
+# target=influxdb
 
 # [asab:metrics:influxdb]
 # url=http://localhost:8086
@@ -43,13 +43,7 @@ listen=0.0.0.0 8089
 # password=testtest
 # db=test
 
-# [asab:metrics:prometheus]
 
-[asab:metrics]
-target=http
-
-[asab:metrics:http]
-url=https://8c90b668-7a8b-4013-936b-330741eb23de.mock.pstmn.io
 		"""
 		)
 		# Loading the web service module
