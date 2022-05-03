@@ -50,7 +50,7 @@ class Metric(abc.ABC):
 class Gauge(Metric):
 	def __init__(self, name: str, tags: dict, init_values=None):
 		super().__init__(name=name, tags=tags)
-		self.Init = init_values
+		self.Init = init_values if init_values is not None else dict()
 		self.Values = self.Init.copy()
 		self.Type = "gauge"
 

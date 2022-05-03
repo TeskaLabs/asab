@@ -14,7 +14,7 @@ L = logging.getLogger(__name__)
 
 
 
-def get_field(fk, fv):
+def get_field_set(fk, fv):
 	if isinstance(fv, bool):
 		field = "{}={}".format(fk, 't' if fv else 'f')
 	elif isinstance(fv, int):
@@ -29,45 +29,50 @@ def get_field(fk, fv):
 	return field
 
 
-def metric_to_influxdb(metric, values, now, type: str):
-	name = metric.Name
+def metric_to_influxdb(metric_record):
+	timestamp = metric_record.get("@timestamp")
+	name = metric_record.get("Name")
+	values = metric_record.get("Values")
+	tags = metric_record.get("Tags")
 
-	if type == "histogram":
-		L.warning("Histogram not yet implemented.")
-		influxdb_format = ""
+	if all([isinstance(i["value_name"], (str, int, float)) for i in values]):
+		field_set = []
+		for i in values:
+			fk = i["value_name"]
+			fv = i["value"]
+			field_set.append(get_field_set(fk, fv))
+		for tk, tv in tags.items():
+			name += ',{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_"))
+
+		influxdb_format = "{} {} {}\n".format(name, ', '.join(field_set), int(timestamp * 1e9))
 
 	else:
-		if all([isinstance(fk, tuple) for fk in values.keys()]):
-			field_set = []
-			for fk, fv in values.items():
-				tags = "," + ",".join(['{}={}'.format(k.replace(" ", "_"), v.replace(" ", "_")) for k, v in fk._asdict().items()])
-				field = get_field(name, fv)
-				field_set.append(tags + " " + field)
-			for tk, tv in metric.Tags.items():
-				name += ',{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_"))
+		values_lines = []
+		for i in values:
+			fk = i["value_name"]
+			fv = i["value"]
+			dynamic_tags = tags.copy()
+			if isinstance(fk, dict):
+				dynamic_tags.update(fk)
+			elif isinstance(fk, (tuple, list)):
+				dynamic_tags.update({"label" + str(i): value_name for i, value_name in enumerate(fk)})
+			elif isinstance(fk, str):
+				dynamic_tags.update({"value_name": fk})
 
-			influxdb_format = "".join(["{}{} {}\n".format(name, field, int(now * 1e9)) for field in field_set])
-
-		elif all([isinstance(fk, (str, int, float)) for fk in values.keys()]):
-			field_set = []
-			for fk, fv in values.items():
-				field_set.append(get_field(fk, fv))
-			for tk, tv in metric.Tags.items():
-				name += ',{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_"))
-
-			influxdb_format = "{} {} {}\n".format(name, ', '.join(field_set), int(now * 1e9))
-
-		else:
-			raise RuntimeError("Unknown/invalid types of the metric {} value names: {}".format(name, [type(fk) for fk in values.keys()]))
+			tags_string = ",".join(['{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_")) for tk, tv in dynamic_tags.items()])
+			field_set = get_field_set(name, fv)
+			values_lines.append(tags_string + " " + field_set)
+		if len(values_lines) != 0:
+			influxdb_format = "".join(["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines])
 
 	return influxdb_format
 
 
-def influxdb_format(now, mlist):
+def influxdb_format(mlist):
 	# CAREFUL: This function is used also in asab.logman.metrics
 	rb = ""
-	for metric, values in mlist:
-		rb += metric.get_influxdb_format(values, now)
+	for metric_record in mlist:
+		rb += metric_to_influxdb(metric_record)
 	return rb
 
 
@@ -161,17 +166,17 @@ InfluxDB <1.8 API parameters:
 			self.ProactorService = None
 
 
-	async def process(self, now, mlist):
+	async def process(self, mlist):
 
 		# When ProActor is enabled
 
 		if self.ProactorService is not None:
-			await self.ProactorService.execute(self._worker_upload, now, mlist)
+			await self.ProactorService.execute(self._worker_upload, mlist)
 			return
 
 		# When ProActor is disabled
 
-		rb = influxdb_format(now, mlist)
+		rb = influxdb_format(mlist)
 
 		async with aiohttp.ClientSession(headers=self.Headers) as session:
 			async with session.post(self.WriteURL, data=rb) as resp:
@@ -180,9 +185,9 @@ InfluxDB <1.8 API parameters:
 					L.warning("Error when sending metrics to Influx: {}\n{}".format(resp.status, response))
 
 
-	def _worker_upload(self, now, mlist):
+	def _worker_upload(self, mlist):
 
-		rb = influxdb_format(now, mlist)
+		rb = influxdb_format(mlist)
 
 		if self.BaseURL.startswith("https://"):
 			conn = http.client.HTTPSConnection(self.BaseURL.replace("https://", ""))
