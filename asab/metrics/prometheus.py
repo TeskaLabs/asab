@@ -10,8 +10,8 @@ class PrometheusTarget(object):
 		records = []
 		for metric_name, metric in self.MetricsService.Metrics.items():
 			try:
-				if metric.LastValues is not dict():
-					records.append(metric_to_text(metric.LastValues))
+				if metric.LastRecord is not dict():
+					records.append(metric_to_text(metric.LastRecord))
 			except AttributeError:
 				records.append(metric_to_text(metric.rest_get()))
 		records.append("# EOF\n")

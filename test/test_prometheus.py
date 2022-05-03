@@ -44,7 +44,7 @@ web_requests_duration_max_total{host="eliska-TUXEDO-Aura-15-Gen1",method="GET",p
 		self.assertEqual(expected_output, output)
 
 
-	def test_metric_to_text_strings(self):
+	def test_metric_to_text_string_and_tuple(self):
 		input_counter = {
 			"Name": "web_requests_duration_max",
 			"Tags": {
@@ -59,6 +59,32 @@ web_requests_duration_max_total{host="eliska-TUXEDO-Aura-15-Gen1",method="GET",p
 				},
 				{
 					"value_name": ("GET", "/path"),
+					"value": 0.0013365640043048188
+				}
+			]
+		}
+		expected_output = """# TYPE web_requests_duration_max counter
+# HELP web_requests_duration_max Counts maximum request duration to asab endpoints per minute.
+web_requests_duration_max_total{host="eliska-TUXEDO-Aura-15-Gen1",value_name="some_name"} 0.00044747701031155884
+web_requests_duration_max_total{host="eliska-TUXEDO-Aura-15-Gen1",label0="GET",label1="/path"} 0.0013365640043048188"""
+		output = metric_to_text(input_counter)
+		self.assertEqual(expected_output, output)
+
+	def test_metric_to_text_list(self):
+		input_counter = {
+			"Name": "web_requests_duration_max",
+			"Tags": {
+				"host": "eliska-TUXEDO-Aura-15-Gen1",
+				"help": "Counts maximum request duration to asab endpoints per minute.",
+			},
+			"Type": "counter",
+			"Values": [
+				{
+					"value_name": "some_name",
+					"value": 0.00044747701031155884,
+				},
+				{
+					"value_name": ["GET", "/path"],
 					"value": 0.0013365640043048188
 				}
 			]

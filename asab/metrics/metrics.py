@@ -71,7 +71,7 @@ class Counter(Metric):
 		self.Init = init_values if init_values is not None else dict()
 		self.Values = self.Init.copy()
 		self.Reset = reset
-		self.LastValues = dict()
+		self.LastRecord = dict()
 		self.Type = "counter"
 
 
@@ -115,7 +115,7 @@ class Counter(Metric):
 	def flush(self) -> dict:
 		ret = self.rest_get()
 		if self.Reset:
-			self.LastValues = ret
+			self.LastRecord = ret
 			self.Values = self.Init.copy()
 		return ret
 
@@ -136,6 +136,7 @@ class EPSCounter(Counter):
 		# Using time library to avoid delay due to long synchronous operations
 		# which is important when calculating incoming events per second
 		self.LastTime = int(time.time())  # must be in seconds
+		self.LastCalculatedValues = dict()
 
 	def _calculate_eps(self):
 		eps_values = dict()
@@ -149,11 +150,30 @@ class EPSCounter(Counter):
 		return eps_values
 
 	def flush(self) -> dict:
-		ret = self._calculate_eps()
+		self.LastCalculatedValues = self._calculate_eps()
+		ret = self.rest_get()
 		if self.Reset:
-			self.LastValues = ret
+			self.LastRecord = ret
 			self.Values = self.Init.copy()
 		return ret
+
+	def rest_get(self) -> dict:
+		rest = {
+			'Name': self.Name,
+			'Tags': self.Tags,
+			"Type": self.Type
+		}
+		values = list()
+		for value_name, value in self.LastCalculatedValues.items():
+			value_name = self._transform_namedtuple_valuename_to_labelset_dict(value_name)
+			values.append({
+				"value_name": value_name,
+				"value": value,
+			})
+
+		rest["Values"] = values
+
+		return rest
 
 
 class DutyCycle(Metric):
@@ -281,13 +301,13 @@ class Histogram(Metric):
 		self.Buckets = copy.deepcopy(self.InitBuckets)
 		self.Count = 0
 		self.Sum = 0.0
-		self.LastValues = dict()
+		self.LastRecord = dict()
 		self.Type = "histogram"
 
 	def flush(self):
 		ret = self.rest_get()
 		if self.Reset:
-			self.LastValues = ret
+			self.LastRecord = ret
 			self.Buckets = copy.deepcopy(self.InitBuckets)
 			self.Count = 0
 			self.Sum = 0.0

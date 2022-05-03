@@ -98,7 +98,7 @@ def get_value_labels(labels_dict, v_name):
 	elif isinstance(v_name, dict):
 		for k, v in v_name.items():
 			labels_str += '{}="{}",'.format(k, v)
-	elif isinstance(v_name, tuple):
+	elif isinstance(v_name, (tuple, list)):
 		for i, item in enumerate(v_name):
 			labels_str += '{}="{}",'.format("label" + str(i), item)
 	labels_str = labels_str.rstrip(",")

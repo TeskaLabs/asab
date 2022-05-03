@@ -17,7 +17,7 @@ class WatchTarget(object):
 		metric_records = list()
 		for metric_name, metric in self.MetricsService.Metrics.items():
 			try:
-				metric_record = metric_records.append(metric.LastValues)
+				metric_record = metric_records.append(metric.LastRecord)
 			except AttributeError:
 				metric_record = metric_records.append(metric.rest_get())
 
