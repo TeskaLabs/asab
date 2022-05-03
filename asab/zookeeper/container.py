@@ -94,5 +94,9 @@ class ZooKeeperAdvertisement(object):
 			if self.Node is not None and await zoocontainer.ZooKeeper.exists(self.Node):
 				await zoocontainer.ZooKeeper.set_data(self.Node, self.Data)
 				return
-
+			# Parms description
+			# self.Path. Path to be created
+			# self.Data. Data in the path
+			# sequential=True. Path is suffixed with a unique index.
+			# ephemeral=True. Node created is ephemeral
 			self.Node = await zoocontainer.ZooKeeper.create(self.Path, self.Data, True, True)
