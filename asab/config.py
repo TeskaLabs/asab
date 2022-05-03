@@ -201,9 +201,7 @@ class ConfigParser(configparser.ConfigParser):
 
 
 	def _include_from_zookeeper(self, zkurl):
-		import aiozk
-
-		loop = asyncio.get_event_loop()
+		import kazoo.client
 
 		# parse include value into hostname and path
 		url_pieces = urlparse(zkurl)
@@ -219,29 +217,20 @@ class ConfigParser(configparser.ConfigParser):
 		head, tail = os.path.split(url_path)
 		self.config_name_list.append(tail)
 
-		# TODO: Switch to kazoo - synchronous, and that's what we need.
-		async def download_from_zookeeper():
-			try:
-				zk = aiozk.ZKClient(
-					url_netloc,
-					allow_read_only=True,
-					read_timeout=60,  # seconds #
-				)
-				await zk.start()
-				data = await zk.get_data(url_path)
-				# convert bytes to string
-				encode_config = str(data, 'utf-8')
-				self.read_string(encode_config)
-				# Include in the list of config file contents
-				self.config_contents_list.append(encode_config)
-				await zk.close()
-				# Re-enable logging output
-			except Exception as e:
-				L.error("Failed to obtain configuration from zookeeper server(s): '{}'.".format(e))
-				sys.exit(1)
-
-		loop.run_until_complete(download_from_zookeeper())
-
+		try:
+			zk = kazoo.client(url_netloc)
+			zk.start()
+			data = zk.get(url_path)
+			# convert bytes to string
+			encode_config = str(data, 'utf-8')
+			self.read_string(encode_config)
+			# Include in the list of config file contents
+			self.config_contents_list.append(encode_config)
+			zk.close()
+			# Re-enable logging output
+		except Exception as e:
+			L.error("Failed to obtain configuration from zookeeper server(s): '{}'.".format(e))
+			sys.exit(1)
 
 	def get_config_contents_list(self):
 		return self.config_contents_list, self.config_name_list
