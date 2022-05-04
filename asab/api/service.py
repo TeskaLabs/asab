@@ -17,7 +17,7 @@ L = logging.getLogger(__name__)
 
 asab.Config.add_defaults({
 	"general": {
-		"manifest": "",
+		"manifest": "/app/MANIFEST.json",
 	}
 })
 
