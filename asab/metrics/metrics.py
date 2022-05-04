@@ -42,7 +42,7 @@ class Metric(abc.ABC):
 			try:
 				value_name = value_name._asdict()
 			except AttributeError:
-				# "normal" tuple should be JSON serializable as array
+				# "normal" tuple is JSON serializable as an array
 				pass
 		return value_name
 
