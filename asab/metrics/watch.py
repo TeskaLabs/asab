@@ -5,24 +5,25 @@ class WatchTarget(object):
 		super().__init__()
 		self.MetricsService = svc
 
-	def watch_table(self, request):
+	def watch_table(self, filter):
 		"""
 		Pull model target to list ASAB metrics in the command line.
 		Example commands:
 		watch curl localhost:8080/asab/v1/metrics_watch
 		watch curl localhost:8080/asab/v1/metrics_watch?name=web_requests_duration_max
 		"""
-		filter = request.query.get("name")
 
 		metric_records = list()
 		for metric_name, metric in self.MetricsService.Metrics.items():
 			try:
-				metric_record = metric_records.append(metric.LastRecord)
+				metric_record = metric.LastRecord
 			except AttributeError:
-				metric_record = metric_records.append(metric.rest_get())
+				metric_record = metric.rest_get()
+			if len(metric_record) >= 0:
+				metric_records.append(metric_record)
 
 		lines = []
-		m_name_len = max([len(metric_record.get("Name")) for metric_record in metric_records])
+		m_name_len = max([len(i.get("Name")) for i in metric_records])
 		v_name_len = max(
 			[
 				len(str(value.get("value_name")))

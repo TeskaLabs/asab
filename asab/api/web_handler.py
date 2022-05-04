@@ -67,7 +67,8 @@ class APIWebHandler(object):
 		)
 
 	async def watch(self, request):
-		text = self.MetricsService.WatchTarget.watch_table(request)
+		filter = request.query.get("name")
+		text = self.MetricsService.WatchTarget.watch_table(filter)
 
 		return aiohttp.web.Response(
 			text=text,
