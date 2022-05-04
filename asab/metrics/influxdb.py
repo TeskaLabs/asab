@@ -1,10 +1,10 @@
 import logging
 import aiohttp
 import urllib
-
 import http.client
 
 import asab
+from .openmetric import validate_format
 
 #
 
@@ -13,8 +13,8 @@ L = logging.getLogger(__name__)
 #
 
 
-
-def get_field_set(fk, fv):
+def get_field(fk, fv):
+	fk = validate_format(fk)
 	if isinstance(fv, bool):
 		field = "{}={}".format(fk, 't' if fv else 'f')
 	elif isinstance(fv, int):
@@ -31,7 +31,7 @@ def get_field_set(fk, fv):
 
 def metric_to_influxdb(metric_record):
 	timestamp = metric_record.get("@timestamp")
-	name = metric_record.get("Name")
+	name = validate_format(metric_record.get("Name"))
 	values = metric_record.get("Values")
 	tags = metric_record.get("Tags")
 
@@ -40,11 +40,11 @@ def metric_to_influxdb(metric_record):
 		for i in values:
 			fk = i["value_name"]
 			fv = i["value"]
-			field_set.append(get_field_set(fk, fv))
+			field_set.append(get_field(fk, fv))
 		for tk, tv in tags.items():
-			name += ',{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_"))
+			name += ',{}={}'.format(validate_format(tk), tv.replace(" ", "_"))
 
-		influxdb_format = "{} {} {}\n".format(name, ', '.join(field_set), int(timestamp * 1e9))
+		influxdb_format = "{} {} {}\n".format(name, ','.join(field_set), int(timestamp * 1e9))
 
 	else:
 		values_lines = []
@@ -56,11 +56,12 @@ def metric_to_influxdb(metric_record):
 				dynamic_tags.update(fk)
 			elif isinstance(fk, (tuple, list)):
 				dynamic_tags.update({"label" + str(i): value_name for i, value_name in enumerate(fk)})
-			elif isinstance(fk, str):
-				dynamic_tags.update({"value_name": fk})
 
-			tags_string = ",".join(['{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_")) for tk, tv in dynamic_tags.items()])
-			field_set = get_field_set(name, fv)
+			tags_string = ",".join(['{}={}'.format(validate_format(tk), tv.replace(" ", "_")) for tk, tv in dynamic_tags.items()])
+			if isinstance(fk, (tuple, list, dict)):
+				field_set = get_field(name, fv)
+			else:
+				field_set = get_field(fk, fv)
 			values_lines.append(tags_string + " " + field_set)
 		if len(values_lines) != 0:
 			influxdb_format = "".join(["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines])

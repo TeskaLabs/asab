@@ -34,7 +34,7 @@ class MetricsService(asab.Service):
 		}
 
 		# TODO: přehodit zpátky na 60s !!!
-		app.PubSub.subscribe("Application.tick/10!", self._on_flushing_event)
+		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
 
 		# Push targets are configured, pull targets (PrometheusTagret, WatchTarget) are available w/o configuration.
 		for target in asab.Config.get('asab:metrics', 'target').strip().split():

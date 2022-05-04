@@ -17,7 +17,7 @@ class TestInfluxDB(unittest.TestCase):
 		counter_record = self.TestCounter.rest_get()
 		counter_record["@timestamp"] = self.Now
 		mlist = [counter_record]
-		expected = "testcounter,help=This_is_a_test_counter. v1=1i, v2=24584i 1234567890000000000\n"
+		expected = "testcounter,help=This_is_a_test_counter. v1=1i,v2=24584i 1234567890000000000\n"
 		self.assertEqual(expected, influxdb_format(mlist))
 
 
@@ -27,7 +27,7 @@ class TestInfluxDB(unittest.TestCase):
 		counter_record = self.TestCounter.rest_get()
 		counter_record["@timestamp"] = self.Now
 		mlist = [counter_record]
-		expected = "testcounter,help=This_is_a_test_counter.,value_name=v1 testcounter=1i 1234567890000000000\ntestcounter,help=This_is_a_test_counter.,label0=something,label1=sth_else testcounter=24584i 1234567890000000000\n"
+		expected = "testcounter,help=This_is_a_test_counter. v1=1i 1234567890000000000\ntestcounter,help=This_is_a_test_counter.,label0=something,label1=sth_else testcounter=24584i 1234567890000000000\n"
 		self.assertEqual(expected, influxdb_format(mlist))
 
 
@@ -47,7 +47,7 @@ class TestInfluxDB(unittest.TestCase):
 		record = testHistogram.rest_get()
 		record["@timestamp"] = self.Now
 		mlist = [record]
-		expected = 'testhistogram,host=eliska,value_name=some_name,le=10.0 testhistogram=1i 1234567890000000000\ntesthistogram,host=eliska,value_name=some_name,le=inf testhistogram=1i 1234567890000000000\ntesthistogram,host=eliska,value_name=Sum testhistogram=5.0 1234567890000000000\ntesthistogram,host=eliska,value_name=Count testhistogram=1i 1234567890000000000\n'
+		expected = 'testhistogram,host=eliska,value_name=some_name,le=10.0 testhistogram=1i 1234567890000000000\ntesthistogram,host=eliska,value_name=some_name,le=inf testhistogram=1i 1234567890000000000\ntesthistogram,host=eliska Sum=5.0 1234567890000000000\ntesthistogram,host=eliska Count=1i 1234567890000000000\n'
 		self.assertEqual(expected, influxdb_format(mlist))
 
 	def test_influxdb_format_bool(self):
@@ -58,7 +58,7 @@ class TestInfluxDB(unittest.TestCase):
 		record = testGauge.rest_get()
 		record["@timestamp"] = self.Now
 		mlist = [record]
-		expected = 'testgauge,help=This_is_a_test_gauge. v1=t, v2=f 1234567890000000000\n'
+		expected = 'testgauge,help=This_is_a_test_gauge. v1=t,v2=f 1234567890000000000\n'
 		self.assertEqual(expected, influxdb_format(mlist))
 
 	def test_influxdb_format_str(self):
@@ -68,5 +68,5 @@ class TestInfluxDB(unittest.TestCase):
 		record = testGauge.rest_get()
 		record["@timestamp"] = self.Now
 		mlist = [record]
-		expected = 'testgauge,help=This_is_a_test_gauge. v1="1", v2="hodně" 1234567890000000000\n'
+		expected = 'testgauge,help=This_is_a_test_gauge. v1="1",v2="hodně" 1234567890000000000\n'
 		self.assertEqual(expected, influxdb_format(mlist))
