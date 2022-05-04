@@ -202,7 +202,6 @@ class ConfigParser(configparser.ConfigParser):
 
 	def _include_from_zookeeper(self, zkurl):
 		import kazoo.client
-
 		# parse include value into hostname and path
 		url_pieces = urlparse(zkurl)
 		url_path = url_pieces.path
@@ -227,7 +226,6 @@ class ConfigParser(configparser.ConfigParser):
 			# Include in the list of config file contents
 			self.config_contents_list.append(encode_config)
 			zk.close()
-			# Re-enable logging output
 		except Exception as e:
 			L.error("Failed to obtain configuration from zookeeper server(s): '{}'.".format(e))
 			sys.exit(1)
