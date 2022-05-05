@@ -17,7 +17,7 @@ L = logging.getLogger(__name__)
 
 asab.Config.add_defaults({
 	"general": {
-		"manifest": "app/MANIFEST.json",
+		"manifest": "",
 	}
 })
 
@@ -36,7 +36,6 @@ class ApiService(asab.Service):
 				path = "app/MANIFEST.json"
 		if len(path) != 0:
 			try:
-				print(path)
 				with open(path) as f:
 					self.Manifest = json.load(f)
 			except Exception as e:
