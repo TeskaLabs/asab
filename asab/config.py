@@ -2,6 +2,7 @@ import os
 import glob
 import logging
 import inspect
+import kazoo.client
 import platform
 import configparser
 from urllib.parse import urlparse
@@ -200,7 +201,6 @@ class ConfigParser(configparser.ConfigParser):
 
 
 	def _include_from_zookeeper(self, zkurl):
-		import kazoo.client
 		# parse include value into hostname and path
 		url_pieces = urlparse(zkurl)
 		url_path = url_pieces.path
