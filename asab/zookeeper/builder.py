@@ -83,6 +83,7 @@ class KazooWrapper(object):
 
 
 	async def stop(self):
+
 		ret = await self.ProactorService.execute(
 			self.Client.stop,
 		)
@@ -132,5 +133,5 @@ class KazooWrapper(object):
 	async def create(self, path, value, sequential, ephemeral):
 
 		ret = await self.ProactorService.execute(
-			self.Client.create, path, value, None, ephemeral, sequential,  False)
+			self.Client.create, path, value, None, ephemeral, sequential, False)
 		return ret

@@ -1,6 +1,5 @@
 import os
 import glob
-import asyncio
 import logging
 import inspect
 import platform

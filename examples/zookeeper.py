@@ -17,7 +17,7 @@ class MyApplication(asab.Application):
 
 		# Advertise self thru ZooKeeper
 		zksvc = self.get_service("asab.ZooKeeperService")
-		zkcntr = zksvc.DefaultContainer
+		zksvc.DefaultContainer
 
 
 
