@@ -130,6 +130,7 @@ class KazooWrapper(object):
 		)
 		return ret
 
+	# create ephemeral node
 	async def create(self, path, value, sequential, ephemeral):
 
 		ret = await self.ProactorService.execute(
