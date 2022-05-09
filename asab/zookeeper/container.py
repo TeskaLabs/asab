@@ -2,6 +2,8 @@ import json
 import asyncio
 import logging
 
+import aiozk.exc
+
 from .builder import KazooWrapper
 from ..config import ConfigObject
 
@@ -94,9 +96,18 @@ class ZooKeeperAdvertisement(object):
 			if self.Node is not None and await zoocontainer.ZooKeeper.exists(self.Node):
 				await zoocontainer.ZooKeeper.set_data(self.Node, self.Data)
 				return
+
 			# Parms description
 			# self.Path. Path to be created
 			# self.Data. Data in the path
 			# sequential=True. Path is suffixed with a unique index.
 			# ephemeral=True. Node created is ephemeral
-			self.Node = await zoocontainer.ZooKeeper.create(self.Path, self.Data, True, True)
+
+			async def create():
+				self.Node = await zoocontainer.ZooKeeper.create(self.Path, self.Data, True, True)
+
+			try:
+				await create()
+			except aiozk.exc.NoNode:
+				await zoocontainer.ZooKeeper.ensure_path(self.Path.rstrip(self.Path.split("/")[-1]))
+				await create()

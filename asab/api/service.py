@@ -131,7 +131,7 @@ class ApiService(asab.Service):
 			zksvc = self.App.get_service("asab.ZooKeeperService")
 			zoocontainer = zksvc.DefaultContainer
 
-		# get zookeeper-serivice
+		# get zookeeper-service
 		self.ZkContainer = zoocontainer
 		self.ZkContainer.advertise(
 			data=self._build_zookeeper_adv_data(),
@@ -144,6 +144,7 @@ class ApiService(asab.Service):
 			'appclass': self.App.__class__.__name__,
 			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
+			'servername': self.App.ServerName,
 		}
 
 		if self.Manifest is not None:
