@@ -137,6 +137,19 @@ class StorageService(StorageServiceABC):
 		raise NotImplementedError("get_by")
 
 
+	async def mapping(self, index: str) -> dict:
+		for url in self.ServerUrls:
+			url = "{}{}/_mapping".format(url, index)
+			try:
+				async with self.session().request(method="GET", url=url) as resp:
+					obj = await resp.json()
+					return obj
+			except aiohttp.client_exceptions.ClientConnectorError:
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
 	async def get(self, index: str, obj_id) -> dict:
 		for url in self.ServerUrls:
 			url = "{}{}/_doc/{}".format(url, index, obj_id)
