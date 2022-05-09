@@ -32,8 +32,10 @@ class ApiService(asab.Service):
 		self.AttentionRequired = {}  # dict of errors found.
 		path = asab.Config.get("general", "manifest")
 		if len(path) == 0:
-			if os.path.isfile("./app/MANIFEST.json"):
-				path = "./app/MANIFEST.json"
+			if os.path.isfile("/app/MANIFEST.json"):
+				path = "/app/MANIFEST.json"
+			elif os.path.isfile("app/MANIFEST.json"):
+				path = "app/MANIFEST.json"
 		if len(path) != 0:
 			try:
 				with open(path) as f:
