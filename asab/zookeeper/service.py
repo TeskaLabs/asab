@@ -1,5 +1,3 @@
-import asyncio
-
 from ..abc.service import Service
 from ..config import Config
 
