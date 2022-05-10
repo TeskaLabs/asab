@@ -28,33 +28,23 @@ class ZooKeeperService(Service):
 		super().__init__(app, service_name)
 		self.App = app
 		self.Containers = {}
-		self.Futures = []
+		self.DefaultContainer = None
+
+
+	async def initialize(self, app):
+		if Config.has_section('asab:zookeeper'):
+			self.DefaultContainer = await self.build_container('asab:zookeeper')
 
 
 	async def finalize(self, app):
-		if len(self.Futures) > 0:
-			await asyncio.wait(self.Futures)
 		for containers in self.Containers.values():
 			await containers.finalize(app)
 
 
-	@property
-	def DefaultContainer(self):
-		'''
-		This is here to maintain backward compatibility.
-		'''
-		container = self.Containers.get('asab:zookeeper')
-		if container is None:
-			container = self.build_container()
-		return container
-
-
-	def build_container(self, config_section_name="asab:zookeeper"):
+	async def build_container(self, config_section_name):
 		container = ZooKeeperContainer(self.App, config_section_name)
 		self.Containers[container.ConfigSectionName] = container
-		self.Futures.append(asyncio.ensure_future(
-			container.initialize(self.App)
-		))
+		await container.initialize(self.App)
 		return container
 
 
