@@ -34,8 +34,8 @@ class ApiService(asab.Service):
 		if len(path) == 0:
 			if os.path.isfile("/app/MANIFEST.json"):
 				path = "/app/MANIFEST.json"
-			elif os.path.isfile("app/MANIFEST.json"):
-				path = "app/MANIFEST.json"
+			elif os.path.isfile("./app/MANIFEST.json"):
+				path = "./app/MANIFEST.json"
 		if len(path) != 0:
 			try:
 				with open(path) as f:
