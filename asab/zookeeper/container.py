@@ -1,9 +1,10 @@
 import json
 import asyncio
 import logging
-import asab.zookeeper.builder
+
 import aiozk.exc
 
+from .builder import KazooWrapper
 from ..config import ConfigObject
 
 #
@@ -30,13 +31,14 @@ class ZooKeeperContainer(ConfigObject):
 
 		self.App = app
 		self.ConfigSectionName = config_section_name
-		self.ZooKeeper, self.ZooKeeperPath = asab.zookeeper.build_client(asab.Config, z_path)
+		self.ZooKeeper = KazooWrapper(app, self.Config, z_path)
+		self.ZooKeeperPath = self.ZooKeeper.Path
 		self.Advertisments = set()
 
 
 	async def initialize(self, app):
 		await self.ZooKeeper.start()
-		await self.ZooKeeper.ensure_path(self.ZooKeeperPath)
+		await self.ZooKeeper.ensure_path(self.ZooKeeper.Path)
 
 		self.App.PubSub.subscribe("Application.tick/300!", self._do_advertise)
 		self.App.PubSub.subscribe("ZooKeeper.advertise!", self._do_advertise)
@@ -46,12 +48,12 @@ class ZooKeeperContainer(ConfigObject):
 
 
 	async def finalize(self, app):
-		await self.ZooKeeper.close()
+		await self.ZooKeeper.stop()
 
 
 	def advertise(self, data, path):
 		self.Advertisments.add(
-			ZooKeeperAdvertisement(self.ZooKeeperPath + path, data)
+			ZooKeeperAdvertisement(self.ZooKeeper.Path + path, data)
 		)
 		self.App.PubSub.publish("ZooKeeper.advertise!")
 
@@ -61,7 +63,7 @@ class ZooKeeperContainer(ConfigObject):
 			await adv._do_advertise(self)
 
 	async def get_children(self):
-		return await self.ZooKeeper.get_children(self.ZooKeeperPath)
+		return await self.ZooKeeper.get_children(self.ZooKeeper.Path)
 
 	async def get_data(self, child, encoding="utf-8"):
 		raw_data = await self.get_raw_data(child)
@@ -70,7 +72,7 @@ class ZooKeeperContainer(ConfigObject):
 		return json.loads(raw_data.decode(encoding))
 
 	async def get_raw_data(self, child):
-		return await self.ZooKeeper.get_data("{}/{}".format(self.ZooKeeperPath, child))
+		return await self.ZooKeeper.get_data("{}/{}".format(self.ZooKeeper.Path, child))
 
 
 class ZooKeeperAdvertisement(object):
@@ -95,13 +97,14 @@ class ZooKeeperAdvertisement(object):
 				await zoocontainer.ZooKeeper.set_data(self.Node, self.Data)
 				return
 
+			# Parms description
+			# self.Path. Path to be created
+			# self.Data. Data in the path
+			# sequential=True. Path is suffixed with a unique index.
+			# ephemeral=True. Node created is ephemeral
+
 			async def create():
-				self.Node = await zoocontainer.ZooKeeper.create(
-					self.Path,
-					data=self.Data,
-					sequential=True,
-					ephemeral=True
-				)
+				self.Node = await zoocontainer.ZooKeeper.create(self.Path, self.Data, True, True)
 
 			try:
 				await create()
