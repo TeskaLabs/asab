@@ -66,6 +66,7 @@ setup(
 		'aiohttp>=3.6.2',
 		'fastjsonschema>=2.14.4',
 		'aiozk>=0.25.0',
+		'kazoo>=2.8.0',
 	],
 	cmdclass={
 		'build_py': custom_build_py,
