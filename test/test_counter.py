@@ -94,4 +94,3 @@ class TestCounter(unittest.TestCase):
 			"Type": "counter"
 		}
 		self.assertEqual(expected, RestgetCounter.rest_get())
-
