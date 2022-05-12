@@ -58,7 +58,6 @@ class Counter(Metric):
 		self.Init = init_values if init_values is not None else dict()
 		self.Values = self.Init.copy()
 		self.Reset = reset
-		self.LastRecord = dict()
 		self.Type = "counter"
 
 
@@ -102,7 +101,6 @@ class Counter(Metric):
 	def flush(self) -> dict:
 		ret = self.rest_get()
 		if self.Reset:
-			self.LastRecord = ret
 			self.Values = self.Init.copy()
 		return ret
 
@@ -151,7 +149,6 @@ class EPSCounter(Counter):
 		self.LastCalculatedValues = self._calculate_eps()
 		ret = self.rest_get()
 		if self.Reset:
-			self.LastRecord = ret
 			self.Values = self.Init.copy()
 		return ret
 
@@ -299,13 +296,11 @@ class Histogram(Metric):
 		self.Buckets = copy.deepcopy(self.InitBuckets)
 		self.Count = 0
 		self.Sum = 0.0
-		self.LastRecord = dict()
 		self.Type = "histogram"
 
 	def flush(self):
 		ret = self.rest_get()
 		if self.Reset:
-			self.LastRecord = ret
 			self.Buckets = copy.deepcopy(self.InitBuckets)
 			self.Count = 0
 			self.Sum = 0.0
@@ -335,7 +330,7 @@ class Histogram(Metric):
 
 	def _transform_namedtuple_valuename_to_labelset_dict(self, value_name, upper_bound):
 		"""
-		Makes value names JSON serializable.
+		Makes value names JSON serializable and adds bucket upperbound as "le" label.
 		"""
 		if isinstance(value_name, tuple):
 			try:
@@ -343,7 +338,6 @@ class Histogram(Metric):
 				value_name["le"] = str(upper_bound)
 				return value_name
 			except AttributeError:
-				# "normal" tuple should be JSON serializable as array
 				pass
 		return {"value_name": value_name, "le": str(upper_bound)}
 

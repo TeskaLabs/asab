@@ -1,8 +1,4 @@
 import re
-import logging
-
-
-L = logging.getLogger(__name__)
 
 
 def metric_to_text(metric_record):

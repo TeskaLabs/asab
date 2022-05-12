@@ -7,6 +7,8 @@ import aiohttp.web
 class APIWebHandler(object):
 	def __init__(self, app, webapp, log_handler):
 		self.App = app
+		# MetricsService initialized in WebService
+		self.MetricsService = self.App.get_service("asab.MetricsService")
 
 		# Add routes
 		webapp.router.add_get("/asab/v1/environ", self.environ)
@@ -53,8 +55,7 @@ class APIWebHandler(object):
 		return asab.web.rest.json_response(request, result)
 
 	async def metrics(self, request):
-		text = self.MetricsService.PrometheusTarget.get_open_metric()
-
+		text = self.MetricsService.MetricsDataStorage.get_all_in_openmetric()
 		return aiohttp.web.Response(
 			text=text,
 			content_type="text/plain",
@@ -63,7 +64,7 @@ class APIWebHandler(object):
 
 	async def watch(self, request):
 		filter = request.query.get("name")
-		text = self.MetricsService.WatchTarget.watch_table(filter)
+		text = self.MetricsService.MetricsDataStorage.get_all_as_table(filter)
 
 		return aiohttp.web.Response(
 			text=text,
