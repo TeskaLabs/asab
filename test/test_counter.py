@@ -1,6 +1,6 @@
 import unittest
 import collections
-from asab.metrics.metrics import Counter
+from asab.metrics.metrics import Counter, _transform_namedtuple_valuename_to_labelset_dict
 
 
 class TestCounter(unittest.TestCase):
@@ -26,17 +26,17 @@ class TestCounter(unittest.TestCase):
 	def test_namedtuple_in_transform_namedtuple_valuename_to_labelset_dict(self):
 		value_name = self.MetricNamedtuple(method="POST", path="/unicorn", status="200")
 		expected = {"method": "POST", "path": "/unicorn", "status": "200"}
-		self.assertEqual(expected, self.TestCounter._transform_namedtuple_valuename_to_labelset_dict(value_name))
+		self.assertEqual(expected, _transform_namedtuple_valuename_to_labelset_dict(value_name))
 
 	def test_string_in_transform_namedtuple_valuename_to_labelset_dict(self):
 		value_name = "value_name"
 		expected = "value_name"
-		self.assertEqual(expected, self.TestCounter._transform_namedtuple_valuename_to_labelset_dict(value_name))
+		self.assertEqual(expected, _transform_namedtuple_valuename_to_labelset_dict(value_name))
 
 	def test_tuple_in_transform_namedtuple_valuename_to_labelset_dict(self):
 		value_name = self.JustTuple
 		expected = self.JustTuple
-		self.assertEqual(expected, self.TestCounter._transform_namedtuple_valuename_to_labelset_dict(value_name))
+		self.assertEqual(expected, _transform_namedtuple_valuename_to_labelset_dict(value_name))
 
 	def test_rest_get(self):
 		RestgetCounter = Counter("testcounter", tags={'help': 'This is another counter.'}, init_values={"v1": 1})

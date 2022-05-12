@@ -10,41 +10,17 @@ class Metric(abc.ABC):
 		assert(tags is not None)
 		self.Name = name
 		self.Tags = tags
-		self.Type = None
 
 	@abc.abstractmethod
 	def flush(self) -> dict:
 		pass
 
 	def rest_get(self) -> dict:
-		rest = {
+		return {
 			'Name': self.Name,
 			'Tags': self.Tags,
-			"Type": self.Type
 		}
-		values = list()
-		for value_name, value in self.Values.items():
-			value_name = self._transform_namedtuple_valuename_to_labelset_dict(value_name)
-			values.append({
-				"value_name": value_name,
-				"value": value,
-			})
 
-		rest["Values"] = values
-
-		return rest
-
-	def _transform_namedtuple_valuename_to_labelset_dict(self, value_name):
-		"""
-		Makes value names JSON serializable.
-		"""
-		if isinstance(value_name, tuple):
-			try:
-				value_name = value_name._asdict()
-			except AttributeError:
-				# "normal" tuple is JSON serializable as an array
-				pass
-		return value_name
 
 
 class Gauge(Metric):
@@ -62,6 +38,17 @@ class Gauge(Metric):
 
 	def rest_get(self):
 		rest = super().rest_get()
+		values = list()
+		for value_name, value in self.Values.items():
+			value_name = _transform_namedtuple_valuename_to_labelset_dict(value_name)
+			values.append({
+				"value_name": value_name,
+				"value": value,
+			})
+
+		rest["Values"] = values
+		rest["Type"] = self.Type
+
 		return rest
 
 
@@ -121,6 +108,17 @@ class Counter(Metric):
 
 	def rest_get(self):
 		rest = super().rest_get()
+		values = list()
+		for value_name, value in self.Values.items():
+			value_name = _transform_namedtuple_valuename_to_labelset_dict(value_name)
+			values.append({
+				"value_name": value_name,
+				"value": value,
+			})
+
+		rest["Values"] = values
+		rest["Type"] = self.Type
+
 		return rest
 
 
@@ -165,7 +163,7 @@ class EPSCounter(Counter):
 		}
 		values = list()
 		for value_name, value in self.LastCalculatedValues.items():
-			value_name = self._transform_namedtuple_valuename_to_labelset_dict(value_name)
+			value_name = _transform_namedtuple_valuename_to_labelset_dict(value_name)
 			values.append({
 				"value_name": value_name,
 				"value": value,
@@ -358,3 +356,18 @@ class Histogram(Metric):
 					self.Buckets[upper_bound][value_name] += 1
 		self.Sum += value
 		self.Count += 1
+
+
+
+
+def _transform_namedtuple_valuename_to_labelset_dict(value_name):
+	"""
+	Makes value names JSON serializable.
+	"""
+	if isinstance(value_name, tuple):
+		try:
+			value_name = value_name._asdict()
+		except AttributeError:
+			# "normal" tuple is JSON serializable as an array
+			pass
+	return value_name

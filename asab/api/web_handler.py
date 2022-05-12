@@ -17,13 +17,8 @@ class APIWebHandler(object):
 
 		webapp.router.add_get("/asab/v1/changelog", self.changelog)
 
-		# TODO: Can these endpoints be accessible everytime automatically? How to name them properly?
-		self.MetricsService = self.App.get_service("asab.MetricsService")
-		if self.MetricsService is None:
-			raise RuntimeError("asab.MetricsService is not available")
 		webapp.router.add_get("/asab/v1/metrics", self.metrics)
 		webapp.router.add_get("/asab/v1/watch_metrics", self.watch)
-		webapp.router.add_get("/asab/v1/metrics_json", self.metrics_json)
 
 
 	async def changelog(self, request):
@@ -74,17 +69,4 @@ class APIWebHandler(object):
 			text=text,
 			content_type="text/plain",
 			charset="utf-8",
-		)
-
-	async def metrics_json(self, request):
-		metrics_list = list()
-		for metric_name, metric in self.MetricsService.Metrics.items():
-			try:
-				if metric.LastRecord is not dict():
-					metrics_list.append(metric.LastRecord)
-			except AttributeError:
-				metrics_list.append(metric.rest_get())
-
-		return aiohttp.web.json_response(
-			metrics_list
 		)
