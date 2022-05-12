@@ -2,6 +2,7 @@ import logging
 import urllib.parse
 
 import kazoo.client
+import kazoo.exceptions
 
 #
 
@@ -103,31 +104,45 @@ class KazooWrapper(object):
 		return ret
 
 	async def get_children(self, path):
-		children = await self.ProactorService.execute(
-			self.Client.get_children, path
-		)
+		try:
+			children = await self.ProactorService.execute(
+				self.Client.get_children, path
+			)
+		except kazoo.exceptions.NoNodeError:
+			L.warning("Getting the list of children failed.")
+			return None
 		return children
 
 
 	async def get_data(self, path):
-		data, stat = await self.ProactorService.execute(
-			self.Client.get, path
-		)
+		try:
+			data, stat = await self.ProactorService.execute(
+				self.Client.get, path
+			)
+		except kazoo.exceptions.NoNodeError:
+			L.warning("Getting the data failed.git")
+			return None
 		return data
 
 	# write methods
 	async def set_data(self, path, data):
-
-		ret = await self.ProactorService.execute(
-			self.Client.set, path, data
-		)
+		try:
+			ret = await self.ProactorService.execute(
+				self.Client.set, path, data
+			)
+		except kazoo.exceptions.NoNodeError:
+			L.warning("Setting the data failed.")
+			return None
 		return ret
 
 	async def delete(self, path):
-
-		ret = await self.ProactorService.execute(
-			self.Client.delete, path
-		)
+		try:
+			ret = await self.ProactorService.execute(
+				self.Client.delete, path
+			)
+		except kazoo.exceptions.NoNodeError:
+			L.warning("Deleting the node failed.")
+			return None
 		return ret
 
 	# create ephemeral node
