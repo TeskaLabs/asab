@@ -95,24 +95,3 @@ class TestCounter(unittest.TestCase):
 		}
 		self.assertEqual(expected, RestgetCounter.rest_get())
 
-	def test_last_values(self):
-		RestgetCounter = Counter("testcounter", tags={'help': 'This is another counter.'}, init_values={"v1": 1})
-		value_name = self.MetricNamedtuple(method="GET", path="/metric", status="200")
-		RestgetCounter.add(value_name, 2, 0)
-		RestgetCounter.flush()
-		expected = {
-			"Name": "testcounter",
-			"Tags": {
-				"help": "This is another counter."
-			},
-			"Values": [{
-				"value_name": "v1",
-				"value": 1
-			},
-				{
-				"value_name": {"method": "GET", "path": "/metric", "status": "200"},
-				"value": 2
-			}],
-			"Type": "counter"
-		}
-		self.assertEqual(expected, RestgetCounter.LastRecord)
