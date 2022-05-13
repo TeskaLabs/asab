@@ -35,10 +35,8 @@ class MetricsService(asab.Service):
 		}
 		self.MetricsDataStorage = MetricsDataStorage()
 
-		# TODO: přehodit zpátky na 60s !!!
 		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
 
-		# Push targets are configured, pull targets (PrometheusTagret, WatchTarget) are available w/o configuration.
 		for target in asab.Config.get('asab:metrics', 'target').strip().split():
 			try:
 				target_type = asab.Config.get('asab:metrics:{}'.format(target), 'type')
@@ -76,7 +74,7 @@ class MetricsService(asab.Service):
 		mlist = []
 
 		for metric in self.Metrics.values():
-			# TODO: otestovat, jestli ještě funguje logování metrik
+			# TODO: discard metrics logging
 			struct_data = {
 				'name': metric.Name,
 				'timestamp': now,
