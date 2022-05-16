@@ -83,7 +83,7 @@ class KazooWrapper(object):
 		return ret
 
 
-	async def stop(self):
+	async def close(self):
 
 		ret = await self.ProactorService.execute(
 			self.Client.stop,
