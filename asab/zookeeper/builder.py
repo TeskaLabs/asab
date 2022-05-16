@@ -135,10 +135,10 @@ class KazooWrapper(object):
 			return None
 		return ret
 
-	async def delete(self, path):
+	async def delete(self, path, recursive=False):
 		try:
 			ret = await self.ProactorService.execute(
-				self.Client.delete, path
+				self.Client.delete, path, recursive
 			)
 		except kazoo.exceptions.NoNodeError:
 			L.warning("Deleting the node failed.")
