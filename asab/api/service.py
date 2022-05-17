@@ -45,8 +45,7 @@ class ApiService(asab.Service):
 		else:
 			self.Manifest = None
 
-
-
+		self.App.PubSub.subscribe("WebContainer.started!", self.advertise)
 
 
 	def attention_required(self, att: dict, att_id=None):
@@ -135,10 +134,6 @@ class ApiService(asab.Service):
 
 		# get zookeeper-service
 		self.ZkContainer = zoocontainer
-		self.ZkContainer.advertise(
-			data=self._build_zookeeper_adv_data(),
-			path="/run/{}.".format(self.App.__class__.__name__),
-		)
 
 
 	def _build_zookeeper_adv_data(self):
@@ -159,3 +154,9 @@ class ApiService(asab.Service):
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
 		return adv_data
+
+	def advertise(self, message_type, webcontainer):
+		self.ZkContainer.advertise(
+			data=self._build_zookeeper_adv_data(),
+			path="/run/{}.".format(self.App.__class__.__name__),
+		)
