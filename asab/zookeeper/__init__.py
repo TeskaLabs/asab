@@ -1,10 +1,10 @@
 from .service import ZooKeeperService
 from ..abc.module import Module
 from .container import ZooKeeperContainer
-
+from .builder import KazooWrapper
 __all__ = [
 	"ZooKeeperContainer",
-	"build_client",
+	"KazooWrapper",
 ]
 
 
