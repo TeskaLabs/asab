@@ -2,13 +2,12 @@
 
 class LibraryProviderABC(object):
 
-	def __init__(self, app, splang_instance, path):
+	def __init__(self, app, path):
 		super().__init__()
 		self.App = app
-		self.SPLangInstance = splang_instance
 
 
-	async def initialize(self):
+	async def initialize(self, app):
 		pass
 
 
@@ -22,12 +21,5 @@ class LibraryProviderABC(object):
 	async def list(self, path):
 		"""
 		Lists declarations on the given path.
-		"""
-		pass
-
-
-	async def write(self, path, data):
-		"""
-		Writes the data into the path.
 		"""
 		pass

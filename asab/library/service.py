@@ -16,24 +16,21 @@ class LibraryService(asab.Service):
 
 		provider = asab.Config["asab:library"]["provider"]
 		if provider.startswith("zk://"):
-			self.Provider = ZooKeeperLibraryProvider(self.App, self, provider)
-
+			self.Provider = ZooKeeperLibraryProvider(self.App, provider)
 		else:
-			self.Provider = FileSystemLibraryProvider(self.App, self, provider)
+			self.Provider = FileSystemLibraryProvider(self.App, provider)
 
 
 	async def initialize(self, app):
-		L.info("Sample service initialized.")
-		await self.Provider.initialize()
+		await self.Provider.initialize(app)
 
 	async def read(self, file):
 		res = await self.Provider.read(file)
 		return res
 
-	async def finalize(self, app):
-		L.info("Sample service finalized.")
+	async def list(self, file):
+		res = await self.Provider.list(file)
+		return res
 
-	# @asab.subscribe("Application.tick!")
-	# async def on_tick(self, message_type):
-	# 	self.counter = self.counter + 1
-	# 	L.info(message_type, struct_data={"counter": self.counter})
+	async def finalize(self, app):
+		pass

@@ -7,13 +7,13 @@ from .abc import LibraryProviderABC
 class FileSystemLibraryProvider(LibraryProviderABC):
 
 
-	def __init__(self, app, splang_instance, path):
-		super().__init__(app, splang_instance, path)
+	def __init__(self, app, path):
+		super().__init__(app, path)
 
 		self.LibraryBaseDir = path
 
 
-	async def initialize(self):
+	async def initialize(self, app):
 		pass
 
 
@@ -54,8 +54,3 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		return files_names_list
 
-
-	async def write(self, path, data):
-
-		with open(path, 'w') as f:
-			f.write(data)
