@@ -1,6 +1,6 @@
 import configparser
 import logging
-import asyncio
+# import asyncio
 
 import asab
 
@@ -35,7 +35,7 @@ class MetricsService(asab.Service):
 		}
 		self.MetricsDataStorage = MetricsDataStorage()
 
-		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
+		app.PubSub.subscribe("Application.tick/10!", self._on_flushing_event)
 
 		for target in asab.Config.get('asab:metrics', 'target').strip().split():
 			try:
@@ -69,128 +69,119 @@ class MetricsService(asab.Service):
 	async def _on_flushing_event(self, event_type):
 		if len(self.Metrics) == 0:
 			return
-		now = self.App.time()
-
-		mlist = []
 
 		for metric in self.Metrics.values():
-			# TODO: discard metrics logging
-			struct_data = {
-				'name': metric.Name,
-				'timestamp': now,
-			}
+			metric.flush()
 
-			record = metric.flush()
+		# TARGETS DISCONNECTED FOR NOW
+		# fs = []
+		# for target in self.Targets:
+		# 	fs.append(target.process(self.MetricsDataStorage.Tree))
 
-			# Skip empty values
-			if len(record.get("Values")) == 0:
-				continue
+		# if len(fs) > 0:
+		# 	done, pending = await asyncio.wait(fs, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
 
-			for i in record.get("Values"):
-				struct_data['field.{}'.format(i.get("value_name"))] = i.get("value")
-
-			tags = metric.Tags
-			if tags is not None:
-				for tk, tv in tags.items():
-					struct_data['tag.{}'.format(tk)] = tv
-
-			# Log metrics into the logger
-			# To enable seing this in normal ASAB mode, use following configuration:
-			#
-			# [logging]
-			# levels=
-			#   asab.metrics INFO
-			L.info("", struct_data=struct_data)
-
-			record["@timestamp"] = now
-			mlist.append(record)
-
-
-			self.App.PubSub.publish(
-				"Application.Metrics.Flush!",
-				metric, record,
-				asynchronously=False
-			)
-
-			# add record to storage
-			dimension = metric_dimension(metric.Name, metric.Tags)
-			self.MetricsDataStorage.add_metric(dimension, record)
-
-		fs = []
-		for target in self.Targets:
-			fs.append(target.process(mlist))
-		if len(fs) > 0:
-			done, pending = await asyncio.wait(fs, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
-
-			for f in pending:
-				L.warning("Target task {} failed to complete".format(f))
-				f.cancel()
+		# 	for f in pending:
+		# 		L.warning("Target task {} failed to complete".format(f))
+		# 		f.cancel()
 
 
 	def _add_metric(self, dimension, metric: Metric):
-		dimension = metric_dimension(metric.Name, metric.Tags)
+		metric._initialize_storage(
+			self.MetricsDataStorage.create_metric_storage(dimension)
+		)
 		self.Metrics[dimension] = metric
 
 
-	def create_gauge(self, metric_name, tags=dict(), init_values=None):
-		tags.update(self.Tags)
+	def create_gauge(self, metric_name, tags=None, init_values=None):
 		dimension = metric_dimension(metric_name, tags)
 		if dimension in self.Metrics:
 			raise RuntimeError("Metric '{}' already present".format(dimension))
 
-		m = Gauge(metric_name, tags=tags, init_values=init_values)
+		if tags is not None:
+			t = self.Tags.copy()
+			t.update(tags)
+		else:
+			t = self.Tags
+
+		m = Gauge(metric_name, tags=t, init_values=init_values)
 		self._add_metric(dimension, m)
 		return m
 
 
-	def create_counter(self, metric_name, tags=dict(), init_values=None, reset: bool = True):
-		tags.update(self.Tags)
+	def create_counter(self, metric_name, tags=None, init_values=None, reset: bool = True):
 		dimension = metric_dimension(metric_name, tags)
 		if dimension in self.Metrics:
 			raise RuntimeError("Metric '{}' already present".format(dimension))
 
-		m = Counter(metric_name, tags=tags, init_values=init_values, reset=reset)
+		if tags is not None:
+			t = self.Tags.copy()
+			t.update(tags)
+		else:
+			t = self.Tags
+
+		m = Counter(metric_name, tags=t, init_values=init_values, reset=reset)
 		self._add_metric(dimension, m)
 		return m
 
 
-	def create_eps_counter(self, metric_name, tags=dict(), init_values=None, reset: bool = True):
-		tags.update(self.Tags)
+	def create_eps_counter(self, metric_name, tags=None, init_values=None, reset: bool = True):
 		dimension = metric_dimension(metric_name, tags)
 		if dimension in self.Metrics:
 			raise RuntimeError("Metric '{}' already present".format(dimension))
 
-		m = EPSCounter(metric_name, tags=tags, init_values=init_values, reset=reset)
+		if tags is not None:
+			t = self.Tags.copy()
+			t.update(tags)
+		else:
+			t = self.Tags
+
+		m = EPSCounter(metric_name, tags=t, init_values=init_values, reset=reset)
 		self._add_metric(dimension, m)
 		return m
 
 
-	def create_duty_cycle(self, loop, metric_name, tags=dict(), init_values=None):
-		tags.update(self.Tags)
+	def create_duty_cycle(self, loop, metric_name, tags=None, init_values=None):
 		dimension = metric_dimension(metric_name, tags)
 		if dimension in self.Metrics:
 			raise RuntimeError("Metric '{}' already present".format(dimension))
 
-		m = DutyCycle(loop, metric_name, tags=tags, init_values=init_values)
+		if tags is not None:
+			t = self.Tags.copy()
+			t.update(tags)
+		else:
+			t = self.Tags
+
+		m = DutyCycle(loop, metric_name, tags=t, init_values=init_values)
 		self._add_metric(dimension, m)
 		return m
 
-	def create_agg_counter(self, metric_name, tags=dict(), init_values=None, reset: bool = True, agg=max):
-		tags.update(self.Tags)
+	def create_agg_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, agg=max):
 		dimension = metric_dimension(metric_name, tags)
 		if dimension in self.Metrics:
 			raise RuntimeError("Metric '{}' already present".format(dimension))
 
-		m = AggregationCounter(metric_name, tags=tags, init_values=init_values, reset=reset, agg=agg)
+		if tags is not None:
+			t = self.Tags.copy()
+			t.update(tags)
+		else:
+			t = self.Tags
+
+		m = AggregationCounter(metric_name, tags=t, init_values=init_values, reset=reset, agg=agg)
 		self._add_metric(dimension, m)
 		return m
 
-	def create_histogram(self, metric_name, buckets: list, tags=dict(), reset: bool = True):
-		tags.update(self.Tags)
+	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True):
 		dimension = metric_dimension(metric_name, tags)
 		if dimension in self.Metrics:
 			raise RuntimeError("Metric '{}' already present".format(dimension))
 
-		m = Histogram(metric_name, buckets=buckets, tags=tags, reset=reset)
+		if tags is not None:
+			t = self.Tags.copy()
+			t.update(tags)
+		else:
+			t = self.Tags
+
+		m = Histogram(metric_name, buckets=buckets, tags=t, reset=reset)
 		self._add_metric(dimension, m)
 		return m

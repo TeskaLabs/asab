@@ -8,17 +8,17 @@ class MetricsDataStorage(object):
 		self.Tree = dict()
 
 
-	def get_metric(self, dimension: str):
-		data = self.Tree.get(dimension)
-		if data is not None:
-			return data
+	def create_metric_storage(self, dimension: str):
+		if dimension in self.Tree:
+			raise RuntimeError("Metrics dimension already exists in the data storage")
 
-	def add_metric(self, dimension, data=dict()):
+		data = dict()
 		self.Tree[dimension] = data
+		return data
 
 
 	def get_all(self):
-		return [i for i in self.Tree.values()]
+		return self.Tree.values()
 
 
 	def get_all_in_openmetric(self):

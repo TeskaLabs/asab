@@ -10,8 +10,19 @@ class Metric(abc.ABC):
 		assert(tags is not None)
 		self.Name = name
 		self.Tags = tags
+		self.Type = self.__class__.__name__
+		self.Storage = None
 
-	@abc.abstractmethod
+
+	def _initialize_storage(self, storage: dict):
+		storage.update({
+			'Name': self.Name,
+			'Tags': self.Tags,
+			'Type': self.Type,
+		})
+		self.Storage = storage
+
+
 	def flush(self) -> dict:
 		pass
 
@@ -19,6 +30,7 @@ class Metric(abc.ABC):
 		return {
 			'Name': self.Name,
 			'Tags': self.Tags,
+			'Type': self.Type,
 		}
 
 
@@ -28,27 +40,20 @@ class Gauge(Metric):
 		super().__init__(name=name, tags=tags)
 		self.Init = init_values if init_values is not None else dict()
 		self.Values = self.Init.copy()
-		self.Type = "gauge"
 
-	def set(self, name, value):
+	def _initialize_storage(self, storage: dict):
+		storage.update({
+			"Values": self.Values
+		})
+		super()._initialize_storage(storage)
+
+
+	def set(self, name: str, value):
 		self.Values[name] = value
-
-	def flush(self) -> dict:
-		return self.rest_get()
 
 	def rest_get(self):
 		rest = super().rest_get()
-		values = list()
-		for value_name, value in self.Values.items():
-			value_name = _transform_namedtuple_valuename_to_labelset_dict(value_name)
-			values.append({
-				"value_name": value_name,
-				"value": value,
-			})
-
-		rest["Values"] = values
-		rest["Type"] = self.Type
-
+		rest["Values"] = self.Values
 		return rest
 
 
@@ -58,7 +63,6 @@ class Counter(Metric):
 		self.Init = init_values if init_values is not None else dict()
 		self.Values = self.Init.copy()
 		self.Reset = reset
-		self.Type = "counter"
 
 
 	def add(self, name, value, init_value=None):
@@ -98,25 +102,17 @@ class Counter(Metric):
 			self.Values[name] = init_value - value
 
 
-	def flush(self) -> dict:
-		ret = self.rest_get()
+	def flush(self):
+		self.Storage.update({
+			"Values": self.Values.copy()
+		})
 		if self.Reset:
 			self.Values = self.Init.copy()
-		return ret
+
 
 	def rest_get(self):
 		rest = super().rest_get()
-		values = list()
-		for value_name, value in self.Values.items():
-			value_name = _transform_namedtuple_valuename_to_labelset_dict(value_name)
-			values.append({
-				"value_name": value_name,
-				"value": value,
-			})
-
-		rest["Values"] = values
-		rest["Type"] = self.Type
-
+		rest["Values"] = self.Values.copy()
 		return rest
 
 
