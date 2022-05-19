@@ -1,13 +1,14 @@
 import logging
 
-import asab
-import asab.metrics
+from ..abc.service import Service
+from .. import Config
+from .. import metrics
 
 
 L = logging.getLogger(__name__)
 
 
-class WebService(asab.Service):
+class WebService(Service):
 
 	ConfigSectionAliases = ["asab:web"]
 
@@ -15,7 +16,7 @@ class WebService(asab.Service):
 		super().__init__(app, service_name)
 
 		# Web service is dependent on Metrics service
-		app.add_module(asab.metrics.Module)
+		app.add_module(metrics.Module)
 		self.MetricsService = app.get_service("asab.MetricsService")
 		self.initialize_metrics()
 
@@ -82,10 +83,10 @@ class WebService(asab.Service):
 		config_section = "web"
 
 		# The WebContainer should be configured in the config section [web]
-		if config_section not in asab.Config.sections():
+		if config_section not in Config.sections():
 			# If there is no [web] section, try other aliases for backwards compatibility
 			for alias in self.ConfigSectionAliases:
-				if alias in asab.Config.sections():
+				if alias in Config.sections():
 					config_section = alias
 					L.warning("Using obsolete config section [{}]. Preferred section name is [web]. ".format(alias))
 					break
