@@ -15,11 +15,7 @@ L = logging.getLogger(__name__)
 
 
 class ZooKeeperContainer(ConfigObject):
-	"""
-	ZooKeeperContainer connects to Zookeeper via aiozk client:
-	https://zookeeper.apache.org/
-	https://pypi.org/project/aiozk/
-	"""
+
 
 	def __init__(self, app, config_section_name, config=None, z_path=None):
 		super().__init__(config_section_name=config_section_name, config=config)
@@ -48,15 +44,14 @@ class ZooKeeperContainer(ConfigObject):
 		)
 
 
+	async def _stop(self, app):
+		await self.ZooKeeper.close()
+
 	def is_connected(self):
 		"""
 		Check, if the Zookeeper is connected
 		"""
 		return self.ZooKeeper.Client.connected
-
-
-	async def finalize(self, app):
-		await self.ZooKeeper.close()
 
 
 	def advertise(self, data, path):

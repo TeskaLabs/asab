@@ -1,5 +1,5 @@
 import logging
-import asyncio
+
 import asab
 import asab.metrics
 
@@ -24,7 +24,7 @@ class WebService(asab.Service):
 
 	async def finalize(self, app):
 		for containers in self.Containers.values():
-			await containers.finalize(app)
+			await containers._stop(app)
 
 
 	def initialize_metrics(self):
@@ -63,7 +63,7 @@ class WebService(asab.Service):
 
 	def _register_container(self, container, config_section_name):
 		self.Containers[config_section_name] = container
-		asyncio.ensure_future(container.initialize(self.App))
+		self.App.TaskService.schedule(container._start(self.App))
 
 
 	@property
@@ -87,7 +87,7 @@ class WebService(asab.Service):
 			for alias in self.ConfigSectionAliases:
 				if alias in asab.Config.sections():
 					config_section = alias
-					L.warning("Using obsolete web config alias [{}]. Preferred section name is [web]. ".format(alias))
+					L.warning("Using obsolete config section [{}]. Preferred section name is [web]. ".format(alias))
 					break
 			else:
 				raise RuntimeError("No [web] section configured.")

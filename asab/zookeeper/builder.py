@@ -21,13 +21,13 @@ class KazooWrapper(object):
 		Example: zookeeper:///etc/configs/file1
 		In this case the relative url is expanded as follows:
 		zookeeper://{default_server}/etc/configs/file1
-		Where {default_server} is substituted with the server entry of the [asab:zookeeper] configuration file section.
+		Where {default_server} is substituted with the server entry of the [zookeeper] configuration file section.
 	3. Relative url with relative path
 	Example: zookeeper:./etc/configs/file1
 		In this case, the relative url is expanded as follows:
 		zookeper://{default_server}/{default_path}/etc/configs/file1
-		Where {default_server} is substituted with the "server" entry of the [asab:zookeeper] configuration file section and
-		{default_path} is substituted with the "path" entry of the [asab:zookeeper] configuration file section.
+		Where {default_server} is substituted with the "server" entry of the [zookeeper] configuration file section and
+		{default_path} is substituted with the "path" entry of the [zookeeper] configuration file section.
 	Sample config file:
 
 	[asab.zookeeper]

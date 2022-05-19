@@ -70,23 +70,26 @@ class ConfigParser(configparser.ConfigParser):
 			"rotate_every": "",
 		},
 
-		"web": {
-			# This is commented b/c `-w` switch fills this value
-			# The same `listen` configuration is in a ConfigDefault of the web container
-			# "listen": "0.0.0.0 8080",
-		},
+		# "web": {
+		# 	#This is commented b/c `-w` switch fills this value
+		# 	# The same `listen` configuration is in a ConfigDefault of the web container
+		# 	"listen": "0.0.0.0 8080",
+		# },
+
+		# "zookeeper": {
+		# 	# Server list to which ZooKeeper Client tries connecting.
+		# 	# Specify a comma (,) separated server list.
+		# 	# A server is defined as address:port format.
+		# 	"servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
+
+		# 	"path": "/asab",
+		# },
 
 		"authz": {
 			# RBAC URL
 			# If !DISABLED! is specified, all authorization checks will be skipped
 			"rbac_url": "http://localhost:8081/rbac",
 		},
-
-		"asab:zookeeper": {
-			"servers": "",
-			"path": "/asab",
-		},
-
 
 		# "passwords" section serves to securely store passwords
 		# in the configuration file; the passwords are not
@@ -207,10 +210,18 @@ class ConfigParser(configparser.ConfigParser):
 		url_netloc = url_pieces.netloc
 
 		if not url_netloc:
-			url_netloc = self["asab:zookeeper"]["servers"]
+			if "asab:zookeeper" in self:
+				# Backward compatibility
+				url_netloc = self["asab:zookeeper"]["servers"]
+			else:
+				url_netloc = self["zookeeper"]["servers"]
 
 		if url_path.startswith("./"):
-			url_path = self["asab:zookeeper"]["path"] + url_path[1:]
+			if "asab:zookeeper" in self:
+				# Backward compatibility
+				url_path = self["asab:zookeeper"]["path"] + url_path[1:]
+			else:
+				url_path = self["zookeeper"]["path"] + url_path[1:]
 
 		head, tail = os.path.split(url_path)
 		self.config_name_list.append(tail)
