@@ -53,4 +53,3 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		files_names_list.sort()
 
 		return files_names_list
-
