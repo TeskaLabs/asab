@@ -138,7 +138,7 @@ class ApiService(Service):
 		if self.ZkContainer is None:
 			return
 
-		if not self.ZkContainer.ZooKeeper.Client.connected:
+		if not self.ZkContainer.is_connected():
 			return
 
 		adv_data = {
