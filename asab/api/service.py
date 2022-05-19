@@ -146,13 +146,14 @@ class ApiService(Service):
 			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
 			'servername': self.App.ServerName,
+			'procesid': os.getpid(),
 		}
 
 		if self.Manifest is not None:
 			adv_data.update(self.Manifest)
 
 		if len(self.AttentionRequired) > 0:
-			# add sttention required status
+			# add attention required status
 			adv_data.update({"attention_required": self.AttentionRequired})
 
 		if self.WebContainer is not None:
