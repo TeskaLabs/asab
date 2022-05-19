@@ -63,6 +63,7 @@ class ZooKeeperContainer(ConfigObject):
 		adv = self.Advertisments.get(self.ZooKeeper.Path + path)
 		if adv is None:
 			adv = ZooKeeperAdvertisement(self.ZooKeeper.Path + path)
+			self.Advertisments[self.ZooKeeper.Path + path] = adv
 		adv.set_data(data)
 		self.App.TaskService.schedule(adv._do_advertise(self))
 
