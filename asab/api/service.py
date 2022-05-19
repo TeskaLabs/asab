@@ -162,7 +162,7 @@ class ApiService(Service):
 			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
 			'servername': self.App.ServerName,
-			'procesid': os.getpid(),
+			'processid': os.getpid(),
 		}
 
 		if self.Manifest is not None:
