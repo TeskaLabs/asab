@@ -49,12 +49,7 @@ class ZooKeeperService(Service):
 	def build_container(self, config_section_name):
 		container = ZooKeeperContainer(self.App, config_section_name)
 		self.Containers[container.ConfigSectionName] = container
-		# Zookeeper Container is started on the proactor thread
-		future = container.ZooKeeper.ProactorService.execute(
-			container._start, self.App
-		)
-		# ... and we are not interested in the result of that task
-		self.App.TaskService.schedule(future)
+		container.ZooKeeper.ProactorService.schedule(container._start, self.App)
 		return container
 
 
