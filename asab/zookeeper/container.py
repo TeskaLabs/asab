@@ -4,7 +4,7 @@ import logging
 
 import kazoo.exceptions
 
-from .builder import KazooWrapper
+from .wrapper import KazooWrapper
 from ..config import ConfigObject
 
 #
