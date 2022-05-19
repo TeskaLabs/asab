@@ -2,7 +2,7 @@ import json
 import asyncio
 import logging
 
-import aiozk.exc
+import kazoo.exceptions
 
 from .builder import KazooWrapper
 from ..config import ConfigObject
@@ -35,20 +35,23 @@ class ZooKeeperContainer(ConfigObject):
 		self.ZooKeeperPath = self.ZooKeeper.Path
 		self.Advertisments = set()
 
-
-	async def initialize(self, app):
-		await self.ZooKeeper.start()
-		await self.ZooKeeper.ensure_path(self.ZooKeeper.Path)
-
 		self.App.PubSub.subscribe("Application.tick/300!", self._do_advertise)
 		self.App.PubSub.subscribe("ZooKeeper.advertise!", self._do_advertise)
+		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._do_advertise)
 
-		# Force advertisement immediatelly after initialization
-		self.App.PubSub.publish("ZooKeeper.advertise!")
+
+	def _start(self, app):
+		# This method is called on proactor thread
+		self.ZooKeeper.start()
+		self.ZooKeeper.Client.ensure_path(self.ZooKeeper.Path)
+
+		self.App.Loop.call_soon_threadsafe(
+			self.App.PubSub.publish, "ZooKeeperContainer.started!", self
+		)
 
 
 	async def finalize(self, app):
-		await self.ZooKeeper.stop()
+		await self.ZooKeeper.close()
 
 
 	def advertise(self, data, path):
@@ -58,7 +61,7 @@ class ZooKeeperContainer(ConfigObject):
 		self.App.PubSub.publish("ZooKeeper.advertise!")
 
 
-	async def _do_advertise(self, event_name):
+	async def _do_advertise(self, *args):
 		for adv in self.Advertisments:
 			await adv._do_advertise(self)
 
@@ -108,6 +111,6 @@ class ZooKeeperAdvertisement(object):
 
 			try:
 				await create()
-			except aiozk.exc.NoNode:
+			except kazoo.exceptions.NoNodeError:
 				await zoocontainer.ZooKeeper.ensure_path(self.Path.rstrip(self.Path.split("/")[-1]))
 				await create()

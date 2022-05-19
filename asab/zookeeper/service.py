@@ -26,12 +26,6 @@ class ZooKeeperService(Service):
 		super().__init__(app, service_name)
 		self.App = app
 		self.Containers = {}
-		self.DefaultContainer = None
-
-
-	async def initialize(self, app):
-		if Config.has_section('asab:zookeeper'):
-			self.DefaultContainer = await self.build_container('asab:zookeeper')
 
 
 	async def finalize(self, app):
@@ -39,10 +33,26 @@ class ZooKeeperService(Service):
 			await containers.finalize(app)
 
 
-	async def build_container(self, config_section_name):
+	@property
+	def DefaultContainer(self):
+		'''
+		This is here to maintain backward compatibility.
+		'''
+		config_section = 'asab:zookeeper'
+
+		try:
+			return self.Containers[config_section]
+		except KeyError:
+			return self.build_container(config_section)
+
+
+	def build_container(self, config_section_name):
 		container = ZooKeeperContainer(self.App, config_section_name)
 		self.Containers[container.ConfigSectionName] = container
-		await container.initialize(self.App)
+		future = container.ZooKeeper.ProactorService.execute(
+			container._start, self.App
+		)
+		self.App.TaskService.schedule(future)
 		return container
 
 

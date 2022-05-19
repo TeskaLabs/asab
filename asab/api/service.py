@@ -1,10 +1,11 @@
+import os
+import uuid
 import json
 import datetime
 import logging
-import asab.web.rest
-import uuid
-import os
 
+
+from .. import Service, Config
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
 
@@ -12,25 +13,25 @@ from .log import WebApiLoggingHandler
 
 L = logging.getLogger(__name__)
 
-
 ##
 
-asab.Config.add_defaults({
+Config.add_defaults({
 	"general": {
 		"manifest": "",
 	}
 })
 
 
-class ApiService(asab.Service):
+class ApiService(Service):
 
 	def __init__(self, app, service_name="asab.ApiService"):
 		super().__init__(app, service_name)
 
 		self.WebContainer = None
 		self.ZkContainer = None
+
 		self.AttentionRequired = {}  # dict of errors found.
-		path = asab.Config.get("general", "manifest")
+		path = Config.get("general", "manifest")
 		if len(path) == 0:
 			if os.path.isfile("/app/MANIFEST.json"):
 				path = "/app/MANIFEST.json"
@@ -45,8 +46,11 @@ class ApiService(asab.Service):
 		else:
 			self.Manifest = None
 
-		# wait for WebContainer to acquire Addresses, which are advertised to Zookeeper
+		# Listen for WebContainer to acquire Addresses (when started), which are advertised to Zookeeper
 		self.App.PubSub.subscribe("WebContainer.started!", self._on_webcontainer_start)
+		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zkcontainer_start)
+
+		self._do_zookeeper_adv_data()
 
 
 	def attention_required(self, att: dict, att_id=None):
@@ -61,12 +65,9 @@ class ApiService(asab.Service):
 			att["_c"] = datetime.datetime.utcnow().isoformat() + 'Z'
 
 		# add to microservice json/dict section attention_required
-		if self.ZkContainer is not None:
-			self.ZkContainer.advertise(
-				data=self._build_zookeeper_adv_data(),
-				path="/run/{}.".format(self.App.__class__.__name__),
-			)
+		self._do_zookeeper_adv_data()
 		return att_id
+
 
 	def remove_attention(self, att_id):
 		try:
@@ -79,11 +80,7 @@ class ApiService(asab.Service):
 			L.warning("Key None does not exist.")
 			raise Exception("Key None does not exist.")
 
-		if self.ZkContainer is not None:
-			self.ZkContainer.advertise(
-				data=self._build_zookeeper_adv_data(),
-				path="/run/{}.".format(self.App.__class__.__name__),
-			)
+		self._do_zookeeper_adv_data()
 
 
 	def initialize_web(self, webcontainer=None):
@@ -137,7 +134,13 @@ class ApiService(asab.Service):
 		self.ZkContainer = zoocontainer
 
 
-	def _build_zookeeper_adv_data(self):
+	def _do_zookeeper_adv_data(self):
+		if self.ZkContainer is None:
+			return
+
+		if not self.ZkContainer.ZooKeeper.Client.connected:
+			return
+
 		adv_data = {
 			'appclass': self.App.__class__.__name__,
 			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
@@ -154,12 +157,17 @@ class ApiService(asab.Service):
 
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
-		return adv_data
 
-	def _on_webcontainer_start(self, message_type, webcontainer):
-		if webcontainer != self.WebContainer:
-			return
 		self.ZkContainer.advertise(
-			data=self._build_zookeeper_adv_data(),
+			data=adv_data,
 			path="/run/{}.".format(self.App.__class__.__name__),
 		)
+
+
+	def _on_webcontainer_start(self, message_type, container):
+		if container == self.WebContainer:
+			self._do_zookeeper_adv_data()
+
+	def _on_zkcontainer_start(self, message_type, container):
+		if container == self.ZkContainer:
+			self._do_zookeeper_adv_data()

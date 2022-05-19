@@ -76,11 +76,8 @@ class KazooWrapper(object):
 
 	# connection start/close calls
 
-	async def start(self):
-		ret = await self.ProactorService.execute(
-			self.Client.start,
-		)
-		return ret
+	def start(self):
+		return self.Client.start()
 
 
 	async def close(self):
@@ -89,6 +86,7 @@ class KazooWrapper(object):
 			self.Client.stop,
 		)
 		return ret
+
 
 	# read-only calls
 	async def ensure_path(self, path):
