@@ -15,12 +15,6 @@ L = logging.getLogger(__name__)
 
 ##
 
-Config.add_defaults({
-	"general": {
-		"manifest": "",
-	}
-})
-
 
 class ApiService(Service):
 
@@ -31,20 +25,43 @@ class ApiService(Service):
 		self.ZkContainer = None
 
 		self.AttentionRequired = {}  # dict of errors found.
+
+		# Manifest
 		path = Config.get("general", "manifest")
-		if len(path) == 0:
+		if path == "":
+
 			if os.path.isfile("/app/MANIFEST.json"):
 				path = "/app/MANIFEST.json"
-			elif os.path.isfile("./app/MANIFEST.json"):
-				path = "./app/MANIFEST.json"
+			elif os.path.isfile("/MANIFEST.json"):
+				path = "/MANIFEST.json"
+			elif os.path.isfile("MANIFEST.json"):
+				path = "MANIFEST.json"
+		
 		if len(path) != 0:
 			try:
 				with open(path) as f:
 					self.Manifest = json.load(f)
 			except Exception as e:
 				L.exception("Error when reading manifest for reason {}".format(e))
+
 		else:
 			self.Manifest = None
+
+		# Change log
+		path = Config.get("general", "changelog")
+		if path == "":
+			if os.path.isfile("/app/CHANGELOG.md"):
+				path = "/app/CHANGELOG.md"
+			elif os.path.isfile("/CHANGELOG.md"):
+				path = "/CHANGELOG.md"
+			elif os.path.isfile("CHANGELOG.md"):
+				path = "CHANGELOG.md"
+			
+		if os.path.isfile(path):
+			self.ChangeLog = path
+		else:
+			self.ChangeLog = None
+
 
 		# Listen for WebContainer to acquire Addresses (when started), which are advertised to Zookeeper
 		self.App.PubSub.subscribe("WebContainer.started!", self._on_webcontainer_start)
@@ -109,7 +126,7 @@ class ApiService(Service):
 		self.Logging = logging.getLogger()
 		self.Logging.addHandler(self.APILogHandler)
 
-		self.WebHandler = APIWebHandler(self.App, self.WebContainer.WebApp, self.APILogHandler)
+		self.WebHandler = APIWebHandler(self, self.WebContainer.WebApp, self.APILogHandler)
 
 
 	def initialize_zookeeper(self, zoocontainer=None):

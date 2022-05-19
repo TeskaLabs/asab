@@ -33,12 +33,14 @@ class ConfigParser(configparser.ConfigParser):
 			'tick_period': 1,  # In seconds
 			'var_dir': os.path.expanduser('~/.' + os.path.splitext(os.path.basename(sys.argv[0]))[0]),
 
+			'changelog': '',
+			'manifest': '',
+
 			# Daemonization
 			'pidfile': '!',  # '!' has a special meaning => it transforms into platform specific location of pid file
 			'working_dir': '.',
 			'uid': '',
 			'gid': '',
-			'changelog_path': '/CHANGELOG.md',
 		},
 
 		"logging": {
@@ -70,12 +72,14 @@ class ConfigParser(configparser.ConfigParser):
 			"rotate_every": "",
 		},
 
+		# Example, that should remain commented
 		# "web": {
 		# 	#This is commented b/c `-w` switch fills this value
 		# 	# The same `listen` configuration is in a ConfigDefault of the web container
 		# 	"listen": "0.0.0.0 8080",
 		# },
 
+		# Example, that should remain commented
 		# "zookeeper": {
 		# 	# Server list to which ZooKeeper Client tries connecting.
 		# 	# Specify a comma (,) separated server list.
