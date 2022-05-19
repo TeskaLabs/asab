@@ -36,7 +36,7 @@ class ApiService(Service):
 				path = "/MANIFEST.json"
 			elif os.path.isfile("MANIFEST.json"):
 				path = "MANIFEST.json"
-		
+
 		if len(path) != 0:
 			try:
 				with open(path) as f:
@@ -56,14 +56,13 @@ class ApiService(Service):
 				path = "/CHANGELOG.md"
 			elif os.path.isfile("CHANGELOG.md"):
 				path = "CHANGELOG.md"
-			
+
 		if os.path.isfile(path):
 			self.ChangeLog = path
 		else:
 			self.ChangeLog = None
 
 
-		# Listen for WebContainer to acquire Addresses (when started), which are advertised to Zookeeper
 		self.App.PubSub.subscribe("WebContainer.started!", self._on_webcontainer_start)
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zkcontainer_start)
 
