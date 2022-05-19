@@ -57,10 +57,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			path = path[:-2]
 
 		node_names = list()
-
 		node_path = "{}/{}".format(self.BasePath, path)
 		await self._list_by_node_path(node_path, node_names, recursive=recursive)
-
 		return node_names
 
 
@@ -68,27 +66,19 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		Recursive function to list all nested nodes within the ZooKeeper library.
 		"""
-
 		try:
-
 			for node in await self.Zookeeper.get_children(node_path):
-
 				try:
-
 					nested_node_path = "{}/{}".format(node_path, node)
-
 					if recursive:
 						await self._list_by_node_path(nested_node_path, node_names, recursive)
-
 					# List only YAML files
 					if not nested_node_path.endswith(".yaml"):
 						continue
-
 					# Remove library path from the beginning of node names
 					node_names.append(
 						nested_node_path.replace("{}/".format(self.BasePath), "")
 					)
-
 				except Exception as e:
 					L.warning("Exception occurred during ZooKeeper load: '{}'".format(e))
 
