@@ -1,41 +1,28 @@
-import asyncio
-
+import logging
 from ..abc.service import Service
-from ..config import Config
-
+from .. import Config
 from .container import ZooKeeperContainer
+
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 
 class ZooKeeperService(Service):
-	"""
-	ZooKeeperService connects to Zookeeper via aiozk client:
-	https://zookeeper.apache.org/
-	https://pypi.org/project/aiozk/
-	"""
 
-	Config.add_defaults({
-		"asab:zookeeper": {
-			# Server list to which ZooKeeper Client tries connecting.
-			# Specify a comma (,) separated server list.
-			# A server is defined as address:port format.
-			# "servers": "zookeeper:12181",
-			"servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
-			"path": "/asab",
-		}
-	})
+	ConfigSectionAliases = ["asab:zookeeper"]
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 		self.App = app
 		self.Containers = {}
-		self.Futures = []
 
 
 	async def finalize(self, app):
-		if len(self.Futures) > 0:
-			await asyncio.wait(self.Futures)
 		for containers in self.Containers.values():
-			await containers.finalize(app)
+			await containers._stop(app)
 
 
 	@property
@@ -43,18 +30,30 @@ class ZooKeeperService(Service):
 		'''
 		This is here to maintain backward compatibility.
 		'''
-		container = self.Containers.get('asab:zookeeper')
-		if container is None:
-			container = self.build_container()
-		return container
+		config_section = 'zookeeper'
+
+		# The WebContainer should be configured in the config section [web]
+		if config_section not in Config.sections():
+			# If there is no [web] section, try other aliases for backwards compatibility
+			for alias in self.ConfigSectionAliases:
+				if alias in Config.sections():
+					config_section = alias
+					L.warning("Using obsolete config section [{}]. Preferred section name is [zookeeper]. ".format(alias))
+					break
+			else:
+				raise RuntimeError("No [zookeeper] section configured.")
+
+		container = self.Containers.get(config_section)
+		if container is not None:
+			return container
+		else:
+			return self.build_container(config_section)
 
 
-	def build_container(self, config_section_name="asab:zookeeper"):
+	def build_container(self, config_section_name):
 		container = ZooKeeperContainer(self.App, config_section_name)
 		self.Containers[container.ConfigSectionName] = container
-		self.Futures.append(asyncio.ensure_future(
-			container.initialize(self.App)
-		))
+		container.ZooKeeper.ProactorService.schedule(container._start, self.App)
 		return container
 
 

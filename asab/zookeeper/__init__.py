@@ -1,15 +1,15 @@
-from .service import ZooKeeperService
 from ..abc.module import Module
-from .container import ZooKeeperContainer
-
-__all__ = [
-	"ZooKeeperContainer",
-	"build_client",
-]
 
 
 class Module(Module):
 
 	def __init__(self, app):
 		super().__init__(app)
+
+		from .service import ZooKeeperService
 		self.Service = ZooKeeperService(app, "asab.ZooKeeperService")
+
+
+__all__ = [
+	"Module",
+]

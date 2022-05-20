@@ -2,9 +2,9 @@ import json
 import asyncio
 import logging
 
-import aiozk.exc
+import kazoo.exceptions
 
-from .builder import KazooWrapper
+from .wrapper import KazooWrapper
 from ..config import ConfigObject
 
 #
@@ -15,11 +15,7 @@ L = logging.getLogger(__name__)
 
 
 class ZooKeeperContainer(ConfigObject):
-	"""
-	ZooKeeperContainer connects to Zookeeper via aiozk client:
-	https://zookeeper.apache.org/
-	https://pypi.org/project/aiozk/
-	"""
+
 
 	def __init__(self, app, config_section_name, config=None, z_path=None):
 		super().__init__(config_section_name=config_section_name, config=config)
@@ -33,33 +29,42 @@ class ZooKeeperContainer(ConfigObject):
 		self.ConfigSectionName = config_section_name
 		self.ZooKeeper = KazooWrapper(app, self.Config, z_path)
 		self.ZooKeeperPath = self.ZooKeeper.Path
-		self.Advertisments = set()
-
-
-	async def initialize(self, app):
-		await self.ZooKeeper.start()
-		await self.ZooKeeper.ensure_path(self.ZooKeeper.Path)
+		self.Advertisments = dict()
 
 		self.App.PubSub.subscribe("Application.tick/300!", self._do_advertise)
-		self.App.PubSub.subscribe("ZooKeeper.advertise!", self._do_advertise)
-
-		# Force advertisement immediatelly after initialization
-		self.App.PubSub.publish("ZooKeeper.advertise!")
 
 
-	async def finalize(self, app):
-		await self.ZooKeeper.stop()
+	def _start(self, app):
+		# This method is called on proactor thread
+		self.ZooKeeper.start()
+		self.ZooKeeper.Client.ensure_path(self.ZooKeeper.Path)
+
+		self.App.Loop.call_soon_threadsafe(
+			self.App.PubSub.publish, "ZooKeeperContainer.started!", self
+		)
+
+
+	async def _stop(self, app):
+		await self.ZooKeeper.close()
+
+	def is_connected(self):
+		"""
+		Check, if the Zookeeper is connected
+		"""
+		return self.ZooKeeper.Client.connected
 
 
 	def advertise(self, data, path):
-		self.Advertisments.add(
-			ZooKeeperAdvertisement(self.ZooKeeper.Path + path, data)
-		)
-		self.App.PubSub.publish("ZooKeeper.advertise!")
+		adv = self.Advertisments.get(self.ZooKeeper.Path + path)
+		if adv is None:
+			adv = ZooKeeperAdvertisement(self.ZooKeeper.Path + path)
+			self.Advertisments[self.ZooKeeper.Path + path] = adv
+		adv.set_data(data)
+		self.App.TaskService.schedule(adv._do_advertise(self))
 
 
-	async def _do_advertise(self, event_name):
-		for adv in self.Advertisments:
+	async def _do_advertise(self, *args):
+		for adv in self.Advertisments.values():
 			await adv._do_advertise(self)
 
 	async def get_children(self):
@@ -77,9 +82,14 @@ class ZooKeeperContainer(ConfigObject):
 
 class ZooKeeperAdvertisement(object):
 
-	def __init__(self, path, data):
+	def __init__(self, path):
 		self.Path = path
+		self.Data = None
+		self.Node = None
+		self.Lock = asyncio.Lock()
 
+
+	def set_data(self, data):
 		if isinstance(data, dict):
 			self.Data = json.dumps(data).encode("utf-8")
 		elif isinstance(data, str):
@@ -87,11 +97,11 @@ class ZooKeeperAdvertisement(object):
 		else:
 			self.Data = data
 
-		self.Node = None
-		self.Lock = asyncio.Lock()
-
 
 	async def _do_advertise(self, zoocontainer):
+		if self.Data is None:
+			return
+
 		async with self.Lock:
 			if self.Node is not None and await zoocontainer.ZooKeeper.exists(self.Node):
 				await zoocontainer.ZooKeeper.set_data(self.Node, self.Data)
@@ -108,6 +118,6 @@ class ZooKeeperAdvertisement(object):
 
 			try:
 				await create()
-			except aiozk.exc.NoNode:
+			except kazoo.exceptions.NoNodeError:
 				await zoocontainer.ZooKeeper.ensure_path(self.Path.rstrip(self.Path.split("/")[-1]))
 				await create()
