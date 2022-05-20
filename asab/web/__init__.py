@@ -1,4 +1,5 @@
 from ..abc import Module
+from .container import WebContainer
 from .websocket import WebSocketFactory
 from .staticdir import StaticDirProvider
 
@@ -13,6 +14,7 @@ class Module(Module):
 
 
 __all__ = (
+	'WebContainer',
 	'WebSocketFactory',
 	'StaticDirProvider',
 	'Module',
