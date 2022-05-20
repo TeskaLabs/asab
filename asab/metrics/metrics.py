@@ -139,32 +139,20 @@ class EPSCounter(Counter):
 			eps_values[name] = int(value / time_difference)
 
 		self.LastTime = current_time
+		self.LastCalculatedValues = eps_values
 		return eps_values
 
 	def flush(self) -> dict:
-		self.LastCalculatedValues = self._calculate_eps()
-		ret = self.rest_get()
+		self.Storage.update({
+			"Values": self._calculate_eps()
+		})
 		if self.Reset:
 			self.Values = self.Init.copy()
-		return ret
 
 	def rest_get(self) -> dict:
-		rest = {
-			'Name': self.Name,
-			'Tags': self.Tags,
-			"Type": self.Type
-		}
-		values = list()
-		for value_name, value in self.LastCalculatedValues.items():
-			value_name = _transform_namedtuple_valuename_to_labelset_dict(value_name)
-			values.append({
-				"value_name": value_name,
-				"value": value,
-			})
+		# this one makes absolutely no sense to me...
+		pass
 
-		rest["Values"] = values
-
-		return rest
 
 
 class DutyCycle(Metric):
@@ -271,6 +259,7 @@ class AggregationCounter(Counter):
 
 
 class Histogram(Metric):
+	# TODO: self.Storage is not json serializable right now.
 	"""
 	Creates cumulative histograms.
 	"""
@@ -292,50 +281,28 @@ class Histogram(Metric):
 		self.Buckets = copy.deepcopy(self.InitBuckets)
 		self.Count = 0
 		self.Sum = 0.0
-		self.Type = "histogram"
 
 	def flush(self):
-		ret = self.rest_get()
+		self.Storage.update({
+			"Values": {
+				"Buckets": self.Buckets.copy(),
+				"Sum": self.Sum,
+				"Count": self.Count
+			}
+		})
 		if self.Reset:
-			self.Buckets = copy.deepcopy(self.InitBuckets)
-			self.Count = 0
-			self.Sum = 0.0
-		return ret
+			self.Values = self.InitBuckets.copy()
 
 	def rest_get(self):
-		rest = {
-			'Name': self.Name,
-			'Tags': self.Tags,
-			"Type": self.Type
-		}
-		values = list()
-		for upper_bound, metric_point in self.Buckets.items():
-			if metric_point == dict():
-				continue
-			for value_name, value in metric_point.items():
-				value_name = self._transform_namedtuple_valuename_to_labelset_dict(value_name, upper_bound)
-				values.append({
-					"value_name": value_name,
-					"value": value,
-				})
-		rest["Values"] = values
-		rest["Values"].append({"value_name": "Sum", "value": self.Sum})
-		rest["Values"].append({"value_name": "Count", "value": self.Count})
-		rest["Type"] = "histogram"
+		rest = super().rest_get()
+		rest.update({
+			"Values": {
+				"Buckets": self.Buckets.copy(),
+				"Sum": self.Sum,
+				"Count": self.Count
+			}
+		})
 		return rest
-
-	def _transform_namedtuple_valuename_to_labelset_dict(self, value_name, upper_bound):
-		"""
-		Makes value names JSON serializable and adds bucket upperbound as "le" label.
-		"""
-		if isinstance(value_name, tuple):
-			try:
-				value_name = value_name._asdict()
-				value_name["le"] = str(upper_bound)
-				return value_name
-			except AttributeError:
-				pass
-		return {"value_name": value_name, "le": str(upper_bound)}
 
 	def set(self, value_name, value):
 		for upper_bound in self.Buckets:
@@ -346,18 +313,3 @@ class Histogram(Metric):
 					self.Buckets[upper_bound][value_name] += 1
 		self.Sum += value
 		self.Count += 1
-
-
-
-
-def _transform_namedtuple_valuename_to_labelset_dict(value_name):
-	"""
-	Makes value names JSON serializable.
-	"""
-	if isinstance(value_name, tuple):
-		try:
-			value_name = value_name._asdict()
-		except AttributeError:
-			# "normal" tuple is JSON serializable as an array
-			pass
-	return value_name
