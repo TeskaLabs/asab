@@ -16,25 +16,27 @@ This module offers an integration of a :py:mod:`aiohttp` `web server <http://aio
 
 	#!/usr/bin/env python3
 	import asab
+	import asab.web
 	import aiohttp
 
 	class MyApplication(asab.Application):
 
-	    async def initialize(self):
+	    def __init__(self):
+	        super().__init__()
+
 	        # Load the web service module
-	        from asab.web import Module
-	        self.add_module(Module)
+	        self.add_module(asab.web.Module)
 
 	        # Locate the web service
 	        websvc = self.get_service("asab.WebService")
 
-	        # Create a container
-	        container = asab.web.WebContainer(websvc, 'example:web', config={"listen": "0.0.0.0:8080"})
+	        # Create a web container
+	        container = asab.web.WebContainer(websvc, 'my:web', config={"listen": "0.0.0.0:8080"})
 
-	        # Add a route
+	        # Add a route to the handler
 	        container.WebApp.router.add_get('/hello', self.hello)
 
-	    # Simplistic view
+	    # This is the web request handler
 	    async def hello(self, request):
 	        return aiohttp.web.Response(text='Hello!\n')
 
