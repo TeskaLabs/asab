@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import asab
+import asab.web
+
 import aiohttp
 
 
@@ -12,16 +14,17 @@ class MyApplication(asab.Application):
 	The application will be available at http://localhost:8080/
 	'''
 
-	async def initialize(self):
-		# Loading the web service module
-		from asab.web import Module
-		self.add_module(Module)
+	def __init__(self):
+		super().__init__()
 
-		# Locate web service
+		# Loading the ASAB Web module
+		self.add_module(asab.web.Module)
+
+		# Locate the Web service
 		websvc = self.get_service("asab.WebService")
 
-		# Create a container
-		container = asab.web.WebContainer(websvc, 'example:web', config={"listen": "0.0.0.0:8080"})
+		# Create the Web container
+		container = asab.web.WebContainer(websvc, 'my:web', config={"listen": "0.0.0.0:8080"})
 
 		# Add a route to the handler
 		container.WebApp.router.add_get('/', self.hello)

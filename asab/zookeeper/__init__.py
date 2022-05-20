@@ -1,3 +1,4 @@
+from .container import ZooKeeperContainer
 from ..abc.module import Module
 
 
@@ -11,5 +12,6 @@ class Module(Module):
 
 
 __all__ = [
+	"ZooKeeperContainer",
 	"Module",
 ]
