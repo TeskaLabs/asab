@@ -1,6 +1,8 @@
 import configparser
 import logging
 import asyncio
+import os
+import psutil
 
 import asab
 
@@ -63,6 +65,20 @@ class MetricsService(asab.Service):
 		self.MemstorTarget = MetricsMemstorTarget(self, 'asab:metrics:memory')
 		self.Targets.append(self.MemstorTarget)
 
+		# Create native metrics
+		self.Process = psutil.Process(os.getpid())
+
+		self.MemoryGauge = self.create_gauge(
+			"asab.memory",
+			init_values={
+				"memory.used": self.Process.memory_info().rss,
+			},
+			tags={
+				"unit": "bytes",
+				"help": "Memory consumed by the process.",
+			},
+		)
+
 
 	async def finalize(self, app):
 		await self._on_flushing_event("finalize!")
@@ -76,6 +92,9 @@ class MetricsService(asab.Service):
 		if len(self.Metrics) == 0:
 			return
 		now = self.App.time()
+
+		# Update native metrics
+		self.MemoryGauge.set("memory.used", self.Process.memory_info().rss)
 
 		mlist = []
 
