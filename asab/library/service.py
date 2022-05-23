@@ -13,8 +13,8 @@ class LibraryService(asab.Service):
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 		app.PubSub.subscribe_all(self)
-
 		provider = asab.Config["asab:library"]["provider"]
+
 		if provider.startswith("zk://"):
 			self.Provider = ZooKeeperLibraryProvider(self.App, provider)
 		else:

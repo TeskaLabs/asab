@@ -22,11 +22,12 @@ class Module(asab.Module):
 
 	def __init__(self, app):
 		super().__init__(app)
-		self.service = LibraryService(app, "asab.LibraryService")
+		self.App = app
+		self.service = LibraryService(self.App, "asab.LibraryService")
 
 
 	async def initialize(self, app):
-		app.PubSub.subscribe_all(self)
+		pass
 
 
 	async def finalize(self, app):

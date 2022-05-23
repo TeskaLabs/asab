@@ -1,7 +1,7 @@
 import logging
 import kazoo.exceptions
 import urllib.parse
-import asab.zookeeper.container
+import asab.zookeeper
 
 from .abc import LibraryProviderABC
 
@@ -26,17 +26,15 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			self.BasePath = self.BasePath[:-1]
 
 		# Initialize ZooKeeper client
-		self.ZookeeperContainer = asab.zookeeper.container.ZooKeeperContainer(
-			self.App,
+		self.ZookeeperContainer = asab.zookeeper.ZooKeeperContainer(
+			self.App.ZooKeeperService,
 			config_section_name='',
-			z_path=path
+			z_path=self.Path
 		)
-
+		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 
 	async def initialize(self, app):
-		# Start the client
-		await self.ZookeeperContainer.initialize(app)
-		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
+		pass
 
 
 	async def read(self, path):
@@ -87,4 +85,4 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def finalize(self, app):
 		# close client
-		await self.Zookeeper.close()
+		await self.Zookeeper._stop()
