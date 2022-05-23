@@ -17,7 +17,17 @@ L = logging.getLogger(__name__)
 class ZooKeeperContainer(ConfigObject):
 
 
-	def __init__(self, app, config_section_name, config=None, z_path=None):
+	ConfigDefaults = {
+		# Server list to which ZooKeeper Client tries connecting.
+		# Specify a comma (,) separated server list.
+		# A server is defined as address:port format.
+		"servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
+
+		"path": "/asab",
+	}
+
+
+	def __init__(self, zksvc, config_section_name, config=None, z_path=None):
 		super().__init__(config_section_name=config_section_name, config=config)
 		'''
 		Alternative 1) - Obtain Zookeeper container with config-section
@@ -25,27 +35,31 @@ class ZooKeeperContainer(ConfigObject):
 		example : ZooKeeperContainer(app, config_section_name='', z_path=z_path)
 		'''
 
-		self.App = app
+		self.App = zksvc.App
 		self.ConfigSectionName = config_section_name
-		self.ZooKeeper = KazooWrapper(app, self.Config, z_path)
+		self.ZooKeeper = KazooWrapper(zksvc.App, self.Config, z_path)
 		self.ZooKeeperPath = self.ZooKeeper.Path
 		self.Advertisments = dict()
 
 		self.App.PubSub.subscribe("Application.tick/300!", self._do_advertise)
 
+		zksvc._register_container(self)
+
 
 	def _start(self, app):
 		# This method is called on proactor thread
-		self.ZooKeeper.start()
+		self.ZooKeeper._start()
 		self.ZooKeeper.Client.ensure_path(self.ZooKeeper.Path)
 
-		self.App.Loop.call_soon_threadsafe(
-			self.App.PubSub.publish, "ZooKeeperContainer.started!", self
-		)
+		def in_main_thread():
+			self.App.PubSub.publish("ZooKeeperContainer.started!", self)
+
+		self.App.Loop.call_soon_threadsafe(in_main_thread)
 
 
 	async def _stop(self, app):
-		await self.ZooKeeper.close()
+		await self.ZooKeeper._stop()
+
 
 	def is_connected(self):
 		"""

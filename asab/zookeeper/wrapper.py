@@ -76,12 +76,11 @@ class KazooWrapper(object):
 
 	# connection start/close calls
 
-	def start(self):
+	def _start(self):
 		return self.Client.start()
 
 
-	async def close(self):
-
+	async def _stop(self):
 		ret = await self.ProactorService.execute(
 			self.Client.stop,
 		)

@@ -72,23 +72,6 @@ class ConfigParser(configparser.ConfigParser):
 			"rotate_every": "",
 		},
 
-		# Example, that should remain commented
-		# "web": {
-		# 	#This is commented b/c `-w` switch fills this value
-		# 	# The same `listen` configuration is in a ConfigDefault of the web container
-		# 	"listen": "0.0.0.0 8080",
-		# },
-
-		# Example, that should remain commented
-		# "zookeeper": {
-		# 	# Server list to which ZooKeeper Client tries connecting.
-		# 	# Specify a comma (,) separated server list.
-		# 	# A server is defined as address:port format.
-		# 	"servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
-
-		# 	"path": "/asab",
-		# },
-
 		"authz": {
 			# RBAC URL
 			# If !DISABLED! is specified, all authorization checks will be skipped

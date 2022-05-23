@@ -44,17 +44,15 @@ class ZooKeeperService(Service):
 				raise RuntimeError("No [zookeeper] section configured.")
 
 		container = self.Containers.get(config_section)
-		if container is not None:
-			return container
-		else:
-			return self.build_container(config_section)
+		if container is None:
+			container = ZooKeeperContainer(self, config_section_name=config_section)
+
+		return container
 
 
-	def build_container(self, config_section_name):
-		container = ZooKeeperContainer(self.App, config_section_name)
+	def _register_container(self, container):
 		self.Containers[container.ConfigSectionName] = container
 		container.ZooKeeper.ProactorService.schedule(container._start, self.App)
-		return container
 
 
 	async def advertise(self, data, path, encoding="utf-8", container=None):

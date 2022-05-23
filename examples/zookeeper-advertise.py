@@ -1,10 +1,6 @@
 import asab
 import asab.api
 import asab.zookeeper
-import logging
-
-
-L = logging.getLogger(__name__)
 
 
 class MockApplication(asab.Application):
@@ -20,14 +16,12 @@ class MockApplication(asab.Application):
 		self.add_module(asab.zookeeper.Module)
 		self.ZooKeeperService = self.get_service("asab.ZooKeeperService")
 
-
 		# Initialize API service
 		self.ApiService = asab.api.ApiService(self)
-		
-		# 
+
+		# Introduce Web and ZooKeeper to API Service
 		self.ApiService.initialize_web()
 		self.ApiService.initialize_zookeeper()
-		
 
 
 if __name__ == '__main__':
