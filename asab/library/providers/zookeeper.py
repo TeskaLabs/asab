@@ -25,9 +25,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
 
+		zksvc = self.App.get_service("asab.ZooKeeperService")
 		# Initialize ZooKeeper client
 		self.ZookeeperContainer = asab.zookeeper.ZooKeeperContainer(
-			self.App.ZooKeeperService,
+			zksvc,
 			config_section_name='',
 			z_path=self.Path
 		)
