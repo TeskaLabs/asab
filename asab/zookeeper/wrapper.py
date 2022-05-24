@@ -36,7 +36,6 @@ class KazooWrapper(object):
 	"""
 
 	def __init__(self, app, config, z_url):
-
 		from ..proactor import Module
 		app.add_module(Module)
 		self.ProactorService = app.get_service("asab.ProactorService")
@@ -132,10 +131,10 @@ class KazooWrapper(object):
 			return None
 		return ret
 
-	async def delete(self, path, recursive=False):
+	async def delete(self, path, version=-1, recursive=False):
 		try:
 			ret = await self.ProactorService.execute(
-				self.Client.delete, path, recursive
+				self.Client.delete, path, version, recursive
 			)
 		except kazoo.exceptions.NoNodeError:
 			L.warning("Deleting the node failed.")
