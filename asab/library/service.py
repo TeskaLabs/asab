@@ -1,5 +1,6 @@
 import logging
 import asab
+import re
 from .providers.filesystem import FileSystemLibraryProvider
 from .providers.zookeeper import ZooKeeperLibraryProvider
 #
@@ -13,20 +14,33 @@ class LibraryService(asab.Service):
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
-		provider = asab.Config["library"]["path"]
+		paths = asab.Config["library"]["path"]
+		self.Libraries = dict()
+		for path in re.split(r"\s+", paths):
+			self._create_library(path)
 
-		if provider.startswith("zk://"):
-			self.Provider = ZooKeeperLibraryProvider(self.App, provider)
-		else:
-			self.Provider = FileSystemLibraryProvider(self.App, provider)
+	def _create_library(self, path):
+		library_provider = None
+		if path.startswith('zk://') or path.startswith('zookeeeper://'):
+			library_provider = ZooKeeperLibraryProvider(self.App, path)
+
+		elif path.startswith('./') or path.startswith('/') or path.startswith('file://'):
+			library_provider = FileSystemLibraryProvider(self.App, path)
+
+		self.Libraries[path] = library_provider
+
 
 	async def read(self, file):
-		res = await self.Provider.read(file)
-		return res
+		for library in self.Libraries.values():
+			item = await library.read(file)
+			if item is not None:
+				return item
 
 	async def list(self, file):
-		res = await self.Provider.list(file)
-		return res
+		for library in self.Libraries.values():
+			item = await library.list(file)
+			if item is not None:
+				return item
 
 	async def finalize(self, app):
 		pass
