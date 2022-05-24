@@ -6,11 +6,6 @@ class LibraryProviderABC(object):
 		super().__init__()
 		self.App = app
 
-
-	async def initialize(self, app):
-		pass
-
-
 	async def read(self, path):
 		"""
 		Reads a declaration on the given path.

@@ -15,16 +15,14 @@ L = logging.getLogger(__name__)
 class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
-	def __init__(self, app, path, encoding="utf-8"):
+	def __init__(self, app, path):
 		super().__init__(app, path)
 		self.App = app
-		self.Encoding = encoding
 		self.Path = path
 		url_pieces = urllib.parse.urlparse(self.Path)
 		self.BasePath = url_pieces.path
 		if self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
-
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		# Initialize ZooKeeper client
 		self.ZookeeperContainer = asab.zookeeper.ZooKeeperContainer(
@@ -34,10 +32,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		)
 		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 
-	async def initialize(self, app):
-		pass
-
-
 	async def read(self, path):
 		node_path = "{}/{}".format(self.BasePath, path)
 
@@ -46,7 +40,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		except kazoo.exceptions.NoNodeError:
 			return None
 
-		return node_data.decode(self.Encoding)
+		return node_data
 
 
 	async def list(self, path):

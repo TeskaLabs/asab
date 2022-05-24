@@ -13,10 +13,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		self.LibraryBaseDir = path
 
 
-	async def initialize(self, app):
-		pass
-
-
 	async def read(self, path):
 		file_path = os.path.join(self.LibraryBaseDir, path)
 
