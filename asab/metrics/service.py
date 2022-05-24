@@ -2,7 +2,6 @@ import configparser
 import logging
 import asyncio
 import os
-import psutil
 
 import asab
 
@@ -66,13 +65,11 @@ class MetricsService(asab.Service):
 		self.Targets.append(self.MemstorTarget)
 
 		# Create native metrics
-		self.Process = psutil.Process(os.getpid())
+		self.ProcessId = os.getpid()
 
 		self.MemoryGauge = self.create_gauge(
 			"asab.memory",
-			init_values={
-				"memory.used": self.Process.memory_info().rss,
-			},
+			init_values=self._get_process_memory_info(),
 			tags={
 				"unit": "bytes",
 				"help": "Memory consumed by the process.",
@@ -88,13 +85,36 @@ class MetricsService(asab.Service):
 		self.Targets.append(target)
 
 
+	def _get_process_memory_info(self):
+		memory_info = {}
+
+		try:
+			with open("/proc/{}/status".format(self.ProcessId), "r") as file:
+				proc_status = file.read()
+
+				for proc_status_line in proc_status.replace('\t', '').split('\n'):
+
+					# Vm - virtual memory
+					if not proc_status_line.startswith("Vm"):
+						continue
+
+					proc_status_info = proc_status_line.split(' ')
+					memory_info[proc_status_info[0][:-1]] = int(proc_status_info[-2]) * 1024
+
+		except FileNotFoundError:
+			L.info("File '/proc/{}/status' was not found, skipping memory metrics.".format(self.ProcessId))
+
+		return memory_info
+
+
 	async def _on_flushing_event(self, event_type):
 		if len(self.Metrics) == 0:
 			return
 		now = self.App.time()
 
 		# Update native metrics
-		self.MemoryGauge.set("memory.used", self.Process.memory_info().rss)
+		for key, value in self._get_process_memory_info().items():
+			self.MemoryGauge.set(key, value)
 
 		mlist = []
 
