@@ -30,15 +30,15 @@ class LibraryService(asab.Service):
 		self.Libraries[path] = library_provider
 
 
-	async def read(self, file):
+	async def read(self, path):
 		for library in self.Libraries.values():
-			item = await library.read(file)
+			item = await library.read(path)
 			if item is not None:
 				return item
 
-	async def list(self, file):
+	async def list(self, path):
 		for library in self.Libraries.values():
-			item = await library.list(file)
+			item = await library.list(path)
 			if item is not None:
 				return item
 

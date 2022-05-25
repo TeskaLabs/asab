@@ -16,11 +16,12 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 	async def read(self, path):
 		file_path = os.path.join(self.LibraryBaseDir, path)
 
-		if not os.path.isfile(file_path):
-			return None
+		try:
+			with open(file_path, 'rb') as f:
+				return f.read()
 
-		with open(file_path, 'r') as f:
-			return f.read()
+		except FileNotFoundError:
+			return None
 
 
 	async def list(self, path):
