@@ -68,7 +68,7 @@ class MetricsService(asab.Service):
 		self.ProcessId = os.getpid()
 
 		self.MemoryGauge = self.create_gauge(
-			"asab.process",
+			"os.stat",
 			init_values=self._get_process_info(),
 			tags={
 				"help": "Status information about the OS process.",
