@@ -68,11 +68,10 @@ class MetricsService(asab.Service):
 		self.ProcessId = os.getpid()
 
 		self.MemoryGauge = self.create_gauge(
-			"asab.memory",
-			init_values=self._get_process_memory_info(),
+			"asab.process",
+			init_values=self._get_process_info(),
 			tags={
-				"unit": "bytes",
-				"help": "Memory consumed by the process.",
+				"help": "Status information about the OS process.",
 			},
 		)
 
@@ -85,7 +84,7 @@ class MetricsService(asab.Service):
 		self.Targets.append(target)
 
 
-	def _get_process_memory_info(self):
+	def _get_process_info(self):
 		memory_info = {}
 
 		try:
@@ -94,7 +93,7 @@ class MetricsService(asab.Service):
 
 				for proc_status_line in proc_status.replace('\t', '').split('\n'):
 
-					# Vm - virtual memory
+					# Vm - virtual memory, other metrics need to be evaluated and added
 					if not proc_status_line.startswith("Vm"):
 						continue
 
@@ -102,7 +101,7 @@ class MetricsService(asab.Service):
 					memory_info[proc_status_info[0][:-1]] = int(proc_status_info[-2]) * 1024
 
 		except FileNotFoundError:
-			L.info("File '/proc/{}/status' was not found, skipping memory metrics.".format(self.ProcessId))
+			L.info("File '/proc/{}/status' was not found, skipping process metrics.".format(self.ProcessId))
 
 		return memory_info
 
@@ -113,7 +112,7 @@ class MetricsService(asab.Service):
 		now = self.App.time()
 
 		# Update native metrics
-		for key, value in self._get_process_memory_info().items():
+		for key, value in self._get_process_info().items():
 			self.MemoryGauge.set(key, value)
 
 		mlist = []
