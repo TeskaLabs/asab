@@ -8,6 +8,7 @@ import logging
 from .. import Service, Config
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
+from asab.docker import running_in_docker
 
 ##
 
@@ -157,12 +158,18 @@ class ApiService(Service):
 		if not self.ZkContainer.is_connected():
 			return
 
+		if running_in_docker():
+			containerization = "docker"
+		else:
+			containerization = None
+
 		adv_data = {
 			'appclass': self.App.__class__.__name__,
 			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
 			'servername': self.App.ServerName,
 			'processid': os.getpid(),
+			'containerization': containerization
 		}
 
 		if self.Manifest is not None:
