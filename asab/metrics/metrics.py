@@ -285,7 +285,7 @@ class Histogram(Metric):
 	def flush(self):
 		self.Storage.update({
 			"Values": {
-				"Buckets": self.Buckets.copy(),
+				"Buckets": {str(k): v for k, v in self.Buckets.copy().items()},
 				"Sum": self.Sum,
 				"Count": self.Count
 			}
@@ -297,7 +297,7 @@ class Histogram(Metric):
 		rest = super().rest_get()
 		rest.update({
 			"Values": {
-				"Buckets": self.Buckets.copy(),
+				"Buckets": {str(k): v for k, v in self.Buckets.copy().items()},
 				"Sum": self.Sum,
 				"Count": self.Count
 			}
