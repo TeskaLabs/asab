@@ -8,6 +8,7 @@ import logging
 from .. import Service, Config
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
+from asab.docker import running_in_docker
 
 ##
 
@@ -164,6 +165,9 @@ class ApiService(Service):
 			'servername': self.App.ServerName,
 			'processid': os.getpid(),
 		}
+
+		if running_in_docker():
+			adv_data["containerization"] = "docker"
 
 		if self.Manifest is not None:
 			adv_data.update(self.Manifest)
