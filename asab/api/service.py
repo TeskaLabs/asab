@@ -158,19 +158,16 @@ class ApiService(Service):
 		if not self.ZkContainer.is_connected():
 			return
 
-		if running_in_docker():
-			containerization = "docker"
-		else:
-			containerization = None
-
 		adv_data = {
 			'appclass': self.App.__class__.__name__,
 			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
 			'servername': self.App.ServerName,
 			'processid': os.getpid(),
-			'containerization': containerization
 		}
+
+		if running_in_docker():
+			adv_data["containerization"] = "docker"
 
 		if self.Manifest is not None:
 			adv_data.update(self.Manifest)
