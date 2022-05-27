@@ -13,6 +13,12 @@ L = logging.getLogger(__name__)
 #
 
 
+def combine_tags_and_field(tags, value_name, value):
+	tags_string = ",".join(['{}={}'.format(validate_format(tk), tv.replace(" ", "_")) for tk, tv in tags.items()])
+	field_set = get_field(value_name, value)
+	return tags_string + " " + field_set
+
+
 def extract_dynamic_tags(value_name):
 	stripped_name = value_name.lstrip("tags:(").rstrip(")")
 	tag_pairs = stripped_name.split(" ")
@@ -42,23 +48,30 @@ def metric_to_influxdb(metric_record, now):
 	values = metric_record.get("Values")
 	tags = metric_record.get("Tags")
 	metric_type = metric_record.get("Type")
+	values_lines = []
 
 	if metric_type == "Histogram":
-		# to be continued...
-		return
+		for bucket_name, bucket in values.get("Buckets").items():
+			for value_name, value in bucket.items():
+				dynamic_tags = tags.copy()
+				dynamic_tags["le"] = bucket_name
+				if value_name.startswith("tags:"):
+					dynamic_tags.update(extract_dynamic_tags(value_name))
+					value_name = name
+				values_lines.append(combine_tags_and_field(dynamic_tags, value_name, value))
+
+		values_lines.append(combine_tags_and_field(tags, "Sum", values.get("Sum")))
+		values_lines.append(combine_tags_and_field(tags, "Count", values.get("Count")))
 
 	else:
-		values_lines = []
 		for value_name, value in values.items():
 			dynamic_tags = tags.copy()
 			if value_name.startswith("tags:"):
 				dynamic_tags.update(extract_dynamic_tags(value_name))
 				value_name = name
-			tags_string = ",".join(['{}={}'.format(validate_format(tk), tv.replace(" ", "_")) for tk, tv in dynamic_tags.items()])
-			field_set = get_field(value_name, value)
-			values_lines.append(tags_string + " " + field_set)
-		if values_lines:
-			return "".join(["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines])
+			values_lines.append(combine_tags_and_field(dynamic_tags, value_name, value))
+	if values_lines:
+		return "".join(["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines])
 
 
 
