@@ -16,7 +16,7 @@ L = logging.getLogger(__name__)
 def extract_dynamic_tags(value_name):
 	stripped_name = value_name.lstrip("tags:(").rstrip(")")
 	tag_pairs = stripped_name.split(" ")
-	tags = {i[0]: i[1] for i in tag_pairs.split("=")}
+	tags = {i.split("=")[0]: i.split("=")[1] for i in tag_pairs}
 	return tags
 
 

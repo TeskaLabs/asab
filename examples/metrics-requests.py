@@ -34,14 +34,14 @@ class MyApplication(asab.Application):
 [web]
 listen=0.0.0.0 8089
 
-# [asab:metrics]
-# target=influxdb
+[asab:metrics]
+target=influxdb
 
-# [asab:metrics:influxdb]
-# url=http://localhost:8086
-# username=test
-# password=testtest
-# db=test
+[asab:metrics:influxdb]
+url=http://localhost:8086
+username=test
+password=testtest
+db=test
 
 
 		"""
