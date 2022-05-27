@@ -259,7 +259,6 @@ class AggregationCounter(Counter):
 
 
 class Histogram(Metric):
-	# TODO: self.Storage is not json serializable right now.
 	"""
 	Creates cumulative histograms.
 	"""

@@ -1,6 +1,6 @@
 import configparser
 import logging
-# import asyncio
+import asyncio
 
 import asab
 
@@ -71,17 +71,17 @@ class MetricsService(asab.Service):
 		for metric in self.Metrics.values():
 			metric.flush()
 
-		# TARGETS DISCONNECTED FOR NOW
-		# fs = []
-		# for target in self.Targets:
-		# 	fs.append(target.process(self.MetricsDataStorage.Tree))
+		now = self.App.time()
+		fs = []
+		for target in self.Targets:
+			fs.append(target.process(self.MetricsDataStorage.Tree, now))
 
-		# if len(fs) > 0:
-		# 	done, pending = await asyncio.wait(fs, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
+		if len(fs) > 0:
+			done, pending = await asyncio.wait(fs, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
 
-		# 	for f in pending:
-		# 		L.warning("Target task {} failed to complete".format(f))
-		# 		f.cancel()
+			for f in pending:
+				L.warning("Target task {} failed to complete".format(f))
+				f.cancel()
 
 
 	def _add_metric(self, dimension, metric: Metric):

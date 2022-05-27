@@ -13,6 +13,13 @@ L = logging.getLogger(__name__)
 #
 
 
+def extract_dynamic_tags(value_name):
+	stripped_name = value_name.lstrip("tags:(").rstrip(")")
+	tag_pairs = stripped_name.split(" ")
+	tags = {i[0]: i[1] for i in tag_pairs.split("=")}
+	return tags
+
+
 def get_field(fk, fv):
 	fk = validate_format(fk)
 	if isinstance(fv, bool):
@@ -29,51 +36,39 @@ def get_field(fk, fv):
 	return field
 
 
-def metric_to_influxdb(metric_record):
-	timestamp = metric_record.get("@timestamp")
+def metric_to_influxdb(metric_record, now):
+	timestamp = now
 	name = validate_format(metric_record.get("Name"))
 	values = metric_record.get("Values")
 	tags = metric_record.get("Tags")
+	metric_type = metric_record.get("Type")
 
-	if all([isinstance(i["value_name"], (str, int, float)) for i in values]):
-		field_set = []
-		for i in values:
-			fk = i["value_name"]
-			fv = i["value"]
-			field_set.append(get_field(fk, fv))
-		for tk, tv in tags.items():
-			name += ',{}={}'.format(validate_format(tk), tv.replace(" ", "_"))
-
-		influxdb_format = "{} {} {}\n".format(name, ','.join(field_set), int(timestamp * 1e9))
+	if metric_type == "Histogram":
+		# to be continued...
+		return
 
 	else:
 		values_lines = []
-		for i in values:
-			fk = i["value_name"]
-			fv = i["value"]
+		for value_name, value in values.items():
 			dynamic_tags = tags.copy()
-			if isinstance(fk, dict):
-				dynamic_tags.update(fk)
-			elif isinstance(fk, (tuple, list)):
-				dynamic_tags.update({"label" + str(i): value_name for i, value_name in enumerate(fk)})
-
+			if value_name.startswith("tags:"):
+				dynamic_tags.update(extract_dynamic_tags(value_name))
+				value_name = name
 			tags_string = ",".join(['{}={}'.format(validate_format(tk), tv.replace(" ", "_")) for tk, tv in dynamic_tags.items()])
-			if isinstance(fk, (tuple, list, dict)):
-				field_set = get_field(name, fv)
-			else:
-				field_set = get_field(fk, fv)
+			field_set = get_field(value_name, value)
 			values_lines.append(tags_string + " " + field_set)
-		if len(values_lines) != 0:
-			influxdb_format = "".join(["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines])
-
-	return influxdb_format
+		if values_lines:
+			return "".join(["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines])
 
 
-def influxdb_format(mlist):
+
+def influxdb_format(m_tree, now):
 	# CAREFUL: This function is used also in asab.logman.metrics
 	rb = ""
-	for metric_record in mlist:
-		rb += metric_to_influxdb(metric_record)
+	for dimension, metric_record in m_tree.items():
+		influx_record = metric_to_influxdb(metric_record, now)
+		if influx_record is not None:
+			rb += influx_record
 	return rb
 
 
@@ -167,17 +162,17 @@ InfluxDB <1.8 API parameters:
 			self.ProactorService = None
 
 
-	async def process(self, mlist):
+	async def process(self, m_tree, now):
 
 		# When ProActor is enabled
 
 		if self.ProactorService is not None:
-			await self.ProactorService.execute(self._worker_upload, mlist)
+			await self.ProactorService.execute(self._worker_upload, m_tree, now)
 			return
 
 		# When ProActor is disabled
 
-		rb = influxdb_format(mlist)
+		rb = influxdb_format(m_tree, now)
 
 		async with aiohttp.ClientSession(headers=self.Headers) as session:
 			async with session.post(self.WriteURL, data=rb) as resp:
@@ -186,9 +181,9 @@ InfluxDB <1.8 API parameters:
 					L.warning("Error when sending metrics to Influx: {}\n{}".format(resp.status, response))
 
 
-	def _worker_upload(self, mlist):
+	def _worker_upload(self, m_tree, now):
 
-		rb = influxdb_format(mlist)
+		rb = influxdb_format(m_tree, now)
 
 		if self.BaseURL.startswith("https://"):
 			conn = http.client.HTTPSConnection(self.BaseURL.replace("https://", ""))
