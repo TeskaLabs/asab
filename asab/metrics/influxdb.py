@@ -13,18 +13,6 @@ L = logging.getLogger(__name__)
 #
 
 
-def combine_tags_and_field(tags, value_name, value):
-	tags_string = ",".join(['{}={}'.format(validate_format(tk), tv.replace(" ", "_")) for tk, tv in tags.items()])
-	field_set = get_field(value_name, value)
-	return tags_string + " " + field_set
-
-
-def extract_dynamic_tags(value_name):
-	stripped_name = value_name.lstrip("tags:(").rstrip(")")
-	tag_pairs = stripped_name.split(" ")
-	tags = {i.split("=")[0]: i.split("=")[1] for i in tag_pairs}
-	return tags
-
 
 def get_field(fk, fv):
 	fk = validate_format(fk)
@@ -42,6 +30,28 @@ def get_field(fk, fv):
 	return field
 
 
+def combine_tags_and_field(tags, value_name, value):
+	tags_string = ",".join(['{}={}'.format(validate_format(tk), tv.replace(" ", "_")) for tk, tv in tags.items()])
+	field_set = get_field(value_name, value)
+	return tags_string + " " + field_set
+
+
+def extract_dynamic_tags(value_name):
+	stripped_name = value_name.lstrip("tags:(").rstrip(")")
+	tag_pairs = stripped_name.split(" ")
+	tags = {i.split("=")[0]: i.split("=")[1] for i in tag_pairs}
+	return tags
+
+
+def build_metric_line(name, tags, value_name, value, upperbound=None):
+	if value_name.startswith("tags:"):
+		tags.update(extract_dynamic_tags(value_name))
+		value_name = name
+	if upperbound is not None:
+		tags["le"] = upperbound
+	return combine_tags_and_field(tags, value_name, value)
+
+
 def metric_to_influxdb(metric_record, now):
 	timestamp = now
 	name = validate_format(metric_record.get("Name"))
@@ -51,25 +61,15 @@ def metric_to_influxdb(metric_record, now):
 	values_lines = []
 
 	if metric_type == "Histogram":
-		for bucket_name, bucket in values.get("Buckets").items():
+		for upperbound, bucket in values.get("Buckets").items():
 			for value_name, value in bucket.items():
-				dynamic_tags = tags.copy()
-				dynamic_tags["le"] = bucket_name
-				if value_name.startswith("tags:"):
-					dynamic_tags.update(extract_dynamic_tags(value_name))
-					value_name = name
-				values_lines.append(combine_tags_and_field(dynamic_tags, value_name, value))
-
-		values_lines.append(combine_tags_and_field(tags, "Sum", values.get("Sum")))
-		values_lines.append(combine_tags_and_field(tags, "Count", values.get("Count")))
+				values_lines.append(build_metric_line(name, tags.copy(), value_name, value, upperbound))
+		values_lines.append(build_metric_line(name, tags, "Sum", values.get("Sum")))
+		values_lines.append(build_metric_line(name, tags, "Count", values.get("Count")))
 
 	else:
 		for value_name, value in values.items():
-			dynamic_tags = tags.copy()
-			if value_name.startswith("tags:"):
-				dynamic_tags.update(extract_dynamic_tags(value_name))
-				value_name = name
-			values_lines.append(combine_tags_and_field(dynamic_tags, value_name, value))
+			values_lines.append(build_metric_line(name, tags.copy(), value_name, value))
 	if values_lines:
 		return "".join(["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines])
 
@@ -80,8 +80,9 @@ def influxdb_format(m_tree, now):
 	rb = ""
 	for dimension, metric_record in m_tree.items():
 		influx_record = metric_to_influxdb(metric_record, now)
-		if influx_record is not None:
-			rb += influx_record
+		if influx_record is None:
+			continue
+		rb += influx_record
 	return rb
 
 
