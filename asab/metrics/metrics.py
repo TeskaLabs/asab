@@ -150,13 +150,12 @@ class EPSCounter(Counter):
 			self.Values = self.Init.copy()
 
 	def rest_get(self) -> dict:
-		# this one makes absolutely no sense to me...
-		pass
-
+		rest = super().rest_get()
+		rest["Values"] = self.LastCalculatedValues
+		return rest
 
 
 class DutyCycle(Metric):
-	# TODO: totally unsupported right now!!
 	'''
 	https://en.wikipedia.org/wiki/Duty_cycle
 
@@ -217,8 +216,9 @@ class DutyCycle(Metric):
 			new_values[k] = (v[0], now, 0.0, 0.0)
 
 		self.Values = new_values
-		return ret
-
+		self.Storage.update({
+			"Values": ret
+		})
 
 	def rest_get(self):
 		rest = super().rest_get()
