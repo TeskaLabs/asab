@@ -95,7 +95,12 @@ class MetricsService(asab.Service):
 						continue
 
 					proc_status_info = proc_status_line.split(' ')
-					memory_info[proc_status_info[0][:-1]] = int(proc_status_info[-2]) * 1024
+
+					try:
+						memory_info[proc_status_info[0][:-1]] = int(proc_status_info[-2]) * 1024
+
+					except ValueError:
+						continue
 
 		except FileNotFoundError:
 			L.info("File '/proc/{}/status' was not found, skipping process metrics.".format(self.ProcessId))
