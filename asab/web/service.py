@@ -1,7 +1,8 @@
 import logging
-import asyncio
-import asab
-import asab.metrics
+
+from ..abc.service import Service
+from .. import Config
+from .. import metrics
 
 from .web_requests_metrics import WebRequestsMetrics
 
@@ -9,7 +10,7 @@ from .web_requests_metrics import WebRequestsMetrics
 L = logging.getLogger(__name__)
 
 
-class WebService(asab.Service):
+class WebService(Service):
 
 	ConfigSectionAliases = ["asab:web"]
 
@@ -17,7 +18,7 @@ class WebService(asab.Service):
 		super().__init__(app, service_name)
 
 		# Web service is dependent on Metrics service
-		app.add_module(asab.metrics.Module)
+		app.add_module(metrics.Module)
 		self.MetricsService = app.get_service("asab.MetricsService")
 		self.WebRequestsMetrics = WebRequestsMetrics(self.MetricsService)
 		self.Containers = {}
@@ -25,11 +26,11 @@ class WebService(asab.Service):
 
 	async def finalize(self, app):
 		for containers in self.Containers.values():
-			await containers.finalize(app)
+			await containers._stop(app)
 
 	def _register_container(self, container, config_section_name):
 		self.Containers[config_section_name] = container
-		asyncio.ensure_future(container.initialize(self.App))
+		self.App.TaskService.schedule(container._start(self.App))
 
 
 	@property
@@ -48,12 +49,12 @@ class WebService(asab.Service):
 		config_section = "web"
 
 		# The WebContainer should be configured in the config section [web]
-		if config_section not in asab.Config.sections():
+		if config_section not in Config.sections():
 			# If there is no [web] section, try other aliases for backwards compatibility
 			for alias in self.ConfigSectionAliases:
-				if alias in asab.Config.sections():
+				if alias in Config.sections():
 					config_section = alias
-					L.warning("Using obsolete web config alias [{}]. Preferred section name is [web]. ".format(alias))
+					L.warning("Using obsolete config section [{}]. Preferred section name is [web]. ".format(alias))
 					break
 			else:
 				raise RuntimeError("No [web] section configured.")

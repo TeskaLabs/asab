@@ -1,22 +1,21 @@
-import asab
-
-from .service import WebService
+from ..abc import Module
+from .container import WebContainer
 from .websocket import WebSocketFactory
 from .staticdir import StaticDirProvider
-from .container import WebContainer
 
 
-class Module(asab.Module):
+class Module(Module):
 
 	def __init__(self, app):
 		super().__init__(app)
+
+		from .service import WebService
 		self.service = WebService(app, "asab.WebService")
 
 
 __all__ = (
-	'WebService',
+	'WebContainer',
 	'WebSocketFactory',
 	'StaticDirProvider',
-	'WebContainer',
 	'Module',
 )

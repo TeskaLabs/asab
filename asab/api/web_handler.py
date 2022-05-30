@@ -1,12 +1,15 @@
 import os
-import asab
-import asab.web
+
 import aiohttp.web
+
+from .. import Config
+from ..web.rest import json_response
 
 
 class APIWebHandler(object):
-	def __init__(self, app, webapp, log_handler):
-		self.App = app
+	def __init__(self, api_svc, webapp, log_handler):
+		self.App = api_svc
+		self.ApiService = api_svc
 		# MetricsService initialized in WebService
 		self.MetricsService = self.App.get_service("asab.MetricsService")
 
@@ -18,41 +21,46 @@ class APIWebHandler(object):
 		webapp.router.add_get("/asab/v1/logws", log_handler.ws)
 
 		webapp.router.add_get("/asab/v1/changelog", self.changelog)
+		webapp.router.add_get("/asab/v1/manifest", self.manifest)
 
 		webapp.router.add_get("/asab/v1/metrics", self.metrics)
 		webapp.router.add_get("/asab/v1/watch_metrics", self.watch)
 
 
-	async def changelog(self, request):
-		path = asab.Config.get("general", "changelog_path")
-		if not os.path.isfile(path):
-			if os.path.isfile("/CHANGELOG.md"):
-				path = "/CHANGELOG.md"
-			elif os.path.isfile("CHANGELOG.md"):
-				path = "CHANGELOG.md"
-			else:
-				return aiohttp.web.HTTPNotFound()
 
-		with open(path) as f:
+	async def changelog(self, request):
+		if self.ApiService.ChangeLog is None:
+			return aiohttp.web.HTTPNotFound()
+
+		with open(self.ApiService.ChangeLog, 'r') as f:
 			result = f.read()
 
 		return aiohttp.web.Response(text=result, content_type="text/markdown")
 
+
+	async def manifest(self, request):
+		if self.ApiService.Manifest is None:
+			return aiohttp.web.HTTPNotFound()
+
+		return json_response(request, self.ApiService.Manifest)
+
+
 	async def environ(self, request):
-		return asab.web.rest.json_response(request, dict(os.environ))
+		return json_response(request, dict(os.environ))
+
 
 	async def config(self, request):
 		# Copy the config and erase all passwords
 		result = {}
-		for section in asab.Config.sections():
+		for section in Config.sections():
 			result[section] = {}
 			# Access items in the raw mode (they are not interpolated)
-			for option, value in asab.Config.items(section, raw=True):
+			for option, value in Config.items(section, raw=True):
 				if section == "passwords":
 					result[section][option] = "***"
 				else:
 					result[section][option] = value
-		return asab.web.rest.json_response(request, result)
+		return json_response(request, result)
 
 	async def metrics(self, request):
 		text = self.MetricsService.MetricsDataStorage.get_all_in_openmetric()

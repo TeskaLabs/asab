@@ -1,8 +1,8 @@
 import os
 import glob
-import asyncio
 import logging
 import inspect
+import kazoo.client
 import platform
 import configparser
 from urllib.parse import urlparse
@@ -33,12 +33,14 @@ class ConfigParser(configparser.ConfigParser):
 			'tick_period': 1,  # In seconds
 			'var_dir': os.path.expanduser('~/.' + os.path.splitext(os.path.basename(sys.argv[0]))[0]),
 
+			'changelog': '',
+			'manifest': '',
+
 			# Daemonization
 			'pidfile': '!',  # '!' has a special meaning => it transforms into platform specific location of pid file
 			'working_dir': '.',
 			'uid': '',
 			'gid': '',
-			'changelog_path': '/CHANGELOG.md',
 		},
 
 		"logging": {
@@ -70,23 +72,11 @@ class ConfigParser(configparser.ConfigParser):
 			"rotate_every": "",
 		},
 
-		"web": {
-			# This is commented b/c `-w` switch fills this value
-			# The same `listen` configuration is in a ConfigDefault of the web container
-			# "listen": "0.0.0.0 8080",
-		},
-
 		"authz": {
 			# RBAC URL
 			# If !DISABLED! is specified, all authorization checks will be skipped
 			"rbac_url": "http://localhost:8081/rbac",
 		},
-
-		"asab:zookeeper": {
-			"servers": "",
-			"path": "/asab",
-		},
-
 
 		# "passwords" section serves to securely store passwords
 		# in the configuration file; the passwords are not
@@ -201,46 +191,41 @@ class ConfigParser(configparser.ConfigParser):
 
 
 	def _include_from_zookeeper(self, zkurl):
-		import aiozk
-
-		loop = asyncio.get_event_loop()
-
 		# parse include value into hostname and path
 		url_pieces = urlparse(zkurl)
 		url_path = url_pieces.path
 		url_netloc = url_pieces.netloc
 
 		if not url_netloc:
-			url_netloc = self["asab:zookeeper"]["servers"]
+			if "asab:zookeeper" in self:
+				# Backward compatibility
+				url_netloc = self["asab:zookeeper"]["servers"]
+			else:
+				url_netloc = self["zookeeper"]["servers"]
 
 		if url_path.startswith("./"):
-			url_path = self["asab:zookeeper"]["path"] + url_path[1:]
+			if "asab:zookeeper" in self:
+				# Backward compatibility
+				url_path = self["asab:zookeeper"]["path"] + url_path[1:]
+			else:
+				url_path = self["zookeeper"]["path"] + url_path[1:]
 
 		head, tail = os.path.split(url_path)
 		self.config_name_list.append(tail)
 
-		async def download_from_zookeeper():
-			try:
-				zk = aiozk.ZKClient(
-					url_netloc,
-					allow_read_only=True,
-					read_timeout=60,  # seconds #
-				)
-				await zk.start()
-				data = await zk.get_data(url_path)
-				# convert bytes to string
-				encode_config = str(data, 'utf-8')
-				self.read_string(encode_config)
-				# Include in the list of config file contents
-				self.config_contents_list.append(encode_config)
-				await zk.close()
-				# Re-enable logging output
-			except Exception as e:
-				L.error("Failed to obtain configuration from zookeeper server(s): '{}'.".format(e))
-				sys.exit(1)
-
-		loop.run_until_complete(download_from_zookeeper())
-
+		try:
+			zk = kazoo.client(url_netloc)
+			zk.start()
+			data = zk.get(url_path)
+			# convert bytes to string
+			encode_config = str(data, 'utf-8')
+			self.read_string(encode_config)
+			# Include in the list of config file contents
+			self.config_contents_list.append(encode_config)
+			zk.close()
+		except Exception as e:
+			L.error("Failed to obtain configuration from zookeeper server(s): '{}'.".format(e))
+			sys.exit(1)
 
 	def get_config_contents_list(self):
 		return self.config_contents_list, self.config_name_list

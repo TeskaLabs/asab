@@ -1,6 +1,7 @@
 import configparser
 import logging
 import asyncio
+import os
 
 import asab
 
@@ -55,6 +56,17 @@ class MetricsService(asab.Service):
 
 			self.Targets.append(target)
 
+		# Create native metrics
+		self.ProcessId = os.getpid()
+
+		self.MemoryGauge = self.create_gauge(
+			"os.stat",
+			init_values=self._get_process_info(),
+			tags={
+				"help": "Status information about the OS process.",
+			},
+		)
+
 
 	async def finalize(self, app):
 		await self._on_flushing_event("finalize!")
@@ -64,9 +76,35 @@ class MetricsService(asab.Service):
 		self.Targets.append(target)
 
 
+	def _get_process_info(self):
+		memory_info = {}
+
+		try:
+			with open("/proc/{}/status".format(self.ProcessId), "r") as file:
+				proc_status = file.read()
+
+				for proc_status_line in proc_status.replace('\t', '').split('\n'):
+
+					# Vm - virtual memory, other metrics need to be evaluated and added
+					if not proc_status_line.startswith("Vm"):
+						continue
+
+					proc_status_info = proc_status_line.split(' ')
+					memory_info[proc_status_info[0][:-1]] = int(proc_status_info[-2]) * 1024
+
+		except FileNotFoundError:
+			L.info("File '/proc/{}/status' was not found, skipping process metrics.".format(self.ProcessId))
+
+		return memory_info
+
+
 	async def _on_flushing_event(self, event_type):
 		if len(self.Metrics) == 0:
 			return
+
+		# Update native metrics
+		for key, value in self._get_process_info().items():
+			self.MemoryGauge.set(key, value)
 
 		for metric in self.Metrics.values():
 			metric.flush()
