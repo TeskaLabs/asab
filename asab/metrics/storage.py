@@ -24,10 +24,12 @@ class MetricsDataStorage(object):
 	def get_all_in_openmetric(self):
 		lines = []
 		for data in self.Tree.values():
-			if len(data) > 0:
-				lines.append(metric_to_text(data))
-		lines.append("# EOF\n")
-		return "\n".join(lines)
+			line = metric_to_text(data)
+			if line is not None:
+				lines.append(line)
+		if lines:
+			lines.append("# EOF\n")
+			return "\n".join(lines)
 
 
 	def get_all_as_table(self, filter):
