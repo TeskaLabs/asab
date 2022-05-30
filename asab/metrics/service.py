@@ -33,9 +33,7 @@ class MetricsService(asab.Service):
 		}
 		self.MetricsDataStorage = MetricsDataStorage()
 
-
-		# TODO: 60s !!!!
-		app.PubSub.subscribe("Application.tick/10!", self._on_flushing_event)
+		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
 
 		for target in asab.Config.get('asab:metrics', 'target').strip().split():
 			try:
