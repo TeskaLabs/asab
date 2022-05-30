@@ -70,9 +70,6 @@ class MetricsService(asab.Service):
 		self.MemoryGauge = self.create_gauge(
 			"os.stat",
 			init_values=self._get_process_info(),
-			tags={
-				"help": "Status information about the OS process.",
-			},
 		)
 
 

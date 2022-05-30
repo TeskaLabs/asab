@@ -37,28 +37,27 @@ def metric_to_influxdb(metric, values, now, type: str):
 		influxdb_format = ""
 
 	else:
-		if all([isinstance(fk, tuple) for fk in values.keys()]):
-			field_set = []
-			for fk, fv in values.items():
-				tags = "," + ",".join(['{}={}'.format(k.replace(" ", "_"), v.replace(" ", "_")) for k, v in fk._asdict().items()])
-				field = get_field(name, fv)
-				field_set.append(tags + " " + field)
-			for tk, tv in metric.Tags.items():
-				name += ',{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_"))
+		# CAREFUL: This function is used also in asab.logman.metrics
+		influxdb_format = ""
+		name = metric.Name.replace(" ", "_")
 
-			influxdb_format = "".join(["{}{} {}\n".format(name, field, int(now * 1e9)) for field in field_set])
+		field_set = []
+		for fk, fv in values.items():
+			if isinstance(fv, int):
+				field_set.append("{}={}i".format(fk, fv))
+			elif isinstance(fv, float):
+				field_set.append("{}={}".format(fk, fv))
+			elif isinstance(fv, str):
+				field_set.append('{}="{}"'.format(fk, fv.replace(" ", "_").replace('"', r'\"')))
+			elif isinstance(fv, bool):
+				field_set.append("{}={}".format(fk, 't' if fv else 'f'))
+			else:
+				raise RuntimeError("Unknown/invalud type of the metrics field: {} {}".format(type(fv), fk))
 
-		elif all([isinstance(fk, (str, int, float)) for fk in values.keys()]):
-			field_set = []
-			for fk, fv in values.items():
-				field_set.append(get_field(fk, fv))
-			for tk, tv in metric.Tags.items():
-				name += ',{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_"))
+		for tk, tv in metric.Tags.items():
+			name += ',{}={}'.format(tk, tv.replace(" ", "_"))
 
-			influxdb_format = "{} {} {}\n".format(name, ', '.join(field_set), int(now * 1e9))
-
-		else:
-			raise RuntimeError("Unknown/invalid types of the metric {} value names: {}".format(name, [type(fk) for fk in values.keys()]))
+		influxdb_format += "{} {} {}\n".format(name, ','.join(field_set), int(now * 1e9))
 
 	return influxdb_format
 
@@ -66,8 +65,15 @@ def metric_to_influxdb(metric, values, now, type: str):
 def influxdb_format(now, mlist):
 	# CAREFUL: This function is used also in asab.logman.metrics
 	rb = ""
+
 	for metric, values in mlist:
-		rb += metric.get_influxdb_format(values, now)
+		metric_data = metric.get_influxdb_format(values, now)
+
+		if metric_data is None:
+			continue
+
+		rb += metric_data
+
 	return rb
 
 

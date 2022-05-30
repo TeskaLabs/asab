@@ -152,6 +152,9 @@ class EPSCounter(Counter):
 			self.Values = self.Init.copy()
 		return ret
 
+	def get_influxdb_format(self, values, now):
+		return metric_to_influxdb(self, values, now, "counter")
+
 
 class DutyCycle(Metric):
 	'''
@@ -226,7 +229,7 @@ class DutyCycle(Metric):
 		return None
 
 	def get_influxdb_format(self, values, now):
-		return None
+		return metric_to_influxdb(self, values, now, "dutycycle")
 
 
 class AggregationCounter(Counter):
