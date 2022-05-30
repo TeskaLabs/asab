@@ -11,9 +11,10 @@ def watch_table(metric_records: list(), filter):
 		[
 			len(str(value_name))
 			for i in metric_records
-			for value_name in i.get("Values").keys()
+			if i.get("Values") is not None
+			for value_name in i.get("Values")
 		]
-	)
+	) + 10
 
 	separator = "-" * (m_name_len + v_name_len + 30 + 2)
 	lines.append(separator)
@@ -29,19 +30,54 @@ def watch_table(metric_records: list(), filter):
 	lines.append(separator)
 
 	for metric_record in metric_records:
+		if metric_record.get("Values") is None:
+			continue
 		name = metric_record.get("Name")
 		if filter is not None and not name.startswith(filter):
 			continue
-		for key, value in metric_record.get("Values").items():
+		if metric_record.get("Type") == "Histogram":
+			for upperboud, values in metric_record.get("Values").get("Buckets").items():
+				for v_name, value in values.items():
+					lines.append(
+						"{:<{m_name_len}} | {:<{v_name_len}} | {:<7} | {:<30}".format(
+							str(name),
+							str(v_name),
+							str(upperboud),
+							str(value),
+							v_name_len=v_name_len - 10,
+							m_name_len=m_name_len,
+						)
+					)
 			lines.append(
 				"{:<{m_name_len}} | {:<{v_name_len}} | {:<30}".format(
 					str(name),
-					str(key),
-					str(value),
+					"Sum",
+					metric_record.get("Values").get("Sum"),
 					v_name_len=v_name_len,
 					m_name_len=m_name_len,
 				)
 			)
+			lines.append(
+				"{:<{m_name_len}} | {:<{v_name_len}} | {:<30}".format(
+					str(name),
+					"Count",
+					metric_record.get("Values").get("Count"),
+					v_name_len=v_name_len,
+					m_name_len=m_name_len,
+				)
+			)
+
+		else:
+			for key, value in metric_record.get("Values").items():
+				lines.append(
+					"{:<{m_name_len}} | {:<{v_name_len}} | {:<30}".format(
+						str(name),
+						str(key),
+						str(value),
+						v_name_len=v_name_len,
+						m_name_len=m_name_len,
+					)
+				)
 
 	text = "\n".join(lines)
 	return text

@@ -8,7 +8,7 @@ from ..web.rest import json_response
 
 class APIWebHandler(object):
 	def __init__(self, api_svc, webapp, log_handler):
-		self.App = api_svc
+		self.App = api_svc.App
 		self.ApiService = api_svc
 		# MetricsService initialized in WebService
 		self.MetricsService = self.App.get_service("asab.MetricsService")
