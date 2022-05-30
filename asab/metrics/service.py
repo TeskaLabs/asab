@@ -18,7 +18,9 @@ L = logging.getLogger('asab.metrics')
 
 def metric_dimension(metric_name, tags):
 	dim = metric_name
-	dim += ',{}'.format(tags["host"])
+	if tags is not None:
+		for k in sorted(tags.keys()):
+			dim += ',{}={}'.format(k, tags[k])
 	return dim
 
 
