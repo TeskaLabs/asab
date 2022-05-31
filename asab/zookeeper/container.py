@@ -94,16 +94,16 @@ class ZooKeeperContainer(ConfigObject):
 	async def get_raw_data(self, child):
 		return await self.ZooKeeper.get_data("{}/{}".format(self.ZooKeeper.Path, child))
 
+	def _on_watcher_trigger(self, data, stat):
+		def on_watcher_trigger():
+			self.App.PubSub.publish(self.App.PubSub.publish("ZooKeeper.watcher!", data, stat))
+		self.App.Loop.call_soon_threadsafe(on_watcher_trigger)
+
+
 	async def create_watcher(self, client, path):
-
-		def _on_watcher_trigger(watcher_event):
-			asyncio.ensure_future(
-				self.App.PubSub.publish("ZooKeeper.watcher!", watcher_event, path)
-			)
 		# Do this in executor
-		watcher = kazoo.recipe.watchers.DataWatch(client, path, func=_on_watcher_trigger)
+		watcher = kazoo.recipe.watchers.DataWatch(client, path, func=self._on_watcher_trigger)
 		self.DataWatchers.add(watcher)
-
 
 class ZooKeeperAdvertisement(object):
 
