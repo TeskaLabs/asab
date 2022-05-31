@@ -105,6 +105,7 @@ class ZooKeeperContainer(ConfigObject):
 		watcher = kazoo.recipe.watchers.DataWatch(client, path, func=self._on_watcher_trigger)
 		self.DataWatchers.add(watcher)
 
+
 class ZooKeeperAdvertisement(object):
 
 	def __init__(self, path):
