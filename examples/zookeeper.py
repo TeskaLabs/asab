@@ -29,9 +29,10 @@ class MyApplication(asab.Application):
 
 
 	async def _on_zk_ready(self, event_name, zkcontainer):
-		path = self.ZkContainer.ZooKeeperPath + "/hello"
-		await self.ZkContainer.ZooKeeper.ensure_path(path)
-		print("The path in Zookeeper has been created.")
+		if zkcontainer == self.ZkContainer:
+			path = self.ZkContainer.ZooKeeperPath + "/hello"
+			await self.ZkContainer.ZooKeeper.ensure_path(path)
+			print("The path in Zookeeper has been created.")
 
 
 if __name__ == '__main__':
