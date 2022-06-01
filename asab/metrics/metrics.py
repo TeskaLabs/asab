@@ -284,7 +284,9 @@ class Histogram(Metric):
 			}
 		})
 		if self.Reset:
-			self.Values = self.InitBuckets.copy()
+			self.Buckets = copy.deepcopy(self.InitBuckets)
+			self.Count = 0
+			self.Sum = 0.0
 
 	def rest_get(self):
 		rest = super().rest_get()
