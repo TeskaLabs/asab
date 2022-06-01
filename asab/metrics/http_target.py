@@ -18,9 +18,10 @@ class HTTPTarget(asab.ConfigObject):
 
 
 	async def process(self, m_tree, now):
-		m_tree["@timestamp"] = now
+		tree_to_send = m_tree.copy()
+		tree_to_send["@timestamp"] = now
 		async with aiohttp.ClientSession() as session:
-			async with session.post(self.URL, json=m_tree) as resp:
+			async with session.post(self.URL, json=tree_to_send) as resp:
 				response = await resp.text()
 				if resp.status != 200:
 					L.warning("Error when sending metrics by HTTPTarget: {}\n{}".format(resp.status, response))
