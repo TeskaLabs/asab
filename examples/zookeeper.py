@@ -29,6 +29,8 @@ class MyApplication(asab.Application):
 
 
 	async def _on_zk_ready(self, event_name, zkcontainer):
+		# If there is more than one ZooKeeper Container being initialized, this method is called at every Container initialization.
+		# Then you need to check whether the specific ZK Container has been initialized.
 		if zkcontainer == self.ZkContainer:
 			path = self.ZkContainer.ZooKeeperPath + "/hello"
 			await self.ZkContainer.ZooKeeper.ensure_path(path)
