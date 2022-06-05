@@ -62,12 +62,12 @@ class KazooWrapper(object):
 		# If path has not been provided, use the value of 'path' from the configuration
 		if url_path == '':
 			url_path = config.get("path")
-		
+
 		# If path still has not been found (not in configuration), derive the path from the application class name
 		if url_path == '' or url_path is None:
 			url_path = app.__class__.__name__
 
-		# Remove all heading '/' from path 
+		# Remove all heading '/' from path
 		while url_path.startswith("/"):
 			url_path = url_path[1:]
 
