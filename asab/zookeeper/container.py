@@ -21,6 +21,8 @@ class ZooKeeperContainer(ConfigObject):
 		# Server list to which ZooKeeper Client tries connecting.
 		# Specify a comma (,) separated server list.
 		# A server is defined as address:port format.
+		# Example:
+		# "servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181"
 		"servers": "",
 
 		"path": "",
