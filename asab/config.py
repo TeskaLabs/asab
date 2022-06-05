@@ -213,6 +213,7 @@ class ConfigParser(configparser.ConfigParser):
 		self.config_name_list.append(tail)
 
 		try:
+			# Delayed import to minimize a hard dependecy footprint
 			import kazoo.client
 			zk = kazoo.client(url_netloc)
 			zk.start()
@@ -224,7 +225,7 @@ class ConfigParser(configparser.ConfigParser):
 			self.config_contents_list.append(encode_config)
 			zk.close()
 		except Exception as e:
-			L.error("Failed to obtain configuration from zookeeper server(s): '{}'.".format(e))
+			L.error("Failed to obtain configuration from Zookeeper server(s): '{}'.".format(e))
 			sys.exit(1)
 
 	def get_config_contents_list(self):
