@@ -36,7 +36,6 @@ class ZooKeeperContainer(ConfigObject):
 		"""
 		Alternative 1: Obtain Zookeeper container with `config_section_name` configuration section
 		Alternative 2: Obtain Zookeeper container with call z_path (URL)
-		
 		Example:
 		zk_cnt = ZooKeeperContainer(app, config_section_name='', z_path=z_path)
 		"""
