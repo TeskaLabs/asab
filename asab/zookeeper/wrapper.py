@@ -6,33 +6,37 @@ import kazoo.exceptions
 
 #
 
-L = logging.getLogger(__name__.rsplit(".", 1)[0])  # We want just "asab.zookeeper" in the error messages
+L = logging.getLogger(__name__.rsplit(".", 1)[0])  # We want just "asab.zookeeper" in error messages
 
 #
 
 
 class KazooWrapper(object):
 	"""
-	This function builds ZooKeeper clients from Configs and urls
-	urls supported :
-	1. Absolute url.
+	This function builds ZooKeeper clients from Configs and URLs
+
+	Supported types of URLs:
+
+	1. Absolute URL.
 	Example: zookeeper://zookeeper:12181/etc/configs/file1
-	2. Relative ur1 with full path
+
+	2. Relative URL with full path
 		Example: zookeeper:///etc/configs/file1
 		In this case the relative url is expanded as follows:
 		zookeeper://{default_server}/etc/configs/file1
 		Where {default_server} is substituted with the server entry of the [zookeeper] configuration file section.
-	3. Relative url with relative path
+
+	3. Relative URL with relative path
 	Example: zookeeper:./etc/configs/file1
-		In this case, the relative url is expanded as follows:
+		In this case, the relative URL is expanded as follows:
 		zookeper://{default_server}/{default_path}/etc/configs/file1
 		Where {default_server} is substituted with the "server" entry of the [zookeeper] configuration file section and
 		{default_path} is substituted with the "path" entry of the [zookeeper] configuration file section.
-	Sample config file:
 
+	Sample config file:
 	[asab.zookeeper]
-	server=server1 server2 server3      <-- Default server
-	path=/myfolder                      <-- Default path
+	server=server1:port1,server2:port2,server3:port3
+	path=myfolder
 	"""
 
 	def __init__(self, app, config, z_url):

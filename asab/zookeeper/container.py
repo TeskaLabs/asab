@@ -32,9 +32,11 @@ class ZooKeeperContainer(ConfigObject):
 	def __init__(self, zksvc, config_section_name, config=None, z_path=None):
 		super().__init__(config_section_name=config_section_name, config=config)
 		'''
-		Alternative 1) - Obtain Zookeeper container with config-section
-		Alternative 2) - Obtain Zookeeper container with call z_path
-		example : ZooKeeperContainer(app, config_section_name='', z_path=z_path)
+		Alternative 1) - Obtain Zookeeper container with `config_section_name` configuration section
+		Alternative 2) - Obtain Zookeeper container with call z_path (URL)
+		
+		Example:
+		zk_cnt = ZooKeeperContainer(app, config_section_name='', z_path=z_path)
 		'''
 
 		self.App = zksvc.App
