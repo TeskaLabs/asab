@@ -58,17 +58,16 @@ Highlights
 ----------
 
 * Unified approach to **Configuration**
-* Logging
-* Metrics
-* HTTP Server powered by `aiohttp <https://docs.aiohttp.org/en/stable/>`_ library
-* Apache Zookeeper Client
-* Persistent storage abstraction based on upsertor
-* Pub/Sub
-* Dependency injection
-* Proactor pattern service
-* Task service
-* Unified microservice API
-* Event loop
+* **Logging** using reasonably configured Python ``logging`` module
+* Build-in and custom **Metrics** with feeds into InfluxDB and Prometheus
+* **HTTP Server** powered by `aiohttp <https://docs.aiohttp.org/en/stable/>`_ library
+* **Apache Zookeeper Client** provides shared consensus across microservices’ cluster
+* Persistent **storage** abstraction based on upsertor for MongoDB and ElasticSearch
+* **Pub/Sub**
+* **Dependency injection** using Modules and Services
+* **Proactor pattern service** for long-running synchronous work
+* **Task service**
+* Unified microservice **API**
 
 
 Principles
