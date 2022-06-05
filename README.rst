@@ -68,6 +68,7 @@ Highlights
 * Proactor pattern service
 * Task service
 * Unified microservice API
+* Event loop
 
 
 Principles
@@ -84,13 +85,6 @@ Principles
 * Kappa architecture
 * Support for introspection
 * Modularized
-
-
-High-level architecture
------------------------
-
-.. image:: https://github.com/TeskaLabs/asab/raw/master/doc/_static/asab-architecture.png
-    :alt: Schema of ASAB high-level achitecture
 
 
 Video tutorial
