@@ -20,7 +20,6 @@ class MyApplication(asab.Application):
 			zksvc, 'my:zk',
 			config={
 				"servers": "10.17.164.239:2181,10.17.164.183:2181,10.17.169.210:2181",
-				"path": "asab"
 			}
 		)
 
