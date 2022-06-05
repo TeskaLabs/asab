@@ -1,13 +1,13 @@
-import logging
-import asyncio
-import argparse
-import itertools
 import os
 import sys
 import time
 import signal
-import platform
 import random
+import logging
+import asyncio
+import argparse
+import itertools
+import platform
 
 try:
 	import daemon
@@ -121,7 +121,7 @@ class Application(metaclass=Singleton):
 			self.Loop.add_signal_handler(signal.SIGTERM, self.stop)
 			self.Loop.add_signal_handler(signal.SIGHUP, self._hup)
 
-		self._stop_event = asyncio.Event(loop=self.Loop)
+		self._stop_event = asyncio.Event()
 		self._stop_event.clear()
 		self._stop_counter = 0
 
