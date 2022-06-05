@@ -19,7 +19,7 @@ class MyApplication(asab.Application):
 		self.ZkContainer = asab.zookeeper.ZooKeeperContainer(
 			zksvc, 'my:zk',
 			config={
-				"servers": "10.17.164.239:2181,10.17.164.183:2181,10.17.169.210:2181",
+				# "servers": "10.17.164.239:2181,10.17.164.183:2181,10.17.169.210:2181",
 			}
 		)
 

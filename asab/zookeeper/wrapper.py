@@ -54,10 +54,10 @@ class KazooWrapper(object):
 		# If there is no location, use the value of 'servers' from the configuration
 		if url_netloc == '':
 			url_netloc = config.get("servers")
-			if url_netloc == "" or url_netloc is None:
+			if url_netloc == '' or url_netloc is None:
 				# if server entry is missing exit
-				L.error("Configuration value of 'servers' is not provided, cannot connect to Zookeeper.")
-				raise SystemExit("Exiting due to a configuration error.")
+				L.critical("Cannot connect to Zookeeper, the configuration value of 'servers' not provided.")
+				raise SystemExit("Exit due to a critical configuration error.")
 
 		# If path has not been provided, use the value of 'path' from the configuration
 		if url_path == '':
@@ -68,10 +68,10 @@ class KazooWrapper(object):
 			url_path = app.__class__.__name__
 
 		# Remove all heading '/' from path
-		while url_path.startswith("/"):
+		while url_path.startswith('/'):
 			url_path = url_path[1:]
 
-		self.Path = url_path.rstrip("/")
+		self.Path = url_path.rstrip('/')
 
 		# Create and return the client and the url-path
 		self.Client = kazoo.client.KazooClient(hosts=url_netloc)
