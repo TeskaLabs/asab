@@ -36,13 +36,6 @@ Documentation
 * `Examples <https://github.com/TeskaLabs/asab/tree/master/examples>`_
 
 
-Video tutorial
-^^^^^^^^^^^^^^
-
-.. image:: http://img.youtube.com/vi/77StpWxOIBc/0.jpg
-   :target: https://www.youtube.com/watch?v=77StpWxOIBc&list=PLhdpLpq_tPSDb2YMDwyz431pM1BPDWHNK
-
-
 Example
 -------
 
@@ -59,6 +52,22 @@ Example
     if __name__ == '__main__':
         app = MyApplication()
         app.run()
+
+
+Highlights
+----------
+
+* Unified approach to **Configuration**
+* Logging
+* Metrics
+* HTTP Server powered by `aiohttp <https://docs.aiohttp.org/en/stable/>`_ library
+* Apache Zookeeper Client
+* Persistent storage abstraction based on upsertor
+* Pub/Sub
+* Dependency injection
+* Proactor pattern service
+* Task service
+* Unified microservice API
 
 
 Principles
@@ -82,6 +91,13 @@ High-level architecture
 
 .. image:: https://github.com/TeskaLabs/asab/raw/master/doc/_static/asab-architecture.png
     :alt: Schema of ASAB high-level achitecture
+
+
+Video tutorial
+^^^^^^^^^^^^^^
+
+.. image:: http://img.youtube.com/vi/77StpWxOIBc/0.jpg
+   :target: https://www.youtube.com/watch?v=77StpWxOIBc&list=PLhdpLpq_tPSDb2YMDwyz431pM1BPDWHNK
 
 
 Licence
