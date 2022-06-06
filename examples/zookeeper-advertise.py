@@ -3,17 +3,15 @@ import asab.api
 import asab.zookeeper
 
 
-class MockApplication(asab.Application):
+class MyApplication(asab.Application):
 
 	def __init__(self):
-		super().__init__()
+		super().__init__(modules=[asab.web.Module, asab.zookeeper.Module])
 
-		# Loading the web service module
-		self.add_module(asab.web.Module)
+		# Locate a Web Service
 		self.WebService = self.get_service("asab.WebService")
 
-		# Load a zookeeper service module
-		self.add_module(asab.zookeeper.Module)
+		# Locate a ZooKeeper Service
 		self.ZooKeeperService = self.get_service("asab.ZooKeeperService")
 
 		# Initialize API service
@@ -25,5 +23,5 @@ class MockApplication(asab.Application):
 
 
 if __name__ == '__main__':
-	app = MockApplication()
+	app = MyApplication()
 	app.run()
