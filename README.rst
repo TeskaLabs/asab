@@ -60,6 +60,7 @@ Highlights
 * Unified approach to **Configuration**
 * **Logging** using reasonably configured Python ``logging`` module
 * Build-in and custom **Metrics** with feeds into InfluxDB and Prometheus
+* **Alerting** with integration to PagerDuty and OpsGenie.
 * **HTTP Server** powered by `aiohttp <https://docs.aiohttp.org/en/stable/>`_ library
 * **Apache Zookeeper Client** provides shared consensus across microservices’ cluster
 * Persistent **storage** abstraction based on upsertor for MongoDB and ElasticSearch
