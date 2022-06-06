@@ -49,11 +49,9 @@ Example
     class MyApplication(asab.Application):
 
         def __init__(self):
-            super().__init__()
-            
             # Load the ASAB Web module
-            self.add_module(asab.web.Module)
-            
+            super().__init__(modules=[asab.web.Module])
+
             # Locate the Web service
             websvc = self.get_service("asab.WebService")
             
