@@ -42,11 +42,5 @@ class LibraryService(asab.Service):
 			if item is not None:
 				return item
 
-	async def export(self, path):
-		for library in self.Libraries.values():
-			item = await library.export_library(path)
-			if item is not None:
-				return item
-
 	async def finalize(self, app):
 		pass
