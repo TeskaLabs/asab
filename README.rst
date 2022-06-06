@@ -43,13 +43,33 @@ Example
 
     #!/usr/bin/env python3
     import asab
+    import asab.web
+    import aiohttp
     
     class MyApplication(asab.Application):
-        async def main(self):
-            print("Hello world!")
-            self.stop()
+
+        def __init__(self):
+            super().__init__()
+            
+            # Load the ASAB Web module
+            self.add_module(asab.web.Module)
+            
+            # Locate the Web service
+            websvc = self.get_service("asab.WebService")
+            
+            # Create the Web container
+            container = asab.web.WebContainer(websvc, 'my:web', config={"listen": "0.0.0.0:8080"})
+            
+            # Add a route to the handler
+            container.WebApp.router.add_get('/', self.hello)
+
+        # This is the web request handler
+        async def hello(self, request):
+            return aiohttp.web.Response(text="Hello, world!\n")
     
     if __name__ == '__main__':
+        # Create and start the application
+        # The application will be available at http://localhost:8080/
         app = MyApplication()
         app.run()
 
