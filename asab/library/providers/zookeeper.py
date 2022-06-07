@@ -56,14 +56,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return node_data
 
 
-	async def list(self, path):
+	async def list(self, path, recursive=True):
 		if self.Zookeeper is None:
 			return
-
-		recursive = path.endswith("*")
-
-		if recursive:
-			path = path[:-2]
 
 		node_names = list()
 		node_path = "{}/{}".format(self.BasePath, path)

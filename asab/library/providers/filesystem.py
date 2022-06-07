@@ -24,26 +24,21 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return None
 
 
-	async def list(self, path):
-		recursive = path.endswith("*")
+	async def list(self, path, recursive=True):
 
 		if recursive:
-			path = os.path.join(path[:-2], "**")
+			path = os.path.join(path, "**")
 
-		file_names = glob.iglob(
-			os.path.join(self.LibraryBaseDir, path, "*.yaml"),
-			recursive=recursive
+		file_names = list(
+			glob.iglob(
+				os.path.join(self.LibraryBaseDir, path),
+				recursive=recursive
+			)
 		)
-
-		files_names_list = []
 
 		# Remove library path from the beginning of file names
 		library_path_to_replace = "{}/".format(os.path.abspath(self.LibraryBaseDir))
-
-		for file_name in file_names:
-			files_names_list.append(
-				file_name.replace(library_path_to_replace, '')
-			)
+		files_names_list = [i.replace(library_path_to_replace, '') for i in file_names]
 
 		# Results of glob are returned in arbitrary order
 		# Sort them to preserver order of parsers
