@@ -15,7 +15,7 @@ Prerequisites
 4. Postman
 
 .. note::
-	We will use Docker to run MongoDB. Docker installation is not covered in this tutorial, but there are scores of good ones online should you run into any trouble. If you're not familiar with Docker yet, it is great opportunity to start. https://www.docker.com/get-started/
+	We will use Docker to run MongoDB. Docker installation is not covered in this tutorial, but there are scores of good ones online should you run into any trouble. If you're not familiar with Docker yet, it is a great opportunity to start. https://www.docker.com/get-started/
 
 Components
 ----------
@@ -46,7 +46,7 @@ To make things simple, let's use a Docker image.
 Pull this image:  
 https://hub.docker.com/_/mongo
 
-You can simply use the command below to run it. If you choose to run the instance without password, don't forget 
+You can simply use the command below to run it. If you choose to run the instance without a password, don't forget 
 to adjust the related **asab.Config** in `./myrestapi/app.py`.
 
 .. code:: bash
@@ -125,8 +125,8 @@ Add some configuration:
 	})
 
 .. note::
-	To make things more simple, Mongo credentials are stored here as default configuration. 
-	Usually, you provide your app with configuration file. Learn more in section :ref:`configuration-ref`.
+	To make things more simple, Mongo credentials are stored here as a default configuration. 
+	Usually, you provide your app with a configuration file. Learn more in section :ref:`configuration-ref`.
 
 Next, describe the class, it inherits from the basic ASAB Application class, but you need to expand 
 it a little:
@@ -178,7 +178,7 @@ handler.py
 `./myrestapi/tutorial/handler.py`
 
 The handler is where HTTP Rest calls are handled and transformed into the actual (internal) service calls. From another 
-perspective, the handler should contain only translation between REST calls and service interface. No actual 
+perspective, the handler should contain only translation between REST calls and the service interface. No actual 
 'business logic' should be here.   
 It is strongly suggested to build these CRUD methods one by one and test them straight away. If you haven't set 
 up your database test instance yet, now is the time to do it.
@@ -242,11 +242,11 @@ Let's start with two methods - `create` and `read` which allow us to write into 
 				request, response
 			)
 	
-The handler only accepts the incomming requests and returns appropriate response.
+The handler only accepts the incoming requests and returns appropriate responses.
 All of the "logic", be it the specifics of the database connection, additional validations and other 
 operations take place in the CRUDService.
 
-POST and PUT requests typically come with data in body. Providing your `WebContainer` with `JsonExceptionMiddleware` enables you to validate a JSON input
+POST and PUT requests typically come with data in their body. Providing your `WebContainer` with `JsonExceptionMiddleware` enables you to validate a JSON input
 using `@asab.web.rest.json_schema_handler` decorator and JSON schema (https://json-schema.org/).
 
 ASAB WebServer is built on top of the aiohttp library. For further details please visit https://docs.aiohttp.org/en/stable/index.html.
@@ -257,7 +257,7 @@ service.py
 
 `./myrestapi/tutorial/service.py`
 
-As mentioned above, this is where the inner workings of the microservice request processing actually is.   
+As mentioned above, this is where the inner workings of the microservice request processing are.
 Let's start as usual, by importing the desired modules:
 
 .. code:: python 
@@ -266,7 +266,7 @@ Let's start as usual, by importing the desired modules:
 	import asab.storage.exceptions
 
 
-We want to start logging here:
+We want to start logging in here:
 
 .. code:: python 
 
@@ -329,14 +329,14 @@ Now define the CRUDService class which inherits from the `asab.Service` class.
 
 	
 `asab.StorageService` initialized in `app.py` as part of the `asab.storage.Module` enables connection to MongoDB.
-Further on, there are two methods providing the handler with the desired functionalities.
+Further on, two methods provide the handler with the desired functionalities.
 
 **Now test it.**
 
-The application is implicitly running on **8080** port.
-Open the Postman and set new request.
+The application is implicitly running on an **8080** port.
+Open the Postman and set a new request.
 
-Try PUT method:
+Try the PUT method:
 
 .. code::
 
@@ -354,20 +354,20 @@ Insert into the request body:
 	}
 
 When there's a record in your database, try to read it!
-For example:
+For example with this GET request:
 
 .. code::
 	
 	127.0.0.1:8080/crud-myrestapi/movie/1
 
-Is your response with 200 status code? Does it return desired data?
-Congratulation to your first ASAB microservice!
+Is your response with a 200 status code? Does it return desired data?
+Congratulation on your first ASAB microservice!
 
 Oh, wait...
 
 **C**, **R**... What about **Update** and **Delete** you ask? 
 
-You already know everything to add next functionality!
+You already know everything to add the next functionality!
 
 
 
@@ -417,4 +417,4 @@ Try to kill process listening on 8080 or add [web] section into configuration:
 
 No error at all, no response either.
 
-Try to check the Mongo database credentials. Does your credentials in configuration in `app.py` fit the ones you entered when running Mongo Docker image?
+Try to check the Mongo database credentials. Do your credentials in the configuration in `app.py` fit the ones you entered when running the Mongo Docker image?
