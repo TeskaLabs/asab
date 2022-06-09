@@ -37,7 +37,6 @@ def metric_to_influxdb(metric, values, now, type: str):
 		influxdb_format = ""
 
 	else:
-		# CAREFUL: This function is used also in asab.logman.metrics
 		influxdb_format = ""
 		name = metric.Name.replace(" ", "_")
 
@@ -63,7 +62,6 @@ def metric_to_influxdb(metric, values, now, type: str):
 
 
 def influxdb_format(now, mlist):
-	# CAREFUL: This function is used also in asab.logman.metrics
 	rb = ""
 
 	for metric, values in mlist:
