@@ -150,6 +150,7 @@ class MongoDBUpsertor(UpsertorABC):
 						# Check if the conflict is caused by "_id" or other field
 						assert(self.Version == 0)
 					else:
+						# Re-raise original pymongo `DuplicateKeyError` - the conflict is likely on secondary unique indicies
 						raise e
 
 				raise DuplicateError("Already exists", self.ObjId)
