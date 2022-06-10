@@ -331,7 +331,8 @@ Now define the CRUDService class which inherits from the `asab.Service` class.
 `asab.StorageService` initialized in `app.py` as part of the `asab.storage.Module` enables connection to MongoDB.
 Further on, two methods provide the handler with the desired functionalities.
 
-**Now test it.**
+Now test it!
+------------
 
 The application is implicitly running on an **8080** port.
 Open the Postman and set a new request.
@@ -361,60 +362,229 @@ For example with this GET request:
 	127.0.0.1:8080/crud-myrestapi/movie/1
 
 Is your response with a 200 status code? Does it return desired data?
-Congratulation on your first ASAB microservice!
+
+
+.. note:: 
+	
+	**TROUBLESHOOTING**
+
+	**ERROR**
+
+	.. code::
+		
+		ModuleNotFoundError: No module named 'pymongo.mongo_replica_set_client'
+
+	Try:
+
+	.. code::
+		
+		pip install motor
+
+
+
+	**ERROR**
+
+	.. code::
+
+		OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8080): address already in use
+
+	Try to kill process listening on 8080 or add [web] section into configuration:
+
+	.. code::
+
+		asab.Config.add_defaults(
+		{
+			'asab:storage': {
+				'type': 'mongodb',
+				'mongodb_uri': 'mongodb://mongouser:mongopassword@mongoipaddress:27017',
+				'mongodb_database': 'mongodatabase'
+			},
+			'web': {
+				'listen': '0.0.0.0 8081'
+			}
+		})
+
+
+	**ERROR**
+
+	No error at all, no response either.
+
+	Try to check the Mongo database credentials. Do your credentials in the configuration in `app.py` fit the ones you entered when running the Mongo Docker image?
+
+
+Up and running! Congratulation on your first ASAB microservice!
 
 Oh, wait...
 
 **C**, **R**... What about **Update** and **Delete** you ask? 
 
-You already know everything to add the next functionality!
+You already know everything to add the next functionality! Accept the challenge and try it yourself! Or check out the code below.
 
 
+Update and Delete
+-----------------
 
-Troubleshooting
----------------
+**handler.py**
 
-**ERROR**
+`./myrestapi/tutorial/handler.py`
 
-.. code::
+.. code:: python 
+
+	class CRUDWebHandler(object):
+		def __init__(self, app, mongo_svc):
+			self.CRUDService = mongo_svc
+			web_app = app.WebContainer.WebApp
+			web_app.router.add_put(
+				'/crud-myrestapi/{collection}',
+				self.create
+			)
+			web_app.router.add_get(
+				'/crud-myrestapi/{collection}/{id}',
+				self.read_one
+			)
+			web_app.router.add_put(
+				'/crud-myrestapi/{collection}/{id}',
+				self.update
+			)
+			web_app.router.add_delete(
+				'/crud-myrestapi/{collection}/{id}',
+				self.delete
+			)
 	
-	ModuleNotFoundError: No module named 'pymongo.mongo_replica_set_client'
-
-Try:
-
-.. code::
+		@asab.web.rest.json_schema_handler({
+			'type': 'object',
+			'properties': {
+				'_id': {'type': 'string'},
+				'field1': {'type': 'string'},
+				'field2': {'type': 'number'},
+				'field3': {'type': 'number'}
+			}})
+		async def create(self, request, *, json_data):
+			collection = request.match_info['collection']
 	
-	pip install motor
+			result = await self.CRUDService.create(
+				collection, json_data
+			)
+			if result:
+				return asab.web.rest.json_response(
+					request, {"result": "OK"}
+				)
+			else:
+				asab.web.rest.json_response(
+					request, {"result": "FAIL"}
+				)
+	
+	
+		async def read_one(self, request):
+			collection = request.match_info['collection']
+			key = request.match_info['id']
+			response = await self.CRUDService.read_one(
+				collection, key
+			)
+			return asab.web.rest.json_response(
+				request, response
+			)
+		async def update(self, request, *, json_data):
+			collection = request.match_info['collection']
+			key = request.match_info["id"]
+	
+			result = await self.CRUDService.update(
+				collection, key, json_data
+			)
+			if result:
+				return asab.web.rest.json_response(
+					request, {"result": "OK"}
+				)
+			else:
+				asab.web.rest.json_response(
+					request, {"result": "FAIL"}
+				)
+	
+		async def delete(self, request):
+			collection = request.match_info['collection']
+			key = request.match_info["id"]
+			result = await self.CRUDService.delete(
+				collection, key
+			)
+	
+			if result:
+				return asab.web.rest.json_response(
+					request, {"result": "OK"}
+				)
+			else:
+				asab.web.rest.json_response(
+					request, {"result": "FAIL"}
+				)
 
+**service.py**
 
---------------------
+`./myrestapi/tutorial/service.py`
 
-**ERROR**
+.. code:: python 
 
-.. code::
+	class CRUDService(asab.Service):
 
-	OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8080): address already in use
+		def __init__(self, app, service_name='crud.CRUDService'):
+			super().__init__(app, service_name)
+			self.MongoDBStorageService = app.get_service(
+				"asab.StorageService"
+			)
 
-Try to kill process listening on 8080 or add [web] section into configuration:
+		async def create(self, collection, json_data):
+			obj_id = json_data.pop("_id")
+	
+			cre = self.MongoDBStorageService.upsertor(
+				collection, obj_id
+			)
 
-.. code::
+			for key, value in zip(
+				json_data.keys(), json_data.values()
+			):
+				cre.set(key, value)
+	
+			try:
+				await cre.execute()
+				return "OK"
+			except asab.storage.exceptions.DuplicateError as e:
+				L.warning(
+					"Document you are trying to create already exists."
+				)
+				return None
+	
+	
+		async def read_one(self, collection, key):
+			response = await self.MongoDBStorageService.get_by(
+				collection, "_id", key
+			)
+			return response
 
-	asab.Config.add_defaults(
-	{
-		'asab:storage': {
-			'type': 'mongodb',
-			'mongodb_uri': 'mongodb://mongouser:mongopassword@mongoipaddress:27017',
-			'mongodb_database': 'mongodatabase'
-		},
-		'web': {
-			'listen': '0.0.0.0 8081'
-		}
-	})
+		async def update(self, collection, obj_id, document):
+			original = await self.read_one(
+				collection, obj_id
+			)
 
--------------------
+			cre = self.MongoDBStorageService.upsertor(
+				collection, original["_id"], original["_v"]
+			)
 
-**ERROR**
-
-No error at all, no response either.
-
-Try to check the Mongo database credentials. Do your credentials in the configuration in `app.py` fit the ones you entered when running the Mongo Docker image?
+			for key, value in zip(
+				document.keys(), document.values()
+			):
+				cre.set(key, value)
+	
+			try:
+				await cre.execute()
+				return "OK"
+	
+			except KeyError:
+				return None
+	
+	
+		async def delete(self, collection, key):
+			try:
+				await self.MongoDBStorageService.delete(
+					collection, key
+				)
+				return True
+			except KeyError:
+				return False
