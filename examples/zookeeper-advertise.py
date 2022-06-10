@@ -10,6 +10,7 @@ asab.Config.add_defaults(
 			"listen": "0.0.0.0 8088",
 		},
 		"zookeeper": {
+			# specify "servers": "..." here to provide addresses of Zookeeper servers
 			"path": "asab"
 		},
 	}
