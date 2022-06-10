@@ -14,7 +14,7 @@ class LibraryService(asab.Service):
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
-		paths = asab.Config["library"]["path"]
+		paths = asab.Config["library"]["providers"]
 		self.Libraries = dict()
 		for path in re.split(r"\s+", paths):
 			self._create_library(path)
