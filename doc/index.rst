@@ -11,6 +11,7 @@
 
    get-started
    tutorial/web/chapter1
+   tutorial/web/chapter2
 
 .. toctree::
    :maxdepth: 2

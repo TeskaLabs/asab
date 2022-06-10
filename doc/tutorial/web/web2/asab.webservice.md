@@ -1,4 +1,4 @@
-Creating REST HTTP webservice using  ASAB
+Creating REST HTTP webservice using ASAB
 ===
 
 ## Overview
