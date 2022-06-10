@@ -35,8 +35,6 @@ These components are as follows (and also indicate the file structure) and will 
 			└── service.py
 
 
-`myrestapi.py`, `./myrestapi/__init__.py`, `./myrestapi/app.py`, `./myrestapi/tutorial/handler.py`, and `./myrestapi/tutorial/service.py`  
-
 
 MongoDB
 -------
