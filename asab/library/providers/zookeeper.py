@@ -72,18 +72,18 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		Recursive function to list all nested nodes within the ZooKeeper library.
 		"""
-		try:
-			for node in await self.Zookeeper.get_children(node_path):
-				try:
-					nested_node_path = "{}/{}".format(node_path, node)
-					if recursive:
-						await self._list_by_node_path(nested_node_path, node_names, recursive)
-					# Remove library path from the beginning of node names
-					node_names.append(
-						nested_node_path.replace("{}/".format(self.BasePath), "")
-					)
-				except Exception as e:
-					L.warning("Exception occurred during ZooKeeper load: '{}'".format(e))
-
-		except kazoo.exceptions.NoNodeError:
+		nodes = await self.Zookeeper.get_children(node_path)
+		if nodes is None:
+			L.warning("Path {} does not exist in ZK".format(node_path))
 			return None
+		for node in nodes:
+			try:
+				nested_node_path = "{}/{}".format(node_path, node)
+				if recursive:
+					await self._list_by_node_path(nested_node_path, node_names, recursive)
+				# Remove library path from the beginning of node names
+				node_names.append(
+					nested_node_path.replace("{}/".format(self.BasePath), "")
+				)
+			except Exception as e:
+				L.warning("Exception occurred during ZooKeeper load: '{}'".format(e))
