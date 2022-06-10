@@ -15,7 +15,9 @@ Prerequisites
 4. Postman
 
 .. note::
-	We will use Docker to run MongoDB. Docker installation is not covered in this tutorial, but there are scores of good ones online should you run into any trouble. If you're not familiar with Docker yet, it is a great opportunity to start. https://www.docker.com/get-started/
+	We will use Docker to run MongoDB. Docker installation is not covered in this tutorial, but there are scores of good ones online should you run into any trouble. If you're not familiar with Docker yet, it is a great opportunity to start (https://www.docker.com/get-started/).
+	
+	Otherwise, you can install MongoDB following one of these tutorials: https://www.mongodb.com/docs/manual/installation/
 
 
 Components
@@ -173,6 +175,10 @@ Just import the TutorialApp.
   
 	from .app import TutorialApp
 
+	__all__ = [
+		"TutorialApp",
+	]
+
 
 handler.py
 ----------
@@ -209,7 +215,8 @@ Let's start with two methods - `create` and `read` which allow us to write into 
 				'/crud-myrestapi/{collection}/{id}',
 				self.read
 			)
-	
+
+
 		@asab.web.rest.json_schema_handler({
 			'type': 'object',
 			'properties': {
@@ -220,7 +227,7 @@ Let's start with two methods - `create` and `read` which allow us to write into 
 			}})
 		async def create(self, request, *, json_data):
 			collection = request.match_info['collection']
-	
+
 			result = await self.CRUDService.create(
 				collection, json_data
 			)
@@ -230,10 +237,10 @@ Let's start with two methods - `create` and `read` which allow us to write into 
 				)
 			else:
 				asab.web.rest.json_response(
-					request, {"result": "FAIL"}
+					request, {"result": "FAILED"}
 				)
-	
-	
+
+
 		async def read(self, request):
 			collection = request.match_info['collection']
 			key = request.match_info['id']
@@ -305,7 +312,7 @@ Now define the CRUDService class which inherits from the `asab.Service` class.
 
 		async def create(self, collection, json_data):
 			obj_id = json_data.pop("_id")
-	
+
 			cre = self.MongoDBStorageService.upsertor(
 				collection, obj_id
 			)
@@ -314,20 +321,19 @@ Now define the CRUDService class which inherits from the `asab.Service` class.
 				json_data.keys(), json_data.values()
 			):
 				cre.set(key, value)
-	
+
 			try:
 				await cre.execute()
 				return "OK"
-			except asab.storage.exceptions.DuplicateError as e:
+			except asab.storage.exceptions.DuplicateError:
 				L.warning(
 					"Document you are trying to create already exists."
 				)
 				return None
-	
-	
-		async def read(self, collection, key):
-			response = await self.MongoDBStorageService.get_by(
-				collection, "_id", key
+
+		async def read(self, collection, obj_id):
+			response = await self.MongoDBStorageService.get(
+				collection, obj_id
 			)
 			return response
 
@@ -434,6 +440,10 @@ Update and Delete
 
 .. code:: python 
 
+	import asab
+	import asab.web.rest
+
+
 	class CRUDWebHandler(object):
 		def __init__(self, app, mongo_svc):
 			self.CRUDService = mongo_svc
@@ -454,7 +464,8 @@ Update and Delete
 				'/crud-myrestapi/{collection}/{id}',
 				self.delete
 			)
-	
+
+
 		@asab.web.rest.json_schema_handler({
 			'type': 'object',
 			'properties': {
@@ -465,7 +476,7 @@ Update and Delete
 			}})
 		async def create(self, request, *, json_data):
 			collection = request.match_info['collection']
-	
+
 			result = await self.CRUDService.create(
 				collection, json_data
 			)
@@ -475,10 +486,10 @@ Update and Delete
 				)
 			else:
 				asab.web.rest.json_response(
-					request, {"result": "FAIL"}
+					request, {"result": "FAILED"}
 				)
-	
-	
+
+
 		async def read(self, request):
 			collection = request.match_info['collection']
 			key = request.match_info['id']
@@ -488,12 +499,22 @@ Update and Delete
 			return asab.web.rest.json_response(
 				request, response
 			)
+
+
+		@asab.web.rest.json_schema_handler({
+			'type': 'object',
+			'properties': {
+				'_id': {'type': 'string'},
+				'field1': {'type': 'string'},
+				'field2': {'type': 'number'},
+				'field3': {'type': 'number'}
+			}})
 		async def update(self, request, *, json_data):
 			collection = request.match_info['collection']
-			key = request.match_info["id"]
-	
+			obj_id = request.match_info["id"]
+
 			result = await self.CRUDService.update(
-				collection, key, json_data
+				collection, obj_id, json_data
 			)
 			if result:
 				return asab.web.rest.json_response(
@@ -501,30 +522,43 @@ Update and Delete
 				)
 			else:
 				asab.web.rest.json_response(
-					request, {"result": "FAIL"}
+					request, {"result": "FAILED"}
 				)
-	
+
+
 		async def delete(self, request):
 			collection = request.match_info['collection']
-			key = request.match_info["id"]
+			obj_id = request.match_info["id"]
 			result = await self.CRUDService.delete(
-				collection, key
+				collection, obj_id
 			)
-	
+
 			if result:
 				return asab.web.rest.json_response(
 					request, {"result": "OK"}
 				)
 			else:
 				asab.web.rest.json_response(
-					request, {"result": "FAIL"}
+					request, {"result": "FAILED"}
 				)
+
 
 **service.py**
 
 `./myrestapi/tutorial/service.py`
 
 .. code:: python 
+
+	import asab
+	import asab.storage.exceptions
+
+	import logging
+	#
+
+	L = logging.getLogger(__name__)
+
+	#
+
 
 	class CRUDService(asab.Service):
 
@@ -536,7 +570,7 @@ Update and Delete
 
 		async def create(self, collection, json_data):
 			obj_id = json_data.pop("_id")
-	
+
 			cre = self.MongoDBStorageService.upsertor(
 				collection, obj_id
 			)
@@ -545,25 +579,26 @@ Update and Delete
 				json_data.keys(), json_data.values()
 			):
 				cre.set(key, value)
-	
+
 			try:
 				await cre.execute()
 				return "OK"
-			except asab.storage.exceptions.DuplicateError as e:
+			except asab.storage.exceptions.DuplicateError:
 				L.warning(
 					"Document you are trying to create already exists."
 				)
 				return None
-	
-	
-		async def read(self, collection, key):
-			response = await self.MongoDBStorageService.get_by(
-				collection, "_id", key
+
+
+		async def read(self, collection, obj_id):
+			response = await self.MongoDBStorageService.get(
+				collection, obj_id
 			)
 			return response
 
+
 		async def update(self, collection, obj_id, document):
-			original = await self.read_one(
+			original = await self.read(
 				collection, obj_id
 			)
 
@@ -575,19 +610,19 @@ Update and Delete
 				document.keys(), document.values()
 			):
 				cre.set(key, value)
-	
+
 			try:
 				await cre.execute()
 				return "OK"
-	
+
 			except KeyError:
 				return None
-	
-	
-		async def delete(self, collection, key):
+
+
+		async def delete(self, collection, obj_id):
 			try:
 				await self.MongoDBStorageService.delete(
-					collection, key
+					collection, obj_id
 				)
 				return True
 			except KeyError:
