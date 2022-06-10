@@ -38,7 +38,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		# Remove library path from the beginning of file names
 		library_path_to_replace = "{}/".format(os.path.abspath(self.LibraryBaseDir))
-		files_names_list = [i.replace(library_path_to_replace, '') for i in file_names]
+		files_names_list = [i.replace(library_path_to_replace, '', 1) for i in file_names]
 
 		# Results of glob are returned in arbitrary order
 		# Sort them to preserver order of parsers
