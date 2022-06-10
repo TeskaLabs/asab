@@ -44,6 +44,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def read(self, path):
 		if self.Zookeeper is None:
+			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			return
 
 		node_path = "{}/{}".format(self.BasePath, path)
@@ -58,6 +59,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def list(self, path, recursive=True):
 		if self.Zookeeper is None:
+			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			return
 
 		node_names = list()
