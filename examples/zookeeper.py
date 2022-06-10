@@ -3,6 +3,17 @@ import asab
 import asab.zookeeper
 
 
+# Provide configuration with comma-separated ZooKeeper servers
+asab.Config.add_defaults(
+	{
+		"my:zk": {
+			"servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
+			"path": "asab"
+		},
+	}
+)
+
+
 class MyApplication(asab.Application):
 
 

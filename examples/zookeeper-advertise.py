@@ -3,6 +3,20 @@ import asab.api
 import asab.zookeeper
 
 
+# Advertisement through ApiService requires two configuration sections - `web` and `zookeeper`
+asab.Config.add_defaults(
+	{
+		"web": {
+			"listen": "0.0.0.0 8088",
+		},
+		"zookeeper": {
+			"servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
+			"path": "asab"
+		},
+	}
+)
+
+
 class MockApplication(asab.Application):
 
 	def __init__(self):
