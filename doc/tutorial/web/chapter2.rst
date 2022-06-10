@@ -1,9 +1,9 @@
 Create microservice with REST API
 =================================
 
-With this tutorial, you can create a basic ASAB microservice application providing a REST HTTP API. 
-Your CRUD microservice will implement Create, Read, Update and Delete functionality.
-MongoDB will be used as an example database.
+With this tutorial, you will create a basic ASAB microservice that provides a REST HTTP API. 
+This microservice will implement Create, Read, Update and Delete functionality, in another words CRUD.
+MongoDB will be used as the database.
 
 
 Prerequisites
@@ -17,11 +17,12 @@ Prerequisites
 .. note::
 	We will use Docker to run MongoDB. Docker installation is not covered in this tutorial, but there are scores of good ones online should you run into any trouble. If you're not familiar with Docker yet, it is a great opportunity to start. https://www.docker.com/get-started/
 
+
 Components
 ----------
 
-The sample microservice will consist of several logical modules. 
-These components are as follows (and also indicate the file structure) and will be discussed in more detail in the respective sections below, going from top to bottom: 
+The microservice consists of several modules (aka Python files). 
+These modules are as follows (and also indicate the file structure) and will be discussed in more detail in the respective sections below, going from top to bottom: 
 
 .. code::
 
@@ -44,8 +45,9 @@ To make things simple, let's use a Docker image.
 Pull this image:  
 https://hub.docker.com/_/mongo
 
-You can simply use the command below to run it. If you choose to run the instance without a password, don't forget 
-to adjust the related **asab.Config** in `./myrestapi/app.py`.
+You can simply use the command below to run it.
+If you choose to run the instance without a password,
+don't forget to adjust the related **asab.Config** in `./myrestapi/app.py`.
 
 .. code:: bash
 
@@ -58,19 +60,20 @@ to adjust the related **asab.Config** in `./myrestapi/app.py`.
 Postman
 -------
 
-Use Postman to test the webservice REST API. 
+We use Postman to test the webservice REST API. 
 
 You can download it here:   
 https://www.postman.com/downloads/
 
-The postman is fairly straightforward to use. You can create your collection of requests, save them, or automatically generate documentation. 
+The Postman is fairly straightforward to use.
+You can create your collection of HTTP requests, save them, or automatically generate documentation. 
 
 
 myrestapi.py
 ------------
 
-This is where everything starts. Begin with the shebang line, which tells the 
-executing operating system **python** should execute this program.  
+This is where everything starts.
+Begin with the shebang line, which tells the executing operating system **python** should execute this program.  
 
 .. code:: python
 
@@ -80,9 +83,9 @@ Imports follow. All you need here is the application. It is called **TutorialApp
 
 .. code:: python 
 
-	from myrestapi.app import TutorialApp 
+	from myrestapi import TutorialApp 
 
-Next, instantiate an object of your TutorialApp class in the __main__ of the application, and run the app:  
+Next, instantiate an application class `TutorialApp` in the __main__ of the application, and run it:  
 
 .. code:: python 
 
@@ -97,7 +100,7 @@ app.py
 
 `./myrestapi/app.py`
 
-Define the TutorialApp object. 
+Define the application class `TutorialApp`. 
 
 Imports first:   
 
@@ -109,7 +112,7 @@ Imports first:
 	import asab.storage
 
 
-Add some configuration:
+Add some default configuration:
 
 .. code:: python 
  
@@ -124,10 +127,11 @@ Add some configuration:
 
 .. note::
 	To make things more simple, Mongo credentials are stored here as a default configuration. 
-	Usually, you provide your app with a configuration file. Learn more in section :ref:`configuration-ref`.
+	Usually, you provide your app with a configuration file using `-c` commandline option.
+	Learn more in section :ref:`configuration-ref`.
 
-Next, describe the class, it inherits from the basic ASAB Application class, but you need to expand 
-it a little:
+Next, describe the class, it inherits from the basic ASAB Application class,
+but you need to expand  it a little:
 	
 .. code:: python 
 
@@ -175,11 +179,11 @@ handler.py
 
 `./myrestapi/tutorial/handler.py`
 
-The handler is where HTTP Rest calls are handled and transformed into the actual (internal) service calls. From another 
-perspective, the handler should contain only translation between REST calls and the service interface. No actual 
-'business logic' should be here.   
-It is strongly suggested to build these CRUD methods one by one and test them straight away. If you haven't set 
-up your database test instance yet, now is the time to do it.
+The handler is where HTTP Rest calls are handled and transformed into the actual (internal) service calls.
+From another perspective, the handler should contain only translation between REST calls and the service interface.
+No actual 'business logic' should be here.   
+It is strongly suggested to build these CRUD methods one by one and test them straight away.
+If you haven't set up your database test instance yet, now is the time to do it.
 
 As usual, we start by importing modules:   
 
@@ -203,7 +207,7 @@ Let's start with two methods - `create` and `read` which allow us to write into 
 			)
 			web_app.router.add_get(
 				'/crud-myrestapi/{collection}/{id}',
-				self.read_one
+				self.read
 			)
 	
 		@asab.web.rest.json_schema_handler({
@@ -230,10 +234,10 @@ Let's start with two methods - `create` and `read` which allow us to write into 
 				)
 	
 	
-		async def read_one(self, request):
+		async def read(self, request):
 			collection = request.match_info['collection']
 			key = request.match_info['id']
-			response = await self.CRUDService.read_one(
+			response = await self.CRUDService.read(
 				collection, key
 			)
 			return asab.web.rest.json_response(
@@ -244,10 +248,12 @@ The handler only accepts the incoming requests and returns appropriate responses
 All of the "logic", be it the specifics of the database connection, additional validations and other 
 operations take place in the CRUDService.
 
-POST and PUT requests typically come with data in their body. Providing your `WebContainer` with `JsonExceptionMiddleware` enables you to validate a JSON input
-using `@asab.web.rest.json_schema_handler` decorator and JSON schema (https://json-schema.org/).
+POST and PUT requests typically come with data in their body.
+Providing your `WebContainer` with `JsonExceptionMiddleware` enables you to validate a JSON input using `@asab.web.rest.json_schema_handler` decorator and JSON schema (https://json-schema.org/).
 
-ASAB WebServer is built on top of the aiohttp library. For further details please visit https://docs.aiohttp.org/en/stable/index.html.
+.. note::
+	ASAB WebServer is built on top of the aiohttp library.
+	For further details please visit https://docs.aiohttp.org/en/stable/index.html.
 
 
 service.py
@@ -319,7 +325,7 @@ Now define the CRUDService class which inherits from the `asab.Service` class.
 				return None
 	
 	
-		async def read_one(self, collection, key):
+		async def read(self, collection, key):
 			response = await self.MongoDBStorageService.get_by(
 				collection, "_id", key
 			)
@@ -438,7 +444,7 @@ Update and Delete
 			)
 			web_app.router.add_get(
 				'/crud-myrestapi/{collection}/{id}',
-				self.read_one
+				self.read
 			)
 			web_app.router.add_put(
 				'/crud-myrestapi/{collection}/{id}',
@@ -473,10 +479,10 @@ Update and Delete
 				)
 	
 	
-		async def read_one(self, request):
+		async def read(self, request):
 			collection = request.match_info['collection']
 			key = request.match_info['id']
-			response = await self.CRUDService.read_one(
+			response = await self.CRUDService.read(
 				collection, key
 			)
 			return asab.web.rest.json_response(
@@ -550,7 +556,7 @@ Update and Delete
 				return None
 	
 	
-		async def read_one(self, collection, key):
+		async def read(self, collection, key):
 			response = await self.MongoDBStorageService.get_by(
 				collection, "_id", key
 			)
