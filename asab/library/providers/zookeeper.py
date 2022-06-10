@@ -1,5 +1,4 @@
 import logging
-import kazoo.exceptions
 import urllib.parse
 import asab.zookeeper
 
@@ -49,10 +48,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		node_path = "{}/{}".format(self.BasePath, path)
 
-		try:
-			node_data = await self.Zookeeper.get_data(node_path)
-		except kazoo.exceptions.NoNodeError:
-			return None
+		node_data = await self.Zookeeper.get_data(node_path)
 
 		return node_data
 
