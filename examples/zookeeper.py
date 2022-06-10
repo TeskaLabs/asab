@@ -2,12 +2,11 @@
 import asab
 import asab.zookeeper
 
-
-# Provide configuration with comma-separated ZooKeeper servers
+# Specify a default configuration
 asab.Config.add_defaults(
 	{
 		"my:zk": {
-			"servers": "",
+			# specify "servers": "..." here to provide addresses of Zookeeper servers
 			"path": "asab"
 		},
 	}
