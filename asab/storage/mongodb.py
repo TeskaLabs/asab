@@ -144,7 +144,10 @@ class MongoDBUpsertor(UpsertorABC):
 					return_document=pymongo.collection.ReturnDocument.AFTER
 				)
 			except pymongo.errors.DuplicateKeyError as e:
-				raise DuplicateError("Duplicate key error: {}".format(e), self.ObjId)
+				if hasattr(e, "details"):
+					raise DuplicateError("Duplicate key error: {}".format(e), self.ObjId, key_value=e.details.get("keyValue"))
+				else:
+					raise DuplicateError("Duplicate key error: {}".format(e), self.ObjId)
 
 			if ret is None:
 				# Object might have been changed in the meantime
