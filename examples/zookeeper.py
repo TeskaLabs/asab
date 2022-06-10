@@ -7,7 +7,7 @@ import asab.zookeeper
 asab.Config.add_defaults(
 	{
 		"my:zk": {
-			"servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
+			"servers": "",
 			"path": "asab"
 		},
 	}
@@ -27,12 +27,7 @@ class MyApplication(asab.Application):
 		zksvc = self.get_service("asab.ZooKeeperService")
 
 		# Create the Zookeeper container
-		self.ZkContainer = asab.zookeeper.ZooKeeperContainer(
-			zksvc, 'my:zk',
-			config={
-				# "servers": "10.17.164.239:2181,10.17.164.183:2181,10.17.169.210:2181",
-			}
-		)
+		self.ZkContainer = asab.zookeeper.ZooKeeperContainer(zksvc, 'my:zk')
 
 		# Subscribe to the event that indicated the successful connection to the Zookeeper server(s)
 		self.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
