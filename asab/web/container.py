@@ -5,7 +5,7 @@ import aiohttp
 
 from .accesslog import AccessLogger
 from ..config import ConfigObject
-from ..net import SSLContextBuilder
+from ..tls import SSLContextBuilder
 
 #
 

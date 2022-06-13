@@ -1,7 +1,7 @@
 Web Server Tutorial
 ===================
 
-Welcome to a tutorial on how to create a simple web server with ASAB.
+Create a simple web server with ASAB.
 
 
 The code
@@ -18,6 +18,8 @@ The ASAB web server is now available at http://localhost:8080/.
 
 Deeper look
 -----------
+
+**ASAB Application**
 
 .. code:: python
 
@@ -36,6 +38,8 @@ Deeper look
 This is a standard ASAB code that declares the application class and establishes ``main()`` function for the application.
 The :any:`Application.initialize()` method is an application lifecycle method that allows to extend standard initialization of the application with a custom code.
 
+**Modules**
+
 .. code:: python
 
     import asab.web
@@ -50,7 +54,10 @@ You can freely use any functionality from `aiohttp.web` library, ASAB is designe
 
     self.add_module(asab.web.Module)
 
-This is how you load the ASAB module into the application.
+With this line you load the ASAB module into the application.
+
+**WebService**
+
 The ``asab.web.Module`` provides a ``asab.WebService`` aka a web server.
 
 
@@ -58,8 +65,9 @@ The ``asab.web.Module`` provides a ``asab.WebService`` aka a web server.
 
     websvc = self.get_service("asab.WebService")
 
-This is how locate a service.
+This is how to locate the service.
 
+**Handler**
 
 .. code:: python
 

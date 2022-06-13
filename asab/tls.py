@@ -1,5 +1,5 @@
 import ssl
-from ..config import ConfigObject
+from .config import ConfigObject
 
 
 class SSLContextBuilder(ConfigObject):

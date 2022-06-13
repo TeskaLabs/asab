@@ -1,13 +1,13 @@
-import logging
-import asyncio
-import argparse
-import itertools
 import os
 import sys
 import time
 import signal
-import platform
 import random
+import logging
+import asyncio
+import argparse
+import itertools
+import platform
 
 try:
 	import daemon
@@ -29,7 +29,16 @@ class Application(metaclass=Singleton):
 
 	Description = "This app is based on ASAB."
 
-	def __init__(self, args=None):
+	def __init__(self, args=None, modules=[]):
+		'''
+		Argument `modules` allows to specify a list of ASAB modules that will be added by `app.add_module()` call.
+
+		Example:
+
+		class MyApplication(asab.Application):
+			def __init__(self):
+				super().__init__(modules=[asab.web.Module, asab.zookeeper.Module])
+		'''
 
 		try:
 			# EX_OK code is not available on Windows
@@ -121,16 +130,19 @@ class Application(metaclass=Singleton):
 			self.Loop.add_signal_handler(signal.SIGTERM, self.stop)
 			self.Loop.add_signal_handler(signal.SIGHUP, self._hup)
 
-		self._stop_event = asyncio.Event(loop=self.Loop)
+		self._stop_event = asyncio.Event()
 		self._stop_event.clear()
 		self._stop_counter = 0
 
 		from .pubsub import PubSub
 		self.PubSub = PubSub(self)
 
+		L.info("Initializing ...")
+
 		self.TaskService = TaskService(self)
 
-		L.info("Initializing ...")
+		for module in modules:
+			self.add_module(module)
 
 
 	def create_argument_parser(
