@@ -6,22 +6,14 @@ import os
 import asab
 
 from .metrics import Metric, Counter, EPSCounter, Gauge, DutyCycle, AggregationCounter, Histogram
-from .storage import MetricsDataStorage
+from .storage import Storage
 
 
 #
 
-L = logging.getLogger('asab.metrics')
+L = logging.getLogger(__name__)
 
 #
-
-
-def metric_dimension(metric_name, tags):
-	dim = metric_name
-	if tags is not None:
-		for k in sorted(tags.keys()):
-			dim += ',{}={}'.format(k, tags[k])
-	return dim
 
 
 class MetricsService(asab.Service):
@@ -34,11 +26,12 @@ class MetricsService(asab.Service):
 		self.Tags = {
 			"host": app.HostName,
 		}
-		self.MetricsDataStorage = MetricsDataStorage()
+		self.Storage = Storage()
 
 		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
 
 		for target in asab.Config.get('asab:metrics', 'target').strip().split():
+
 			try:
 				target_type = asab.Config.get('asab:metrics:{}'.format(target), 'type')
 			except configparser.NoOptionError:
@@ -116,7 +109,7 @@ class MetricsService(asab.Service):
 		now = self.App.time()
 		fs = []
 		for target in self.Targets:
-			fs.append(target.process(self.MetricsDataStorage.Tree, now))
+			fs.append(target.process(self.Storage.Tree, now))
 
 		if len(fs) > 0:
 			done, pending = await asyncio.wait(fs, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
@@ -128,7 +121,7 @@ class MetricsService(asab.Service):
 
 	def _add_metric(self, dimension, metric: Metric):
 		metric._initialize_storage(
-			self.MetricsDataStorage.create_metric_storage(dimension)
+			self.Storage.add(dimension)
 		)
 		self.Metrics[dimension] = metric
 
@@ -225,3 +218,13 @@ class MetricsService(asab.Service):
 		m = Histogram(metric_name, buckets=buckets, tags=t, reset=reset)
 		self._add_metric(dimension, m)
 		return m
+
+
+#
+
+def metric_dimension(metric_name, tags):
+	dim = metric_name
+	if tags is not None:
+		for k in sorted(tags.keys()):
+			dim += ',{}={}'.format(k, tags[k])
+	return dim

@@ -1,25 +1,39 @@
 #!/usr/bin/env python3
 import asab
+import asab.web
+import asab.metrics
+import asab.api
+
+# Advertisement through ApiService requires two configuration sections - `web` and `zookeeper`
+asab.Config.add_defaults(
+	{
+		"web": {
+			"listen": "0.0.0.0 8088",
+		},
+		"zookeeper": {
+			# specify "servers": "..." here to provide addresses of Zookeeper servers
+			"path": "asab"
+		},
+	}
+)
+
+# Fake config file
+# 		asab.Config.read_string("""
+# [asab:metrics]
+# target=influxdb prometheus
+
+# [asab:metrics:influxdb]
+# url=http://localhost:8086/
+# db=mydb
+
+# [asab:metrics:prometheus]
+# 		""")
 
 
 class MyApplication(asab.Application):
 
-	async def initialize(self):
-
-		# Fake config file
-		asab.Config.read_string("""
-[asab:metrics]
-target=influxdb prometheus
-
-[asab:metrics:influxdb]
-url=http://localhost:8086/
-db=mydb
-
-[asab:metrics:prometheus]
-		""")
-
-		from asab.metrics import Module
-		self.add_module(Module)
+	def __init__(self):
+		super().__init__(modules=[asab.web.Module, asab.metrics.Module])
 
 		metrics_service = self.get_service('asab.MetricsService')
 		self.MyCounter = metrics_service.create_counter("mycounter", tags={'foo': 'bar'}, init_values={'v1': 0, 'v2': 0})
@@ -28,6 +42,11 @@ db=mydb
 
 		# The timer will trigger a message publishing at every second
 		self.PubSub.subscribe("Application.tick!", self.on_tick)
+
+		# Initialize API service
+		
+		self.ApiService = asab.api.ApiService(self)
+		self.ApiService.initialize_web()
 
 
 	async def on_tick(self, event_type):
