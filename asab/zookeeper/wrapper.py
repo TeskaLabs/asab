@@ -6,69 +6,76 @@ import kazoo.exceptions
 
 #
 
-L = logging.getLogger(__name__)
+L = logging.getLogger(__name__.rsplit(".", 1)[0])  # We want just "asab.zookeeper" in error messages
 
 #
 
 
 class KazooWrapper(object):
 	"""
-	This function builds ZooKeeper clients from Configs and urls
-	urls supported :
-	1. Absolute url.
+	This function builds ZooKeeper clients from Configs and URLs
+
+	Supported types of URLs:
+
+	1. Absolute URL.
 	Example: zookeeper://zookeeper:12181/etc/configs/file1
-	2. Relative ur1 with full path
+
+	2. Relative URL with full path
 		Example: zookeeper:///etc/configs/file1
 		In this case the relative url is expanded as follows:
 		zookeeper://{default_server}/etc/configs/file1
 		Where {default_server} is substituted with the server entry of the [zookeeper] configuration file section.
-	3. Relative url with relative path
+
+	3. Relative URL with relative path
 	Example: zookeeper:./etc/configs/file1
-		In this case, the relative url is expanded as follows:
+		In this case, the relative URL is expanded as follows:
 		zookeper://{default_server}/{default_path}/etc/configs/file1
 		Where {default_server} is substituted with the "server" entry of the [zookeeper] configuration file section and
 		{default_path} is substituted with the "path" entry of the [zookeeper] configuration file section.
-	Sample config file:
 
+	Sample config file:
 	[asab.zookeeper]
-	server=server1 server2 server3      <-- Default server
-	path=/myfolder                      <-- Default path
+	server=server1:port1,server2:port2,server3:port3
+	path=myfolder
 	"""
 
 	def __init__(self, app, config, z_url):
+
+		# Make sure that the proactor service exists
 		from ..proactor import Module
 		app.add_module(Module)
 		self.ProactorService = app.get_service("asab.ProactorService")
-
-		# initialize vaiables
-		url_netloc = ''
-		url_path = ''
 
 		# Parse URL
 		if z_url is not None:
 			url_pieces = urllib.parse.urlparse(z_url)
 			url_netloc = url_pieces.netloc
 			url_path = url_pieces.path
+		else:
+			url_netloc = ''
+			url_path = ''
 
-		# If there is no location, use implied
+		# If there is no location, use the value of 'servers' from the configuration
 		if url_netloc == '':
 			url_netloc = config.get("servers")
-			if url_netloc is None:
+			if url_netloc == '' or url_netloc is None:
 				# if server entry is missing exit
-				L.error("Servers entry not passed in the configuration.")
-				raise RuntimeError("Servers entry not passed in the configuration.")
+				L.critical("Cannot connect to Zookeeper, the configuration value of 'servers' not provided.")
+				raise SystemExit("Exit due to a critical configuration error.")
 
+		# If path has not been provided, use the value of 'path' from the configuration
 		if url_path == '':
 			url_path = config.get("path")
-			# if path entry is missing retun with only client and path as none.
-			if url_path is None:
-				L.error("Path entry not passed in the configuration.")
-				raise RuntimeError("Path entry not passed in the configuration.")
 
-		if url_path.startswith("/"):
-			url_path = url_path.strip("/")
+		# If path still has not been found (not in configuration), derive the path from the application class name
+		if url_path == '' or url_path is None:
+			url_path = app.__class__.__name__
 
-		self.Path = url_path
+		# Remove all heading '/' from path
+		while url_path.startswith('/'):
+			url_path = url_path[1:]
+
+		self.Path = url_path.rstrip('/')
 
 		# Create and return the client and the url-path
 		self.Client = kazoo.client.KazooClient(hosts=url_netloc)
