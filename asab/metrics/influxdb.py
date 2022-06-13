@@ -76,7 +76,6 @@ def metric_to_influxdb(metric_record, now):
 
 
 def influxdb_format(m_tree, now):
-	# CAREFUL: This function is used also in asab.logman.metrics
 	rb = ""
 	for dimension, metric_record in m_tree.items():
 		influx_record = metric_to_influxdb(metric_record, now)

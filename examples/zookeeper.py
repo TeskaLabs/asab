@@ -2,6 +2,16 @@
 import asab
 import asab.zookeeper
 
+# Specify a default configuration
+asab.Config.add_defaults(
+	{
+		"my:zk": {
+			# specify "servers": "..." here to provide addresses of Zookeeper servers
+			"path": "asab"
+		},
+	}
+)
+
 
 class MyApplication(asab.Application):
 
@@ -16,22 +26,19 @@ class MyApplication(asab.Application):
 		zksvc = self.get_service("asab.ZooKeeperService")
 
 		# Create the Zookeeper container
-		self.ZkContainer = asab.zookeeper.ZooKeeperContainer(
-			zksvc, 'my:zk',
-			config={
-				"servers": "10.17.164.239:2181,10.17.164.183:2181,10.17.169.210:2181",
-				"path": "asab"
-			}
-		)
+		self.ZkContainer = asab.zookeeper.ZooKeeperContainer(zksvc, 'my:zk')
 
 		# Subscribe to the event that indicated the successful connection to the Zookeeper server(s)
 		self.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
 
 
 	async def _on_zk_ready(self, event_name, zkcontainer):
-		path = self.ZkContainer.ZooKeeperPath + "/hello"
-		await self.ZkContainer.ZooKeeper.ensure_path(path)
-		print("The path in Zookeeper has been created.")
+		# If there is more than one ZooKeeper Container being initialized, this method is called at every Container initialization.
+		# Then you need to check whether the specific ZK Container has been initialized.
+		if zkcontainer == self.ZkContainer:
+			path = self.ZkContainer.ZooKeeperPath + "/hello"
+			await self.ZkContainer.ZooKeeper.ensure_path(path)
+			print("The path in Zookeeper has been created.")
 
 
 if __name__ == '__main__':

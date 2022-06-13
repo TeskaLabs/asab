@@ -145,14 +145,9 @@ class MongoDBUpsertor(UpsertorABC):
 				)
 			except pymongo.errors.DuplicateKeyError as e:
 				if hasattr(e, "details"):
-					# TODO: Find a more sustanable way how to identify field that caused DuplicateKey
-					if '_id_' in e.details['errmsg']:
-						# Check if the conflict is caused by "_id" or other field
-						assert(self.Version == 0)
-					else:
-						raise e
-
-				raise DuplicateError("Already exists", self.ObjId)
+					raise DuplicateError("Duplicate key error: {}".format(e), self.ObjId, key_value=e.details.get("keyValue"))
+				else:
+					raise DuplicateError("Duplicate key error: {}".format(e), self.ObjId)
 
 			if ret is None:
 				# Object might have been changed in the meantime

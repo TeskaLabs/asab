@@ -1,13 +1,12 @@
 import os
+import sys
 import glob
 import logging
 import inspect
-import kazoo.client
 import platform
 import configparser
-from urllib.parse import urlparse
-from collections.abc import MutableMapping
-import sys
+import urllib.parse
+import collections.abc
 
 from . import utils
 
@@ -192,7 +191,7 @@ class ConfigParser(configparser.ConfigParser):
 
 	def _include_from_zookeeper(self, zkurl):
 		# parse include value into hostname and path
-		url_pieces = urlparse(zkurl)
+		url_pieces = urllib.parse.urlparse(zkurl)
 		url_path = url_pieces.path
 		url_netloc = url_pieces.netloc
 
@@ -214,6 +213,8 @@ class ConfigParser(configparser.ConfigParser):
 		self.config_name_list.append(tail)
 
 		try:
+			# Delayed import to minimize a hard dependecy footprint
+			import kazoo.client
 			zk = kazoo.client(url_netloc)
 			zk.start()
 			data = zk.get(url_path)
@@ -224,7 +225,7 @@ class ConfigParser(configparser.ConfigParser):
 			self.config_contents_list.append(encode_config)
 			zk.close()
 		except Exception as e:
-			L.error("Failed to obtain configuration from zookeeper server(s): '{}'.".format(e))
+			L.error("Failed to obtain configuration from Zookeeper server(s): '{}'.".format(e))
 			sys.exit(1)
 
 	def get_config_contents_list(self):
@@ -305,7 +306,7 @@ class Configurable(object):
 ConfigObject = Configurable
 
 
-class ConfigObjectDict(MutableMapping):
+class ConfigObjectDict(collections.abc.MutableMapping):
 
 
 	def __init__(self):
