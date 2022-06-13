@@ -7,11 +7,10 @@ from ..web.rest import json_response
 
 
 class APIWebHandler(object):
+
 	def __init__(self, api_svc, webapp, log_handler):
 		self.App = api_svc.App
 		self.ApiService = api_svc
-		# MetricsService initialized in WebService
-		self.MetricsService = self.App.get_service("asab.MetricsService")
 
 		# Add routes
 		webapp.router.add_get("/asab/v1/environ", self.environ)
@@ -22,10 +21,6 @@ class APIWebHandler(object):
 
 		webapp.router.add_get("/asab/v1/changelog", self.changelog)
 		webapp.router.add_get("/asab/v1/manifest", self.manifest)
-
-		webapp.router.add_get("/asab/v1/metrics", self.metrics)
-		webapp.router.add_get("/asab/v1/watch_metrics", self.watch)
-
 
 
 	async def changelog(self, request):
@@ -61,21 +56,3 @@ class APIWebHandler(object):
 				else:
 					result[section][option] = value
 		return json_response(request, result)
-
-	async def metrics(self, request):
-		text = self.MetricsService.MetricsDataStorage.get_all_in_openmetric()
-		return aiohttp.web.Response(
-			text=text,
-			content_type="text/plain",
-			charset="utf-8",
-		)
-
-	async def watch(self, request):
-		filter = request.query.get("name")
-		text = self.MetricsService.MetricsDataStorage.get_all_as_table(filter)
-
-		return aiohttp.web.Response(
-			text=text,
-			content_type="text/plain",
-			charset="utf-8",
-		)

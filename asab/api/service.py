@@ -128,6 +128,13 @@ class ApiService(Service):
 
 		self.WebHandler = APIWebHandler(self, self.WebContainer.WebApp, self.APILogHandler)
 
+		metrics_svc = self.App.get_service("asab.MetricsService")
+		if metrics_svc is not None:
+			from ..metrics.web_handler import MetricWebHandler
+			self.MetricWebHandler = MetricWebHandler(metrics_svc, self.WebContainer.WebApp)
+		else:
+			self.MetricWebHandler = None
+
 
 	def initialize_zookeeper(self, zoocontainer=None):
 		'''
