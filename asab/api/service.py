@@ -128,6 +128,7 @@ class ApiService(Service):
 
 		self.WebHandler = APIWebHandler(self, self.WebContainer.WebApp, self.APILogHandler)
 
+		# If asab.MetricsService is available, initialize its web handler
 		metrics_svc = self.App.get_service("asab.MetricsService")
 		if metrics_svc is not None:
 			from ..metrics.web_handler import MetricWebHandler
