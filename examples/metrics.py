@@ -10,20 +10,15 @@ asab.Config.add_defaults(
 		"web": {
 			"listen": "0.0.0.0 8088",
 		},
+		"asab:metrics": {
+			"target": "influxdb"
+		},
+		"asab:metrics:influxdb": {
+			"url": "http://localhost:8086/",
+			"db": "mydb"
+		}
 	}
 )
-
-# Fake config file
-# 		asab.Config.read_string("""
-# [asab:metrics]
-# target=influxdb prometheus
-
-# [asab:metrics:influxdb]
-# url=http://localhost:8086/
-# db=mydb
-
-# [asab:metrics:prometheus]
-# 		""")
 
 
 class MyApplication(asab.Application):
