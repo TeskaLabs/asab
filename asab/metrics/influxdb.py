@@ -13,79 +13,7 @@ L = logging.getLogger(__name__)
 #
 
 
-
-def get_field(fk, fv):
-	fk = validate_format(fk)
-	if isinstance(fv, bool):
-		field = "{}={}".format(fk, 't' if fv else 'f')
-	elif isinstance(fv, int):
-		field = "{}={}i".format(fk, fv)
-	elif isinstance(fv, float):
-		field = "{}={}".format(fk, fv)
-	elif isinstance(fv, str):
-		field = '{}="{}"'.format(fk, fv.replace('"', r'\"'))
-	else:
-		raise RuntimeError("Unknown/invalid type of the metrics field: {} {}".format(type(fv), fk))
-
-	return field
-
-
-def combine_tags_and_field(tags, value_name, value):
-	tags_string = ",".join(['{}={}'.format(validate_format(tk), tv.replace(" ", "_")) for tk, tv in tags.items()])
-	field_set = get_field(value_name, value)
-	return tags_string + " " + field_set
-
-
-def extract_dynamic_tags(value_name):
-	stripped_name = value_name.lstrip("tags:(").rstrip(")")
-	tag_pairs = stripped_name.split(" ")
-	tags = {i.split("=")[0]: i.split("=")[1] for i in tag_pairs}
-	return tags
-
-
-def build_metric_line(name, tags, value_name, value, upperbound=None):
-	if value_name.startswith("tags:"):
-		tags.update(extract_dynamic_tags(value_name))
-		value_name = name
-	if upperbound is not None:
-		tags["le"] = upperbound
-	return combine_tags_and_field(tags, value_name, value)
-
-
-def metric_to_influxdb(metric_record, now):
-	timestamp = now
-	name = validate_format(metric_record.get("Name"))
-	values = metric_record.get("Values")
-	tags = metric_record.get("Tags")
-	metric_type = metric_record.get("Type")
-	values_lines = []
-
-	if metric_type == "Histogram":
-		for upperbound, bucket in values.get("Buckets").items():
-			for value_name, value in bucket.items():
-				values_lines.append(build_metric_line(name, tags.copy(), value_name, value, upperbound))
-		values_lines.append(build_metric_line(name, tags, "Sum", values.get("Sum")))
-		values_lines.append(build_metric_line(name, tags, "Count", values.get("Count")))
-
-	else:
-		for value_name, value in values.items():
-			values_lines.append(build_metric_line(name, tags.copy(), value_name, value))
-	if values_lines:
-		return "".join(["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines])
-
-
-
-def influxdb_format(m_tree, now):
-	rb = ""
-	for dimension, metric_record in m_tree.items():
-		influx_record = metric_to_influxdb(metric_record, now)
-		if influx_record is None:
-			continue
-		rb += influx_record
-	return rb
-
-
-class MetricsInfluxDB(asab.ConfigObject):
+class InfluxDBTarget(asab.ConfigObject):
 	"""
 InfluxDB 2.0 API parameters:
 	url - [required] url string of your influxDB
@@ -210,3 +138,76 @@ InfluxDB <1.8 API parameters:
 			L.warning("Error when sending metrics to Influx: {}\n{}".format(
 				response.status, response.read().decode("utf-8"))
 			)
+
+
+
+
+def get_field(fk, fv):
+	fk = validate_format(fk)
+	if isinstance(fv, bool):
+		field = "{}={}".format(fk, 't' if fv else 'f')
+	elif isinstance(fv, int):
+		field = "{}={}i".format(fk, fv)
+	elif isinstance(fv, float):
+		field = "{}={}".format(fk, fv)
+	elif isinstance(fv, str):
+		field = '{}="{}"'.format(fk, fv.replace('"', r'\"'))
+	else:
+		raise RuntimeError("Unknown/invalid type of the metrics field: {} {}".format(type(fv), fk))
+
+	return field
+
+
+def combine_tags_and_field(tags, value_name, value):
+	tags_string = ",".join(['{}={}'.format(validate_format(tk), tv.replace(" ", "_")) for tk, tv in tags.items()])
+	field_set = get_field(value_name, value)
+	return tags_string + " " + field_set
+
+
+def extract_dynamic_tags(value_name):
+	stripped_name = value_name.lstrip("tags:(").rstrip(")")
+	tag_pairs = stripped_name.split(" ")
+	tags = {i.split("=")[0]: i.split("=")[1] for i in tag_pairs}
+	return tags
+
+
+def build_metric_line(name, tags, value_name, value, upperbound=None):
+	if value_name.startswith("tags:"):
+		tags.update(extract_dynamic_tags(value_name))
+		value_name = name
+	if upperbound is not None:
+		tags["le"] = upperbound
+	return combine_tags_and_field(tags, value_name, value)
+
+
+def metric_to_influxdb(metric_record, now):
+	timestamp = now
+	name = validate_format(metric_record.get("Name"))
+	values = metric_record.get("Values")
+	tags = metric_record.get("Tags")
+	metric_type = metric_record.get("Type")
+	values_lines = []
+
+	if metric_type == "Histogram":
+		for upperbound, bucket in values.get("Buckets").items():
+			for value_name, value in bucket.items():
+				values_lines.append(build_metric_line(name, tags.copy(), value_name, value, upperbound))
+		values_lines.append(build_metric_line(name, tags, "Sum", values.get("Sum")))
+		values_lines.append(build_metric_line(name, tags, "Count", values.get("Count")))
+
+	else:
+		for value_name, value in values.items():
+			values_lines.append(build_metric_line(name, tags.copy(), value_name, value))
+	if values_lines:
+		return "".join(["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines])
+
+
+
+def influxdb_format(m_tree, now):
+	rb = ""
+	for dimension, metric_record in m_tree.items():
+		influx_record = metric_to_influxdb(metric_record, now)
+		if influx_record is None:
+			continue
+		rb += influx_record
+	return rb

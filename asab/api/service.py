@@ -24,6 +24,7 @@ class ApiService(Service):
 
 		self.WebContainer = None
 		self.ZkContainer = None
+		self.MetricWebHandler = None
 
 		self.AttentionRequired = {}  # dict of errors found.
 
@@ -133,8 +134,6 @@ class ApiService(Service):
 		if metrics_svc is not None:
 			from ..metrics.web_handler import MetricWebHandler
 			self.MetricWebHandler = MetricWebHandler(metrics_svc, self.WebContainer.WebApp)
-		else:
-			self.MetricWebHandler = None
 
 
 	def initialize_zookeeper(self, zoocontainer=None):

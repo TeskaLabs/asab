@@ -39,11 +39,11 @@ class MetricsService(asab.Service):
 				target_type = target
 
 			if target_type == 'influxdb':
-				from .influxdb import MetricsInfluxDB
-				target = MetricsInfluxDB(self, 'asab:metrics:{}'.format(target))
+				from .influxdb import InfluxDBTarget
+				target = InfluxDBTarget(self, 'asab:metrics:{}'.format(target))
 
 			elif target_type == 'http':
-				from .http_target import HTTPTarget
+				from .HTTPTarget import HTTPTarget
 				target = HTTPTarget(self, 'asab:metrics:{}'.format(target))
 
 			else:

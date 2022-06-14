@@ -1,6 +1,6 @@
 import aiohttp.web
 
-from .openmetric import metric_to_text
+from .openmetric import metric_to_openmetric
 
 
 class MetricWebHandler(object):
@@ -16,15 +16,15 @@ class MetricWebHandler(object):
 
 	async def metrics(self, request):
 		lines = []
-		
+
 		for data in self.MetricsService.Storage.values():
-			line = metric_to_text(data)
+			line = metric_to_openmetric(data)
 			if line is not None:
 				lines.append(line)
-		
+
 		if lines:
 			lines.append("# EOF\n")
-		
+
 		text = "\n".join(lines)
 
 		return aiohttp.web.Response(

@@ -3,8 +3,6 @@ import asab
 
 from .service import MetricsService
 from .metrics import Metric, Gauge, Counter, EPSCounter, DutyCycle, AggregationCounter
-from .influxdb import MetricsInfluxDB
-from .http_target import HTTPTarget
 
 #
 
@@ -36,6 +34,4 @@ __all__ = (
 	'EPSCounter',
 	'DutyCycle',
 	'AggregationCounter',
-	'MetricsInfluxDB',
-	'HTTPTarget',
 )

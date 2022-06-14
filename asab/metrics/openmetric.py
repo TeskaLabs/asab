@@ -1,7 +1,17 @@
 import re
 
+# HOW TO FULLFIL OPEMETRICS STANDARD
 
-def metric_to_text(metric_record):
+# Metrics SHOULD have "unit" and "help" Tags
+# Help is a string and SHOULD be non-empty. It is used to give a brief description of the MetricFamily for human consumption and SHOULD be short enough to be used as a tooltip.
+# Values MUST be float or integer. Boolean values MUST follow 1==true, 0==false.
+# Colons in MetricFamily names are RESERVED to signal that the MetricFamily is the result of a calculation or aggregation of a general purpose monitoring system. MetricFamily names beginning with underscores are RESERVED and MUST NOT be used unless specified by OpenMetric standard. - Anything that is not A-Z, a-z or digit is transformed into "_" and leading "_" is stripped.
+# NaN is a number like any other in OpenMetrics, usually resulting from a division by zero such as for a summary quantile if there have been no observations recently. NaN does not have any special meaning in OpenMetrics, and in particular MUST NOT be used as a marker for missing or otherwise bad data.
+
+# Feel free to read more about OpenMetrics standard here: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md
+
+
+def metric_to_openmetric(metric_record):
 	if metric_record.get("Values") is None:
 		return
 	metric_lines = []
@@ -113,13 +123,3 @@ def get_value_labels(v_name, labels_dict):
 		return None
 	return labels_str
 
-
-# HOW TO FULLFIL OPEMETRICS STANDARD
-
-# Metrics SHOULD have "unit" and "help" Tags
-# Help is a string and SHOULD be non-empty. It is used to give a brief description of the MetricFamily for human consumption and SHOULD be short enough to be used as a tooltip.
-# Values MUST be float or integer. Boolean values MUST follow 1==true, 0==false.
-# Colons in MetricFamily names are RESERVED to signal that the MetricFamily is the result of a calculation or aggregation of a general purpose monitoring system. MetricFamily names beginning with underscores are RESERVED and MUST NOT be used unless specified by OpenMetric standard. - Anything that is not A-Z, a-z or digit is transformed into "_" and leading "_" is stripped.
-# NaN is a number like any other in OpenMetrics, usually resulting from a division by zero such as for a summary quantile if there have been no observations recently. NaN does not have any special meaning in OpenMetrics, and in particular MUST NOT be used as a marker for missing or otherwise bad data.
-
-# Feel free to read more about OpenMetrics standard here: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md
