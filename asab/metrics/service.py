@@ -64,7 +64,10 @@ class MetricsService(Service):
 	def _flush_metrics(self):
 		self.App.PubSub.publish("Metrics.flush!")
 		for metric in self.Metrics:
-			metric.flush()
+			try:
+				metric.flush()
+			except Exception:
+				L.exception("Exception during metric.flush()")
 
 
 	async def _on_flushing_event(self, event_type):
@@ -84,19 +87,20 @@ class MetricsService(Service):
 			done, pending = await asyncio.wait(pending, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
 
 
-	def _add_metric(self, metric: Metric, metric_name: str, tags: dict, reset=None, help=None, unit=None):
-		# Add "global" tags into the metric
-		if tags is None:
-			tags = self.Tags.copy()
-		else:
-			tags = tags.copy()
-			tags.update(self.Tags)
+	def _add_metric(self, metric: Metric, metric_name: str, tags=None, reset=None, help=None, unit=None):
+		# Add global tags
+		metric.StaticTags.update(self.Tags)
+
+		# Add local static tags
+		if tags is not None:
+			metric.StaticTags.update(tags)
+
 
 		metric._initialize_storage(
-			self.Storage.add(metric_name, tags, reset=reset, help=help, unit=unit)
+			self.Storage.add(metric_name, reset=reset, help=help, unit=unit)
 		)
-		self.Metrics.append(metric)
 
+		self.Metrics.append(metric)
 
 	def create_gauge(self, metric_name, tags=None, init_values=None, help=None, unit=None):
 		m = Gauge(init_values=init_values)
@@ -114,16 +118,16 @@ class MetricsService(Service):
 		return m
 
 	def create_duty_cycle(self, loop, metric_name, tags=None, init_values=None, help=None, unit=None):
-		m = DutyCycle(loop, init_values=init_values)
+		m = DutyCycle(loop, tags=tags, init_values=init_values)
 		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 
-	def create_agg_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, agg=max, help=None, unit=None):
-		m = AggregationCounter(init_values=init_values, agg=agg)
+	def create_aggregation_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, aggregator=max, help=None, unit=None):
+		m = AggregationCounter(init_values=init_values, aggregator=aggregator)
 		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
 
 	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True, help=None, unit=None):
 		m = Histogram(buckets=buckets)
-		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
+		self._add_metric(m, metric_name, reset=reset, help=help, unit=unit)
 		return m

@@ -105,33 +105,33 @@ InfluxDB <1.8 API parameters:
 
 	async def process(self, m_tree, now):
 
-		# When ProActor is enabled
+		rb = influxdb_format(m_tree, now)
 
 		if self.ProactorService is not None:
-			await self.ProactorService.execute(self._worker_upload, m_tree, now)
-			return
+			await self.ProactorService.execute(self._worker_upload, m_tree, rb)
 
-		# When ProActor is disabled
+		else:
+			try:
+				async with aiohttp.ClientSession(headers=self.Headers) as session:
+					async with session.post(self.WriteURL, data=rb) as resp:
+						response = await resp.text()
+						if resp.status != 204:
+							L.warning("Error when sending metrics to Influx: {}\n{}".format(resp.status, response))
+			except aiohttp.client_exceptions.ClientConnectorError:
+				L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
 
-		rb = influxdb_format(m_tree, now)
-
-		async with aiohttp.ClientSession(headers=self.Headers) as session:
-			async with session.post(self.WriteURL, data=rb) as resp:
-				response = await resp.text()
-				if resp.status != 204:
-					L.warning("Error when sending metrics to Influx: {}\n{}".format(resp.status, response))
-
-
-	def _worker_upload(self, m_tree, now):
-
-		rb = influxdb_format(m_tree, now)
+	def _worker_upload(self, m_tree, rb):
 
 		if self.BaseURL.startswith("https://"):
 			conn = http.client.HTTPSConnection(self.BaseURL.replace("https://", ""))
 		else:
 			conn = http.client.HTTPConnection(self.BaseURL.replace("http://", ""))
 
-		conn.request("POST", self.WriteRequest, rb, self.Headers)
+		try:
+			conn.request("POST", self.WriteRequest, rb, self.Headers)
+		except ConnectionRefusedError:
+			L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
+			return
 
 		response = conn.getresponse()
 		if response.status != 204:
