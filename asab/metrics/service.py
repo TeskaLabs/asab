@@ -64,7 +64,10 @@ class MetricsService(Service):
 	def _flush_metrics(self):
 		self.App.PubSub.publish("Metrics.flush!")
 		for metric in self.Metrics:
-			metric.flush()
+			try:
+				metric.flush()
+			except Exception:
+				L.exception("Exception during metric.flush()")
 
 
 	async def _on_flushing_event(self, event_type):
