@@ -41,7 +41,6 @@ class NativeMetrics(Service):
 						except ValueError:
 							pass
 
-
 		except FileNotFoundError:
 			pass
 			# L.warning("File '/proc/self/status' was not found, skipping reading native metrics.")

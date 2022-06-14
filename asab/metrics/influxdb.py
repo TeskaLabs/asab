@@ -198,7 +198,7 @@ def metric_to_influxdb(metric_record, now):
 	else:
 		for value_name, value in values.items():
 			values_lines.append(build_metric_line(name, tags.copy(), value_name, value))
-	
+
 	return ["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines]
 
 

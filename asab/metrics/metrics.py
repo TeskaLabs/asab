@@ -82,7 +82,7 @@ class Counter(Metric):
 
 	def flush(self):
 		if self.Storage["reset"]:
-			self.Storage['values'] = self.Storage['actuals'] 
+			self.Storage['values'] = self.Storage['actuals']
 			self.Storage['actuals'] = self.Init.copy()
 		else:
 			self.Storage['values'] = self.Storage['actuals'].copy()
