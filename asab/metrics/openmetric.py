@@ -12,27 +12,25 @@ import re
 
 
 def metric_to_openmetric(metric_record):
-	if metric_record.get("Values") is None:
-		return
 	metric_lines = []
 	# TODO: resetable counter is gauge - but how do I recognize counter that is not resetable?
-	if metric_record.get("Type") == "Histogram":
+	if metric_record.get("type") == "Histogram":
 		metric_type = "histogram"
 	else:
 		metric_type = "gauge"
-	m_name = metric_record.get("Name")
-	tags = metric_record.get("Tags")
-	unit = tags.pop("unit", None)
+	m_name = metric_record.get("name")
+	tags = metric_record.get("tags")
+	unit = metric_record.get("unit")
 	if unit:
 		unit = validate_format(unit)
 	name = get_full_name(m_name, unit)
-	help = tags.pop("help", None)
+	help = metric_record.get("help")
 	labels_dict = get_tags_labels(tags)
 
 	metric_lines.append(translate_metadata(name, metric_type, unit, help))
 
 	if metric_type == "histogram":
-		for upperbound, values in metric_record.get("Values").get("Buckets").items():
+		for upperbound, values in metric_record.get("values").get("Buckets").items():
 			for v_name, value in values.items():
 				histogram_labels = labels_dict.copy()
 				histogram_labels.update({"le": str(upperbound)})
@@ -43,7 +41,7 @@ def metric_to_openmetric(metric_record):
 		metric_lines.append(translate_value(name + "_sum", "Sum", metric_record.get("Values").get("Sum"), metric_type, labels_dict))
 
 	else:
-		for v_name, value in metric_record.get("Values").items():
+		for v_name, value in metric_record.get("values").items():
 			if validate_value(value) is False:
 				continue
 			metric_lines.append(translate_value(name, v_name, value, metric_type, labels_dict))
@@ -122,4 +120,3 @@ def get_value_labels(v_name, labels_dict):
 	if len(labels_str) <= 2:
 		return None
 	return labels_str
-
