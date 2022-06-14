@@ -34,11 +34,10 @@ class Gauge(Metric):
 
 
 class Counter(Metric):
-	def __init__(self, init_values=None, reset: bool = True):
+	def __init__(self, init_values=None):
 		super().__init__()
 		self.Init = init_values if init_values is not None else dict()
 		self.Values = self.Init.copy()
-		self.Reset = reset
 
 
 	def add(self, name, value, init_value=None):
@@ -80,7 +79,7 @@ class Counter(Metric):
 
 	def flush(self):
 		self.Storage["values"] = self.Values.copy()
-		if self.Reset:
+		if self.Storage["reset"]:
 			self.Values = self.Init.copy()
 
 
@@ -92,7 +91,7 @@ class EPSCounter(Counter):
 	"""
 
 	def __init__(self, init_values=None, reset: bool = True):
-		super().__init__(init_values=init_values, reset=reset)
+		super().__init__(init_values=init_values)
 
 		# Using time library to avoid delay due to long synchronous operations
 		# which is important when calculating incoming events per second
@@ -113,7 +112,7 @@ class EPSCounter(Counter):
 
 	def flush(self) -> dict:
 		self.Storage["values"] = self._calculate_eps()
-		if self.Reset:
+		if self.Storage["reset"]:
 			self.Values = self.Init.copy()
 
 
@@ -189,7 +188,7 @@ class AggregationCounter(Counter):
 	Maximum is used as a default aggregation function.
 	'''
 	def __init__(self, init_values=None, reset: bool = True, agg=max):
-		super().__init__(init_values=init_values, reset=reset)
+		super().__init__(init_values=init_values)
 		self.Agg = agg
 
 	def set(self, name, value, init_value=None):
@@ -211,9 +210,8 @@ class Histogram(Metric):
 	"""
 	Creates cumulative histograms.
 	"""
-	def __init__(self, buckets: list, reset=True):
+	def __init__(self, buckets: list):
 		super().__init__()
-		self.Reset = reset
 		_buckets = [float(b) for b in buckets]
 
 		if _buckets != sorted(buckets):
@@ -237,7 +235,7 @@ class Histogram(Metric):
 			"count": self.Count
 		}
 
-		if self.Reset:
+		if self.Storage["reset"]:
 			self.Buckets = copy.deepcopy(self.InitBuckets)
 			self.Count = 0
 			self.Sum = 0.0

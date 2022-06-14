@@ -43,7 +43,7 @@ class MetricsService(asab.Service):
 				target = InfluxDBTarget(self, 'asab:metrics:{}'.format(target))
 
 			elif target_type == 'http':
-				from .HTTPTarget import HTTPTarget
+				from .http import HTTPTarget
 				target = HTTPTarget(self, 'asab:metrics:{}'.format(target))
 
 			else:
@@ -119,7 +119,7 @@ class MetricsService(asab.Service):
 				f.cancel()
 
 
-	def _add_metric(self, metric: Metric, metric_name: str, tags: dict, help=None, unit=None):
+	def _add_metric(self, metric: Metric, metric_name: str, tags: dict, reset=None, help=None, unit=None):
 		# Add "global" tags into the metric
 		if tags is None:
 			tags = self.Tags.copy()
@@ -128,7 +128,7 @@ class MetricsService(asab.Service):
 			tags.update(self.Tags)
 
 		metric._initialize_storage(
-			self.Storage.add(metric_name, tags, help=help, unit=unit)
+			self.Storage.add(metric_name, tags, reset=reset, help=help, unit=unit)
 		)
 		self.Metrics.append(metric)
 
@@ -139,13 +139,13 @@ class MetricsService(asab.Service):
 		return m
 
 	def create_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, help=None, unit=None):
-		m = Counter(init_values=init_values, reset=reset)
-		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
+		m = Counter(init_values=init_values)
+		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
 
 	def create_eps_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, help=None, unit=None):
-		m = EPSCounter(init_values=init_values, reset=reset)
-		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
+		m = EPSCounter(init_values=init_values)
+		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
 
 	def create_duty_cycle(self, loop, metric_name, tags=None, init_values=None, help=None, unit=None):
@@ -154,11 +154,11 @@ class MetricsService(asab.Service):
 		return m
 
 	def create_agg_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, agg=max, help=None, unit=None):
-		m = AggregationCounter(init_values=init_values, reset=reset, agg=agg)
-		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
+		m = AggregationCounter(init_values=init_values, agg=agg)
+		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
 
 	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True, help=None, unit=None):
-		m = Histogram(buckets=buckets, reset=reset)
-		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
+		m = Histogram(buckets=buckets)
+		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m

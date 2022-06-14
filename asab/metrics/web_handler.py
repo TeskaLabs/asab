@@ -25,7 +25,7 @@ class MetricWebHandler(object):
 		'''
 		lines = []
 
-		for data in self.MetricsService.Storage.values():
+		for data in self.MetricsService.Metrics:
 			line = metric_to_openmetric(data)
 			if line is not None:
 				lines.append(line)
@@ -44,7 +44,7 @@ class MetricWebHandler(object):
 
 	async def watch(self, request):
 		filter = request.query.get("name")
-		text = watch_table(self.MetricsService.Storage.values(), filter)
+		text = watch_table(self.MetricsService.Metrics, filter)
 
 		return aiohttp.web.Response(
 			text=text,
