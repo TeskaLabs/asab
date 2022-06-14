@@ -16,6 +16,10 @@ def metric_to_openmetric(metric_record):
 	# TODO: resetable counter is gauge - but how do I recognize counter that is not resetable?
 	if metric_record.get("type") == "Histogram":
 		metric_type = "histogram"
+	elif metric_record.get("type") in ["AggregationCounter", "EPScounter"]:
+		metric_type = "gauge"
+	elif metric_record.get("type") == "Counter" and metric_record.get("reset") is False:
+		metric_type = "counter"
 	else:
 		metric_type = "gauge"
 	m_name = metric_record.get("name")

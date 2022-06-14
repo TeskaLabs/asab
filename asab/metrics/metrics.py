@@ -107,17 +107,18 @@ class EPSCounter(Counter):
 		current_time = int(time.time())
 		time_difference = max(current_time - self.LastTime, 1)
 
-		for name, value in self.Values.items():
+		for name, value in self.Storage['actuals'].items():
 			eps_values[name] = int(value / time_difference)
 
-		self.LastTime = current_time
+		if self.Storage["reset"]:
+			self.LastTime = current_time
 		self.LastCalculatedValues = eps_values
 		return eps_values
 
 	def flush(self) -> dict:
 		self.Storage["values"] = self._calculate_eps()
 		if self.Storage["reset"]:
-			self.Values = self.Init.copy()
+			self.Storage['actuals'] = self.Init.copy()
 
 
 class DutyCycle(Metric):
