@@ -4,7 +4,7 @@ from ..abc.service import Service
 from .. import Config
 from .. import metrics
 
-from .web_requests_metrics import WebRequestsMetrics
+from .metrics import WebRequestsMetrics
 
 
 L = logging.getLogger(__name__)
