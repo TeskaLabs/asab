@@ -1,10 +1,11 @@
-import collections
-import copy
 import abc
+import copy
 import time
+import collections
 
 
 class Metric(abc.ABC):
+
 	def __init__(self):
 		self.Storage = None
 		self.StaticTags = dict()
@@ -15,6 +16,29 @@ class Metric(abc.ABC):
 		})
 		self.Storage = storage
 
+
+	def add_field(self, tags, values):
+		field = {
+			"tags": tags,
+			"values": values,
+		}
+		self.Storage['fieldset'].append(field)
+		return field
+
+
+	def locate_field(self, tags):
+		# TODO: Optimize the way how "tags is None" is located
+		
+		if tags is None:
+			tags = self.StaticTags
+
+		for field in self.Storage['fieldset']:
+			if field['tags'] == tags:
+				return field
+
+		raise RuntimeError("Field not found ;-(")
+
+
 	def flush(self) -> dict:
 		pass
 
@@ -22,14 +46,20 @@ class Metric(abc.ABC):
 class Gauge(Metric):
 	def __init__(self, init_values=None):
 		super().__init__()
-		self.Init = init_values if init_values is not None else dict()
+		self.Init = init_values
 
 	def _initialize_storage(self, storage: dict):
 		super()._initialize_storage(storage)
-		self.Storage['values'] = self.Init.copy()
+		if self.Init is not None:
+			self.add_field(
+				self.StaticTags.copy(),
+				self.Init.copy()
+			)
 
-	def set(self, name: str, value):
-		self.Storage['values'][name] = value
+
+	def set(self, name: str, value, tags=None):
+		field = self.locate_field(tags)
+		field['values'][name] = value
 
 
 class Counter(Metric):
@@ -42,19 +72,14 @@ class Counter(Metric):
 
 	def _initialize_storage(self, storage: dict):
 		super()._initialize_storage(storage)
-
 		if self.Init is not None:
-			fieldset = self.Storage['fieldset']
-			fieldset.append(
-				{
-					"tags": self.StaticTags.copy(),
-					"values": self.Init.copy(),
-					"actuals": self.Init.copy()
-				}
+			field = self.add_field(
+				self.StaticTags.copy(),
+				self.Init.copy()
 			)
+			field['actuals'] = self.Init.copy()
 
-
-	def add(self, name, value, tags=None, init_value=None):
+	def add(self, name, value, init_value=None, tags=None):
 		"""
 		:param name: name of the counter
 		:param value: value to be added to the counter
@@ -65,7 +90,9 @@ class Counter(Metric):
 
 		"""
 
-		actuals = self.Storage['actuals']
+		field = self.locate_field(tags)
+		actuals = field['actuals']
+
 		try:
 			actuals[name] += value
 		except KeyError as e:
@@ -73,7 +100,7 @@ class Counter(Metric):
 				raise e
 			actuals[name] = init_value + value
 
-	def sub(self, name, value, init_value=None):
+	def sub(self, name, value, init_value=None, tags=None):
 		"""
 		:param name: name of the counter
 		:param value: value to be subtracted from the counter
@@ -84,7 +111,9 @@ class Counter(Metric):
 
 		"""
 
-		actuals = self.Storage['actuals']
+		field = self.locate_field(tags)
+		actuals = field['actuals']
+
 		try:
 			actuals[name] -= value
 		except KeyError as e:
@@ -93,12 +122,13 @@ class Counter(Metric):
 			actuals[name] = init_value - value
 
 	def flush(self):
-		print("Counter flush", self.Storage)
 		if self.Storage["reset"]:
-			self.Storage['values'] = self.Storage['actuals']
-			self.Storage['actuals'] = self.Init.copy()
+			for field in self.Storage['fieldset']:
+				field['values'] = field['actuals']
+				field['actuals'] = self.Init.copy()
 		else:
-			self.Storage['values'] = self.Storage['actuals'].copy()
+			for field in self.Storage['fieldset']:
+				field['values'] = field['actuals'].copy()
 
 
 class EPSCounter(Counter):
