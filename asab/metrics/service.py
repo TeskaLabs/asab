@@ -62,14 +62,12 @@ class MetricsService(Service):
 
 
 	def _flush_metrics(self):
+		self.App.PubSub.publish("Metrics.flush!")
 		for metric in self.Metrics:
 			metric.flush()
 
 
 	async def _on_flushing_event(self, event_type):
-
-		self.App.PubSub.publish("Metrics.flush!")
-
 		if len(self.Metrics) == 0:
 			return
 
