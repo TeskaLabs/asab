@@ -182,18 +182,18 @@ def build_metric_line(name, tags, value_name, value, upperbound=None):
 
 def metric_to_influxdb(metric_record, now):
 	timestamp = now
-	name = validate_format(metric_record.get("Name"))
-	values = metric_record.get("Values")
-	tags = metric_record.get("Tags")
-	metric_type = metric_record.get("Type")
+	name = validate_format(metric_record.get("name"))
+	values = metric_record.get("values")
+	tags = metric_record.get("tags")
+	metric_type = metric_record.get("type")
 	values_lines = []
 
 	if metric_type == "Histogram":
-		for upperbound, bucket in values.get("Buckets").items():
+		for upperbound, bucket in values.get("buckets").items():
 			for value_name, value in bucket.items():
 				values_lines.append(build_metric_line(name, tags.copy(), value_name, value, upperbound))
-		values_lines.append(build_metric_line(name, tags, "Sum", values.get("Sum")))
-		values_lines.append(build_metric_line(name, tags, "Count", values.get("Count")))
+		values_lines.append(build_metric_line(name, tags, "sum", values.get("sum")))
+		values_lines.append(build_metric_line(name, tags, "xount", values.get("count")))
 
 	else:
 		for value_name, value in values.items():
@@ -204,10 +204,10 @@ def metric_to_influxdb(metric_record, now):
 
 
 def influxdb_format(m_tree, now):
-	rb = ""
-	for dimension, metric_record in m_tree.items():
+	rb = []
+	for metric_record in m_tree:
 		influx_record = metric_to_influxdb(metric_record, now)
 		if influx_record is None:
 			continue
-		rb += influx_record
-	return rb
+		rb.append(influx_record)
+	return ''.join(rb)

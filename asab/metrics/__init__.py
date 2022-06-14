@@ -10,14 +10,6 @@ L = logging.getLogger(__name__)
 
 #
 
-asab.Config.add_defaults(
-	{
-		'asab:metrics': {
-			'target': '',  # Can be multiline
-		}
-	}
-)
-
 
 class Module(asab.Module):
 

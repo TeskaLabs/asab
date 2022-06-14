@@ -28,28 +28,30 @@ class MetricsService(asab.Service):
 		}
 		self.Storage = Storage()
 
-		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
+		app.PubSub.subscribe("Application.tick!", self._on_flushing_event)
 
-		for target in asab.Config.get('asab:metrics', 'target').strip().split():
+		if 'asab:metrics' in asab.Config:
+			if asab.Config.has_option('asab:metrics', 'target'):
+				for target in asab.Config.get('asab:metrics', 'target').split():
+					target = target.strip()
+					try:
+						target_type = asab.Config.get('asab:metrics:{}'.format(target), 'type')
+					except configparser.NoOptionError:
+						# This allows to specify the type of the target by its name
+						target_type = target
 
-			try:
-				target_type = asab.Config.get('asab:metrics:{}'.format(target), 'type')
-			except configparser.NoOptionError:
-				# This allows to specify the type of the target by its name
-				target_type = target
+					if target_type == 'influxdb':
+						from .influxdb import InfluxDBTarget
+						target = InfluxDBTarget(self, 'asab:metrics:{}'.format(target))
 
-			if target_type == 'influxdb':
-				from .influxdb import InfluxDBTarget
-				target = InfluxDBTarget(self, 'asab:metrics:{}'.format(target))
+					elif target_type == 'http':
+						from .http import HTTPTarget
+						target = HTTPTarget(self, 'asab:metrics:{}'.format(target))
 
-			elif target_type == 'http':
-				from .http import HTTPTarget
-				target = HTTPTarget(self, 'asab:metrics:{}'.format(target))
+					else:
+						raise RuntimeError("Unknown target type {}".format(target_type))
 
-			else:
-				raise RuntimeError("Unknown target type {}".format(target_type))
-
-			self.Targets.append(target)
+					self.Targets.append(target)
 
 		# Create native metrics
 		self.ProcessId = os.getpid()
@@ -62,10 +64,6 @@ class MetricsService(asab.Service):
 
 	async def finalize(self, app):
 		await self._on_flushing_event("finalize!")
-
-
-	def add_target(self, target):
-		self.Targets.append(target)
 
 
 	def _get_process_info(self):
@@ -107,16 +105,17 @@ class MetricsService(asab.Service):
 			metric.flush()
 
 		now = self.App.time()
-		fs = []
+		pending = set()
 		for target in self.Targets:
-			fs.append(target.process(self.Storage.Metrics, now))
+			pending.add(
+				target.process(self.Storage.Metrics, now)
+			)
 
-		if len(fs) > 0:
-			done, pending = await asyncio.wait(fs, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
+		print(">>>", pending, self.Targets)
 
-			for f in pending:
-				L.warning("Target task {} failed to complete".format(f))
-				f.cancel()
+		while len(pending) > 0:
+			print(">>>", pending)
+			done, pending = await asyncio.wait(pending, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
 
 
 	def _add_metric(self, metric: Metric, metric_name: str, tags: dict, reset=None, help=None, unit=None):
