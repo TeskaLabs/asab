@@ -10,6 +10,7 @@ class TestCounter(MetricsTestCase):
 
 
 	def test_counter_01(self):
+		# Influx
 		my_counter = self.MetricsService.create_counter(
 			"mycounter",
 			tags={'foo': 'bar'},
@@ -21,9 +22,40 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,foo=bar,host=mockedhost.com value1=0i 123450000000\n",
-				"mycounter,foo=bar,host=mockedhost.com value2=0i 123450000000\n",
+				"mycounter,host=mockedhost.com,foo=bar value1=0i value2=0i 123450000000\n",
 			])
+		)
+
+		my_counter.add('value1', 1)
+
+		# Test InfluxDB output before flush
+		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
+		self.assertEqual(
+			influxdb_format,
+			''.join([
+				"mycounter,host=mockedhost.com,foo=bar value1=0i value2=0i 123450000000\n",
+			])
+		)
+
+
+		self.MetricsService._flush_metrics()
+
+		# Test InfluxDB output after flush
+		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
+		self.assertEqual(
+			influxdb_format,
+			''.join([
+				"mycounter,host=mockedhost.com,foo=bar value1=1i value2=0i 123450000000\n",
+			])
+		)
+
+
+	def test_counter_02(self):
+		# Prometheus
+		my_counter = self.MetricsService.create_counter(
+			"mycounter",
+			tags={'foo': 'bar'},
+			init_values={'value1': 0, 'value2': 0}
 		)
 
 		# Test OpenMetric output with init values
@@ -39,15 +71,6 @@ class TestCounter(MetricsTestCase):
 
 		my_counter.add('value1', 1)
 
-		# Test InfluxDB output before flush
-		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
-		self.assertEqual(
-			influxdb_format,
-			''.join([
-				"mycounter,foo=bar,host=mockedhost.com value1=0i 123450000000\n",
-				"mycounter,foo=bar,host=mockedhost.com value2=0i 123450000000\n",
-			])
-		)
 
 		# Test OpenMetric output before flush
 		om_format = asab.metrics.openmetric.metric_to_openmetric(my_counter.Storage)
@@ -62,15 +85,6 @@ class TestCounter(MetricsTestCase):
 
 		self.MetricsService._flush_metrics()
 
-		# Test InfluxDB output after flush
-		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
-		self.assertEqual(
-			influxdb_format,
-			''.join([
-				"mycounter,foo=bar,host=mockedhost.com value1=1i 123450000000\n",
-				"mycounter,foo=bar,host=mockedhost.com value2=0i 123450000000\n",
-			])
-		)
 
 		# Test OpenMetric output after flush
 		om_format = asab.metrics.openmetric.metric_to_openmetric(my_counter.Storage)
@@ -84,7 +98,11 @@ class TestCounter(MetricsTestCase):
 		)
 
 
-	def test_counter_02(self):
+
+
+
+	def test_counter_03(self):
+		# help, unit
 		my_counter = self.MetricsService.create_counter(
 			"mycounter",
 			tags={'foo': 'bar'},
@@ -98,8 +116,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,foo=bar,host=mockedhost.com value1=0i 123450000000\n",
-				"mycounter,foo=bar,host=mockedhost.com value2=0i 123450000000\n",
+				"mycounter,host=mockedhost.com,foo=bar value1=0i value2=0i 123450000000\n",
 			])
 		)
 

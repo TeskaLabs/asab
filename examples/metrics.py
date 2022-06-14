@@ -8,7 +8,7 @@ import asab.api
 asab.Config.add_defaults(
 	{
 		"web": {
-			"listen": "0.0.0.0 8088",
+			"listen": "0.0.0.0 8089",
 		},
 		"asab:metrics": {
 			"targetx": "influxdb"

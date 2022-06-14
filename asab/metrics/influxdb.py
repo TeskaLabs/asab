@@ -158,26 +158,16 @@ def get_field(fk, fv):
 	return field
 
 
-def combine_tags_and_field(tags, value_name, value):
+def combine_tags_and_field(tags, values):
 	tags_string = ",".join(['{}={}'.format(validate_format(tk), tv.replace(" ", "_")) for tk, tv in tags.items()])
-	field_set = get_field(value_name, value)
+	field_set = " ".join([get_field(value_name, value) for value_name, value in values.items()])
 	return tags_string + " " + field_set
 
 
-def extract_dynamic_tags(value_name):
-	stripped_name = value_name.lstrip("tags:(").rstrip(")")
-	tag_pairs = stripped_name.split(" ")
-	tags = {i.split("=")[0]: i.split("=")[1] for i in tag_pairs}
-	return tags
-
-
-def build_metric_line(name, tags, value_name, value, upperbound=None):
-	if value_name.startswith("tags:"):
-		tags.update(extract_dynamic_tags(value_name))
-		value_name = name
+def build_metric_line(name, tags, values, upperbound=None):
 	if upperbound is not None:
 		tags["le"] = upperbound
-	return combine_tags_and_field(tags, value_name, value)
+	return combine_tags_and_field(tags, values)
 
 
 def metric_to_influxdb(metric_record, now):
@@ -186,7 +176,7 @@ def metric_to_influxdb(metric_record, now):
 	else:
 		timestamp = metric_record.get("@timestamp")
 	name = validate_format(metric_record.get("name"))
-	values = metric_record.get("values")
+	fieldset = metric_record.get("fieldset")
 	tags = metric_record.get("tags")
 	metric_type = metric_record.get("type")
 	values_lines = []
@@ -199,16 +189,16 @@ def metric_to_influxdb(metric_record, now):
 		values_lines.append(build_metric_line(name, tags, "count", values.get("count")))
 
 	else:
-		for value_name, value in values.items():
-			values_lines.append(build_metric_line(name, tags.copy(), value_name, value))
+		for field in fieldset:
+			values_lines.append(build_metric_line(name, field.get("tags"), field.get("values")))
 
 	return ["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines]
 
 
 
-def influxdb_format(m_tree, now):
+def influxdb_format(m_list, now):
 	rb = []
-	for metric_record in m_tree:
+	for metric_record in m_list:
 		influx_records = metric_to_influxdb(metric_record, now)
 		rb.extend(influx_records)
 	return ''.join(rb)
