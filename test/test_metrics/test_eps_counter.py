@@ -25,4 +25,3 @@ class TestEPSCounter(MetricsTestCase):
 		time.sleep(.250)
 		self.MetricsService._flush_metrics()
 
-		print(">", my_counter.Storage)
