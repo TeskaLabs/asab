@@ -112,7 +112,7 @@ class EPSCounter(Counter):
 		return eps_values
 
 	def flush(self) -> dict:
-		self.Storage["Values"] = self._calculate_eps()
+		self.Storage["values"] = self._calculate_eps()
 		if self.Reset:
 			self.Values = self.Init.copy()
 
@@ -232,9 +232,9 @@ class Histogram(Metric):
 
 	def flush(self):
 		self.Storage["values"] = {
-			"Buckets": {str(k): v for k, v in self.Buckets.copy().items()},
-			"Sum": self.Sum,
-			"Count": self.Count
+			"buckets": {str(k): v for k, v in self.Buckets.copy().items()},
+			"sum": self.Sum,
+			"count": self.Count
 		}
 
 		if self.Reset:

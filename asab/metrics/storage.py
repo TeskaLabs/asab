@@ -18,6 +18,7 @@ class Storage(object):
 
 
 		metric = dict()
+		metric['type'] = None  # Will be filled a bit later
 		metric['name'] = metric_name
 		metric['tags'] = metric_tags
 		metric['values'] = dict()
@@ -28,7 +29,3 @@ class Storage(object):
 
 		self.Metrics.append(metric)
 		return metric
-
-
-	def values(self):
-		return self.Metrics
