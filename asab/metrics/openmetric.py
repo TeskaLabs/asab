@@ -122,4 +122,3 @@ def get_value_labels(v_name, labels_dict):
 	if len(labels_str) <= 2:
 		return None
 	return labels_str
-
