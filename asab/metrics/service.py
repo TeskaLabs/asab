@@ -103,13 +103,13 @@ class MetricsService(asab.Service):
 		for key, value in self._get_process_info().items():
 			self.MemoryGauge.set(key, value)
 
-		for metric in self.Metrics.values():
+		for metric in self.Metrics:
 			metric.flush()
 
 		now = self.App.time()
 		fs = []
 		for target in self.Targets:
-			fs.append(target.process(self.Storage.Tree, now))
+			fs.append(target.process(self.Storage.Metrics, now))
 
 		if len(fs) > 0:
 			done, pending = await asyncio.wait(fs, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
@@ -119,45 +119,46 @@ class MetricsService(asab.Service):
 				f.cancel()
 
 
-	def _add_metric(self, metric: Metric):
+	def _add_metric(self, metric: Metric, metric_name: str, tags: dict, help=None, unit=None):
 		# Add "global" tags into the metric
-		metric.Tags.update(self.Tags)
+		if tags is None:
+			tags = self.Tags.copy()
+		else:
+			tags = tags.copy()
+			tags.update(self.Tags)
 
 		metric._initialize_storage(
-			self.Storage.add(metric.Name, metric.Tags)
+			self.Storage.add(metric_name, tags, help=help, unit=unit)
 		)
 		self.Metrics.append(metric)
 
 
-	def create_gauge(self, metric_name, tags=None, init_values=None):
-		m = Gauge(metric_name, tags=tags, init_values=init_values)
-		self._add_metric(m)
+	def create_gauge(self, metric_name, tags=None, init_values=None, help=None, unit=None):
+		m = Gauge(init_values=init_values)
+		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 
-
-	def create_counter(self, metric_name, tags=None, init_values=None, reset: bool = True):
-		m = Counter(metric_name, tags=tags, init_values=init_values, reset=reset)
-		self._add_metric(m)
+	def create_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, help=None, unit=None):
+		m = Counter(init_values=init_values, reset=reset)
+		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 
-
-	def create_eps_counter(self, metric_name, tags=None, init_values=None, reset: bool = True):
-		m = EPSCounter(metric_name, tags=tags, init_values=init_values, reset=reset)
-		self._add_metric(m)
+	def create_eps_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, help=None, unit=None):
+		m = EPSCounter(init_values=init_values, reset=reset)
+		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 
-
-	def create_duty_cycle(self, loop, metric_name, tags=None, init_values=None):
-		m = DutyCycle(loop, metric_name, tags=tags, init_values=init_values)
-		self._add_metric(m)
+	def create_duty_cycle(self, loop, metric_name, tags=None, init_values=None, help=None, unit=None):
+		m = DutyCycle(loop, init_values=init_values)
+		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 
-	def create_agg_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, agg=max):
-		m = AggregationCounter(metric_name, tags=tags, init_values=init_values, reset=reset, agg=agg)
-		self._add_metric(m)
+	def create_agg_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, agg=max, help=None, unit=None):
+		m = AggregationCounter(init_values=init_values, reset=reset, agg=agg)
+		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 
-	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True):
-		m = Histogram(metric_name, buckets=buckets, tags=tags, reset=reset)
-		self._add_metric(m)
+	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True, help=None, unit=None):
+		m = Histogram(buckets=buckets, reset=reset)
+		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m

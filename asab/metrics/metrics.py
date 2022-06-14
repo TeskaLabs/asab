@@ -5,25 +5,14 @@ import time
 
 
 class Metric(abc.ABC):
-	def __init__(self, name: str, tags: dict):
-		assert(name is not None)
-		self.Name = name
-		if tags is None:
-			self.Tags = dict()
-		else:
-			self.Tags = tags
-		self.Type = self.__class__.__name__
+	def __init__(self):
 		self.Storage = None
-
 
 	def _initialize_storage(self, storage: dict):
 		storage.update({
-			'name': self.Name,
-			'tags': self.Tags,
-			'type': self.Type,
+			'type': self.__class__.__name__,
 		})
 		self.Storage = storage
-
 
 	def flush(self) -> dict:
 		pass
@@ -31,8 +20,8 @@ class Metric(abc.ABC):
 
 
 class Gauge(Metric):
-	def __init__(self, name: str, tags: dict, init_values=None):
-		super().__init__(name=name, tags=tags)
+	def __init__(self, init_values=None):
+		super().__init__()
 		self.Init = init_values if init_values is not None else dict()
 		self.Values = self.Init.copy()
 
@@ -45,8 +34,8 @@ class Gauge(Metric):
 
 
 class Counter(Metric):
-	def __init__(self, name, tags, init_values=None, reset: bool = True):
-		super().__init__(name=name, tags=tags)
+	def __init__(self, init_values=None, reset: bool = True):
+		super().__init__()
 		self.Init = init_values if init_values is not None else dict()
 		self.Values = self.Init.copy()
 		self.Reset = reset
@@ -102,8 +91,8 @@ class EPSCounter(Counter):
 	Divides all values by delta time
 	"""
 
-	def __init__(self, name, tags, init_values=None, reset: bool = True):
-		super().__init__(name=name, tags=tags, init_values=init_values, reset=reset)
+	def __init__(self, init_values=None, reset: bool = True):
+		super().__init__(init_values=init_values, reset=reset)
 
 		# Using time library to avoid delay due to long synchronous operations
 		# which is important when calculating incoming events per second
@@ -138,8 +127,8 @@ class DutyCycle(Metric):
 	'''
 
 
-	def __init__(self, loop, name: str, tags: dict, init_values=None):
-		super().__init__(name=name, tags=tags)
+	def __init__(self, loop, init_values=None):
+		super().__init__()
 		self.Loop = loop
 
 		now = self.Loop.time()
@@ -199,8 +188,8 @@ class AggregationCounter(Counter):
 	The aggregation function can take two arguments only.
 	Maximum is used as a default aggregation function.
 	'''
-	def __init__(self, name, tags, init_values=None, reset: bool = True, agg=max):
-		super().__init__(name=name, tags=tags, init_values=init_values, reset=reset)
+	def __init__(self, init_values=None, reset: bool = True, agg=max):
+		super().__init__(init_values=init_values, reset=reset)
 		self.Agg = agg
 
 	def set(self, name, value, init_value=None):
@@ -222,8 +211,8 @@ class Histogram(Metric):
 	"""
 	Creates cumulative histograms.
 	"""
-	def __init__(self, name, buckets: list, tags, reset=True):
-		super().__init__(name=name, tags=tags)
+	def __init__(self, buckets: list, reset=True):
+		super().__init__()
 		self.Reset = reset
 		_buckets = [float(b) for b in buckets]
 

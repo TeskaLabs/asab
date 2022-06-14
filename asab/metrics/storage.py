@@ -4,7 +4,7 @@ class Storage(object):
 		self.Metrics = []
 
 
-	def add(self, metric_name: str, metric_tags: dict):
+	def add(self, metric_name: str, metric_tags: dict, help: str, unit: str):
 		'''
 		IMPORTANT: Add all metrics during init time, avoid adding metrics in runtime.
 		'''
@@ -21,7 +21,10 @@ class Storage(object):
 		metric['name'] = metric_name
 		metric['tags'] = metric_tags
 		metric['values'] = dict()
-		metric['metadata'] = dict()
+		if help is not None:
+			metric['help'] = help
+		if unit is not None:
+			metric['unit'] = unit
 
 		self.Metrics.append(metric)
 		return metric
