@@ -3,6 +3,7 @@ import asyncio
 import logging
 
 import kazoo.exceptions
+import kazoo.recipe.watchers
 
 from .wrapper import KazooWrapper
 from ..config import ConfigObject
@@ -46,7 +47,7 @@ class ZooKeeperContainer(ConfigObject):
 		self.ZooKeeper = KazooWrapper(zksvc.App, self.Config, z_path)
 		self.ZooKeeperPath = self.ZooKeeper.Path
 		self.Advertisments = dict()
-
+		self.DataWatchers = set()
 		self.App.PubSub.subscribe("Application.tick/300!", self._do_advertise)
 
 		zksvc._register_container(self)
@@ -98,6 +99,17 @@ class ZooKeeperContainer(ConfigObject):
 
 	async def get_raw_data(self, child):
 		return await self.ZooKeeper.get_data("{}/{}".format(self.ZooKeeper.Path, child))
+
+	def _on_watcher_trigger(self, data, stat):
+		def on_watcher_trigger():
+			self.App.PubSub.publish(self.App.PubSub.publish("ZooKeeper.watcher!", data, stat))
+		self.App.Loop.call_soon_threadsafe(on_watcher_trigger)
+
+
+	async def create_watcher(self, client, path):
+		# Do this in executor
+		watcher = kazoo.recipe.watchers.DataWatch(client, path, func=self._on_watcher_trigger)
+		self.DataWatchers.add(watcher)
 
 
 class ZooKeeperAdvertisement(object):
