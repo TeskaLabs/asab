@@ -181,7 +181,10 @@ def build_metric_line(name, tags, value_name, value, upperbound=None):
 
 
 def metric_to_influxdb(metric_record, now):
-	timestamp = now
+	if metric_record.get("@timestamp") is None:
+		timestamp = now
+	else:
+		timestamp = metric_record.get("@timestamp")
 	name = validate_format(metric_record.get("name"))
 	values = metric_record.get("values")
 	tags = metric_record.get("tags")
