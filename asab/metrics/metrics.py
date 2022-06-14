@@ -1,4 +1,4 @@
-from collections import OrderedDict
+import collections
 import copy
 import abc
 import time
@@ -7,31 +7,26 @@ import time
 class Metric(abc.ABC):
 	def __init__(self, name: str, tags: dict):
 		assert(name is not None)
-		assert(tags is not None)
 		self.Name = name
-		self.Tags = tags
+		if tags is None:
+			self.Tags = dict()
+		else:
+			self.Tags = tags
 		self.Type = self.__class__.__name__
 		self.Storage = None
 
 
 	def _initialize_storage(self, storage: dict):
 		storage.update({
-			'Name': self.Name,
-			'Tags': self.Tags,
-			'Type': self.Type,
+			'name': self.Name,
+			'tags': self.Tags,
+			'type': self.Type,
 		})
 		self.Storage = storage
 
 
 	def flush(self) -> dict:
 		pass
-
-	def rest_get(self) -> dict:
-		return {
-			'Name': self.Name,
-			'Tags': self.Tags,
-			'Type': self.Type,
-		}
 
 
 
@@ -42,19 +37,11 @@ class Gauge(Metric):
 		self.Values = self.Init.copy()
 
 	def _initialize_storage(self, storage: dict):
-		storage.update({
-			"Values": self.Values
-		})
+		storage["values"] = self.Values
 		super()._initialize_storage(storage)
-
 
 	def set(self, name: str, value):
 		self.Values[name] = value
-
-	def rest_get(self):
-		rest = super().rest_get()
-		rest["Values"] = self.Values
-		return rest
 
 
 class Counter(Metric):
@@ -103,17 +90,10 @@ class Counter(Metric):
 
 
 	def flush(self):
-		self.Storage.update({
-			"Values": self.Values.copy()
-		})
+		self.Storage["values"] = self.Values.copy()
 		if self.Reset:
 			self.Values = self.Init.copy()
 
-
-	def rest_get(self):
-		rest = super().rest_get()
-		rest["Values"] = self.Values.copy()
-		return rest
 
 
 class EPSCounter(Counter):
@@ -143,16 +123,9 @@ class EPSCounter(Counter):
 		return eps_values
 
 	def flush(self) -> dict:
-		self.Storage.update({
-			"Values": self._calculate_eps()
-		})
+		self.Storage["Values"] = self._calculate_eps()
 		if self.Reset:
 			self.Values = self.Init.copy()
-
-	def rest_get(self) -> dict:
-		rest = super().rest_get()
-		rest["Values"] = self.LastCalculatedValues
-		return rest
 
 
 class DutyCycle(Metric):
@@ -216,14 +189,7 @@ class DutyCycle(Metric):
 			new_values[k] = (v[0], now, 0.0, 0.0)
 
 		self.Values = new_values
-		self.Storage.update({
-			"Values": ret
-		})
-
-	def rest_get(self):
-		rest = super().rest_get()
-		rest["Values"] = self.Values
-		return rest
+		self.Storage["Values"] = ret
 
 
 class AggregationCounter(Counter):
@@ -270,34 +236,22 @@ class Histogram(Metric):
 		if len(_buckets) < 2:
 			raise ValueError("Must have at least two buckets")
 
-		self.InitBuckets = OrderedDict((b, dict()) for b in _buckets)
+		self.InitBuckets = collections.OrderedDict((b, dict()) for b in _buckets)
 		self.Buckets = copy.deepcopy(self.InitBuckets)
 		self.Count = 0
 		self.Sum = 0.0
 
 	def flush(self):
-		self.Storage.update({
-			"Values": {
-				"Buckets": {str(k): v for k, v in self.Buckets.copy().items()},
-				"Sum": self.Sum,
-				"Count": self.Count
-			}
-		})
+		self.Storage["values"] = {
+			"Buckets": {str(k): v for k, v in self.Buckets.copy().items()},
+			"Sum": self.Sum,
+			"Count": self.Count
+		}
+
 		if self.Reset:
 			self.Buckets = copy.deepcopy(self.InitBuckets)
 			self.Count = 0
 			self.Sum = 0.0
-
-	def rest_get(self):
-		rest = super().rest_get()
-		rest.update({
-			"Values": {
-				"Buckets": {str(k): v for k, v in self.Buckets.copy().items()},
-				"Sum": self.Sum,
-				"Count": self.Count
-			}
-		})
-		return rest
 
 	def set(self, value_name, value):
 		for upper_bound in self.Buckets:

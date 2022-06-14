@@ -21,7 +21,7 @@ class MetricsService(asab.Service):
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 
-		self.Metrics = {}  # A key is dimension (combination of metric name and tags)
+		self.Metrics = []
 		self.Targets = []
 		self.Tags = {
 			"host": app.HostName,
@@ -119,112 +119,45 @@ class MetricsService(asab.Service):
 				f.cancel()
 
 
-	def _add_metric(self, dimension, metric: Metric):
+	def _add_metric(self, metric: Metric):
+		# Add "global" tags into the metric
+		metric.Tags.update(self.Tags)
+
 		metric._initialize_storage(
-			self.Storage.add(dimension)
+			self.Storage.add(metric.Name, metric.Tags)
 		)
-		self.Metrics[dimension] = metric
+		self.Metrics.append(metric)
 
 
 	def create_gauge(self, metric_name, tags=None, init_values=None):
-		if tags is not None:
-			t = self.Tags.copy()
-			t.update(tags)
-		else:
-			t = self.Tags
-
-		dimension = metric_dimension(metric_name, t)
-		if dimension in self.Metrics:
-			raise RuntimeError("Metric '{}' already present".format(dimension))
-
-		m = Gauge(metric_name, tags=t, init_values=init_values)
-		self._add_metric(dimension, m)
+		m = Gauge(metric_name, tags=tags, init_values=init_values)
+		self._add_metric(m)
 		return m
 
 
 	def create_counter(self, metric_name, tags=None, init_values=None, reset: bool = True):
-		if tags is not None:
-			t = self.Tags.copy()
-			t.update(tags)
-		else:
-			t = self.Tags
-
-		dimension = metric_dimension(metric_name, t)
-		if dimension in self.Metrics:
-			raise RuntimeError("Metric '{}' already present".format(dimension))
-
-		m = Counter(metric_name, tags=t, init_values=init_values, reset=reset)
-		self._add_metric(dimension, m)
+		m = Counter(metric_name, tags=tags, init_values=init_values, reset=reset)
+		self._add_metric(m)
 		return m
 
 
 	def create_eps_counter(self, metric_name, tags=None, init_values=None, reset: bool = True):
-		if tags is not None:
-			t = self.Tags.copy()
-			t.update(tags)
-		else:
-			t = self.Tags
-
-		dimension = metric_dimension(metric_name, t)
-		if dimension in self.Metrics:
-			raise RuntimeError("Metric '{}' already present".format(dimension))
-
-		m = EPSCounter(metric_name, tags=t, init_values=init_values, reset=reset)
-		self._add_metric(dimension, m)
+		m = EPSCounter(metric_name, tags=tags, init_values=init_values, reset=reset)
+		self._add_metric(m)
 		return m
 
 
 	def create_duty_cycle(self, loop, metric_name, tags=None, init_values=None):
-		if tags is not None:
-			t = self.Tags.copy()
-			t.update(tags)
-		else:
-			t = self.Tags
-
-		dimension = metric_dimension(metric_name, t)
-		if dimension in self.Metrics:
-			raise RuntimeError("Metric '{}' already present".format(dimension))
-
-		m = DutyCycle(loop, metric_name, tags=t, init_values=init_values)
-		self._add_metric(dimension, m)
+		m = DutyCycle(loop, metric_name, tags=tags, init_values=init_values)
+		self._add_metric(m)
 		return m
 
 	def create_agg_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, agg=max):
-		if tags is not None:
-			t = self.Tags.copy()
-			t.update(tags)
-		else:
-			t = self.Tags
-
-		dimension = metric_dimension(metric_name, t)
-		if dimension in self.Metrics:
-			raise RuntimeError("Metric '{}' already present".format(dimension))
-
-		m = AggregationCounter(metric_name, tags=t, init_values=init_values, reset=reset, agg=agg)
-		self._add_metric(dimension, m)
+		m = AggregationCounter(metric_name, tags=tags, init_values=init_values, reset=reset, agg=agg)
+		self._add_metric(m)
 		return m
 
 	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True):
-		if tags is not None:
-			t = self.Tags.copy()
-			t.update(tags)
-		else:
-			t = self.Tags
-
-		dimension = metric_dimension(metric_name, t)
-		if dimension in self.Metrics:
-			raise RuntimeError("Metric '{}' already present".format(dimension))
-
-		m = Histogram(metric_name, buckets=buckets, tags=t, reset=reset)
-		self._add_metric(dimension, m)
+		m = Histogram(metric_name, buckets=buckets, tags=tags, reset=reset)
+		self._add_metric(m)
 		return m
-
-
-#
-
-def metric_dimension(metric_name, tags):
-	dim = metric_name
-	if tags is not None:
-		for k in sorted(tags.keys()):
-			dim += ',{}={}'.format(k, tags[k])
-	return dim

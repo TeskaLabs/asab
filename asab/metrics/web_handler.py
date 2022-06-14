@@ -1,6 +1,7 @@
 import aiohttp.web
 
 from .openmetric import metric_to_openmetric
+from ..web.rest import json_response
 
 
 class MetricWebHandler(object):
@@ -11,10 +12,17 @@ class MetricWebHandler(object):
 		# Add routes
 		webapp.router.add_get("/asab/v1/metrics", self.metrics)
 		webapp.router.add_get("/asab/v1/watch_metrics", self.watch)
+		webapp.router.add_get("/asab/v1/metrics.json", self.metrics_json)
 
+
+	async def metrics_json(self, request):
+		return json_response(request, self.MetricsService.Storage.Metrics)
 
 
 	async def metrics(self, request):
+		'''
+		Produce the OpenMetrics output.
+		'''
 		lines = []
 
 		for data in self.MetricsService.Storage.values():
