@@ -7,6 +7,7 @@ import time
 class Metric(abc.ABC):
 	def __init__(self):
 		self.Storage = None
+		self.StaticTags = dict()
 
 	def _initialize_storage(self, storage: dict):
 		storage.update({
@@ -33,16 +34,27 @@ class Gauge(Metric):
 
 class Counter(Metric):
 
+
 	def __init__(self, init_values=None):
 		super().__init__()
-		self.Init = init_values if init_values is not None else dict()
+		self.Init = init_values
+
 
 	def _initialize_storage(self, storage: dict):
 		super()._initialize_storage(storage)
-		self.Storage['values'] = self.Init.copy()
-		self.Storage['actuals'] = self.Init.copy()
 
-	def add(self, name, value, init_value=None):
+		if self.Init is not None:
+			fieldset = self.Storage['fieldset']
+			fieldset.append(
+				{
+					"tags": self.StaticTags.copy(),
+					"values": self.Init.copy(),
+					"actuals": self.Init.copy()
+				}
+			)
+
+
+	def add(self, name, value, tags=None, init_value=None):
 		"""
 		:param name: name of the counter
 		:param value: value to be added to the counter
@@ -81,6 +93,7 @@ class Counter(Metric):
 			actuals[name] = init_value - value
 
 	def flush(self):
+		print("Counter flush", self.Storage)
 		if self.Storage["reset"]:
 			self.Storage['values'] = self.Storage['actuals']
 			self.Storage['actuals'] = self.Init.copy()
@@ -181,7 +194,7 @@ class DutyCycle(Metric):
 			new_values[k] = (v[0], now, 0.0, 0.0)
 
 		self.Values = new_values
-		self.Storage["Values"] = ret
+		self.Storage["values"] = ret
 
 
 class AggregationCounter(Counter):
@@ -191,17 +204,19 @@ class AggregationCounter(Counter):
 	The aggregation function can take two arguments only.
 	Maximum is used as a default aggregation function.
 	'''
-	def __init__(self, init_values=None, reset: bool = True, agg=max):
+	def __init__(self, init_values=None, aggregator=max):
 		super().__init__(init_values=init_values)
-		self.Agg = agg
+		self.Aggregator = aggregator
 
 	def set(self, name, value, init_value=None):
+		actuals = self.Storage['actuals']
 		try:
-			self.Values[name] = self.Agg(value, self.Values[name])
+			actuals[name] = self.Aggregator(value, actuals[name])
 		except KeyError as e:
 			if init_value is None:
 				raise e
-			self.Values[name] = self.Agg(value, init_value)
+			actuals[name] = self.Aggregator(value, init_value)
+		print(">>", self.Storage)
 
 	def add(self, name, value, init_value=None):
 		raise NotImplementedError("Do not use add() method with AggregationCounter. Use set() instead.")

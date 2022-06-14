@@ -15,6 +15,7 @@ L = logging.getLogger(__name__)
 class MyApplication(asab.Application):
 	"""
 	Use Prometheus to track and visualize ASAB metrics.
+	
 	Accepts requests on port 8089.
 	To see data in Prometheus, add these lines into scrape_configs section in your prometheus.yml config file:
 	scrape_configs:
@@ -35,7 +36,7 @@ class MyApplication(asab.Application):
 listen=0.0.0.0 8089
 
 [asab:metrics]
-target=influxdb
+xtarget=influxdb
 
 [asab:metrics:influxdb]
 url=http://localhost:8086
