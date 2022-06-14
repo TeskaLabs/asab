@@ -1,10 +1,9 @@
 import configparser
 import logging
 import asyncio
-import os
 
-import asab
-
+from ..config import Config
+from ..abc import Service
 from .metrics import Metric, Counter, EPSCounter, Gauge, DutyCycle, AggregationCounter, Histogram
 from .storage import Storage
 
@@ -16,9 +15,10 @@ L = logging.getLogger(__name__)
 #
 
 
-class MetricsService(asab.Service):
+class MetricsService(Service):
 
 	def __init__(self, app, service_name):
+
 		super().__init__(app, service_name)
 
 		self.Metrics = []
@@ -30,67 +30,35 @@ class MetricsService(asab.Service):
 
 		app.PubSub.subscribe("Application.tick!", self._on_flushing_event)
 
-		if 'asab:metrics' in asab.Config:
-			if asab.Config.has_option('asab:metrics', 'target'):
-				for target in asab.Config.get('asab:metrics', 'target').split():
-					target = target.strip()
-					try:
-						target_type = asab.Config.get('asab:metrics:{}'.format(target), 'type')
-					except configparser.NoOptionError:
-						# This allows to specify the type of the target by its name
-						target_type = target
+		if Config.has_option('asab:metrics', 'target'):
+			for target in Config.get('asab:metrics', 'target').split():
+				target = target.strip()
+				try:
+					target_type = Config.get('asab:metrics:{}'.format(target), 'type')
+				except configparser.NoOptionError:
+					# This allows to specify the type of the target by its name
+					target_type = target
 
-					if target_type == 'influxdb':
-						from .influxdb import InfluxDBTarget
-						target = InfluxDBTarget(self, 'asab:metrics:{}'.format(target))
+				if target_type == 'influxdb':
+					from .influxdb import InfluxDBTarget
+					target = InfluxDBTarget(self, 'asab:metrics:{}'.format(target))
 
-					elif target_type == 'http':
-						from .http import HTTPTarget
-						target = HTTPTarget(self, 'asab:metrics:{}'.format(target))
+				elif target_type == 'http':
+					from .http import HTTPTarget
+					target = HTTPTarget(self, 'asab:metrics:{}'.format(target))
 
-					else:
-						raise RuntimeError("Unknown target type {}".format(target_type))
+				else:
+					raise RuntimeError("Unknown target type {}".format(target_type))
 
-					self.Targets.append(target)
+				self.Targets.append(target)
 
-		# Create native metrics
-		self.ProcessId = os.getpid()
-
-		self.MemoryGauge = self.create_gauge(
-			"os.stat",
-			init_values=self._get_process_info(),
-		)
+		if Config.getboolean('asab:metrics', 'native_metrics'):
+			from .native import NativeMetrics
+			self._native_svc = NativeMetrics(self.App, self)
 
 
 	async def finalize(self, app):
 		await self._on_flushing_event("finalize!")
-
-
-	def _get_process_info(self):
-		memory_info = {}
-
-		try:
-			with open("/proc/{}/status".format(self.ProcessId), "r") as file:
-				proc_status = file.read()
-
-				for proc_status_line in proc_status.replace('\t', '').split('\n'):
-
-					# Vm - virtual memory, other metrics need to be evaluated and added
-					if not proc_status_line.startswith("Vm"):
-						continue
-
-					proc_status_info = proc_status_line.split(' ')
-
-					try:
-						memory_info[proc_status_info[0][:-1]] = int(proc_status_info[-2]) * 1024
-
-					except ValueError:
-						continue
-
-		except FileNotFoundError:
-			L.info("File '/proc/{}/status' was not found, skipping process metrics.".format(self.ProcessId))
-
-		return memory_info
 
 
 	def _flush_metrics(self):
@@ -99,12 +67,11 @@ class MetricsService(asab.Service):
 
 
 	async def _on_flushing_event(self, event_type):
+
+		self.App.PubSub.publish("Metrics.flush!")
+
 		if len(self.Metrics) == 0:
 			return
-
-		# Update native metrics
-		for key, value in self._get_process_info().items():
-			self.MemoryGauge.set(key, value)
 
 		self._flush_metrics()
 
