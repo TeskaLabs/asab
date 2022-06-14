@@ -12,7 +12,6 @@ asab.Config.add_defaults(
 		'asab:storage': {
 			'mongodb_uri': 'mongodb://localhost:27017',
 			'mongodb_database': 'asabdb',
-			'timezone_aware': 'yes',
 		}
 	}
 )
@@ -30,9 +29,7 @@ class StorageService(StorageServiceABC):
 
 		self.Database = self.Client.get_database(
 			asab.Config.get(config_section_name, 'mongodb_database'),
-			codec_options=bson.codec_options.CodecOptions(
-				tz_aware=asab.Config.getboolean(config_section_name, 'timezone_aware', fallback=True)
-			)
+			codec_options=bson.codec_options.CodecOptions(tz_aware=True),
 		)
 		assert self.Database is not None
 
