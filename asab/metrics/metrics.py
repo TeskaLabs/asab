@@ -18,19 +18,17 @@ class Metric(abc.ABC):
 		pass
 
 
-
 class Gauge(Metric):
 	def __init__(self, init_values=None):
 		super().__init__()
 		self.Init = init_values if init_values is not None else dict()
-		self.Values = self.Init.copy()
 
 	def _initialize_storage(self, storage: dict):
 		super()._initialize_storage(storage)
-		self.Storage["values"] = self.Values
+		self.Storage['values'] = self.Init.copy()
 
 	def set(self, name: str, value):
-		self.Values[name] = value
+		self.Storage['values'][name] = value
 
 
 class Counter(Metric):

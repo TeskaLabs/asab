@@ -42,6 +42,10 @@ class ConfigParser(configparser.ConfigParser):
 			'gid': '',
 		},
 
+		"asab:metrics": {
+			"native_metrics": "true",
+		},
+
 		"logging": {
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			"app_name": os.path.basename(sys.argv[0]),
