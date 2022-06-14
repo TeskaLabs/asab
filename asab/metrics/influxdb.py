@@ -193,21 +193,19 @@ def metric_to_influxdb(metric_record, now):
 			for value_name, value in bucket.items():
 				values_lines.append(build_metric_line(name, tags.copy(), value_name, value, upperbound))
 		values_lines.append(build_metric_line(name, tags, "sum", values.get("sum")))
-		values_lines.append(build_metric_line(name, tags, "xount", values.get("count")))
+		values_lines.append(build_metric_line(name, tags, "count", values.get("count")))
 
 	else:
 		for value_name, value in values.items():
 			values_lines.append(build_metric_line(name, tags.copy(), value_name, value))
-	if values_lines:
-		return "".join(["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines])
+	
+	return ["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines]
 
 
 
 def influxdb_format(m_tree, now):
 	rb = []
 	for metric_record in m_tree:
-		influx_record = metric_to_influxdb(metric_record, now)
-		if influx_record is None:
-			continue
-		rb.append(influx_record)
+		influx_records = metric_to_influxdb(metric_record, now)
+		rb.extend(influx_records)
 	return ''.join(rb)
