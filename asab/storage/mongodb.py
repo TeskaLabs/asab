@@ -12,6 +12,7 @@ asab.Config.add_defaults(
 		'asab:storage': {
 			'mongodb_uri': 'mongodb://localhost:27017',
 			'mongodb_database': 'asabdb',
+			'timezone_aware': 'yes',
 		}
 	}
 )
@@ -26,7 +27,14 @@ class StorageService(StorageServiceABC):
 	def __init__(self, app, service_name, config_section_name='asab:storage'):
 		super().__init__(app, service_name)
 		self.Client = motor.motor_asyncio.AsyncIOMotorClient(asab.Config.get(config_section_name, 'mongodb_uri'))
-		self.Database = self.Client[asab.Config.get(config_section_name, 'mongodb_database')]
+
+		self.Database = self.Client.get_database(
+			asab.Config.get(config_section_name, 'mongodb_database'),
+			codec_options=bson.codec_options.CodecOptions(
+				tz_aware=asab.Config.getboolean(config_section_name, 'timezone_aware', fallback=True)
+			)
+		)
+		assert self.Database is not None
 
 
 	def upsertor(self, collection: str, obj_id=None, version=0):
