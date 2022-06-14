@@ -26,19 +26,23 @@ class Gauge(Metric):
 		self.Values = self.Init.copy()
 
 	def _initialize_storage(self, storage: dict):
-		storage["values"] = self.Values
 		super()._initialize_storage(storage)
+		self.Storage["values"] = self.Values
 
 	def set(self, name: str, value):
 		self.Values[name] = value
 
 
 class Counter(Metric):
+
 	def __init__(self, init_values=None):
 		super().__init__()
 		self.Init = init_values if init_values is not None else dict()
-		self.Values = self.Init.copy()
 
+	def _initialize_storage(self, storage: dict):
+		super()._initialize_storage(storage)
+		self.Storage['values'] = self.Init.copy()
+		self.Storage['actuals'] = self.Init.copy()
 
 	def add(self, name, value, init_value=None):
 		"""
@@ -51,12 +55,13 @@ class Counter(Metric):
 
 		"""
 
+		actuals = self.Storage['actuals']
 		try:
-			self.Values[name] += value
+			actuals[name] += value
 		except KeyError as e:
 			if init_value is None:
 				raise e
-			self.Values[name] = init_value + value
+			actuals[name] = init_value + value
 
 	def sub(self, name, value, init_value=None):
 		"""
@@ -69,19 +74,20 @@ class Counter(Metric):
 
 		"""
 
+		actuals = self.Storage['actuals']
 		try:
-			self.Values[name] -= value
+			actuals[name] -= value
 		except KeyError as e:
 			if init_value is None:
 				raise e
-			self.Values[name] = init_value - value
-
+			actuals[name] = init_value - value
 
 	def flush(self):
-		self.Storage["values"] = self.Values.copy()
 		if self.Storage["reset"]:
-			self.Values = self.Init.copy()
-
+			self.Storage['values'] = self.Storage['actuals'] 
+			self.Storage['actuals'] = self.Init.copy()
+		else:
+			self.Storage['values'] = self.Storage['actuals'].copy()
 
 
 class EPSCounter(Counter):

@@ -93,6 +93,11 @@ class MetricsService(asab.Service):
 		return memory_info
 
 
+	def _flush_metrics(self):
+		for metric in self.Metrics:
+			metric.flush()
+
+
 	async def _on_flushing_event(self, event_type):
 		if len(self.Metrics) == 0:
 			return
@@ -101,8 +106,7 @@ class MetricsService(asab.Service):
 		for key, value in self._get_process_info().items():
 			self.MemoryGauge.set(key, value)
 
-		for metric in self.Metrics:
-			metric.flush()
+		self._flush_metrics()
 
 		now = self.App.time()
 		pending = set()
@@ -111,10 +115,7 @@ class MetricsService(asab.Service):
 				target.process(self.Storage.Metrics, now)
 			)
 
-		print(">>>", pending, self.Targets)
-
 		while len(pending) > 0:
-			print(">>>", pending)
 			done, pending = await asyncio.wait(pending, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
 
 
