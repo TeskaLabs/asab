@@ -1,7 +1,7 @@
-from .test_prometheus import TestPrometheus
-from .test_gauge import TestGauge
+from .test_metrics import *
+from .test_metrics.test_counter import *
+# from .test_metrics.test_gauge import *
+# from .test_metrics.test_histogram import *
 
-__all__ = [
-    "TestPrometheus",
-    "TestGauge"
-]
+# from .test_metrics.test_influxdb import *
+# from .test_metrics.test_prometheus import *
