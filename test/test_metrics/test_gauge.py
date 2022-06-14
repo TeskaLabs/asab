@@ -1,31 +1,52 @@
-import unittest
-import collections
-from asab.metrics.metrics import Gauge
+import asab
+import asab.metrics
+import asab.metrics.influxdb
+import asab.metrics.openmetric
+
+from .baseclass import MetricsTestCase
 
 
-class TestGauge(unittest.TestCase):
-	def __init__(self, *args, **kwargs):
-		super(TestGauge, self).__init__(*args, **kwargs)
-		self.TestGauge = Gauge("testgauge", tags={'help': 'This is a test Gauge.'}, init_values={"v1": 1})
-		self.MetricNamedtuple = collections.namedtuple("labels", ["method", "path", "status"])
-		self.JustTuple = ("GET", "/metric", 200)
+class TestGauge(MetricsTestCase):
 
-	def test_set_existing_value(self):
-		self.TestGauge.set("v1", 2)
-		self.assertEqual(2, self.TestGauge.Values["v1"])
+	def test_gauge_01(self):
+		'''
+		Gauge with init value
+		'''
+		gauge = self.MetricsService.create_gauge(
+			"testgauge",
+			init_values={"v1": 1},
+			help='This is a test Gauge.'
+		)
 
-	def test_set_new_value(self):
-		self.TestGauge.set("v2", 2)
-		self.assertEqual(2, self.TestGauge.Values["v2"])
+		gauge.set("v1", 2)
+		self.MetricsService._flush_metrics()
 
-	def test_rest_get(self):
-		RestgetGauge = Gauge("testgauge", tags={'help': 'This is another Gauge.'}, init_values={"v1": 1})
-		expected = {
-			"Name": "testgauge",
-			"Tags": {
-				"help": "This is another Gauge."
-			},
-			"Values": {"v1": 1},
-			"Type": "Gauge"
-		}
-		self.assertEqual(expected, RestgetGauge.rest_get())
+
+
+	def test_gauge_02(self):
+		'''
+		Gauge with dynamic tags
+		'''
+		gauge = self.MetricsService.create_gauge(
+			"testgauge",
+			init_values={"v1": 1},
+			help='This is a test Gauge.'
+		)
+
+		gauge.set("v1", 2, {"tag": "yes"})
+		self.MetricsService._flush_metrics()
+
+
+	def test_gauge_03(self):
+		'''
+		Gauge with static and dynamic tags
+		'''
+		gauge = self.MetricsService.create_gauge(
+			"testgauge",
+			init_values={"v1": 1},
+			tags={"foo": "bar"},
+			help='This is a test Gauge.'
+		)
+
+		gauge.set("v1", 2, {"tag": "yes"})
+		self.MetricsService._flush_metrics()

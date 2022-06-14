@@ -44,6 +44,5 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 		path = request.match_info.get_info().get("formatter")
 		if path is None:
 			path = request.path
-		value_name = "tags:(method={} path={} status={})".format(request.method, path, str(response.status))
 
-		self.WebService.WebRequestsMetrics.set_metrics(value_name, time)
+		self.WebService.WebRequestsMetrics.set_metrics(time, request.method, path, str(response.status))

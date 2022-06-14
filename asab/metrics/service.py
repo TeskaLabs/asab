@@ -61,22 +61,28 @@ class MetricsService(Service):
 		await self._on_flushing_event("finalize!")
 
 
+	def clear(self):
+		self.Metrics.clear()
+		self.Storage.clear()
+
 	def _flush_metrics(self):
+		now = self.App.time()
+
 		self.App.PubSub.publish("Metrics.flush!")
 		for metric in self.Metrics:
 			try:
-				metric.flush()
+				metric.flush(now)
 			except Exception:
 				L.exception("Exception during metric.flush()")
 
+		return now
 
 	async def _on_flushing_event(self, event_type):
 		if len(self.Metrics) == 0:
 			return
 
-		self._flush_metrics()
+		now = self._flush_metrics()
 
-		now = self.App.time()
 		pending = set()
 		for target in self.Targets:
 			pending.add(
