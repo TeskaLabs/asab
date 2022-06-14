@@ -31,7 +31,7 @@ class WebApiLoggingHandler(logging.Handler):
 	async def _on_stop(self, _on_stop, x):
 		for ws in list(self.WebSockets):
 			await ws.send_json({
-				"t": datetime.datetime.utcnow().isoformat() + 'Z',
+				"t": datetime.datetime.utcnow().isoformat() + 'Z',  # This is OK, no tzinfo needed
 				"C": "asab.web",
 				"M": "Closed.",
 				"l": logging.INFO,
@@ -121,7 +121,7 @@ class WebApiLoggingHandler(logging.Handler):
 		await ws.prepare(request)
 
 		await ws.send_json({
-			"t": datetime.datetime.utcnow().isoformat() + 'Z',
+			"t": datetime.datetime.utcnow().isoformat() + 'Z',  # This is OK, no tzinfo needed
 			"C": "asab.web",
 			"M": "Connected.",
 			"l": logging.INFO,
