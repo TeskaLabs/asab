@@ -32,8 +32,8 @@ class TestCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{host="mockedhost.com",value_name="value1"} 0\n',
-				'mycounter{host="mockedhost.com",value_name="value2"} 0\n',
+				'mycounter{foo="bar",host="mockedhost.com",value_name="value1"} 0\n',
+				'mycounter{foo="bar",host="mockedhost.com",value_name="value2"} 0',
 			])
 		)
 
@@ -55,8 +55,8 @@ class TestCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{host="mockedhost.com",value_name="value1"} 0\n',
-				'mycounter{host="mockedhost.com",value_name="value2"} 0\n',
+				'mycounter{foo="bar",host="mockedhost.com",value_name="value1"} 0\n',
+				'mycounter{foo="bar",host="mockedhost.com",value_name="value2"} 0',
 			])
 		)
 
@@ -78,7 +78,7 @@ class TestCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{host="mockedhost.com",value_name="value1"} 0\n',
-				'mycounter{host="mockedhost.com",value_name="value2"} 0\n',
+				'mycounter{foo="bar",host="mockedhost.com",value_name="value1"} 1\n',
+				'mycounter{foo="bar",host="mockedhost.com",value_name="value2"} 0',
 			])
 		)

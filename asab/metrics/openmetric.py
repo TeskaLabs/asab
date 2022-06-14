@@ -30,15 +30,15 @@ def metric_to_openmetric(metric_record):
 	metric_lines.append(translate_metadata(name, metric_type, unit, help))
 
 	if metric_type == "histogram":
-		for upperbound, values in metric_record.get("values").get("Buckets").items():
+		for upperbound, values in metric_record.get("values").get("buckets").items():
 			for v_name, value in values.items():
 				histogram_labels = labels_dict.copy()
 				histogram_labels.update({"le": str(upperbound)})
 				if validate_value(value) is False:
 					continue
 				metric_lines.append(translate_value(name, v_name, value, metric_type, histogram_labels))
-		metric_lines.append(translate_value(name + "_count", "Count", metric_record.get("Values").get("Count"), metric_type, labels_dict))
-		metric_lines.append(translate_value(name + "_sum", "Sum", metric_record.get("Values").get("Sum"), metric_type, labels_dict))
+		metric_lines.append(translate_value(name + "_count", None, metric_record.get("values").get("count"), metric_type, labels_dict))
+		metric_lines.append(translate_value(name + "_sum", None, metric_record.get("values").get("sum"), metric_type, labels_dict))
 
 	else:
 		for v_name, value in metric_record.get("values").items():

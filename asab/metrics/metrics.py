@@ -231,6 +231,16 @@ class Histogram(Metric):
 		self.Buckets = copy.deepcopy(self.InitBuckets)
 		self.Count = 0
 		self.Sum = 0.0
+		self.Init = {
+			"buckets": self.InitBuckets,
+			"sum": 0.0,
+			"count": 0
+		}
+
+	def _initialize_storage(self, storage: dict):
+		super()._initialize_storage(storage)
+		self.Storage['values'] = copy.deepcopy(self.Init)
+		self.Storage['actuals'] = copy.deepcopy(self.Init)
 
 	def flush(self):
 		self.Storage["values"] = {
