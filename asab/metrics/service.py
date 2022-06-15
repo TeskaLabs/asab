@@ -135,5 +135,5 @@ class MetricsService(Service):
 
 	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True, help=None, unit=None):
 		m = Histogram(buckets=buckets)
-		self._add_metric(m, metric_name, reset=reset, help=help, unit=unit)
+		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m

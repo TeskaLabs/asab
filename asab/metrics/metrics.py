@@ -1,7 +1,6 @@
 import abc
 import copy
 import time
-import collections
 
 
 class Metric(abc.ABC):
@@ -272,7 +271,7 @@ class Histogram(Metric):
 		if len(_buckets) < 2:
 			raise ValueError("Must have at least two buckets")
 
-		self.InitBuckets = collections.OrderedDict((b, dict()) for b in _buckets)
+		self.InitBuckets = {b: dict() for b in _buckets}
 		self.Buckets = copy.deepcopy(self.InitBuckets)
 		self.Count = 0
 		self.Sum = 0.0
@@ -282,29 +281,35 @@ class Histogram(Metric):
 			"count": 0
 		}
 
-	def _initialize_storage(self, storage: dict):
-		super()._initialize_storage(storage)
-		self.Storage['values'] = copy.deepcopy(self.Init)
-		self.Storage['actuals'] = copy.deepcopy(self.Init)
+	def add_field(self, tags):
+		field = {
+			"tags": tags,
+			"values": copy.deepcopy(self.Init),
+			"actuals": copy.deepcopy(self.Init),
+		}
+		self.Storage['fieldset'].append(field)
+		return field
 
 	def flush(self, now):
-		self.Storage["values"] = {
-			"buckets": {str(k): v for k, v in self.Buckets.copy().items()},
-			"sum": self.Sum,
-			"count": self.Count
-		}
+		if self.Storage.get("reset") is True:
+			for field in self.Storage['fieldset']:
+				field['values'] = field['actuals']
+				if self.Init is not None:
+					field['actuals'] = copy.deepcopy(self.Init)
+		else:
+			for field in self.Storage['fieldset']:
+				field['values'] = copy.deepcopy(field['actuals'])
 
-		if self.Storage["reset"]:
-			self.Buckets = copy.deepcopy(self.InitBuckets)
-			self.Count = 0
-			self.Sum = 0.0
-
-	def set(self, value_name, value):
-		for upper_bound in self.Buckets:
+	def set(self, value_name, value, tags=None):
+		field = self.locate_field(tags)
+		buckets = field.get("actuals").get("buckets")
+		summary = field.get("actuals").get("sum")
+		count = field.get("actuals").get("count")
+		for upper_bound in buckets:
 			if value <= upper_bound:
-				if self.Buckets[upper_bound].get(value_name) is None:
-					self.Buckets[upper_bound][value_name] = 1
+				if buckets[upper_bound].get(value_name) is None:
+					buckets[upper_bound][value_name] = 1
 				else:
-					self.Buckets[upper_bound][value_name] += 1
-		self.Sum += value
-		self.Count += 1
+					buckets[upper_bound][value_name] += 1
+		field.get("actuals")["sum"] = summary + value
+		field.get("actuals")["count"] = count + 1

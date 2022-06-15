@@ -1,9 +1,96 @@
 from .baseclass import MetricsTestCase
 import asab.metrics.openmetric
 import asab.metrics.influxdb
+import collections
 
 
 class TestHistogram(MetricsTestCase):
+
+
+
+	def test_histogram_00(self):
+		my_histogram = self.MetricsService.create_histogram(
+			"testhistogram",
+			[1, 10, 100],
+			tags={'foo': 'bar'},
+		)
+
+		expectation = {
+			"name": "testhistogram",
+			"type": "Histogram",
+			"reset": True,
+			"fieldset": [{
+				"tags": {
+					"host": "mockedhost.com",
+					"foo": "bar",
+				},
+				"actuals": {
+					"buckets": {
+						1.0: {},
+						10.0: {},
+						100.0: {},
+						float("inf"): {}
+					},
+					"sum": 0.0,
+					"count": 0
+				},
+				"values": {
+					"buckets": {
+						1.0: {},
+						10.0: {},
+						100.0: {},
+						float("inf"): {}
+					},
+					"sum": 0.0,
+					"count": 0
+				},
+			}]
+		}
+
+		self.assertDictEqual(
+			my_histogram.Storage,
+			expectation,
+		)
+
+		my_histogram.set("v1", 2)
+		self.MetricsService._flush_metrics()
+
+		expectation = {
+			"name": "testhistogram",
+			"type": "Histogram",
+			"reset": True,
+			"fieldset": [{
+				"tags": {
+					"host": "mockedhost.com",
+					"foo": "bar",
+				},
+				"actuals": {
+					"buckets": {
+						1.0: {},
+						10.0: {},
+						100.0: {},
+						float("inf"): {}
+					},
+					"sum": 0.0,
+					"count": 0
+				},
+				"values": {
+					"buckets": {
+						1.0: {},
+						10.0: {"v1": 1},
+						100.0: {"v1": 1},
+						float("inf"): {"v1": 1}
+					},
+					"sum": 2.0,
+					"count": 1
+				},
+			}]
+		}
+
+		self.assertDictEqual(
+			my_histogram.Storage,
+			expectation,
+		)
 
 
 	def test_histogram_01(self):
