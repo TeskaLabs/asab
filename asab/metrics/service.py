@@ -28,7 +28,7 @@ class MetricsService(Service):
 		}
 		self.Storage = Storage()
 
-		app.PubSub.subscribe("Application.tick!", self._on_flushing_event)
+		app.PubSub.subscribe("Application.tick/10!", self._on_flushing_event)
 
 		if Config.has_option('asab:metrics', 'target'):
 			for target in Config.get('asab:metrics', 'target').split():

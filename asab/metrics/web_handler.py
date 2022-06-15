@@ -30,7 +30,7 @@ class MetricWebHandler(object):
 		'''
 		lines = []
 
-		for data in self.MetricsService.Metrics:
+		for data in self.MetricsService.Storage.Metrics:
 			line = metric_to_openmetric(data)
 			if line is not None:
 				lines.append(line)

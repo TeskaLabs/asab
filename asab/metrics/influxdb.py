@@ -160,7 +160,7 @@ def get_field(fk, fv):
 
 def combine_tags_and_field(tags, values):
 	tags_string = ",".join(['{}={}'.format(validate_format(tk), tv.replace(" ", "_")) for tk, tv in tags.items()])
-	field_set = " ".join([get_field(value_name, value) for value_name, value in values.items()])
+	field_set = ",".join([get_field(value_name, value) for value_name, value in values.items()])
 	return tags_string + " " + field_set
 
 

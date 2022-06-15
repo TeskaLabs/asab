@@ -31,7 +31,7 @@ class TestAggCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1=20i value2=0i 123450000000\n",
+				"mycounter,host=mockedhost.com,foo=bar value1=20i,value2=0i 123450000000\n",
 			])
 		)
 
@@ -70,7 +70,7 @@ class TestAggCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1=10i value2=100i 123450000000\n",
+				"mycounter,host=mockedhost.com,foo=bar value1=10i,value2=100i 123450000000\n",
 			])
 		)
 
@@ -108,7 +108,7 @@ class TestAggCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1=20i value2=0i 123450000000\n",
+				"mycounter,host=mockedhost.com,foo=bar value1=20i,value2=0i 123450000000\n",
 			])
 		)
 
@@ -148,7 +148,7 @@ class TestAggCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1=10i value2=100i 123450000000\n",
+				"mycounter,host=mockedhost.com,foo=bar value1=10i,value2=100i 123450000000\n",
 			])
 		)
 

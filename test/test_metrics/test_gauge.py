@@ -47,7 +47,7 @@ class TestGauge(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"testgauge,host=mockedhost.com v1=2i v2=4i 123450000000\n",
+				"testgauge,host=mockedhost.com v1=2i,v2=4i 123450000000\n",
 			])
 		)
 
