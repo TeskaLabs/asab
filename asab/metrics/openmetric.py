@@ -49,6 +49,8 @@ def metric_to_openmetric(m):
 			labels_dict = {validate_format(k): v for k, v in field.get("tags").items()}
 			if metric_type == "counter":
 				values = field.get("actuals")
+			elif m.get("type") == "AggregationCounter" and m.get("reset") is False:
+				values = field.get("actuals")
 			else:
 				values = field.get("values")
 			for v_name, value in values.items():

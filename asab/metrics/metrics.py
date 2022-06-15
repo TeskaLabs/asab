@@ -248,10 +248,10 @@ class AggregationCounter(Counter):
 		except KeyError:
 			actuals[name] = value
 
-	def add(self, name, value, init_value=None):
+	def add(self, name, value, tags=None):
 		raise NotImplementedError("Do not use add() method with AggregationCounter. Use set() instead.")
 
-	def sub(self, name, value, init_value=None):
+	def sub(self, name, value, tags=None):
 		raise NotImplementedError("Do not use sub() method with AggregationCounter. Use set() instead.")
 
 
