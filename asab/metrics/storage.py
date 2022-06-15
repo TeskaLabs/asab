@@ -19,7 +19,7 @@ class Storage(object):
 		metric['name'] = metric_name
 		metric['fieldset'] = list()
 
-		if reset is True:
+		if reset is not None:
 			metric['reset'] = reset
 		if help is not None:
 			metric['help'] = help

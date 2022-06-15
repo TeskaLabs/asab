@@ -33,20 +33,25 @@ def metric_to_openmetric(m):
 	metric_lines.append(translate_metadata(name, metric_type, unit, help))
 
 	if metric_type == "histogram":
-		for upperbound, values in metric_record.get("values").get("buckets").items():
-			for v_name, value in values.items():
-				histogram_labels = labels_dict.copy()
-				histogram_labels.update({"le": str(upperbound)})
-				if validate_value(value) is False:
-					continue
-				metric_lines.append(translate_value(name, v_name, value, metric_type, histogram_labels))
-		metric_lines.append(translate_value(name + "_count", None, metric_record.get("values").get("count"), metric_type, labels_dict))
-		metric_lines.append(translate_value(name + "_sum", None, metric_record.get("values").get("sum"), metric_type, labels_dict))
+		pass
+		# for upperbound, values in metric_record.get("values").get("buckets").items():
+		# 	for v_name, value in values.items():
+		# 		histogram_labels = labels_dict.copy()
+		# 		histogram_labels.update({"le": str(upperbound)})
+		# 		if validate_value(value) is False:
+		# 			continue
+		# 		metric_lines.append(translate_value(name, v_name, value, metric_type, histogram_labels))
+		# metric_lines.append(translate_value(name + "_count", None, metric_record.get("values").get("count"), metric_type, labels_dict))
+		# metric_lines.append(translate_value(name + "_sum", None, metric_record.get("values").get("sum"), metric_type, labels_dict))
 
 	else:
 		for field in fieldset:
 			labels_dict = {validate_format(k): v for k, v in field.get("tags").items()}
-			for v_name, value in field.get("values"):
+			if metric_type == "counter":
+				values = field.get("actuals")
+			else:
+				values = field.get("values")
+			for v_name, value in values.items():
 				if validate_value(value) is False:
 					continue
 				metric_lines.append(translate_value(name, v_name, value, metric_type, labels_dict))
@@ -95,7 +100,11 @@ def translate_metadata(name, type, unit, help):
 
 
 def validate_value(value):
-	return isinstance(value, (int, float))
+	f = isinstance(value, (int, float))
+	# isinstance(True, int) => True -> bool is instance of int
+	if type(value) is bool:
+		f = False
+	return f
 
 
 def translate_value(name, v_name, value, metric_type, labels_dict):

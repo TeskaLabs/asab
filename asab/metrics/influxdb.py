@@ -177,16 +177,16 @@ def metric_to_influxdb(metric_record, now):
 		timestamp = metric_record.get("@timestamp")
 	name = validate_format(metric_record.get("name"))
 	fieldset = metric_record.get("fieldset")
-	tags = metric_record.get("tags")
 	metric_type = metric_record.get("type")
 	values_lines = []
 
 	if metric_type == "Histogram":
-		for upperbound, bucket in values.get("buckets").items():
-			for value_name, value in bucket.items():
-				values_lines.append(build_metric_line(name, tags.copy(), value_name, value, upperbound))
-		values_lines.append(build_metric_line(name, tags, "sum", values.get("sum")))
-		values_lines.append(build_metric_line(name, tags, "count", values.get("count")))
+		pass
+		# for upperbound, bucket in values.get("buckets").items():
+		# 	for value_name, value in bucket.items():
+		# 		values_lines.append(build_metric_line(name, tags.copy(), value_name, value, upperbound))
+		# values_lines.append(build_metric_line(name, tags, "sum", values.get("sum")))
+		# values_lines.append(build_metric_line(name, tags, "count", values.get("count")))
 
 	else:
 		for field in fieldset:
@@ -196,9 +196,9 @@ def metric_to_influxdb(metric_record, now):
 
 
 
-def influxdb_format(m_list, now):
+def influxdb_format(m_tree, now):
 	rb = []
-	for metric_record in m_list:
+	for metric_record in m_tree:
 		influx_records = metric_to_influxdb(metric_record, now)
 		rb.extend(influx_records)
 	return ''.join(rb)

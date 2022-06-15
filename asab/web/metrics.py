@@ -1,6 +1,6 @@
 
 class WebRequestsMetrics(object):
-	
+
 	def __init__(self, metrics_svc):
 		self.MetricsService = metrics_svc
 
@@ -38,7 +38,7 @@ class WebRequestsMetrics(object):
 		tags = {
 			"method": method,
 			"path": path,
-			"status": status
+			"status": str(status)
 		}
 
 		print("!!", duration)
