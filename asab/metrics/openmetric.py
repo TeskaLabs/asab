@@ -11,25 +11,24 @@ import re
 # Feel free to read more about OpenMetrics standard here: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md
 
 
-def metric_to_openmetric(metric_record):
+def metric_to_openmetric(m):
 	metric_lines = []
 	# TODO: resetable counter is gauge - but how do I recognize counter that is not resetable?
-	if metric_record.get("type") == "Histogram":
+	if m.get("type") == "Histogram":
 		metric_type = "histogram"
-	elif metric_record.get("type") in ["AggregationCounter", "EPScounter"]:
+	elif m.get("type") in ["AggregationCounter", "EPScounter"]:
 		metric_type = "gauge"
-	elif metric_record.get("type") == "Counter" and metric_record.get("reset") is False:
+	elif m.get("type") == "Counter" and m.get("reset") is False:
 		metric_type = "counter"
 	else:
 		metric_type = "gauge"
-	m_name = metric_record.get("name")
-	tags = metric_record.get("tags")
-	unit = metric_record.get("unit")
+	m_name = m.get("name")
+	unit = m.get("unit")
 	if unit:
 		unit = validate_format(unit)
 	name = get_full_name(m_name, unit)
-	help = metric_record.get("help")
-	labels_dict = get_tags_labels(tags)
+	help = m.get("help")
+	fieldset = m.get("fieldset")
 
 	metric_lines.append(translate_metadata(name, metric_type, unit, help))
 
@@ -45,10 +44,12 @@ def metric_to_openmetric(metric_record):
 		metric_lines.append(translate_value(name + "_sum", None, metric_record.get("values").get("sum"), metric_type, labels_dict))
 
 	else:
-		for v_name, value in metric_record.get("values").items():
-			if validate_value(value) is False:
-				continue
-			metric_lines.append(translate_value(name, v_name, value, metric_type, labels_dict))
+		for field in fieldset:
+			labels_dict = {validate_format(k): v for k, v in field.get("tags").items()}
+			for v_name, value in field.get("values"):
+				if validate_value(value) is False:
+					continue
+				metric_lines.append(translate_value(name, v_name, value, metric_type, labels_dict))
 
 	metric_text = "\n".join(metric_lines)
 	return metric_text
@@ -108,14 +109,7 @@ def translate_value(name, v_name, value, metric_type, labels_dict):
 
 def get_value_labels(v_name, labels_dict):
 	if v_name is not None:
-		if v_name.startswith("tags:"):
-			stripped_name = v_name.lstrip("tags:(").rstrip(")")
-			tag_pairs = stripped_name.split(" ")
-			tags = {i.split("=")[0]: i.split("=")[1] for i in tag_pairs}
-			labels_dict.update(tags)
-			v_name = None
-		else:
-			labels_dict.update({"value_name": v_name})
+		labels_dict.update({"name": v_name})
 
 	labels_str = "{"
 	if labels_dict != {}:
