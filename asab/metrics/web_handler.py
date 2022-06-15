@@ -8,6 +8,7 @@ class MetricWebHandler(object):
 
 	def __init__(self, metrics_svc, webapp):
 		self.MetricsService = metrics_svc
+		self.App = self.MetricsService.App
 
 		# Add routes
 		webapp.router.add_get("/asab/v1/metrics", self.metrics)
@@ -16,6 +17,10 @@ class MetricWebHandler(object):
 
 
 	async def metrics_json(self, request):
+		metrics_to_send = self.MetricsService.Storage.Metrics.copy()
+		for metrics in metrics_to_send:
+			if metrics.get("@timestamp") is None:
+				metrics["@timestamp"] = self.App.time()
 		return json_response(request, self.MetricsService.Storage.Metrics)
 
 
