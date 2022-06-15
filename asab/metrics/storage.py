@@ -12,14 +12,14 @@ class Storage(object):
 		for m in self.Metrics:
 			if metric_name != m.get('name'):
 				continue
-			raise RuntimeError("Metric '{}' / '{}' already exists in the storage".format(metric_name, metric_tags))
+			raise RuntimeError("Metric '{}' already exists in the storage".format(metric_name))
 
 		metric = dict()
 		metric['type'] = None  # Will be filled a bit later
 		metric['name'] = metric_name
 		metric['fieldset'] = list()
 
-		if reset is not None:
+		if reset is True:
 			metric['reset'] = reset
 		if help is not None:
 			metric['help'] = help
@@ -28,3 +28,7 @@ class Storage(object):
 
 		self.Metrics.append(metric)
 		return metric
+
+
+	def clear(self):
+		self.Metrics.clear()

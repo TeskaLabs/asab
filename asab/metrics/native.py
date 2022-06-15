@@ -17,13 +17,9 @@ class NativeMetrics(Service):
 
 
 	def __init__(self, app, metrics_svc):
-		self.MemoryGauge = metrics_svc.create_gauge(
-			"os.stat",
-		)
-
+		self.MemoryGauge = metrics_svc.create_gauge("os.stat")
 		app.PubSub.subscribe("Metrics.flush!", self._on_flushing_event)
 		self._on_flushing_event()
-
 
 
 	def _on_flushing_event(self, event_name=None):

@@ -7,7 +7,8 @@ import asab.metrics.influxdb
 
 class MetricsTestCase(unittest.TestCase):
 
-	def setUp(self) -> None:
+
+	def setUp(self):
 		super().setUp()
 		asab.Config.add_defaults({
 			"asab:metrics": {
@@ -17,4 +18,5 @@ class MetricsTestCase(unittest.TestCase):
 		})
 		self.App = asab.Application(args=[], modules=[asab.metrics.Module])
 		self.MetricsService = self.App.get_service('asab.MetricsService')
+		self.MetricsService.clear()
 		self.MetricsService.Tags['host'] = "mockedhost.com"

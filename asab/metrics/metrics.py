@@ -6,7 +6,8 @@ import collections
 
 class Metric(abc.ABC):
 
-	def __init__(self):
+	def __init__(self, init_values=None):
+		self.Init = init_values
 		self.Storage = None
 		self.StaticTags = dict()
 
@@ -16,45 +17,51 @@ class Metric(abc.ABC):
 		})
 		self.Storage = storage
 
+		if self.Init is not None:
+			self.add_field(self.StaticTags.copy())
+
 
 	def add_field(self, tags, values):
-		field = {
-			"tags": tags,
-			"values": values,
-		}
-		self.Storage['fieldset'].append(field)
-		return field
+		raise NotImplementedError(":-(")
 
 
 	def locate_field(self, tags):
-		# TODO: Optimize the way how "tags is None" is located
-		
-		if tags is None:
-			tags = self.StaticTags
+		fieldset = self.Storage['fieldset']
 
+		if tags is None:
+			if len(fieldset) == 1:
+				# This is the most typical flow
+				return fieldset[0]
+
+			tags = self.StaticTags
+		else:
+			tags = tags.copy()
+			tags.update(self.StaticTags)
+
+		# Seek for field in the fieldset using tags
 		for field in self.Storage['fieldset']:
 			if field['tags'] == tags:
 				return field
 
-		raise RuntimeError("Field not found ;-(")
+		# Field not found, create a new one
+		field = self.add_field(tags)
+
+		return field
 
 
-	def flush(self) -> dict:
+	def flush(self, now):
 		pass
 
 
 class Gauge(Metric):
-	def __init__(self, init_values=None):
-		super().__init__()
-		self.Init = init_values
 
-	def _initialize_storage(self, storage: dict):
-		super()._initialize_storage(storage)
-		if self.Init is not None:
-			self.add_field(
-				self.StaticTags.copy(),
-				self.Init.copy()
-			)
+	def add_field(self, tags):
+		field = {
+			"tags": tags,
+			"values": self.Init.copy() if self.Init is not None else dict(),
+		}
+		self.Storage['fieldset'].append(field)
+		return field
 
 
 	def set(self, name: str, value, tags=None):
@@ -65,21 +72,17 @@ class Gauge(Metric):
 class Counter(Metric):
 
 
-	def __init__(self, init_values=None):
-		super().__init__()
-		self.Init = init_values
+	def add_field(self, tags):
+		field = {
+			"tags": tags,
+			"values": self.Init.copy() if self.Init is not None else dict(),
+			"actuals": self.Init.copy() if self.Init is not None else dict(),
+		}
+		self.Storage['fieldset'].append(field)
+		return field
 
 
-	def _initialize_storage(self, storage: dict):
-		super()._initialize_storage(storage)
-		if self.Init is not None:
-			field = self.add_field(
-				self.StaticTags.copy(),
-				self.Init.copy()
-			)
-			field['actuals'] = self.Init.copy()
-
-	def add(self, name, value, init_value=None, tags=None):
+	def add(self, name, value, tags=None):
 		"""
 		:param name: name of the counter
 		:param value: value to be added to the counter
@@ -92,15 +95,13 @@ class Counter(Metric):
 
 		field = self.locate_field(tags)
 		actuals = field['actuals']
-
 		try:
 			actuals[name] += value
-		except KeyError as e:
-			if init_value is None:
-				raise e
-			actuals[name] = init_value + value
+		except KeyError:
+			actuals[name] = value
 
-	def sub(self, name, value, init_value=None, tags=None):
+
+	def sub(self, name, value, tags=None):
 		"""
 		:param name: name of the counter
 		:param value: value to be subtracted from the counter
@@ -113,19 +114,20 @@ class Counter(Metric):
 
 		field = self.locate_field(tags)
 		actuals = field['actuals']
-
 		try:
 			actuals[name] -= value
-		except KeyError as e:
-			if init_value is None:
-				raise e
-			actuals[name] = init_value - value
+		except KeyError:
+			actuals[name] = -value
 
-	def flush(self):
-		if self.Storage["reset"]:
+
+	def flush(self, now):
+		if self.Storage.get("reset") is True:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
-				field['actuals'] = self.Init.copy()
+				if self.Init is not None:
+					field['actuals'] = self.Init.copy()
+				else:
+					field['actuals'] = dict()
 		else:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals'].copy()
@@ -139,29 +141,29 @@ class EPSCounter(Counter):
 
 	def __init__(self, init_values=None, reset: bool = True):
 		super().__init__(init_values=init_values)
+		self.LastTime = time.time()
 
-		# Using time library to avoid delay due to long synchronous operations
-		# which is important when calculating incoming events per second
-		self.LastTime = int(time.time())  # must be in seconds
-		self.LastCalculatedValues = dict()
 
-	def _calculate_eps(self):
-		eps_values = dict()
-		current_time = int(time.time())
-		time_difference = max(current_time - self.LastTime, 1)
+	def flush(self, now):
+		delta = now - self.LastTime
+		if delta <= 0.0:
+			return
 
-		for name, value in self.Storage['actuals'].items():
-			eps_values[name] = int(value / time_difference)
+		reset = self.Storage.get("reset")
 
-		if self.Storage["reset"]:
-			self.LastTime = current_time
-		self.LastCalculatedValues = eps_values
-		return eps_values
+		for field in self.Storage['fieldset']:
+			field['values'] = {
+				k: v / delta
+				for k, v in field['actuals'].items()
+			}
 
-	def flush(self) -> dict:
-		self.Storage["values"] = self._calculate_eps()
-		if self.Storage["reset"]:
-			self.Storage['actuals'] = self.Init.copy()
+			if reset is True:
+				if self.Init is not None:
+					field['actuals'] = self.Init.copy()
+				else:
+					field['actuals'] = dict()
+
+		self.LastTime = now
 
 
 class DutyCycle(Metric):
@@ -205,8 +207,7 @@ class DutyCycle(Metric):
 		self.Values[name] = (on_off, now, off_cycle, on_cycle)
 
 
-	def flush(self) -> dict:
-		now = self.Loop.time()
+	def flush(self, now):
 		ret = {}
 		new_values = {}
 		for k, v in self.Values.items():
@@ -231,7 +232,7 @@ class DutyCycle(Metric):
 class AggregationCounter(Counter):
 	'''
 	Sets value aggregated with the last one.
-	Takes a function object as the agg argument.
+	Takes a function object as the `aggregator` argument.
 	The aggregation function can take two arguments only.
 	Maximum is used as a default aggregation function.
 	'''
@@ -239,15 +240,13 @@ class AggregationCounter(Counter):
 		super().__init__(init_values=init_values)
 		self.Aggregator = aggregator
 
-	def set(self, name, value, init_value=None):
-		actuals = self.Storage['actuals']
+	def set(self, name, value, tags=None):
+		field = self.locate_field(tags)
+		actuals = field['actuals']
 		try:
 			actuals[name] = self.Aggregator(value, actuals[name])
-		except KeyError as e:
-			if init_value is None:
-				raise e
-			actuals[name] = self.Aggregator(value, init_value)
-		print(">>", self.Storage)
+		except KeyError:
+			actuals[name] = value
 
 	def add(self, name, value, init_value=None):
 		raise NotImplementedError("Do not use add() method with AggregationCounter. Use set() instead.")
@@ -288,7 +287,7 @@ class Histogram(Metric):
 		self.Storage['values'] = copy.deepcopy(self.Init)
 		self.Storage['actuals'] = copy.deepcopy(self.Init)
 
-	def flush(self):
+	def flush(self, now):
 		self.Storage["values"] = {
 			"buckets": {str(k): v for k, v in self.Buckets.copy().items()},
 			"sum": self.Sum,
