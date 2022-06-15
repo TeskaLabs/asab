@@ -139,7 +139,7 @@ class EPSCounter(Counter):
 	Divides all values by delta time
 	"""
 
-	def __init__(self, init_values=None, reset: bool = True):
+	def __init__(self, init_values=None):
 		super().__init__(init_values=init_values)
 		self.LastTime = time.time()
 
@@ -163,7 +163,7 @@ class EPSCounter(Counter):
 				else:
 					field['actuals'] = dict()
 
-		self.LastTime = now
+				self.LastTime = now
 
 
 class DutyCycle(Metric):
