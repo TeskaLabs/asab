@@ -18,8 +18,50 @@ class TestGauge(MetricsTestCase):
 			help='This is a test Gauge.'
 		)
 
+		# Test InfluxDB output with init values
+		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
+		self.assertEqual(
+			influxdb_format,
+			''.join([
+				"testgauge,host=mockedhost.com v1=1i 123450000000\n",
+			])
+		)
+
+		# Test OpenMetric output with init values
+		om_format = asab.metrics.openmetric.metric_to_openmetric(gauge.Storage)
+		self.assertEqual(
+			om_format,
+			''.join([
+				'# TYPE testgauge gauge\n',
+				'# HELP testgauge This is a test Gauge.\n',
+				'testgauge{host="mockedhost.com",name="v1"} 1',
+			])
+		)
+
 		gauge.set("v1", 2)
+		gauge.set("v2", 4)
 		self.MetricsService._flush_metrics()
+
+		# Test InfluxDB output with init values
+		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
+		self.assertEqual(
+			influxdb_format,
+			''.join([
+				"testgauge,host=mockedhost.com v1=2i v2=4i 123450000000\n",
+			])
+		)
+
+		# Test OpenMetric output with init values
+		om_format = asab.metrics.openmetric.metric_to_openmetric(gauge.Storage)
+		self.assertEqual(
+			om_format,
+			''.join([
+				'# TYPE testgauge gauge\n',
+				'# HELP testgauge This is a test Gauge.\n',
+				'testgauge{host="mockedhost.com",name="v1"} 2\n',
+				'testgauge{host="mockedhost.com",name="v2"} 4',
+			])
+		)
 
 
 
@@ -36,6 +78,33 @@ class TestGauge(MetricsTestCase):
 		gauge.set("v1", 2, {"tag": "yes"})
 		self.MetricsService._flush_metrics()
 
+		# Test InfluxDB output with init values
+		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
+		self.assertEqual(
+			influxdb_format,
+			''.join([
+				"testgauge,host=mockedhost.com v1=1i 123450000000\n"
+				"testgauge,tag=yes,host=mockedhost.com v1=2i 123450000000\n",
+			])
+		)
+
+		# # BUT I WOULD EXPECT
+		# 	''.join([
+		# 		"testgauge,tag=yes,host=mockedhost.com v1=2i 123450000000\n",
+		# 	])
+
+		# Test OpenMetric output with init values
+		om_format = asab.metrics.openmetric.metric_to_openmetric(gauge.Storage)
+		self.assertEqual(
+			om_format,
+			''.join([
+				'# TYPE testgauge gauge\n',
+				'# HELP testgauge This is a test Gauge.\n',
+				'testgauge{host="mockedhost.com",name="v1"} 1\n',
+				'testgauge{tag="yes",host="mockedhost.com",name="v1"} 2',
+			])
+		)
+
 
 	def test_gauge_03(self):
 		'''
@@ -45,6 +114,19 @@ class TestGauge(MetricsTestCase):
 			"testgauge",
 			init_values={"v1": 1},
 			tags={"foo": "bar"},
+			help='This is a test Gauge.'
+		)
+
+		gauge.set("v1", 2, {"tag": "yes"})
+		self.MetricsService._flush_metrics()
+
+
+	def test_gauge_04(self):
+		'''
+		Gauge without init values
+		'''
+		gauge = self.MetricsService.create_gauge(
+			"testgauge",
 			help='This is a test Gauge.'
 		)
 
