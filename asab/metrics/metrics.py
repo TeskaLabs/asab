@@ -294,8 +294,7 @@ class Histogram(Metric):
 		if self.Storage.get("reset") is True:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
-				if self.Init is not None:
-					field['actuals'] = copy.deepcopy(self.Init)
+				field['actuals'] = copy.deepcopy(self.Init)
 		else:
 			for field in self.Storage['fieldset']:
 				field['values'] = copy.deepcopy(field['actuals'])

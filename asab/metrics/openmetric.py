@@ -33,7 +33,7 @@ def metric_to_openmetric(m):
 
 	if metric_type == "histogram":
 		for field in fieldset:
-			if field.get("reset") is False:
+			if m.get("reset") is False:
 				values = field.get("actuals")
 			else:
 				values = field.get("values")
