@@ -351,9 +351,6 @@ class TestCounter(MetricsTestCase):
 		my_counter.sub('value2', 2, {"foo": "bar"})
 		self.MetricsService._flush_metrics()
 
-		import pprint
-		pprint.pprint(my_counter.Storage)
-
 		# Openmetric, after flush
 		om_format = asab.metrics.openmetric.metric_to_openmetric(my_counter.Storage)
 		self.assertEqual(
