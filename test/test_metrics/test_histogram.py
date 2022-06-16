@@ -1,12 +1,9 @@
 from .baseclass import MetricsTestCase
 import asab.metrics.openmetric
 import asab.metrics.influxdb
-import collections
 
 
 class TestHistogram(MetricsTestCase):
-
-
 
 	def test_histogram_00(self):
 		my_histogram = self.MetricsService.create_histogram(
