@@ -33,7 +33,11 @@ def metric_to_openmetric(m):
 
 	if metric_type == "histogram":
 		for field in fieldset:
-			for upperbound, bucket in field.get("values").get("buckets").items():
+			if field.get("reset") is False:
+				values = field.get("actuals")
+			else:
+				values = field.get("values")
+			for upperbound, bucket in values.get("buckets").items():
 				if bucket == {}:
 					continue
 				for v_name, value in bucket.items():
@@ -42,8 +46,8 @@ def metric_to_openmetric(m):
 					if validate_value(value) is False:
 						continue
 					metric_lines.append(translate_value(name, v_name, value, metric_type, histogram_labels))
-			metric_lines.append(translate_value(name + "_count", None, field.get("values").get("count"), metric_type, field.get("tags")))
-			metric_lines.append(translate_value(name + "_sum", None, field.get("values").get("sum"), metric_type, field.get("tags")))
+			metric_lines.append(translate_value(name + "_count", None, values.get("count"), metric_type, field.get("tags")))
+			metric_lines.append(translate_value(name + "_sum", None, values.get("sum"), metric_type, field.get("tags")))
 
 	else:
 		for field in fieldset:
