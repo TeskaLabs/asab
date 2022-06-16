@@ -124,7 +124,7 @@ class MetricsService(Service):
 		return m
 
 	def create_duty_cycle(self, loop, metric_name, tags=None, init_values=None, help=None, unit=None):
-		m = DutyCycle(loop, tags=tags, init_values=init_values)
+		m = DutyCycle(loop, init_values=init_values)
 		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 
