@@ -1,3 +1,5 @@
+import datetime
+
 import motor.motor_asyncio
 import pymongo
 import bson
@@ -29,7 +31,7 @@ class StorageService(StorageServiceABC):
 
 		self.Database = self.Client.get_database(
 			asab.Config.get(config_section_name, 'mongodb_database'),
-			codec_options=bson.codec_options.CodecOptions(tz_aware=True),
+			codec_options=bson.codec_options.CodecOptions(tz_aware=True, tzinfo=datetime.timezone.utc),
 		)
 		assert self.Database is not None
 
