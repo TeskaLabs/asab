@@ -13,7 +13,6 @@ import re
 
 def metric_to_openmetric(m):
 	metric_lines = []
-	# TODO: resetable counter is gauge - but how do I recognize counter that is not resetable?
 	if m.get("type") == "Histogram":
 		metric_type = "histogram"
 	elif m.get("type") in ["AggregationCounter", "EPScounter"]:
@@ -33,20 +32,21 @@ def metric_to_openmetric(m):
 	metric_lines.append(translate_metadata(name, metric_type, unit, help))
 
 	if metric_type == "histogram":
-		pass
-		# for upperbound, values in metric_record.get("values").get("buckets").items():
-		# 	for v_name, value in values.items():
-		# 		histogram_labels = labels_dict.copy()
-		# 		histogram_labels.update({"le": str(upperbound)})
-		# 		if validate_value(value) is False:
-		# 			continue
-		# 		metric_lines.append(translate_value(name, v_name, value, metric_type, histogram_labels))
-		# metric_lines.append(translate_value(name + "_count", None, metric_record.get("values").get("count"), metric_type, labels_dict))
-		# metric_lines.append(translate_value(name + "_sum", None, metric_record.get("values").get("sum"), metric_type, labels_dict))
+		for field in fieldset:
+			for upperbound, bucket in field.get("values").get("buckets").items():
+				if bucket == {}:
+					continue
+				for v_name, value in bucket.items():
+					histogram_labels = field.get("tags").copy()
+					histogram_labels.update({"le": str(upperbound)})
+					if validate_value(value) is False:
+						continue
+					metric_lines.append(translate_value(name, v_name, value, metric_type, histogram_labels))
+			metric_lines.append(translate_value(name + "_count", None, field.get("values").get("count"), metric_type, field.get("tags")))
+			metric_lines.append(translate_value(name + "_sum", None, field.get("values").get("sum"), metric_type, field.get("tags")))
 
 	else:
 		for field in fieldset:
-			labels_dict = {validate_format(k): v for k, v in field.get("tags").items()}
 			if metric_type == "counter":
 				values = field.get("actuals")
 			elif m.get("type") == "AggregationCounter" and m.get("reset") is False:
@@ -56,7 +56,7 @@ def metric_to_openmetric(m):
 			for v_name, value in values.items():
 				if validate_value(value) is False:
 					continue
-				metric_lines.append(translate_value(name, v_name, value, metric_type, labels_dict))
+				metric_lines.append(translate_value(name, v_name, value, metric_type, field.get("tags")))
 
 	metric_text = "\n".join(metric_lines)
 	return metric_text
@@ -110,6 +110,7 @@ def validate_value(value):
 
 
 def translate_value(name, v_name, value, metric_type, labels_dict):
+	labels_dict = {validate_format(k): v for k, v in labels_dict.items()}
 	labels_str = get_value_labels(v_name, labels_dict)
 
 	if metric_type == "counter":
