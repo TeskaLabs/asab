@@ -21,7 +21,7 @@ when generated the help of the current script.
 
 def create_manifest(args):
 	manifest = {
-		'created_at': datetime.datetime.utcnow().isoformat() + 'Z',
+		'created_at': datetime.datetime.utcnow().isoformat() + 'Z',  # This is OK, no tzinfo needed
 	}
 
 	try:

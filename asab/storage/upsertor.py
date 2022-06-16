@@ -16,7 +16,7 @@ class UpsertorABC(abc.ABC):
 
 		self.Version = version
 
-		now = datetime.datetime.utcnow()
+		now = datetime.datetime.now(datetime.timezone.utc)
 		self.ModSet = {
 			'_m': now,  # Set the modification datetime
 		}
