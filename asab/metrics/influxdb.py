@@ -164,7 +164,7 @@ def combine_tags_and_field(tags, values):
 	return tags_string + " " + field_set
 
 
-def build_metric_line(name, tags, values, upperbound=None):
+def build_metric_line(tags, values, upperbound=None):
 	if upperbound is not None:
 		tags["le"] = upperbound
 	return combine_tags_and_field(tags, values)
@@ -181,16 +181,18 @@ def metric_to_influxdb(metric_record, now):
 	values_lines = []
 
 	if metric_type == "Histogram":
-		pass
-		# for upperbound, bucket in values.get("buckets").items():
-		# 	for value_name, value in bucket.items():
-		# 		values_lines.append(build_metric_line(name, tags.copy(), value_name, value, upperbound))
-		# values_lines.append(build_metric_line(name, tags, "sum", values.get("sum")))
-		# values_lines.append(build_metric_line(name, tags, "count", values.get("count")))
+		for field in fieldset:
+			for upperbound, bucket in field.get("values").get("buckets").items():
+				upperbound = str(upperbound)
+				if bucket == {}:
+					continue
+				values_lines.append(build_metric_line(field.get("tags").copy(), bucket, upperbound))
+			values_lines.append(build_metric_line(field.get("tags").copy(), {"sum": field.get("values").get("sum")}))
+			values_lines.append(build_metric_line(field.get("tags").copy(), {"count": field.get("values").get("count")}))
 
 	else:
 		for field in fieldset:
-			values_lines.append(build_metric_line(name, field.get("tags"), field.get("values")))
+			values_lines.append(build_metric_line(field.get("tags"), field.get("values")))
 
 	return ["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines]
 

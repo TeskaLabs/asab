@@ -104,8 +104,8 @@ class TestHistogram(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testhistogram,foo=bar,host=mockedhost.com sum=0.0 123450000000\n',
-				'testhistogram,foo=bar,host=mockedhost.com count=0i 123450000000\n',
+				'testhistogram,host=mockedhost.com,foo=bar sum=0.0 123450000000\n',
+				'testhistogram,host=mockedhost.com,foo=bar count=0i 123450000000\n',
 			])
 		)
 
@@ -117,11 +117,11 @@ class TestHistogram(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testhistogram,foo=bar,host=mockedhost.com,le=10.0 value1=1i 123450000000\n',
-				'testhistogram,foo=bar,host=mockedhost.com,le=100.0 value1=1i 123450000000\n',
-				'testhistogram,foo=bar,host=mockedhost.com,le=inf value1=1i 123450000000\n',
-				'testhistogram,foo=bar,host=mockedhost.com sum=5.0 123450000000\n',
-				'testhistogram,foo=bar,host=mockedhost.com count=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,foo=bar,le=10.0 value1=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,foo=bar,le=100.0 value1=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,foo=bar,le=inf value1=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,foo=bar sum=5.0 123450000000\n',
+				'testhistogram,host=mockedhost.com,foo=bar count=1i 123450000000\n',
 			])
 		)
 
