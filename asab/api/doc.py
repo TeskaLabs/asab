@@ -19,7 +19,7 @@ class DocWebHandler(object):
 			i = docstr.find("\n---\n")
 			if i >= 0:
 				description = docstr[:i]
-				adddict = yaml.load(docstr[i:])
+				adddict = yaml.load(docstr[i:], Loader=yaml.SafeLoader)
 			else:
 				description = docstr
 		else:
@@ -68,7 +68,7 @@ class DocWebHandler(object):
 				i = docstr.find("\n---\n")
 				if i >= 0:
 					description = docstr[:i]
-					adddict = yaml.load(docstr[i:])
+					adddict = yaml.load(docstr[i:], Loader=yaml.SafeLoader)
 				else:
 					description = docstr
 			else:
