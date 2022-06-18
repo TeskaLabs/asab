@@ -13,10 +13,11 @@ import asab.api
 class MyApplication(asab.Application):
 
 	'''
-	Run by:
-	$ PYTHONPATH=.. ./webserver.py
+	Run by:  
+	`$ PYTHONPATH=.. ./webserver-advanced.py`
 	
-	The application will be available at http://localhost:8080/
+	The application will be available at http://localhost:8080/   
+	Visit also the documentation at http://localhost:8080/doc
 	'''
 
 	async def initialize(self):
