@@ -1,7 +1,14 @@
+import logging
 import inspect
 
 import aiohttp
 import yaml
+
+##
+
+L = logging.getLogger(__name__)
+
+##
 
 
 class DocWebHandler(object):
@@ -19,7 +26,10 @@ class DocWebHandler(object):
 			i = docstr.find("\n---\n")
 			if i >= 0:
 				description = docstr[:i]
-				adddict = yaml.load(docstr[i:], Loader=yaml.SafeLoader)
+				try:
+					adddict = yaml.load(docstr[i:], Loader=yaml.SafeLoader)
+				except yaml.YAMLError as e:
+						L.error("Failed to parse '{}' doc string {}".format(app.__class__.__name__, e))
 			else:
 				description = docstr
 		else:
@@ -68,7 +78,10 @@ class DocWebHandler(object):
 				i = docstr.find("\n---\n")
 				if i >= 0:
 					description = docstr[:i]
-					adddict = yaml.load(docstr[i:], Loader=yaml.SafeLoader)
+					try:
+						adddict = yaml.load(docstr[i:], Loader=yaml.SafeLoader)
+					except yaml.YAMLError as e:
+						L.error("Failed to parse '{}' doc string {}".format(handler_name, e))
 				else:
 					description = docstr
 			else:
