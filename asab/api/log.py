@@ -99,7 +99,7 @@ class WebApiLoggingHandler(logging.Handler):
 		'''
 		# Live feed of logs over websocket
 
-		Usable with e.g. with React Lazylog  
+		Usable with e.g. with React Lazylog
 
 		```
 		<LazyLog
@@ -125,8 +125,8 @@ class WebApiLoggingHandler(logging.Handler):
 		---
 		tags: ['asab.log']
 		externalDocs:
-		  description: React Lazylog
-		  url: https://github.com/mozilla-frontend-infra/react-lazylog#readme
+			description: React Lazylog
+			url: https://github.com/mozilla-frontend-infra/react-lazylog#readme
 		'''
 
 		ws = aiohttp.web.WebSocketResponse()

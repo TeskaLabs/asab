@@ -22,7 +22,6 @@ class DocWebHandler(object):
 				adddict = yaml.load(docstr[i:])
 			else:
 				description = docstr
-			
 		else:
 			description = ""
 
@@ -72,7 +71,6 @@ class DocWebHandler(object):
 					adddict = yaml.load(docstr[i:])
 				else:
 					description = docstr
-				
 			else:
 				description = ""
 
@@ -141,8 +139,8 @@ window.onload = () => {{
 		---
 		tags: ['asab.doc']
 		externalDocs:
-		  description: OpenAPI Specification
-		  url: https://swagger.io/specification/
+			description: OpenAPI Specification
+			url: https://swagger.io/specification/
 
 		'''
 		return aiohttp.web.Response(text=yaml.dump(self.SwaggerSpecs), content_type="text/yaml")
