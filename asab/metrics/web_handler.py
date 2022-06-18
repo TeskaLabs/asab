@@ -17,6 +17,11 @@ class MetricWebHandler(object):
 
 
 	async def metrics_json(self, request):
+		'''
+		Get metrics in a JSON.
+		---
+		tags: ['asab.metrics']
+		'''
 		metrics_to_send = self.MetricsService.Storage.Metrics.copy()
 		for metrics in metrics_to_send:
 			if metrics.get("@timestamp") is None:
@@ -27,6 +32,8 @@ class MetricWebHandler(object):
 	async def metrics(self, request):
 		'''
 		Produce the OpenMetrics output.
+		---
+		tags: ['asab.metrics']
 		'''
 		lines = []
 
@@ -48,6 +55,17 @@ class MetricWebHandler(object):
 
 
 	async def watch(self, request):
+		"""
+		Endpoint to list ASAB metrics in the command line.
+
+		Example commands: 
+		* watch curl localhost:8080/asab/v1/metrics_watch
+		* watch curl localhost:8080/asab/v1/metrics_watch?name=web_requests_duration_max
+
+		---
+		tags: ['asab.metrics']
+		"""
+
 		filter = request.query.get("name")
 		text = watch_table(self.MetricsService.Metrics, filter)
 
@@ -59,12 +77,6 @@ class MetricWebHandler(object):
 
 
 def watch_table(metric_records: list(), filter):
-	"""
-	Endpoint to list ASAB metrics in the command line.
-	Example commands:
-	watch curl localhost:8080/asab/v1/metrics_watch
-	watch curl localhost:8080/asab/v1/metrics_watch?name=web_requests_duration_max
-	"""
 	lines = []
 	m_name_len = max([len(i.get("Name")) for i in metric_records])
 	v_name_len = max(
