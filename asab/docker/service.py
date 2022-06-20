@@ -26,7 +26,7 @@ class DockerService(Service):
 	def load_hostname(self):
 		hostname = platform.node()
 		if self.ContainerName is not None:
-			hostname = "{}{}".format(Config.get("asab:docker", "name_prefix"), self.ContainerName)
+			hostname = "{}".format(self.ContainerName)
 		else:
 			L.warning("Failed to obtain docker container name from Docker API.")
 		return hostname
@@ -35,7 +35,14 @@ class DockerService(Service):
 		return self.ServerName
 
 	def get_docker_info(self):
-		remote_api = Config.get("asab:docker", "socket")
+		configsection = "docker"
+		if configsection not in Config.sections():
+			# Remove after Jun 2023
+			if "asab:docker" in Config.sections():
+				configsection = "asab:docker"
+				L.warning("Using obsolete config section [asab:docker]. Preferred section name is [docker]")
+
+		remote_api = Config.get(configsection, "socket")
 		if len(remote_api) > 0:
 			# In docker, hostname defaults to container ID
 			# It is necessary to use container name for better readability of the metrics
