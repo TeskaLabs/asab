@@ -37,6 +37,7 @@ class DockerService(Service):
 	def get_docker_info(self):
 		configsection = "docker"
 		if configsection not in Config.sections():
+			# Remove after Jun 2023
 			if "asab:docker" in Config.sections():
 				configsection = "asab:docker"
 				L.warning("Using obsolete config section [asab:docker]. Preferred section name is [docker]")
