@@ -192,6 +192,8 @@ def metric_to_influxdb(metric_record, now):
 
 	else:
 		for field in fieldset:
+			if not field.get("values"):
+				continue
 			values_lines.append(build_metric_line(field.get("tags"), field.get("values")))
 
 	return ["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines]
