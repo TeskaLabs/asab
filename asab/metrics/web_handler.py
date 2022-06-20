@@ -58,7 +58,7 @@ class MetricWebHandler(object):
 		"""
 		Endpoint to list ASAB metrics in the command line.
 
-		Example commands: 
+		Example commands:
 		* watch curl localhost:8080/asab/v1/metrics_watch
 		* watch curl localhost:8080/asab/v1/metrics_watch?name=web_requests_duration_max
 
