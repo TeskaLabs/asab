@@ -103,7 +103,7 @@ class MetricsService(Service):
 
 
 		metric._initialize_storage(
-			self.Storage.add(metric_name, reset=reset, help=help, unit=unit)
+			self.Storage.add(metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		)
 
 		self.Metrics.append(metric)

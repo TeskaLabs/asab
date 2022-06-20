@@ -4,7 +4,7 @@ class Storage(object):
 		self.Metrics = []
 
 
-	def add(self, metric_name: str, reset: bool, help: str, unit: str):
+	def add(self, metric_name: str, tags: dict, reset: bool, help: str, unit: str):
 		'''
 		IMPORTANT: Add all metrics during init time, avoid adding metrics in runtime.
 		'''
@@ -12,7 +12,9 @@ class Storage(object):
 		for m in self.Metrics:
 			if metric_name != m.get('name'):
 				continue
-			raise RuntimeError("Metric '{}' already exists in the storage".format(metric_name))
+			if tags != m.get("tags"):
+				continue
+			raise RuntimeError("Metric '{}/{}' already exists in the storage".format(metric_name, tags))
 
 		metric = dict()
 		metric['type'] = None  # Will be filled a bit later
