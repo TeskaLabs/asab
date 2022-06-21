@@ -89,7 +89,7 @@ async def JsonExceptionMiddleware(request, handler):
 
 		respdict = {
 			'result': result,
-			'message': ex.text[5:]
+			'message': ex.text,
 		}
 		if ex.status >= 400:
 			euuid = uuid.uuid4()
@@ -101,7 +101,7 @@ async def JsonExceptionMiddleware(request, handler):
 			Lex.error(ex, struct_data=struct_data)
 
 		ex.content_type = 'application/json'
-		ex.text = json.dumps(respdict, indent=4)
+		ex.text = json.dumps(respdict)
 		raise ex
 
 	# KeyError translates to 404
@@ -110,20 +110,20 @@ async def JsonExceptionMiddleware(request, handler):
 		Lex.warning("KeyError when handling web request", exc_info=e, struct_data={'uuid': str(euuid)})
 
 		if len(e.args) > 1:
-			message = e.args[0] % e.args[1:]
-		elif e.args[0] is None:
-			message = "KeyError"
-		else:
+			message = e.args[0].format(*e.args[1:])
+		elif len(e.args) == 1 and e.args[0] is not None:
 			message = e.args[0]
+		else:
+			message = "KeyError"
 
-		return aiohttp.web.Response(
-			text=json.dumps({
+		return json_response(
+			request,
+			data={
 				"result": "NOT-FOUND",
 				"message": message,
 				"uuid": str(euuid),
-			}, indent=4),
+			},
 			status=404,
-			content_type='application/json'
 		)
 
 	# ValidationError translates to 400
@@ -182,14 +182,14 @@ async def JsonExceptionMiddleware(request, handler):
 	except Exception as e:
 		euuid = uuid.uuid4()
 		Lex.exception("Exception when handling web request", exc_info=e, struct_data={'uuid': str(euuid)})
-		return aiohttp.web.Response(
-			text=json.dumps({
+		return json_response(
+			request,
+			data=json.dumps({
 				"result": "ERROR",
 				"message": "Internal Server Error",
 				"uuid": str(euuid),
-			}, indent=4),
+			}),
 			status=500,
-			content_type='application/json'
 		)
 
 
