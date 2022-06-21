@@ -5,6 +5,8 @@ import datetime
 import aiohttp.web
 import fastjsonschema
 
+from ... import exceptions
+
 #
 
 L = logging.getLogger(__name__)
@@ -123,6 +125,58 @@ async def JsonExceptionMiddleware(request, handler):
 			status=404,
 			content_type='application/json'
 		)
+
+	# ValidationError translates to 400
+	except exceptions.ValidationError as e:
+		euuid = uuid.uuid4()
+		Lex.warning("ValidationError when handling web request", exc_info=e, struct_data={"uuid": str(euuid)})
+
+		if len(e.args) > 1:
+			message = e.args[0].format(*e.args[1:])
+		elif len(e.args) == 1 and e.args[0] is not None:
+			message = e.args[0]
+		else:
+			message = "ValidationError"
+
+		return json_response(
+			request,
+			data={
+				"result": "VALIDATION-ERROR",
+				"message": message,
+				"uuid": str(euuid),
+			},
+			status=400,
+		)
+
+	# Conflict translates to 409
+	except exceptions.Conflict as e:
+		euuid = uuid.uuid4()
+		Lex.warning("Conflict when handling web request", exc_info=e, struct_data={"uuid": str(euuid)})
+
+		if len(e.args) > 1:
+			message = e.args[0].format(*e.args[1:])
+		elif len(e.args) == 1 and e.args[0] is not None:
+			message = e.args[0]
+		else:
+			message = "Conflict"
+
+		raise aiohttp.web.HTTPConflict(
+			text=json.dumps({
+				"result": "CONFLICT",
+				"message": message,
+				"uuid": str(euuid),
+			}),
+			content_type="application/json",
+		) from e
+		# return json_response(
+		# 	request,
+		# 	data={
+		# 		"result": "CONFLICT",
+		# 		"message": message,
+		# 		"uuid": str(euuid),
+		# 	},
+		# 	status=409,
+		# )
 
 	# Other errors to JSON
 	except Exception as e:
