@@ -5,94 +5,6 @@ import asab.metrics.influxdb
 
 class TestHistogram(MetricsTestCase):
 
-	def test_histogram_00(self):
-		"""
-		Storage wire-format
-		"""
-		my_histogram = self.MetricsService.create_histogram(
-			"testhistogram",
-			[1, 10, 100],
-			tags={'foo': 'bar'},
-		)
-
-		expectation = {
-			"name": "testhistogram",
-			"type": "Histogram",
-			"reset": True,
-			"fieldset": [{
-				"tags": {
-					"host": "mockedhost.com",
-					"foo": "bar",
-				},
-				"actuals": {
-					"buckets": {
-						1.0: {},
-						10.0: {},
-						100.0: {},
-						float("inf"): {}
-					},
-					"sum": 0.0,
-					"count": 0
-				},
-				"values": {
-					"buckets": {
-						1.0: {},
-						10.0: {},
-						100.0: {},
-						float("inf"): {}
-					},
-					"sum": 0.0,
-					"count": 0
-				},
-			}]
-		}
-
-		self.assertDictEqual(
-			my_histogram.Storage,
-			expectation,
-		)
-
-		my_histogram.set("v1", 2)
-		self.MetricsService._flush_metrics()
-
-		expectation = {
-			"name": "testhistogram",
-			"type": "Histogram",
-			"reset": True,
-			"fieldset": [{
-				"tags": {
-					"host": "mockedhost.com",
-					"foo": "bar",
-				},
-				"actuals": {
-					"buckets": {
-						1.0: {},
-						10.0: {},
-						100.0: {},
-						float("inf"): {}
-					},
-					"sum": 0.0,
-					"count": 0
-				},
-				"values": {
-					"buckets": {
-						1.0: {},
-						10.0: {"v1": 1},
-						100.0: {"v1": 1},
-						float("inf"): {"v1": 1}
-					},
-					"sum": 2.0,
-					"count": 1
-				},
-			}]
-		}
-
-		self.assertDictEqual(
-			my_histogram.Storage,
-			expectation,
-		)
-
-
 	def test_histogram_01(self):
 		"""
 		Influx
@@ -185,7 +97,9 @@ class TestHistogram(MetricsTestCase):
 	def test_histogram_03(self):
 		"""
 		Non-resetable histogram
+		Openmetric
 		"""
+
 		my_histogram = self.MetricsService.create_histogram(
 			"testhistogram",
 			[1, 10, 100],
@@ -196,44 +110,6 @@ class TestHistogram(MetricsTestCase):
 		my_histogram.set('value1', 5)
 		self.MetricsService._flush_metrics()
 		my_histogram.set('value1', 3.5)
-
-		# Storage
-		expectation = {
-			"name": "testhistogram",
-			"type": "Histogram",
-			"reset": False,
-			"fieldset": [{
-				"tags": {
-					"host": "mockedhost.com",
-					"foo": "bar",
-				},
-				"actuals": {
-					"buckets": {
-						1.0: {},
-						10.0: {"value1": 2},
-						100.0: {"value1": 2},
-						float("inf"): {"value1": 2}
-					},
-					"sum": 8.5,
-					"count": 2
-				},
-				"values": {
-					"buckets": {
-						1.0: {},
-						10.0: {"value1": 1},
-						100.0: {"value1": 1},
-						float("inf"): {"value1": 1}
-					},
-					"sum": 5.0,
-					"count": 1
-				},
-			}]
-		}
-
-		self.assertDictEqual(
-			my_histogram.Storage,
-			expectation,
-		)
 
 		# Test Influx format output after flush
 		influx_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)

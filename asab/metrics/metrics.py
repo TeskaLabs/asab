@@ -1,6 +1,7 @@
 import abc
 import copy
 import time
+from .. import Config
 
 
 class Metric(abc.ABC):
@@ -9,6 +10,7 @@ class Metric(abc.ABC):
 		self.Init = init_values
 		self.Storage = None
 		self.StaticTags = dict()
+		self.Expiration = float(Config.get("asab:metrics", "expiration"))
 
 	def _initialize_storage(self, storage: dict):
 		storage.update({
@@ -20,7 +22,7 @@ class Metric(abc.ABC):
 			self.add_field(self.StaticTags.copy())
 
 
-	def add_field(self, tags, values):
+	def add_field(self, tags):
 		raise NotImplementedError(":-(")
 
 
@@ -58,6 +60,7 @@ class Gauge(Metric):
 		field = {
 			"tags": tags,
 			"values": self.Init.copy() if self.Init is not None else dict(),
+			"expires_at": self.App.time() + self.Expiration,
 		}
 		self.Storage['fieldset'].append(field)
 		return field
@@ -66,16 +69,20 @@ class Gauge(Metric):
 	def set(self, name: str, value, tags=None):
 		field = self.locate_field(tags)
 		field['values'][name] = value
+		field["expires_at"] = self.App.time() + self.Expiration
+
+	def flush(self, now):
+		self.Storage["fieldset"] = [field for field in self.Storage["fieldset"] if field["expires_at"] >= self.App.time()]
 
 
 class Counter(Metric):
-
 
 	def add_field(self, tags):
 		field = {
 			"tags": tags,
 			"values": self.Init.copy() if self.Init is not None else dict(),
 			"actuals": self.Init.copy() if self.Init is not None else dict(),
+			"expires_at": self.App.time() + self.Expiration,
 		}
 		self.Storage['fieldset'].append(field)
 		return field
@@ -98,6 +105,7 @@ class Counter(Metric):
 			actuals[name] += value
 		except KeyError:
 			actuals[name] = value
+		field["expires_at"] = self.App.time() + self.Expiration
 
 
 	def sub(self, name, value, tags=None):
@@ -117,9 +125,11 @@ class Counter(Metric):
 			actuals[name] -= value
 		except KeyError:
 			actuals[name] = -value
+		field["expires_at"] = self.App.time() + self.Expiration
 
 
 	def flush(self, now):
+		self.Storage["fieldset"] = [field for field in self.Storage["fieldset"] if field["expires_at"] >= self.App.time()]
 		if self.Storage.get("reset") is True:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
@@ -130,6 +140,7 @@ class Counter(Metric):
 		else:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals'].copy()
+
 
 
 class EPSCounter(Counter):
@@ -144,6 +155,7 @@ class EPSCounter(Counter):
 
 
 	def flush(self, now):
+		self.Storage["fieldset"] = [field for field in self.Storage["fieldset"] if field["expires_at"] >= self.App.time()]
 		delta = now - self.LastTime
 		if delta <= 0.0:
 			return
@@ -198,7 +210,8 @@ class DutyCycle(Metric):
 		field = {
 			"tags": tags,
 			"actuals": self.Init.copy(),
-			"values": dict()
+			"values": dict(),
+			"expires_at": self.App.time() + self.Expiration,
 		}
 		self.Storage['fieldset'].append(field)
 		return field
@@ -233,8 +246,11 @@ class DutyCycle(Metric):
 		field["actuals"][name]["off_cycle"] = off_cycle
 		field["actuals"][name]["on_cycle"] = on_cycle
 
+		field["expires_at"] = self.App.time() + self.Expiration
+
 
 	def flush(self, now):
+		self.Storage["fieldset"] = [field for field in self.Storage["fieldset"] if field["expires_at"] >= self.App.time()]
 		for field in self.Storage["fieldset"]:
 			actuals = field.get("actuals")
 			for v_name, values in actuals.items():
@@ -276,6 +292,8 @@ class AggregationCounter(Counter):
 		except KeyError:
 			actuals[name] = value
 
+		field["expires_at"] = self.App.time() + self.Expiration
+
 	def add(self, name, value, tags=None):
 		raise NotImplementedError("Do not use add() method with AggregationCounter. Use set() instead.")
 
@@ -315,11 +333,13 @@ class Histogram(Metric):
 			"tags": tags,
 			"values": copy.deepcopy(self.Init),
 			"actuals": copy.deepcopy(self.Init),
+			"expires_at": self.App.time() + self.Expiration,
 		}
 		self.Storage['fieldset'].append(field)
 		return field
 
 	def flush(self, now):
+		self.Storage["fieldset"] = [field for field in self.Storage["fieldset"] if field["expires_at"] >= self.App.time()]
 		if self.Storage.get("reset") is True:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
@@ -341,3 +361,5 @@ class Histogram(Metric):
 					buckets[upper_bound][value_name] += 1
 		field.get("actuals")["sum"] = summary + value
 		field.get("actuals")["count"] = count + 1
+
+		field["expires_at"] = self.App.time() + self.Expiration

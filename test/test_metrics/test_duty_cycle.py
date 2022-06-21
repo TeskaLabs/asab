@@ -9,6 +9,7 @@ class TestDutyCycle(MetricsTestCase):
 		"""
 		Storage wire-format
 		"""
+		self.MetricsService.App = self.MockedLoop
 		my_dutycycle = self.MetricsService.create_duty_cycle(
 			self.MockedLoop,
 			"testdc",
@@ -16,8 +17,8 @@ class TestDutyCycle(MetricsTestCase):
 		)
 
 		expectation = {
-			"name": "testdc",
 			"type": "DutyCycle",
+			"name": "testdc",
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
@@ -30,7 +31,8 @@ class TestDutyCycle(MetricsTestCase):
 						"on_cycle": 0.0,
 					}
 				},
-				"values": {}
+				"values": {},
+				"expires_at": 183.45
 			}
 			]
 		}
@@ -46,6 +48,7 @@ class TestDutyCycle(MetricsTestCase):
 		Storage wire-format
 		dutycycle True
 		"""
+		self.MetricsService.App = self.MockedLoop
 		my_dutycycle = self.MetricsService.create_duty_cycle(
 			self.MockedLoop,
 			"testdc",
@@ -70,7 +73,8 @@ class TestDutyCycle(MetricsTestCase):
 						"on_cycle": 0.0,
 					}
 				},
-				"values": {"v1": 1.0}
+				"values": {"v1": 1.0},
+				"expires_at": 183.45
 			}
 			]
 		}
@@ -85,6 +89,7 @@ class TestDutyCycle(MetricsTestCase):
 		Storage wire-format
 		dutycycle False
 		"""
+		self.MetricsService.App = self.MockedLoop
 		my_dutycycle = self.MetricsService.create_duty_cycle(
 			self.MockedLoop,
 			"testdc",
@@ -110,7 +115,8 @@ class TestDutyCycle(MetricsTestCase):
 						"on_cycle": 0.0,
 					}
 				},
-				"values": {"v1": 0.0}
+				"values": {"v1": 0.0},
+				"expires_at": 183.45
 			}
 			]
 		}

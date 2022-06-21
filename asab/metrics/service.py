@@ -96,6 +96,7 @@ class MetricsService(Service):
 	def _add_metric(self, metric: Metric, metric_name: str, tags=None, reset=None, help=None, unit=None):
 		# Add global tags
 		metric.StaticTags.update(self.Tags)
+		metric.App = self.App
 
 		# Add local static tags
 		if tags is not None:

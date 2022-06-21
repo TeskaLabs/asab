@@ -26,12 +26,12 @@ class WebRequestsMetrics(object):
 			unit="epm",
 			help="Counts requests to asab endpoints as events per minute.",
 		)
-		# self.DurationHistogram = self.MetricsService.create_histogram(
-		# 	"web_requests_duration_hist",
-		# 	buckets=[0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1, 1, 5, 10, 50],
-		# 	unit="seconds",
-		# 	help="Categorizes requests based on their duration.",
-		# )
+		self.DurationHistogram = self.MetricsService.create_histogram(
+			"web_requests_duration_hist",
+			buckets=[0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1, 1, 5, 10, 50],
+			unit="seconds",
+			help="Categorizes requests based on their duration.",
+		)
 
 	def set_metrics(self, duration, method, path, status):
 
@@ -40,8 +40,6 @@ class WebRequestsMetrics(object):
 			"path": path,
 			"status": str(status)
 		}
-
-		print("!!", duration)
 
 		# max
 		self.MaxDurationCounter.set("duration", duration, tags=tags)
@@ -52,4 +50,4 @@ class WebRequestsMetrics(object):
 		# total duration
 		self.DurationCounter.add("duration", duration, tags=tags)
 		# counts in buckets
-		# TODO: self.DurationHistogram.set(duration, tags=tags)
+		self.DurationHistogram.set("duration", duration, tags=tags)
