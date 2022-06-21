@@ -11,9 +11,9 @@ class Conflict(Exception):
 		if message is None:
 			if key is not None:
 				if value is not None:
-					message = "in field {}: {}".format(repr(key), repr(value))
+					message = "Conflict in field {}: {}".format(repr(key), repr(value))
 				else:
-					message = "in field {}".format(repr(key))
+					message = "Conflict in field {}".format(repr(key))
 			elif value is not None:
 				message = value
 
