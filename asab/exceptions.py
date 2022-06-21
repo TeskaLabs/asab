@@ -1,8 +1,14 @@
 class ValidationError(Exception):
+	"""
+	Request cannot be processed because it does not match expected schema
+	"""
 	pass
 
 
 class Conflict(Exception):
+	"""
+	Request cannot be processed because it would introduce a state that violates a uniqueness requirement
+	"""
 	# TODO: Handle when the value of `key` or `value` is `None`
 	def __init__(self, message=None, *args, key=None, value=None):
 		self.Key = key
