@@ -205,7 +205,7 @@ class Application(metaclass=Singleton):
 			Config._default_values['logging:file']['path'] = args.log_file
 
 		if args.web_api:
-			Config._default_values['web']['listen'] = args.web_api
+			Config._default_values['web'] = {'listen': args.web_api}
 
 		return args
 
