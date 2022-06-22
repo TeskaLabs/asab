@@ -27,7 +27,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		# Initialize ZooKeeper client
 		self.ZookeeperContainer = asab.zookeeper.ZooKeeperContainer(
 			zksvc,
-			config_section_name='',
+			config_section_name='zookeeper',
 			z_path=self.Path
 		)
 		self.Zookeeper = None
