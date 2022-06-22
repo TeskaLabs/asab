@@ -10,14 +10,15 @@ class Storage(object):
 		'''
 
 		for m in self.Metrics:
-			if metric_name != m.get('name'):
+			if metric_name != m['name']:
 				continue
-			if tags != m.get("tags"):
+			if tags != m["static_tags"]:
 				continue
 			raise RuntimeError("Metric '{}/{}' already exists in the storage".format(metric_name, tags))
 
 		metric = dict()
 		metric['type'] = None  # Will be filled a bit later
+		metric['static_tags'] = tags
 		metric['name'] = metric_name
 		metric['fieldset'] = list()
 
