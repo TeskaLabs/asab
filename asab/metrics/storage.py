@@ -15,7 +15,7 @@ class Storage(object):
 
 	def add(self, metric_name: str, tags: dict, reset: bool, help: str, unit: str):
 
-		for i in range(len(self.Metrics)):
+		for i in range(len(self.Metrics) - 1, -1, -1):
 			metric = self.Metrics[i]
 			if metric_name != metric['name']:
 				continue
