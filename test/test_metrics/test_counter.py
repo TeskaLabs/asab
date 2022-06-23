@@ -344,6 +344,7 @@ class TestCounter(MetricsTestCase):
 			"mycounter",
 			help="Help!",
 			unit="ages",
+			dynamic_tags=True
 		)
 
 		my_counter.add('value1', 2, {"foo": "bar"})
@@ -387,7 +388,8 @@ class TestCounter(MetricsTestCase):
 			"mycounter",
 			help="Help!",
 			unit="ages",
-			reset=False
+			reset=False,
+			dynamic_tags=True
 		)
 
 		my_counter.add('value1', 2, {"foo": "bar"})
@@ -421,6 +423,7 @@ class TestCounter(MetricsTestCase):
 			"mycounter",
 			help="Help!",
 			unit="ages",
+			dynamic_tags=True
 		)
 
 		my_counter.add('value1', 2.2, {"foo": "bar"})

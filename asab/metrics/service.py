@@ -4,7 +4,10 @@ import asyncio
 
 from ..config import Config
 from ..abc import Service
-from .metrics import Metric, Counter, EPSCounter, Gauge, DutyCycle, AggregationCounter, Histogram
+from .metrics import (
+	Metric, Counter, EPSCounter, Gauge, DutyCycle, AggregationCounter, Histogram,
+	CounterWithDynamicTags, AggregationCounterWithDynamicTags, HistogramWithDynamicTags
+)
 from .storage import Storage
 
 
@@ -114,8 +117,11 @@ class MetricsService(Service):
 		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 
-	def create_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, help=None, unit=None):
-		m = Counter(init_values=init_values)
+	def create_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, help=None, unit=None, dynamic_tags=False):
+		if dynamic_tags:
+			m = CounterWithDynamicTags(init_values=init_values)
+		else:
+			m = Counter(init_values=init_values)
 		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
 
@@ -129,12 +135,18 @@ class MetricsService(Service):
 		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 
-	def create_aggregation_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, aggregator=max, help=None, unit=None):
-		m = AggregationCounter(init_values=init_values, aggregator=aggregator)
+	def create_aggregation_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, aggregator=max, help=None, unit=None, dynamic_tags=False):
+		if dynamic_tags:
+			m = AggregationCounterWithDynamicTags(init_values=init_values, aggregator=aggregator)
+		else:
+			m = AggregationCounter(init_values=init_values, aggregator=aggregator)
 		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
 
-	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True, help=None, unit=None):
-		m = Histogram(buckets=buckets)
+	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True, help=None, unit=None, dynamic_tags=False):
+		if dynamic_tags:
+			m = HistogramWithDynamicTags(buckets=buckets)
+		else:
+			m = Histogram(buckets=buckets)
 		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m

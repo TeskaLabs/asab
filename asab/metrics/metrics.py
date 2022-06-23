@@ -9,7 +9,6 @@ class Metric(abc.ABC):
 	def __init__(self, init_values=None):
 		self.Init = init_values
 		self.Storage = None
-		self.Field = None  # Fast access to the metrics in storage, valid only for non-WithDynamicTagsMixIn
 		self.StaticTags = dict()
 
 		# Expiration is relevant only to WithDynamicTagsMixIn metrics
@@ -37,11 +36,11 @@ class Gauge(Metric):
 			"values": self.Init.copy() if self.Init is not None else dict(),
 		}
 		self.Storage['fieldset'].append(field)
-		self.Field = field
+		self._field = field
 		return field
 
 	def set(self, name: str, value):
-		self.Field['values'][name] = value
+		self._field['values'][name] = value
 
 
 class Counter(Metric):
@@ -53,8 +52,7 @@ class Counter(Metric):
 			"actuals": self.Init.copy() if self.Init is not None else dict(),
 		}
 		self.Storage['fieldset'].append(field)
-		self.Field = field
-		self._actuals = self.Field['actuals']
+		self._actuals = field['actuals']
 		return field
 
 	def add(self, name, value):
@@ -93,7 +91,7 @@ class Counter(Metric):
 					field['actuals'] = self.Init.copy()
 				else:
 					field['actuals'] = dict()
-			self._actuals = self.Field['actuals']
+				self._actuals = field['actuals']
 		else:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals'].copy()
@@ -168,18 +166,18 @@ class DutyCycle(Metric):
 			"values": dict(),
 		}
 		self.Storage['fieldset'].append(field)
-		self.Field = field
+		self._field = field
 		return field
 
 
 	def set(self, name, on_off: bool):
 		now = self.Loop.time()
-		values = self.Field["actuals"].get(name)
+		values = self._field["actuals"].get(name)
 		if values is None:
 			value = self.EmptyValue.copy()
 			value["on_off"] = on_off
 			value["timestamp"] = now
-			self.Field["actuals"][name] = value
+			self._field["actuals"][name] = value
 			return
 
 		if values.get("on_off") == on_off:
@@ -236,11 +234,10 @@ class AggregationCounter(Counter):
 		self.Aggregator = aggregator
 
 	def set(self, name, value):
-		actuals = self.Field['actuals']
 		try:
-			actuals[name] = self.Aggregator(value, actuals[name])
+			self._actuals[name] = self.Aggregator(value, self._actuals[name])
 		except KeyError:
-			actuals[name] = value
+			self._actuals[name] = value
 
 	def add(self, name, value):
 		raise NotImplementedError("Do not use add() method with AggregationCounter. Use set() instead.")
@@ -283,7 +280,7 @@ class Histogram(Metric):
 			"actuals": copy.deepcopy(self.Init),
 		}
 		self.Storage['fieldset'].append(field)
-		self.Field = field
+		self._actuals = field['values']
 		return field
 
 	def flush(self, now):
@@ -291,61 +288,147 @@ class Histogram(Metric):
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
 				field['actuals'] = copy.deepcopy(self.Init)
+				self._actuals = field['values']
 		else:
 			for field in self.Storage['fieldset']:
 				field['values'] = copy.deepcopy(field['actuals'])
 
 	def set(self, value_name, value):
-		actual = self.Field['actuals']
-		buckets = actual["buckets"]
-		summary = actual["sum"]
-		count = actual["count"]
+		buckets = self._actuals["buckets"]
+		summary = self._actuals["sum"]
+		count = self._actuals["count"]
 		for upper_bound in buckets:
 			if value <= upper_bound:
 				if buckets[upper_bound].get(value_name) is None:
 					buckets[upper_bound][value_name] = 1
 				else:
 					buckets[upper_bound][value_name] += 1
-		actual["sum"] = summary + value
-		actual["count"] = count + 1
+		self._actuals["sum"] = summary + value
+		self._actuals["count"] = count + 1
 
 ###
 
 
-class WithDynamicTagsMixIn():
+class MetricWithDynamicTags(Metric):
+
+
+	def _initialize_storage(self, storage: dict):
+		storage.update({
+			'type': self.__class__.__name__,
+		})
+		self.Storage = storage
+		if self.Init is not None:
+			self.add_field(self.StaticTags.copy())
+
 
 	def locate_field(self, tags):
 		fieldset = self.Storage['fieldset']
 
-		if tags is None:
-			if len(fieldset) == 1:
-				# This is the most typical flow
-				return fieldset[0]
-
-			tags = self.StaticTags
-		else:
-			tags = tags.copy()
-			tags.update(self.StaticTags)
+		tags = tags.copy()
+		tags.update(self.StaticTags)
 
 		# Seek for field in the fieldset using tags
-		for field in self.Storage['fieldset']:
+		for field in fieldset:
 			if field['tags'] == tags:
 				return field
 
 		# Field not found, create a new one
 		field = self.add_field(tags)
-
 		return field
 
 
 
-class CounterWithDynamicTags(Counter, WithDynamicTagsMixIn):
-	pass
+class CounterWithDynamicTags(MetricWithDynamicTags):
 
 
-class AggregationCounterWithDynamicTags(AggregationCounter, WithDynamicTagsMixIn):
-	pass
+	def add_field(self, tags):
+		field = {
+			"tags": tags,
+			"values": self.Init.copy() if self.Init is not None else dict(),
+			"actuals": self.Init.copy() if self.Init is not None else dict(),
+			"expires_at": self.App.time() + self.Expiration,
+		}
+		self.Storage['fieldset'].append(field)
+		return field
+
+	def add(self, name, value, tags):
+		"""
+		:param name: name of the counter
+		:param value: value to be added to the counter
+
+		Adds to the counter specified by `name` the `value`.
+		If name is not in Counter Values, it will be added to Values.
+		"""
+
+		field = self.locate_field(tags)
+		actuals = field['actuals']
+		try:
+			actuals[name] += value
+		except KeyError:
+			actuals[name] = value
+
+		field["expires_at"] = self.App.time() + self.Expiration
+
+	def sub(self, name, value, tags):
+		"""
+		:param name: name of the counter
+		:param value: value to be subtracted from the counter
+
+		Subtracts to the counter specified by `name` the `value`.
+		If name is not in Counter Values, it will be added to Values.
+		"""
+
+		field = self.locate_field(tags)
+		actuals = field['actuals']
+		try:
+			actuals[name] -= value
+		except KeyError:
+			actuals[name] = -value
+
+		field["expires_at"] = self.App.time() + self.Expiration
+
+	def flush(self, now):
+		# Filter expired fields
+		self.Storage["fieldset"] = [
+			field for field in self.Storage["fieldset"]
+			if field["expires_at"] >= now
+		]
+
+		if self.Storage.get("reset") is True:
+			for field in self.Storage['fieldset']:
+				field['values'] = field['actuals']
+				if self.Init is not None:
+					field['actuals'] = self.Init.copy()
+				else:
+					field['actuals'] = dict()
+		else:
+			for field in self.Storage['fieldset']:
+				field['values'] = field['actuals'].copy()
 
 
-class HistogramWithDynamicTags(Histogram, WithDynamicTagsMixIn):
+class AggregationCounterWithDynamicTags(CounterWithDynamicTags):
+
+
+	def __init__(self, init_values=None, aggregator=max):
+		super().__init__(init_values=init_values)
+		self.Aggregator = aggregator
+
+	def set(self, name, value, tags):
+		field = self.locate_field(tags)
+		actuals = field['actuals']
+		try:
+			actuals[name] = self.Aggregator(value, actuals[name])
+		except KeyError:
+			actuals[name] = value
+
+		field["expires_at"] = self.App.time() + self.Expiration
+
+	def add(self, name, value, tags):
+		raise NotImplementedError("Do not use add() method with AggregationCounter. Use set() instead.")
+
+	def sub(self, name, value, tags):
+		raise NotImplementedError("Do not use sub() method with AggregationCounter. Use set() instead.")
+
+
+class HistogramWithDynamicTags(MetricWithDynamicTags):
 	pass
