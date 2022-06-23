@@ -431,4 +431,65 @@ class AggregationCounterWithDynamicTags(CounterWithDynamicTags):
 
 
 class HistogramWithDynamicTags(MetricWithDynamicTags):
-	pass
+	"""
+	Creates cumulative histograms with dynamic tags
+	"""
+
+	def __init__(self, buckets: list):
+		super().__init__()
+		_buckets = [float(b) for b in buckets]
+
+		if _buckets != sorted(buckets):
+			raise ValueError("Buckets not in sorted order")
+
+		if _buckets and _buckets[-1] != float("inf"):
+			_buckets.append(float("inf"))
+
+		if len(_buckets) < 2:
+			raise ValueError("Must have at least two buckets")
+
+		self.InitBuckets = {b: dict() for b in _buckets}
+		self.Buckets = copy.deepcopy(self.InitBuckets)
+		self.Count = 0
+		self.Sum = 0.0
+		self.Init = {
+			"buckets": self.InitBuckets,
+			"sum": 0.0,
+			"count": 0
+		}
+
+	def add_field(self, tags):
+		field = {
+			"tags": tags,
+			"values": copy.deepcopy(self.Init),
+			"actuals": copy.deepcopy(self.Init),
+			"expires_at": self.App.time() + self.Expiration,
+		}
+		self.Storage['fieldset'].append(field)
+		return field
+
+	def flush(self, now):
+		self.Storage["fieldset"] = [field for field in self.Storage["fieldset"] if field["expires_at"] >= self.App.time()]
+		if self.Storage.get("reset") is True:
+			for field in self.Storage['fieldset']:
+				field['values'] = field['actuals']
+				field['actuals'] = copy.deepcopy(self.Init)
+		else:
+			for field in self.Storage['fieldset']:
+				field['values'] = copy.deepcopy(field['actuals'])
+
+	def set(self, value_name, value, tags):
+		field = self.locate_field(tags)
+		buckets = field.get("actuals").get("buckets")
+		summary = field.get("actuals").get("sum")
+		count = field.get("actuals").get("count")
+		for upper_bound in buckets:
+			if value <= upper_bound:
+				if buckets[upper_bound].get(value_name) is None:
+					buckets[upper_bound][value_name] = 1
+				else:
+					buckets[upper_bound][value_name] += 1
+		field.get("actuals")["sum"] = summary + value
+		field.get("actuals")["count"] = count + 1
+
+		field["expires_at"] = self.App.time() + self.Expiration

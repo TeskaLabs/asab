@@ -149,10 +149,10 @@ class TestHistogram(MetricsTestCase):
 			"testhistogram",
 			[1, 10, 100],
 			tags={'foo': 'bar'},
+			dynamic_tags=True
 		)
 
 		my_histogram.set('value1', 5, {"tag": "yes"})
-		my_histogram.set('value2', 5)
 		self.MetricsService._flush_metrics()
 
 		# Test Influx format output after flush
@@ -202,14 +202,12 @@ class TestHistogram(MetricsTestCase):
 			"testhistogram",
 			[1, 10, 100],
 			tags={'foo': 'bar'},
-			reset=False
+			reset=False,
+			dynamic_tags=True
 		)
 
 		my_histogram.set('value1', 5, {"tag": "yes"})
-		my_histogram.set('value2', 5)
 		self.MetricsService._flush_metrics()
-		my_histogram.set('value2', 50)
-
 
 		# Test Influx format output after flush
 		influx_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
