@@ -8,9 +8,9 @@ from .baseclass import MetricsTestCase
 
 class TestGauge(MetricsTestCase):
 
-	def test_gauge_01(self):
+	def test_gauge_02(self):
 		'''
-		Gauge with init value
+		Gauge with dynamic tags
 		'''
 		gauge = self.MetricsService.create_gauge(
 			"testgauge",
@@ -18,28 +18,7 @@ class TestGauge(MetricsTestCase):
 			help='This is a test Gauge.'
 		)
 
-		# Test InfluxDB output with init values
-		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
-		self.assertEqual(
-			influxdb_format,
-			''.join([
-				"testgauge,host=mockedhost.com v1=1i 123450000000\n",
-			])
-		)
-
-		# Test OpenMetric output with init values
-		om_format = asab.metrics.openmetric.metric_to_openmetric(gauge.Storage)
-		self.assertEqual(
-			om_format,
-			''.join([
-				'# TYPE testgauge gauge\n',
-				'# HELP testgauge This is a test Gauge.\n',
-				'testgauge{host="mockedhost.com",name="v1"} 1',
-			])
-		)
-
-		gauge.set("v1", 2)
-		gauge.set("v2", 4)
+		gauge.set("v1", 2, {"tag": "yes"})
 		self.MetricsService._flush_metrics()
 
 		# Test InfluxDB output with init values
@@ -47,7 +26,8 @@ class TestGauge(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"testgauge,host=mockedhost.com v1=2i,v2=4i 123450000000\n",
+				"testgauge,host=mockedhost.com v1=1i 123450000000\n"
+				"testgauge,tag=yes,host=mockedhost.com v1=2i 123450000000\n",
 			])
 		)
 
@@ -58,11 +38,47 @@ class TestGauge(MetricsTestCase):
 			''.join([
 				'# TYPE testgauge gauge\n',
 				'# HELP testgauge This is a test Gauge.\n',
-				'testgauge{host="mockedhost.com",name="v1"} 2\n',
-				'testgauge{host="mockedhost.com",name="v2"} 4',
+				'testgauge{host="mockedhost.com",name="v1"} 1\n',
+				'testgauge{tag="yes",host="mockedhost.com",name="v1"} 2',
 			])
 		)
 
+
+	def test_gauge_03(self):
+		'''
+		Gauge with static and dynamic tags
+		'''
+		gauge = self.MetricsService.create_gauge(
+			"testgauge",
+			init_values={"v1": 1},
+			tags={"foo": "bar"},
+			help='This is a test Gauge.'
+		)
+
+		gauge.set("v1", 2, {"tag": "yes"})
+		self.MetricsService._flush_metrics()
+
+		# Test InfluxDB output with init values
+		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
+		self.assertEqual(
+			influxdb_format,
+			''.join([
+				"testgauge,host=mockedhost.com,foo=bar v1=1i 123450000000\n"
+				"testgauge,tag=yes,host=mockedhost.com,foo=bar v1=2i 123450000000\n",
+			])
+		)
+
+		# Test OpenMetric output with init values
+		om_format = asab.metrics.openmetric.metric_to_openmetric(gauge.Storage)
+		self.assertEqual(
+			om_format,
+			''.join([
+				'# TYPE testgauge gauge\n',
+				'# HELP testgauge This is a test Gauge.\n',
+				'testgauge{host="mockedhost.com",foo="bar",name="v1"} 1\n',
+				'testgauge{tag="yes",host="mockedhost.com",foo="bar",name="v1"} 2',
+			])
+		)
 
 
 	def test_gauge_04(self):
@@ -74,7 +90,7 @@ class TestGauge(MetricsTestCase):
 			help='This is a test Gauge.'
 		)
 
-		gauge.set("v1", 2)
+		gauge.set("v1", 2, {"tag": "yes"})
 		self.MetricsService._flush_metrics()
 
 		# Test InfluxDB output with init values
@@ -82,7 +98,7 @@ class TestGauge(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"testgauge,host=mockedhost.com v1=2i 123450000000\n",
+				"testgauge,tag=yes,host=mockedhost.com v1=2i 123450000000\n",
 			])
 		)
 
@@ -93,6 +109,6 @@ class TestGauge(MetricsTestCase):
 			''.join([
 				'# TYPE testgauge gauge\n',
 				'# HELP testgauge This is a test Gauge.\n',
-				'testgauge{host="mockedhost.com",name="v1"} 2',
+				'testgauge{tag="yes",host="mockedhost.com",name="v1"} 2',
 			])
 		)

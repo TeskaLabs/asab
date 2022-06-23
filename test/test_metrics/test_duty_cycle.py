@@ -19,6 +19,7 @@ class TestDutyCycle(MetricsTestCase):
 		expectation = {
 			"type": "DutyCycle",
 			"name": "testdc",
+			'static_tags': {'host': 'mockedhost.com'},
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
@@ -32,7 +33,6 @@ class TestDutyCycle(MetricsTestCase):
 					}
 				},
 				"values": {},
-				"expires_at": 183.45
 			}
 			]
 		}
@@ -61,6 +61,7 @@ class TestDutyCycle(MetricsTestCase):
 		expectation = {
 			"name": "testdc",
 			"type": "DutyCycle",
+			'static_tags': {'host': 'mockedhost.com'},
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
@@ -74,7 +75,6 @@ class TestDutyCycle(MetricsTestCase):
 					}
 				},
 				"values": {"v1": 1.0},
-				"expires_at": 183.45
 			}
 			]
 		}
@@ -103,6 +103,7 @@ class TestDutyCycle(MetricsTestCase):
 		expectation = {
 			"name": "testdc",
 			"type": "DutyCycle",
+			'static_tags': {'host': 'mockedhost.com'},
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
@@ -116,7 +117,6 @@ class TestDutyCycle(MetricsTestCase):
 					}
 				},
 				"values": {"v1": 0.0},
-				"expires_at": 183.45
 			}
 			]
 		}
