@@ -343,6 +343,7 @@ class TestCounter(MetricsTestCase):
 			"mycounter",
 			help="Help!",
 			unit="ages",
+			dynamic_tags=True
 		)
 
 		my_counter.add('value1', 2.2)
