@@ -15,9 +15,7 @@ def metric_to_openmetric(m):
 	metric_lines = []
 	if m.get("type") == "Histogram":
 		metric_type = "histogram"
-	elif m.get("type") in ["AggregationCounter", "EPScounter"]:
-		metric_type = "gauge"
-	elif m.get("type") == "Counter" and m.get("reset") is False:
+	elif m.get("type") in ["Counter", "CounterWithDynamicTags"] and m.get("reset") is False:
 		metric_type = "counter"
 	else:
 		metric_type = "gauge"

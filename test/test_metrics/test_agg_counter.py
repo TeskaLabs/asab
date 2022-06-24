@@ -162,25 +162,24 @@ class TestAggCounter(MetricsTestCase):
 				'mycounter{host="mockedhost.com",foo="bar",name="value2"} 100',
 			])
 		)
-
-
-
 	def test_agg_counter_05(self):
+
+
+
 		"""
 		Resetable Aggregation Counter with dynamic tags
 		max
 		"""
 		my_counter = self.MetricsService.create_aggregation_counter(
 			"mycounter",
-			tags={'foo': 'bar'},
 			init_values={'value1': 0, 'value2': 0},
 			dynamic_tags=True
 		)
 
-		my_counter.set('value1', 20)
-		my_counter.set('value1', 10)
+		my_counter.set('value1', 20, {'foo': 'bar'})
+		my_counter.set('value1', 10, {'foo': 'bar'})
 		self.MetricsService._flush_metrics()
-		my_counter.set('value1', 30)
+		my_counter.set('value1', 30, {'foo': 'bar'})
 
 		# Test InfluxDB
 
@@ -188,7 +187,7 @@ class TestAggCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1=20i,value2=0i 123450000000\n",
+				"mycounter,foo=bar,host=mockedhost.com value1=20i,value2=0i 123450000000\n",
 			])
 		)
 
