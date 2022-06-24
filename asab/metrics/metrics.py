@@ -55,7 +55,7 @@ class Counter(Metric):
 		self._actuals = field['actuals']
 		return field
 
-	def add(self, name, value):
+	def add(self, name, value, init_value=None):
 		"""
 		:param name: name of the counter
 		:param value: value to be added to the counter
@@ -67,9 +67,12 @@ class Counter(Metric):
 		try:
 			self._actuals[name] += value
 		except KeyError:
-			self._actuals[name] = value
+			if init_value is not None:
+				self._actuals[name] = init_value + value
+			else:
+				self._actuals[name] = value
 
-	def sub(self, name, value):
+	def sub(self, name, value, init_value=None):
 		"""
 		:param name: name of the counter
 		:param value: value to be subtracted from the counter
@@ -81,7 +84,10 @@ class Counter(Metric):
 		try:
 			self._actuals[name] -= value
 		except KeyError:
-			self._actuals[name] = -value
+			if init_value is not None:
+				self._actuals[name] = init_value - value
+			else:
+				self._actuals[name] = -value
 
 	def flush(self, now):
 		if self.Storage.get("reset") is True:
