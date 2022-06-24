@@ -8,6 +8,8 @@ from .baseclass import MetricsTestCase
 
 class TestGauge(MetricsTestCase):
 
+	# There's no Gauge with dynamic tags
+
 	def test_gauge_01(self):
 		'''
 		Gauge with init value

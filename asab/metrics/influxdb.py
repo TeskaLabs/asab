@@ -180,8 +180,11 @@ def metric_to_influxdb(metric_record, now):
 	metric_type = metric_record.get("type")
 	values_lines = []
 
-	if metric_type == "Histogram":
+	if metric_type in ["Histogram", "HistogramWithDynamicTags"]:
 		for field in fieldset:
+			# SKIP empty fields
+			if all([bucket == {} for bucket in field.get("values").get("buckets").values()]):
+				continue
 			for upperbound, bucket in field.get("values").get("buckets").items():
 				upperbound = str(upperbound)
 				if bucket == {}:
@@ -192,7 +195,8 @@ def metric_to_influxdb(metric_record, now):
 
 	else:
 		for field in fieldset:
-			if not field.get("values"):
+			# SKIP empty fields
+			if not field.get("values") or field.get("values") == {}:
 				continue
 			values_lines.append(build_metric_line(field.get("tags"), field.get("values")))
 

@@ -163,11 +163,9 @@ class TestAggCounter(MetricsTestCase):
 			])
 		)
 	def test_agg_counter_05(self):
-
-
-
 		"""
 		Resetable Aggregation Counter with dynamic tags
+		with init values
 		max
 		"""
 		my_counter = self.MetricsService.create_aggregation_counter(
@@ -187,6 +185,7 @@ class TestAggCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
+				"mycounter,host=mockedhost.com value1=0i,value2=0i 123450000000\n",
 				"mycounter,foo=bar,host=mockedhost.com value1=20i,value2=0i 123450000000\n",
 			])
 		)
@@ -197,8 +196,10 @@ class TestAggCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{host="mockedhost.com",foo="bar",name="value1"} 20\n',
-				'mycounter{host="mockedhost.com",foo="bar",name="value2"} 0',
+				'mycounter{host="mockedhost.com",name="value1"} 0\n',
+				'mycounter{host="mockedhost.com",name="value2"} 0\n',
+				'mycounter{foo="bar",host="mockedhost.com",name="value1"} 20\n',
+				'mycounter{foo="bar",host="mockedhost.com",name="value2"} 0',
 			])
 		)
 
@@ -206,6 +207,7 @@ class TestAggCounter(MetricsTestCase):
 	def test_agg_counter_06(self):
 		"""
 		Resetable Aggregation Counter with dynamic tags
+		init_values
 		min
 		"""
 		my_counter = self.MetricsService.create_aggregation_counter(
@@ -216,8 +218,8 @@ class TestAggCounter(MetricsTestCase):
 			dynamic_tags=True
 		)
 
-		my_counter.set('value1', 20)
-		my_counter.set('value1', 10)
+		my_counter.set('value1', 20, {'tag': 'second'})
+		my_counter.set('value1', 10, {'tag': 'second'})
 		self.MetricsService._flush_metrics()
 
 
@@ -227,7 +229,8 @@ class TestAggCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1=10i,value2=100i 123450000000\n",
+				"mycounter,host=mockedhost.com,foo=bar value1=100i,value2=100i 123450000000\n",
+				"mycounter,tag=second,host=mockedhost.com,foo=bar value1=10i,value2=100i 123450000000\n",
 			])
 		)
 
@@ -237,8 +240,10 @@ class TestAggCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{host="mockedhost.com",foo="bar",name="value1"} 10\n',
-				'mycounter{host="mockedhost.com",foo="bar",name="value2"} 100',
+				'mycounter{host="mockedhost.com",foo="bar",name="value1"} 100\n',
+				'mycounter{host="mockedhost.com",foo="bar",name="value2"} 100\n',
+				'mycounter{tag="second",host="mockedhost.com",foo="bar",name="value1"} 10\n',
+				'mycounter{tag="second",host="mockedhost.com",foo="bar",name="value2"} 100',
 			])
 		)
 
@@ -249,16 +254,15 @@ class TestAggCounter(MetricsTestCase):
 		"""
 		my_counter = self.MetricsService.create_aggregation_counter(
 			"mycounter",
-			tags={'foo': 'bar'},
 			init_values={'value1': 0, 'value2': 0},
 			reset=False,
 			dynamic_tags=True
 		)
 
-		my_counter.set('value1', 20)
-		my_counter.set('value1', 10)
+		my_counter.set('value1', 20, {'foo': 'bar'})
+		my_counter.set('value1', 10, {'foo': 'bar'})
 		self.MetricsService._flush_metrics()
-		my_counter.set('value1', 30)
+		my_counter.set('value1', 30, {'foo': 'bar'})
 
 		# Test InfluxDB
 
@@ -266,7 +270,8 @@ class TestAggCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1=20i,value2=0i 123450000000\n",
+				"mycounter,host=mockedhost.com value1=0i,value2=0i 123450000000\n",
+				"mycounter,foo=bar,host=mockedhost.com value1=20i,value2=0i 123450000000\n",
 			])
 		)
 
@@ -275,9 +280,11 @@ class TestAggCounter(MetricsTestCase):
 		self.assertEqual(
 			om_format,
 			''.join([
-				'# TYPE mycounter gauge\n',
-				'mycounter{host="mockedhost.com",foo="bar",name="value1"} 30\n',
-				'mycounter{host="mockedhost.com",foo="bar",name="value2"} 0',
+				'# TYPE mycounter counter\n',
+				'mycounter_total{host="mockedhost.com",name="value1"} 0\n',
+				'mycounter_total{host="mockedhost.com",name="value2"} 0\n',
+				'mycounter_total{foo="bar",host="mockedhost.com",name="value1"} 30\n',
+				'mycounter_total{foo="bar",host="mockedhost.com",name="value2"} 0',
 			])
 		)
 
@@ -289,17 +296,16 @@ class TestAggCounter(MetricsTestCase):
 		"""
 		my_counter = self.MetricsService.create_aggregation_counter(
 			"mycounter",
-			tags={'foo': 'bar'},
 			init_values={'value1': 100, 'value2': 100},
 			aggregator=min,
 			reset=False,
 			dynamic_tags=True
 		)
 
-		my_counter.set('value1', 20)
-		my_counter.set('value1', 10)
+		my_counter.set('value1', 20, {'foo': 'bar'})
+		my_counter.set('value1', 10, {'foo': 'bar'})
 		self.MetricsService._flush_metrics()
-		my_counter.set('value1', 5)
+		my_counter.set('value1', 5, {'foo': 'bar'})
 
 		# Test InfluxDB
 
@@ -307,7 +313,47 @@ class TestAggCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1=10i,value2=100i 123450000000\n",
+				"mycounter,host=mockedhost.com value1=100i,value2=100i 123450000000\n",
+				"mycounter,foo=bar,host=mockedhost.com value1=10i,value2=100i 123450000000\n",
+			])
+		)
+
+		# Test OpenMetric
+		om_format = asab.metrics.openmetric.metric_to_openmetric(my_counter.Storage)
+		self.assertEqual(
+			om_format,
+			''.join([
+				'# TYPE mycounter counter\n',
+				'mycounter_total{host="mockedhost.com",name="value1"} 100\n',
+				'mycounter_total{host="mockedhost.com",name="value2"} 100\n',
+				'mycounter_total{foo="bar",host="mockedhost.com",name="value1"} 5\n',
+				'mycounter_total{foo="bar",host="mockedhost.com",name="value2"} 100',
+			])
+		)
+
+	def test_agg_counter_09(self):
+		"""
+		Resetable Aggregation Counter with dynamic tags
+		w/o init_values
+		max
+		"""
+		my_counter = self.MetricsService.create_aggregation_counter(
+			"mycounter",
+			dynamic_tags=True
+		)
+
+		my_counter.set('value1', 20, {'foo': 'bar'})
+		my_counter.set('value1', 10, {'foo': 'bar'})
+		self.MetricsService._flush_metrics()
+		my_counter.set('value1', 30, {'foo': 'bar'})
+
+		# Test InfluxDB
+
+		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
+		self.assertEqual(
+			influxdb_format,
+			''.join([
+				"mycounter,foo=bar,host=mockedhost.com value1=20i 123450000000\n",
 			])
 		)
 
@@ -317,7 +363,6 @@ class TestAggCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{host="mockedhost.com",foo="bar",name="value1"} 5\n',
-				'mycounter{host="mockedhost.com",foo="bar",name="value2"} 100',
+				'mycounter{foo="bar",host="mockedhost.com",name="value1"} 20',
 			])
 		)

@@ -9,6 +9,7 @@ class TestHistogram(MetricsTestCase):
 		"""
 		Influx
 		"""
+		self.maxDiff = None
 		my_histogram = self.MetricsService.create_histogram(
 			"testhistogram",
 			[1, 10, 100],
@@ -19,10 +20,7 @@ class TestHistogram(MetricsTestCase):
 		influx_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
 		self.assertEqual(
 			influx_format,
-			''.join([
-				'testhistogram,host=mockedhost.com,foo=bar sum=0.0 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar count=0i 123450000000\n',
-			])
+			''
 		)
 
 		my_histogram.set('value1', 5)
@@ -58,9 +56,7 @@ class TestHistogram(MetricsTestCase):
 		self.assertEqual(
 			om_format,
 			''.join([
-				'# TYPE testhistogram histogram\n',
-				'testhistogram_count{host="mockedhost.com",foo="bar"} 0\n',
-				'testhistogram_sum{host="mockedhost.com",foo="bar"} 0.0'
+				'# TYPE testhistogram histogram',
 			])
 		)
 
@@ -71,9 +67,7 @@ class TestHistogram(MetricsTestCase):
 		self.assertEqual(
 			om_format,
 			''.join([
-				'# TYPE testhistogram histogram\n',
-				'testhistogram_count{host="mockedhost.com",foo="bar"} 0\n',
-				'testhistogram_sum{host="mockedhost.com",foo="bar"} 0.0'
+				'# TYPE testhistogram histogram',
 			])
 		)
 
@@ -160,11 +154,6 @@ class TestHistogram(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testhistogram,host=mockedhost.com,foo=bar,le=10.0 value2=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar,le=100.0 value2=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar,le=inf value2=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar sum=5.0 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar count=1i 123450000000\n',
 				'testhistogram,tag=yes,host=mockedhost.com,foo=bar,le=10.0 value1=1i 123450000000\n',
 				'testhistogram,tag=yes,host=mockedhost.com,foo=bar,le=100.0 value1=1i 123450000000\n',
 				'testhistogram,tag=yes,host=mockedhost.com,foo=bar,le=inf value1=1i 123450000000\n',
@@ -179,11 +168,6 @@ class TestHistogram(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE testhistogram histogram\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="10.0",name="value2"} 1\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="100.0",name="value2"} 1\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="inf",name="value2"} 1\n',
-				'testhistogram_count{host="mockedhost.com",foo="bar"} 1\n',
-				'testhistogram_sum{host="mockedhost.com",foo="bar"} 5.0\n',
 				'testhistogram{tag="yes",host="mockedhost.com",foo="bar",le="10.0",name="value1"} 1\n',
 				'testhistogram{tag="yes",host="mockedhost.com",foo="bar",le="100.0",name="value1"} 1\n',
 				'testhistogram{tag="yes",host="mockedhost.com",foo="bar",le="inf",name="value1"} 1\n',
@@ -198,6 +182,7 @@ class TestHistogram(MetricsTestCase):
 		Non-resetable histogram
 		with dynamic tags
 		"""
+		self.maxDiff = None
 		my_histogram = self.MetricsService.create_histogram(
 			"testhistogram",
 			[1, 10, 100],
@@ -208,17 +193,14 @@ class TestHistogram(MetricsTestCase):
 
 		my_histogram.set('value1', 5, {"tag": "yes"})
 		self.MetricsService._flush_metrics()
+		my_histogram.set('value2', 5, {})
+		my_histogram.set('value2', 50, {})
 
 		# Test Influx format output after flush
 		influx_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testhistogram,host=mockedhost.com,foo=bar,le=10.0 value2=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar,le=100.0 value2=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar,le=inf value2=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar sum=5.0 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar count=1i 123450000000\n',
 				'testhistogram,tag=yes,host=mockedhost.com,foo=bar,le=10.0 value1=1i 123450000000\n',
 				'testhistogram,tag=yes,host=mockedhost.com,foo=bar,le=100.0 value1=1i 123450000000\n',
 				'testhistogram,tag=yes,host=mockedhost.com,foo=bar,le=inf value1=1i 123450000000\n',

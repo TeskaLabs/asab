@@ -237,8 +237,6 @@ class TestCounter(MetricsTestCase):
 			reset=False,
 		)
 
-
-
 		my_counter.add('value1', 2)
 		self.MetricsService._flush_metrics()
 		my_counter.sub('value1', 1)

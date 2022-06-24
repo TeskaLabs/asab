@@ -13,9 +13,9 @@ import re
 
 def metric_to_openmetric(m):
 	metric_lines = []
-	if m.get("type") == "Histogram":
+	if m.get("type") in ["Histogram", "HistogramWithDynamicTags"]:
 		metric_type = "histogram"
-	elif m.get("type") in ["Counter", "CounterWithDynamicTags"] and m.get("reset") is False:
+	elif m.get("type") in ["Counter", "CounterWithDynamicTags", "AggregationCounterWithDynamicTags"] and m.get("reset") is False:
 		metric_type = "counter"
 	else:
 		metric_type = "gauge"
@@ -35,6 +35,11 @@ def metric_to_openmetric(m):
 				values = field.get("actuals")
 			else:
 				values = field.get("values")
+
+			# SKIP empty fields
+			if all([bucket == {} for bucket in values.get("buckets").values()]):
+				continue
+
 			for upperbound, bucket in values.get("buckets").items():
 				if bucket == {}:
 					continue

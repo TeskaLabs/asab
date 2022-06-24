@@ -118,7 +118,7 @@ class EPSCounter(Counter):
 		for field in self.Storage['fieldset']:
 			field['values'] = {
 				k: v / delta
-				for k, v in field['actuals'].items()
+				for k, v in self._actuals.items()
 			}
 
 			if reset is True:
@@ -280,7 +280,7 @@ class Histogram(Metric):
 			"actuals": copy.deepcopy(self.Init),
 		}
 		self.Storage['fieldset'].append(field)
-		self._actuals = field['values']
+		self._actuals = field['actuals']
 		return field
 
 	def flush(self, now):
@@ -288,7 +288,7 @@ class Histogram(Metric):
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
 				field['actuals'] = copy.deepcopy(self.Init)
-				self._actuals = field['values']
+				self._actuals = field['actuals']
 		else:
 			for field in self.Storage['fieldset']:
 				field['values'] = copy.deepcopy(field['actuals'])
