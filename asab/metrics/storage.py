@@ -1,3 +1,12 @@
+import logging
+
+#
+
+L = logging.getLogger(__name__)
+
+#
+
+
 class Storage(object):
 
 	def __init__(self):
@@ -5,16 +14,20 @@ class Storage(object):
 
 
 	def add(self, metric_name: str, tags: dict, reset: bool, help: str, unit: str):
-		'''
-		IMPORTANT: Add all metrics during init time, avoid adding metrics in runtime.
-		'''
 
-		for m in self.Metrics:
-			if metric_name != m['name']:
+		for i in range(len(self.Metrics) - 1, -1, -1):
+			metric = self.Metrics[i]
+			if metric_name != metric['name']:
 				continue
-			if tags != m["static_tags"]:
+			if tags != metric["static_tags"]:
 				continue
-			raise RuntimeError("Metric '{}/{}' already exists in the storage".format(metric_name, tags))
+
+			# There is existing storage for a metrics and we are going to overwrite it.
+			# It means that the existing metrics will diapear from output and will be replaced by a new one.
+			# It is designed to support e.g. dynamic prebuilds of the classes with the same metrics.
+			# In other cases, this path should be avoided by e.g. creation of metrics in init time, not during runtime
+			L.debug("The metrics storage '{}/{}' is overriden".format(metric_name, tags))
+			del self.Metrics[i]
 
 		metric = dict()
 		metric['type'] = None  # Will be filled a bit later

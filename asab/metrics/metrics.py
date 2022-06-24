@@ -15,9 +15,9 @@ class Metric(abc.ABC):
 		self.Expiration = float(Config.get("asab:metrics", "expiration"))
 
 	def _initialize_storage(self, storage: dict):
-		storage.update({
-			'type': self.__class__.__name__,
-		})
+		assert storage['type'] is None
+		storage['type'] = self.__class__.__name__
+
 		self.Storage = storage
 		self.add_field(self.StaticTags)
 
@@ -389,6 +389,7 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 
 	def flush(self, now):
 		# Filter expired fields
+		# TODO: Refactor this into for-based scan from the end
 		self.Storage["fieldset"] = [
 			field for field in self.Storage["fieldset"]
 			if field["expires_at"] >= now
@@ -469,7 +470,13 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 		return field
 
 	def flush(self, now):
-		self.Storage["fieldset"] = [field for field in self.Storage["fieldset"] if field["expires_at"] >= self.App.time()]
+		# Filter expired fields
+		# TODO: Refactor this into for-based scan from the end
+		self.Storage["fieldset"] = [
+			field for field in self.Storage["fieldset"]
+			if field["expires_at"] >= now
+		]
+
 		if self.Storage.get("reset") is True:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
