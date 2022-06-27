@@ -51,14 +51,14 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		node_path = "{}/{}".format(self.BasePath, path)
 		node_data = await self.Zookeeper.get_data(node_path)
 
-		return node_data
+		return node_data.decode('utf-8')
 
 	async def list(self, path, tenant, recursive=True):
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			return
 		node_names = list()
-		node_path = self.get_zookeeper_path(path2=path)
+		node_path = self.create_zookeeper_path(path2=path)
 		return await self._list_by_node_path(node_path, node_names, tenant, recursive=recursive)
 
 	async def _list_by_node_path(self, node_path, node_names, tenant, recursive=True):
@@ -72,9 +72,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		for node in nodes:
 			try:
-				nested_node_path = self.get_zookeeper_path(path1=node_path, path2=node)
+				nested_node_path = self.create_zookeeper_path(path1=node_path, path2=node)
 				if recursive:
 					await self._list_by_node_path(nested_node_path, node_names, recursive)
+
 					# add only disables yaml file names to list and return.
 					if self.is_path_disabled(nested_node_path, tenant) is True:
 						node_names.append(nested_node_path)
@@ -87,14 +88,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				L.warning("Exception occurred during ZooKeeper load: '{}'".format(e))
 
 	def is_path_disabled(self, path, tenant):
+		# obtain every path is DisabledPaths
 		get_disabled_tenant_list = self.DisabledPaths.get(path, [])
+		# return True if it is present
 		if path in self.DisabledPaths:
 			if tenant in get_disabled_tenant_list or '*' in get_disabled_tenant_list:
 				return True
 			else:
 				return False
 
-	def get_zookeeper_path(self, path2, path1=None):
+	def create_zookeeper_path(self, path2, path1=None):
 		# if path1 is not provided we assume path1 is self.Library
 		if path1 is None:
 			path = os.path.join(self.BasePath, path2)
