@@ -21,10 +21,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.Path = path
 		url_pieces = urllib.parse.urlparse(self.Path)
 		self.BasePath = url_pieces.path
-		if self.BasePath.endswith("/"):
-			self.BasePath = self.BasePath[:-1]
+		# remove leading and trailing slashes.
 		if self.BasePath.startswith("/"):
 			self.BasePath = self.BasePath.lstrip("/")
+		if self.BasePath.endswith("/"):
+			self.BasePath = self.BasePath.rstrip("/")
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		# Initialize ZooKeeper client
 		self.ZookeeperContainer = asab.zookeeper.ZooKeeperContainer(
@@ -58,12 +59,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			return
-
 		node_names = list()
-		node_path = os.path.join(self.BasePath, path)
-		# normalize the path
-		node_path = os.path.normpath(node_path)
-
+		node_path = self.get_zookeeper_path(path2=path)
 		await self._list_by_node_path(node_path, node_names, tenant, recursive=recursive)
 		return node_names
 
@@ -77,15 +74,31 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return None
 		for node in nodes:
 			try:
-				nested_node_path = os.path.join(node_path, node)
+				nested_node_path = self.get_zookeeper_path(path1=node_path, path2=node)
 				if recursive:
 					await self._list_by_node_path(nested_node_path, node_names, recursive)
-				# Remove library path from the beginning of node names
-				get_disabled_tenant_list = self.DisabledPaths.get(nested_node_path, [])
-				if nested_node_path in self.DisabledPaths:
-					if tenant in get_disabled_tenant_list or '*' in get_disabled_tenant_list:
+					if self.is_path_disabled(nested_node_path, tenant) is True:
 						node_names.append(nested_node_path)
-				else:
-					continue
+					else:
+						continue
 			except Exception as e:
 				L.warning("Exception occurred during ZooKeeper load: '{}'".format(e))
+
+	def is_path_disabled(self, path, tenant):
+		get_disabled_tenant_list = self.DisabledPaths.get(path, [])
+		if path in self.DisabledPaths:
+			if tenant in get_disabled_tenant_list or '*' in get_disabled_tenant_list:
+				return True
+			else:
+				return False
+
+	def get_zookeeper_path(self, path2, path1=None):
+		# if path1 is not provided we assume path1 is self.Library
+		if path1 is None:
+			path = os.path.join(self.BasePath, path2)
+		else:
+			path = os.path.join(path1, path2)
+		# remove redundant separators
+		zookeeper_path = os.path.normpath(path)
+		# get rid of first slash
+		return zookeeper_path.lstrip("/")
