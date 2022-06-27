@@ -11,11 +11,13 @@ asab.Config.add_defaults(
 			"listen": "0.0.0.0 8089",
 		},
 		"asab:metrics": {
-			"targetx": "influxdb"
+			"target": "influxdb"
 		},
 		"asab:metrics:influxdb": {
 			"url": "http://localhost:8086/",
-			"db": "mydb"
+			"db": "test",
+			"username": "test",
+			"password": "testtest",
 		}
 	}
 )

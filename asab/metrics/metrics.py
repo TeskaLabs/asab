@@ -132,6 +132,7 @@ class EPSCounter(Counter):
 					field['actuals'] = self.Init.copy()
 				else:
 					field['actuals'] = dict()
+				self._actuals = field["actuals"]
 
 				self.LastTime = now
 
