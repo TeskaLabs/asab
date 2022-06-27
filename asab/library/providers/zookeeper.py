@@ -3,18 +3,17 @@ import os.path
 import urllib.parse
 import asab.zookeeper
 
-
 from .abc import LibraryProviderABC
 
 #
 
 L = logging.getLogger(__name__)
 
+
 #
 
 
 class ZooKeeperLibraryProvider(LibraryProviderABC):
-
 
 	def __init__(self, app, path):
 		super().__init__(app, path)
@@ -24,6 +23,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.BasePath = url_pieces.path
 		if self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
+		if self.BasePath.startswith("/"):
+			self.BasePath = self.BasePath.lstrip("/")
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		# Initialize ZooKeeper client
 		self.ZookeeperContainer = asab.zookeeper.ZooKeeperContainer(
@@ -32,7 +33,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			z_path=self.Path
 		)
 		self.Zookeeper = None
-		self.DisabledPaths =  None
+		self.DisabledPaths = None
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
 		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 
@@ -53,8 +54,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		return node_data
 
-
-	async def list(self, path, recursive=True):
+	async def list(self, path, tenant, recursive=True):
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			return
@@ -64,11 +64,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		# normalize the path
 		node_path = os.path.normpath(node_path)
 
-		await self._list_by_node_path(node_path, node_names, recursive=recursive)
+		await self._list_by_node_path(node_path, node_names, tenant, recursive=recursive)
 		return node_names
 
-
-	async def _list_by_node_path(self, node_path, node_names, recursive=True):
+	async def _list_by_node_path(self, node_path, node_names, tenant, recursive=True):
 		"""
 		Recursive function to list all nested nodes within the ZooKeeper library.
 		"""
@@ -78,12 +77,15 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return None
 		for node in nodes:
 			try:
-				nested_node_path = "{}/{}".format(node_path, node)
+				nested_node_path = os.path.join(node_path, node)
 				if recursive:
 					await self._list_by_node_path(nested_node_path, node_names, recursive)
 				# Remove library path from the beginning of node names
-				node_names.append(
-					nested_node_path.replace("{}/".format(self.BasePath), "")
-				)
+				get_disabled_tenant_list = self.DisabledPaths.get(nested_node_path, [])
+				if nested_node_path in self.DisabledPaths:
+					if tenant in get_disabled_tenant_list or '*' in get_disabled_tenant_list:
+						node_names.append(nested_node_path)
+				else:
+					continue
 			except Exception as e:
 				L.warning("Exception occurred during ZooKeeper load: '{}'".format(e))
