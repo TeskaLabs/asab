@@ -13,7 +13,7 @@ class LibraryProviderABC(object):
 		pass
 
 
-	async def list(self, path):
+	async def list(self, path, tenant):
 		"""
 		Lists declarations on the given path.
 		"""
