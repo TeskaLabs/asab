@@ -67,7 +67,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			return
 		node_names = list()
-		node_path = self.create_zookeeper_path(path1=path, path2=None)
+		node_path = self.create_zookeeper_path(path1=path)
 		return await self._list_by_node_path(node_path, node_names, tenant, recursive=recursive)
 
 	async def _list_by_node_path(self, node_path, node_names, tenant, recursive=True):
@@ -105,7 +105,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			else:
 				return False
 
-	def create_zookeeper_path(self, path2, path1=None):
+	def create_zookeeper_path(self, path1, path2=None):
 		# if path1 is not provided we assume path1 is self.Library
 		if path2 is None:
 			path = os.path.join(path1, self.BasePath )
