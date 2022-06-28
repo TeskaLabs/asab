@@ -1,265 +1,152 @@
 import configparser
 import logging
 import asyncio
-import os
 
-import asab
-
-from .metrics import Metric, Counter, EPSCounter, Gauge, DutyCycle, AggregationCounter, Histogram
-from .memstor import MetricsMemstorTarget
+from ..config import Config
+from ..abc import Service
+from .metrics import (
+	Metric, Counter, EPSCounter, Gauge, DutyCycle, AggregationCounter, Histogram,
+	CounterWithDynamicTags, AggregationCounterWithDynamicTags, HistogramWithDynamicTags
+)
+from .storage import Storage
 
 
 #
 
-L = logging.getLogger('asab.metrics')
+L = logging.getLogger(__name__)
 
 #
 
 
-def metric_dimension(metric_name, tags):
-	dim = metric_name
-	if tags is not None:
-		for k in sorted(tags.keys()):
-			dim += ',{}={}'.format(k, tags[k])
-	return dim
-
-
-class MetricsService(asab.Service):
+class MetricsService(Service):
 
 	def __init__(self, app, service_name):
+
 		super().__init__(app, service_name)
 
-		self.Metrics = {}  # A key is dimension (combination of metric name and tags)
+		self.Metrics = []
 		self.Targets = []
 		self.Tags = {
 			"host": app.HostName,
 		}
-
-		self.PrometheusTarget = None
+		self.Storage = Storage()
 
 		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
 
-		for target in asab.Config.get('asab:metrics', 'target').strip().split():
-			try:
-				target_type = asab.Config.get('asab:metrics:{}'.format(target), 'type')
-			except configparser.NoOptionError:
-				# This allows to specify the type of the target by its name
-				target_type = target
+		if Config.has_option('asab:metrics', 'target'):
+			for target in Config.get('asab:metrics', 'target').split():
+				target = target.strip()
+				try:
+					target_type = Config.get('asab:metrics:{}'.format(target), 'type')
+				except configparser.NoOptionError:
+					# This allows to specify the type of the target by its name
+					target_type = target
 
-			if target_type == 'influxdb':
-				from .influxdb import MetricsInfluxDB
-				target = MetricsInfluxDB(self, 'asab:metrics:{}'.format(target))
+				if target_type == 'influxdb':
+					from .influxdb import InfluxDBTarget
+					target = InfluxDBTarget(self, 'asab:metrics:{}'.format(target))
 
-			elif target_type == "prometheus":
-				from. prometheus import PrometheusTarget
-				target = PrometheusTarget(self, 'asab:metrics:prometheus')
-				self.PrometheusTarget = target
+				elif target_type == 'http':
+					from .http import HTTPTarget
+					target = HTTPTarget(self, 'asab:metrics:{}'.format(target))
 
-			else:
-				raise RuntimeError("Unknown target type {}".format(target_type))
+				else:
+					raise RuntimeError("Unknown target type {}".format(target_type))
 
-			self.Targets.append(target)
+				self.Targets.append(target)
 
-		# Memory storage target
-		self.MemstorTarget = MetricsMemstorTarget(self, 'asab:metrics:memory')
-		self.Targets.append(self.MemstorTarget)
-
-		# Create native metrics
-		self.ProcessId = os.getpid()
-
-		self.MemoryGauge = self.create_gauge(
-			"os.stat",
-			init_values=self._get_process_info(),
-		)
+		if Config.getboolean('asab:metrics', 'native_metrics'):
+			from .native import NativeMetrics
+			self._native_svc = NativeMetrics(self.App, self)
 
 
 	async def finalize(self, app):
 		await self._on_flushing_event("finalize!")
 
 
-	def add_target(self, target):
-		self.Targets.append(target)
+	def clear(self):
+		self.Metrics.clear()
+		self.Storage.clear()
 
+	def _flush_metrics(self):
+		now = self.App.time()
 
-	def _get_process_info(self):
-		memory_info = {}
+		self.App.PubSub.publish("Metrics.flush!")
+		for metric in self.Metrics:
+			try:
+				metric.flush(now)
+			except Exception:
+				L.exception("Exception during metric.flush()")
 
-		try:
-			with open("/proc/{}/status".format(self.ProcessId), "r") as file:
-				proc_status = file.read()
-
-				for proc_status_line in proc_status.replace('\t', '').split('\n'):
-
-					# Vm - virtual memory, other metrics need to be evaluated and added
-					if not proc_status_line.startswith("Vm"):
-						continue
-
-					proc_status_info = proc_status_line.split(' ')
-
-					try:
-						memory_info[proc_status_info[0][:-1]] = int(proc_status_info[-2]) * 1024
-
-					except ValueError:
-						continue
-
-		except FileNotFoundError:
-			L.info("File '/proc/{}/status' was not found, skipping process metrics.".format(self.ProcessId))
-
-		return memory_info
-
+		return now
 
 	async def _on_flushing_event(self, event_type):
 		if len(self.Metrics) == 0:
 			return
-		now = self.App.time()
 
-		# Update native metrics
-		for key, value in self._get_process_info().items():
-			self.MemoryGauge.set(key, value)
+		now = self._flush_metrics()
 
-		mlist = []
-
-		for metric in self.Metrics.values():
-			struct_data = {
-				'name': metric.Name,
-				'timestamp': now,
-			}
-
-			values = metric.flush()
-
-			# Skip empty values
-			if len(values) == 0:
-				continue
-
-			for fk, fv in values.items():
-				struct_data['field.{}'.format(fk)] = fv
-
-			tags = metric.Tags
-			if tags is not None:
-				for tk, tv in tags.items():
-					struct_data['tag.{}'.format(tk)] = tv
-
-			# Log metrics into the logger
-			# To enable seing this in normal ASAB mode, use following configuration:
-			#
-			# [logging]
-			# levels=
-			#   asab.metrics INFO
-			L.info("", struct_data=struct_data)
-
-			mlist.append((metric, values))
-
-			self.App.PubSub.publish(
-				"Application.Metrics.Flush!",
-				metric, values,
-				asynchronously=False
+		pending = set()
+		for target in self.Targets:
+			pending.add(
+				target.process(self.Storage.Metrics, now)
 			)
 
-		fs = []
-		for target in self.Targets:
-			fs.append(target.process(now, mlist))
-		if len(fs) > 0:
-			done, pending = await asyncio.wait(fs, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
-
-			for f in pending:
-				L.warning("Target task {} failed to complete".format(f))
-				f.cancel()
+		while len(pending) > 0:
+			done, pending = await asyncio.wait(pending, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
 
 
-	def _add_metric(self, dimension, metric: Metric):
-		dimension = metric_dimension(metric.Name, metric.Tags)
-		self.Metrics[dimension] = metric
+	def _add_metric(self, metric: Metric, metric_name: str, tags=None, reset=None, help=None, unit=None):
+		# Add global tags
+		metric.StaticTags.update(self.Tags)
+		metric.App = self.App
 
-
-	def create_gauge(self, metric_name, tags=None, init_values=None):
-		dimension = metric_dimension(metric_name, tags)
-		if dimension in self.Metrics:
-			raise RuntimeError("Metric '{}' already present".format(dimension))
-
+		# Add local static tags
 		if tags is not None:
-			t = self.Tags.copy()
-			t.update(tags)
-		else:
-			t = self.Tags
+			metric.StaticTags.update(tags)
 
-		m = Gauge(metric_name, tags=t, init_values=init_values)
-		self._add_metric(dimension, m)
+
+		metric._initialize_storage(
+			self.Storage.add(metric_name, tags=metric.StaticTags.copy(), reset=reset, help=help, unit=unit)
+		)
+
+		self.Metrics.append(metric)
+
+	def create_gauge(self, metric_name, tags=None, init_values=None, help=None, unit=None):
+		m = Gauge(init_values=init_values)
+		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 
-
-	def create_counter(self, metric_name, tags=None, init_values=None, reset: bool = True):
-		dimension = metric_dimension(metric_name, tags)
-		if dimension in self.Metrics:
-			raise RuntimeError("Metric '{}' already present".format(dimension))
-
-		if tags is not None:
-			t = self.Tags.copy()
-			t.update(tags)
+	def create_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, help=None, unit=None, dynamic_tags=False):
+		if dynamic_tags:
+			m = CounterWithDynamicTags(init_values=init_values)
 		else:
-			t = self.Tags
-
-		m = Counter(metric_name, tags=t, init_values=init_values, reset=reset)
-		self._add_metric(dimension, m)
+			m = Counter(init_values=init_values)
+		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
 
-
-	def create_eps_counter(self, metric_name, tags=None, init_values=None, reset: bool = True):
-		dimension = metric_dimension(metric_name, tags)
-		if dimension in self.Metrics:
-			raise RuntimeError("Metric '{}' already present".format(dimension))
-
-		if tags is not None:
-			t = self.Tags.copy()
-			t.update(tags)
-		else:
-			t = self.Tags
-
-		m = EPSCounter(metric_name, tags=t, init_values=init_values, reset=reset)
-		self._add_metric(dimension, m)
+	def create_eps_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, help=None, unit=None):
+		m = EPSCounter(init_values=init_values)
+		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
 
-
-	def create_duty_cycle(self, loop, metric_name, tags=None, init_values=None):
-		dimension = metric_dimension(metric_name, tags)
-		if dimension in self.Metrics:
-			raise RuntimeError("Metric '{}' already present".format(dimension))
-
-		if tags is not None:
-			t = self.Tags.copy()
-			t.update(tags)
-		else:
-			t = self.Tags
-
-		m = DutyCycle(loop, metric_name, tags=t, init_values=init_values)
-		self._add_metric(dimension, m)
+	def create_duty_cycle(self, loop, metric_name, tags=None, init_values=None, help=None, unit=None):
+		m = DutyCycle(loop, init_values=init_values)
+		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 
-	def create_agg_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, agg=max):
-		dimension = metric_dimension(metric_name, tags)
-		if dimension in self.Metrics:
-			raise RuntimeError("Metric '{}' already present".format(dimension))
-
-		if tags is not None:
-			t = self.Tags.copy()
-			t.update(tags)
+	def create_aggregation_counter(self, metric_name, tags=None, init_values=None, reset: bool = True, aggregator=max, help=None, unit=None, dynamic_tags=False):
+		if dynamic_tags:
+			m = AggregationCounterWithDynamicTags(init_values=init_values, aggregator=aggregator)
 		else:
-			t = self.Tags
-
-		m = AggregationCounter(metric_name, tags=t, init_values=init_values, reset=reset, agg=agg)
-		self._add_metric(dimension, m)
+			m = AggregationCounter(init_values=init_values, aggregator=aggregator)
+		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
 
-	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True):
-		dimension = metric_dimension(metric_name, tags)
-		if dimension in self.Metrics:
-			raise RuntimeError("Metric '{}' already present".format(dimension))
-
-		if tags is not None:
-			t = self.Tags.copy()
-			t.update(tags)
+	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True, help=None, unit=None, dynamic_tags=False):
+		if dynamic_tags:
+			m = HistogramWithDynamicTags(buckets=buckets)
 		else:
-			t = self.Tags
-
-		m = Histogram(metric_name, buckets=buckets, tags=t, reset=reset)
-		self._add_metric(dimension, m)
+			m = Histogram(buckets=buckets)
+		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
