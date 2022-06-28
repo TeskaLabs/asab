@@ -67,7 +67,8 @@ class MetricWebHandler(object):
 		"""
 
 		filter = request.query.get("name")
-		text = watch_table(self.MetricsService.Metrics, filter)
+		tags = request.query.get("tags")
+		text = watch_table(self.MetricsService.Storage.Metrics, filter, tags)
 
 		return aiohttp.web.Response(
 			text=text,
@@ -76,80 +77,100 @@ class MetricWebHandler(object):
 		)
 
 
-def watch_table(metric_records: list(), filter):
+def watch_table(metric_records: list(), filter, tags):
 	lines = []
-	m_name_len = max([len(i.get("Name")) for i in metric_records])
+	m_name_len = max([len(i["name"]) for i in metric_records])
 	v_name_len = max(
 		[
 			len(str(value_name))
 			for i in metric_records
-			if i.get("Values") is not None
-			for value_name in i.get("Values")
+			if i["fieldset"][0].get("values") is not None
+			for value_name in i["fieldset"][0].get("values").keys()
 		]
 	) + 10
 
-	separator = "-" * (m_name_len + v_name_len + 30 + 2)
+	t_name_len = max([len(str(field["tags"])) for i in metric_records for field in i["fieldset"]])
+
+	if tags:
+		separator = "-" * (m_name_len + v_name_len + t_name_len + 30 + 2)
+	else:
+		separator = "-" * (m_name_len + v_name_len + 30 + 2)
+
 	lines.append(separator)
-	lines.append(
-		"{:<{m_name_len}} | {:<{v_name_len}} | {:<30}".format(
-			"Metric name",
-			"Value name",
-			"Value",
-			v_name_len=v_name_len,
-			m_name_len=m_name_len,
-		)
-	)
+	lines.append(build_line("Metric name", "Value name", "Value", m_name_len, v_name_len, tags, t_string="Tags", t_name_len=t_name_len))
 	lines.append(separator)
 
 	for metric_record in metric_records:
-		if metric_record.get("Values") is None:
-			continue
-		name = metric_record.get("Name")
-		if filter is not None and not name.startswith(filter):
-			continue
-		if metric_record.get("Type") == "Histogram":
-			for upperboud, values in metric_record.get("Values").get("Buckets").items():
-				for v_name, value in values.items():
-					lines.append(
-						"{:<{m_name_len}} | {:<{v_name_len}} | {:<7} | {:<30}".format(
-							str(name),
-							str(v_name),
-							str(upperboud),
-							str(value),
-							v_name_len=v_name_len - 10,
-							m_name_len=m_name_len,
-						)
-					)
-			lines.append(
-				"{:<{m_name_len}} | {:<{v_name_len}} | {:<30}".format(
-					str(name),
-					"Sum",
-					metric_record.get("Values").get("Sum"),
-					v_name_len=v_name_len,
-					m_name_len=m_name_len,
-				)
-			)
-			lines.append(
-				"{:<{m_name_len}} | {:<{v_name_len}} | {:<30}".format(
-					str(name),
-					"Count",
-					metric_record.get("Values").get("Count"),
-					v_name_len=v_name_len,
-					m_name_len=m_name_len,
-				)
-			)
+		for field in metric_record["fieldset"]:
+			if field.get("values") is None:
+				continue
+			name = metric_record.get("name")
+			if filter is not None and not name.startswith(filter):
+				continue
+			if metric_record.get("type") in ["Histogram", "HistogramWithDynamicTags"]:
+				for upperboud, values in field.get("values").get("buckets").items():
+					for v_name, value in values.items():
+						lines.append(build_line(str(name), str(v_name), str(value), m_name_len, v_name_len, tags, str(upperboud), t_string=str(field["tags"]), t_name_len=t_name_len))
 
-		else:
-			for key, value in metric_record.get("Values").items():
-				lines.append(
-					"{:<{m_name_len}} | {:<{v_name_len}} | {:<30}".format(
-						str(name),
-						str(key),
-						str(value),
-						v_name_len=v_name_len,
-						m_name_len=m_name_len,
-					)
-				)
+				lines.append(build_line(str(name), "Sum", field.get("values").get("sum"), m_name_len, v_name_len, tags, t_string=str(field["tags"]), t_name_len=t_name_len))
+				lines.append(build_line(str(name), "Count", field.get("values").get("count"), m_name_len, v_name_len, tags, t_string=str(field["tags"]), t_name_len=t_name_len))
+
+			else:
+				for key, value in field.get("values").items():
+					lines.append(build_line(str(name), str(key), str(value), m_name_len, v_name_len, tags, t_string=str(field["tags"]), t_name_len=t_name_len))
 
 	text = "\n".join(lines)
 	return text
+
+
+def build_line(name, value_name, value, m_name_len, v_name_len, tags, upperbound=None, t_string=None, t_name_len=None):
+	if upperbound is not None:
+		if tags:
+			line = (
+				"{:<{m_name_len}} | {:<{t_name_len}} | {:<{v_name_len}} | {:<7} | {:<30}".format(
+					name,
+					t_string,
+					value_name,
+					upperbound,
+					value,
+					v_name_len=v_name_len - 10,
+					m_name_len=m_name_len,
+					t_name_len=t_name_len,
+				)
+			)
+		else:
+			line = (
+				"{:<{m_name_len}} | {:<{v_name_len}} | {:<7} | {:<30}".format(
+					name,
+					value_name,
+					upperbound,
+					value,
+					v_name_len=v_name_len - 10,
+					m_name_len=m_name_len,
+				)
+			)
+	else:
+		if tags:
+			line = (
+				"{:<{m_name_len}} | {:<{t_name_len}} | {:<{v_name_len}} | {:<30}".format(
+					name,
+					t_string,
+					value_name,
+					value,
+					v_name_len=v_name_len,
+					m_name_len=m_name_len,
+					t_name_len=t_name_len,
+				)
+			)
+		else:
+			line = (
+				"{:<{m_name_len}} | {:<{v_name_len}} | {:<30}".format(
+					name,
+					value_name,
+					value,
+					v_name_len=v_name_len,
+					m_name_len=m_name_len,
+				)
+			)
+
+	return line
