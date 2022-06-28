@@ -37,7 +37,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
 		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 
-
 	async def _on_zk_ready(self, event_name, zkcontainer):
 		if zkcontainer == self.ZookeeperContainer:
 			self.DisabledPaths = await self._load_disabled()
@@ -68,7 +67,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			return
 		node_names = list()
-		node_path = "{}/{}".format(self.BasePath, path)
+		node_path = self.create_zookeeper_path(path1=path, path2=None)
 		return await self._list_by_node_path(node_path, node_names, tenant, recursive=recursive)
 
 	async def _list_by_node_path(self, node_path, node_names, tenant, recursive=True):
@@ -108,8 +107,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	def create_zookeeper_path(self, path2, path1=None):
 		# if path1 is not provided we assume path1 is self.Library
-		if path1 is None:
-			path = os.path.join(self.BasePath, path2)
+		if path2 is None:
+			path = os.path.join(path1, self.BasePath )
 		else:
 			path = os.path.join(path1, path2)
 		# remove redundant separators
