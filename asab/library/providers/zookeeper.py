@@ -34,7 +34,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		)
 		self.Zookeeper = None
 		self.DisabledPaths = None
-		print("started")
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
 		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 
@@ -69,7 +68,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			return
 		node_names = list()
-		node_path = self.create_zookeeper_path(path2=path)
+		node_path = "{}/{}".format(self.BasePath, path)
 		return await self._list_by_node_path(node_path, node_names, tenant, recursive=recursive)
 
 	async def _list_by_node_path(self, node_path, node_names, tenant, recursive=True):
@@ -86,14 +85,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				nested_node_path = self.create_zookeeper_path(path1=node_path, path2=node)
 				if recursive:
 					await self._list_by_node_path(nested_node_path, node_names, recursive)
-
 					# add only disables yaml file names to list and return.
+					nested_node_path = nested_node_path.replace("{}/".format(self.BasePath), "")
 					if self.is_path_disabled(nested_node_path, tenant) is True:
 						node_names.append(nested_node_path)
 						nodes = node_names
 					else:
 						continue
-				else:
 					return nodes
 			except Exception as e:
 				L.warning("Exception occurred during ZooKeeper load: '{}'".format(e))
