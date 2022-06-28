@@ -1,8 +1,8 @@
 import logging
 import asab
 
-from .service import LibraryService
 
+from ..abc.module import Module
 #
 
 L = logging.getLogger(__name__)
@@ -18,17 +18,14 @@ asab.Config.add_defaults(
 )
 
 
-class Module(asab.Module):
+class Module(Module):
 
 	def __init__(self, app):
 		super().__init__(app)
 		self.App = app
+		from .service import LibraryService
 		self.service = LibraryService(self.App, "asab.LibraryService")
 
-
-	async def initialize(self, app):
-		pass
-
-
-	async def finalize(self, app):
-		pass
+	__all__ = [
+		"Module",
+	]

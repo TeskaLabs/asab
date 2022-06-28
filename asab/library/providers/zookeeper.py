@@ -108,7 +108,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	def create_zookeeper_path(self, path1, path2=None):
 		# if path1 is not provided we assume path1 is self.Library
 		if path2 is None:
-			path = os.path.join(path1, self.BasePath )
+			path = os.path.join(path1, self.BasePath)
 		else:
 			path = os.path.join(path1, path2)
 		# remove redundant separators
