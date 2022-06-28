@@ -2,6 +2,7 @@ import logging
 import os.path
 import urllib.parse
 import asab.zookeeper
+import yaml
 
 from .abc import LibraryProviderABC
 
@@ -33,12 +34,22 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		)
 		self.Zookeeper = None
 		self.DisabledPaths = None
+		print("started")
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
 		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 
+
 	async def _on_zk_ready(self, event_name, zkcontainer):
 		if zkcontainer == self.ZookeeperContainer:
-			self.DisabledPaths = await self.read(".disabled.yaml")
+			self.DisabledPaths = await self._load_disabled()
+
+	async def _load_disabled(self):
+		try:
+			disabled_data = await self.read(".disabled.yaml")
+			return yaml.safe_load(disabled_data)
+		except Exception as e:
+			L.error("The following exception occurred while loading disabled list: '{}'.".format(e))
+			return None
 
 	async def finalize(self, app):
 		# close client
