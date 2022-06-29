@@ -84,8 +84,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				nested_node_path = self.create_zookeeper_path(path1=node_path, path2=node)
 				if recursive:
 					await self._list_by_node_path(nested_node_path, node_names, recursive)
-					# add only disabled yaml file names to list and return.
+					# get rid of /library/ at the beginning
 					nested_node_path = nested_node_path.replace("{}/".format(self.BasePath), "")
+					# add only disabled yaml file names to list and return.
 					if self.is_path_disabled(nested_node_path, tenant) is True:
 						node_names.append(nested_node_path)
 						nodes = node_names
@@ -98,7 +99,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	def is_path_disabled(self, path, tenant):
 		# obtain every path is DisabledPaths
 		get_disabled_tenant_list = self.DisabledPaths.get(path, [])
-		# return True if it is present
+		# return True if the current path is present  is the list of disabled paths.
 		if path in self.DisabledPaths:
 			if tenant in get_disabled_tenant_list or '*' in get_disabled_tenant_list:
 				return True
