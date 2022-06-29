@@ -123,7 +123,7 @@ class KazooWrapper(object):
 				self.Client.get, path
 			)
 		except kazoo.exceptions.NoNodeError:
-			L.warning("Getting the data failed.git")
+			L.warning("Getting the data from Zookeeper node '{}' failed".format(path))
 			return None
 		return data
 
