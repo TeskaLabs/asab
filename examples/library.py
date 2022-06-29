@@ -6,8 +6,8 @@ import asab.zookeeper
 asab.Config.add_defaults(
 	{
 		"library": {
-			# specify "servers": "..." here to provide addresses of Zookeeper servers
-			"providers": "zk://10.17.164.239:2181,10.17.164.183:2181,10.17.169.210:2181/library"
+			# Pass parameters  providers addresses of Zookeeper.
+			# "providers": "",
 		},
 	}
 )

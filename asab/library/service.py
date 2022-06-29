@@ -13,7 +13,7 @@ L = logging.getLogger(__name__)
 asab.Config.add_defaults(
 	{
 		'library': {
-			# 'path': ''
+			# 'providers'': ''
 		}
 	}
 )
