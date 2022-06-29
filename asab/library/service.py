@@ -10,6 +10,15 @@ L = logging.getLogger(__name__)
 #
 
 
+asab.Config.add_defaults(
+	{
+		'library': {
+			'path': 'zk://zookeeper-1:2181/library'
+		}
+	}
+)
+
+
 class LibraryService(asab.Service):
 
 	def __init__(self, app, service_name):
