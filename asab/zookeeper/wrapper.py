@@ -112,7 +112,7 @@ class KazooWrapper(object):
 				self.Client.get_children, path
 			)
 		except kazoo.exceptions.NoNodeError:
-			L.warning("Getting the list of children failed.")
+			L.warning("Failed to list children's. Reason: Node '{}' does not exist.".format(path))
 			return None
 		return children
 
@@ -123,7 +123,7 @@ class KazooWrapper(object):
 				self.Client.get, path
 			)
 		except kazoo.exceptions.NoNodeError:
-			L.warning("Getting the data failed. Reason: Node {} does not exist.".format(path))
+			L.warning("Failed to get the data. Reason: Node '{}' does not exist.".format(path))
 			return None
 		return data
 
@@ -134,7 +134,7 @@ class KazooWrapper(object):
 				self.Client.set, path, data
 			)
 		except kazoo.exceptions.NoNodeError:
-			L.warning("Setting the data failed.")
+			L.warning("Failed to write the data. Reason: Node '{}' does not exist.".format(path))
 			return None
 		return ret
 
@@ -144,7 +144,7 @@ class KazooWrapper(object):
 				self.Client.delete, path, version, recursive
 			)
 		except kazoo.exceptions.NoNodeError:
-			L.warning("Deleting the node failed.")
+			L.warning("Failed to delete node. Reason: Node '{}' does not exist.".format(path))
 			return None
 		return ret
 
