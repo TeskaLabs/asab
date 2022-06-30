@@ -4,7 +4,6 @@ import urllib
 import http.client
 
 import asab
-from .openmetric import validate_format
 
 #
 
@@ -143,7 +142,6 @@ InfluxDB <1.8 API parameters:
 
 
 def get_field(fk, fv):
-	fk = validate_format(fk)
 	if isinstance(fv, bool):
 		field = "{}={}".format(fk, 't' if fv else 'f')
 	elif isinstance(fv, int):
@@ -159,7 +157,7 @@ def get_field(fk, fv):
 
 
 def combine_tags_and_field(tags, values):
-	tags_string = ",".join(['{}={}'.format(validate_format(tk), tv.replace(" ", "_")) for tk, tv in tags.items()])
+	tags_string = ",".join(['{}={}'.format(tk, tv.replace(" ", "_")) for tk, tv in tags.items()])
 	field_set = ",".join([get_field(value_name, value) for value_name, value in values.items()])
 	return tags_string + " " + field_set
 
@@ -175,7 +173,7 @@ def metric_to_influxdb(metric_record, now):
 		timestamp = now
 	else:
 		timestamp = metric_record.get("@timestamp")
-	name = validate_format(metric_record.get("name"))
+	name = metric_record.get("name")
 	fieldset = metric_record.get("fieldset")
 	metric_type = metric_record.get("type")
 	values_lines = []
