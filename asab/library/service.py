@@ -1,8 +1,10 @@
 import logging
 import asab
+import configparser
 import re
 from .providers.filesystem import FileSystemLibraryProvider
 from .providers.zookeeper import ZooKeeperLibraryProvider
+
 #
 
 L = logging.getLogger(__name__)
@@ -23,6 +25,12 @@ class LibraryService(asab.Service):
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
+		try:
+			asab.Config.get("library", 'providers')
+		except configparser.NoOptionError:
+			L.critical("'providers' option is not present in configuration section 'library'.")
+			raise SystemExit("Exit due to a critical configuration error.")
+
 		paths = asab.Config["library"]["providers"]
 		self.Libraries = dict()
 		for path in re.split(r"\s+", paths):
@@ -36,8 +44,11 @@ class LibraryService(asab.Service):
 		elif path.startswith('./') or path.startswith('/') or path.startswith('file://'):
 			library_provider = FileSystemLibraryProvider(self.App, path)
 
-		self.Libraries[path] = library_provider
+		else:
+			L.error("Incorrect providers passed.")
+			raise SystemExit("Exit due to a critical configuration error.")
 
+		self.Libraries[path] = library_provider
 
 	async def read(self, path):
 		for library in self.Libraries.values():

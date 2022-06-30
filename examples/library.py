@@ -7,7 +7,8 @@ import asab.zookeeper
 asab.Config.add_defaults(
 	{
 		"library": {
-			# Pass parameters providers information of Zookeeper.
+			# Note:
+			# Pass parameters providers information of Zookeeper before running.
 			# "providers": "",
 		},
 	}
