@@ -63,7 +63,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		return node_data.decode('utf-8')
 
-	async def list(self, path, tenant=None, recursive=True):
+	async def list(self, path, tenant, recursive):
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			return
