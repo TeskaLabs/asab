@@ -1,5 +1,6 @@
 import logging
 import aiohttp
+import copy
 
 import asab
 
@@ -18,7 +19,7 @@ class HTTPTarget(asab.ConfigObject):
 
 
 	async def process(self, metrics, now):
-		metrics_to_send = metrics.copy()
+		metrics_to_send = copy.deepcopy(metrics)
 		for metrics in metrics_to_send:
 			if metrics.get("@timestamp") is None:
 				metrics["@timestamp"] = now
