@@ -2,11 +2,12 @@
 import asab
 import asab.library
 import asab.zookeeper
+
 # Specify a default configuration
 asab.Config.add_defaults(
 	{
 		"library": {
-			# Pass parameters  providers addresses of Zookeeper.
+			# Pass parameters providers information of Zookeeper.
 			# "providers": "",
 		},
 	}
@@ -14,7 +15,6 @@ asab.Config.add_defaults(
 
 
 class MyApplication(asab.Application):
-
 
 	def __init__(self):
 		super().__init__()
@@ -25,13 +25,12 @@ class MyApplication(asab.Application):
 
 	async def _on_zk_ready(self, event_name, zkcontainer):
 		libsvc = self.get_service("asab.LibraryService")
-		item = await libsvc.list("/", "default", recursive=True)
-		print("Disabled paths are are follows...")
-		print(item)
+		# tenant is None and recursive is set to True.
+		final_list = await libsvc.list("/", None, True)
+		print(final_list)
 
 	async def main(self):
 		self.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
-
 
 
 if __name__ == '__main__':
