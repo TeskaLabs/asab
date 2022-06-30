@@ -22,34 +22,6 @@ class APIWebHandler(object):
 		webapp.router.add_get("/asab/v1/changelog", self.changelog)
 		webapp.router.add_get("/asab/v1/manifest", self.manifest)
 
-		if "asab:metrics:prometheus" in Config.sections():
-			self.MetricsService = self.App.get_service("asab.MetricsService")
-			if self.MetricsService is None:
-				raise RuntimeError("asab.MetricsService is not available")
-			if self.MetricsService.PrometheusTarget is not None:
-				webapp.router.add_get("/asab/v1/metrics", self.metrics)
-				webapp.router.add_get("/asab/v1/metrics/watch", self.watch)
-
-
-	async def metrics(self, request):
-		text = self.MetricsService.PrometheusTarget.get_open_metric()
-
-		return aiohttp.web.Response(
-			text=text,
-			content_type="text/plain",
-			charset="utf-8",
-		)
-
-
-	async def watch(self, request):
-		text = self.MetricsService.PrometheusTarget.watch_table(request)
-
-		return aiohttp.web.Response(
-			text=text,
-			content_type="text/plain",
-			charset="utf-8",
-		)
-
 
 	async def changelog(self, request):
 		'''
