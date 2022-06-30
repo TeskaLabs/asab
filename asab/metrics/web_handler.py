@@ -1,4 +1,5 @@
 import aiohttp.web
+import copy
 
 from .openmetric import metric_to_openmetric
 from ..web.rest import json_response
@@ -22,11 +23,11 @@ class MetricWebHandler(object):
 		---
 		tags: ['asab.metrics']
 		'''
-		metrics_to_send = self.MetricsService.Storage.Metrics.copy()
+		metrics_to_send = copy.deepcopy(self.MetricsService.Storage.Metrics)
 		for metrics in metrics_to_send:
 			if metrics.get("@timestamp") is None:
 				metrics["@timestamp"] = self.App.time()
-		return json_response(request, self.MetricsService.Storage.Metrics)
+		return json_response(request, metrics_to_send)
 
 
 	async def metrics(self, request):
