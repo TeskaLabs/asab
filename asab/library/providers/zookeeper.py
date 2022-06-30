@@ -34,6 +34,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		)
 		self.Zookeeper = None
 		self.DisabledPaths = None
+		self.FileExtentions = frozenset({'.yaml'})
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
 		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 
@@ -62,13 +63,14 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		return node_data.decode('utf-8')
 
-	async def list(self, path, tenant, recursive=True):
+	async def list(self, path, tenant=None, recursive=True):
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			return
 		node_names = list()
 		node_path = self.create_zookeeper_path(path1=path)
-		return await self._list_by_node_path(node_path, node_names, tenant, recursive=recursive)
+		await self._list_by_node_path(node_path, node_names, tenant, recursive=recursive)
+		return node_names
 
 	async def _list_by_node_path(self, node_path, node_names, tenant, recursive=True):
 		"""
@@ -78,21 +80,26 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if nodes is None:
 			L.warning("Path {} does not exist in ZK".format(node_path))
 			return None
-
 		for node in nodes:
 			try:
 				nested_node_path = self.create_zookeeper_path(path1=node_path, path2=node)
 				if recursive:
-					await self._list_by_node_path(nested_node_path, node_names, recursive)
-					# get rid of /library/ at the beginning
-					nested_node_path = nested_node_path.replace("{}/".format(self.BasePath), "")
+					await self._list_by_node_path(nested_node_path, node_names, tenant, recursive)
+				nodename, node_extension = os.path.splitext(node)
+
+				# do not add nodes that starts-with '.' or they are not part of file-extent.ion to our list
+				if nodename.startswith(".") or node_extension not in self.FileExtentions:
+					continue
+
+				nested_node_path = nested_node_path.replace("{}/".format(self.BasePath), "")
+				# if tenant is None just add the path to the list.
+
+				if tenant is None:
+					node_names.append(nested_node_path)
+				else:
 					# add only disabled yaml file names to list and return.
 					if self.is_path_disabled(nested_node_path, tenant) is True:
 						node_names.append(nested_node_path)
-						nodes = node_names
-					else:
-						continue
-					return nodes
 			except Exception as e:
 				L.warning("Exception occurred during ZooKeeper load: '{}'".format(e))
 

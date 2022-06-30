@@ -45,7 +45,7 @@ class LibraryService(asab.Service):
 			if item is not None:
 				return item
 
-	async def list(self, path, tenant, recursive=True):
+	async def list(self, path, tenant=None, recursive=True):
 		for library in self.Libraries.values():
 			item = await library.list(path, tenant, recursive)
 			if item is not None:
