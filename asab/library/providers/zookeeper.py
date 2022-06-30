@@ -69,10 +69,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return
 		node_names = list()
 		node_path = self.create_zookeeper_path(path1=path)
-		await self._list_by_node_path(node_path, node_names, tenant, recursive=recursive)
+		await self._list_by_node_path(node_path, node_names, tenant, recursive)
 		return node_names
 
-	async def _list_by_node_path(self, node_path, node_names, tenant, recursive=True):
+	async def _list_by_node_path(self, node_path, node_names, tenant, recursive):
 		"""
 		Recursive function to list all nested nodes within the ZooKeeper library.
 		"""
@@ -93,9 +93,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 				nested_node_path = nested_node_path.replace("{}/".format(self.BasePath), "")
 				# if tenant is None just add the path to the list.
-
 				if tenant is None:
 					node_names.append(nested_node_path)
+
 				else:
 					# add only disabled yaml file names to list and return.
 					if self.is_path_disabled(nested_node_path, tenant) is True:
