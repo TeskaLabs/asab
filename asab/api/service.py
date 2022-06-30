@@ -6,9 +6,10 @@ import logging
 
 
 from .. import Service, Config
+from ..docker import running_in_docker
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
-from asab.docker import running_in_docker
+from .doc import DocWebHandler
 
 ##
 
@@ -128,6 +129,8 @@ class ApiService(Service):
 		self.Logging.addHandler(self.APILogHandler)
 
 		self.WebHandler = APIWebHandler(self, self.WebContainer.WebApp, self.APILogHandler)
+
+		self.DocWebHandler = DocWebHandler(self.App, self.WebContainer)
 
 		# If asab.MetricsService is available, initialize its web handler
 		metrics_svc = self.App.get_service("asab.MetricsService")

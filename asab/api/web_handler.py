@@ -24,6 +24,12 @@ class APIWebHandler(object):
 
 
 	async def changelog(self, request):
+		'''
+		Get a change log.
+		---
+		tags: ['asab.api']
+		'''
+
 		if self.ApiService.ChangeLog is None:
 			return aiohttp.web.HTTPNotFound()
 
@@ -34,6 +40,12 @@ class APIWebHandler(object):
 
 
 	async def manifest(self, request):
+		'''
+		Get a manifest.
+		---
+		tags: ['asab.api']
+		'''
+
 		if self.ApiService.Manifest is None:
 			return aiohttp.web.HTTPNotFound()
 
@@ -41,10 +53,22 @@ class APIWebHandler(object):
 
 
 	async def environ(self, request):
+		'''
+		Get environment variables.
+		---
+		tags: ['asab.api']
+		'''
+
 		return json_response(request, dict(os.environ))
 
 
 	async def config(self, request):
+		'''
+		Get a config.
+		---
+		tags: ['asab.api']
+		'''
+
 		# Copy the config and erase all passwords
 		result = {}
 		for section in Config.sections():
