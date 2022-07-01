@@ -66,10 +66,10 @@ class LibraryService(asab.Service):
 			The method returns list of yaml files that are disabled for tenant 'xxxxx'.
 
 			When recursive = TRUE
-			returns a list of yaml files present in zero or more directories and
+			returns a list of yaml files located in zero or more directories and
 			subdirectories.
 			When recursive = False
-			returns a list of yaml files present in /library.
+			returns a list of yaml files located in /library.
 		"""
 		for library in self.Libraries.values():
 			item = await library.list(path, tenant, recursive)
