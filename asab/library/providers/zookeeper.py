@@ -104,7 +104,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				L.warning("Exception occurred during ZooKeeper load: '{}'".format(e))
 
 	def is_path_disabled(self, path, tenant):
-		# obtain every path is DisabledPaths
+		"""
+			This method checks if the path is disabled for a specific tenant.
+			Returns True if yes or it returns False.
+		"""
 		get_disabled_tenant_list = self.DisabledPaths.get(path, [])
 		# return True if the current path is present  is the list of disabled paths.
 		if path in self.DisabledPaths:
@@ -114,8 +117,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				return False
 
 	def create_zookeeper_path(self, path1, path2=None):
-		# if path2 is not provided we assume path1 is self.Library
-		# make sure to pass absolute path as path1.
+		"""
+			This method created path that can be used by zookeeper for CRUD operations.
+			-if path2 is not provided we assume path1 is self.Library.
+			-path1 is always absolute.
+		"""
 		if path2 is None:
 			path = os.path.join(path1, self.BasePath)
 		else:
