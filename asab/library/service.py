@@ -57,6 +57,20 @@ class LibraryService(asab.Service):
 				return item
 
 	async def list(self, path, tenant=None, recursive=False):
+		""" Tenant is an optional parameter to list method for "disable" evaluation.
+			and default recursive is False.
+
+			When tenant=None
+			The method returns list of yaml files.
+			When tenant='xxxxx'
+			The method returns list of yaml files that are disabled for tenant 'xxxxx'.
+
+			When recursive = TRUE
+			returns a list of yaml files present in zero or more directories and
+			subdirectories.
+			When recursive = False
+			returns a list of yaml files present in /library.
+		"""
 		for library in self.Libraries.values():
 			item = await library.list(path, tenant, recursive)
 			if item is not None:
