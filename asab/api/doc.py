@@ -59,7 +59,15 @@ class DocWebHandler(object):
 				# Skip HEAD methods
 				continue
 
-			path = route.get_info()['path']
+			route_info = route.get_info()
+			if "path" in route_info:
+				path = route_info["path"]
+			elif "formatter" in route_info:
+				# TODO: Extract URL parameters from formatter string
+				path = route_info["formatter"]
+			else:
+				L.warning("Cannot obtain path info from route", struct_data=route_info)
+				continue
 			pathobj = self.SwaggerSpecs['paths'].get(path)
 			if pathobj is None:
 				self.SwaggerSpecs['paths'][path] = pathobj = {}
