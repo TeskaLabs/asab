@@ -65,10 +65,10 @@ class LibraryService(asab.Service):
 			When tenant='xxxxx'
 			The method returns list of yaml files that are disabled for tenant 'xxxxx'.
 
-			When recursive = TRUE
+			When recursive=True
 			returns a list of yaml files located in zero or more directories and
 			subdirectories.
-			When recursive = False
+			When recursive=False
 			returns a list of yaml files located in /library.
 		"""
 		for library in self.Libraries.values():
