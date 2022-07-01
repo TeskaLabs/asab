@@ -119,7 +119,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	def create_zookeeper_path(self, path1, path2=None):
 		"""
 			This method created path that can be used by zookeeper for CRUD operations.
-			-if path2 is not provided we assume path1 is self.Library.
+			-if path2 is not passed provided we assume path1 is self.Library.
 			-path1 is always absolute.
 		"""
 		if path2 is None:
