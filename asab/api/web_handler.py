@@ -24,11 +24,11 @@ class APIWebHandler(object):
 
 
 	async def changelog(self, request):
-		'''
-		Get a change log.
+		"""
+		It returns a change log file.
 		---
 		tags: ['asab.api']
-		'''
+		"""
 
 		if self.ApiService.ChangeLog is None:
 			return aiohttp.web.HTTPNotFound()
@@ -40,11 +40,25 @@ class APIWebHandler(object):
 
 
 	async def manifest(self, request):
-		'''
-		Get a manifest.
+		"""
+		It returns the manifest of the ASAB service.
+
+		THe manifest is a JSON object loaded from `MANIFEST.json` file.
+		The manifest contains the creation (build) time and the version of the ASAB service.
+		The `MANIFEST.json` is produced during the creation of docker image by `asab-manifest.py` script.
+
+		Example of `MANIFEST.json`:
+
+		```
+		{
+			'created_at': 2022-03-21T15:49:37.14000,
+			'version' :v22.9-4
+		}
+		```
+
 		---
 		tags: ['asab.api']
-		'''
+		"""
 
 		if self.ApiService.Manifest is None:
 			return aiohttp.web.HTTPNotFound()
@@ -53,21 +67,52 @@ class APIWebHandler(object):
 
 
 	async def environ(self, request):
-		'''
-		Get environment variables.
+		"""
+		It returns a JSON response containing the contents of the environment variables.
+		
+		Example:
+
+		```
+		{
+			"LANG": "en_GB.UTF-8",
+			"SHELL": "/bin/zsh",
+			"HOME": "/home/foobar",
+		}
+
+		```
+
 		---
 		tags: ['asab.api']
-		'''
-
+		"""
 		return json_response(request, dict(os.environ))
 
 
 	async def config(self, request):
-		'''
-		Get a config.
+		"""
+		It returns the JSON with the config of the ASAB service.
+		
+		IMPORTANT: All passwords are erased.
+
+		Example:
+		
+		```
+		{
+  			"general": {
+				"config_file": "",
+				"tick_period": "1",
+				"uid": "",
+				"gid": ""
+  			},
+  			"asab:metrics": {
+				"native_metrics": "true",
+				"expiration": "60"
+  			}
+		}
+		```
+
 		---
 		tags: ['asab.api']
-		'''
+		"""
 
 		# Copy the config and erase all passwords
 		result = {}

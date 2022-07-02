@@ -13,12 +13,16 @@ L = logging.getLogger(__name__)
 
 class DocWebHandler(object):
 
-	def __init__(self, app, web_container):
+	def __init__(self, app, # A web container, which is a web application.
+	web_container):
 		self.App = app
-		web_container.WebApp.router.add_get('/doc', self.doc)
-		web_container.WebApp.router.add_get('/asab/v1/openapi', self.openapi)
+		self.WebContainer = web_container
+		self.WebContainer.WebApp.router.add_get('/doc', self.doc)
+		self.WebContainer.WebApp.router.add_get('/asab/v1/openapi', self.openapi)
 
-		docstr = app.__doc__
+
+	def build_swagger_specs(self):
+		docstr = self.App.__doc__
 		adddict = None
 
 		if docstr is not None:
@@ -29,17 +33,17 @@ class DocWebHandler(object):
 				try:
 					adddict = yaml.load(docstr[i:], Loader=yaml.SafeLoader)
 				except yaml.YAMLError as e:
-						L.error("Failed to parse '{}' doc string {}".format(app.__class__.__name__, e))
+						L.error("Failed to parse '{}' doc string {}".format(self.App.__class__.__name__, e))
 			else:
 				description = docstr
 		else:
 			description = ""
 
 
-		self.SwaggerSpecs = {
+		specs = {
 			"openapi": "3.0.1",
 			"info": {
-				"title": "{}".format(app.__class__.__name__),
+				"title": "{}".format(self.App.__class__.__name__),
 				"description": description,
 				"contact": {
 					"name": "ASAB microservice",
@@ -52,9 +56,9 @@ class DocWebHandler(object):
 		}
 
 		if adddict is not None:
-			self.SwaggerSpecs.update(adddict)
+			specs.update(adddict)
 
-		for route in web_container.WebApp.router.routes():
+		for route in self.WebContainer.WebApp.router.routes():
 			if route.method == 'HEAD':
 				# Skip HEAD methods
 				continue
@@ -68,9 +72,9 @@ class DocWebHandler(object):
 			else:
 				L.warning("Cannot obtain path info from route", struct_data=route_info)
 				continue
-			pathobj = self.SwaggerSpecs['paths'].get(path)
+			pathobj = specs['paths'].get(path)
 			if pathobj is None:
-				self.SwaggerSpecs['paths'][path] = pathobj = {}
+				specs['paths'][path] = pathobj = {}
 
 			if inspect.ismethod(route.handler):
 				handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
@@ -109,6 +113,8 @@ class DocWebHandler(object):
 				methoddict.update(adddict)
 
 			pathobj[route.method.lower()] = methoddict
+
+		return specs
 
 	# This is the web request handler
 	async def doc(self, request):
@@ -164,4 +170,7 @@ window.onload = () => {{
 			url: https://swagger.io/specification/
 
 		'''
-		return aiohttp.web.Response(text=yaml.dump(self.SwaggerSpecs), content_type="text/yaml")
+		return aiohttp.web.Response(
+			text=yaml.dump(self.build_swagger_specs()),
+			content_type="text/yaml"
+		)
