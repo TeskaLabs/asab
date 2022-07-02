@@ -1,6 +1,9 @@
-import logging
-import asab
 import re
+import logging
+
+from ..abc import Service
+from ..config import Config
+
 from .providers.filesystem import FileSystemLibraryProvider
 from .providers.zookeeper import ZooKeeperLibraryProvider
 #
@@ -10,11 +13,11 @@ L = logging.getLogger(__name__)
 #
 
 
-class LibraryService(asab.Service):
+class LibraryService(Service):
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
-		paths = asab.Config["library"]["providers"]
+		paths = Config["library"]["providers"]
 		self.Libraries = dict()
 		for path in re.split(r"\s+", paths):
 			self._create_library(path)
@@ -41,6 +44,3 @@ class LibraryService(asab.Service):
 			item = await library.list(path, recursive)
 			if item is not None:
 				return item
-
-	async def finalize(self, app):
-		pass
