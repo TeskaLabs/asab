@@ -69,7 +69,7 @@ class APIWebHandler(object):
 	async def environ(self, request):
 		"""
 		It returns a JSON response containing the contents of the environment variables.
-		
+
 		Example:
 
 		```
@@ -90,23 +90,23 @@ class APIWebHandler(object):
 	async def config(self, request):
 		"""
 		It returns the JSON with the config of the ASAB service.
-		
+
 		IMPORTANT: All passwords are erased.
 
 		Example:
-		
+
 		```
 		{
-  			"general": {
+			"general": {
 				"config_file": "",
 				"tick_period": "1",
 				"uid": "",
 				"gid": ""
-  			},
-  			"asab:metrics": {
+			},
+			"asab:metrics": {
 				"native_metrics": "true",
 				"expiration": "60"
-  			}
+			}
 		}
 		```
 

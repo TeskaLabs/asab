@@ -13,8 +13,7 @@ L = logging.getLogger(__name__)
 
 class DocWebHandler(object):
 
-	def __init__(self, app, # A web container, which is a web application.
-	web_container):
+	def __init__(self, app, web_container):
 		self.App = app
 		self.WebContainer = web_container
 		self.WebContainer.WebApp.router.add_get('/doc', self.doc)
@@ -22,6 +21,11 @@ class DocWebHandler(object):
 
 
 	def build_swagger_specs(self):
+		"""
+		Takes a docstring of a class and a docstring of mmethods and merges them
+		into a Swagger specification.
+		"""
+
 		docstr = self.App.__doc__
 		adddict = None
 
@@ -162,7 +166,7 @@ window.onload = () => {{
 
 	async def openapi(self, request):
 		'''
-		Download OpenAPI (version 3) API documentation in YAML.
+		Download OpenAPI (version 3) API documentation (aka Swagger) in YAML.
 		---
 		tags: ['asab.doc']
 		externalDocs:
