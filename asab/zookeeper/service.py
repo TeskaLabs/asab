@@ -17,12 +17,14 @@ class ZooKeeperService(Service):
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
 		self.App = app
-		self.Containers = {}
+		self.Containers = []
 
 
 	async def finalize(self, app):
-		for containers in self.Containers.values():
-			await containers._stop(app)
+		# Remove containers from the list
+		while len(self.Containers) > 0:
+			container = self.Containers.pop()
+			await container._stop(app)
 
 
 	@property
@@ -43,15 +45,16 @@ class ZooKeeperService(Service):
 			else:
 				raise RuntimeError("No [zookeeper] section configured.")
 
-		container = self.Containers.get(config_section)
-		if container is None:
-			container = ZooKeeperContainer(self, config_section_name=config_section)
+		for container in self.Containers:
+			if container.ConfigSectionName == config_section:
+				return container
 
+		container = ZooKeeperContainer(self, config_section_name=config_section)
 		return container
 
 
 	def _register_container(self, container):
-		self.Containers[container.ConfigSectionName] = container
+		self.Containers.append(container)
 		container.ZooKeeper.ProactorService.schedule(container._start, self.App)
 
 
