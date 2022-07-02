@@ -1,6 +1,7 @@
 import logging
 
 from ..abc import Module
+from ..config import Config
 from .service import LibraryService
 
 #
@@ -9,7 +10,7 @@ L = logging.getLogger(__name__)
 
 #
 
-asab.Config.add_defaults(
+Config.add_defaults(
 	{
 		'library': {
 			'path': 'zk:///library'
