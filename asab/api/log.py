@@ -11,7 +11,6 @@ from ..log import LOG_NOTICE
 
 L = logging.getLogger(__name__)
 
-
 ##
 
 
@@ -86,16 +85,22 @@ class WebApiLoggingHandler(logging.Handler):
 
 
 	async def get_logs(self, request):
+		'''
+		Get logs.
+		---
+		tags: ['asab.log']
+		'''
+
 		return json_response(request, self.Buffer)
 
 
 	async def ws(self, request):
 		'''
-		Websocket connection
+		# Live feed of logs over websocket
 
 		Usable with e.g. with React Lazylog
-		https://github.com/mozilla-frontend-infra/react-lazylog#readme
 
+		```
 		<LazyLog
 			url={this.AsabLogWsURL}
 			follow
@@ -114,7 +119,13 @@ class WebApiLoggingHandler(logging.Handler):
 			if (e.C != undefined) msg += ` [${e.C}]`
 			return msg;
 		}
+		```
 
+		---
+		tags: ['asab.log']
+		externalDocs:
+			description: React Lazylog
+			url: https://github.com/mozilla-frontend-infra/react-lazylog#readme
 		'''
 
 		ws = aiohttp.web.WebSocketResponse()

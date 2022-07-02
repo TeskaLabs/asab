@@ -3,23 +3,12 @@ import asab
 
 from .service import MetricsService
 from .metrics import Metric, Gauge, Counter, EPSCounter, DutyCycle, AggregationCounter
-from .influxdb import MetricsInfluxDB
-from .memstor import MetricsMemstorTarget
-from .prometheus import PrometheusTarget
 
 #
 
 L = logging.getLogger(__name__)
 
 #
-
-asab.Config.add_defaults(
-	{
-		'asab:metrics': {
-			'target': '',  # Can be multiline
-		}
-	}
-)
 
 
 class Module(asab.Module):
@@ -37,7 +26,4 @@ __all__ = (
 	'EPSCounter',
 	'DutyCycle',
 	'AggregationCounter',
-	'MetricsInfluxDB',
-	'MetricsMemstorTarget',
-	'PrometheusTarget'
 )

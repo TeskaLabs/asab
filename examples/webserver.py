@@ -8,8 +8,8 @@ import aiohttp
 class MyApplication(asab.Application):
 
 	'''
-	Run by:
-	$ PYTHONPATH=.. ./webserver.py
+	Run by:  
+	`$ PYTHONPATH=.. ./webserver.py`
 	
 	The application will be available at http://localhost:8080/
 	'''
