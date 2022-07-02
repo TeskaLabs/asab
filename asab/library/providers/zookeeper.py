@@ -18,13 +18,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		super().__init__(app, path)
 		self.App = app
 		self.Path = path
-		
+
 		url_pieces = urllib.parse.urlparse(self.Path)
 		self.BasePath = url_pieces.path
 		if self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
-	
-		
+
 		# Initialize ZooKeeper client
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		self.ZookeeperContainer = ZooKeeperContainer(
@@ -66,7 +65,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		node_names = list()
 		node_path = "{}/{}".format(self.BasePath, path)
 		await self._list_by_node_path(node_path, node_names, recursive=recursive)
-		
+
 		return node_names
 
 
