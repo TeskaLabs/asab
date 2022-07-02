@@ -89,6 +89,14 @@ Highlights
 * Unified microservice **API**
 
 
+Automatic API documentation
+---------------------------
+
+The REST API is automatically documented using OpenAPI3 standard and the Swagger.
+
+.. image:: https://github.com/TeskaLabs/asab/raw/master/doc/openapi3-swagger.jpg
+
+
 Principles
 ----------
 
