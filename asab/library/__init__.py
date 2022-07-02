@@ -17,6 +17,7 @@ Config.add_defaults(
 	}
 )
 
+
 class Module(Module):
 
 	def __init__(self, app):
@@ -25,6 +26,7 @@ class Module(Module):
 
 		from .service import LibraryService
 		self.service = LibraryService(self.App, "asab.LibraryService")
+
 
 __all__ = [
 	"Module",

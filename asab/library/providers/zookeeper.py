@@ -42,25 +42,20 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
 		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 
-	async def _on_zk_ready(self, event_name, zkcontainer):
-		if zkcontainer == self.ZookeeperContainer:
-			self.DisabledPaths = await self._load_disabled()
-
-	async def _load_disabled(self):
-		try:
-			disabled_data = await self.read(".disabled.yaml")
-			return yaml.safe_load(disabled_data)
-		except Exception as e:
-			L.error("The following exception occurred while loading disabled list: '{}'.".format(e))
-			return None
-
 
 	async def finalize(self, app):
+		"""
+		The `finalize` function is called when the application is shutting down
+		"""
 		# close client
 		await self.Zookeeper._stop()
 
 
 	async def _on_zk_ready(self, event_name, zkcontainer):
+		"""
+		When the Zookeeper container is ready, set the Zookeeper property to the Zookeeper object in the
+		Zookeeper container		
+		"""
 		if zkcontainer == self.ZookeeperContainer:
 			self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 
@@ -74,6 +69,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		return node_data.decode('utf-8')
 
+
 	async def list(self, path, tenant, recursive):
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
@@ -82,6 +78,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		node_path = self.create_zookeeper_path(path1=path)
 		await self._list_by_node_path(node_path, node_names, tenant, recursive)
 		return node_names
+
 
 	async def _list_by_node_path(self, node_path, node_names, tenant, recursive):
 		"""
@@ -114,6 +111,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 						node_names.append(nested_node_path)
 			except Exception as e:
 				L.warning("Exception occurred during ZooKeeper load: '{}'".format(e))
+
+
+	async def _load_disabled(self):
+		try:
+			disabled_data = await self.read(".disabled.yaml")
+			return yaml.safe_load(disabled_data)
+		except Exception as e:
+			L.error("The following exception occurred while loading disabled list: '{}'.".format(e))
+			return None
+
 
 	def is_path_disabled(self, path, tenant):
 		"""

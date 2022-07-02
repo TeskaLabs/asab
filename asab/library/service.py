@@ -1,5 +1,6 @@
 import re
 import logging
+import configparser
 
 from ..abc import Service
 from ..config import Config
