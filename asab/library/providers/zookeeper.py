@@ -53,8 +53,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def _on_zk_ready(self, event_name, zkcontainer):
 		"""
-		When the Zookeeper container is ready, set the Zookeeper property to the Zookeeper object in the
-		Zookeeper container		
+		When the Zookeeper container is ready, set the self.Zookeeper property to the Zookeeper object.
 		"""
 		if zkcontainer == self.ZookeeperContainer:
 			self.Zookeeper = self.ZookeeperContainer.ZooKeeper
