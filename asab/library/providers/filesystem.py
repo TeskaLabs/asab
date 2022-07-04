@@ -1,3 +1,4 @@
+import functools
 import glob
 import os
 
@@ -9,41 +10,60 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 	def __init__(self, app, path):
 		super().__init__(app, path)
-
 		self.LibraryBaseDir = path
 
 
 	async def read(self, path):
-		file_path = os.path.join(self.LibraryBaseDir, path)
+		basepath = os.path.join(self.LibraryBaseDir, path)
 
 		try:
-			with open(file_path, 'rb') as f:
+			with open(basepath, 'rb') as f:
 				return f.read()
 
 		except FileNotFoundError:
 			return None
 
+		except IsADirectoryError:
+			return None			
+
 
 	async def list(self, path, recursive=True):
 
+		basepath = os.path.join(self.LibraryBaseDir, path)
+		
 		if recursive:
-			path = os.path.join(path, "**")
+			iglobpath = os.path.join(basepath, "**")
+		else:
+			iglobpath = basepath
 
-		file_names = list(
-			glob.iglob(
-				os.path.join(self.LibraryBaseDir, path),
-				recursive=recursive
-			)
-		)
+		exists = os.access(basepath, os.R_OK) and os.path.isdir(basepath)
+		if not exists:
+			return None
 
-		# Remove library path from the beginning of file names
-		library_path_to_replace = "{}/".format(os.path.abspath(self.LibraryBaseDir))
-		for name in file_names:
-			assert name.startswith(library_path_to_replace)
-		file_names_list = [name[len(library_path_to_replace):] for name in file_names]
+		file_names = []
+		for fname in glob.iglob(iglobpath, recursive=recursive):
+			fnamep, ext = os.path.splitext(fname)
+
+			if ext not in self.FileExtentions:
+				continue
+
+			if not os.path.isfile(fname):
+				continue
+
+			assert(fname.startswith(basepath))
+			fname = fname[len(basepath):]
+
+			fnamecomp = fname.split(os.path.sep)  # Split by "/"
+			
+			# Remove any component that starts with '.'
+			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), fnamecomp, False)
+			if startswithdot:
+				continue
+
+			file_names.append(fname)
 
 		# Results of glob are returned in arbitrary order
 		# Sort them to preserver order of parsers
-		file_names_list.sort()
+		file_names.sort()
 
-		return file_names_list
+		return file_names

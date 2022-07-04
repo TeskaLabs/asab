@@ -2,9 +2,17 @@
 
 class LibraryProviderABC(object):
 
+	# List of extensions that are allowed to be present in the library
+	FileExtentions = {'.yaml', '.json'}
+
 	def __init__(self, app, path):
 		super().__init__()
 		self.App = app
+
+
+	async def finalize(self, app):
+		pass
+
 
 	async def read(self, path):
 		"""

@@ -38,7 +38,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		self.Zookeeper = None
 		self.DisabledPaths = None
-		self.FileExtentions = {'.yaml'}
+
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
 		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 

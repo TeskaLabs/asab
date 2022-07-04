@@ -1,7 +1,7 @@
 import logging
 
-from ..abc import Module
 from ..config import Config
+from .service import LibraryService
 
 #
 
@@ -17,17 +17,6 @@ Config.add_defaults(
 	}
 )
 
-
-class Module(Module):
-
-	def __init__(self, app):
-		super().__init__(app)
-		self.App = app
-
-		from .service import LibraryService
-		self.service = LibraryService(self.App, "asab.LibraryService")
-
-
 __all__ = [
-	"Module",
+	"LibraryService",
 ]
