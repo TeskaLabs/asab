@@ -13,6 +13,10 @@ L = logging.getLogger(__name__)
 
 
 class LibraryService(Service):
+	'''
+	The library service is designed to "exists" in multiple instances,
+	with different `paths` setup.
+	'''
 
 	def __init__(self, app, service_name, paths=None):
 		super().__init__(app, service_name)
