@@ -20,6 +20,8 @@ class LibraryService(Service):
 		with different `paths` setup.
 		For that reason, you have to provide unique `service_name`
 		and there is no _default_ value for that.
+
+		If `paths` are not provided, they are fetched from `[library]providers` configuration.
 		'''
 
 		super().__init__(app, service_name)
@@ -57,7 +59,7 @@ class LibraryService(Service):
 			library_provider = FileSystemLibraryProvider(self.App, path)
 
 		else:
-			L.error("Incorrect/unknow provider for '{}'".format(path))
+			L.error("Incorrect/unknown provider for '{}'".format(path))
 			raise SystemExit("Exit due to a critical configuration error.")
 
 		self.Libraries[path] = library_provider
