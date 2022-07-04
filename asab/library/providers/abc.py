@@ -17,6 +17,8 @@ class LibraryProviderABC(object):
 	async def read(self, path):
 		"""
 		Reads a declaration on the given path.
+
+		Returns 'bytes' or 'None' if the path doesn't exists or point to a readable library object.
 		"""
 		pass
 

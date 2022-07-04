@@ -13,12 +13,15 @@ L = logging.getLogger(__name__)
 
 
 class LibraryService(Service):
-	'''
-	The library service is designed to "exists" in multiple instances,
-	with different `paths` setup.
-	'''
 
 	def __init__(self, app, service_name, paths=None):
+		'''
+		The library service is designed to "exists" in multiple instances,
+		with different `paths` setup.
+		For that reason, you have to provide unique `service_name`
+		and there is no _default_ value for that.
+		'''
+
 		super().__init__(app, service_name)
 		self.Libraries = dict()
 
