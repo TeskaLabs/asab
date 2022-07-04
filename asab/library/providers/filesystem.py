@@ -24,13 +24,13 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return None
 
 		except IsADirectoryError:
-			return None			
+			return None
 
 
 	async def list(self, path, recursive=True):
 
 		basepath = os.path.join(self.LibraryBaseDir, path)
-		
+
 		if recursive:
 			iglobpath = os.path.join(basepath, "**")
 		else:
@@ -54,7 +54,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			fname = fname[len(basepath):]
 
 			fnamecomp = fname.split(os.path.sep)  # Split by "/"
-			
+
 			# Remove any component that starts with '.'
 			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), fnamecomp, False)
 			if startswithdot:

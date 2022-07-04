@@ -77,20 +77,20 @@ class LibraryService(Service):
 
 
 	async def list(self, path, tenant=None, recursive=False):
-		""" 
+		"""
 		Tenant is an optional parameter to list method for "disable" evaluation.
 			and default recursive is False.
 
 		When tenant=None
 			The method returns list of yaml files that are enabled (not disabled).
-		
+
 		When tenant='xxxxx'
 			The method returns list of yaml files that are enabled (not disabled) for tenant 'xxxxx'.
 
 		When recursive=True
 			returns a list of yaml files located in zero or more directories and
 			subdirectories.
-		
+
 		When recursive=False
 			returns a list of yaml files located in /library.
 		"""
