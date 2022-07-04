@@ -63,7 +63,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			return None
-		
+
 		node_path = "{}/{}".format(self.BasePath, path)
 
 		try:
@@ -113,7 +113,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					continue
 
 				nested_node_path = nested_node_path.replace("{}/".format(self.BasePath), "")
-				
+
 				node_names.append(nested_node_path)
 
 			except Exception as e:
