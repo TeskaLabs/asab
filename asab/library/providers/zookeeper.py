@@ -25,8 +25,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		url_pieces = urllib.parse.urlparse(self.Path)
 		self.BasePath = url_pieces.path.lstrip("/")
-		# remove leading.
-		if self.BasePath.endswith("/"):
+
+		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
 
 		# Initialize ZooKeeper client
@@ -48,7 +48,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		The `finalize` function is called when the application is shutting down
 		"""
-		# close client
 		await self.Zookeeper._stop()
 
 
@@ -77,19 +76,19 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return node_data
 
 
-	async def list(self, path, tenant=None, recursive=True):
+	async def list(self, path, recursive=True):
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			return None
 
-		node_names = list()
 		node_path = self.create_zookeeper_path(path1=path)
 
-		await self._list_by_node_path(node_path, node_names, tenant, recursive)
+		node_names = await self._list_by_node_path(node_path, recursive)
+		node_names.sort()
 		return node_names
 
 
-	async def _list_by_node_path(self, node_path, node_names, tenant, recursive):
+	async def _list_by_node_path(self, node_path, recursive):
 		"""
 		Recursive function to list all nested nodes within the ZooKeeper library.
 		"""
@@ -98,11 +97,15 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Path {} does not exist in ZK".format(node_path))
 			return None
 
+		node_names = list()
 		for node in nodes:
 			try:
 				nested_node_path = self.create_zookeeper_path(path1=node_path, path2=node)
 				if recursive:
-					await self._list_by_node_path(nested_node_path, node_names, tenant, recursive)
+					node_names.extend(
+						await self._list_by_node_path(nested_node_path, recursive)
+					)
+
 				nodename, node_extension = os.path.splitext(node)
 
 				# do not add nodes that starts-with '.' or they are not part of file-extent.ion to our list
@@ -110,16 +113,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					continue
 
 				nested_node_path = nested_node_path.replace("{}/".format(self.BasePath), "")
-				# if tenant is None just add the path to the list.
-				if tenant is None:
-					node_names.append(nested_node_path)
+				
+				node_names.append(nested_node_path)
 
-				else:
-					# add only disabled yaml file names to list and return.
-					if self.is_path_disabled(nested_node_path, tenant) is True:
-						node_names.append(nested_node_path)
 			except Exception as e:
 				L.warning("Exception occurred during ZooKeeper load: '{}'".format(e))
+
+		return node_names
 
 
 	async def _load_disabled(self):

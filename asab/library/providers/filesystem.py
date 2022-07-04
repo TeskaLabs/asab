@@ -11,6 +11,8 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 	def __init__(self, app, path):
 		super().__init__(app, path)
 		self.LibraryBaseDir = path
+		while self.LibraryBaseDir.endswith("/"):
+			self.LibraryBaseDir = self.LibraryBaseDir[:-1]
 
 
 	async def read(self, path):
