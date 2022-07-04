@@ -43,7 +43,7 @@ class LibraryService(Service):
 		while len(self.Libraries) > 0:
 			key = next(iter(self.Libraries))
 			lib = self.Libraries.pop(key)
-			await lib.finalize()
+			await lib.finalize(self.App)
 
 
 	def _create_library(self, path):
