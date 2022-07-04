@@ -5,7 +5,7 @@ import urllib.parse
 import yaml
 
 from .abc import LibraryProviderABC
-from ..zookeeper import ZooKeeperContainer
+from ...zookeeper import ZooKeeperContainer
 
 #
 
@@ -69,7 +69,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return node_data.decode('utf-8')
 
 
-	async def list(self, path, tenant, recursive):
+	async def list(self, path, tenant=None, recursive=True):
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			return
@@ -96,7 +96,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				nodename, node_extension = os.path.splitext(node)
 
 				# do not add nodes that starts-with '.' or they are not part of file-extent.ion to our list
-				if nodename.startswith(".") or node_extension not in self.FileExtentions:
+				if nodename.startswith("."):
 					continue
 
 				nested_node_path = nested_node_path.replace("{}/".format(self.BasePath), "")
@@ -141,7 +141,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			-path1 is always absolute.
 		"""
 		if path2 is None:
-			path = os.path.join(path1, self.BasePath)
+			path = os.path.join(self.BasePath, path1)
 		else:
 			path = os.path.join(path1, path2)
 		# remove redundant separators
