@@ -1,4 +1,5 @@
 import logging
+import functools
 import os.path
 import urllib.parse
 
@@ -6,42 +7,46 @@ import kazoo.exceptions
 import yaml
 
 from .abc import LibraryProviderABC
+from ..item import LibraryItem
 from ...zookeeper import ZooKeeperContainer
 
 #
 
 L = logging.getLogger(__name__)
 
-
 #
 
 
 class ZooKeeperLibraryProvider(LibraryProviderABC):
 
-	def __init__(self, app, path):
-		super().__init__(app, path)
-		self.App = app
-		self.Path = path
+	def __init__(self, library, path):
+		super().__init__(library)
 
-		url_pieces = urllib.parse.urlparse(self.Path)
+		url_pieces = urllib.parse.urlparse(path)
+		
 		self.BasePath = url_pieces.path.lstrip("/")
-
 		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
+		self.BasePath = '/' + self.BasePath
+
+		if url_pieces.netloc == "":
+			# if netloc is not providede `zk:///path`, then use `zookeeper` section from config
+			config_section_name = 'zookeeper'
+			z_url = None
+		else:
+			config_section_name = ''
+			z_url = url_pieces # TODO: Not correct
 
 		# Initialize ZooKeeper client
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		self.ZookeeperContainer = ZooKeeperContainer(
 			zksvc,
-			config_section_name='',
-			z_path=self.Path
+			config_section_name=config_section_name,
+			z_path=z_url
 		)
-
-		self.Zookeeper = None
-		self.DisabledPaths = None
+		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
-		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 
 
 	async def finalize(self, app):
@@ -57,6 +62,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		if zkcontainer == self.ZookeeperContainer:
 			self.Zookeeper = self.ZookeeperContainer.ZooKeeper
+			self._set_ready()
 
 
 	async def read(self, path):
@@ -64,97 +70,56 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			return None
 
-		node_path = "{}/{}".format(self.BasePath, path)
+		assert path[:1] == '/'
+		if path != '/':
+			node_path = self.BasePath + path
+		else:
+			node_path = self.BasePath
+
+		assert '//' not in node_path
+		assert node_path[0] == '/'
+		assert len(node_path) == 1 or node_path[-1:] != '/'
 
 		try:
 			node_data = await self.Zookeeper.get_data(node_path)
 		except kazoo.exceptions.NoNodeError:
 			return None
-
 		# Consider adding other exceptions from Kazoo to indicate common non-critical errors
 
 		return node_data
 
 
-	async def list(self, path, recursive=True):
+	async def list(self, path: str) -> list:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			return None
 
-		node_path = self.create_zookeeper_path(path1=path)
+		assert path[:1] == '/'
+		if path != '/':
+			node_path = self.BasePath + path
+		else:
+			node_path = self.BasePath
 
-		node_names = await self._list_by_node_path(node_path, recursive)
-		node_names.sort()
-		return node_names
+		assert '//' not in node_path
+		assert node_path[0] == '/'
+		assert len(node_path) == 1 or node_path[-1:] != '/'
 
-
-	async def _list_by_node_path(self, node_path, recursive):
-		"""
-		Recursive function to list all nested nodes within the ZooKeeper library.
-		"""
 		nodes = await self.Zookeeper.get_children(node_path)
 		if nodes is None:
-			L.warning("Path {} does not exist in ZK".format(node_path))
-			return None
+			raise KeyError("Not '{}' found".format(node_path))
 
-		node_names = list()
+		items = []
 		for node in nodes:
-			try:
-				nested_node_path = self.create_zookeeper_path(path1=node_path, path2=node)
-				if recursive:
-					node_names.extend(
-						await self._list_by_node_path(nested_node_path, recursive)
-					)
 
-				nodename, node_extension = os.path.splitext(node)
+			# Remove any component that starts with '.'
+			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), node.split(os.path.sep), False)
+			if startswithdot:
+				continue
 
-				# do not add nodes that starts-with '.' or they are not part of file-extent.ion to our list
-				if nodename.startswith("."):
-					continue
+			items.append(LibraryItem(
+				name=(path + node) if path == '/' else (path + '/' + node),
+				type="item" if '.' in node else "dir",  # We detect files in zookeeper by presence of the dot in the filename,
+				providers=[self],
+			))
 
-				nested_node_path = nested_node_path.replace("{}/".format(self.BasePath), "")
-
-				node_names.append(nested_node_path)
-
-			except Exception as e:
-				L.warning("Exception occurred during ZooKeeper load: '{}'".format(e))
-
-		return node_names
-
-
-	async def _load_disabled(self):
-		try:
-			disabled_data = await self.read(".disabled.yaml")
-			return yaml.safe_load(disabled_data)
-		except Exception as e:
-			L.error("The following exception occurred while loading disabled list: '{}'.".format(e))
-			return None
-
-
-	def is_path_disabled(self, path, tenant):
-		"""
-			This method checks if the path is disabled for a specific tenant.
-			Returns True if yes or it returns False.
-		"""
-		get_disabled_tenant_list = self.DisabledPaths.get(path, [])
-		# return True if the current path is present  is the list of disabled paths.
-		if path in self.DisabledPaths:
-			if tenant in get_disabled_tenant_list or '*' in get_disabled_tenant_list:
-				return True
-			else:
-				return False
-
-	def create_zookeeper_path(self, path1, path2=None):
-		"""
-			This method created path that can be used by zookeeper for CRUD operations.
-			-if path2 is not passed provided we assume path1 is self.Library.
-			-path1 is always absolute.
-		"""
-		if path2 is None:
-			path = os.path.join(self.BasePath, path1)
-		else:
-			path = os.path.join(path1, path2)
-		# remove redundant separators
-		zookeeper_path = os.path.normpath(path)
-		# get rid of first slash
-		return zookeeper_path.lstrip("/")
+		return items

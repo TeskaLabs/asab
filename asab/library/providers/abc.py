@@ -2,12 +2,12 @@
 
 class LibraryProviderABC(object):
 
-	# List of extensions that are allowed to be present in the library
-	FileExtentions = {'.yaml', '.json'}
 
-	def __init__(self, app, path):
+	def __init__(self, library):
 		super().__init__()
-		self.App = app
+		self.App = library.App
+		self.Library = library
+		self.IsReady = False
 
 
 	async def finalize(self, app):
@@ -25,12 +25,17 @@ class LibraryProviderABC(object):
 		pass
 
 
-	async def list(self, path: str, tenant: str = None, recursive: bool = False) -> list:
+	async def list(self, path: str) -> list:
 		"""
-		It lists all items in the library .
+		It lists all items in the library at the given path.
 
+		
 		:param path: The path to the directory in the library to list
-		:param recursive: If True, recursively list all files in the directory, defaults to True (optional)
-		:return: A sorted list of file names
+		:return: A list (or iterable) of `LibraryItem`s.
 		"""
 		pass
+
+
+	def _set_ready(self):
+		self.IsReady = True
+		self.Library._set_ready(self)

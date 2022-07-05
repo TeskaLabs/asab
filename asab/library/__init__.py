@@ -12,7 +12,7 @@ L = logging.getLogger(__name__)
 Config.add_defaults(
 	{
 		'library': {
-			'path': 'zk:///library'
+			'providers': './library'
 		}
 	}
 )

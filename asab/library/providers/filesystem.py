@@ -1,25 +1,38 @@
-import functools
-import glob
 import os
+import stat
+import glob
+import functools
 
 from .abc import LibraryProviderABC
-
+from ..item import LibraryItem
 
 class FileSystemLibraryProvider(LibraryProviderABC):
 
 
-	def __init__(self, app, path):
-		super().__init__(app, path)
-		self.LibraryBaseDir = path
-		while self.LibraryBaseDir.endswith("/"):
-			self.LibraryBaseDir = self.LibraryBaseDir[:-1]
+	def __init__(self, library, path):
+		super().__init__(library)
+		self.BasePath = os.path.abspath(path)
+		while self.BasePath.endswith("/"):
+			self.BasePath = self.BasePath[:-1]
+
+		# Filesystem is always ready (or you have a serious problem)
+		self.App.Loop.call_soon(self._set_ready)
 
 
 	async def read(self, path):
-		basepath = os.path.join(self.LibraryBaseDir, path)
+
+		assert path[:1] == '/'
+		if path != '/':
+			node_path = self.BasePath + path
+		else:
+			node_path = self.BasePath
+
+		assert '//' not in node_path
+		assert node_path[0] == '/'
+		assert len(node_path) == 1 or node_path[-1:] != '/'
 
 		try:
-			with open(basepath, 'rb') as f:
+			with open(node_path, 'rb') as f:
 				return f.read()
 
 		except FileNotFoundError:
@@ -29,43 +42,48 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return None
 
 
-	async def list(self, path, recursive=True):
+	async def list(self, path: str) -> list:
 
-		basepath = os.path.join(self.LibraryBaseDir, path)
-
-		if recursive:
-			iglobpath = os.path.join(basepath, "**")
+		assert path[:1] == '/'
+		if path != '/':
+			node_path = self.BasePath + path
 		else:
-			iglobpath = basepath
+			node_path = self.BasePath
 
-		exists = os.access(basepath, os.R_OK) and os.path.isdir(basepath)
+		assert '//' not in node_path
+		assert node_path[0] == '/'
+		assert len(node_path) == 1 or node_path[-1:] != '/'
+
+		iglobpath = os.path.join(node_path, "*")
+
+		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
 		if not exists:
-			return None
+			raise KeyError("Not '{}' found".format(path))
 
-		file_names = []
-		for fname in glob.iglob(iglobpath, recursive=recursive):
-			fnamep, ext = os.path.splitext(fname)
+		items = []
+		for fname in glob.iglob(iglobpath):
 
-			if ext not in self.FileExtentions:
-				continue
+			fstat = os.stat(fname)
 
-			if not os.path.isfile(fname):
-				continue
+			assert(fname.startswith(node_path))
+			fname = fname[len(node_path)+1:]
 
-			assert(fname.startswith(basepath))
-			fname = fname[len(basepath):]
-
-			fnamecomp = fname.split(os.path.sep)  # Split by "/"
+			if stat.S_ISREG(fstat.st_mode):
+				ftype = "item"
+			elif stat.S_ISDIR(fstat.st_mode):
+				ftype = "dir"
+			else:
+				ftype = "?"
 
 			# Remove any component that starts with '.'
-			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), fnamecomp, False)
+			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), fname.split(os.path.sep), False)
 			if startswithdot:
 				continue
 
-			file_names.append(fname)
+			items.append(LibraryItem(
+				name=(path + fname) if path == '/' else (path + '/' + fname),
+				type=ftype,
+				providers=[self],
+			))
 
-		# Results of glob are returned in arbitrary order
-		# Sort them to preserver order of parsers
-		file_names.sort()
-
-		return file_names
+		return items
