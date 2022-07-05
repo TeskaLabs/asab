@@ -185,7 +185,7 @@ async def _list(path, tenant, providers):
 				if pitem.type == 'dir' and item.type == 'dir':
 					# Directories are joined
 					pitem.providers.extend(item.providers)
-				
+
 				# Other item types are skipped
 				continue
 
