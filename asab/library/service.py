@@ -81,13 +81,16 @@ class LibraryService(Service):
 
 	async def _read_disabled(self):
 		# TODO: Call this on tick (periodically)
-		# `.disabled.yaml` is read from the first configured library 
+		# `.disabled.yaml` is read from the first configured library
 		# It is applied on all libraries in the configuration.
 		disabled = await self.Libraries[0].read('/.disabled.yaml')
 		if disabled is None:
 			self.Disabled = {}
 		else:
-			self.Disabled = yaml.safe_load(disabled)
+			try:
+				self.Disabled = yaml.safe_load(disabled)
+			except Exception:
+				L.exception("Failed to parse '/.disabled.yaml'")
 
 
 	def is_ready(self):
