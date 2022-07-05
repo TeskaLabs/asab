@@ -4,6 +4,8 @@ import logging
 import functools
 import configparser
 
+import yaml
+
 from ..abc import Service
 from ..config import Config
 
@@ -27,7 +29,8 @@ class LibraryService(Service):
 		'''
 
 		super().__init__(app, service_name)
-		self.Libraries = dict()
+		self.Libraries = list()
+		self.Disabled = None
 
 		if paths is None:
 			try:
@@ -45,8 +48,7 @@ class LibraryService(Service):
 
 	async def finalize(self, app):
 		while len(self.Libraries) > 0:
-			key = next(iter(self.Libraries))
-			lib = self.Libraries.pop(key)
+			lib = self.Libraries.pop(-1)
 			await lib.finalize(self.App)
 
 
@@ -64,7 +66,16 @@ class LibraryService(Service):
 			L.error("Incorrect/unknown provider for '{}'".format(path))
 			raise SystemExit("Exit due to a critical configuration error.")
 
-		self.Libraries[path] = library_provider
+		self.Libraries.append(library_provider)
+
+
+	async def _read_disabled(self):
+		# TODO: Call this on tick
+		disabled = await self.Libraries[0].read('/.disabled.yaml')
+		if disabled is None:
+			self.Disabled = {}
+		else:
+			self.Disabled = yaml.safe_load(disabled)
 
 
 	def is_ready(self):
@@ -75,17 +86,17 @@ class LibraryService(Service):
 		"""
 		return functools.reduce(
 			lambda x, provider: provider.IsReady and x,
-			self.Libraries.values(),
+			self.Libraries,
 			True
 		)
 
-	def _set_ready(self, provider):
+	async def _set_ready(self, provider):
+		if provider == self.Libraries[0]:
+			await self._read_disabled()
+
 		if self.is_ready():
 			L.info("Library is ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("ASABLibrary.ready!", self)
-
-
-	# TODO: Read disabled from the first library and apply that on the results of `read` and `list`.
 
 
 	async def read(self, path, tenant=None):
@@ -93,9 +104,10 @@ class LibraryService(Service):
 		if path[:1] != '/':
 			path = '/' + path
 
-		# TODO: Filter the `path` using disabled.
+		if self.check_disabled(path, tenant=tenant):
+			return None
 
-		for library in self.Libraries.values():
+		for library in self.Libraries:
 			item = await library.read(path)
 			if item is None:
 				continue
@@ -135,7 +147,7 @@ class LibraryService(Service):
 			path = '/' + path
 
 		# List requested level using all available providers
-		items = await _list(path, tenant, providers=self.Libraries.values())
+		items = await self._list(path, tenant, providers=self.Libraries)
 
 		if recursive:
 			# If recursive scan is requested, then iterate thru list of items
@@ -150,49 +162,74 @@ class LibraryService(Service):
 				if item.type != 'dir':
 					continue
 
-				child_items = await _list(item.name, tenant, providers=item.providers)
+				child_items = await self._list(item.name, tenant, providers=item.providers)
 				items.extend(child_items)
 				recitems.extend(child_items)
 
 		return items
 
 
-async def _list(path, tenant, providers):
+	async def _list(self, path, tenant, providers):
 
-	# Execute the list query in all providers in-parallel
-	result = await asyncio.gather(*[
-		library.list(path)
-		for library in providers
-	], return_exceptions=True)
+		# Execute the list query in all providers in-parallel
+		result = await asyncio.gather(*[
+			library.list(path)
+			for library in providers
+		], return_exceptions=True)
 
-	items = []
-	uniq = dict()
-	for ress in result:
+		items = []
+		uniq = dict()
+		for ress in result:
 
-		if isinstance(ress, KeyError):
-			# The path doesn't exists in the provider
-			continue
-
-		if isinstance(ress, Exception):
-			L.exception("Error when listing items from provider", exc_info=ress)
-			continue
-
-		for item in ress:
-
-			# If the item already exists, merge it
-			pitem = uniq.get(item.name)
-			if pitem is not None:
-				if pitem.type == 'dir' and item.type == 'dir':
-					# Directories are joined
-					pitem.providers.extend(item.providers)
-
-				# Other item types are skipped
+			if isinstance(ress, KeyError):
+				# The path doesn't exists in the provider
 				continue
 
-			# TODO: Filter the `listres` using disabled.
-			uniq[item.name] = item
-			items.append(item)
+			if isinstance(ress, Exception):
+				L.exception("Error when listing items from provider", exc_info=ress)
+				continue
 
-	items.sort(key=lambda x: x.name)
+			for item in ress:
 
-	return items
+				item.disabled = self.check_disabled(item.name, tenant=tenant)
+
+				# If the item already exists, merge it
+				pitem = uniq.get(item.name)
+				if pitem is not None:
+					if pitem.type == 'dir' and item.type == 'dir':
+						# Directories are joined
+						pitem.providers.extend(item.providers)
+
+					# Other item types are skipped
+					continue
+
+				uniq[item.name] = item
+				items.append(item)
+
+		items.sort(key=lambda x: x.name)
+
+		return items
+
+
+	def check_disabled(self, path, tenant=None):
+		"""
+		If the item is disabled for everybody, or if the item is disabled for the specified tenant, then
+		return True. Otherwise, return False
+		
+		:param path: The path to the item
+		:param tenant: The tenant name
+		:return: Boolean
+		"""
+		disabled = self.Disabled.get(path)
+		if disabled is None:
+			return False
+		
+		if disabled == '*':
+			# Item is disabled for everybody
+			return True
+
+		if tenant is not None and tenant in disabled:
+			# Item is disabled for a specified tenant
+			return True
+		
+		return False

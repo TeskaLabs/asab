@@ -17,7 +17,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			self.BasePath = self.BasePath[:-1]
 
 		# Filesystem is always ready (or you have a serious problem)
-		self.App.Loop.call_soon(self._set_ready)
+		self.App.TaskService.schedule(self._set_ready())
 
 
 	async def read(self, path):

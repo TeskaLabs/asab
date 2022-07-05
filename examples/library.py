@@ -35,13 +35,15 @@ class MyApplication(asab.Application):
 
 
 	async def on_library_ready(self, event_name, library):
-		items = await self.LibraryService.list("testing", recursive=True)
+		items = await self.LibraryService.list("", recursive=True)
 		for item in items:
 			print(" -", item)
 			if item.type == 'item':
 				content = await self.LibraryService.read(item.name)
-				print("  content: {}".format(len(content)))
-
+				if content is not None:
+					print("  content: {}".format(len(content)))
+				else:
+					print("  N/A") # Item is likely disabled
 
 if __name__ == '__main__':
 	app = MyApplication()

@@ -61,7 +61,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		if zkcontainer == self.ZookeeperContainer:
 			self.Zookeeper = self.ZookeeperContainer.ZooKeeper
-			self._set_ready()
+			await self._set_ready()
 
 
 	async def read(self, path):

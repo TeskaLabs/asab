@@ -35,6 +35,6 @@ class LibraryProviderABC(object):
 		pass
 
 
-	def _set_ready(self):
+	async def _set_ready(self):
 		self.IsReady = True
-		self.Library._set_ready(self)
+		await self.Library._set_ready(self)
