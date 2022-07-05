@@ -17,6 +17,16 @@ L = logging.getLogger(__name__)
 
 
 class LibraryService(Service):
+	'''
+	ASAB library (aka LibraryService) is an abstration for unified filesystem-like access to resources.
+	In the cluster/cloud microservice architectures, it is imperative that all microservices have access to unified resources.
+	There are technologies such as Apache Zookeeper that provides means for it.
+
+	ASAB library builts on top of this concept and brings that into the ASAB microservice.
+
+	ASAB library is designed to be read-only.
+	It also allows to "stack" various libraries into one view (overlayed) that merges content of each library into one united space.
+	'''
 
 	def __init__(self, app, service_name, paths=None):
 		'''
@@ -70,7 +80,9 @@ class LibraryService(Service):
 
 
 	async def _read_disabled(self):
-		# TODO: Call this on tick
+		# TODO: Call this on tick (periodically)
+		# `.disabled.yaml` is read from the first configured library 
+		# It is applied on all libraries in the configuration.
 		disabled = await self.Libraries[0].read('/.disabled.yaml')
 		if disabled is None:
 			self.Disabled = {}
