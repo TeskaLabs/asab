@@ -29,7 +29,6 @@ class LibraryProviderABC(object):
 		"""
 		It lists all items in the library at the given path.
 
-		
 		:param path: The path to the directory in the library to list
 		:return: A list (or iterable) of `LibraryItem`s.
 		"""

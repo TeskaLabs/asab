@@ -89,7 +89,7 @@ class LibraryService(Service):
 
 
 	async def read(self, path, tenant=None):
-		## It must start with '/'
+		# It must start with '/'
 		if path[:1] != '/':
 			path = '/' + path
 
@@ -126,11 +126,11 @@ class LibraryService(Service):
 
 		# Normalize path
 
-		## It must NOT end with '/'
+		# Path must NOT end with '/'
 		while path[-1:] == '/':
 			path = path[:-1]
 
-		## It must start with '/'
+		# Path must start with '/'
 		if path[:1] != '/':
 			path = '/' + path
 
@@ -179,7 +179,7 @@ async def _list(path, tenant, providers):
 
 		for item in ress:
 
-			# If the item already exists, merge that 
+			# If the item already exists, merge it
 			pitem = uniq.get(item.name)
 			if pitem is not None:
 				if pitem.type == 'dir' and item.type == 'dir':

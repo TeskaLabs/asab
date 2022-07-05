@@ -4,7 +4,6 @@ import os.path
 import urllib.parse
 
 import kazoo.exceptions
-import yaml
 
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
@@ -23,7 +22,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		super().__init__(library)
 
 		url_pieces = urllib.parse.urlparse(path)
-		
+
 		self.BasePath = url_pieces.path.lstrip("/")
 		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
@@ -35,7 +34,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			z_url = None
 		else:
 			config_section_name = ''
-			z_url = url_pieces # TODO: Not correct
+			z_url = url_pieces  # TODO: Not correct
 
 		# Initialize ZooKeeper client
 		zksvc = self.App.get_service("asab.ZooKeeperService")

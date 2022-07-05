@@ -6,6 +6,7 @@ import functools
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
 
+
 class FileSystemLibraryProvider(LibraryProviderABC):
 
 
@@ -66,7 +67,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			fstat = os.stat(fname)
 
 			assert(fname.startswith(node_path))
-			fname = fname[len(node_path)+1:]
+			fname = fname[len(node_path) + 1:]
 
 			if stat.S_ISREG(fstat.st_mode):
 				ftype = "item"
