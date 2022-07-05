@@ -99,7 +99,17 @@ class LibraryService(Service):
 			self.App.PubSub.publish("ASABLibrary.ready!", self)
 
 
-	async def read(self, path, tenant=None):
+	async def read(self, path: str, tenant:str =None) -> bytes:
+		"""
+		Read the content of the library item specified by `path`.
+		`None` is returned if the item is not found in the library.
+
+		If the item is disabled (globally or for specified tenant) then None is returned.
+		
+		:param path: The path to the file
+		:param tenant: The tenant to apply. If not specified, the global access is assumed
+		:return: The content of the library item in bytes.
+		"""
 		# It must start with '/'
 		if path[:1] != '/':
 			path = '/' + path
@@ -119,21 +129,22 @@ class LibraryService(Service):
 
 	async def list(self, path="/", tenant=None, recursive=False):
 		"""
+		List the directory of the library specified by the path.
+
 		Tenant is an optional parameter to list method for "disable" evaluation.
 			and default recursive is False.
 
 		When tenant=None
-			The method returns list of yaml files that are enabled (not disabled).
+			The method returns list of items that are enabled (not disabled).
 
 		When tenant='xxxxx'
-			The method returns list of yaml files that are enabled (not disabled) for tenant 'xxxxx'.
+			The method returns list of items that are enabled (not disabled) for tenant 'xxxxx'.
 
 		When recursive=True
-			returns a list of yaml files located in zero or more directories and
-			subdirectories.
+			The method returns list of items that are located at `path` and in subdirectories of that location.
 
 		When recursive=False
-			returns a list of yaml files located in /library.
+			The method returns list of items that are located at `path`
 		"""
 
 		# Normalize path
