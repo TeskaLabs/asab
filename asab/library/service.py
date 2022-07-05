@@ -99,13 +99,13 @@ class LibraryService(Service):
 			self.App.PubSub.publish("ASABLibrary.ready!", self)
 
 
-	async def read(self, path: str, tenant:str =None) -> bytes:
+	async def read(self, path: str, tenant: str = None) -> bytes:
 		"""
 		Read the content of the library item specified by `path`.
 		`None` is returned if the item is not found in the library.
 
 		If the item is disabled (globally or for specified tenant) then None is returned.
-		
+
 		:param path: The path to the file
 		:param tenant: The tenant to apply. If not specified, the global access is assumed
 		:return: The content of the library item in bytes.
@@ -226,7 +226,7 @@ class LibraryService(Service):
 		"""
 		If the item is disabled for everybody, or if the item is disabled for the specified tenant, then
 		return True. Otherwise, return False
-		
+
 		:param path: The path to the item
 		:param tenant: The tenant name
 		:return: Boolean
@@ -234,7 +234,7 @@ class LibraryService(Service):
 		disabled = self.Disabled.get(path)
 		if disabled is None:
 			return False
-		
+
 		if disabled == '*':
 			# Item is disabled for everybody
 			return True
@@ -242,5 +242,5 @@ class LibraryService(Service):
 		if tenant is not None and tenant in disabled:
 			# Item is disabled for a specified tenant
 			return True
-		
+
 		return False
