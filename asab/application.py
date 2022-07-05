@@ -223,7 +223,7 @@ class Application(metaclass=Singleton):
 		"""
 		Return the `pidfile` path from the configuration.
 
-		Example from the configuration:  
+		Example from the configuration:
 
 		```
 		[general]
