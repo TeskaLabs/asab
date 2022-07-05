@@ -17,7 +17,7 @@ class LibraryProviderABC(object):
 	async def read(self, path: str) -> bytes:
 		"""
 		Reads a library item on the given path.
-		
+
 		:param path: The path to the file to read
 		:return: The item a bytes.
 		"""
@@ -25,10 +25,10 @@ class LibraryProviderABC(object):
 		pass
 
 
-	async def list(self, path: str, tenant:str =None, recursive:bool =False) -> list:
+	async def list(self, path: str, tenant: str = None, recursive: bool = False) -> list:
 		"""
 		It lists all items in the library .
-		
+
 		:param path: The path to the directory in the library to list
 		:param recursive: If True, recursively list all files in the directory, defaults to True (optional)
 		:return: A sorted list of file names
