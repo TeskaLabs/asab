@@ -80,8 +80,14 @@ An instance of a `aiohttp.web.Application` class.
 Configuration
 -------------
 
-TODO: Listen at `0.0.0.0:80`
+The default configuration of the `web` container in ASAB is following:
 
+.. code:: ini
+
+	[web]
+	listen=0.0.0.0:8080
+
+Other available options are:
 
 
 Sessions
