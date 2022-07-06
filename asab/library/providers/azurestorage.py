@@ -14,6 +14,7 @@ L = logging.getLogger(__name__)
 
 #
 
+
 class AzureStorageLibraryProvider(LibraryProviderABC):
 	'''
 	AzureStorageLibraryProvider is a library provider that reads
@@ -71,19 +72,19 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		dom = xml.dom.minidom.parseString(content)
 		for blob in dom.getElementsByTagName("Blob"):
 			path = get_xml_text(blob.getElementsByTagName("Name"))
-			
+
 			path = path.split('/')
 			curmodel = model
 			for i in range(len(path) - 1):
 				newmodel = curmodel.sub.get(path[i])
 				if newmodel is None:
 					curmodel.sub[path[i]] = newmodel = AzureDirectory(
-						name='/' + '/'.join(path[:i+1]),
+						name='/' + '/'.join(path[:i + 1]),
 						sub=dict()
 					)
-				
+
 				curmodel = newmodel
-			
+
 			curmodel.sub[path[-1]] = AzureItem(
 				name='/' + '/'.join(path)
 			)
@@ -154,6 +155,7 @@ class AzureDirectory:
 	name: str
 	sub: dict
 	type: str = "dir"
+
 
 @dataclasses.dataclass
 class AzureItem:
