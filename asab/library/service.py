@@ -27,6 +27,28 @@ class LibraryService(Service):
 
 	ASAB library is designed to be read-only.
 	It also allows to "stack" various libraries into one view (overlayed) that merges content of each library into one united space.
+
+	Configuration:
+
+	```
+	[library]
+	providers:
+		provider+1://
+		provider+2://
+		provider+3://
+	```
+
+	The order of providers *IS* important, the priority (or layering) is top-down.
+
+	Each library provider is specified by URL/URI schema:
+
+	* `zk://` or `zookeeper://` for ZooKeeper provider
+	* `file://` or local path for FileSystem provider
+	* `azure+https://` for Microsoft Azure Storage provider.
+
+	The first provider is also responsible for providing `/.disabled.yaml` that controls a visibility of items.
+	If `/.disabled.yaml` is not present, then is considered empty.
+
 	'''
 
 	def __init__(self, app, service_name, paths=None):
@@ -130,7 +152,7 @@ class LibraryService(Service):
 
 		If the item is disabled (globally or for specified tenant) then None is returned.
 
-		:param path: The path to the file
+		:param path: The path to the file, `LibraryItem.name` can be used directly
 		:param tenant: The tenant to apply. If not specified, the global access is assumed
 		:return: The content of the library item in bytes.
 		"""
@@ -154,6 +176,7 @@ class LibraryService(Service):
 	async def list(self, path="/", tenant=None, recursive=False):
 		"""
 		List the directory of the library specified by the path.
+		It returns a list of `LibraryItem` entris.
 
 		Tenant is an optional parameter to list method for "disable" evaluation.
 			and default recursive is False.
