@@ -9,7 +9,8 @@ asab.Config.add_defaults({
 	"zookeeper": {
 		# "servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
 		"servers": "zookeeper-1:2181"
-	}
+	},
+
 })
 
 
@@ -36,14 +37,18 @@ class MyApplication(asab.Application):
 
 	async def on_library_ready(self, event_name, library):
 		items = await self.LibraryService.list("", recursive=True)
+		print("# Library\n")
 		for item in items:
-			print(" -", item)
+			print(" *", item)
 			if item.type == 'item':
 				content = await self.LibraryService.read(item.name)
 				if content is not None:
-					print("  content: {}".format(len(content)))
+					print("  - content: {}".format(len(content)))
 				else:
-					print("  N/A") # Item is likely disabled
+					print("  - N/A")  # Item is likely disabled
+		print("\n===")
+		self.stop()
+
 
 if __name__ == '__main__':
 	app = MyApplication()
