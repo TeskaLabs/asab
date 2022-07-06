@@ -73,7 +73,7 @@ class DocWebHandler(object):
 			route_info = route.get_info()
 			if "path" in route_info:
 				path = route_info["path"]
-			
+
 			elif "formatter" in route_info:
 				# TODO: Extract URL parameters from formatter string
 				path = route_info["formatter"]
@@ -84,11 +84,11 @@ class DocWebHandler(object):
 						'name': m[1:-1],
 						'required': True,
 					})
-			
+
 			else:
 				L.warning("Cannot obtain path info from route", struct_data=route_info)
 				continue
-			
+
 			pathobj = specs['paths'].get(path)
 			if pathobj is None:
 				specs['paths'][path] = pathobj = {}
