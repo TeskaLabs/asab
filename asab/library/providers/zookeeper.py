@@ -105,6 +105,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		)
 		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 
+		# Handle `zk://` configuration
+		if z_url is None and url_pieces.netloc == "" and url_pieces.path == "" and self.Zookeeper.Path != '':
+			self.BasePath = '/' + self.Zookeeper.Path
+
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
 
 
@@ -159,6 +163,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		else:
 			node_path = self.BasePath
 
+		if node_path == '':
+			node_path = '/'
+
+		assert len(node_path) > 0
 		assert '//' not in node_path
 		assert node_path[0] == '/'
 		assert len(node_path) == 1 or node_path[-1:] != '/'
