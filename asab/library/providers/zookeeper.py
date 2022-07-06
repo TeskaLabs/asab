@@ -91,7 +91,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	async def list(self, path: str) -> list:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
-			return None
+			raise RuntimeError("Not ready")
 
 		assert path[:1] == '/'
 		if path != '/':
