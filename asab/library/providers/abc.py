@@ -21,8 +21,7 @@ class LibraryProviderABC(object):
 		:param path: The path to the file to read
 		:return: The item a bytes.
 		"""
-
-		pass
+		raise NotImplementedError("{}.read()".format(self.__class__.__name__))
 
 
 	async def list(self, path: str) -> list:
@@ -32,7 +31,7 @@ class LibraryProviderABC(object):
 		:param path: The path to the directory in the library to list
 		:return: A list (or iterable) of `LibraryItem`s.
 		"""
-		pass
+		raise NotImplementedError("{}.list()".format(self.__class__.__name__))
 
 
 	async def _set_ready(self):
