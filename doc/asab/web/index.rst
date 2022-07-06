@@ -87,8 +87,71 @@ The default configuration of the `web` container in ASAB is following:
 	[web]
 	listen=0.0.0.0:8080
 
+
+Multiple listening interfaces can be specified:
+
+.. code:: ini
+
+	[web]
+	listen:
+		0.0.0.0:8080
+		:: 8080
+
+
+Multiple listening interfaces, one with HTTPS (TLS/SSL) can be specified:
+
+.. code:: ini
+
+	[web]
+	listen:
+		0.0.0.0 8080
+		:: 8080
+		0.0.0.0 8443 ssl:web
+	
+	[ssl:web]
+	cert=...
+	key=...
+	...
+
+
+Multiple interfaces, one with HTTPS (inline):
+
+
+.. code:: ini
+
+	[web]
+	listen:
+		0.0.0.0 8080
+		:: 8080
+		0.0.0.0 8443 ssl
+
+	# The SSL parameters are inside of the WebContainer section
+	cert=...
+	key=...
+	...
+
+
 Other available options are:
 
+ * `backlog`
+ * `rootdir`
+ * `servertokens` (default value `full`)
+ * `cors`
+ * `cors_preflight_paths`
+
+
+TLS/SSL paramereters:
+
+ * `cert`
+ * `key`
+ * `password`
+ * `cafile`
+ * `capath`
+ * `ciphers`
+ * `dh_params`
+ * `verify_mode`: one of `CERT_NONE`, `CERT_OPTIONAL` or `CERT_REQUIRED`
+ * `check_hostname`
+ * `options`
 
 Sessions
 --------
