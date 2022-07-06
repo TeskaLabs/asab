@@ -49,6 +49,10 @@ class LibraryService(Service):
 	The first provider is also responsible for providing `/.disabled.yaml` that controls a visibility of items.
 	If `/.disabled.yaml` is not present, then is considered empty.
 
+	A library is created in "not ready" state, each provider then inform library when it is ready (eg. Zookeeper provider needs to connect to Zookeeper servers).
+	Only after all providers are ready, the library itself become ready.
+	The library indicates that by the PubSub event `ASABLibrary.ready!`.
+
 	'''
 
 	def __init__(self, app, service_name, paths=None):
