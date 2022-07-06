@@ -59,22 +59,13 @@ Web Service
 
 .. py:class:: WebService
 
-Service localization example:
+Service location example:
 
 .. code:: python
 
 	from asab.web import Module
 	self.add_module(Module)
 	svc = self.get_service("asab.WebService")
-
-
-.. py:attribute:: WebService.Webapp
-
-An instance of a `aiohttp.web.Application` class.
-
-.. code:: python
-
-	svc.WebApp.router.add_get('/hello', self.hello)
 
 
 Configuration
