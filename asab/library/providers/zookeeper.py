@@ -18,6 +18,63 @@ L = logging.getLogger(__name__)
 
 class ZooKeeperLibraryProvider(LibraryProviderABC):
 
+	'''
+
+	Configuration variant:
+
+
+	1) ZooKeeper provider is fully configured from [zookeeper] section 
+
+	```
+	[zookeeper]
+	servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+	path=/library
+
+	[library]
+	providers:
+		zk://
+	```
+
+
+	2) ZooKeeper provider is configured by `servers` from [zookeeper] section and path from URL
+	
+	Path will be `/library'.
+
+	```
+	[zookeeper]
+	servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+	path=/else
+
+	[library]
+	providers:
+		zk:///library
+	```
+
+
+	2.1) ZooKeeper provider is configured by `servers` from [zookeeper] section and path from URL
+	
+	Path will be `/', this is a special case to 2)
+
+	```
+	[zookeeper]
+	servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+	path=/else
+
+	[library]
+	providers:
+		zk:///
+	```
+
+	3) ZooKeeper provider is fully configured from URL
+	
+	```
+	[library]
+	providers:
+		zk://zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181/library
+	```
+
+	'''
+
 	def __init__(self, library, path):
 		super().__init__(library)
 
@@ -26,7 +83,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.BasePath = url_pieces.path.lstrip("/")
 		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
+
 		self.BasePath = '/' + self.BasePath
+		if self.BasePath == '/':
+			self.BasePath = ''
 
 		if url_pieces.netloc == "":
 			# if netloc is not providede `zk:///path`, then use `zookeeper` section from config
@@ -34,7 +94,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			z_url = None
 		else:
 			config_section_name = ''
-			z_url = url_pieces  # TODO: Not correct
+			z_url = path
 
 		# Initialize ZooKeeper client
 		zksvc = self.App.get_service("asab.ZooKeeperService")
@@ -68,6 +128,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			return None
+
+		print(">>>", self.BasePath, path)
 
 		assert path[:1] == '/'
 		if path != '/':

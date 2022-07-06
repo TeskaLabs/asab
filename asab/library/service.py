@@ -8,6 +8,7 @@ import yaml
 
 from ..abc import Service
 from ..config import Config
+from ..log import LOG_NOTICE
 
 #
 
@@ -76,6 +77,10 @@ class LibraryService(Service):
 			from .providers.azurestorage import AzureStorageLibraryProvider
 			library_provider = AzureStorageLibraryProvider(self, path)
 
+		elif path == '' or path.startswith("#") or path.startswith(";"):
+			# This is empty or commented line
+			return
+
 		else:
 			L.error("Incorrect/unknown provider for '{}'".format(path))
 			raise SystemExit("Exit due to a critical configuration error.")
@@ -114,7 +119,7 @@ class LibraryService(Service):
 			await self._read_disabled()
 
 		if self.is_ready():
-			L.info("Library is ready.", struct_data={'name': self.Name})
+			L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("ASABLibrary.ready!", self)
 
 
