@@ -22,13 +22,13 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 	Configure by:
 
-	azure+https://XXXX.blob.core.windows.net/path
+	azure+https://ACCOUNT-NAME.blob.core.windows.net/BLOB-CONTAINER
 
 	If Container Public Access Level is not set to "Public access",
 	then "Access Policy" must be created with "Read" and "List" permissions
 	and "Shared Access Signature" (SAS) query string must be added to a URL in a configuration:
 
-	azure+https://XXXX.blob.core.windows.net/path?sv=2020-10-02&si=path-XXXX&sr=c&sig=XXXXXXXXXXXXXX
+	azure+https://ACCOUNT-NAME.blob.core.windows.net/BLOB-CONTAINER?sv=2020-10-02&si=XXXX&sr=c&sig=XXXXXXXXXXXXXX
 
 	'''
 
