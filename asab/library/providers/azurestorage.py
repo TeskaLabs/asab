@@ -37,18 +37,18 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		assert path[:6] == "azure+"
 
 		self.URL = urllib.parse.urlparse(path[6:])
-		self.Model = None
+		self.Model = None  # Will be set by `_load_model` method
 
 		self.App.TaskService.schedule(self._start())
 
 
 	async def _start(self):
-		await self._load_blob()
+		await self._load_model()
 		await self._set_ready()
 
 
 	# TODO: Call this periodically
-	async def _load_blob(self):
+	async def _load_model(self):
 		url = urllib.parse.urlunparse(urllib.parse.ParseResult(
 			scheme=self.URL.scheme,
 			netloc=self.URL.netloc,
@@ -84,13 +84,8 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 				
 				curmodel = newmodel
 			
-			properties = {}
-			for p in blob.getElementsByTagName("Properties")[0].childNodes:
-				if len(p.childNodes) > 0:
-					properties[p.localName] = p.childNodes[0].data
 			curmodel.sub[path[-1]] = AzureItem(
-				name='/' + '/'.join(path),
-				properties=properties
+				name='/' + '/'.join(path)
 			)
 
 		self.Model = model
@@ -163,7 +158,6 @@ class AzureDirectory:
 @dataclasses.dataclass
 class AzureItem:
 	name: str
-	properties: object
 	type: str = "item"
 
 
