@@ -72,6 +72,10 @@ class LibraryService(Service):
 			from .providers.filesystem import FileSystemLibraryProvider
 			library_provider = FileSystemLibraryProvider(self, path)
 
+		elif path.startswith('azure+https://'):
+			from .providers.azurestorage import AzureStorageLibraryProvider
+			library_provider = AzureStorageLibraryProvider(self, path)
+
 		else:
 			L.error("Incorrect/unknown provider for '{}'".format(path))
 			raise SystemExit("Exit due to a critical configuration error.")
