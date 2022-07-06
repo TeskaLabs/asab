@@ -23,7 +23,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	Configuration variant:
 
 
-	1) ZooKeeper provider is fully configured from [zookeeper] section 
+	1) ZooKeeper provider is fully configured from [zookeeper] section
 
 	```
 	[zookeeper]
@@ -37,7 +37,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 	2) ZooKeeper provider is configured by `servers` from [zookeeper] section and path from URL
-	
+
 	Path will be `/library'.
 
 	```
@@ -52,7 +52,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 	2.1) ZooKeeper provider is configured by `servers` from [zookeeper] section and path from URL
-	
+
 	Path will be `/', this is a special case to 2)
 
 	```
@@ -66,7 +66,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	```
 
 	3) ZooKeeper provider is fully configured from URL
-	
+
 	```
 	[library]
 	providers:
@@ -128,8 +128,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			return None
-
-		print(">>>", self.BasePath, path)
 
 		assert path[:1] == '/'
 		if path != '/':
