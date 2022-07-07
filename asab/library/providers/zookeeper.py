@@ -109,7 +109,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if z_url is None and url_pieces.netloc == "" and url_pieces.path == "" and self.Zookeeper.Path != '':
 			self.BasePath = '/' + self.Zookeeper.Path
 
+		self.Version = None # Will be read when a library become ready
+
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
+		self.App.PubSub.subscribe("Application.tick/60!", self._get_version_counter)
 
 
 	async def finalize(self, app):
@@ -125,7 +128,37 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		if zkcontainer == self.ZookeeperContainer:
 			self.Zookeeper = self.ZookeeperContainer.ZooKeeper
+
+			self.VersionNodePath = self.build_path('/.version.yaml')
+			def on_version_changed(version, event):
+				self.App.Loop.call_soon_threadsafe(self._check_version_counter, version)
+			kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.VersionNodePath, on_version_changed)
+
 			await self._set_ready()
+
+
+	def _get_version_counter(self, event_name=None):
+		if self.Zookeeper is None:
+			return
+
+		def get_version_counter(client):
+			version, stats = client.get(self.VersionNodePath)
+			self.App.Loop.call_soon_threadsafe(self._check_version_counter, version)
+
+		self.Zookeeper.ProactorService.execute(get_version_counter, self.Zookeeper.Client)
+
+	def _check_version_counter(self, version):
+		if self.Version is None:
+			# Initial grab of the version
+			self.Version = int(version)
+			return
+		
+		if self.Version == int(version):
+			# The version has not changed
+			return
+		
+		L.info("Version changed", struct_data={'version': version, 'name': self.Library.Name})
+		self.App.PubSub.publish("Library.changed!", self.Library, self)
 
 
 	async def read(self, path):
@@ -133,15 +166,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			return None
 
-		assert path[:1] == '/'
-		if path != '/':
-			node_path = self.BasePath + path
-		else:
-			node_path = self.BasePath
-
-		assert '//' not in node_path
-		assert node_path[0] == '/'
-		assert len(node_path) == 1 or node_path[-1:] != '/'
+		node_path = self.build_path(path)
 
 		try:
 			node_data = await self.Zookeeper.get_data(node_path)
@@ -157,19 +182,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			raise RuntimeError("Not ready")
 
-		assert path[:1] == '/'
-		if path != '/':
-			node_path = self.BasePath + path
-		else:
-			node_path = self.BasePath
-
-		if node_path == '':
-			node_path = '/'
-
-		assert len(node_path) > 0
-		assert '//' not in node_path
-		assert node_path[0] == '/'
-		assert len(node_path) == 1 or node_path[-1:] != '/'
+		node_path = self.build_path(path)
 
 		nodes = await self.Zookeeper.get_children(node_path)
 		if nodes is None:
@@ -190,3 +203,24 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			))
 
 		return items
+
+
+	def build_path(self, path):
+		"""
+		It takes a path in the library and transforms in into a path within Zookeeper.
+		It does also series of sanity checks (asserts).
+
+		IMPORTANT: If you encounter asserting failure, don't remove assert.
+		It means that your code is incorrect.		
+		"""
+		assert path[:1] == '/'
+		if path != '/':
+			node_path = self.BasePath + path
+		else:
+			node_path = self.BasePath
+
+		assert '//' not in node_path
+		assert node_path[0] == '/'
+		assert len(node_path) == 1 or node_path[-1:] != '/'
+
+		return node_path
