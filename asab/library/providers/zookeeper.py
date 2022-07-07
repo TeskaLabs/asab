@@ -129,7 +129,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if zkcontainer == self.ZookeeperContainer:
 			self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 			self.VersionNodePath = self.build_path('/.version.yaml')
-			
+
 			def on_version_changed(version, event):
 				self.App.Loop.call_soon_threadsafe(self._check_version_counter, version)
 			kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.VersionNodePath, on_version_changed)
