@@ -109,7 +109,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if z_url is None and url_pieces.netloc == "" and url_pieces.path == "" and self.Zookeeper.Path != '':
 			self.BasePath = '/' + self.Zookeeper.Path
 
-		self.Version = None # Will be read when a library become ready
+		self.Version = None  # Will be read when a library become ready
 
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
 		self.App.PubSub.subscribe("Application.tick/60!", self._get_version_counter)
@@ -128,8 +128,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		if zkcontainer == self.ZookeeperContainer:
 			self.Zookeeper = self.ZookeeperContainer.ZooKeeper
-
 			self.VersionNodePath = self.build_path('/.version.yaml')
+			
 			def on_version_changed(version, event):
 				self.App.Loop.call_soon_threadsafe(self._check_version_counter, version)
 			kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.VersionNodePath, on_version_changed)
@@ -152,11 +152,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			# Initial grab of the version
 			self.Version = int(version)
 			return
-		
+
 		if self.Version == int(version):
 			# The version has not changed
 			return
-		
+
 		L.info("Version changed", struct_data={'version': version, 'name': self.Library.Name})
 		self.App.PubSub.publish("Library.changed!", self.Library, self)
 
@@ -211,7 +211,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		It does also series of sanity checks (asserts).
 
 		IMPORTANT: If you encounter asserting failure, don't remove assert.
-		It means that your code is incorrect.		
+		It means that your code is incorrect.
 		"""
 		assert path[:1] == '/'
 		if path != '/':
