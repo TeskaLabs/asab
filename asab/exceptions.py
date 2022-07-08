@@ -7,9 +7,9 @@ class ValidationError(Exception):
 
 class Conflict(Exception):
 	"""
-	Request cannot be processed because it would introduce a state that violates a uniqueness requirement
+	Request cannot be satisfied because it would introduce a state that violates some uniqueness requirement
 	"""
-	# TODO: Handle when the value of `key` or `value` is `None`
+	# TODO: Handle when the value of `key` or `value` is actually `None`
 	def __init__(self, message=None, *args, key=None, value=None):
 		self.Key = key
 		self.Value = value
