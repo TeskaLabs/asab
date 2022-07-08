@@ -107,7 +107,7 @@ async def JsonExceptionMiddleware(request, handler):
 	# KeyError translates to 404
 	except KeyError as e:
 		euuid = uuid.uuid4()
-		Lex.warning("KeyError when handling web request", exc_info=e, struct_data={'uuid': str(euuid)})
+		Lex.warning("KeyError when handling web request", exc_info=e, struct_data={"uuid": str(euuid)})
 
 		if len(e.args) > 1:
 			message = e.args[0].format(*e.args[1:])
@@ -160,28 +160,20 @@ async def JsonExceptionMiddleware(request, handler):
 		else:
 			message = "Conflict"
 
-		raise aiohttp.web.HTTPConflict(
-			text=json.dumps({
+		return json_response(
+			request,
+			data={
 				"result": "CONFLICT",
 				"message": message,
 				"uuid": str(euuid),
-			}),
-			content_type="application/json",
-		) from e
-		# return json_response(
-		# 	request,
-		# 	data={
-		# 		"result": "CONFLICT",
-		# 		"message": message,
-		# 		"uuid": str(euuid),
-		# 	},
-		# 	status=409,
-		# )
+			},
+			status=409,
+		)
 
 	# Other errors to JSON
 	except Exception as e:
 		euuid = uuid.uuid4()
-		Lex.exception("Exception when handling web request", exc_info=e, struct_data={'uuid': str(euuid)})
+		Lex.exception("Exception when handling web request", exc_info=e, struct_data={"uuid": str(euuid)})
 		return json_response(
 			request,
 			data=json.dumps({
