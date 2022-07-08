@@ -93,11 +93,13 @@ async def JsonExceptionMiddleware(request, handler):
 		}
 		if ex.status >= 400:
 			euuid = uuid.uuid4()
-			struct_data = {'uuid': str(euuid)}
-			respdict['uuid'] = str(euuid)
-			struct_data.update(request.headers)
-			struct_data['path'] = request.path
-			struct_data['status'] = ex.status
+			respdict["uuid"] = str(euuid)
+			struct_data = {
+				"uuid": str(euuid),
+				"path": request.path,
+				"status": ex.status,
+				**request.headers
+			}
 			Lex.error(ex, struct_data=struct_data)
 
 		ex.content_type = 'application/json'
@@ -107,7 +109,13 @@ async def JsonExceptionMiddleware(request, handler):
 	# KeyError translates to 404
 	except KeyError as e:
 		euuid = uuid.uuid4()
-		Lex.warning("KeyError when handling web request", exc_info=e, struct_data={"uuid": str(euuid)})
+		struct_data = {
+			"uuid": str(euuid),
+			"path": request.path,
+			"status": 404,
+			**request.headers
+		}
+		Lex.warning("KeyError when handling web request", exc_info=True, struct_data=struct_data)
 
 		if len(e.args) > 1:
 			message = e.args[0].format(*e.args[1:])
@@ -129,7 +137,13 @@ async def JsonExceptionMiddleware(request, handler):
 	# ValidationError translates to 400
 	except exceptions.ValidationError as e:
 		euuid = uuid.uuid4()
-		Lex.warning("ValidationError when handling web request", exc_info=e, struct_data={"uuid": str(euuid)})
+		struct_data = {
+			"uuid": str(euuid),
+			"path": request.path,
+			"status": 400,
+			**request.headers
+		}
+		Lex.warning("ValidationError when handling web request", exc_info=True, struct_data=struct_data)
 
 		if len(e.args) > 1:
 			message = e.args[0].format(*e.args[1:])
@@ -137,7 +151,6 @@ async def JsonExceptionMiddleware(request, handler):
 			message = e.args[0]
 		else:
 			message = "ValidationError"
-
 		return json_response(
 			request,
 			data={
@@ -151,7 +164,13 @@ async def JsonExceptionMiddleware(request, handler):
 	# Conflict translates to 409
 	except exceptions.Conflict as e:
 		euuid = uuid.uuid4()
-		Lex.warning("Conflict when handling web request", exc_info=e, struct_data={"uuid": str(euuid)})
+		struct_data = {
+			"uuid": str(euuid),
+			"path": request.path,
+			"status": 409,
+			**request.headers
+		}
+		Lex.warning("Conflict when handling web request", exc_info=True, struct_data=struct_data)
 
 		if len(e.args) > 1:
 			message = e.args[0].format(*e.args[1:])
@@ -173,7 +192,13 @@ async def JsonExceptionMiddleware(request, handler):
 	# Other errors to JSON
 	except Exception as e:
 		euuid = uuid.uuid4()
-		Lex.exception("Exception when handling web request", exc_info=e, struct_data={"uuid": str(euuid)})
+		struct_data = {
+			"uuid": str(euuid),
+			"path": request.path,
+			"status": 409,
+			**request.headers
+		}
+		Lex.exception("Exception when handling web request", exc_info=True, struct_data=struct_data)
 		return json_response(
 			request,
 			data=json.dumps({
