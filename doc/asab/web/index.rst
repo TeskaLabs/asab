@@ -59,7 +59,7 @@ Web Service
 
 .. py:class:: WebService
 
-Service localization example:
+Service location example:
 
 .. code:: python
 
@@ -68,21 +68,81 @@ Service localization example:
 	svc = self.get_service("asab.WebService")
 
 
-.. py:attribute:: WebService.Webapp
-
-An instance of a `aiohttp.web.Application` class.
-
-.. code:: python
-
-	svc.WebApp.router.add_get('/hello', self.hello)
-
-
 Configuration
 -------------
 
-TODO: Listen at `0.0.0.0:80`
+The default configuration of the `web` container in ASAB is following:
+
+.. code:: ini
+
+	[web]
+	listen=0.0.0.0:8080
 
 
+Multiple listening interfaces can be specified:
+
+.. code:: ini
+
+	[web]
+	listen:
+		0.0.0.0:8080
+		:: 8080
+
+
+Multiple listening interfaces, one with HTTPS (TLS/SSL) can be specified:
+
+.. code:: ini
+
+	[web]
+	listen:
+		0.0.0.0 8080
+		:: 8080
+		0.0.0.0 8443 ssl:web
+	
+	[ssl:web]
+	cert=...
+	key=...
+	...
+
+
+Multiple interfaces, one with HTTPS (inline):
+
+
+.. code:: ini
+
+	[web]
+	listen:
+		0.0.0.0 8080
+		:: 8080
+		0.0.0.0 8443 ssl
+
+	# The SSL parameters are inside of the WebContainer section
+	cert=...
+	key=...
+	...
+
+
+Other available options are:
+
+ * `backlog`
+ * `rootdir`
+ * `servertokens` (default value `full`)
+ * `cors`
+ * `cors_preflight_paths`
+
+
+TLS/SSL paramereters:
+
+ * `cert`
+ * `key`
+ * `password`
+ * `cafile`
+ * `capath`
+ * `ciphers`
+ * `dh_params`
+ * `verify_mode`: one of `CERT_NONE`, `CERT_OPTIONAL` or `CERT_REQUIRED`
+ * `check_hostname`
+ * `options`
 
 Sessions
 --------

@@ -13,10 +13,11 @@ import asab.api
 class MyApplication(asab.Application):
 
 	'''
-	Run by:
-	$ PYTHONPATH=.. ./webserver.py
+	Run by:  
+	`$ PYTHONPATH=.. ./webserver-advanced.py`
 	
-	The application will be available at http://localhost:8080/
+	The application will be available at http://localhost:8080/   
+	Visit also the documentation at http://localhost:8080/doc
 	'''
 
 	async def initialize(self):
@@ -54,16 +55,26 @@ class MyApplication(asab.Application):
 
 
 	async def index(self, request):
+		'''
+		Returns "Hello, world!"
+		'''
 		return aiohttp.web.Response(text="Hello, world!\n")
 
 
 	async def login(self, request):
+		'''
+		Greets in the session.
+		'''
+
 		session = request.get('Session')
 		return aiohttp.web.Response(text='Hello {}!\n'.format(session))
 
 
 	async def error(self, request):
-		raise RuntimeError("Errror!!")
+		'''
+		Raises the error.
+		'''
+		raise RuntimeError("Error!!")
 
 
 class MyWebSocketFactory(asab.web.WebSocketFactory):
