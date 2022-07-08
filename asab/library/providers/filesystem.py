@@ -1,49 +1,90 @@
-import glob
 import os
+import stat
+import glob
+import functools
 
 from .abc import LibraryProviderABC
+from ..item import LibraryItem
 
 
 class FileSystemLibraryProvider(LibraryProviderABC):
 
 
-	def __init__(self, app, path):
-		super().__init__(app, path)
+	def __init__(self, library, path):
+		super().__init__(library)
+		self.BasePath = os.path.abspath(path)
+		while self.BasePath.endswith("/"):
+			self.BasePath = self.BasePath[:-1]
 
-		self.LibraryBaseDir = path
+		# Filesystem is always ready (or you have a serious problem)
+		self.App.TaskService.schedule(self._set_ready())
 
 
 	async def read(self, path):
-		file_path = os.path.join(self.LibraryBaseDir, path)
+
+		assert path[:1] == '/'
+		if path != '/':
+			node_path = self.BasePath + path
+		else:
+			node_path = self.BasePath
+
+		assert '//' not in node_path
+		assert node_path[0] == '/'
+		assert len(node_path) == 1 or node_path[-1:] != '/'
 
 		try:
-			with open(file_path, 'rb') as f:
+			with open(node_path, 'rb') as f:
 				return f.read()
 
 		except FileNotFoundError:
 			return None
 
+		except IsADirectoryError:
+			return None
 
-	async def list(self, path, recursive=True):
 
-		if recursive:
-			path = os.path.join(path, "**")
+	async def list(self, path: str) -> list:
 
-		file_names = list(
-			glob.iglob(
-				os.path.join(self.LibraryBaseDir, path),
-				recursive=recursive
-			)
-		)
+		assert path[:1] == '/'
+		if path != '/':
+			node_path = self.BasePath + path
+		else:
+			node_path = self.BasePath
 
-		# Remove library path from the beginning of file names
-		library_path_to_replace = "{}/".format(os.path.abspath(self.LibraryBaseDir))
-		for name in file_names:
-			assert name.startswith(library_path_to_replace)
-		file_names_list = [name[len(library_path_to_replace):] for name in file_names]
+		assert '//' not in node_path
+		assert node_path[0] == '/'
+		assert len(node_path) == 1 or node_path[-1:] != '/'
 
-		# Results of glob are returned in arbitrary order
-		# Sort them to preserver order of parsers
-		file_names_list.sort()
+		iglobpath = os.path.join(node_path, "*")
 
-		return file_names_list
+		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
+		if not exists:
+			raise KeyError("Not '{}' found".format(path))
+
+		items = []
+		for fname in glob.iglob(iglobpath):
+
+			fstat = os.stat(fname)
+
+			assert(fname.startswith(node_path))
+			fname = fname[len(node_path) + 1:]
+
+			if stat.S_ISREG(fstat.st_mode):
+				ftype = "item"
+			elif stat.S_ISDIR(fstat.st_mode):
+				ftype = "dir"
+			else:
+				ftype = "?"
+
+			# Remove any component that starts with '.'
+			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), fname.split(os.path.sep), False)
+			if startswithdot:
+				continue
+
+			items.append(LibraryItem(
+				name=(path + fname) if path == '/' else (path + '/' + fname),
+				type=ftype,
+				providers=[self],
+			))
+
+		return items

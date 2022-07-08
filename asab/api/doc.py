@@ -1,3 +1,4 @@
+import re
 import logging
 import inspect
 
@@ -67,15 +68,27 @@ class DocWebHandler(object):
 				# Skip HEAD methods
 				continue
 
+			parameters = []
+
 			route_info = route.get_info()
 			if "path" in route_info:
 				path = route_info["path"]
+
 			elif "formatter" in route_info:
 				# TODO: Extract URL parameters from formatter string
 				path = route_info["formatter"]
+
+				for m in re.findall(r'\{.*\}', path):
+					parameters.append({
+						'in': 'path',
+						'name': m[1:-1],
+						'required': True,
+					})
+
 			else:
 				L.warning("Cannot obtain path info from route", struct_data=route_info)
 				continue
+
 			pathobj = specs['paths'].get(path)
 			if pathobj is None:
 				specs['paths'][path] = pathobj = {}
@@ -105,7 +118,6 @@ class DocWebHandler(object):
 
 			description += '\n\nHandler: `{}`'.format(handler_name)
 
-
 			methoddict = {
 				'description': description,
 				'tags': ['general'],
@@ -113,6 +125,10 @@ class DocWebHandler(object):
 					'200': {'description': 'Success'}
 				}
 			}
+
+			if len(parameters) > 0:
+				methoddict['parameters'] = parameters
+
 			if adddict is not None:
 				methoddict.update(adddict)
 

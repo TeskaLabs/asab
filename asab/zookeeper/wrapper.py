@@ -60,7 +60,7 @@ class KazooWrapper(object):
 			url_netloc = config.get("servers")
 			if url_netloc == '' or url_netloc is None:
 				# if server entry is missing exit
-				L.critical("Cannot connect to Zookeeper, the configuration value of 'servers' not provided.")
+				L.critical("Cannot connect to Zookeeper, the configuration value of 'servers' not provided: '{}'".format(config))
 				raise SystemExit("Exit due to a critical configuration error.")
 
 		# If path has not been provided, use the value of 'path' from the configuration
@@ -76,9 +76,11 @@ class KazooWrapper(object):
 			url_path = url_path[1:]
 
 		self.Path = url_path.rstrip('/')
+		self.Hosts = url_netloc
 
 		# Create and return the client and the url-path
-		self.Client = kazoo.client.KazooClient(hosts=url_netloc)
+		self.Client = kazoo.client.KazooClient(hosts=self.Hosts)
+
 
 	# connection start/close calls
 
@@ -112,7 +114,7 @@ class KazooWrapper(object):
 				self.Client.get_children, path
 			)
 		except kazoo.exceptions.NoNodeError:
-			L.warning("Failed to list children's. Reason: Node '{}' does not exist.".format(path))
+			# This is a silent error, it is indicated by None in the return
 			return None
 		return children
 
@@ -123,7 +125,7 @@ class KazooWrapper(object):
 				self.Client.get, path
 			)
 		except kazoo.exceptions.NoNodeError:
-			L.warning("Failed to get the data. Reason: Node '{}' does not exist.".format(path))
+			# This is a silent error, it is indicated by None in the return
 			return None
 		return data
 

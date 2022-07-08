@@ -55,7 +55,17 @@ class ZooKeeperContainer(ConfigObject):
 
 	def _start(self, app):
 		# This method is called on proactor thread
-		self.ZooKeeper._start()
+		try:
+			self.ZooKeeper._start()
+		except Exception as e:
+			L.error(
+				"Failed to connect to ZooKeeper: {}".format(e),
+				struct_data={
+					'hosts': str(self.ZooKeeper.Hosts)
+				}
+			)
+			return
+
 		self.ZooKeeper.Client.ensure_path(self.ZooKeeper.Path)
 
 		def in_main_thread():
