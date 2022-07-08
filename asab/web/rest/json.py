@@ -190,7 +190,7 @@ async def JsonExceptionMiddleware(request, handler):
 		)
 
 	# Other errors to JSON
-	except Exception as e:
+	except Exception:
 		euuid = uuid.uuid4()
 		struct_data = {
 			"uuid": str(euuid),
