@@ -159,7 +159,7 @@ window.onload = () => {{
 			title=self.App.__class__.__name__,
 			swagger_css_url=swagger_css_url,
 			swagger_js_url=swagger_js_url,
-			openapi_url="/asab/v1/openapi",
+			openapi_url="./asab/v1/openapi",
 		)
 
 		return aiohttp.web.Response(text=page, content_type="text/html")
