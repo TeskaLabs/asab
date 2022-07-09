@@ -1,4 +1,5 @@
 import re
+import typing
 import asyncio
 import logging
 import functools
@@ -149,16 +150,25 @@ class LibraryService(Service):
 			self.App.PubSub.publish("ASABLibrary.ready!", self)
 
 
-	async def read(self, path: str, tenant: str = None) -> bytes:
+	async def read(self, path: str, tenant: str = None) -> typing.IO:
 		"""
 		Read the content of the library item specified by `path`.
 		`None` is returned if the item is not found in the library.
 
 		If the item is disabled (globally or for specified tenant) then None is returned.
 
+		Example of use:
+
+		```
+		itemio = await library.read('/path', 'tenant')
+		if itemio is not:
+			with itemio:
+				return itemio.readall()
+		```
+
 		:param path: The path to the file, `LibraryItem.name` can be used directly
 		:param tenant: The tenant to apply. If not specified, the global access is assumed
-		:return: The content of the library item in bytes.
+		:return: I/O stream (read) with the content of the libary item.
 		"""
 		# It must start with '/'
 		if path[:1] != '/':
@@ -168,11 +178,10 @@ class LibraryService(Service):
 			return None
 
 		for library in self.Libraries:
-			item = await library.read(path)
-			if item is None:
+			itemio = await library.read(path)
+			if itemio is None:
 				continue
-
-			return item
+			return itemio
 
 		return None
 

@@ -41,9 +41,11 @@ class MyApplication(asab.Application):
 		for item in items:
 			print(" *", item)
 			if item.type == 'item':
-				content = await self.LibraryService.read(item.name)
-				if content is not None:
-					print("  - content: {}".format(len(content)))
+				itemio = await self.LibraryService.read(item.name)
+				if itemio is not None:
+					with itemio:
+						content = itemio.read()
+						print("  - content: {}".format(len(content)))
 				else:
 					print("  - N/A")  # Item is likely disabled
 		print("\n===")

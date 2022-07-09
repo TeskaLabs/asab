@@ -1,3 +1,5 @@
+import io
+import typing
 import logging
 import functools
 import os.path
@@ -161,7 +163,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.App.PubSub.publish("Library.changed!", self.Library, self)
 
 
-	async def read(self, path):
+	async def read(self, path: str) -> typing.IO:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			return None
@@ -174,7 +176,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return None
 		# Consider adding other exceptions from Kazoo to indicate common non-critical errors
 
-		return node_data
+		return io.BytesIO(initial_bytes=node_data)
 
 
 	async def list(self, path: str) -> list:
