@@ -174,9 +174,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			node_data = await self.Zookeeper.get_data(node_path)
 		except kazoo.exceptions.NoNodeError:
 			return None
+
 		# Consider adding other exceptions from Kazoo to indicate common non-critical errors
 
-		return io.BytesIO(initial_bytes=node_data)
+		if node_data is not None:
+			return io.BytesIO(initial_bytes=node_data)
+		else:
+			return None
 
 
 	async def list(self, path: str) -> list:
