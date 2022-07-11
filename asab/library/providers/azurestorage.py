@@ -1,4 +1,7 @@
+import io
+import typing
 import logging
+import tempfile
 import dataclasses
 import urllib.parse
 
@@ -99,7 +102,6 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 		assert path[:1] == '/'
 		assert '//' not in path
-		assert path[0] == '/'
 		assert len(path) == 1 or path[-1:] != '/'
 
 		if path == '/':
@@ -126,10 +128,9 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		return items
 
 
-	async def read(self, path):
+	async def read(self, path: str) -> typing.IO:
 		assert path[:1] == '/'
 		assert '//' not in path
-		assert path[0] == '/'
 		assert len(path) == 1 or path[-1:] != '/'
 
 		url = urllib.parse.urlunparse(urllib.parse.ParseResult(
@@ -144,10 +145,20 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		async with aiohttp.ClientSession() as session:
 			async with session.get(url) as resp:
 				if resp.status == 200:
-					return await resp.read()
+					# TODO: Use of resp.headers['Etag'] for a local cache
+
+					# Load the response into the temporary file
+					# ... that's to avoid storing the whole (and possibly large) file in the memory
+					output = tempfile.TemporaryFile()
+					async for chunk in resp.content.iter_chunked(16 * io.DEFAULT_BUFFER_SIZE):
+						output.write(chunk)
 				else:
 					L.warning("Failed to get blob:\n{}".format(await resp.text()))
 					return None
+
+		# Rewind the file so the reader can start consuming from the beginning
+		output.seek(0)
+		return output
 
 
 @dataclasses.dataclass

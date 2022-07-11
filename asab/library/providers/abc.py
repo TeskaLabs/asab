@@ -1,3 +1,4 @@
+import typing
 
 
 class LibraryProviderABC(object):
@@ -14,12 +15,12 @@ class LibraryProviderABC(object):
 		pass
 
 
-	async def read(self, path: str) -> bytes:
+	async def read(self, path: str) -> typing.IO:
 		"""
 		Reads a library item on the given path.
 
-		:param path: The path to the file to read
-		:return: The item a bytes.
+		:param path: The path to the item to read
+		:return: I/O stream (read) with the content of the library item.
 		"""
 		raise NotImplementedError("{}.read()".format(self.__class__.__name__))
 

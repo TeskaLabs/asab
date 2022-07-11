@@ -1,6 +1,8 @@
+import io
 import os
 import stat
 import glob
+import typing
 import functools
 
 from .abc import LibraryProviderABC
@@ -20,7 +22,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		self.App.TaskService.schedule(self._set_ready())
 
 
-	async def read(self, path):
+	async def read(self, path: str) -> typing.IO:
 
 		assert path[:1] == '/'
 		if path != '/':
@@ -33,8 +35,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		assert len(node_path) == 1 or node_path[-1:] != '/'
 
 		try:
-			with open(node_path, 'rb') as f:
-				return f.read()
+			return io.FileIO(node_path, 'rb')
 
 		except FileNotFoundError:
 			return None
