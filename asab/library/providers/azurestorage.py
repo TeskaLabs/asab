@@ -156,6 +156,7 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 					L.warning("Failed to get blob:\n{}".format(await resp.text()))
 					return None
 
+		# Rewind the file so the reader can start consuming from the beginning
 		output.seek(0)
 		return output
 
