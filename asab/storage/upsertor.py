@@ -1,7 +1,16 @@
 import abc
+import json
 import uuid
 import hashlib
 import datetime
+import logging
+import aiohttp
+
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 
 class UpsertorABC(abc.ABC):
@@ -31,6 +40,8 @@ class UpsertorABC(abc.ABC):
 
 		self.ModPush = {}
 		self.ModPull = {}
+
+		self.WebhookResponseData = None
 
 
 	def get_id_name(self):
@@ -93,3 +104,21 @@ class UpsertorABC(abc.ABC):
 	@abc.abstractmethod
 	async def execute(self):
 		pass
+
+
+	async def _webhook(self, data: dict):
+		assert self.Storage.WebhookURI is not None
+		try:
+			async with aiohttp.ClientSession(auth=self.Storage.WebhookAuth) as session:
+				async with session.put(self.Storage.WebhookURI, json=data) as response:
+					if response.status // 100 != 2:
+						text = await response.text()
+						L.error("Webhook endpoint responded with {}:\n{}".format(response.status, text[:1000]))
+						return
+					self.WebhookResponseData = await response.json()
+		except json.decoder.JSONDecodeError as e:
+			L.error("Failed to decode JSON response from webhook: {}".format(str(e)), struct_data={
+				"url": self.Storage.WebhookURI
+			})
+		except Exception as e:
+			L.error("Webhook call failed with {}: {}".format(type(e).__name__, str(e)))

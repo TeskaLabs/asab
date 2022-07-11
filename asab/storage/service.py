@@ -6,6 +6,8 @@ class StorageServiceABC(asab.Service):
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
+		self.WebhookURI = asab.Config.get("asab:storage:changestream", "uri", fallback=None)
+		self.WebhookAuth = asab.Config.get("asab:storage:changestream", "auth", fallback=None)
 
 
 	@abc.abstractmethod
