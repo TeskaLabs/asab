@@ -185,6 +185,9 @@ class MongoDBUpsertor(UpsertorABC):
 				data["push"] = self.ModPush.items()
 			if len(self.ModUnset) > 0:
 				data["unset"] = self.ModUnset
-			await self._webhook(data)
+			await self._webhook({
+				"collection": self.Collection,
+				"data": data
+			})
 
 		return self.ObjId
