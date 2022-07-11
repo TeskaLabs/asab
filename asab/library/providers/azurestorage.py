@@ -102,7 +102,6 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 		assert path[:1] == '/'
 		assert '//' not in path
-		assert path[0] == '/'
 		assert len(path) == 1 or path[-1:] != '/'
 
 		if path == '/':
@@ -132,7 +131,6 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 	async def read(self, path: str) -> typing.IO:
 		assert path[:1] == '/'
 		assert '//' not in path
-		assert path[0] == '/'
 		assert len(path) == 1 or path[-1:] != '/'
 
 		url = urllib.parse.urlunparse(urllib.parse.ParseResult(
