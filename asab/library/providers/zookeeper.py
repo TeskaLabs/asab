@@ -148,6 +148,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.Zookeeper.ProactorService.execute(get_version_counter, self.Zookeeper.Client)
 
 	def _check_version_counter(self, version):
+		if version is None:
+			version = -1
+
 		if self.Version is None:
 			# Initial grab of the version
 			self.Version = int(version)
