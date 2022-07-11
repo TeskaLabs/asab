@@ -150,7 +150,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.Zookeeper.ProactorService.execute(get_version_counter, self.Zookeeper.Client)
 
 	def _check_version_counter(self, version):
+		# If version is `None` aka `/.version.yaml` doesn't exists, then assume version -1
 		if version is None:
+			L.warning("File `/.version.yaml` likely doesn't exists.")
 			version = -1
 
 		if self.Version is None:
