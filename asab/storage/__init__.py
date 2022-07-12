@@ -14,17 +14,18 @@ class Module(asab.Module):
 		super().__init__(app)
 		sttype = asab.Config.get('asab:storage', 'type')
 
-		if sttype == 'inmemory':
+		if 'inmemory' in sttype:
 			from .inmemory import StorageService
-			self.Service = StorageService(app, "asab.StorageService")
+			self.InMemoryStorageService = StorageService(app, "asab.InMemoryStorageService")
 
-		elif sttype == 'mongodb':
+		if 'mongodb' in sttype:
+			print("mongo initialized")
 			from .mongodb import StorageService
-			self.Service = StorageService(app, "asab.StorageService")
+			self.MongoDBStorageService = StorageService(app, "asab.MongoDBStorageService")
 
-		elif sttype == "elasticsearch":
+		if "elasticsearch" in sttype:
 			from .elasticsearch import StorageService
-			self.Service = StorageService(app, "asab.StorageService")
+			self.ElasticSearchStorageService = StorageService(app, "asab.ElasticSearchStorageService")
 
 		else:
 			L.error("Unknown asab:storage type '{}'".format(sttype))
