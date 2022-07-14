@@ -1,3 +1,4 @@
+import typing
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
 from .exceptions import DuplicateError

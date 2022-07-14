@@ -4,6 +4,7 @@ import aiohttp
 import logging
 import datetime
 import urllib.parse
+import typing
 
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
