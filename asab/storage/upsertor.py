@@ -104,7 +104,7 @@ class UpsertorABC(abc.ABC):
 
 
 	@abc.abstractmethod
-	async def execute(self, webhook_user_data: typing.Optional[dict]=None):
+	async def execute(self, webhook_user_data: typing.Optional[dict] = None):
 		"""
 		Commit upsertor data to the storage
 

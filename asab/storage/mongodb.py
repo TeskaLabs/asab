@@ -113,7 +113,7 @@ class MongoDBUpsertor(UpsertorABC):
 		return bson.objectid.ObjectId()
 
 
-	async def execute(self, webhook_user_data: typing.Optional[dict]=None):
+	async def execute(self, webhook_user_data: typing.Optional[dict] = None):
 		id_name = self.get_id_name()
 		addobj = {}
 
