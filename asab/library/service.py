@@ -1,10 +1,13 @@
+import io
 import re
 import typing
 import asyncio
 import logging
 import functools
 import configparser
-
+import tempfile
+import tarfile
+import time
 import yaml
 
 from ..abc import Service
@@ -304,3 +307,45 @@ class LibraryService(Service):
 			return True
 
 		return False
+
+
+	async def export(self, path="/", tenant=None):
+
+		fileobj = tempfile.TemporaryFile()
+		tarobj = tarfile.open(name=None, mode='w:gz', fileobj=fileobj)
+
+		while path[-1:] == '/':
+			path = path[:-1]
+
+		# Path must start with '/'
+		if path[:1] != '/':
+			path = '/' + path
+
+		# List requested level using all available providers
+		only_first = [self.Libraries[0]]
+		items = await self._list(path, tenant, providers=only_first)
+
+		recitems = list(items[:])
+
+		while len(recitems) > 0:
+
+			item = recitems.pop(0)
+			if item.type != 'dir':
+				continue
+
+			child_items = await self._list(item.name, tenant, providers=item.providers)
+			items.extend(child_items)
+			recitems.extend(child_items)
+
+		for item in items:
+			if item.type != 'dir':
+				my_data = await self.Libraries[0].read(item.name)
+				f = io.BytesIO(my_data.read())
+				info = tarfile.TarInfo(item.name)
+				info.size = len(my_data.read())
+				info.mtime = time.time()
+				tarobj.addfile(tarinfo=info, fileobj=f)
+
+		tarobj.close()
+		fileobj.seek(0)
+		return fileobj

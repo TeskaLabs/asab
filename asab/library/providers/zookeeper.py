@@ -4,7 +4,9 @@ import logging
 import functools
 import os.path
 import urllib.parse
-
+# import tempfile
+# import tarfile
+# import time
 import kazoo.exceptions
 
 from .abc import LibraryProviderABC
