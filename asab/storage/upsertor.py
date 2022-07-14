@@ -6,6 +6,7 @@ import datetime
 import logging
 import aiohttp
 import asab.web.rest.json
+import typing
 
 #
 
@@ -103,7 +104,12 @@ class UpsertorABC(abc.ABC):
 
 
 	@abc.abstractmethod
-	async def execute(self):
+	async def execute(self, webhook_user_data: typing.Optional[dict]=None):
+		"""
+		Commit upsertor data to the storage
+
+		:webhook_data: Additional data to include in webhook payload
+		"""
 		pass
 
 

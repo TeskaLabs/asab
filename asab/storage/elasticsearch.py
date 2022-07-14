@@ -371,7 +371,8 @@ class ElasicSearchUpsertor(UpsertorABC):
 		raise NotImplementedError("generate_id")
 
 
-	async def execute(self):
+	async def execute(self, webhook_user_data: typing.Optional[dict]=None):
+		# TODO: Implement webhook call
 		if self.ObjId is None:
 			return await self._insert_noobjid()
 		else:

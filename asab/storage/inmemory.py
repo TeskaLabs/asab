@@ -6,7 +6,8 @@ from .exceptions import DuplicateError
 class InMemoryUpsertor(UpsertorABC):
 
 
-	async def execute(self):
+	async def execute(self, webhook_user_data: typing.Optional[dict]=None):
+		# TODO: Implement webhook call
 		id_name = self.get_id_name()
 
 		# Get the object
