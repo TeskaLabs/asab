@@ -113,7 +113,7 @@ class MongoDBUpsertor(UpsertorABC):
 		return bson.objectid.ObjectId()
 
 
-	async def execute(self, webhook_user_data: typing.Optional[dict] = None):
+	async def execute(self, custom_data: typing.Optional[dict] = None):
 		id_name = self.get_id_name()
 		addobj = {}
 
@@ -177,8 +177,8 @@ class MongoDBUpsertor(UpsertorABC):
 				"collection": self.Collection,
 			}
 
-			if webhook_user_data is not None:
-				webhook_data["user_data"] = webhook_user_data
+			if custom_data is not None:
+				webhook_data["custom"] = custom_data
 
 			# Add upsetor data; do not include fields that start with "__"
 			upsertor_data = {
@@ -194,7 +194,7 @@ class MongoDBUpsertor(UpsertorABC):
 				upsertor_data["push"] = {k: v for k, v in self.ModPush.items() if not k.startswith("__")}
 			if len(self.ModUnset) > 0:
 				upsertor_data["unset"] = {k: v for k, v in self.ModUnset.items() if not k.startswith("__")}
-			webhook_data["upsertor_data"] = upsertor_data
+			webhook_data["upsertor"] = upsertor_data
 
 			await self._webhook(webhook_data)
 
