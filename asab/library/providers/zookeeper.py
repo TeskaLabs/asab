@@ -90,7 +90,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if self.BasePath == '/':
 			self.BasePath = ''
 
-		if url_pieces.netloc == "":
+		if url_pieces.netloc == "" or ".":
 			# if netloc is not providede `zk:///path`, then use `zookeeper` section from config
 			config_section_name = 'zookeeper'
 			z_url = None
@@ -110,6 +110,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		# Handle `zk://` configuration
 		if z_url is None and url_pieces.netloc == "" and url_pieces.path == "" and self.Zookeeper.Path != '':
 			self.BasePath = '/' + self.Zookeeper.Path
+
+		# Handle `zk://./path` configuration
+		if z_url is None and url_pieces.netloc == "." and self.Zookeeper.Path != '':
+			self.BasePath = '/' + self.Zookeeper.Path + self.BasePath
 
 		self.Version = None  # Will be read when a library become ready
 
