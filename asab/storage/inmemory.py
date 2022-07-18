@@ -1,3 +1,4 @@
+import typing
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
 from .exceptions import DuplicateError
@@ -6,7 +7,8 @@ from .exceptions import DuplicateError
 class InMemoryUpsertor(UpsertorABC):
 
 
-	async def execute(self):
+	async def execute(self, custom_data: typing.Optional[dict] = None):
+		# TODO: Implement webhook call
 		id_name = self.get_id_name()
 
 		# Get the object

@@ -1,5 +1,5 @@
 import datetime
-
+import typing
 import motor.motor_asyncio
 import pymongo
 import bson
@@ -113,7 +113,7 @@ class MongoDBUpsertor(UpsertorABC):
 		return bson.objectid.ObjectId()
 
 
-	async def execute(self):
+	async def execute(self, custom_data: typing.Optional[dict] = None):
 		id_name = self.get_id_name()
 		addobj = {}
 
@@ -171,5 +171,31 @@ class MongoDBUpsertor(UpsertorABC):
 		# 		except ValueError:
 		# 			pass
 		# 	obj[k] = o
+
+		if self.Storage.WebhookURI is not None:
+			webhook_data = {
+				"collection": self.Collection,
+			}
+
+			if custom_data is not None:
+				webhook_data["custom"] = custom_data
+
+			# Add upsetor data; do not include fields that start with "__"
+			upsertor_data = {
+				"id_field_name": id_name,
+				"id": self.ObjId,
+				"_v": int(self.Version),
+			}
+			if len(self.ModSet) > 0:
+				upsertor_data["set"] = {k: v for k, v in self.ModSet.items() if not k.startswith("__")}
+			if len(self.ModInc) > 0:
+				upsertor_data["inc"] = {k: v for k, v in self.ModInc.items() if not k.startswith("__")}
+			if len(self.ModPush) > 0:
+				upsertor_data["push"] = {k: v for k, v in self.ModPush.items() if not k.startswith("__")}
+			if len(self.ModUnset) > 0:
+				upsertor_data["unset"] = {k: v for k, v in self.ModUnset.items() if not k.startswith("__")}
+			webhook_data["upsertor"] = upsertor_data
+
+			await self._webhook(webhook_data)
 
 		return self.ObjId

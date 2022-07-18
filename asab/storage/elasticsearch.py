@@ -4,6 +4,7 @@ import aiohttp
 import logging
 import datetime
 import urllib.parse
+import typing
 
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
@@ -371,7 +372,8 @@ class ElasicSearchUpsertor(UpsertorABC):
 		raise NotImplementedError("generate_id")
 
 
-	async def execute(self):
+	async def execute(self, custom_data: typing.Optional[dict] = None):
+		# TODO: Implement webhook call
 		if self.ObjId is None:
 			return await self._insert_noobjid()
 		else:
