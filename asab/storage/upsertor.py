@@ -106,9 +106,37 @@ class UpsertorABC(abc.ABC):
 	@abc.abstractmethod
 	async def execute(self, custom_data: typing.Optional[dict] = None):
 		"""
-		Commit upsertor data to the storage
+		Commit upsertor data to the storage. Afterwards, send a webhook request with upsertion details.
 
-		:webhook_data: Additional data to include in webhook payload
+		:custom_data: Custom execution data. Included in webhook payload.
+
+		Example:
+			The following upsertion
+			```python
+			upsertor = storage_service.upsertor("users")
+			upsertor.set("name", "Raccoon")
+			await upsertor.execute(custom_data={"action": "user_creation"})
+			```
+
+			will trigger a webhook whose payload may look like this:
+			```json
+			{
+				"collection": "users",
+				"custom": {"action": "user_creation"},
+				"upsertor": {
+					"id": "2O-h3ulpO-ZwDrkSbQlYB3pYS0JJxCJj3nr6uQAu8aU",
+					"id_field_name": "_id",
+					"_v": 0,
+					"inc": {"_v": 1},
+					"set": {
+						"_c": "2022-07-11T16:06:04.380445+00:00",
+						"_id": "2O-h3ulpO-ZwDrkSbQlYB3pYS0JJxCJj3nr6uQAu8aU",
+						"_m": "2022-07-11T16:06:04.380445+00:00",
+						"name": "Raccoon"
+					}
+				}
+			}
+			```
 		"""
 		pass
 
