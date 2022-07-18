@@ -195,17 +195,17 @@ async def JsonExceptionMiddleware(request, handler):
 		struct_data = {
 			"uuid": str(euuid),
 			"path": request.path,
-			"status": 409,
+			"status": 500,
 			**request.headers
 		}
 		Lex.exception("Exception when handling web request", exc_info=True, struct_data=struct_data)
 		return json_response(
 			request,
-			data=json.dumps({
+			data={
 				"result": "ERROR",
 				"message": "Internal Server Error",
 				"uuid": str(euuid),
-			}),
+			},
 			status=500,
 		)
 
