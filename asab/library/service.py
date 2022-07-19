@@ -1,4 +1,3 @@
-import io
 import re
 import typing
 import asyncio
@@ -8,6 +7,8 @@ import configparser
 import tempfile
 import tarfile
 import time
+from io import SEEK_END, SEEK_SET
+
 import yaml
 
 from ..abc import Service
@@ -338,13 +339,15 @@ class LibraryService(Service):
 			recitems.extend(child_items)
 
 		for item in items:
-			if item.type != 'dir':
-				my_data = await self.Libraries[0].read(item.name)
-				f = io.BytesIO(my_data.read())
-				info = tarfile.TarInfo(item.name)
-				info.size = len(my_data.read())
-				info.mtime = time.time()
-				tarobj.addfile(tarinfo=info, fileobj=f)
+			if item.type != 'item':
+				continue
+			my_data = await self.Libraries[0].read(item.name)
+			info = tarfile.TarInfo(item.name)
+			my_data.seek(0, SEEK_END)
+			info.size = my_data.tell()
+			my_data.seek(0, SEEK_SET)
+			info.mtime = time.time()
+			tarobj.addfile(tarinfo=info, fileobj=my_data)
 
 		tarobj.close()
 		fileobj.seek(0)
