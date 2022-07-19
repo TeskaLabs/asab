@@ -20,7 +20,7 @@ L = logging.getLogger(__name__)
 
 class ZooKeeperLibraryProvider(LibraryProviderABC):
 
-	'''
+	"""
 
 	Configuration variant:
 
@@ -75,7 +75,25 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		zk://zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181/library
 	```
 
-	'''
+	4) ZooKeeper provider is configured by `servers` from [zookeeper] section and  joined `path` from [zookeeper] and
+	path from URL
+
+	Path will be `/else/library'
+
+	```
+	[zookeeper]
+	servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+	path=/else
+
+	[library]
+	providers:
+		zk://./library
+	```
+
+	If `path` from [zookeeper] section is missing, an application class name will be used
+	Ex. `/BSQueryApp/library'
+
+	"""
 
 	def __init__(self, library, path):
 		super().__init__(library)
@@ -91,7 +109,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			self.BasePath = ''
 
 		if url_pieces.netloc == "" or ".":
-			# if netloc is not providede `zk:///path`, then use `zookeeper` section from config
+			# if netloc is not provided `zk:///path`, then use `zookeeper` section from config
 			config_section_name = 'zookeeper'
 			z_url = None
 		else:
