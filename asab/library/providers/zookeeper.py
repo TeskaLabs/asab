@@ -100,6 +100,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		url_pieces = urllib.parse.urlparse(path)
 
+		self.Path = path
 		self.BasePath = url_pieces.path.lstrip("/")
 		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
@@ -153,6 +154,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if zkcontainer == self.ZookeeperContainer:
 			self.Zookeeper = self.ZookeeperContainer.ZooKeeper
 			self.VersionNodePath = self.build_path('/.version.yaml')
+			L.info("ZooKeeper library provider {} is connected.".format(self.Path))
 
 			def on_version_changed(version, event):
 				self.App.Loop.call_soon_threadsafe(self._check_version_counter, version)

@@ -4,9 +4,16 @@ import stat
 import glob
 import typing
 import functools
+import logging
 
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
+
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 
 class FileSystemLibraryProvider(LibraryProviderABC):
@@ -22,6 +29,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
 
+		L.info("FileSystem library provider {} is connected.".format(path))
 		# Filesystem is always ready (or you have a serious problem)
 		if set_ready:
 			self.App.TaskService.schedule(self._set_ready())
