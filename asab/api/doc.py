@@ -56,8 +56,11 @@ class DocWebHandler(object):
 				},
 				"version": "1.0.0"
 			},
+			"servers": [
+				{"url": "../../"}  # Base path relative to openapi endpoint
+			],
 			"paths": {
-			}
+			},
 		}
 
 		if adddict is not None:
