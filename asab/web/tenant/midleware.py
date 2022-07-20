@@ -2,7 +2,6 @@ import aiohttp.web
 
 import asab
 import asab.web.rest
-import logging
 
 
 def tenant_middleware_factory(app, svc):
