@@ -63,16 +63,6 @@ class TenantService(Service):
 			app.PubSub.subscribe("Application.tick/300!", self._update_tenants)
 
 
-	@property
-	def TenantIds(self):
-		'''
-		This is here for a backward compatibility.
-		Remove after Jan 2022
-		'''
-		L.warning("The TenantService.TenantIds is deprecated, use TenantService.get_tenant_ids()")
-		return self.get_tenant_ids()
-
-
 	def locate_tenant(self, tenant_id):
 		tenant = self.Tenants.get(tenant_id)
 		if tenant is None and self.TenantsTrusted > 0:
