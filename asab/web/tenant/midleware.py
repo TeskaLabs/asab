@@ -4,11 +4,6 @@ import asab
 import asab.web.rest
 import logging
 
-#
-
-L = logging.getLogger(__name__)
-
-#
 
 def tenant_middleware_factory(app, svc):
 	"""
