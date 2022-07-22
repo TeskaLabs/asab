@@ -17,7 +17,7 @@ Config.add_defaults(
 		'docker': {
 			# Docker API or socket
 			# Could be `http://myHost:2375` or `/var/run/docker.sock`
-			'socket': '/var/run/docker.sock',
+			'socket': '',
 		}
 	}
 )
