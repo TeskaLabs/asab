@@ -108,7 +108,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if self.BasePath == '/':
 			self.BasePath = ''
 
-		if url_pieces.netloc == "" or ".":
+		if url_pieces.netloc in ["", "."]:
 			# if netloc is not provided `zk:///path`, then use `zookeeper` section from config
 			config_section_name = 'zookeeper'
 			z_url = None
