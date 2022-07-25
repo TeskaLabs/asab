@@ -207,7 +207,7 @@ Example of the use:
 
 Log example:
 
-    21-Jul-2022 14:32:40.983884 WARNING OBSOLETE [eol="2022-31-12"] Use of the obsolete function
+``21-Jul-2022 14:32:40.983884 WARNING OBSOLETE [eol="2022-31-12"] Use of the obsolete function`
 
 
 Reference
