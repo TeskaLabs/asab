@@ -108,6 +108,10 @@ class LibraryService(Service):
 			from .providers.azurestorage import AzureStorageLibraryProvider
 			library_provider = AzureStorageLibraryProvider(self, path)
 
+		elif path.startswith('git+') or path.startswith('git+'):
+			from .providers.git import GitLibraryProvider
+			library_provider = GitLibraryProvider(self, path)
+
 		elif path == '' or path.startswith("#") or path.startswith(";"):
 			# This is empty or commented line
 			return
