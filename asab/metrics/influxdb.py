@@ -169,14 +169,14 @@ def build_metric_line(tags, values, upperbound=None):
 
 
 def metric_to_influxdb(metric_record, now):
-	if metric_record.get("@timestamp") is None:
-		timestamp = now
-	else:
-		timestamp = metric_record.get("@timestamp")
-	name = metric_record.get("name")
-	fieldset = metric_record.get("fieldset")
-	metric_type = metric_record.get("type")
-	values_lines = []
+    if metric_record.get("@timestamp") is None:
+        timestamp = now
+    else:
+        timestamp = metric_record.get("@timestamp")
+    name = validate_name(metric_record.get("name"))
+    fieldset = metric_record.get("fieldset")
+    metric_type = metric_record.get("type")
+    values_lines = []
 
 	if metric_type in ["Histogram", "HistogramWithDynamicTags"]:
 		for field in fieldset:
@@ -191,15 +191,45 @@ def metric_to_influxdb(metric_record, now):
 			values_lines.append(build_metric_line(field.get("tags").copy(), {"sum": field.get("values").get("sum")}))
 			values_lines.append(build_metric_line(field.get("tags").copy(), {"count": field.get("values").get("count")}))
 
-	else:
-		for field in fieldset:
-			# SKIP empty fields
-			if not field.get("values") or field.get("values") == {}:
-				continue
-			values_lines.append(build_metric_line(field.get("tags"), field.get("values")))
+    else:
+        for field in fieldset:
+            # SKIP empty fields
+            if not field.get("values") or field.get("values") == {}:
+                continue
+            values_lines.append(
+                build_metric_line(
+                    # validate tags
+                    validate_tags(field.get("tags")),
+                    validate_values(field.get("values")),
+                )
+            )
 
-	return ["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines]
+    return [
+        "{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines
+    ]
 
+
+def validate_name(name: str):
+    return "".join(name.split()).replace(",", "")
+
+
+def validate_tags(tags: dict):
+    for key in list(tags.keys()):
+        # Validates the Tag Values
+        tags[key] = "".join(tags[key].split()).replace(",", "").replace("=", "")
+        # Validates the Tag Keys
+        tags["".join(key.split()).replace(",", "").replace("=", "")] = tags.pop(key)
+    return tags
+
+
+def validate_values(values: dict):
+    for key in list(values.keys()):
+        # Validates the Field Values if the value is a string
+        if isinstance(values[key], str):
+            values[key] = values[key].replace('"', "").replace("\\", "")
+        # Validates the Field Keys
+        values["".join(key.split()).replace(",", "").replace("=", "")] = values.pop(key)
+    return values
 
 
 def influxdb_format(m_tree, now):
