@@ -134,7 +134,7 @@ class StorageService(StorageServiceABC):
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
-	async def get_by(self, collection: str, key: str, value):
+	async def get_by(self, collection: str, key: str, value, decrypt=None):
 		raise NotImplementedError("get_by")
 
 
@@ -151,7 +151,10 @@ class StorageService(StorageServiceABC):
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
-	async def get(self, index: str, obj_id) -> dict:
+	async def get(self, index: str, obj_id, decrypt=None) -> dict:
+		if decrypt is not None:
+			raise NotImplementedError("AES encryption for ElasticSearch not implemented")
+
 		for url in self.ServerUrls:
 			url = "{}{}/_doc/{}".format(url, index, obj_id)
 			try:
