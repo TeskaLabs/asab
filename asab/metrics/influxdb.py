@@ -103,7 +103,6 @@ InfluxDB <1.8 API parameters:
 
 	async def process(self, m_tree, now):
 		rb = influxdb_format(m_tree, now)
-		print(rb)  # FOR DEBUGGING PURPOSES
 
 		if self.ProactorService is not None:
 			await self.ProactorService.execute(self._worker_upload, m_tree, rb)
