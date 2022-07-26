@@ -153,6 +153,10 @@ def get_field(fk, fv):
 
 
 def combine_tags_and_field(tags, values):
+	# First validate tags and values
+	tags = validate_tags(tags)
+	values = validate_values(values)
+	# Then combine the tags and then values
 	tags_string = ",".join(["{}={}".format(tk, tv) for tk, tv in tags.items()])
 	field_set = ",".join([get_field(value_name, value) for value_name, value in values.items()])
 	return tags_string + " " + field_set
@@ -192,10 +196,7 @@ def metric_to_influxdb(metric_record, now):
 			# SKIP empty fields
 			if not field.get("values") or field.get("values") == {}:
 				continue
-			values_lines.append(build_metric_line(
-				validate_tags(field.get("tags")),
-				validate_values(field.get("values"))
-			))
+			values_lines.append(build_metric_line((field.get("tags")), (field.get("values"))))
 
 	return ["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines]
 
