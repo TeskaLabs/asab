@@ -86,12 +86,17 @@ class LibraryService(Service):
 
 		for path in paths:
 			self._create_library(path)
+		app.PubSub.subscribe("Application.tick!", self.on_tick)
 
 
 	async def finalize(self, app):
 		while len(self.Libraries) > 0:
 			lib = self.Libraries.pop(-1)
 			await lib.finalize(self.App)
+
+	async def on_tick(self, message_type):
+		await self._read_disabled()
+
 
 
 	def _create_library(self, path):
