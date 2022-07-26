@@ -87,13 +87,13 @@ InfluxDB <1.8 API parameters:
 		# Proactor service is used for alternative delivery of the metrics into the InfluxDB
 		# It is handly when a main loop can become very busy
 
-		if self.Config.getboolean("proactor"):
+		if self.Config.getboolean('proactor'):
 			try:
 				from ..proactor import Module
 
 				svc.App.add_module(Module)
 
-				self.ProactorService = svc.App.get_service("asab.ProactorService")
+				self.ProactorService = svc.App.get_service('asab.ProactorService')
 
 			except KeyError:
 				self.ProactorService = None
@@ -113,11 +113,7 @@ InfluxDB <1.8 API parameters:
 					async with session.post(self.WriteURL, data=rb) as resp:
 						response = await resp.text()
 						if resp.status != 204:
-							L.warning(
-								"Error when sending metrics to Influx: {}\n{}".format(
-									resp.status, response
-								)
-							)
+							L.warning("Error when sending metrics to Influx: {}\n{}".format(resp.status, response))
 			except aiohttp.client_exceptions.ClientConnectorError:
 				L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
 
@@ -136,16 +132,14 @@ InfluxDB <1.8 API parameters:
 
 		response = conn.getresponse()
 		if response.status != 204:
-			L.warning(
-				"Error when sending metrics to Influx: {}\n{}".format(
-					response.status, response.read().decode("utf-8")
-				)
+			L.warning("Error when sending metrics to Influx: {}\n{}".format(
+				response.status, response.read().decode("utf-8"))
 			)
 
 
 def get_field(fk, fv):
 	if isinstance(fv, bool):
-		field = "{}={}".format(fk, "t" if fv else "f")
+		field = "{}={}".format(fk, 't' if fv else 'f')
 	elif isinstance(fv, int):
 		field = "{}={}i".format(fk, fv)
 	elif isinstance(fv, float):
@@ -153,18 +147,14 @@ def get_field(fk, fv):
 	elif isinstance(fv, str):
 		field = '{}="{}"'.format(fk, fv)
 	else:
-		raise RuntimeError(
-			"Unknown/invalid type of the metrics field: {} {}".format(type(fv), fk)
-		)
+		raise RuntimeError("Unknown/invalid type of the metrics field: {} {}".format(type(fv), fk))
 
 	return field
 
 
 def combine_tags_and_field(tags, values):
 	tags_string = ",".join(["{}={}".format(tk, tv) for tk, tv in tags.items()])
-	field_set = ",".join(
-		[get_field(value_name, value) for value_name, value in values.items()]
-	)
+	field_set = ",".join([get_field(value_name, value) for value_name, value in values.items()])
 	return tags_string + " " + field_set
 
 
@@ -193,36 +183,21 @@ def metric_to_influxdb(metric_record, now):
 				upperbound = str(upperbound)
 				if bucket == {}:
 					continue
-				values_lines.append(
-					build_metric_line(field.get("tags").copy(), bucket, upperbound)
-				)
-			values_lines.append(
-				build_metric_line(
-					field.get("tags").copy(), {"sum": field.get("values").get("sum")}
-				)
-			)
-			values_lines.append(
-				build_metric_line(
-					field.get("tags").copy(),
-					{"count": field.get("values").get("count")},
-				)
-			)
+				values_lines.append(build_metric_line(field.get("tags").copy(), bucket, upperbound))
+			values_lines.append(build_metric_line(field.get("tags").copy(), {"sum": field.get("values").get("sum")}))
+			values_lines.append(build_metric_line(field.get("tags").copy(), {"count": field.get("values").get("count")}))
 
 	else:
 		for field in fieldset:
 			# SKIP empty fields
 			if not field.get("values") or field.get("values") == {}:
 				continue
-			values_lines.append(
-				build_metric_line(
-					validate_tags(field.get("tags")),
-					validate_values(field.get("values")),
-				)
-			)
+			values_lines.append(build_metric_line(
+				validate_tags(field.get("tags")),
+				validate_values(field.get("values"))
+			))
 
-	return [
-		"{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines
-	]
+	return ["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines]
 
 
 def validate_name(name: str):
