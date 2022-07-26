@@ -103,6 +103,7 @@ InfluxDB <1.8 API parameters:
 
 	async def process(self, m_tree, now):
 		rb = influxdb_format(m_tree, now)
+		print(rb)  # FOR DEBUGGING PURPOSES
 
 		if self.ProactorService is not None:
 			await self.ProactorService.execute(self._worker_upload, m_tree, rb)
@@ -205,27 +206,21 @@ def validate_name(name: str):
 
 
 def validate_tags(tags: dict):
-	for key in list(tags.keys()):
+	for k, v in tags.copy().items():
 		# Validates the Tag Values
-		tags[key] = (
-			tags[key].replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
-		)
+		tags[k] = v.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
 		# Validates the Tag Keys
-		tags[
-			key.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
-		] = tags.pop(key)
+		tags[k.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")] = tags.pop(k)
 	return tags
 
 
 def validate_values(values: dict):
-	for key in list(values.keys()):
+	for k, v in values.copy().items():
 		# Validates the Field Values if the value is a string
-		if isinstance(values[key], str):
-			values[key] = values[key].replace('"', '\\"').replace("\\", "\\\\")
+		if isinstance(values[k], str):
+			values[k] = v.replace("\\", "\\\\").replace('"', "\\\"")
 		# Validates the Field Keys
-		values[
-			key.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
-		] = values.pop(key)
+		values[k.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\=")] = values.pop(k)
 	return values
 
 
