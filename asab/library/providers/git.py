@@ -28,7 +28,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	[library]
 	providers=git+<URL or deploy token>
 
-	[library.GitProvider]
+	[library:git]
 	publickey=<absolute path to file>
 	privatekey=<absolute path to file>
 	username=johnsmith
@@ -36,10 +36,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	```
 	"""
 	def __init__(self, library, path):
+		self.LastCommit = None
 		self.URL = path[4:]
 		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))
 		self.RepoPath = tempfile.TemporaryDirectory().name
-		self.GitRepository = clone_repository(self.URL, self.RepoPath, self.Callbacks)
+		self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks)
 		self._check_remote()
 		super().__init__(library, self.RepoPath)
 
@@ -57,7 +58,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 		Equivalent to `git pull` command.
 		"""
-		await self.ProactorService.execute(pull, self.GitRepository, self.Callbacks)
+		commit_id = await self.ProactorService.execute(fetch, self.GitRepository, self.Callbacks)
+		if commit_id == self.LastCommit:
+			return
+		await self.ProactorService.execute(merge, self.GitRepository, commit_id)
 
 	def _periodic_pull(self, event_name):
 		self.pull()
@@ -68,22 +72,32 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		except (KeyError, AssertionError):
 			L.critical("Connection to remote git repository failed.")
 			raise SystemExit("Application exiting...")
+		try:
+			self.LastCommit = fetch(self.GitRepository, self.Callbacks)
+		except Exception as e:
+			L.warning("Git Provider cannot fetch from remote repository. Error: {}".format(e))
+			raise SystemExit("Application exiting...")
+
+	async def list(self, path: str) -> list:
+		return await super().list(path)
 
 
-def clone_repository(url, path, callbacks):
-	return pygit2.clone_repository(url, path, callbacks=callbacks)
-
-
-def pull(repository, callbacks):
+def fetch(repository, callbacks):
 	"""
-	Fetches the remote repository and merges the remote HEAD into the local repository
+	It fetches the remote repository and returns the commit ID of the remote HEAD
 
-	:param repository: The local git repository
-	:param callbacks: pygit2.callbacks.RemoteCallbacks object
+	:param repository: The repository object that you want to fetch from
+	:param callbacks: A dictionary of callbacks to be used during the fetch
+	:return: The commit id of the latest commit on the remote repository.
 	"""
 	repository.remotes["origin"].fetch(callbacks=callbacks)
 	reference = repository.lookup_reference("refs/remotes/origin/HEAD")
-	repository.merge(reference.target)
+	commit_id = reference.peel().id
+	return commit_id
+
+
+def merge(repository, commit_id):
+	repository.merge(commit_id)
 
 
 def get_git_credentials(url):
@@ -93,10 +107,10 @@ def get_git_credentials(url):
 	:param url: The URL of the repository you want to clone
 	:return: A pygit2.Keypair object or a pygit2.UserPass object
 	"""
-	username = Config.get("library.GitProvider", "username", fallback=None)
-	password = Config.get("library.GitProvider", "password", fallback=None)
-	publickey = Config.get("library.GitProvider", "publickey", fallback=None)
-	privatekey = Config.get("library.GitProvider", "privatekey", fallback=None)
+	username = Config.get("library:git", "username", fallback=None)
+	password = Config.get("library:git", "password", fallback=None)
+	publickey = Config.get("library:git", "publickey", fallback=None)
+	privatekey = Config.get("library:git", "privatekey", fallback=None)
 
 	if publickey is not None and privatekey is not None:
 		return pygit2.Keypair(username_from_url(url), publickey, privatekey, "")
