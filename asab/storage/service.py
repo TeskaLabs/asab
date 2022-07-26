@@ -4,9 +4,13 @@ import typing
 import asab
 
 import hashlib
-import cryptography.hazmat.primitives.ciphers
-import cryptography.hazmat.primitives.ciphers.algorithms
-import cryptography.hazmat.primitives.ciphers.modes
+
+try:
+	import cryptography.hazmat.primitives.ciphers
+	import cryptography.hazmat.primitives.ciphers.algorithms
+	import cryptography.hazmat.primitives.ciphers.modes
+except ModuleNotFoundError:
+	cryptography = None
 
 
 class StorageServiceABC(asab.Service):
@@ -15,8 +19,12 @@ class StorageServiceABC(asab.Service):
 		super().__init__(app, service_name)
 		self.WebhookURI = asab.Config.get("asab:storage:changestream", "webhook_uri", fallback="") or None
 		self.WebhookAuth = asab.Config.get("asab:storage:changestream", "webhook_auth", fallback="") or None
+
+		# Specify a non-empty AES key to enable AES encryption of selected fields
 		self.AESKey = asab.Config.get("asab:storage", "aes_key", fallback="") or None
 		if self.AESKey is not None:
+			if cryptography is None:
+				raise ModuleNotFoundError("No module named 'cryptography' (required for AES storage encryption)")
 			self.AESKey = hashlib.sha256(self.AESKey.encode("utf-8")).digest()
 
 

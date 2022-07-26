@@ -67,6 +67,9 @@ setup(
 		'fastjsonschema>=2.14.4',
 		'kazoo>=2.8.0',
 	],
+	extras_require={
+		'storage_encryption': 'cryptography',
+	},
 	cmdclass={
 		'build_py': custom_build_py,
 	},
