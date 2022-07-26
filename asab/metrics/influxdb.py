@@ -147,7 +147,7 @@ def get_field(fk, fv):
     elif isinstance(fv, float):
         field = "{}={}".format(fk, fv)
     elif isinstance(fv, str):
-        field = '{}="{}"'.format(fk, fv.replace('"', r"\""))
+        field = '{}="{}"'.format(fk, fv)
     else:
         raise RuntimeError(
             "Unknown/invalid type of the metrics field: {} {}".format(type(fv), fk)
@@ -157,9 +157,7 @@ def get_field(fk, fv):
 
 
 def combine_tags_and_field(tags, values):
-    tags_string = ",".join(
-        ["{}={}".format(tk, tv.replace(" ", "_")) for tk, tv in tags.items()]
-    )
+    tags_string = ",".join(["{}={}".format(tk, tv) for tk, tv in tags.items()])
     field_set = ",".join(
         [get_field(value_name, value) for value_name, value in values.items()]
     )
@@ -215,7 +213,6 @@ def metric_to_influxdb(metric_record, now):
                 continue
             values_lines.append(
                 build_metric_line(
-                    # validate tags
                     validate_tags(field.get("tags")),
                     validate_values(field.get("values")),
                 )
@@ -227,15 +224,19 @@ def metric_to_influxdb(metric_record, now):
 
 
 def validate_name(name: str):
-    return "".join(name.split()).replace(",", "")
+    return name.replace(" ", "\\ ").replace(",", "\\,")
 
 
 def validate_tags(tags: dict):
     for key in list(tags.keys()):
         # Validates the Tag Values
-        tags[key] = "".join(tags[key].split()).replace(",", "").replace("=", "")
+        tags[key] = (
+            tags[key].replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
+        )
         # Validates the Tag Keys
-        tags["".join(key.split()).replace(",", "").replace("=", "")] = tags.pop(key)
+        tags[
+            key.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
+        ] = tags.pop(key)
     return tags
 
 
@@ -243,9 +244,11 @@ def validate_values(values: dict):
     for key in list(values.keys()):
         # Validates the Field Values if the value is a string
         if isinstance(values[key], str):
-            values[key] = values[key].replace('"', "").replace("\\", "")
+            values[key] = values[key].replace('"', '\\"').replace("\\", "\\\\")
         # Validates the Field Keys
-        values["".join(key.split()).replace(",", "").replace("=", "")] = values.pop(key)
+        values[
+            key.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
+        ] = values.pop(key)
     return values
 
 
