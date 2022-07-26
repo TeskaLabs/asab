@@ -61,10 +61,12 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		commit_id = await self.ProactorService.execute(fetch, self.GitRepository, self.Callbacks)
 		if commit_id == self.LastCommit:
 			return
+		self.LastCommit = commit_id
 		await self.ProactorService.execute(merge, self.GitRepository, commit_id)
 
-	def _periodic_pull(self, event_name):
-		self.pull()
+	async def _periodic_pull(self, event_name):
+		await self.pull()
+		self.App.PubSub.publish("GitLibraryProvider.pull!")
 
 	def _check_remote(self):
 		try:
@@ -79,6 +81,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			raise SystemExit("Application exiting...")
 
 	async def list(self, path: str) -> list:
+		await self.pull()
 		return await super().list(path)
 
 
