@@ -13,7 +13,7 @@ class TestValidation(MetricsTestCase):
         """
 
         self.MetricsService.create_counter(
-            "my, co,,,,,u n t  e  r",
+            "my, count er",
             tags={"foo": "bar"},
             init_values={"value1": 0, "value2": 0},
         )
@@ -25,7 +25,7 @@ class TestValidation(MetricsTestCase):
             influxdb_format,
             "".join(
                 [
-                    "mycounter,host=mockedhost.com,foo=bar value1=0i,value2=0i 123450000000\n",
+                    "my\\,\\ count\\ er,host=mockedhost.com,foo=bar value1=0i,value2=0i 123450000000\n",
                 ]
             ),
         )
@@ -39,7 +39,7 @@ class TestValidation(MetricsTestCase):
 
         self.MetricsService.create_counter(
             "mycounter",
-            tags={"f, o ,= o,,": "b, a = r,,"},
+            tags={"fo, = o": "ba, = r"},
             init_values={"value1": 0, "value2": 0},
         )
 
@@ -50,7 +50,7 @@ class TestValidation(MetricsTestCase):
             influxdb_format,
             "".join(
                 [
-                    "mycounter,host=mockedhost.com,foo=bar value1=0i,value2=0i 123450000000\n",
+                    "mycounter,host=mockedhost.com,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r value1=0i,value2=0i 123450000000\n",
                 ]
             ),
         )
@@ -65,7 +65,7 @@ class TestValidation(MetricsTestCase):
         self.MetricsService.create_counter(
             "mycounter",
             tags={"foo": "bar"},
-            init_values={" v,, al, ue1": 0, "va,, ,lue 2 ": 0},
+            init_values={"val, ue1": 0, "va,lue 2": 0},
         )
 
         influxdb_format = asab.metrics.influxdb.influxdb_format(
@@ -75,7 +75,7 @@ class TestValidation(MetricsTestCase):
             influxdb_format,
             "".join(
                 [
-                    "mycounter,host=mockedhost.com,foo=bar value1=0i,value2=0i 123450000000\n",
+                    "mycounter,host=mockedhost.com,foo=bar val\\,\\ ue1=0i,va\\,lue\\ 2=0i 123450000000\n",
                 ]
             ),
         )
