@@ -9,76 +9,78 @@ import asab
 
 L = logging.getLogger(__name__)
 
+
 #
 
 
 class InfluxDBTarget(asab.ConfigObject):
 	"""
-	InfluxDB 2.0 API parameters:
-		url - [required] url string of your influxDB
-		bucket - [required] the destination bucket for writes
-		org - [required] the parameter value specifies the destination organization for writes
-		orgid - [optional] the parameter value specifies the ID of the destination organization for writes
-		NOTE: If both orgID and org are specified, org takes precedence
-		token - [required] API token to authenticate to the InfluxDB
-		Example:
-		[asab:metrics:influxdb]
-		url=http://localhost:8086
-		bucket=test
-		org=test
-		orgid=test
-		token=your_token
+InfluxDB 2.0 API parameters:
+	url - [required] url string of your influxDB
+	bucket - [required] the destination bucket for writes
+	org - [required] the parameter value specifies the destination organization for writes
+	orgid - [optional] the parameter value specifies the ID of the destination organization for writes
+	NOTE: If both orgID and org are specified, org takes precedence
+	token - [required] API token to authenticate to the InfluxDB
+	Example:
+	[asab:metrics:influxdb]
+	url=http://localhost:8086
+	bucket=test
+	org=test
+	orgid=test
+	token=your_token
 
-	InfluxDB <1.8 API parameters:
-		url - [required] url string of your influxDB
-		username - [required] name of influxDB user
-		password - [required] password of influxDB user
-		Example:
-		[asab:metrics:influxdb]
-		url=http://localhost:8086
-		username=test
-		password=testtest
-		db=test
+InfluxDB <1.8 API parameters:
+	url - [required] url string of your influxDB
+	username - [required] name of influxDB user
+	password - [required] password of influxDB user
+	Example:
+	[asab:metrics:influxdb]
+	url=http://localhost:8086
+	username=test
+	password=testtest
+	db=test
 	"""
 
 	ConfigDefaults = {
-		"url": "http://localhost:8086/",
-		"db": "mydb",
-		"username": "",
-		"password": "",
-		"proactor": True,  # Use ProactorService to send metrics on thread
+		'url': 'http://localhost:8086/',
+		'db': 'mydb',
+		'username': '',
+		'password': '',
+		'proactor': True,  # Use ProactorService to send metrics on thread
 	}
+
 
 	def __init__(self, svc, config_section_name, config=None):
 		super().__init__(config_section_name=config_section_name, config=config)
 		self.Headers = {}
-		self.BaseURL = self.Config.get("url").rstrip("/")
-		self.WriteRequest = "/write?db={}".format(self.Config.get("db"))
+		self.BaseURL = self.Config.get('url').rstrip('/')
+		self.WriteRequest = '/write?db={}'.format(self.Config.get('db'))
 
-		username = self.Config.get("username")
+		username = self.Config.get('username')
 		if username is not None and len(username) > 0:
-			self.WriteRequest += "&u={}".format(urllib.parse.quote(username, safe=""))
+			self.WriteRequest += '&u={}'.format(urllib.parse.quote(username, safe=''))
 
-		password = self.Config.get("password")
+		password = self.Config.get('password')
 		if password is not None and len(password) > 0:
-			self.WriteRequest += "&p={}".format(urllib.parse.quote(password, safe=""))
+			self.WriteRequest += '&p={}'.format(urllib.parse.quote(password, safe=''))
 
 		# If org is specified we are buildig write request for InfluxDB 2.0 API
-		org = self.Config.get("org")
+		org = self.Config.get('org')
 		if org is not None:
-			self.WriteRequest = "/api/v2/write?org={}".format(org)
+			self.WriteRequest = '/api/v2/write?org={}'.format(org)
 
-		bucket = self.Config.get("bucket")
+		bucket = self.Config.get('bucket')
 		if bucket is not None:
-			self.WriteRequest += "&bucket={}".format(bucket)
+			self.WriteRequest += '&bucket={}'.format(bucket)
 
-		orgid = self.Config.get("orgid")
+		orgid = self.Config.get('orgid')
 		if orgid is not None:
-			self.WriteRequest += "&orgID={}".format(orgid)
+			self.WriteRequest += '&orgID={}'.format(orgid)
 
-		token = self.Config.get("token")
+		token = self.Config.get('token')
 		if token is not None:
-			self.Headers = {"Authorization": "Token {}".format(token)}
+			self.Headers = {'Authorization': 'Token {}'.format(token)}
 
 		self.WriteURL = "{}{}".format(self.BaseURL, self.WriteRequest)
 
@@ -97,6 +99,7 @@ class InfluxDBTarget(asab.ConfigObject):
 				self.ProactorService = None
 		else:
 			self.ProactorService = None
+
 
 	async def process(self, m_tree, now):
 		rb = influxdb_format(m_tree, now)
@@ -117,6 +120,7 @@ class InfluxDBTarget(asab.ConfigObject):
 							)
 			except aiohttp.client_exceptions.ClientConnectorError:
 				L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
+
 
 	def _worker_upload(self, m_tree, rb):
 		if self.BaseURL.startswith("https://"):
@@ -183,9 +187,7 @@ def metric_to_influxdb(metric_record, now):
 	if metric_type in ["Histogram", "HistogramWithDynamicTags"]:
 		for field in fieldset:
 			# SKIP empty fields
-			if all(
-				[bucket == {} for bucket in field.get("values").get("buckets").values()]
-			):
+			if all([bucket == {} for bucket in field.get("values").get("buckets").values()]):
 				continue
 			for upperbound, bucket in field.get("values").get("buckets").items():
 				upperbound = str(upperbound)
@@ -257,4 +259,4 @@ def influxdb_format(m_tree, now):
 	for metric_record in m_tree:
 		influx_records = metric_to_influxdb(metric_record, now)
 		rb.extend(influx_records)
-	return "".join(rb)
+	return ''.join(rb)
