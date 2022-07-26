@@ -125,7 +125,6 @@ class LibraryService(Service):
 
 
 	async def _read_disabled(self):
-		# TODO: Call this on tick (periodically)
 		# `.disabled.yaml` is read from the first configured library
 		# It is applied on all libraries in the configuration.
 		disabled = await self.Libraries[0].read('/.disabled.yaml')
