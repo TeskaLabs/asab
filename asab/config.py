@@ -389,9 +389,9 @@ class ConfigObjectDict(collections.abc.MutableMapping):
 		return float(value)
 
 
-	def geturl(self, key):
+	def geturl(self, key, schema):
 		value = self._data[key]
-		return utils.validate_url(value)
+		return utils.validate_url(value, schema)
 
 
 	def __repr__(self):
