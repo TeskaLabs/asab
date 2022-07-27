@@ -1,3 +1,5 @@
+import logging
+
 from .abc.module import Module
 from .abc.service import Service
 from .abc.singleton import Singleton
@@ -11,6 +13,11 @@ from .timer import Timer
 
 from .__version__ import __version__, __build__
 
+# This logger is used to indicate use of the obsolete function
+# Example:
+#    asab.LogObsolete.warning("Use of the obsolete function", struct_data={'eol':'2022-31-12'})
+# See https://github.com/TeskaLabs/asab/issues/240
+LogObsolete = logging.getLogger('OBSOLETE')
 
 __all__ = (
 	'Module',
