@@ -257,7 +257,7 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 
 		form_content_types = frozenset(['', 'application/x-www-form-urlencoded', 'multipart/form-data'])
 
-		async def validator(json_schema, *args, **kwargs):
+		async def validator(*args, **kwargs):
 			# Initializing fastjsonschema.compile method and generating
 			# the validation function for validating JSON schema
 			request = args[-1]
