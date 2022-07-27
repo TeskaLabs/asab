@@ -18,7 +18,6 @@ class TestValidation(MetricsTestCase):
 			init_values={"value1": 0, "value2": 0},
 		)
 
-		self.MetricsService._flush_metrics()
 		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
 		self.assertEqual(
 			influxdb_format,
@@ -42,7 +41,6 @@ class TestValidation(MetricsTestCase):
 			init_values={"value1": 0, "value2": 0},
 		)
 
-		self.MetricsService._flush_metrics()
 		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
 		self.assertEqual(
 			influxdb_format,
@@ -66,7 +64,6 @@ class TestValidation(MetricsTestCase):
 			init_values={"val, ue1": 0, "va,lue 2": 0},
 		)
 
-		self.MetricsService._flush_metrics()
 		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
 		self.assertEqual(
 			influxdb_format,
@@ -90,7 +87,6 @@ class TestValidation(MetricsTestCase):
 			init_values={"value1": "te\\st\"1", "value2": "\"test\" 2"},
 		)
 
-		self.MetricsService._flush_metrics()
 		influxdb_format = asab.metrics.influxdb.influxdb_format(self.MetricsService.Storage.Metrics, 123.45)
 		self.assertEqual(
 			influxdb_format,
