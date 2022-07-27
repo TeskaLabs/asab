@@ -28,3 +28,27 @@ def convert_to_seconds(value: str) -> float:
 		raise ValueError("'{}' is not a valid time specification: {}.".format(value, e))
 
 	return value
+
+
+def validate_url(url: str, schema):
+	# Remove leading and trailing whitespaces
+	url = url.strip()
+
+	if url.endswith("/"):
+		url = url[:-1]
+
+	if schema is None:  # Schema doesn't get checked
+		return url
+	elif type(schema) is tuple:  # Supports tuple
+		if url.split("://")[0] in schema:
+			return url
+	elif "://" in url and schema == url.split("://")[0]:
+		return url
+	else:
+		if "://" in url:
+			raise ValueError("{} has an invalid schema: {}".format(url, url.split("://")[0]))
+		elif "://" not in url:
+			raise ValueError("{} does not have a schema".format(url))
+		else:
+			raise ValueError("{} has an invalid schema".format(url))
+	return url
