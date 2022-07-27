@@ -69,6 +69,7 @@ class DocWebHandler(object):
 		for route in self.WebContainer.WebApp.router.routes():
 			if route.method == 'HEAD':
 				# Skip HEAD methods
+				# TODO: once/if there is graphql, its method name is probably `*`
 				continue
 
 			parameters = []
@@ -97,8 +98,21 @@ class DocWebHandler(object):
 				specs['paths'][path] = pathobj = {}
 
 			if inspect.ismethod(route.handler):
-				handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
-				docstr = route.handler.__doc__
+				if route.handler.__name__ == "validator":
+					json_schema = route.handler.__getattribute__("json_schema")
+					docstr = route.handler.__getattribute__("func").__doc__
+					parameters.append({
+						'in': 'body',
+						'name': 'body',
+						'required': True,
+						'schema': json_schema
+					})
+					handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__getattribute__("func").__name__)
+
+				else:
+					handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
+					docstr = route.handler.__doc__
+
 			else:
 				handler_name = str(route.handler)
 				docstr = route.handler.__doc__

@@ -257,7 +257,7 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 
 		form_content_types = frozenset(['', 'application/x-www-form-urlencoded', 'multipart/form-data'])
 
-		async def validator(*args, **kwargs):
+		async def validator(json_schema, *args, **kwargs):
 			# Initializing fastjsonschema.compile method and generating
 			# the validation function for validating JSON schema
 			request = args[-1]
@@ -282,6 +282,10 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 				raise e
 
 			return await func(*args, **kwargs)
+
+		# This is here for Swagger documentation
+		setattr(validator, 'json_schema', json_schema)
+		setattr(validator, 'func', func)
 
 		return validator
 
