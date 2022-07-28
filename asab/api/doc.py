@@ -156,7 +156,7 @@ class DocWebHandler(object):
 	# This is the web request handler
 	async def doc(self, request):
 		'''
-		Acces the API documentation using a browser.
+		Access the API documentation using a browser.
 		---
 		tags: ['asab.doc']
 		'''
