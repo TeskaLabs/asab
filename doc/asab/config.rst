@@ -214,3 +214,67 @@ The obtainment of the second value in the code can be achieved in two ways:
 	self.SleepTime = asab.Config["sleep"].getseconds("sleep_time")
 	self.AnotherSleepTime = asab.Config.getseconds("sleep", "another_sleep_time")
 
+Obtaining URLs
+-------------------------------------
+
+.. py:method:: Config.geturl()
+
+A URL can be obtained using a `geturl()` method that takes the URL from the config and
+removes leading and trailing whitespaces and trailing backslashes.
+
+There is an optional parameter called `scheme` that can have any URL scheme like:
+http, https, mongodb etc.
+
+In this scenario this will be the configuration file:
+
+.. code:: ini
+
+    [urls]
+    teskalabs=https://www.teskalabs.com/
+    github=github.com
+    mongodb=mongodb://localhost:27017/coolDB/
+
+There are two ways of obtaining the URL:
+
+.. code:: py
+
+    asab.Config["urls"].geturl("teskalabs", scheme="https")
+    asab.Config.geturl("urls", "github", scheme=None)
+
+If the scheme parameter is set to the same scheme as in the config then it will return
+the URL. But if the parameter is not the same as in the config it will throw an error.
+
+If the scheme in config has no scheme but you try anyways it'll throw an error saying:
+
+.. code:: python
+
+    >>> asab.Config["urls"].geturl("github", scheme="http")
+    ValueError: github.com does not have a scheme
+
+Or if you try to put the wrong scheme:
+
+.. code:: python
+
+    >>> asab.Config["urls"].geturl("teskalabs", scheme="http")
+    ValueError: https://www.teskalabs.com has an invalid scheme: https
+
+However if the scheme parameter is set to None (which is by default) it will bypass
+the scheme check and return the URL:
+
+.. code:: python
+
+        >>> asab.Config["urls"].geturl("github", scheme=None)
+        'github.com'
+
+        >>> asab.Config["urls"].geturl("teskalabs", scheme=None)
+        'https://www.teskalabs.com'
+
+The scheme parameter also supports the use of a tuple:
+
+.. code:: python
+
+    >>> asab.Config["urls"].geturl("teskalabs", scheme=("https", "mongodb"))
+    'https://www.teskalabs.com'
+
+    >>> asab.Config["urls"].geturl("mongodb", scheme=("https", "mongodb"))
+    'mongodb://localhost:27017/coolDB'
