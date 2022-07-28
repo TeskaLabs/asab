@@ -1,3 +1,6 @@
+from urllib.parse import urlparse
+
+
 def convert_to_seconds(value: str) -> float:
 	"""
 	Parse time duration string (e.g. "3h", "20m" or "1y") and convert it into seconds.
@@ -30,25 +33,25 @@ def convert_to_seconds(value: str) -> float:
 	return value
 
 
-def validate_url(url: str, schema):
-	# Remove leading and trailing whitespaces
-	url = url.strip()
+def validate_url(input_url: str, scheme):
+	# Remove leading and trailing whitespaces before parsing
+	url = urlparse(input_url.strip())
 
-	if url.endswith("/"):
-		url = url[:-1]
+	if url.path.endswith("/"):
+		url = url._replace(path=url.path[:-1])
 
-	if schema is None:  # Schema doesn't get checked
-		return url
-	elif type(schema) is tuple:  # Supports tuple
-		if url.split("://")[0] in schema:
-			return url
-	elif "://" in url and schema == url.split("://")[0]:
-		return url
+	if scheme is None:  # Scheme doesn't get checked
+		return url.geturl()
+	elif isinstance(scheme, tuple):  # Supports tuple
+		if url.scheme in scheme:
+			return url.geturl()
+	elif scheme == url.scheme:
+		return url.geturl()
 	else:
-		if "://" in url:
-			raise ValueError("{} has an invalid schema: {}".format(url, url.split("://")[0]))
-		elif "://" not in url:
-			raise ValueError("{} does not have a schema".format(url))
+		if url.scheme:
+			raise ValueError("{} has an invalid scheme: {}".format(url.geturl(), url.scheme))
+		elif not url.scheme:
+			raise ValueError("{} does not have a scheme".format(url.geturl()))
 		else:
-			raise ValueError("{} has an invalid schema".format(url))
-	return url
+			raise ValueError("{} has an invalid scheme".format(url.geturl()))
+	return url.geturl()
