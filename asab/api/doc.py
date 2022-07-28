@@ -9,6 +9,7 @@ import yaml
 
 L = logging.getLogger(__name__)
 
+
 ##
 
 
@@ -44,7 +45,6 @@ class DocWebHandler(object):
 		else:
 			description = ""
 
-
 		specs = {
 			"openapi": "3.0.1",
 			"info": {
@@ -56,12 +56,14 @@ class DocWebHandler(object):
 				},
 				"version": "1.0.0"
 			},
-			"servers": [
-				{"url": "../../"}  # Base path relative to openapi endpoint
-			],
+			"servers": [],  # Base path relative to openapi endpoint
 			"paths": {
 			},
 		}
+
+		# Add servers to specs
+		for server in self.WebContainer.Addresses:
+			specs["servers"].append({"url": "{} ({}:{})".format(self.App.ServerName, server[0], server[1])})
 
 		if adddict is not None:
 			specs.update(adddict)
@@ -153,6 +155,7 @@ class DocWebHandler(object):
 
 		return specs
 
+
 	# This is the web request handler
 	async def doc(self, request):
 		'''
@@ -196,6 +199,7 @@ window.onload = () => {{
 		)
 
 		return aiohttp.web.Response(text=page, content_type="text/html")
+
 
 	async def openapi(self, request):
 		'''
