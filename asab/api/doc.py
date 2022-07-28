@@ -39,7 +39,7 @@ class DocWebHandler(object):
 				try:
 					adddict = yaml.load(docstr[i:], Loader=yaml.SafeLoader)
 				except yaml.YAMLError as e:
-						L.error("Failed to parse '{}' doc string {}".format(self.App.__class__.__name__, e))
+					L.error("Failed to parse '{}' doc string {}".format(self.App.__class__.__name__, e))
 			else:
 				description = docstr
 		else:
@@ -56,14 +56,10 @@ class DocWebHandler(object):
 				},
 				"version": "1.0.0"
 			},
-			"servers": [],  # Base path relative to openapi endpoint
+			"servers": [{"url": "../../"}],  # Base path relative to openapi endpoint
 			"paths": {
 			},
 		}
-
-		# Add servers to specs
-		for server in self.WebContainer.Addresses:
-			specs["servers"].append({"url": "{} ({}:{})".format(self.App.ServerName, server[0], server[1])})
 
 		if adddict is not None:
 			specs.update(adddict)
