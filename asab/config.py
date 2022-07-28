@@ -243,32 +243,32 @@ class ConfigParser(configparser.ConfigParser):
 		return self._get_conv(section, option, utils.convert_to_seconds, raw=raw, vars=vars, fallback=fallback, **kwargs)
 
 
-	def geturl(self, section, option, raw=False, vars=None, fallback=None, schema=None, **kwargs):
+	def geturl(self, section, option, raw=False, vars=None, fallback=None, scheme=None, **kwargs):
 		"""Gets URL from config and removes all leading and trailing
 		whitespaces and trailing slashes.
 
 		Usage:
 		There are two ways of obtaining the URL from config:
-			1. asab.Config["urls"].geturl("teskalabs", schema="https")
-			2. asab.Config.geturl("urls", "github", schema=None)
+			1. asab.Config["urls"].geturl("teskalabs", scheme="https")
+			2. asab.Config.geturl("urls", "github", scheme=None)
 
-		The schema parameter:
-			If the parameter is set to the same schema
+		The scheme parameter:
+			If the parameter is set to the same scheme
 			as in the config, then it returns the URL.
 			But if the parameter is not the same as in config
 			it will throw an error.
 			However, if the parameter is set to None (Default)
-			it will bypass the schema check and return the URL.
+			it will bypass the scheme check and return the URL.
 
 			The parameter also supports tuple:
-			asab.Config["urls"].geturl("teskalabs", schema=("https", "http"))
+			asab.Config["urls"].geturl("teskalabs", scheme=("https", "http"))
 
 		Config in this scenario:
 		[urls]
 		teskalabs=https://www.teskalabs.com/
 		github=github.com
 		"""
-		return utils.validate_url(self.get(section, option, raw=False, vars=None, fallback=fallback), schema)
+		return utils.validate_url(self.get(section, option, raw=False, vars=None, fallback=fallback), scheme)
 
 
 class _Interpolation(configparser.ExtendedInterpolation):
@@ -389,9 +389,9 @@ class ConfigObjectDict(collections.abc.MutableMapping):
 		return float(value)
 
 
-	def geturl(self, key, schema):
+	def geturl(self, key, scheme):
 		value = self._data[key]
-		return utils.validate_url(value, schema)
+		return utils.validate_url(value, scheme)
 
 
 	def __repr__(self):
