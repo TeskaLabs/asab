@@ -24,7 +24,7 @@ class DocWebHandler(object):
 
 	def build_swagger_specs(self):
 		"""
-		Takes a docstring of a class and a docstring of mmethods and merges them
+		Takes a docstring of a class and a docstring of methods and merges them
 		into a Swagger specification.
 		"""
 
