@@ -14,7 +14,7 @@ asab.Config.add_defaults({
 	"urls": {
 		"teskalabs": "https://www.teskalabs.com/",  # Has a trailing slash
 		"google": " https://www.google.com/ ",  # Has leading and trailing whitespace and a trailing slash
-		"mongodb": "mongodb://LOCALHOST:27017/coolDB/",  # Has a trailing slash, and has some capitals
+		"mongodb": "mongodb://LOCALHOST:27017/coolDB/",  # Has a trailing slash
 		"github": "github.com",  # Has no scheme
 	}
 })
@@ -32,6 +32,7 @@ class MyApplication(asab.Application):
 		self.UrlsMongo = asab.Config["urls"].geturl("mongodb", scheme="mongodb")
 		self.UrlsGithub = asab.Config.geturl("urls", "github", scheme=None)
 
+		# You can also use a tuple in the scheme parameter
 		self.UrlsMongoTuple = asab.Config["urls"].geturl("mongodb", scheme=("https", "mongodb"))
 		self.UrlsTeskalabsTuple = asab.Config["urls"].geturl("teskalabs", scheme=("https", "mongodb"))
 
