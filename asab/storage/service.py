@@ -1,5 +1,4 @@
 import abc
-import typing
 
 import asab
 
@@ -21,8 +20,8 @@ class StorageServiceABC(asab.Service):
 		self.WebhookAuth = asab.Config.get("asab:storage:changestream", "webhook_auth", fallback="") or None
 
 		# Specify a non-empty AES key to enable AES encryption of selected fields
-		self.AESKey = asab.Config.get("asab:storage", "aes_key", fallback="") or None
-		if self.AESKey is not None:
+		self.AESKey = asab.Config.get("asab:storage", "aes_key", fallback="")
+		if len(self.AESKey) > 0:
 			if cryptography is None:
 				raise ModuleNotFoundError("No module named 'cryptography' (required for AES storage encryption)")
 			self.AESKey = hashlib.sha256(self.AESKey.encode("utf-8")).digest()
@@ -101,29 +100,43 @@ class StorageServiceABC(asab.Service):
 		pass
 
 
-	def aes_encrypt(self, raw: typing.Union[str, bytes]):
+	def aes_encrypt(self, raw: bytes) -> bytes:
 		"""
 		Take a string or bytes and encrypt it using AES-CBC.
 
 		:param raw: The data to be encrypted
-		:type raw: typing.Union[str, bytes]
+		:type raw: bytes
 		:return: The encrypted data.
 		"""
-		assert self.AESKey is not None
-		if isinstance(raw, str):
-			raw = raw.encode("utf-8")
-		assert isinstance(raw, bytes)
+		if self.AESKey is None:
+			raise RuntimeError("No aes_key configured in asab:storage")
+
+		if not isinstance(raw, bytes):
+			if isinstance(raw, str):
+				raise TypeError("String objects must be encoded before encryption")
+			else:
+				raise TypeError("Only 'bytes' objects can be encrypted")
+
 		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
+		if len(raw) <= block_size:
+			raise ValueError("Cannot encrypt data shorter than {} bytes".format(block_size))
+
+		# Pad the text to fit the blocks
+		pad_length = -len(raw) % block_size
+		if pad_length != 0:
+			raw = raw + b"\00" * pad_length
+
+		# Keep the first block in plaintext, use it as initialization vector
+		iv, text_to_encrypt = raw[:block_size], raw[block_size:]
 		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self.AESKey)
-		iv, token = raw[:block_size], raw[block_size:]
 		mode = cryptography.hazmat.primitives.ciphers.modes.CBC(iv)
 		cipher = cryptography.hazmat.primitives.ciphers.Cipher(algorithm, mode)
 		encryptor = cipher.encryptor()
-		encrypted = iv + (encryptor.update(token) + encryptor.finalize())
+		encrypted = iv + (encryptor.update(text_to_encrypt) + encryptor.finalize())
 		return encrypted
 
 
-	def aes_decrypt(self, encrypted: bytes):
+	def aes_decrypt(self, encrypted: bytes) -> bytes:
 		"""
 		Decrypt encrypted data using AES-CBC.
 
@@ -131,12 +144,24 @@ class StorageServiceABC(asab.Service):
 		:type encrypted: bytes
 		:return: The decrypted data.
 		"""
-		assert self.AESKey is not None
+		if self.AESKey is None:
+			raise RuntimeError("No aes_key configured in asab:storage")
+		if not isinstance(encrypted, bytes):
+			raise TypeError("Only values of type 'bytes' can be decrypted")
+
 		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
+		if len(encrypted) <= block_size:
+			raise ValueError("Cannot decrypt data shorter than {} bytes".format(block_size))
+
+		# Separate the initialization vector
+		iv, encrypted_text = encrypted[:block_size], encrypted[block_size:]
+
 		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self.AESKey)
-		iv, token = encrypted[:block_size], encrypted[block_size:]
 		mode = cryptography.hazmat.primitives.ciphers.modes.CBC(iv)
 		cipher = cryptography.hazmat.primitives.ciphers.Cipher(algorithm, mode)
 		decryptor = cipher.decryptor()
-		raw = iv + (decryptor.update(token) + decryptor.finalize())
+		raw = iv + (decryptor.update(encrypted_text) + decryptor.finalize())
+
+		# Strip padding
+		raw = raw.rstrip(b"\x00")
 		return raw
