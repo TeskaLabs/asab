@@ -217,7 +217,7 @@ The obtainment of the second value in the code can be achieved in two ways:
 Obtaining URLs
 -------------------------------------
 
-.. py:method:: Config.geturl()
+.. py:method:: Config.geturl(section, option, scheme=None)
 
 A URL can be obtained using a `geturl()` method that takes the URL from the config and
 removes leading and trailing whitespaces and trailing backslashes.
