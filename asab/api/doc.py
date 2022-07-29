@@ -134,6 +134,7 @@ class DocWebHandler(object):
 			description += '\n\nHandler: `{}`'.format(handler_name)
 
 			methoddict = {
+				'summary': description.split("\n")[0],
 				'description': description,
 				'tags': ['general'],
 				'responses': {
