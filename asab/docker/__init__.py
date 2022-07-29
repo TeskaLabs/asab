@@ -24,19 +24,16 @@ Config.add_defaults(
 
 
 def running_in_docker():
-	# if os.path.exists('/.dockerenv'):
-	# 	# when is this true??
-	# 	return True
 
-	if os.path.isfile('/proc/self/cgroup'):
+	if os.path.exists('/.dockerenv') and os.path.isfile('/proc/self/cgroup'):
 		with open('/proc/self/cgroup', "r") as f:
 			if any('docker' in line for line in f.readlines()):
 				return True
 
 	# since Ubuntu 22.04 linux kernel uses cgroups v2 which do not operate with /proc/self/cgroup file
-	if os.path.isfile('/proc/self/mountinfo'):
+	if os.path.exists('/.dockerenv') and os.path.isfile('/proc/self/mountinfo'):
 		with open('/proc/self/mountinfo', "r") as f:
-			if any('docker' in line for line in f.readlines()):
+			if any('docker/container' in line for line in f.readlines()):
 				return True
 
 	return False
