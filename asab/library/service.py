@@ -86,7 +86,7 @@ class LibraryService(Service):
 
 		for path in paths:
 			self._create_library(path)
-		app.PubSub.subscribe("Application.tick!", self.on_tick)
+		app.PubSub.subscribe("Application.tick/60!", self.on_tick)
 
 
 	async def finalize(self, app):
