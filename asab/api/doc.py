@@ -56,10 +56,33 @@ class DocWebHandler(object):
 				},
 				"version": "1.0.0"
 			},
-			"servers": [{"url": "../../"}],  # Base path relative to openapi endpoint
+			"servers": [],  # Base path relative to openapi endpoint
 			"paths": {
 			},
+			# This is how you modify how autherization works
+			"components": {
+				"securitySchemes": {
+					"oAuthSample": {
+						"type": "oauth2",
+						"description": "This API uses OAuth 2, this window allows [links](https://teskalabs.com)",
+						"flows": {
+							"implicit": {
+								"authorizationUrl": "",
+								"scopes": {
+									"write_stuff": "modify stuff :D",
+									"read_stuff": "read stuff :DD",
+								}
+							}
+						}
+					}
+				},
+			},
 		}
+
+		for server in self.WebContainer.Addresses:
+			specs["info"]["description"] = ("Current Server: <strong>{}</strong> on: <strong>{}:{}</strong>".format(
+				self.App.ServerName, server[0], server[1]) + "<p>{}</p>".format(description))
+			specs["servers"].append({"url": "http://{}:{}".format(server[0], server[1])})
 
 		if adddict is not None:
 			specs.update(adddict)
