@@ -42,7 +42,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.LastCommit = None
 		self.URL = path[4:]
 
-		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))		
+		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))
 
 		# TODO: Check `repodir`
 		tempdir = tempfile.gettempdir()
