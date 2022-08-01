@@ -214,3 +214,38 @@ The obtainment of the second value in the code can be achieved in two ways:
 	self.SleepTime = asab.Config["sleep"].getseconds("sleep_time")
 	self.AnotherSleepTime = asab.Config.getseconds("sleep", "another_sleep_time")
 
+Obtaining URLs
+-------------------------------------
+
+.. py:method:: Config.geturl(section, option, scheme=None:str,tuple)
+
+A URL can be obtained using a `geturl()` method that takes the URL from the config and
+removes leading and trailing whitespaces and trailing backslashes.
+
+There is an optional parameter called `scheme` that can have any URL scheme like
+http, https, mongodb etc. Setting it to None, scheme validation gets bypassed.
+
+Setting the scheme parameter to the same scheme as in the config, it will return the URL.
+If it's not the same it will raise an error.
+
+There are two ways of obtaining the URL:
+
+.. code:: py
+
+    asab.Config["urls"].geturl("teskalabs", scheme="https")
+    asab.Config.geturl("urls", "github", scheme=None)
+
+Example:
+
+.. code:: python
+
+    >>> asab.Config["urls"].geturl("teskalabs", scheme="https")
+        'https://www.teskalabs.com'
+
+For reference this would be the configuration file:
+
+.. code:: ini
+
+    [urls]
+    teskalabs=https://www.teskalabs.com/
+    github=github.com

@@ -68,7 +68,7 @@ class AlertHTTPProviderABC(AlertProviderABC):
 
 
 	def _start_main_task(self):
-		assert(self.MainTask is None)
+		assert self.MainTask is None
 		self.MainTask = asyncio.ensure_future(self._main())
 		self.MainTask.add_done_callback(self._main_done)
 
