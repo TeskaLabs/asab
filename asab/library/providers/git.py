@@ -29,7 +29,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	Configuration:
 	(Use either deploytoken, publickey+privatekey for SSH option, or username and password and HTTP access.)
 
-
 	```
 	[library]
 	providers=git+<URL or deploy token>
@@ -48,26 +47,23 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))
 
-		# TODO: Check `repodir`
-		tempdir = tempfile.gettempdir()
-		self.RepoPath = os.path.join(
-			tempdir,
-			"asab.library.git",
-			hashlib.sha256(self.URL.encode('utf-8')).hexdigest()
-		)
+		repodir = Config.get("library:git", "repodir", fallback=None)
+		if repodir is not None:
+			self.RepoPath = os.path.abspath(repodir)
+		else:
+			tempdir = tempfile.gettempdir()
+			self.RepoPath = os.path.join(
+				tempdir,
+				"asab.library.git",
+				hashlib.sha256(self.URL.encode('utf-8')).hexdigest()
+			)
 
-		try:
-			# Clone a new repository
+		if pygit2.discover_repository(self.RepoPath) is None:
 			os.makedirs(self.RepoPath, mode=0o700)
 			self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks)
-			self._check_remote()
-
-		except FileExistsError:
-			# Update the existing repository
+		else:
 			self.GitRepository = pygit2.Repository(self.RepoPath)
-			self._check_remote()
-			commit_id = fetch(self.GitRepository, self.Callbacks)
-			merge(self.GitRepository, commit_id)
+		self._check_remote()
 
 		super().__init__(library, self.RepoPath)
 
@@ -91,7 +87,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 	async def _periodic_pull(self, event_name):
 		await self.pull()
-		self.App.PubSub.publish("GitLibraryProvider.pull!")
 
 
 	def _check_remote(self):
@@ -106,6 +101,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		except Exception as e:
 			L.critical("Git Provider cannot fetch from remote repository. Error: {}".format(e))
 			raise SystemExit("Application exiting...")
+
 		try:
 			merge(self.GitRepository, self.LastCommit)
 		except Exception as e:
