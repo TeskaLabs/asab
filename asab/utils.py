@@ -49,9 +49,9 @@ def validate_url(input_url: str, scheme):
 		return url.geturl()
 	else:
 		if url.scheme:
-			raise ValueError("{} has an invalid scheme: {}".format(url.geturl(), url.scheme))
+			raise ValueError("'{}' has an invalid scheme: '{}'".format(url.geturl(), url.scheme))
 		elif not url.scheme:
-			raise ValueError("{} does not have a scheme".format(url.geturl()))
+			raise ValueError("'{}' does not have a scheme".format(url.geturl()))
 		else:
-			raise ValueError("{} has an invalid scheme".format(url.geturl()))
+			raise ValueError("'{}' has an invalid scheme".format(url.geturl()))
 	return url.geturl()
