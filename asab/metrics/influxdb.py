@@ -154,8 +154,8 @@ def get_field(fk, fv):
 
 def combine_tags_and_field(tags, values):
 	# First validate tags and values
-	tags = validate_tags(tags)
-	values = validate_values(values)
+	tags = sanitize_tags(tags)
+	values = sanitize_values(values)
 	# Then combine the tags and then values
 	tags_string = ",".join(["{}={}".format(tk, tv) for tk, tv in tags.items()])
 	field_set = ",".join([get_field(value_name, value) for value_name, value in values.items()])
@@ -205,23 +205,23 @@ def validate_name(name: str):
 	return name.replace(" ", "\\ ").replace(",", "\\,")
 
 
-def validate_tags(tags: dict):
-	for k, v in tags.copy().items():
-		# Validates the Tag Values
-		tags[k] = v.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
-		# Validates the Tag Keys
-		tags[k.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")] = tags.pop(k)
-	return tags
+def sanitize_tags(tags: dict):
+	sanitized: dict = {}
+	for k, v in tags.items():
+		sanitized[k.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")] = v.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
+	return sanitized
 
 
-def validate_values(values: dict):
-	for k, v in values.copy().items():
-		# Validates the Field Values if the value is a string
+def sanitize_values(values: dict):
+	sanitized: dict = {}
+	for k, v in values.items():
+		# Validates the Field Values and Field Keys if the value is a string
 		if isinstance(values[k], str):
-			values[k] = v.replace("\\", "\\\\").replace('"', "\\\"")
-		# Validates the Field Keys
-		values[k.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\=")] = values.pop(k)
-	return values
+			sanitized[k.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\=")] = v.replace("\\", "\\\\").replace('"', "\\\"")
+		else:
+			# Validates the Field Keys
+			sanitized[k.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\=")] = v
+	return sanitized
 
 
 def influxdb_format(m_tree, now):
