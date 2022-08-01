@@ -1,8 +1,8 @@
 import abc
+import secrets
+import hashlib
 
 import asab
-
-import hashlib
 
 try:
 	import cryptography.hazmat.primitives.ciphers
@@ -79,35 +79,24 @@ class StorageServiceABC(asab.Service):
 		pass
 
 
-	async def get_by_encrypted(self, collection: str, key: str, value, decrypt=None):
-		"""
-		Get object from collection by its key and encrypted value
-
-		:param collection: Collection to get from
-		:param key: Key to filter on
-		:param value: Value to encrypt and filter on
-		:param decrypt: Set of fields to decrypt
-		:return: The object retrieved from a storage
-
-		Raises:
-			KeyError: If object {key: value} not found in `collection`
-		"""
-		return await self.get_by(collection, key, self.aes_encrypt(value), decrypt)
-
-
 	@abc.abstractmethod
 	async def delete(self, collection: str, obj_id):
 		pass
 
 
-	def aes_encrypt(self, raw: bytes) -> bytes:
+	def aes_encrypt(self, raw: bytes, iv: bytes = None) -> bytes:
 		"""
-		Take a string or bytes and encrypt it using AES-CBC.
+		Take an array of bytes and encrypt it using AES-CBC.
 
 		:param raw: The data to be encrypted
 		:type raw: bytes
+		:param iv: AES-CBC initialization vector, 16 bytes long. If left empty, a random 16-byte array will be used.
+		:type iv: bytes
 		:return: The encrypted data.
 		"""
+		prefix = b"$aes-cbc$"
+		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
+
 		if self.AESKey is None:
 			raise RuntimeError("No aes_key configured in asab:storage")
 
@@ -117,22 +106,19 @@ class StorageServiceABC(asab.Service):
 			else:
 				raise TypeError("Only 'bytes' objects can be encrypted")
 
-		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
-		if len(raw) <= block_size:
-			raise ValueError("Cannot encrypt data shorter than {} bytes".format(block_size))
-
 		# Pad the text to fit the blocks
 		pad_length = -len(raw) % block_size
 		if pad_length != 0:
 			raw = raw + b"\00" * pad_length
 
-		# Keep the first block in plaintext, use it as initialization vector
-		iv, text_to_encrypt = raw[:block_size], raw[block_size:]
+		if iv is None:
+			iv = secrets.token_bytes(block_size)
+
 		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self.AESKey)
 		mode = cryptography.hazmat.primitives.ciphers.modes.CBC(iv)
 		cipher = cryptography.hazmat.primitives.ciphers.Cipher(algorithm, mode)
 		encryptor = cipher.encryptor()
-		encrypted = iv + (encryptor.update(text_to_encrypt) + encryptor.finalize())
+		encrypted = prefix + iv + (encryptor.update(raw) + encryptor.finalize())
 		return encrypted
 
 
@@ -140,27 +126,33 @@ class StorageServiceABC(asab.Service):
 		"""
 		Decrypt encrypted data using AES-CBC.
 
-		:param encrypted: The encrypted data to decrypt
+		:param encrypted: The encrypted data to decrypt.
+			It must start with b"$aes-cbc$" prefix, followed by one-block-long initialization vector.
 		:type encrypted: bytes
 		:return: The decrypted data.
 		"""
+		prefix = b"$aes-cbc$"
+		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
+
 		if self.AESKey is None:
 			raise RuntimeError("No aes_key configured in asab:storage")
+
 		if not isinstance(encrypted, bytes):
 			raise TypeError("Only values of type 'bytes' can be decrypted")
 
-		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
-		if len(encrypted) <= block_size:
-			raise ValueError("Cannot decrypt data shorter than {} bytes".format(block_size))
+		# Strip the prefix
+		if not encrypted.startswith(prefix):
+			raise ValueError("Encrypted data does not start with {!r} prefix".format(prefix))
+		encrypted = encrypted[len(prefix):]
 
 		# Separate the initialization vector
-		iv, encrypted_text = encrypted[:block_size], encrypted[block_size:]
+		iv, encrypted = encrypted[:block_size], encrypted[block_size:]
 
 		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self.AESKey)
 		mode = cryptography.hazmat.primitives.ciphers.modes.CBC(iv)
 		cipher = cryptography.hazmat.primitives.ciphers.Cipher(algorithm, mode)
 		decryptor = cipher.decryptor()
-		raw = iv + (decryptor.update(encrypted_text) + decryptor.finalize())
+		raw = decryptor.update(encrypted) + decryptor.finalize()
 
 		# Strip padding
 		raw = raw.rstrip(b"\x00")
