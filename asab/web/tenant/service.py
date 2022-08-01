@@ -6,8 +6,6 @@ import aiohttp
 from ...abc.service import Service
 from ...config import Config
 
-from .tenant import Tenant
-
 #
 
 L = logging.getLogger(__name__)
@@ -32,28 +30,23 @@ class TenantService(Service):
 		super().__init__(app, service_name)
 		self.App = app
 		self.TenantWebHandler = None
-		self.TenantsTrusted = int(Config['tenants']['trusted'])
-		self.Tenants = {}
+		self.TenantsTrusted = Config.getboolean("tenants", "trusted")
+		self.Tenants = set()
 
 		# Load tenants from configuration
-		for tenant_id in re.split(r"[,\s]+", Config['tenants']['ids'], flags=re.MULTILINE):
+		for tenant_id in re.split(r"[,\s]+", Config.get("tenants", "ids"), flags=re.MULTILINE):
 			tenant_id = tenant_id.strip()
+			# Skip comments and empty lines
 			if len(tenant_id) == 0:
 				continue
 			if tenant_id[0] == '#':
 				continue
 			if tenant_id[0] == ';':
 				continue
-
-			section = 'tenant:params:{}'.format(tenant_id)
-			if Config.has_section(section):
-				params = dict(Config.items(section))
-				self.Tenants[tenant_id] = Tenant(tenant_id, params)
-			else:
-				self.Tenants[tenant_id] = Tenant(tenant_id)
+			self.Tenants.add(tenant_id)
 
 		# Load tenants from URL
-		self.TenantUrl = Config["tenants"]["tenant_url"]
+		self.TenantUrl = Config.get("tenants", "tenant_url")
 
 
 	async def initialize(self, app):
@@ -63,37 +56,23 @@ class TenantService(Service):
 			app.PubSub.subscribe("Application.tick/300!", self._update_tenants)
 
 
-	@property
-	def TenantIds(self):
-		'''
-		This is here for a backward compatibility.
-		Remove after Jan 2022
-		'''
-		L.warning("The TenantService.TenantIds is deprecated, use TenantService.get_tenant_ids()")
-		return self.get_tenant_ids()
-
-
 	def locate_tenant(self, tenant_id):
-		tenant = self.Tenants.get(tenant_id)
-		if tenant is None and self.TenantsTrusted > 0:
-			tenant = {"_id": tenant_id}
-			self.Tenants[tenant_id] = tenant
-		return tenant
+		if tenant_id in self.Tenants:
+			return tenant_id
+		elif self.TenantsTrusted:
+			self.Tenants.add(tenant_id)
+			return tenant_id
+		else:
+			return None
 
 
 	def get_tenant_ids(self):
-		return list(self.Tenants.keys())
+		# TODO: REMOVE?
+		return self.get_tenants()
 
 
 	def get_tenants(self):
-		tenants = []
-		for tenant in self.Tenants.values():
-			# TODO: Unify (ids vs. tenants_url)
-			if isinstance(tenant, dict):
-				tenants.append(tenant)
-			else:
-				tenants.append(tenant.to_dict())
-		return tenants
+		return list(self.Tenants)
 
 
 	def add_web_api(self, web_container):
@@ -108,9 +87,9 @@ class TenantService(Service):
 					tenants_list = await resp.json()
 					for tenant in tenants_list:
 						if isinstance(tenant, str):
-							self.Tenants[tenant] = Tenant(tenant)
+							self.Tenants.add(tenant)
+						elif isinstance(tenant, dict) and "_id" in tenant:
+							# TODO: REMOVE?
+							self.Tenants.add(tenant["_id"])
 						else:
-							self.Tenants[tenant["_id"]] = Tenant(
-								tenant["_id"],
-								{k: v for k, v in tenant.items() if k != "_id"}
-							)
+							L.warning("Unknown tenant format: {}".format(tenant))
