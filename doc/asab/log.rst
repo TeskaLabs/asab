@@ -186,6 +186,30 @@ Possible URL values:
 The default value is a ``/dev/log`` on Linux or ``/var/run/syslog`` on Mac OSX.
 
 
+Logging of obsolete features
+----------------------------
+
+It proved to be essential to inform operators about features that are going to be obsoleted.
+ASAB offers the unified "obsolete" logger.
+This logger can indicate that a particular feature is marked as "obsolete" thru logs.
+Such a log message can then be "grepped" from logs uniformly.
+
+It is recommended to include `eol` attribute in the `struct_data` of the log with a `YYYY-MM-DD` date/time of the planned obsoletion of the feature.
+
+Hint: We suggest automating the detection of obsolete warnings in logs so that the operations are informed well ahead of the actual removal of the feature. The string to seek in logs is " OBSOLETE ".
+
+Example of the use:
+
+.. code:: python
+
+    asab.LogObsolete.warning("Use of the obsolete function", struct_data={'eol':'2022-31-12'})
+
+
+Log example:
+
+``21-Jul-2022 14:32:40.983884 WARNING OBSOLETE [eol="2022-31-12"] Use of the obsolete function``
+
+
 Reference
 ---------
 
