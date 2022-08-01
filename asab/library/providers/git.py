@@ -1,6 +1,7 @@
-import logging
 import os
-import shutil
+import tempfile
+import logging
+import hashlib
 
 from .filesystem import FileSystemLibraryProvider
 from ...config import Config
@@ -27,6 +28,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 	Configuration:
 	(Use either deploytoken, publickey+privatekey for SSH option, or username and password and HTTP access.)
+
+
 	```
 	[library]
 	providers=git+<URL or deploy token>
@@ -36,19 +39,36 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	privatekey=<absolute path to file>
 	username=johnsmith
 	password=secretpassword
-	local=<path where remote repo will be cloned>
+	repodir=<optional location of the repository cache>
 	```
 	"""
 	def __init__(self, library, path):
 		self.LastCommit = None
 		self.URL = path[4:]
+
 		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))
-		self.RepoPath = os.path.abspath(Config.get("library:git", "local"))
-		if pygit2.discover_repository(self.RepoPath) is None:
+
+		# TODO: Check `repodir`
+		tempdir = tempfile.gettempdir()
+		self.RepoPath = os.path.join(
+			tempdir,
+			"asab.library.git",
+			hashlib.sha256(self.URL.encode('utf-8')).hexdigest()
+		)
+
+		try:
+			# Clone a new repository
+			os.makedirs(self.RepoPath, mode=0o700)
 			self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks)
-		else:
+			self._check_remote()
+
+		except FileExistsError:
+			# Update the existing repository
 			self.GitRepository = pygit2.Repository(self.RepoPath)
-		self._check_remote()
+			self._check_remote()
+			commit_id = fetch(self.GitRepository, self.Callbacks)
+			merge(self.GitRepository, commit_id)
+
 		super().__init__(library, self.RepoPath)
 
 		from ...proactor import Module
@@ -57,9 +77,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
-
-	async def finalize(self, app):
-		clean_path(self.RepoPath)
 
 	async def pull(self):
 		"""
@@ -71,9 +88,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.LastCommit = commit_id
 		await self.ProactorService.execute(merge, self.GitRepository, commit_id)
 
+
 	async def _periodic_pull(self, event_name):
 		await self.pull()
 		self.App.PubSub.publish("GitLibraryProvider.pull!")
+
 
 	def _check_remote(self):
 		try:
@@ -81,6 +100,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		except (KeyError, AssertionError):
 			L.critical("Connection to remote git repository failed.")
 			raise SystemExit("Application exiting...")
+
 		try:
 			self.LastCommit = fetch(self.GitRepository, self.Callbacks)
 		except Exception as e:
@@ -91,10 +111,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		except Exception as e:
 			L.critical("Git Provider cannot merge remote HEAD with local repository. Error: {}".format(e))
 			raise SystemExit("Application exiting...")
-
-	async def list(self, path: str) -> list:
-		await self.pull()
-		return await super().list(path)
 
 
 def fetch(repository, callbacks):
@@ -136,21 +152,3 @@ def get_git_credentials(url):
 
 def username_from_url(url):
 	return url.split("@")[0]
-
-
-def clean_path(path):
-	"""
-	It deletes a folder and all its contents
-
-	:param path: The path to the directory to be deleted
-	"""
-	if os.path.isdir(path):
-		try:
-			for root, dirs, files in os.walk(path):
-				for f in files:
-					os.unlink(os.path.join(root, f))
-				for d in dirs:
-					shutil.rmtree(os.path.join(root, d))
-			os.removedirs(path)
-		except OSError as e:
-			L.error("Error when deleting folder: %s - %s." % (e.filename, e.strerror))
