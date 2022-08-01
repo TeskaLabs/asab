@@ -1,9 +1,6 @@
-import tempfile
 import logging
 import os
 import shutil
-
-import pygit2
 
 from .filesystem import FileSystemLibraryProvider
 from ...config import Config
@@ -13,6 +10,12 @@ from ...config import Config
 L = logging.getLogger(__name__)
 
 #
+
+try:
+	import pygit2
+except ImportError:
+	L.critical("Please install pygit2 package to enable Git Library Provider. >>> pip install pygit2")
+	raise SystemExit("Application exiting... .")
 
 
 class GitLibraryProvider(FileSystemLibraryProvider):
@@ -33,14 +36,18 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	privatekey=<absolute path to file>
 	username=johnsmith
 	password=secretpassword
+	local=<path where remote repo will be cloned>
 	```
 	"""
 	def __init__(self, library, path):
 		self.LastCommit = None
 		self.URL = path[4:]
 		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))
-		self.RepoPath = tempfile.TemporaryDirectory().name
-		self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks)
+		self.RepoPath = os.path.abspath(Config.get("library:git", "local"))
+		if pygit2.discover_repository(self.RepoPath) is None:
+			self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks)
+		else:
+			self.GitRepository = pygit2.Repository(self.RepoPath)
 		self._check_remote()
 		super().__init__(library, self.RepoPath)
 
@@ -77,7 +84,12 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		try:
 			self.LastCommit = fetch(self.GitRepository, self.Callbacks)
 		except Exception as e:
-			L.warning("Git Provider cannot fetch from remote repository. Error: {}".format(e))
+			L.critical("Git Provider cannot fetch from remote repository. Error: {}".format(e))
+			raise SystemExit("Application exiting...")
+		try:
+			merge(self.GitRepository, self.LastCommit)
+		except Exception as e:
+			L.critical("Git Provider cannot merge remote HEAD with local repository. Error: {}".format(e))
 			raise SystemExit("Application exiting...")
 
 	async def list(self, path: str) -> list:
