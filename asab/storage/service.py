@@ -142,7 +142,7 @@ class StorageServiceABC(asab.Service):
 
 		# Strip the prefix
 		if not encrypted.startswith(prefix):
-			raise ValueError("Encrypted data does not start with {!r} prefix".format(prefix))
+			raise ValueError("Encrypted data must start with {!r} prefix".format(prefix))
 		encrypted = encrypted[len(prefix):]
 
 		# Separate the initialization vector
