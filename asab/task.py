@@ -35,7 +35,7 @@ class TaskService(asab.Service):
 
 
 	def start(self):
-		assert(self.Main is None)
+		assert (self.Main is None)
 		self.Main = asyncio.ensure_future(self.main())
 		self.Main.add_done_callback(self._main_task_exited)
 

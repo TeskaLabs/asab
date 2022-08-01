@@ -190,7 +190,7 @@ class PublicKeyAuthenticationService(Service, ConfigObject):
 			L.warning("Authentication failed, public key not found")
 			return False
 
-		assert(entry is not None)
+		assert (entry is not None)
 
 		pk_digest1 = self.get_public_key_digest_from_filename(entry)
 		if pk_digest1 is None:

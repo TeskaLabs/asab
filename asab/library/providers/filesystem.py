@@ -67,7 +67,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 			fstat = os.stat(fname)
 
-			assert(fname.startswith(node_path))
+			assert (fname.startswith(node_path))
 			fname = fname[len(node_path) + 1:]
 
 			if stat.S_ISREG(fstat.st_mode):
