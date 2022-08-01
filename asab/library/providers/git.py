@@ -78,11 +78,16 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 		Equivalent to `git pull` command.
 		"""
+		if self.check_update():
+			await self.ProactorService.execute(merge, self.GitRepository, self.LastCommit)
+
+
+	async def check_update(self):
 		commit_id = await self.ProactorService.execute(fetch, self.GitRepository, self.Callbacks)
 		if commit_id == self.LastCommit:
-			return
+			return False
 		self.LastCommit = commit_id
-		await self.ProactorService.execute(merge, self.GitRepository, commit_id)
+		return True
 
 
 	async def _periodic_pull(self, event_name):
