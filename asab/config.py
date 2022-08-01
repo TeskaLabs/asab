@@ -247,26 +247,9 @@ class ConfigParser(configparser.ConfigParser):
 		"""Gets URL from config and removes all leading and trailing
 		whitespaces and trailing slashes.
 
-		Usage:
-		There are two ways of obtaining the URL from config:
-			1. asab.Config["urls"].geturl("teskalabs", scheme="https")
-			2. asab.Config.geturl("urls", "github", scheme=None)
-
-		The scheme parameter:
-			If the parameter is set to the same scheme
-			as in the config, then it returns the URL.
-			But if the parameter is not the same as in config
-			it will throw an error.
-			However, if the parameter is set to None (Default)
-			it will bypass the scheme check and return the URL.
-
-			The parameter also supports tuple:
-			asab.Config["urls"].geturl("teskalabs", scheme=("https", "http"))
-
-		Config in this scenario:
-		[urls]
-		teskalabs=https://www.teskalabs.com/
-		github=github.com
+		:param scheme: URL scheme(s) awaited. If None, scheme validation is bypassed.
+		:type scheme: str, tuple
+		:return: validated URL, raises ValueError when scheme requirements are not met if set.
 		"""
 		return utils.validate_url(self.get(section, option, raw=False, vars=None, fallback=fallback), scheme)
 
