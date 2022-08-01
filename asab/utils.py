@@ -1,4 +1,4 @@
-from urllib.parse import urlparse
+import urllib.parse
 
 
 def convert_to_seconds(value: str) -> float:
@@ -35,7 +35,7 @@ def convert_to_seconds(value: str) -> float:
 
 def validate_url(input_url: str, scheme):
 	# Remove leading and trailing whitespaces before parsing
-	url = urlparse(input_url.strip())
+	url = urllib.parse.urlparse(input_url.strip())
 
 	if url.path.endswith("/"):
 		url = url._replace(path=url.path[:-1])
