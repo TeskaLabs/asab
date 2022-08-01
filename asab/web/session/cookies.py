@@ -16,7 +16,7 @@ class CookieSessionMixIn(object):
 
 
 	def set_session_to_response(self, session, response):
-		assert (session.Id is not None)
+		assert session.Id is not None
 		self._set_cookie(response, session.Id, max_age=session.MaxAge)
 
 
