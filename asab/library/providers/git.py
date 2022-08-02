@@ -112,9 +112,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				L.critical("Remote branch '{}' does not exist.".format(self.Branch))
 				raise SystemExit("Application exiting...")
 
-			local_branch = self.GitRepository.lookup_branch(self.Branch)
-			if local_branch is None:
-				local_branch = self.GitRepository.branches.create(self.Branch, commit)
+			if self.GitRepository.lookup_branch(self.Branch) is None:
+				self.GitRepository.branches.create(self.Branch, commit)
 			commit, reference = self.GitRepository.resolve_refish(self.Branch)
 
 			self.GitRepository.checkout(reference)
