@@ -39,6 +39,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	username=johnsmith
 	password=secretpassword
 	repodir=<optional location of the repository cache>
+	branch=<optional remote branch name>
 	```
 	"""
 	def __init__(self, library, path):
@@ -46,6 +47,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.URL = path[4:]
 
 		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))
+		self.Branch = Config.get("library:git", "branch", fallback="HEAD")
 
 		repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
@@ -58,14 +60,9 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				hashlib.sha256(self.URL.encode('utf-8')).hexdigest()
 			)
 
-		if pygit2.discover_repository(self.RepoPath) is None:
-			os.makedirs(self.RepoPath, mode=0o700)
-			self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks)
-		else:
-			self.GitRepository = pygit2.Repository(self.RepoPath)
-		self._check_remote()
+		super().__init__(library, self.RepoPath, waiting_for_git=True)
 
-		super().__init__(library, self.RepoPath)
+		self.App.TaskService.schedule(self.intialize_git_repo())
 
 		from ...proactor import Module
 		self.App.add_module(Module)
@@ -78,12 +75,12 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 		Equivalent to `git pull` command.
 		"""
-		if self.check_update():
+		if await self.check_update():
 			await self.ProactorService.execute(merge, self.GitRepository, self.LastCommit)
 
 
 	async def check_update(self):
-		commit_id = await self.ProactorService.execute(fetch, self.GitRepository, self.Callbacks)
+		commit_id = await self.ProactorService.execute(fetch, self.GitRepository, self.Callbacks, self.Branch)
 		if commit_id == self.LastCommit:
 			return False
 		self.LastCommit = commit_id
@@ -94,7 +91,20 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		await self.pull()
 
 
-	def _check_remote(self):
+	async def intialize_git_repo(self):
+		await self.ProactorService.execute(self._initialize_git_repo)
+		await self._set_ready()
+
+	def _initialize_git_repo(self):
+		if pygit2.discover_repository(self.RepoPath) is None:
+			os.makedirs(self.RepoPath, mode=0o700)
+			if self.Branch == "HEAD":
+				self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks)
+			else:
+				self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks, checkout_branch=self.Branch)
+		else:
+			self.GitRepository = pygit2.Repository(self.RepoPath)
+
 		try:
 			assert self.GitRepository.remotes["origin"] is not None
 		except (KeyError, AssertionError):
@@ -102,7 +112,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			raise SystemExit("Application exiting...")
 
 		try:
-			self.LastCommit = fetch(self.GitRepository, self.Callbacks)
+			self.LastCommit = fetch(self.GitRepository, self.Callbacks, self.Branch)
 		except Exception as e:
 			L.critical("Git Provider cannot fetch from remote repository. Error: {}".format(e))
 			raise SystemExit("Application exiting...")
@@ -114,7 +124,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			raise SystemExit("Application exiting...")
 
 
-def fetch(repository, callbacks):
+
+def fetch(repository, callbacks, branch):
 	"""
 	It fetches the remote repository and returns the commit ID of the remote HEAD
 
@@ -123,7 +134,7 @@ def fetch(repository, callbacks):
 	:return: The commit id of the latest commit on the remote repository.
 	"""
 	repository.remotes["origin"].fetch(callbacks=callbacks)
-	reference = repository.lookup_reference("refs/remotes/origin/HEAD")
+	reference = repository.lookup_reference("refs/remotes/origin/{}".format(branch))
 	commit_id = reference.peel().id
 	return commit_id
 
