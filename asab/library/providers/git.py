@@ -108,8 +108,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 		It fetches the remote repository and returns the commit ID of the remote HEAD
 
-		:param repository: The repository object that you want to fetch from
-		:param callbacks: A dictionary of callbacks to be used during the fetch
 		:return: The commit id of the latest commit on the remote repository.
 		"""
 		self.GitRepository.remotes["origin"].fetch(callbacks=self.Callbacks)
