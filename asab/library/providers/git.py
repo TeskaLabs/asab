@@ -72,12 +72,12 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.ProactorService = self.App.get_service("asab.ProactorService")
 
 		self.App.TaskService.schedule(self.intialize_git_repo())
-
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
 
 	async def _periodic_pull(self, event_name):
-		await self.ProactorService.execute(pull, self.GitRepository, self.Callbacks, self.Branch)
+		# TODO: Ensure that the pull is not in progress, use some kind of locking
+		await self.ProactorService.execute(self.pull)
 
 
 	async def intialize_git_repo(self):
@@ -90,7 +90,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			else:
 				# For existing repository, pull the latest changes
 				self.GitRepository = pygit2.Repository(self.RepoPath)
-				pull(self.GitRepository, self.Callbacks, self.Branch)
+				self.pull()
 
 			try:
 				assert self.GitRepository.remotes["origin"] is not None
@@ -102,23 +102,26 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		await self._set_ready()
 
 
-def fetch(repository, callbacks, branch):
-	"""
-	It fetches the remote repository and returns the commit ID of the remote HEAD
+	def fetch(self):
+		"""
+		It fetches the remote repository and returns the commit ID of the remote HEAD
 
-	:param repository: The repository object that you want to fetch from
-	:param callbacks: A dictionary of callbacks to be used during the fetch
-	:return: The commit id of the latest commit on the remote repository.
-	"""
-	repository.remotes["origin"].fetch(callbacks=callbacks)
-	reference = repository.lookup_reference("refs/remotes/origin/{}".format(branch))
-	commit_id = reference.peel().id
-	return commit_id
+		:param repository: The repository object that you want to fetch from
+		:param callbacks: A dictionary of callbacks to be used during the fetch
+		:return: The commit id of the latest commit on the remote repository.
+		"""
+		self.GitRepository.remotes["origin"].fetch(callbacks=self.Callbacks)
+		reference = self.GitRepository.lookup_reference("refs/remotes/origin/{}".format(self.Branch))
+		commit_id = reference.peel().id
+		return commit_id
 
 
-def pull(repository, callbacks, branch):
-	commit_id = fetch(repository, callbacks, branch)
-	repository.merge(commit_id)
+	def pull(self):
+		'''
+		Emulates `git pull` command.
+		'''
+		commit_id = self.fetch()
+		self.GitRepository.merge(commit_id)
 
 
 def get_git_credentials(url):
