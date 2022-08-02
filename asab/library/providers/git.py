@@ -47,11 +47,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		split_path = path.split("#", 1)
 		if len(split_path) > 1:
 			self.Branch = split_path[-1]
-			path = split_path[0]
+			self.URL = split_path[0][4:]
 		else:
 			self.Branch = "HEAD"
+			self.URL = path[4:]
 
-		self.URL = path[4:]
 		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))
 
 		repodir = Config.get("library:git", "repodir", fallback=None)
