@@ -12,14 +12,18 @@ from ..item import LibraryItem
 class FileSystemLibraryProvider(LibraryProviderABC):
 
 
-	def __init__(self, library, path, waiting_for_git=False):
+	def __init__(self, library, path, *, set_ready=True):
+		'''
+		`set_ready` can be used to disable/defer `self._set_ready` call.
+		'''
+
 		super().__init__(library)
 		self.BasePath = os.path.abspath(path)
 		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
 
 		# Filesystem is always ready (or you have a serious problem)
-		if waiting_for_git is False:
+		if set_ready:
 			self.App.TaskService.schedule(self._set_ready())
 
 

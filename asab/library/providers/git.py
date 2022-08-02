@@ -42,12 +42,15 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	```
 	"""
 	def __init__(self, library, path):
-		self.LastCommit = None
-		self.Branch = "HEAD"
-		split_path = path.split("#")
+		
+		# The branch can be optionally specified in the URL fragment (after '#')
+		split_path = path.split("#", 1)
 		if len(split_path) > 1:
 			self.Branch = split_path[-1]
 			path = split_path[0]
+		else:
+			self.Branch = "HEAD"
+
 		self.URL = path[4:]
 		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))
 
@@ -59,10 +62,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.RepoPath = os.path.join(
 				tempdir,
 				"asab.library.git",
-				hashlib.sha256(self.URL.encode('utf-8')).hexdigest()
+				hashlib.sha256(path.encode('utf-8')).hexdigest()
 			)
 
-		super().__init__(library, self.RepoPath, waiting_for_git=True)
+		super().__init__(library, self.RepoPath, set_ready=False)
 
 		from ...proactor import Module
 		self.App.add_module(Module)
@@ -73,69 +76,30 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
 
-	async def pull(self):
-		"""
-		Equivalent to `git pull` command.
-		"""
-		if await self.check_update():
-			await self.ProactorService.execute(merge, self.GitRepository, self.LastCommit)
-
-
-	async def check_update(self):
-		commit_id = await self.ProactorService.execute(fetch, self.GitRepository, self.Callbacks, self.Branch)
-		if commit_id == self.LastCommit:
-			return False
-		self.LastCommit = commit_id
-		return True
-
-
 	async def _periodic_pull(self, event_name):
-		await self.pull()
+		await self.ProactorService.execute(pull, self.GitRepository, self.Callbacks, self.Branch)
 
 
 	async def intialize_git_repo(self):
-		await self.ProactorService.execute(self._initialize_git_repo)
-		await self._set_ready()
 
-	def _initialize_git_repo(self):
-		if pygit2.discover_repository(self.RepoPath) is None:
-			os.makedirs(self.RepoPath, mode=0o700)
-			self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks)
-		else:
-			self.GitRepository = pygit2.Repository(self.RepoPath)
-			self.GitRepository.checkout("HEAD")
+		def init_task():
+			if pygit2.discover_repository(self.RepoPath) is None:
+				# For a new repository, clone the remote bit
+				os.makedirs(self.RepoPath, mode=0o700)
+				self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks)
+			else:
+				# For existing repository, pull the latest changes
+				self.GitRepository = pygit2.Repository(self.RepoPath)
+				pull(self.GitRepository, self.Callbacks, self.Branch)
 
-		if self.Branch != "HEAD":
 			try:
-				commit, reference = self.GitRepository.resolve_refish("origin/{}".format(self.Branch))
-			except KeyError:
-				L.critical("Remote branch '{}' does not exist.".format(self.Branch))
+				assert self.GitRepository.remotes["origin"] is not None
+			except (KeyError, AssertionError):
+				L.critical("Connection to remote git repository failed.")
 				raise SystemExit("Application exiting...")
 
-			if self.GitRepository.lookup_branch(self.Branch) is None:
-				self.GitRepository.branches.create(self.Branch, commit)
-			commit, reference = self.GitRepository.resolve_refish(self.Branch)
-
-			self.GitRepository.checkout(reference)
-
-		try:
-			assert self.GitRepository.remotes["origin"] is not None
-		except (KeyError, AssertionError):
-			L.critical("Connection to remote git repository failed.")
-			raise SystemExit("Application exiting...")
-
-		try:
-			self.LastCommit = fetch(self.GitRepository, self.Callbacks, self.Branch)
-		except Exception as e:
-			L.critical("Git Provider cannot fetch from remote repository. Error: {}".format(e))
-			raise SystemExit("Application exiting...")
-
-		try:
-			merge(self.GitRepository, self.LastCommit)
-		except Exception as e:
-			L.critical("Git Provider cannot merge remote HEAD with local repository. Error: {}".format(e))
-			raise SystemExit("Application exiting...")
-
+		await self.ProactorService.execute(init_task)
+		await self._set_ready()
 
 
 def fetch(repository, callbacks, branch):
@@ -152,7 +116,8 @@ def fetch(repository, callbacks, branch):
 	return commit_id
 
 
-def merge(repository, commit_id):
+def pull(repository, callbacks, branch):
+	commit_id = fetch(repository, callbacks, branch)
 	repository.merge(commit_id)
 
 
