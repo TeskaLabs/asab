@@ -31,7 +31,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 	```
 	[library]
-	providers=git+<URL or deploy token>
+	providers=git+<URL or deploy token>#<branch name>
 
 	[library:git]
 	publickey=<absolute path to file>
@@ -39,14 +39,17 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	username=johnsmith
 	password=secretpassword
 	repodir=<optional location of the repository cache>
-	branch=<optional remote branch name>
 	```
 	"""
 	def __init__(self, library, path):
 		self.LastCommit = None
+		self.Branch = "HEAD"
+		split_path = path.split("#")
+		if len(split_path) > 1:
+			self.Branch = split_path[-1]
+			path = split_path[0]
 		self.URL = path[4:]
 		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))
-		self.Branch = Config.get("library:git", "branch", fallback="HEAD")
 
 		repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
@@ -97,12 +100,24 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	def _initialize_git_repo(self):
 		if pygit2.discover_repository(self.RepoPath) is None:
 			os.makedirs(self.RepoPath, mode=0o700)
-			if self.Branch == "HEAD":
-				self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks)
-			else:
-				self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks, checkout_branch=self.Branch)
+			self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks)
 		else:
 			self.GitRepository = pygit2.Repository(self.RepoPath)
+			self.GitRepository.checkout("HEAD")
+
+		if self.Branch != "HEAD":
+			try:
+				commit, reference = self.GitRepository.resolve_refish("origin/{}".format(self.Branch))
+			except KeyError:
+				L.critical("Remote branch '{}' does not exist.".format(self.Branch))
+				raise SystemExit("Application exiting...")
+
+			local_branch = self.GitRepository.lookup_branch(self.Branch)
+			if local_branch is None:
+				local_branch = self.GitRepository.branches.create(self.Branch, commit)
+			commit, reference = self.GitRepository.resolve_refish(self.Branch)
+
+			self.GitRepository.checkout(reference)
 
 		try:
 			assert self.GitRepository.remotes["origin"] is not None
