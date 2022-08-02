@@ -92,13 +92,15 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				self.GitRepository = pygit2.Repository(self.RepoPath)
 				self.pull()
 
-			try:
-				assert self.GitRepository.remotes["origin"] is not None
-			except (KeyError, AssertionError):
-				L.critical("Connection to remote git repository failed.")
-				raise SystemExit("Application exiting...")
-
 		await self.ProactorService.execute(init_task)
+
+		try:
+			assert self.GitRepository.remotes["origin"] is not None
+		except (KeyError, AssertionError):
+			L.error("Connection to remote git repository failed.")
+			# The library will not get ready ... maybe we can retry init_test() in a while
+			return
+
 		await self._set_ready()
 
 
