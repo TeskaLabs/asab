@@ -42,7 +42,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	```
 	"""
 	def __init__(self, library, path):
-		
+
 		# The branch can be optionally specified in the URL fragment (after '#')
 		split_path = path.split("#", 1)
 		if len(split_path) > 1:
