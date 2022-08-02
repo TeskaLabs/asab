@@ -45,7 +45,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	def __init__(self, library, path):
 		self.LastCommit = None
 		self.URL = path[4:]
-
 		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))
 		self.Branch = Config.get("library:git", "branch", fallback="HEAD")
 
@@ -62,11 +61,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		super().__init__(library, self.RepoPath, waiting_for_git=True)
 
-		self.App.TaskService.schedule(self.intialize_git_repo())
-
 		from ...proactor import Module
 		self.App.add_module(Module)
 		self.ProactorService = self.App.get_service("asab.ProactorService")
+
+		self.App.TaskService.schedule(self.intialize_git_repo())
 
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
