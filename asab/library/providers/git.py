@@ -70,14 +70,22 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		from ...proactor import Module
 		self.App.add_module(Module)
 		self.ProactorService = self.App.get_service("asab.ProactorService")
+		self.PullLock = False
 
 		self.App.TaskService.schedule(self.intialize_git_repo())
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
 
 	async def _periodic_pull(self, event_name):
-		# TODO: Ensure that the pull is not in progress, use some kind of locking
-		await self.ProactorService.execute(self.pull)
+		if self.PullLock:
+			return
+
+		self.PullLock = True
+
+		try:
+			await self.ProactorService.execute(self.pull)
+		finally:
+			self.PullLock = False
 
 
 	async def intialize_git_repo(self):
@@ -106,7 +114,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 	def fetch(self):
 		"""
-		It fetches the remote repository and returns the commit ID of the remote HEAD
+		It fetches the remote repository and returns the commit ID of the remote branch
 
 		:return: The commit id of the latest commit on the remote repository.
 		"""
