@@ -49,7 +49,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.Branch = split_path[-1]
 			self.URL = split_path[0][4:]
 		else:
-			self.Branch = "HEAD"
+			self.Branch = None
 			self.URL = path[4:]
 
 		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))
@@ -94,7 +94,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			if pygit2.discover_repository(self.RepoPath) is None:
 				# For a new repository, clone the remote bit
 				os.makedirs(self.RepoPath, mode=0o700)
-				self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks)
+				self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks, checkout_branch=self.Branch)
 			else:
 				# For existing repository, pull the latest changes
 				self.GitRepository = pygit2.Repository(self.RepoPath)
@@ -119,7 +119,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		:return: The commit id of the latest commit on the remote repository.
 		"""
 		self.GitRepository.remotes["origin"].fetch(callbacks=self.Callbacks)
-		reference = self.GitRepository.lookup_reference("refs/remotes/origin/{}".format(self.Branch))
+		if self.Branch is None:
+			reference = self.GitRepository.lookup_reference("refs/remotes/origin/HEAD")
+		else:
+			reference = self.GitRepository.lookup_reference("refs/remotes/origin/{}".format(self.Branch))
 		commit_id = reference.peel().id
 		return commit_id
 
