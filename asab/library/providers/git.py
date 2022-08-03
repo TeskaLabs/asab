@@ -77,6 +77,9 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 
 	async def _periodic_pull(self, event_name):
+		"""
+		Changes in remote repository are being pulled every minute. `PullLock` flag ensures that only if previous "pull" has finished, new one can start.
+		"""
 		if self.PullLock:
 			return
 
