@@ -12,6 +12,9 @@ except ModuleNotFoundError:
 	cryptography = None
 
 
+ENCRYPTED_PREFIX = b"$aes-cbc$"
+
+
 class StorageServiceABC(asab.Service):
 
 	def __init__(self, app, service_name):
@@ -94,7 +97,6 @@ class StorageServiceABC(asab.Service):
 		:type iv: bytes
 		:return: The encrypted data.
 		"""
-		prefix = b"$aes-cbc$"
 		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
 
 		if self.AESKey is None:
@@ -118,7 +120,7 @@ class StorageServiceABC(asab.Service):
 		mode = cryptography.hazmat.primitives.ciphers.modes.CBC(iv)
 		cipher = cryptography.hazmat.primitives.ciphers.Cipher(algorithm, mode)
 		encryptor = cipher.encryptor()
-		encrypted = prefix + iv + (encryptor.update(raw) + encryptor.finalize())
+		encrypted = ENCRYPTED_PREFIX + iv + (encryptor.update(raw) + encryptor.finalize())
 		return encrypted
 
 
@@ -131,7 +133,6 @@ class StorageServiceABC(asab.Service):
 		:type encrypted: bytes
 		:return: The decrypted data.
 		"""
-		prefix = b"$aes-cbc$"
 		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
 
 		if self.AESKey is None:
@@ -141,9 +142,9 @@ class StorageServiceABC(asab.Service):
 			raise TypeError("Only values of type 'bytes' can be decrypted")
 
 		# Strip the prefix
-		if not encrypted.startswith(prefix):
-			raise ValueError("Encrypted data must start with {!r} prefix".format(prefix))
-		encrypted = encrypted[len(prefix):]
+		if not encrypted.startswith(ENCRYPTED_PREFIX):
+			raise ValueError("Encrypted data must start with {!r} prefix".format(ENCRYPTED_PREFIX))
+		encrypted = encrypted[len(ENCRYPTED_PREFIX):]
 
 		# Separate the initialization vector
 		iv, encrypted = encrypted[:block_size], encrypted[block_size:]
