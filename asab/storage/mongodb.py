@@ -40,21 +40,26 @@ class StorageService(StorageServiceABC):
 		return MongoDBUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection: str, obj_id) -> dict:
+	async def get(self, collection: str, obj_id, decrypt=None) -> dict:
 		coll = self.Database[collection]
 		ret = await coll.find_one({'_id': obj_id})
 		if ret is None:
 			raise KeyError("NOT-FOUND")
+		if decrypt is not None:
+			for field in decrypt:
+				if field in ret:
+					ret[field] = self.aes_decrypt(ret[field])
 		return ret
 
 
-	async def get_by(self, collection: str, key: str, value) -> dict:
+	async def get_by(self, collection: str, key: str, value, decrypt=None) -> dict:
 		"""
 		Get object from collection by its key/value
 
 		:param collection: Collection to get from
 		:param key: Key to filter on
 		:param value: Value to filter on
+		:param decrypt: Set of fields to decrypt
 		:return: The object retrieved from a storage
 
 		Raises:
@@ -64,6 +69,10 @@ class StorageService(StorageServiceABC):
 		ret = await coll.find_one({key: value})
 		if ret is None:
 			raise KeyError("NOT-FOUND")
+		if decrypt is not None:
+			for field in decrypt:
+				if field in ret:
+					ret[field] = self.aes_decrypt(ret[field])
 		return ret
 
 

@@ -73,12 +73,17 @@ class StorageService(StorageServiceABC):
 		return InMemoryUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection: str, obj_id):
+	async def get(self, collection: str, obj_id, decrypt=None):
 		coll = self.InMemoryCollections[collection]
-		return coll[obj_id]
+		data = coll[obj_id]
+		if decrypt is not None:
+			for field in decrypt:
+				if field in data:
+					data[field] = self.aes_decrypt(data[field])
+		return data
 
 
-	async def get_by(self, collection: str, key: str, value):
+	async def get_by(self, collection: str, key: str, value, decrypt=None):
 		"""
 		Raises:
 			NotImplementedError: Not implemented on InMemoryStorage
