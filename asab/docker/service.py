@@ -27,7 +27,7 @@ class DockerService(Service):
 	def load_hostname(self):
 		hostname = platform.node()
 		if self.ContainerName is not None:
-			hostname = "{}".format(self.ContainerName)
+			hostname = self.ContainerName
 		else:
 			L.warning("Failed to obtain docker container name from Docker API.")
 		return hostname
@@ -42,15 +42,14 @@ class DockerService(Service):
 			return
 
 		docker_info = call_docker_api(container_id)
-		L.warning("docker_info: {}".format(docker_info))
-		container_name = docker_info.get("Name")
 
-		if container_name is None:
+		if docker_info is None:
 			L.warning("Docker API does not provide container name. Using container ID as hostname.")
 			self.ContainerName = container_id
 			self.ServerName = self.App.HostName
 			return
 
+		container_name = docker_info.get("Name")
 		self.ContainerName = container_name.lstrip("/")
 		self.ServerName = docker_info.get("Config").get("Hostname")
 
@@ -114,7 +113,6 @@ def get_api_address_from_config():
 			configsection = "asab:docker"
 			L.warning("Using obsolete config section [asab:docker]. Preferred section name is [docker]")
 
-	L.warning("docker socket: {}".format(Config.get(configsection, "socket")))
 	return Config.get(configsection, "socket")
 
 
