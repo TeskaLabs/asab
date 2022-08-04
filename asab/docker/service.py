@@ -45,10 +45,10 @@ class DockerService(Service):
 		L.warning("docker_info: {}".format(docker_info))
 		container_name = docker_info.get("Name")
 
-		if docker_info or container_name is None:
+		if container_name is None:
 			L.warning("Docker API does not provide container name. Using container ID as hostname.")
 			self.ContainerName = container_id
-			self.ServerName = self.App.Hostname
+			self.ServerName = self.App.HostName
 			return
 
 		self.ContainerName = container_name.lstrip("/")
