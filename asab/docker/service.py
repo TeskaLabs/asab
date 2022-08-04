@@ -58,8 +58,9 @@ def get_docker_container_id():
 	if os.path.isfile('/proc/self/cgroup'):
 		with open('/proc/self/cgroup', "r") as f:
 			cgroup = f.read()
-			container_id = cgroup.split("/docker/")[1].split("\n")[0]
-			return container_id
+			if any('docker' in line for line in cgroup):
+				container_id = cgroup.split("/docker/")[1].split("\n")[0]
+				return container_id
 
 	# since Ubuntu 22.04 linux kernel uses cgroups v2 which do not operate with /proc/self/cgroup file
 	if os.path.isfile('/proc/self/mountinfo'):
