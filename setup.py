@@ -66,8 +66,10 @@ setup(
 		'aiohttp>=3.6.2',
 		'fastjsonschema>=2.14.4',
 		'kazoo>=2.8.0',
+		'PyYAML>=6.0'
 	],
 	extras_require={
+		'git': 'pygit2>=1.9.1',
 		'storage_encryption': 'cryptography',
 	},
 	cmdclass={
