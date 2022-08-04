@@ -161,20 +161,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			await self._set_ready()
 
 
-	def _get_version_counter(self, event_name=None):
+	async def _get_version_counter(self, event_name=None):
 		if self.Zookeeper is None:
 			return
+		version = await self.Zookeeper.get_data(self.VersionNodePath)
 
-		def get_version_counter(client):
-			version, stats = client.get(self.VersionNodePath)
-			self.App.Loop.call_soon_threadsafe(self._check_version_counter, version)
-
-		self.Zookeeper.ProactorService.execute(get_version_counter, self.Zookeeper.Client)
+		self.Zookeeper.ProactorService.execute(self._check_version_counter, version)
 
 	def _check_version_counter(self, version):
 		# If version is `None` aka `/.version.yaml` doesn't exists, then assume version -1
 		if version is None:
-			L.warning("File `/.version.yaml` likely doesn't exists.")
 			version = -1
 
 		if self.Version is None:

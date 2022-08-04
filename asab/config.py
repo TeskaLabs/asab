@@ -15,7 +15,6 @@ L = logging.getLogger(__name__)
 
 
 class ConfigParser(configparser.ConfigParser):
-
 	_syslog_sockets = {
 		'Darwin': '/var/run/syslog'
 	}
@@ -23,7 +22,6 @@ class ConfigParser(configparser.ConfigParser):
 	_syslog_format = {
 		'Darwin': 'm'
 	}
-
 
 	_default_values = {
 
@@ -233,6 +231,7 @@ class ConfigParser(configparser.ConfigParser):
 			L.error("Failed to obtain configuration from Zookeeper server(s): '{}'.".format(e))
 			sys.exit(1)
 
+
 	def get_config_contents_list(self):
 		return self.config_contents_list, self.config_name_list
 
@@ -244,13 +243,24 @@ class ConfigParser(configparser.ConfigParser):
 		return self._get_conv(section, option, utils.convert_to_seconds, raw=raw, vars=vars, fallback=fallback, **kwargs)
 
 
+	def geturl(self, section, option, raw=False, vars=None, fallback=None, scheme=None, **kwargs):
+		"""Gets URL from config and removes all leading and trailing
+		whitespaces and trailing slashes.
+
+		:param scheme: URL scheme(s) awaited. If None, scheme validation is bypassed.
+		:type scheme: str, tuple
+		:return: validated URL, raises ValueError when scheme requirements are not met if set.
+		"""
+		return utils.validate_url(self.get(section, option, raw=False, vars=None, fallback=fallback), scheme)
+
+
 class _Interpolation(configparser.ExtendedInterpolation):
 	"""Interpolation which expands environment variables in values."""
+
 
 	def before_read(self, parser, section, option, value):
 		# Expand environment variables
 		if '$' in value:
-
 			os.environ['THIS_DIR'] = os.path.abspath(parser._load_dir_stack[-1])
 
 			value = os.path.expandvars(value)
@@ -262,7 +272,6 @@ Config = ConfigParser(interpolation=_Interpolation())
 
 
 class Configurable(object):
-
 	'''
 	Usage:
 	class ConfigurableObject(asab.Configurable):
@@ -294,7 +303,8 @@ class Configurable(object):
 			for key, value in base_class.ConfigDefaults.items():
 
 				if value is None:
-					raise ValueError("None value not allowed in ConfigDefaults. Found in %s:%s " % (config_section_name, key))
+					raise ValueError("None value not allowed in ConfigDefaults. Found in %s:%s " % (
+						config_section_name, key))
 
 				if key not in self.Config:
 					self.Config[key] = value
@@ -360,6 +370,11 @@ class ConfigObjectDict(collections.abc.MutableMapping):
 	def getfloat(self, key):
 		value = self._data[key]
 		return float(value)
+
+
+	def geturl(self, key, scheme):
+		value = self._data[key]
+		return utils.validate_url(value, scheme)
 
 
 	def __repr__(self):

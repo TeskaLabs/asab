@@ -57,10 +57,12 @@ class UpsertorABC(abc.ABC):
 		return m.digest()
 
 
-	def set(self, objField, value):
+	def set(self, objField, value, encrypt=False, encrypt_iv=None):
 		'''
 		Scalar set
 		'''
+		if encrypt:
+			value = self.Storage.aes_encrypt(value, iv=encrypt_iv)
 		self.ModSet[objField] = value
 
 
