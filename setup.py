@@ -70,6 +70,7 @@ setup(
 	],
 	extras_require={
 		'git': 'pygit2>=1.9.1',
+		'storage_encryption': 'cryptography',
 	},
 	cmdclass={
 		'build_py': custom_build_py,
