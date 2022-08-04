@@ -42,11 +42,13 @@ class DockerService(Service):
 			return
 
 		docker_info = call_docker_api(container_id)
+		L.warning("docker_info: {}".format(docker_info))
 		container_name = docker_info.get("Name")
 
 		if docker_info or container_name is None:
 			L.warning("Docker API does not provide container name. Using container ID as hostname.")
 			self.ContainerName = container_id
+			self.ServerName = self.App.Hostname
 			return
 
 		self.ContainerName = container_name.lstrip("/")
@@ -112,6 +114,7 @@ def get_api_address_from_config():
 			configsection = "asab:docker"
 			L.warning("Using obsolete config section [asab:docker]. Preferred section name is [docker]")
 
+	L.warning("docker socket: {}".format(Config.get(configsection, "socket")))
 	return Config.get(configsection, "socket")
 
 
