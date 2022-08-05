@@ -1,3 +1,6 @@
+import urllib.parse
+
+
 def convert_to_seconds(value: str) -> float:
 	"""
 	Parse time duration string (e.g. "3h", "20m" or "1y") and convert it into seconds.
@@ -28,3 +31,27 @@ def convert_to_seconds(value: str) -> float:
 		raise ValueError("'{}' is not a valid time specification: {}.".format(value, e))
 
 	return value
+
+
+def validate_url(input_url: str, scheme):
+	# Remove leading and trailing whitespaces before parsing
+	url = urllib.parse.urlparse(input_url.strip())
+
+	if url.path.endswith("/"):
+		url = url._replace(path=url.path[:-1])
+
+	if scheme is None:  # Scheme doesn't get checked
+		return url.geturl()
+	elif isinstance(scheme, tuple):  # Supports tuple
+		if url.scheme in scheme:
+			return url.geturl()
+	elif scheme == url.scheme:
+		return url.geturl()
+	else:
+		if url.scheme:
+			raise ValueError("'{}' has an invalid scheme: '{}'".format(url.geturl(), url.scheme))
+		elif not url.scheme:
+			raise ValueError("'{}' does not have a scheme".format(url.geturl()))
+		else:
+			raise ValueError("'{}' has an invalid scheme".format(url.geturl()))
+	return url.geturl()
