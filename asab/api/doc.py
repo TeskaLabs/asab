@@ -104,15 +104,23 @@ class DocWebHandler(object):
 				path = route_info["path"]
 
 			elif "formatter" in route_info:
-				# TODO: Extract URL parameters from formatter string
+				# Extract URL parameters from formatter string
 				path = route_info["formatter"]
 
-				for m in re.findall(r'\{.*\}', path):
-					parameters.append({
-						'in': 'path',
-						'name': m[1:-1],
-						'required': True,
-					})
+				for params in re.findall(r'\{.*\}', path):
+					if "/" in params:
+						for parameter in params.split("/"):
+							parameters.append({
+								'in': 'path',
+								'name': parameter[1:-1],
+								'required': True,
+							})
+					else:
+						parameters.append({
+							'in': 'path',
+							'name': params[1:-1],
+							'required': True,
+						})
 
 			else:
 				L.warning("Cannot obtain path info from route", struct_data=route_info)
