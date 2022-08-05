@@ -98,6 +98,7 @@ class DocWebHandler(object):
 				continue
 
 			parameters = []
+			methoddict = {}
 
 			route_info = route.get_info()
 			if "path" in route_info:
@@ -134,12 +135,14 @@ class DocWebHandler(object):
 				if route.handler.__name__ == "validator":
 					json_schema = route.handler.__getattribute__("json_schema")
 					docstr = route.handler.__getattribute__("func").__doc__
-					parameters.append({
-						'in': 'body',
-						'name': 'body',
-						'required': True,
-						'schema': json_schema
-					})
+
+					methoddict["requestBody"] = {
+						"content": {
+							"application/json": {
+								"schema": json_schema
+							}
+						},
+					}
 					handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__getattribute__("func").__name__)
 
 				else:
@@ -168,14 +171,14 @@ class DocWebHandler(object):
 
 			description += '\n\nHandler: `{}`'.format(handler_name)
 
-			methoddict = {
+			methoddict.update({
 				'summary': description.split("\n")[0],
 				'description': description,
 				'tags': ['general'],
 				'responses': {
 					'200': {'description': 'Success'}
-				}
-			}
+				},
+			})
 
 			if len(parameters) > 0:
 				methoddict['parameters'] = parameters
