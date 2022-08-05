@@ -52,7 +52,7 @@ class DocWebHandler(object):
 				"description": description,
 				"contact": {
 					"name": "ASAB microservice",
-					"url": "http://www.github.com/teskalabs/asab",
+					"url": "https://www.github.com/teskalabs/asab",
 				},
 				"version": "1.0.0"
 			},
