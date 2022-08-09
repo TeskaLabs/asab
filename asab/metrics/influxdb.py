@@ -153,7 +153,7 @@ def get_field(fk, fv):
 
 
 def combine_tags_and_field(tags, values):
-	# First validate tags and values
+	# First escape tags and values
 	tags = escape_tags(tags)
 	values = escape_values(values)
 	# Then combine the tags and then values
@@ -225,11 +225,11 @@ def escape_values(values: dict):
 	"""
 	clean: dict = {}
 	for k, v in values.items():
-		# Validates the Field Values and Field Keys if the value is a string
+		# Escapes the Field Values and Field Keys if the value is a string
 		if isinstance(values[k], str):
 			clean[k.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\=")] = v.replace("\\", "\\\\").replace('"', "\\\"")
 		else:
-			# Validates the Field Keys
+			# Escapes the Field Keys
 			clean[k.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\=")] = v
 	return clean
 
