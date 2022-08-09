@@ -2,6 +2,7 @@ import re
 import logging
 import inspect
 
+import asab
 import aiohttp
 import aiohttp.web
 import yaml
@@ -16,12 +17,15 @@ L = logging.getLogger(__name__)
 
 class DocWebHandler(object):
 
-	def __init__(self, app, web_container):
+	def __init__(self, app, web_container, config_section_name='asab:doc'):
 		self.App = app
 		self.WebContainer = web_container
 		self.WebContainer.WebApp.router.add_get('/doc', self.doc)
 		self.WebContainer.WebApp.router.add_get('/oauth2-redirect.html', self.oauth2_redirect)
 		self.WebContainer.WebApp.router.add_get('/asab/v1/openapi', self.openapi)
+
+		self.AuthorizationUrl = asab.Config.get(config_section_name, "authorizationUrl")
+		self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl")
 
 
 	def build_swagger_specs(self):
@@ -69,8 +73,8 @@ class DocWebHandler(object):
 						"description": "This API uses OAuth 2, this window allows [links](https://teskalabs.com)",
 						"flows": {
 							"authorizationCode": {
-								"authorizationUrl": "https://auth.test.loc/seacat/api/openidconnect/authorize",
-								"tokenUrl": "https://auth.test.loc/seacat/api/openidconnect/token",
+								"authorizationUrl": self.AuthorizationUrl,  # "http://localhost/seacat/api/openidconnect/authorize"
+								"tokenUrl": self.TokenUrl,  # "http://localhost/seacat/api/openidconnect/token"
 								"scopes": {
 									"write_stuff": "modify stuff :D",
 									"read_stuff": "read stuff :DD",
