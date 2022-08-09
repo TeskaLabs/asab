@@ -88,9 +88,8 @@ class DocWebHandler(object):
 		}
 
 		# Show what server/docker container you are on, and it's IP
-		for server in self.WebContainer.Addresses:
-			specs["info"]["description"] = ("Current Server: <strong>{}</strong> on: <strong>{}:{}</strong>".format(
-				self.App.ServerName, server[0], server[1]) + "<p>{}</p>".format(description))
+		specs["info"]["description"] = ("Current Server: <strong>{}</strong> on: <strong>{}</strong>".format(
+			self.App.ServerName, self.WebContainer.Addresses) + "<p>{}</p>".format(description))
 		# specs["servers"].append({"url": "http://{}:{}".format(server[0], server[1])})
 
 		if adddict is not None:
