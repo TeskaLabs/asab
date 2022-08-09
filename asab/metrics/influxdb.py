@@ -173,7 +173,7 @@ def metric_to_influxdb(metric_record, now):
 		timestamp = now
 	else:
 		timestamp = metric_record.get("@timestamp")
-	name = validate_name(metric_record.get("name"))
+	name = escape_name(metric_record.get("name"))
 	fieldset = metric_record.get("fieldset")
 	metric_type = metric_record.get("type")
 	values_lines = []
@@ -201,7 +201,7 @@ def metric_to_influxdb(metric_record, now):
 	return ["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines]
 
 
-def validate_name(name: str):
+def escape_name(name: str):
 	return name.replace(" ", "\\ ").replace(",", "\\,")
 
 
