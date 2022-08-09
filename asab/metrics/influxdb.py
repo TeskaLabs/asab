@@ -145,7 +145,8 @@ def get_field(fk, fv):
 	elif isinstance(fv, float):
 		field = "{}={}".format(fk, fv)
 	elif isinstance(fv, str):
-		field = '{}="{}"'.format(fk, fv)
+		# Escapes the Field Values and Field Keys if the value is a string
+		field = '{}="{}"'.format(fk.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\="), fv.replace("\\", "\\\\").replace('"', "\\\""))
 	else:
 		raise RuntimeError("Unknown/invalid type of the metrics field: {} {}".format(type(fv), fk))
 
@@ -225,12 +226,8 @@ def escape_values(values: dict):
 	"""
 	clean: dict = {}
 	for k, v in values.items():
-		# Escapes the Field Values and Field Keys if the value is a string
-		if isinstance(values[k], str):
-			clean[k.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\=")] = v.replace("\\", "\\\\").replace('"', "\\\"")
-		else:
-			# Escapes the Field Keys
-			clean[k.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\=")] = v
+		# Escapes the Field Keys
+		clean[k.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\=")] = v
 	return clean
 
 
