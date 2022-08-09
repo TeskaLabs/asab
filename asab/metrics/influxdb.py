@@ -154,8 +154,8 @@ def get_field(fk, fv):
 
 def combine_tags_and_field(tags, values):
 	# First validate tags and values
-	tags = cleanup_tags(tags)
-	values = cleanup_values(values)
+	tags = escape_tags(tags)
+	values = escape_values(values)
 	# Then combine the tags and then values
 	tags_string = ",".join(["{}={}".format(tk, tv) for tk, tv in tags.items()])
 	field_set = ",".join([get_field(value_name, value) for value_name, value in values.items()])
@@ -205,14 +205,24 @@ def validate_name(name: str):
 	return name.replace(" ", "\\ ").replace(",", "\\,")
 
 
-def cleanup_tags(tags: dict):
+def escape_tags(tags: dict):
+	"""
+	Escapes special characters in inputted tags to comply with InfluxDB's rules
+
+	https://docs.influxdata.com/influxdb/v2.3/reference/syntax/line-protocol/#special-characters
+	"""
 	clean: dict = {}
 	for k, v in tags.items():
 		clean[k.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")] = v.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
 	return clean
 
 
-def cleanup_values(values: dict):
+def escape_values(values: dict):
+	"""
+	Escapes special characters in inputted values to comply with InfluxDB's rules
+
+	https://docs.influxdata.com/influxdb/v2.3/reference/syntax/line-protocol/#special-characters
+	"""
 	clean: dict = {}
 	for k, v in values.items():
 		# Validates the Field Values and Field Keys if the value is a string
