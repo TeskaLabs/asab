@@ -26,6 +26,7 @@ class DocWebHandler(object):
 
 		self.AuthorizationUrl = asab.Config.get(config_section_name, "authorizationUrl")
 		self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl")
+		self.Scopes = asab.Config.get(config_section_name, "scopes").split(",")
 
 
 	def build_swagger_specs(self):
@@ -76,9 +77,7 @@ class DocWebHandler(object):
 								"authorizationUrl": self.AuthorizationUrl,  # "http://localhost/seacat/api/openidconnect/authorize"
 								"tokenUrl": self.TokenUrl,  # "http://localhost/seacat/api/openidconnect/token"
 								"scopes": {
-									"write_stuff": "modify stuff :D",
-									"read_stuff": "read stuff :DD",
-									"openid": "openid",
+									"openid": "Required Scope for OpenIDConnect!",
 								}
 							}
 						}
@@ -86,6 +85,9 @@ class DocWebHandler(object):
 				},
 			},
 		}
+
+		for scope in self.Scopes:
+			specs["components"]["securitySchemes"]["oAuthSample"]["flows"]["authorizationCode"]["scopes"].update({scope: "{} scope.".format(scope.strip().capitalize())})
 
 		# Show what server/docker container you are on, and it's IP
 		specs["info"]["description"] = ("Current Server: <strong>{}</strong> on: <strong>{}</strong>".format(
