@@ -70,7 +70,7 @@ class DocWebHandler(object):
 				"securitySchemes": {
 					"oAuthSample": {
 						"type": "oauth2",
-						"description": "This API uses OAuth 2, this window allows [links](https://teskalabs.com)",
+						"description": "",
 						"flows": {
 							"authorizationCode": {
 								"authorizationUrl": self.AuthorizationUrl,  # "http://localhost/seacat/api/openidconnect/authorize"
