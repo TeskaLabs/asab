@@ -17,7 +17,7 @@ L = logging.getLogger(__name__)
 
 class DocWebHandler(object):
 
-	def __init__(self, app, web_container, config_section_name='asab:doc'):
+	def __init__(self, api_service, app, web_container, config_section_name='asab:doc'):
 		self.App = app
 		self.WebContainer = web_container
 		self.WebContainer.WebApp.router.add_get('/doc', self.doc)
@@ -27,7 +27,7 @@ class DocWebHandler(object):
 		self.AuthorizationUrl = asab.Config.get(config_section_name, "authorizationUrl")
 		self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl")
 		self.Scopes = asab.Config.get(config_section_name, "scopes").split(",")
-		self.Version = asab.Config.get(config_section_name, "version")
+		self.Manifest = api_service.Manifest
 
 
 	def build_swagger_specs(self):
@@ -87,11 +87,13 @@ class DocWebHandler(object):
 			},
 		}
 
+		# Gets all the scopes from config and puts them into scopes
 		for scope in self.Scopes:
 			specs["components"]["securitySchemes"]["oAuthSample"]["flows"]["authorizationCode"]["scopes"].update({scope: "{} scope.".format(scope.strip().capitalize())})
 
-		if self.Version:
-			specs["info"]["version"] = self.Version
+		# Version from MANIFEST.json
+		if self.Manifest:
+			specs["info"]["version"] = self.Manifest["version"]
 
 		# Show what server/docker container you are on, and it's IP
 		specs["info"]["description"] = ("Running on: <strong>{}</strong> on: <strong>{}</strong>".format(
