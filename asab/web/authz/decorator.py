@@ -101,10 +101,7 @@ def userinfo_handler(func):
 			L.warning("Access token has not been provided in the request - unauthorized.")
 			raise aiohttp.web.HTTPUnauthorized()
 
-		userinfo_data = await authz_service.userinfo(
-			access_token=access_token,
-			tenant=getattr(request, "Tenant", None),
-		)
+		userinfo_data = await authz_service.userinfo(access_token=access_token)
 		if userinfo_data is not None:
 			return await func(*args, userinfo=userinfo_data, **kargs)
 
