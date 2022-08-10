@@ -27,6 +27,7 @@ class DocWebHandler(object):
 		self.AuthorizationUrl = asab.Config.get(config_section_name, "authorizationUrl")
 		self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl")
 		self.Scopes = asab.Config.get(config_section_name, "scopes").split(",")
+		self.Version = asab.Config.get(config_section_name, "version")
 
 
 	def build_swagger_specs(self):
@@ -89,8 +90,11 @@ class DocWebHandler(object):
 		for scope in self.Scopes:
 			specs["components"]["securitySchemes"]["oAuthSample"]["flows"]["authorizationCode"]["scopes"].update({scope: "{} scope.".format(scope.strip().capitalize())})
 
+		if self.Version:
+			specs["info"]["version"] = self.Version
+
 		# Show what server/docker container you are on, and it's IP
-		specs["info"]["description"] = ("Current Server: <strong>{}</strong> on: <strong>{}</strong>".format(
+		specs["info"]["description"] = ("Running on: <strong>{}</strong> on: <strong>{}</strong>".format(
 			self.App.ServerName, self.WebContainer.Addresses) + "<p>{}</p>".format(description))
 		# specs["servers"].append({"url": "http://{}:{}".format(server[0], server[1])})
 
