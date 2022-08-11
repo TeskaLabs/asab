@@ -9,6 +9,7 @@ import asab
 
 L = logging.getLogger(__name__)
 
+
 #
 
 
@@ -87,23 +88,20 @@ InfluxDB <1.8 API parameters:
 		# It is handly when a main loop can become very busy
 
 		if self.Config.getboolean('proactor'):
-
 			try:
 				from ..proactor import Module
+
 				svc.App.add_module(Module)
 
 				self.ProactorService = svc.App.get_service('asab.ProactorService')
 
 			except KeyError:
 				self.ProactorService = None
-
 		else:
-
 			self.ProactorService = None
 
 
 	async def process(self, m_tree, now):
-
 		rb = influxdb_format(m_tree, now)
 
 		if self.ProactorService is not None:
@@ -119,8 +117,8 @@ InfluxDB <1.8 API parameters:
 			except aiohttp.client_exceptions.ClientConnectorError:
 				L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
 
-	def _worker_upload(self, m_tree, rb):
 
+	def _worker_upload(self, m_tree, rb):
 		if self.BaseURL.startswith("https://"):
 			conn = http.client.HTTPSConnection(self.BaseURL.replace("https://", ""))
 		else:
@@ -139,8 +137,6 @@ InfluxDB <1.8 API parameters:
 			)
 
 
-
-
 def get_field(fk, fv):
 	if isinstance(fv, bool):
 		field = "{}={}".format(fk, 't' if fv else 'f')
@@ -149,7 +145,8 @@ def get_field(fk, fv):
 	elif isinstance(fv, float):
 		field = "{}={}".format(fk, fv)
 	elif isinstance(fv, str):
-		field = '{}="{}"'.format(fk, fv.replace('"', r'\"'))
+		# Escapes the Field Values and Field Keys if the value is a string
+		field = '{}="{}"'.format(fk.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\="), fv.replace("\\", "\\\\").replace('"', "\\\""))
 	else:
 		raise RuntimeError("Unknown/invalid type of the metrics field: {} {}".format(type(fv), fk))
 
@@ -157,7 +154,11 @@ def get_field(fk, fv):
 
 
 def combine_tags_and_field(tags, values):
-	tags_string = ",".join(['{}={}'.format(tk, tv.replace(" ", "_")) for tk, tv in tags.items()])
+	# First escape tags and values
+	tags = escape_tags(tags)
+	values = escape_values(values)
+	# Then combine the tags and then values
+	tags_string = ",".join(["{}={}".format(tk, tv) for tk, tv in tags.items()])
 	field_set = ",".join([get_field(value_name, value) for value_name, value in values.items()])
 	return tags_string + " " + field_set
 
@@ -173,7 +174,7 @@ def metric_to_influxdb(metric_record, now):
 		timestamp = now
 	else:
 		timestamp = metric_record.get("@timestamp")
-	name = metric_record.get("name")
+	name = escape_name(metric_record.get("name"))
 	fieldset = metric_record.get("fieldset")
 	metric_type = metric_record.get("type")
 	values_lines = []
@@ -196,10 +197,38 @@ def metric_to_influxdb(metric_record, now):
 			# SKIP empty fields
 			if not field.get("values") or field.get("values") == {}:
 				continue
-			values_lines.append(build_metric_line(field.get("tags"), field.get("values")))
+			values_lines.append(build_metric_line(field.get("tags"), (field.get("values"))))
 
 	return ["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines]
 
+
+def escape_name(name: str):
+	return name.replace(" ", "\\ ").replace(",", "\\,")
+
+
+def escape_tags(tags: dict):
+	"""
+	Escapes special characters in inputted tags to comply with InfluxDB's rules
+
+	https://docs.influxdata.com/influxdb/v2.3/reference/syntax/line-protocol/#special-characters
+	"""
+	clean: dict = {}
+	for k, v in tags.items():
+		clean[k.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")] = v.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
+	return clean
+
+
+def escape_values(values: dict):
+	"""
+	Escapes special characters in inputted values to comply with InfluxDB's rules
+
+	https://docs.influxdata.com/influxdb/v2.3/reference/syntax/line-protocol/#special-characters
+	"""
+	clean: dict = {}
+	for k, v in values.items():
+		# Escapes the Field Keys
+		clean[k.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\=")] = v
+	return clean
 
 
 def influxdb_format(m_tree, now):
