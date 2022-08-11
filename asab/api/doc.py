@@ -70,7 +70,7 @@ class DocWebHandler(object):
 			# Authorization
 			"components": {
 				"securitySchemes": {
-					"oAuthSample": {
+					"oAuth": {
 						"type": "oauth2",
 						"description": "",
 						"flows": {
@@ -89,7 +89,7 @@ class DocWebHandler(object):
 
 		# Gets all the scopes from config and puts them into scopes
 		for scope in self.Scopes:
-			specs["components"]["securitySchemes"]["oAuthSample"]["flows"]["authorizationCode"]["scopes"].update({scope: "{} scope.".format(scope.strip().capitalize())})
+			specs["components"]["securitySchemes"]["oAuth"]["flows"]["authorizationCode"]["scopes"].update({scope: "{} scope.".format(scope.strip().capitalize())})
 
 		# Version from MANIFEST.json
 		if self.Manifest:
