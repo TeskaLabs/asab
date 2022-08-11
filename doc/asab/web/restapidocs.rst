@@ -2,11 +2,9 @@ REST API Docs
 ==============
 
 ASAB's API service generates a `Swagger documentation <https://swagger.io/specification>`_ which automatically shows all
-of your endpoints. However you will need to follow some steps to add summaries, tags and more.
+of your endpoints and you can add summaries, descriptions, tags and more.
 
-Before you start, make sure that you have a `REST API microservice <https://asab.readthedocs.io/en/latest/tutorial/web/chapter2.html>`_.
-
-If you want Authorization in Swagger, you will need a OpenIDConnect endpoint.
+If you want Authorization in Swagger docs, you will need an OpenIDConnect endpoint.
 
 In your microservice
 -----------
@@ -38,10 +36,7 @@ That's because you need to add a docstring to your endpoint method:
         tags: [asab.mymicroservice]
         """
 
-The first line of the docstring gets shown as a summary next to the endpoint in Swagger.
-There are also extra parameters you can set like tags, which work like categories.
-
-The description of the microservice also needs a docstring for it to show up:
+Also by adding a docstring to your ASAB Application, a description will be automatically added to the top of the Swagger docs:
 
 .. code-block:: python
 
@@ -54,35 +49,32 @@ The description of the microservice also needs a docstring for it to show up:
 
 Authorization in Swagger
 -----------
-Authorization requires having an OpenIDConnect endpoint with an Authorization and Token endpoint (like SeaCat).
+Authorization requires making an OpenIDConnect endpoint with an Authorization and Token endpoint (like with using `SeaCat Auth <https://github.com/TeskaLabs/seacat-auth>`_).
 
-First initialize the Authz service in your microservice:
+After your endpoint has authorization, `here's an example <https://github.com/TeskaLabs/asab/blob/master/examples/web-authz-userinfo.py>`_,
+add the Authorization and Token endpoints into your `config <#configuration>`_.
 
-.. code-block:: python
-
-    self.AuthzService = asab.web.authz.AuthzService(self)
-    self.AuthzService.OAuth2Url = "http://localhost:8081/openidconnect"
-    self.WebContainer.WebApp.middlewares.append(asab.web.authz.authz_middleware_factory(self, self.AuthzService))
-
-Setting the OAuth2Url is important, otherwise authorization will not work.
-
-You need to add an Authz header above at the endpoint method:
+For the authorization bearer token to be added to the request, a scope is needed to be put into the security parameter in a docstring.
+It does not matter what it is called or if it exists, but it's needed to be there. But "`- oAuth:`" always needs to be there.
 
 .. code-block:: python
 
     @asab.web.authz.required("resource:topsecret")
     async def top_secret_endpoint(self, request):
+        """
+        Top secret!
 
-Then add the Authorization and Token endpoints into your `config <#configuration>`_.
+        ---
+        tags: [asab.coolestmicroservice]
+        security:
+            - oAuth:
+                - read
+        """
 
-After setting up Authorization, a green `Authorize` button will appear. Authorizing will add a bearer token to every
-request you do inside Swagger. You will get unauthorized if you refresh the page.
-
-If it does not add a bearer token, or it does not authorize you at all, retrace your steps and try again.
+After setting up Authorization, a green `Authorize` button should appear in the Swagger docs.
 
 Configuration
 -----------
-Some parts of Swagger can be changed with this configuration.
 
 For authorization you will need to add a `authorizationUrl` and `tokenUrl`:
 
@@ -98,10 +90,3 @@ If you have an endpoint that requires a scope, you can add it with the configura
 
     [asab:doc]
     scopes=read,write
-
-You can change the version tag that shows next to the name of your microservice:
-
-.. code-block:: ini
-
-    [asab:doc]
-    version=1.0.0
