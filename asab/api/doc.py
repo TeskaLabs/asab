@@ -24,9 +24,10 @@ class DocWebHandler(object):
 		self.WebContainer.WebApp.router.add_get('/oauth2-redirect.html', self.oauth2_redirect)
 		self.WebContainer.WebApp.router.add_get('/asab/v1/openapi', self.openapi)
 
-		self.AuthorizationUrl = asab.Config.get(config_section_name, "authorizationUrl")
-		self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl")
-		self.Scopes = asab.Config.get(config_section_name, "scopes").split(",")
+		# TODO: Authorization must be optional (and not necessarily always of OAuth type)
+		self.AuthorizationUrl = asab.Config.get(config_section_name, "authorizationUrl", fallback="")
+		self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl", fallback="")
+		self.Scopes = asab.Config.get(config_section_name, "scopes", fallback="").split(",")
 		self.Manifest = api_service.Manifest
 
 
@@ -68,6 +69,7 @@ class DocWebHandler(object):
 			"paths": {},
 
 			# Authorization
+			# TODO: Authorization must be optional (and not always of OAuth type)
 			"components": {
 				"securitySchemes": {
 					"oAuth": {
