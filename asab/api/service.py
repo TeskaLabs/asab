@@ -189,6 +189,11 @@ class ApiService(Service):
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
 
+
+		advertisement_id = os.getenv('ADVERTISEMENT_ID', None)
+		if advertisement_id is not None:
+			adv_data["advertisement_id"] = advertisement_id
+
 		self.ZkContainer.advertise(
 			data=adv_data,
 			path="/run/{}.".format(self.App.__class__.__name__),
