@@ -283,6 +283,10 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 
 			return await func(*args, **kwargs)
 
+		# This is here for Swagger documentation
+		setattr(validator, 'json_schema', json_schema)
+		setattr(validator, 'func', func)
+
 		return validator
 
 	return decorator

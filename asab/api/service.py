@@ -4,7 +4,6 @@ import json
 import datetime
 import logging
 
-
 from .. import Service, Config
 from ..docker import running_in_docker
 from .web_handler import APIWebHandler
@@ -14,6 +13,7 @@ from .doc import DocWebHandler
 ##
 
 L = logging.getLogger(__name__)
+
 
 ##
 
@@ -64,7 +64,6 @@ class ApiService(Service):
 			self.ChangeLog = path
 		else:
 			self.ChangeLog = None
-
 
 		self.App.PubSub.subscribe("WebContainer.started!", self._on_webcontainer_start)
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zkcontainer_start)
@@ -130,7 +129,7 @@ class ApiService(Service):
 
 		self.WebHandler = APIWebHandler(self, self.WebContainer.WebApp, self.APILogHandler)
 
-		self.DocWebHandler = DocWebHandler(self.App, self.WebContainer)
+		self.DocWebHandler = DocWebHandler(self, self.App, self.WebContainer)
 
 		# If asab.MetricsService is available, initialize its web handler
 		metrics_svc = self.App.get_service("asab.MetricsService")
@@ -203,6 +202,7 @@ class ApiService(Service):
 	def _on_webcontainer_start(self, message_type, container):
 		if container == self.WebContainer:
 			self._do_zookeeper_adv_data()
+
 
 	def _on_zkcontainer_start(self, message_type, container):
 		if container == self.ZkContainer:

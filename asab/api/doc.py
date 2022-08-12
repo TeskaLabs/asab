@@ -2,28 +2,37 @@ import re
 import logging
 import inspect
 
+import asab
 import aiohttp
+import aiohttp.web
 import yaml
 
 ##
 
 L = logging.getLogger(__name__)
 
+
 ##
 
 
 class DocWebHandler(object):
 
-	def __init__(self, app, web_container):
+	def __init__(self, api_service, app, web_container, config_section_name='asab:doc'):
 		self.App = app
 		self.WebContainer = web_container
 		self.WebContainer.WebApp.router.add_get('/doc', self.doc)
+		self.WebContainer.WebApp.router.add_get('/oauth2-redirect.html', self.oauth2_redirect)
 		self.WebContainer.WebApp.router.add_get('/asab/v1/openapi', self.openapi)
+
+		self.AuthorizationUrl = asab.Config.get(config_section_name, "authorizationUrl")
+		self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl")
+		self.Scopes = asab.Config.get(config_section_name, "scopes").split(",")
+		self.Manifest = api_service.Manifest
 
 
 	def build_swagger_specs(self):
 		"""
-		Takes a docstring of a class and a docstring of mmethods and merges them
+		Takes a docstring of a class and a docstring of methods and merges them
 		into a Swagger specification.
 		"""
 
@@ -38,12 +47,11 @@ class DocWebHandler(object):
 				try:
 					adddict = yaml.load(docstr[i:], Loader=yaml.SafeLoader)
 				except yaml.YAMLError as e:
-						L.error("Failed to parse '{}' doc string {}".format(self.App.__class__.__name__, e))
+					L.error("Failed to parse '{}' doc string {}".format(self.App.__class__.__name__, e))
 			else:
 				description = docstr
 		else:
 			description = ""
-
 
 		specs = {
 			"openapi": "3.0.1",
@@ -52,16 +60,45 @@ class DocWebHandler(object):
 				"description": description,
 				"contact": {
 					"name": "ASAB microservice",
-					"url": "http://www.github.com/teskalabs/asab",
+					"url": "https://www.github.com/teskalabs/asab",
 				},
 				"version": "1.0.0"
 			},
-			"servers": [
-				{"url": "../../"}  # Base path relative to openapi endpoint
-			],
-			"paths": {
+			"servers": [{"url": "../../"}],  # Base path relative to openapi endpoint
+			"paths": {},
+
+			# Authorization
+			"components": {
+				"securitySchemes": {
+					"oAuth": {
+						"type": "oauth2",
+						"description": "",
+						"flows": {
+							"authorizationCode": {
+								"authorizationUrl": self.AuthorizationUrl,  # "http://localhost/seacat/api/openidconnect/authorize"
+								"tokenUrl": self.TokenUrl,  # "http://localhost/seacat/api/openidconnect/token"
+								"scopes": {
+									"openid": "Required Scope for OpenIDConnect!",
+								}
+							}
+						}
+					}
+				},
 			},
 		}
+
+		# Gets all the scopes from config and puts them into scopes
+		for scope in self.Scopes:
+			specs["components"]["securitySchemes"]["oAuth"]["flows"]["authorizationCode"]["scopes"].update({scope: "{} scope.".format(scope.strip().capitalize())})
+
+		# Version from MANIFEST.json
+		if self.Manifest:
+			specs["info"]["version"] = self.Manifest["version"]
+
+		# Show what server/docker container you are on, and it's IP
+		specs["info"]["description"] = ("Running on: <strong>{}</strong> on: <strong>{}</strong>".format(
+			self.App.ServerName, self.WebContainer.Addresses) + "<p>{}</p>".format(description))
+		# specs["servers"].append({"url": "http://{}:{}".format(server[0], server[1])})
 
 		if adddict is not None:
 			specs.update(adddict)
@@ -69,24 +106,34 @@ class DocWebHandler(object):
 		for route in self.WebContainer.WebApp.router.routes():
 			if route.method == 'HEAD':
 				# Skip HEAD methods
+				# TODO: once/if there is graphql, its method name is probably `*`
 				continue
 
 			parameters = []
+			methoddict = {}
 
 			route_info = route.get_info()
 			if "path" in route_info:
 				path = route_info["path"]
 
 			elif "formatter" in route_info:
-				# TODO: Extract URL parameters from formatter string
+				# Extract URL parameters from formatter string
 				path = route_info["formatter"]
 
-				for m in re.findall(r'\{.*\}', path):
-					parameters.append({
-						'in': 'path',
-						'name': m[1:-1],
-						'required': True,
-					})
+				for params in re.findall(r'\{.*\}', path):
+					if "/" in params:
+						for parameter in params.split("/"):
+							parameters.append({
+								'in': 'path',
+								'name': parameter[1:-1],
+								'required': True,
+							})
+					else:
+						parameters.append({
+							'in': 'path',
+							'name': params[1:-1],
+							'required': True,
+						})
 
 			else:
 				L.warning("Cannot obtain path info from route", struct_data=route_info)
@@ -97,8 +144,23 @@ class DocWebHandler(object):
 				specs['paths'][path] = pathobj = {}
 
 			if inspect.ismethod(route.handler):
-				handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
-				docstr = route.handler.__doc__
+				if route.handler.__name__ == "validator":
+					json_schema = route.handler.__getattribute__("json_schema")
+					docstr = route.handler.__getattribute__("func").__doc__
+
+					methoddict["requestBody"] = {
+						"content": {
+							"application/json": {
+								"schema": json_schema
+							}
+						},
+					}
+					handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__getattribute__("func").__name__)
+
+				else:
+					handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
+					docstr = route.handler.__doc__
+
 			else:
 				handler_name = str(route.handler)
 				docstr = route.handler.__doc__
@@ -121,13 +183,14 @@ class DocWebHandler(object):
 
 			description += '\n\nHandler: `{}`'.format(handler_name)
 
-			methoddict = {
+			methoddict.update({
+				'summary': description.split("\n")[0],
 				'description': description,
 				'tags': ['general'],
 				'responses': {
 					'200': {'description': 'Success'}
-				}
-			}
+				},
+			})
 
 			if len(parameters) > 0:
 				methoddict['parameters'] = parameters
@@ -139,10 +202,11 @@ class DocWebHandler(object):
 
 		return specs
 
+
 	# This is the web request handler
 	async def doc(self, request):
 		'''
-		Acces the API documentation using a browser.
+		Access the API documentation using a browser.
 		---
 		tags: ['asab.doc']
 		'''
@@ -182,6 +246,95 @@ window.onload = () => {{
 		)
 
 		return aiohttp.web.Response(text=page, content_type="text/html")
+
+
+	def oauth2_redirect(self, request):
+		"""
+		Required for the authorization to work.
+		---
+		tags: ['asab.doc']
+		"""
+		page = """<!doctype html>
+<html lang="en-US">
+<head>
+	<title>Swagger UI: OAuth2 Redirect</title>
+</head>
+<body>
+<script>
+	'use strict';
+	function run () {
+		var oauth2 = window.opener.swaggerUIRedirectOauth2;
+		var sentState = oauth2.state;
+		var redirectUrl = oauth2.redirectUrl;
+		var isValid, qp, arr;
+
+		if (/code|token|error/.test(window.location.hash)) {
+			qp = window.location.hash.substring(1);
+		} else {
+			qp = location.search.substring(1);
+		}
+
+		arr = qp.split("&");
+		arr.forEach(function (v,i,_arr) { _arr[i] = '"' + v.replace('=', '":"') + '"';});
+		qp = qp ? JSON.parse('{' + arr.join() + '}',
+				function (key, value) {
+					return key === "" ? value : decodeURIComponent(value);
+				}
+		) : {};
+
+		isValid = qp.state === sentState;
+
+		if ((
+			oauth2.auth.schema.get("flow") === "accessCode" ||
+			oauth2.auth.schema.get("flow") === "authorizationCode" ||
+			oauth2.auth.schema.get("flow") === "authorization_code"
+		) && !oauth2.auth.code) {
+			if (!isValid) {
+				oauth2.errCb({
+					authId: oauth2.auth.name,
+					source: "auth",
+					level: "warning",
+					message: "Authorization may be unsafe, passed state was changed in server. The passed state wasn't returned from auth server."
+				});
+			}
+
+			if (qp.code) {
+				delete oauth2.state;
+				oauth2.auth.code = qp.code;
+				oauth2.callback({auth: oauth2.auth, redirectUrl: redirectUrl});
+			} else {
+				let oauthErrorMsg;
+				if (qp.error) {
+					oauthErrorMsg = "["+qp.error+"]: " +
+						(qp.error_description ? qp.error_description+ ". " : "no accessCode received from the server. ") +
+						(qp.error_uri ? "More info: "+qp.error_uri : "");
+				}
+
+				oauth2.errCb({
+					authId: oauth2.auth.name,
+					source: "auth",
+					level: "error",
+					message: oauthErrorMsg || "[Authorization failed]: no accessCode received from the server."
+				});
+			}
+		} else {
+			oauth2.callback({auth: oauth2.auth, token: qp, isValid: isValid, redirectUrl: redirectUrl});
+		}
+		window.close();
+	}
+
+	if (document.readyState !== 'loading') {
+		run();
+	} else {
+		document.addEventListener('DOMContentLoaded', function () {
+			run();
+		});
+	}
+</script>
+</body>
+</html>"""
+		return aiohttp.web.Response(text=page, content_type="text/html")
+
 
 	async def openapi(self, request):
 		'''
