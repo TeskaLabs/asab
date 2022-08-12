@@ -1,13 +1,13 @@
-import logging
-import asyncio
-import argparse
-import itertools
 import os
 import sys
 import time
 import signal
-import platform
 import random
+import logging
+import asyncio
+import argparse
+import itertools
+import platform
 
 try:
 	import daemon
@@ -29,7 +29,16 @@ class Application(metaclass=Singleton):
 
 	Description = "This app is based on ASAB."
 
-	def __init__(self, args=None):
+	def __init__(self, args=None, modules=[]):
+		'''
+		Argument `modules` allows to specify a list of ASAB modules that will be added by `app.add_module()` call.
+
+		Example:
+
+		class MyApplication(asab.Application):
+			def __init__(self):
+				super().__init__(modules=[asab.web.Module, asab.zookeeper.Module])
+		'''
 
 		try:
 			# EX_OK code is not available on Windows
@@ -81,8 +90,11 @@ class Application(metaclass=Singleton):
 			self.DockerService = self.get_service("asab.DockerService")
 
 			self.HostName = self.DockerService.load_hostname()
+			self.ServerName = self.DockerService.load_servername()
 			os.environ['HOSTNAME'] = self.HostName
 			Config._load()
+		else:
+			self.ServerName = self.HostName
 
 		# Setup logging
 		self.Logging = Logging(self)
@@ -118,16 +130,19 @@ class Application(metaclass=Singleton):
 			self.Loop.add_signal_handler(signal.SIGTERM, self.stop)
 			self.Loop.add_signal_handler(signal.SIGHUP, self._hup)
 
-		self._stop_event = asyncio.Event(loop=self.Loop)
+		self._stop_event = asyncio.Event()
 		self._stop_event.clear()
 		self._stop_counter = 0
 
 		from .pubsub import PubSub
 		self.PubSub = PubSub(self)
 
+		L.info("Initializing ...")
+
 		self.TaskService = TaskService(self)
 
-		L.info("Initializing ...")
+		for module in modules:
+			self.add_module(module)
 
 
 	def create_argument_parser(
@@ -174,6 +189,13 @@ class Application(metaclass=Singleton):
 
 
 	def parse_arguments(self, args=None):
+		"""
+		It parses the command line arguments and sets the default values for the configuration accordingly.
+
+		:param args: The arguments to parse. If not set, sys.argv[1:] will be used
+		:return: The arguments that were parsed.
+		"""
+
 		parser = self.create_argument_parser()
 		args = parser.parse_args(args=args)
 
@@ -190,12 +212,35 @@ class Application(metaclass=Singleton):
 			Config._default_values['logging:file']['path'] = args.log_file
 
 		if args.web_api:
+			if 'web' not in Config._default_values:
+				Config._default_values['web'] = {}
 			Config._default_values['web']['listen'] = args.web_api
 
 		return args
 
 
 	def get_pidfile_path(self):
+		"""
+		Return the `pidfile` path from the configuration.
+
+		Example from the configuration:
+
+		```
+		[general]
+		pidfile=/tmp/my.pid
+		```
+
+		`pidfile` is a file that contains process id of the ASAB process.
+		It is used for interaction with OS respective it's control of running services.
+
+		If the `pidfile` is set to "", then return None.
+
+		If it's set to "!", then return the default pidfile path (in `/var/run/` folder).
+		This is the default value.
+
+		:return: The path to the `pidfile`.
+		"""
+
 		pidfilepath = Config['general']['pidfile']
 		if pidfilepath == "":
 			return None
@@ -213,7 +258,6 @@ class Application(metaclass=Singleton):
 		pidfilepath = self.get_pidfile_path()
 		if pidfilepath is not None:
 			pidfile = daemon.pidfile.TimeoutPIDLockFile(pidfilepath)
-
 
 		working_dir = Config['general']['working_dir']
 
@@ -342,7 +386,9 @@ class Application(metaclass=Singleton):
 	# Modules
 
 	def add_module(self, module_class):
-		""" Load a new module. """
+		"""
+		Load a new module.
+		"""
 
 		for module in self.Modules:
 			if isinstance(module, module_class):
@@ -359,7 +405,9 @@ class Application(metaclass=Singleton):
 	# Services
 
 	def get_service(self, service_name):
-		""" Get a new service by its name. """
+		"""
+		Get a new service by its name.
+		"""
 
 		try:
 			return self.Services[service_name]
@@ -371,7 +419,9 @@ class Application(metaclass=Singleton):
 
 
 	def _register_service(self, service):
-		""" Register a new service using its name. """
+		"""
+		Register a new service using its name.
+		"""
 
 		if service.Name in self.Services:
 			L.error("Service '{}' already registered (existing:{} new:{})".format(

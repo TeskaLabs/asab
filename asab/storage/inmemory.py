@@ -1,3 +1,4 @@
+import typing
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
 from .exceptions import DuplicateError
@@ -6,7 +7,8 @@ from .exceptions import DuplicateError
 class InMemoryUpsertor(UpsertorABC):
 
 
-	async def execute(self):
+	async def execute(self, custom_data: typing.Optional[dict] = None):
+		# TODO: Implement webhook call
 		id_name = self.get_id_name()
 
 		# Get the object
@@ -71,12 +73,17 @@ class StorageService(StorageServiceABC):
 		return InMemoryUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection: str, obj_id):
+	async def get(self, collection: str, obj_id, decrypt=None):
 		coll = self.InMemoryCollections[collection]
-		return coll[obj_id]
+		data = coll[obj_id]
+		if decrypt is not None:
+			for field in decrypt:
+				if field in data:
+					data[field] = self.aes_decrypt(data[field])
+		return data
 
 
-	async def get_by(self, collection: str, key: str, value):
+	async def get_by(self, collection: str, key: str, value, decrypt=None):
 		"""
 		Raises:
 			NotImplementedError: Not implemented on InMemoryStorage

@@ -1,13 +1,12 @@
 import os
+import sys
 import glob
-import asyncio
 import logging
 import inspect
 import platform
 import configparser
-from urllib.parse import urlparse
-from collections.abc import MutableMapping
-import sys
+import urllib.parse
+import collections.abc
 
 from . import utils
 
@@ -16,7 +15,6 @@ L = logging.getLogger(__name__)
 
 
 class ConfigParser(configparser.ConfigParser):
-
 	_syslog_sockets = {
 		'Darwin': '/var/run/syslog'
 	}
@@ -25,7 +23,6 @@ class ConfigParser(configparser.ConfigParser):
 		'Darwin': 'm'
 	}
 
-
 	_default_values = {
 
 		'general': {
@@ -33,12 +30,19 @@ class ConfigParser(configparser.ConfigParser):
 			'tick_period': 1,  # In seconds
 			'var_dir': os.path.expanduser('~/.' + os.path.splitext(os.path.basename(sys.argv[0]))[0]),
 
+			'changelog': '',
+			'manifest': '',
+
 			# Daemonization
 			'pidfile': '!',  # '!' has a special meaning => it transforms into platform specific location of pid file
 			'working_dir': '.',
 			'uid': '',
 			'gid': '',
-			'changelog_path': '/CHANGELOG.md',
+		},
+
+		"asab:metrics": {
+			"native_metrics": "true",
+			"expiration": 60,
 		},
 
 		"logging": {
@@ -70,23 +74,11 @@ class ConfigParser(configparser.ConfigParser):
 			"rotate_every": "",
 		},
 
-		"web": {
-			# This is commented b/c `-w` switch fills this value
-			# The same `listen` configuration is in a ConfigDefault of the web container
-			# "listen": "0.0.0.0 8080",
-		},
-
 		"authz": {
 			# RBAC URL
 			# If !DISABLED! is specified, all authorization checks will be skipped
 			"rbac_url": "http://localhost:8081/rbac",
 		},
-
-		"asab:zookeeper": {
-			"servers": "",
-			"path": "/asab",
-		},
-
 
 		# "passwords" section serves to securely store passwords
 		# in the configuration file; the passwords are not
@@ -201,45 +193,43 @@ class ConfigParser(configparser.ConfigParser):
 
 
 	def _include_from_zookeeper(self, zkurl):
-		import aiozk
-
-		loop = asyncio.get_event_loop()
-
 		# parse include value into hostname and path
-		url_pieces = urlparse(zkurl)
+		url_pieces = urllib.parse.urlparse(zkurl)
 		url_path = url_pieces.path
 		url_netloc = url_pieces.netloc
 
 		if not url_netloc:
-			url_netloc = self["asab:zookeeper"]["servers"]
+			if "asab:zookeeper" in self:
+				# Backward compatibility
+				url_netloc = self["asab:zookeeper"]["servers"]
+			else:
+				url_netloc = self["zookeeper"]["servers"]
 
 		if url_path.startswith("./"):
-			url_path = self["asab:zookeeper"]["path"] + url_path[1:]
+			if "asab:zookeeper" in self:
+				# Backward compatibility
+				url_path = self["asab:zookeeper"]["path"] + url_path[1:]
+			else:
+				url_path = self["zookeeper"]["path"] + url_path[1:]
 
 		head, tail = os.path.split(url_path)
 		self.config_name_list.append(tail)
 
-		async def download_from_zookeeper():
-			try:
-				zk = aiozk.ZKClient(
-					url_netloc,
-					allow_read_only=True,
-					read_timeout=60,  # seconds #
-				)
-				await zk.start()
-				data = await zk.get_data(url_path)
-				# convert bytes to string
-				encode_config = str(data, 'utf-8')
-				self.read_string(encode_config)
-				# Include in the list of config file contents
-				self.config_contents_list.append(encode_config)
-				await zk.close()
-				# Re-enable logging output
-			except Exception as e:
-				L.error("Failed to obtain configuration from zookeeper server(s): '{}'.".format(e))
-				sys.exit(1)
-
-		loop.run_until_complete(download_from_zookeeper())
+		try:
+			# Delayed import to minimize a hard dependecy footprint
+			import kazoo.client
+			zk = kazoo.client(url_netloc)
+			zk.start()
+			data = zk.get(url_path)
+			# convert bytes to string
+			encode_config = str(data, 'utf-8')
+			self.read_string(encode_config)
+			# Include in the list of config file contents
+			self.config_contents_list.append(encode_config)
+			zk.close()
+		except Exception as e:
+			L.error("Failed to obtain configuration from Zookeeper server(s): '{}'.".format(e))
+			sys.exit(1)
 
 
 	def get_config_contents_list(self):
@@ -253,13 +243,24 @@ class ConfigParser(configparser.ConfigParser):
 		return self._get_conv(section, option, utils.convert_to_seconds, raw=raw, vars=vars, fallback=fallback, **kwargs)
 
 
+	def geturl(self, section, option, raw=False, vars=None, fallback=None, scheme=None, **kwargs):
+		"""Gets URL from config and removes all leading and trailing
+		whitespaces and trailing slashes.
+
+		:param scheme: URL scheme(s) awaited. If None, scheme validation is bypassed.
+		:type scheme: str, tuple
+		:return: validated URL, raises ValueError when scheme requirements are not met if set.
+		"""
+		return utils.validate_url(self.get(section, option, raw=False, vars=None, fallback=fallback), scheme)
+
+
 class _Interpolation(configparser.ExtendedInterpolation):
 	"""Interpolation which expands environment variables in values."""
+
 
 	def before_read(self, parser, section, option, value):
 		# Expand environment variables
 		if '$' in value:
-
 			os.environ['THIS_DIR'] = os.path.abspath(parser._load_dir_stack[-1])
 
 			value = os.path.expandvars(value)
@@ -271,7 +272,6 @@ Config = ConfigParser(interpolation=_Interpolation())
 
 
 class Configurable(object):
-
 	'''
 	Usage:
 	class ConfigurableObject(asab.Configurable):
@@ -303,7 +303,8 @@ class Configurable(object):
 			for key, value in base_class.ConfigDefaults.items():
 
 				if value is None:
-					raise ValueError("None value not allowed in ConfigDefaults. Found in %s:%s " % (config_section_name, key))
+					raise ValueError("None value not allowed in ConfigDefaults. Found in %s:%s " % (
+						config_section_name, key))
 
 				if key not in self.Config:
 					self.Config[key] = value
@@ -320,7 +321,7 @@ class Configurable(object):
 ConfigObject = Configurable
 
 
-class ConfigObjectDict(MutableMapping):
+class ConfigObjectDict(collections.abc.MutableMapping):
 
 
 	def __init__(self):
@@ -369,6 +370,11 @@ class ConfigObjectDict(MutableMapping):
 	def getfloat(self, key):
 		value = self._data[key]
 		return float(value)
+
+
+	def geturl(self, key, scheme):
+		value = self._data[key]
+		return utils.validate_url(value, scheme)
 
 
 	def __repr__(self):

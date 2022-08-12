@@ -5,7 +5,7 @@ import aiohttp
 
 from .accesslog import AccessLogger
 from ..config import ConfigObject
-from ..net import SSLContextBuilder
+from ..tls import SSLContextBuilder
 
 #
 
@@ -84,7 +84,7 @@ want to allow OPTIONS method for preflight requests.
 	def __init__(self, websvc, config_section_name, config=None):
 		super().__init__(config_section_name=config_section_name, config=config)
 
-		self.Addresses = []
+		self.Addresses = None  # The address is avaiable only at (and after) `WebContainer.started!` pub/sub event
 		self.BackLog = int(self.Config.get("backlog"))
 		self.CORS = self.Config.get("cors")
 
@@ -159,7 +159,7 @@ want to allow OPTIONS method for preflight requests.
 			self.add_preflight_handlers(preflight_paths)
 
 
-	async def initialize(self, app):
+	async def _start(self, app):
 		await self.WebAppRunner.setup()
 
 		for addr, port, ssl_context in self._listen:
@@ -172,12 +172,14 @@ want to allow OPTIONS method for preflight requests.
 
 			if isinstance(site, aiohttp.web_runner.TCPSite):
 				for address in site._runner.addresses:
+					if self.Addresses is None:
+						self.Addresses = []
 					self.Addresses.append(address)
 
 		self.WebApp['app'].PubSub.publish("WebContainer.started!", self)
 
 
-	async def finalize(self, app):
+	async def _stop(self, app):
 		self.WebApp['app'].PubSub.publish("WebContainer.stoped!", self)
 		await self.WebAppRunner.cleanup()
 

@@ -1,3 +1,5 @@
+import datetime
+import typing
 import motor.motor_asyncio
 import pymongo
 import bson
@@ -26,28 +28,38 @@ class StorageService(StorageServiceABC):
 	def __init__(self, app, service_name, config_section_name='asab:storage'):
 		super().__init__(app, service_name)
 		self.Client = motor.motor_asyncio.AsyncIOMotorClient(asab.Config.get(config_section_name, 'mongodb_uri'))
-		self.Database = self.Client[asab.Config.get(config_section_name, 'mongodb_database')]
+
+		self.Database = self.Client.get_database(
+			asab.Config.get(config_section_name, 'mongodb_database'),
+			codec_options=bson.codec_options.CodecOptions(tz_aware=True, tzinfo=datetime.timezone.utc),
+		)
+		assert self.Database is not None
 
 
 	def upsertor(self, collection: str, obj_id=None, version=0):
 		return MongoDBUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection: str, obj_id) -> dict:
+	async def get(self, collection: str, obj_id, decrypt=None) -> dict:
 		coll = self.Database[collection]
 		ret = await coll.find_one({'_id': obj_id})
 		if ret is None:
 			raise KeyError("NOT-FOUND")
+		if decrypt is not None:
+			for field in decrypt:
+				if field in ret:
+					ret[field] = self.aes_decrypt(ret[field])
 		return ret
 
 
-	async def get_by(self, collection: str, key: str, value) -> dict:
+	async def get_by(self, collection: str, key: str, value, decrypt=None) -> dict:
 		"""
 		Get object from collection by its key/value
 
 		:param collection: Collection to get from
 		:param key: Key to filter on
 		:param value: Value to filter on
+		:param decrypt: Set of fields to decrypt
 		:return: The object retrieved from a storage
 
 		Raises:
@@ -57,6 +69,10 @@ class StorageService(StorageServiceABC):
 		ret = await coll.find_one({key: value})
 		if ret is None:
 			raise KeyError("NOT-FOUND")
+		if decrypt is not None:
+			for field in decrypt:
+				if field in ret:
+					ret[field] = self.aes_decrypt(ret[field])
 		return ret
 
 
@@ -106,7 +122,7 @@ class MongoDBUpsertor(UpsertorABC):
 		return bson.objectid.ObjectId()
 
 
-	async def execute(self):
+	async def execute(self, custom_data: typing.Optional[dict] = None):
 		id_name = self.get_id_name()
 		addobj = {}
 
@@ -145,14 +161,9 @@ class MongoDBUpsertor(UpsertorABC):
 				)
 			except pymongo.errors.DuplicateKeyError as e:
 				if hasattr(e, "details"):
-					# TODO: Find a more sustanable way how to identify field that caused DuplicateKey
-					if '_id_' in e.details['errmsg']:
-						# Check if the conflict is caused by "_id" or other field
-						assert(self.Version == 0)
-					else:
-						raise e
-
-				raise DuplicateError("Already exists", self.ObjId)
+					raise DuplicateError("Duplicate key error: {}".format(e), self.ObjId, key_value=e.details.get("keyValue"))
+				else:
+					raise DuplicateError("Duplicate key error: {}".format(e), self.ObjId)
 
 			if ret is None:
 				# Object might have been changed in the meantime
@@ -169,5 +180,31 @@ class MongoDBUpsertor(UpsertorABC):
 		# 		except ValueError:
 		# 			pass
 		# 	obj[k] = o
+
+		if self.Storage.WebhookURI is not None:
+			webhook_data = {
+				"collection": self.Collection,
+			}
+
+			if custom_data is not None:
+				webhook_data["custom"] = custom_data
+
+			# Add upsetor data; do not include fields that start with "__"
+			upsertor_data = {
+				"id_field_name": id_name,
+				"id": self.ObjId,
+				"_v": int(self.Version),
+			}
+			if len(self.ModSet) > 0:
+				upsertor_data["set"] = {k: v for k, v in self.ModSet.items() if not k.startswith("__")}
+			if len(self.ModInc) > 0:
+				upsertor_data["inc"] = {k: v for k, v in self.ModInc.items() if not k.startswith("__")}
+			if len(self.ModPush) > 0:
+				upsertor_data["push"] = {k: v for k, v in self.ModPush.items() if not k.startswith("__")}
+			if len(self.ModUnset) > 0:
+				upsertor_data["unset"] = {k: v for k, v in self.ModUnset.items() if not k.startswith("__")}
+			webhook_data["upsertor"] = upsertor_data
+
+			await self._webhook(webhook_data)
 
 		return self.ObjId

@@ -16,25 +16,27 @@ This module offers an integration of a :py:mod:`aiohttp` `web server <http://aio
 
 	#!/usr/bin/env python3
 	import asab
+	import asab.web
 	import aiohttp
 
 	class MyApplication(asab.Application):
 
-	    async def initialize(self):
-	        # Load the web service module
-	        from asab.web import Module
-	        self.add_module(Module)
+	    def __init__(self):
+	        super().__init__()
 
-	        # Locate the web service
+	        # Load the ASAB Web module
+	        self.add_module(asab.web.Module)
+
+	        # Locate the ASAB Web service
 	        websvc = self.get_service("asab.WebService")
 
-	        # Create a container
-	        container = asab.web.WebContainer(websvc, 'example:web', config={"listen": "0.0.0.0:8080"})
+	        # Create the Web container
+	        container = asab.web.WebContainer(websvc, 'my:web', config={"listen": "0.0.0.0:8080"})
 
-	        # Add a route
+	        # Add a route to the handler
 	        container.WebApp.router.add_get('/hello', self.hello)
 
-	    # Simplistic view
+	    # This is the web request handler
 	    async def hello(self, request):
 	        return aiohttp.web.Response(text='Hello!\n')
 
@@ -57,7 +59,7 @@ Web Service
 
 .. py:class:: WebService
 
-Service localization example:
+Service location example:
 
 .. code:: python
 
@@ -66,21 +68,81 @@ Service localization example:
 	svc = self.get_service("asab.WebService")
 
 
-.. py:attribute:: WebService.Webapp
-
-An instance of a `aiohttp.web.Application` class.
-
-.. code:: python
-
-	svc.WebApp.router.add_get('/hello', self.hello)
-
-
 Configuration
 -------------
 
-TODO: Listen at `0.0.0.0:80`
+The default configuration of the `web` container in ASAB is following:
+
+.. code:: ini
+
+	[web]
+	listen=0.0.0.0:8080
 
 
+Multiple listening interfaces can be specified:
+
+.. code:: ini
+
+	[web]
+	listen:
+		0.0.0.0:8080
+		:: 8080
+
+
+Multiple listening interfaces, one with HTTPS (TLS/SSL) can be specified:
+
+.. code:: ini
+
+	[web]
+	listen:
+		0.0.0.0 8080
+		:: 8080
+		0.0.0.0 8443 ssl:web
+	
+	[ssl:web]
+	cert=...
+	key=...
+	...
+
+
+Multiple interfaces, one with HTTPS (inline):
+
+
+.. code:: ini
+
+	[web]
+	listen:
+		0.0.0.0 8080
+		:: 8080
+		0.0.0.0 8443 ssl
+
+	# The SSL parameters are inside of the WebContainer section
+	cert=...
+	key=...
+	...
+
+
+Other available options are:
+
+ * `backlog`
+ * `rootdir`
+ * `servertokens` (default value `full`)
+ * `cors`
+ * `cors_preflight_paths`
+
+
+TLS/SSL paramereters:
+
+ * `cert`
+ * `key`
+ * `password`
+ * `cafile`
+ * `capath`
+ * `ciphers`
+ * `dh_params`
+ * `verify_mode`: one of `CERT_NONE`, `CERT_OPTIONAL` or `CERT_REQUIRED`
+ * `check_hostname`
+ * `options`
 
 Sessions
 --------

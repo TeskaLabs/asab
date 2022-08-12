@@ -4,6 +4,7 @@ import aiohttp
 import logging
 import datetime
 import urllib.parse
+import typing
 
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
@@ -27,6 +28,7 @@ Config.add_defaults(
 			# make the operation visible to search directly, options: true, false, wait_for
 			# see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-index_.html
 			'refresh': 'true',
+			'scroll_timeout': '1m',
 		}
 	}
 )
@@ -49,6 +51,7 @@ class StorageService(StorageServiceABC):
 		]
 
 		self.Refresh = Config.get(config_section_name, 'refresh')
+		self.ScrollTimeout = Config.get(config_section_name, 'scroll_timeout')
 
 		username = Config.get(config_section_name, 'elasticsearch_username')
 		if username == '':
@@ -131,11 +134,27 @@ class StorageService(StorageServiceABC):
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
-	async def get_by(self, collection: str, key: str, value):
+	async def get_by(self, collection: str, key: str, value, decrypt=None):
 		raise NotImplementedError("get_by")
 
 
-	async def get(self, index: str, obj_id) -> dict:
+	async def mapping(self, index: str) -> dict:
+		for url in self.ServerUrls:
+			url = "{}{}/_mapping".format(url, index)
+			try:
+				async with self.session().request(method="GET", url=url) as resp:
+					obj = await resp.json()
+					return obj
+			except aiohttp.client_exceptions.ClientConnectorError:
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
+	async def get(self, index: str, obj_id, decrypt=None) -> dict:
+		if decrypt is not None:
+			raise NotImplementedError("AES encryption for ElasticSearch not implemented")
+
 		for url in self.ServerUrls:
 			url = "{}{}/_doc/{}".format(url, index, obj_id)
 			try:
@@ -183,6 +202,64 @@ class StorageService(StorageServiceABC):
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
+
+	async def scroll(self, index: str, body=None):
+		if body is None:
+			body = {
+				"query": {"bool": {"must": {"match_all": {}}}}
+			}
+
+		scroll_id = None
+		while True:
+			for url in self.ServerUrls:
+				if scroll_id is None:
+					path = "{}/_search?scroll={}".format(
+						index, self.ScrollTimeout
+					)
+					request_body = body
+				else:
+					path = "_search/scroll"
+					request_body = {
+						"scroll": self.ScrollTimeout,
+						"scroll_id": scroll_id,
+					}
+				url = "{}{}".format(url, path)
+				try:
+					async with self.session().request(
+						method="POST",
+						url=url,
+						json=request_body,
+						headers={
+							"Content-Type": "application/json"
+						},
+					) as resp:
+						if resp.status != 200:
+							data = await resp.text()
+							L.error(
+								"Failed to fetch data from ElasticSearch: {} from {}\n{}".format(
+									resp.status, url, data
+								)
+							)
+							break
+						response_json = await resp.json()
+				except aiohttp.client_exceptions.ClientConnectorError:
+					if url == self.Storage.ServerUrls[-1]:
+						raise Exception(
+							"Failed to connect to '{}'".format(
+								url
+							)
+						)
+					else:
+						L.warning(
+							"Failed to connect to '{}', iterating to another cluster node".format(
+								url
+							)
+						)
+
+			scroll_id = response_json.get("_scroll_id")
+			if scroll_id is None:
+				break
+			return response_json
 
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
 		return ElasicSearchUpsertor(self, index, obj_id, version)
@@ -298,7 +375,8 @@ class ElasicSearchUpsertor(UpsertorABC):
 		raise NotImplementedError("generate_id")
 
 
-	async def execute(self):
+	async def execute(self, custom_data: typing.Optional[dict] = None):
+		# TODO: Implement webhook call
 		if self.ObjId is None:
 			return await self._insert_noobjid()
 		else:

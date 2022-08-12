@@ -1,7 +1,6 @@
 import logging
 import aiohttp
 import urllib
-
 import http.client
 
 import asab
@@ -10,68 +9,11 @@ import asab
 
 L = logging.getLogger(__name__)
 
+
 #
 
 
-
-def get_field(fk, fv):
-	if isinstance(fv, bool):
-		field = "{}={}".format(fk, 't' if fv else 'f')
-	elif isinstance(fv, int):
-		field = "{}={}i".format(fk, fv)
-	elif isinstance(fv, float):
-		field = "{}={}".format(fk, fv)
-	elif isinstance(fv, str):
-		field = '{}="{}"'.format(fk, fv.replace('"', r'\"'))
-	else:
-		raise RuntimeError("Unknown/invalid type of the metrics field: {} {}".format(type(fv), fk))
-
-	return field
-
-
-def metric_to_influxdb(metric, values, now, type: str):
-	name = metric.Name
-
-	if type == "histogram":
-		L.warning("Histogram not yet implemented.")
-		influxdb_format = ""
-
-	else:
-		if all([isinstance(fk, tuple) for fk in values.keys()]):
-			field_set = []
-			for fk, fv in values.items():
-				tags = "," + ",".join(['{}={}'.format(k.replace(" ", "_"), v.replace(" ", "_")) for k, v in fk._asdict().items()])
-				field = get_field(name, fv)
-				field_set.append(tags + " " + field)
-			for tk, tv in metric.Tags.items():
-				name += ',{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_"))
-
-			influxdb_format = "".join(["{}{} {}\n".format(name, field, int(now * 1e9)) for field in field_set])
-
-		elif all([isinstance(fk, (str, int, float)) for fk in values.keys()]):
-			field_set = []
-			for fk, fv in values.items():
-				field_set.append(get_field(fk, fv))
-			for tk, tv in metric.Tags.items():
-				name += ',{}={}'.format(tk.replace(" ", "_"), tv.replace(" ", "_"))
-
-			influxdb_format = "{} {} {}\n".format(name, ', '.join(field_set), int(now * 1e9))
-
-		else:
-			raise RuntimeError("Unknown/invalid types of the metric {} value names: {}".format(name, [type(fk) for fk in values.keys()]))
-
-	return influxdb_format
-
-
-def influxdb_format(now, mlist):
-	# CAREFUL: This function is used also in asab.logman.metrics
-	rb = ""
-	for metric, values in mlist:
-		rb += metric.get_influxdb_format(values, now)
-	return rb
-
-
-class MetricsInfluxDB(asab.ConfigObject):
+class InfluxDBTarget(asab.ConfigObject):
 	"""
 InfluxDB 2.0 API parameters:
 	url - [required] url string of your influxDB
@@ -146,53 +88,152 @@ InfluxDB <1.8 API parameters:
 		# It is handly when a main loop can become very busy
 
 		if self.Config.getboolean('proactor'):
-
 			try:
 				from ..proactor import Module
+
 				svc.App.add_module(Module)
 
 				self.ProactorService = svc.App.get_service('asab.ProactorService')
 
 			except KeyError:
 				self.ProactorService = None
-
 		else:
-
 			self.ProactorService = None
 
 
-	async def process(self, now, mlist):
-
-		# When ProActor is enabled
+	async def process(self, m_tree, now):
+		rb = influxdb_format(m_tree, now)
 
 		if self.ProactorService is not None:
-			await self.ProactorService.execute(self._worker_upload, now, mlist)
-			return
+			await self.ProactorService.execute(self._worker_upload, m_tree, rb)
 
-		# When ProActor is disabled
+		else:
+			try:
+				async with aiohttp.ClientSession(headers=self.Headers) as session:
+					async with session.post(self.WriteURL, data=rb) as resp:
+						response = await resp.text()
+						if resp.status != 204:
+							L.warning("Error when sending metrics to Influx: {}\n{}".format(resp.status, response))
+			except aiohttp.client_exceptions.ClientConnectorError:
+				L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
 
-		rb = influxdb_format(now, mlist)
 
-		async with aiohttp.ClientSession(headers=self.Headers) as session:
-			async with session.post(self.WriteURL, data=rb) as resp:
-				response = await resp.text()
-				if resp.status != 204:
-					L.warning("Error when sending metrics to Influx: {}\n{}".format(resp.status, response))
-
-
-	def _worker_upload(self, now, mlist):
-
-		rb = influxdb_format(now, mlist)
-
+	def _worker_upload(self, m_tree, rb):
 		if self.BaseURL.startswith("https://"):
 			conn = http.client.HTTPSConnection(self.BaseURL.replace("https://", ""))
 		else:
 			conn = http.client.HTTPConnection(self.BaseURL.replace("http://", ""))
 
-		conn.request("POST", self.WriteRequest, rb, self.Headers)
+		try:
+			conn.request("POST", self.WriteRequest, rb, self.Headers)
+		except ConnectionRefusedError:
+			L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
+			return
 
 		response = conn.getresponse()
 		if response.status != 204:
 			L.warning("Error when sending metrics to Influx: {}\n{}".format(
 				response.status, response.read().decode("utf-8"))
 			)
+
+
+def get_field(fk, fv):
+	if isinstance(fv, bool):
+		field = "{}={}".format(fk, 't' if fv else 'f')
+	elif isinstance(fv, int):
+		field = "{}={}i".format(fk, fv)
+	elif isinstance(fv, float):
+		field = "{}={}".format(fk, fv)
+	elif isinstance(fv, str):
+		# Escapes the Field Values and Field Keys if the value is a string
+		field = '{}="{}"'.format(fk.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\="), fv.replace("\\", "\\\\").replace('"', "\\\""))
+	else:
+		raise RuntimeError("Unknown/invalid type of the metrics field: {} {}".format(type(fv), fk))
+
+	return field
+
+
+def combine_tags_and_field(tags, values):
+	# First escape tags and values
+	tags = escape_tags(tags)
+	values = escape_values(values)
+	# Then combine the tags and then values
+	tags_string = ",".join(["{}={}".format(tk, tv) for tk, tv in tags.items()])
+	field_set = ",".join([get_field(value_name, value) for value_name, value in values.items()])
+	return tags_string + " " + field_set
+
+
+def build_metric_line(tags, values, upperbound=None):
+	if upperbound is not None:
+		tags["le"] = upperbound
+	return combine_tags_and_field(tags, values)
+
+
+def metric_to_influxdb(metric_record, now):
+	if metric_record.get("@timestamp") is None:
+		timestamp = now
+	else:
+		timestamp = metric_record.get("@timestamp")
+	name = escape_name(metric_record.get("name"))
+	fieldset = metric_record.get("fieldset")
+	metric_type = metric_record.get("type")
+	values_lines = []
+
+	if metric_type in ["Histogram", "HistogramWithDynamicTags"]:
+		for field in fieldset:
+			# SKIP empty fields
+			if all([bucket == {} for bucket in field.get("values").get("buckets").values()]):
+				continue
+			for upperbound, bucket in field.get("values").get("buckets").items():
+				upperbound = str(upperbound)
+				if bucket == {}:
+					continue
+				values_lines.append(build_metric_line(field.get("tags").copy(), bucket, upperbound))
+			values_lines.append(build_metric_line(field.get("tags").copy(), {"sum": field.get("values").get("sum")}))
+			values_lines.append(build_metric_line(field.get("tags").copy(), {"count": field.get("values").get("count")}))
+
+	else:
+		for field in fieldset:
+			# SKIP empty fields
+			if not field.get("values") or field.get("values") == {}:
+				continue
+			values_lines.append(build_metric_line(field.get("tags"), (field.get("values"))))
+
+	return ["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines]
+
+
+def escape_name(name: str):
+	return name.replace(" ", "\\ ").replace(",", "\\,")
+
+
+def escape_tags(tags: dict):
+	"""
+	Escapes special characters in inputted tags to comply with InfluxDB's rules
+
+	https://docs.influxdata.com/influxdb/v2.3/reference/syntax/line-protocol/#special-characters
+	"""
+	clean: dict = {}
+	for k, v in tags.items():
+		clean[k.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")] = v.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
+	return clean
+
+
+def escape_values(values: dict):
+	"""
+	Escapes special characters in inputted values to comply with InfluxDB's rules
+
+	https://docs.influxdata.com/influxdb/v2.3/reference/syntax/line-protocol/#special-characters
+	"""
+	clean: dict = {}
+	for k, v in values.items():
+		# Escapes the Field Keys
+		clean[k.replace(" ", r"\ ").replace(",", r"\,").replace("=", r"\=")] = v
+	return clean
+
+
+def influxdb_format(m_tree, now):
+	rb = []
+	for metric_record in m_tree:
+		influx_records = metric_to_influxdb(metric_record, now)
+		rb.extend(influx_records)
+	return ''.join(rb)

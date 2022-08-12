@@ -2,7 +2,7 @@ Getting started
 ===============
 
 Make sure you have both `pip <https://pip.pypa.io/en/stable/installing/>`_ and at
-least version 3.5 of Python before starting. ASAB uses the new ``async``/``await``
+least version 3.7 of Python before starting. ASAB uses the new ``async``/``await``
 syntax, so earlier versions of python won't work.
 
 1. Install ASAB:
@@ -54,7 +54,7 @@ Going into details
 
     #!/usr/bin/env python3
 
-ASAB application uses a Python 3.5+.
+ASAB application uses a Python 3.7+.
 This is specified a by hashbang line at the very begginig of the file, on the line number 1.
 
 

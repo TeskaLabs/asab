@@ -1,7 +1,18 @@
 import abc
+import json
 import uuid
 import hashlib
 import datetime
+import logging
+import aiohttp
+import asab.web.rest.json
+import typing
+
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 
 class UpsertorABC(abc.ABC):
@@ -16,7 +27,7 @@ class UpsertorABC(abc.ABC):
 
 		self.Version = version
 
-		now = datetime.datetime.utcnow()
+		now = datetime.datetime.now(datetime.timezone.utc)
 		self.ModSet = {
 			'_m': now,  # Set the modification datetime
 		}
@@ -32,6 +43,8 @@ class UpsertorABC(abc.ABC):
 		self.ModPush = {}
 		self.ModPull = {}
 
+		self.WebhookResponseData = None
+
 
 	def get_id_name(self):
 		return "_id"
@@ -44,10 +57,12 @@ class UpsertorABC(abc.ABC):
 		return m.digest()
 
 
-	def set(self, objField, value):
+	def set(self, objField, value, encrypt=False, encrypt_iv=None):
 		'''
 		Scalar set
 		'''
+		if encrypt:
+			value = self.Storage.aes_encrypt(value, iv=encrypt_iv)
 		self.ModSet[objField] = value
 
 
@@ -91,5 +106,59 @@ class UpsertorABC(abc.ABC):
 
 
 	@abc.abstractmethod
-	async def execute(self):
+	async def execute(self, custom_data: typing.Optional[dict] = None):
+		"""
+		Commit upsertor data to the storage. Afterwards, send a webhook request with upsertion details.
+
+		:custom_data: Custom execution data. Included in webhook payload.
+
+		Example:
+			The following upsertion
+			```python
+			upsertor = storage_service.upsertor("users")
+			upsertor.set("name", "Raccoon")
+			await upsertor.execute(custom_data={"action": "user_creation"})
+			```
+
+			will trigger a webhook whose payload may look like this:
+			```json
+			{
+				"collection": "users",
+				"custom": {"action": "user_creation"},
+				"upsertor": {
+					"id": "2O-h3ulpO-ZwDrkSbQlYB3pYS0JJxCJj3nr6uQAu8aU",
+					"id_field_name": "_id",
+					"_v": 0,
+					"inc": {"_v": 1},
+					"set": {
+						"_c": "2022-07-11T16:06:04.380445+00:00",
+						"_id": "2O-h3ulpO-ZwDrkSbQlYB3pYS0JJxCJj3nr6uQAu8aU",
+						"_m": "2022-07-11T16:06:04.380445+00:00",
+						"name": "Raccoon"
+					}
+				}
+			}
+			```
+		"""
 		pass
+
+
+	async def _webhook(self, data: dict):
+		assert self.Storage.WebhookURI is not None
+		json_dump = asab.web.rest.json.JSONDumper(pretty=False)(data)
+		try:
+			async with aiohttp.ClientSession(auth=self.Storage.WebhookAuth) as session:
+				async with session.put(
+					self.Storage.WebhookURI,
+					data=json_dump,
+					headers={"Content-Type": "application/json"}
+				) as response:
+					if response.status // 100 != 2:
+						text = await response.text()
+						L.error("Webhook endpoint responded with {}:\n{}".format(response.status, text))
+						return
+					self.WebhookResponseData = await response.json()
+		except json.decoder.JSONDecodeError as e:
+			L.error("Failed to decode JSON response from webhook: {}".format(str(e)))
+		except Exception as e:
+			L.error("Webhook call failed with {}: {}".format(type(e).__name__, str(e)))
