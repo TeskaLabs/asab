@@ -26,7 +26,10 @@ class StorageServiceABC(asab.Service):
 		self.AESKey = asab.Config.get("asab:storage", "aes_key", fallback="")
 		if len(self.AESKey) > 0:
 			if cryptography is None:
-				raise ModuleNotFoundError("No module named 'cryptography' (required for AES storage encryption)")
+				raise ModuleNotFoundError(
+					"You are using storage encryption without 'cryptography' installed. "
+					"Please run 'pip install cryptography' "
+					"or install asab with 'storage_encryption' optional dependency.")
 			self.AESKey = hashlib.sha256(self.AESKey.encode("utf-8")).digest()
 
 
