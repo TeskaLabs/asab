@@ -58,7 +58,7 @@ def get_docker_container_id():
 	if os.path.isfile('/proc/self/cgroup'):
 		with open('/proc/self/cgroup', "r") as f:
 			cgroup = f.read()
-			if any('docker' in line for line in cgroup):
+			if any('docker' in line for line in cgroup.split("\n")):
 				container_id = cgroup.split("/docker/")[1].split("\n")[0]
 				return container_id
 
