@@ -94,7 +94,7 @@ class DocWebHandler(object):
 			specs["components"].pop("securitySchemes")
 
 		# Gets all the scopes from config and puts them into scopes
-		if self.Scopes:
+		if self.Scopes and self.AuthorizationUrl and self.TokenUrl:
 			for scope in self.Scopes.split(","):
 				specs["components"]["securitySchemes"]["oAuth"]["flows"]["authorizationCode"]["scopes"].update({scope: "{} scope.".format(scope.strip().capitalize())})
 
