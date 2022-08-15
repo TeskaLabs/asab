@@ -29,7 +29,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
 
-		L.info("FileSystem library provider {} is connected.".format(path))
+		L.info("is connected.", struct_data={'path': path})
 		# Filesystem is always ready (or you have a serious problem)
 		if set_ready:
 			self.App.TaskService.schedule(self._set_ready())

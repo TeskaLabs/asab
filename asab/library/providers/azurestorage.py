@@ -94,7 +94,7 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 			)
 
 		self.Model = model
-		L.info("AzureStorage library provider {} is connected.".format(self.Path))
+		L.info("is connected.", struct_data={'path': self.Path})
 
 	async def list(self, path: str) -> list:
 		if self.Model is None:
