@@ -70,7 +70,12 @@ class DocWebHandler(object):
 
 			# Authorization
 			# TODO: Authorization must not be always of OAuth type
-			"components": {
+			"components": {},
+		}
+
+		# Get rid of securitySchemes if there is no authorizationUrl or tokenUrl
+		if self.AuthorizationUrl and self.TokenUrl:
+			specs["components"].update({
 				"securitySchemes": {
 					"oAuth": {
 						"type": "oauth2",
@@ -86,12 +91,7 @@ class DocWebHandler(object):
 						}
 					}
 				},
-			},
-		}
-
-		# Get rid of securitySchemes if there is no authorizationUrl or tokenUrl
-		if not self.AuthorizationUrl or not self.TokenUrl:
-			specs["components"].pop("securitySchemes")
+			})
 
 		# Gets all the scopes from config and puts them into scopes
 		if self.Scopes and self.AuthorizationUrl and self.TokenUrl:
