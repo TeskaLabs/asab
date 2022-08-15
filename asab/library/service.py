@@ -272,6 +272,9 @@ class LibraryService(Service):
 				L.exception("Error when listing items from provider", exc_info=ress)
 				continue
 
+			if not ress:
+				continue
+
 			for item in ress:
 
 				item.disabled = self.check_disabled(item.name, tenant=tenant)
