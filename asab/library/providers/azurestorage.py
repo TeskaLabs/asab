@@ -42,6 +42,7 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 		self.URL = urllib.parse.urlparse(path[6:])
 		self.Model = None  # Will be set by `_load_model` method
+		self.Path = path
 
 		self.App.TaskService.schedule(self._start())
 
@@ -93,7 +94,7 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 			)
 
 		self.Model = model
-
+		L.info("is connected.", struct_data={'path': self.Path})
 
 	async def list(self, path: str) -> list:
 		if self.Model is None:
