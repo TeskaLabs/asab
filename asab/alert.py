@@ -124,7 +124,6 @@ class OpsGenieAlertProvider(AlertHTTPProviderABC):
 
 			create_alert = {
 				'message': title,
-				'note': detail,
 				'alias': '{}:{}:{}'.format(tenant_id, alert_cls, alert_id),
 				'tags': self.Tags,
 				'details': {
@@ -135,6 +134,9 @@ class OpsGenieAlertProvider(AlertHTTPProviderABC):
 				'entity': tenant_id,
 				'source': self.Hostname,
 			}
+
+			if detail:
+				create_alert["details"].update(detail)
 
 			async with aiohttp.ClientSession(headers=headers) as session:
 				async with session.post(self.URL + "/v2/alerts", json=create_alert) as resp:
@@ -236,6 +238,6 @@ class AlertService(asab.Service):
 		])
 
 
-	def trigger(self, tenant_id, alert_cls, alert_id, title, detail=''):
+	def trigger(self, tenant_id, alert_cls, alert_id, title, detail: dict = None):
 		for p in self.Providers:
 			p.trigger(tenant_id, alert_cls, alert_id, title, detail)
