@@ -140,7 +140,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	async def list(self, path: str) -> list:
 		# Keep in mind this magical update before every `list` when implementing the GitProvider
 		await self.ProactorService.execute(self.pull)
-		await super().list(path)
+		return await super().list(path)
 
 
 def get_git_credentials(url):
