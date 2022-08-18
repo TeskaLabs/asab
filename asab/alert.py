@@ -142,7 +142,7 @@ class OpsGenieAlertProvider(AlertHTTPProviderABC):
 				async with session.post(self.URL + "/v2/alerts", json=create_alert) as resp:
 					if resp.status != 202:
 						text = await resp.text()
-						L.warning("Failed to create the alert: {}".format(text))
+						L.warning("Failed to create the alert ({}):\n'{}'".format(resp.status, text))
 					else:
 						await resp.text()
 
@@ -202,15 +202,14 @@ class PagerDutyAlertProvider(AlertHTTPProviderABC):
 				async with session.post(self.URL + "/v2/enqueue", json=create_alert) as resp:
 					if resp.status != 202:
 						text = await resp.text()
-						L.warning("Failed to create the alert ({}):\n{}".format(resp.status, text))
+						L.warning("Failed to create the alert ({}):\n'{}'".format(resp.status, text))
 					else:
 						await resp.text()
 
 
 class AlertService(asab.Service):
 
-
-	def __init__(self, app, service_name="seacatpki.AlertService"):
+	def __init__(self, app, service_name="AlertService"):
 		super().__init__(app, service_name)
 		self.Providers = []
 

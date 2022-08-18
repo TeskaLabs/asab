@@ -9,7 +9,7 @@ There are currently two possible target systems for the alerts available:
 
 - PagerDuty - https://events.pagerduty.com
 
-Everything you need to do is to import the service, trigger the alert. Specify the target in the **configuration**.
+Everything you need to do is to import the service, trigger the alert and specify the target in the **configuration**.
 
 .. code:: python 
 
@@ -18,7 +18,7 @@ Everything you need to do is to import the service, trigger the alert. Specify t
             from asab.alert import AlertService
             self.AlertService = AlertService(self)
             self.AlertService.trigger(
-                tenant_id="my-tenant",
+                source="my-tenant",
                 alert_cls="my-class",
                 alert_id="deduplication-id01",
                 title="Something went wrong.",
