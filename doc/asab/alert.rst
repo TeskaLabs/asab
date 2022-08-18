@@ -1,9 +1,15 @@
 Alert Service
 =============
 
-ASAB Alert Service implements several targets for alerts created in your application.
-Everything you need to do in your code is to import the service and trigger the alert:
+Integrate ASAB Application with alert managers.
 
+There are currently two possible target systems for the alerts available:
+
+- Opsgenie - https://www.atlassian.com/software/opsgenie
+
+- PagerDuty - https://events.pagerduty.com
+
+Everything you need to do is to import the service, trigger the alert. Specify the target in the **configuration**.
 
 .. code:: python 
 
@@ -27,21 +33,20 @@ Everything you need to do in your code is to import the service and trigger the 
         app.run()
 
 
-The code itself is not enough. The alert is produced only when the specific target is configured.
-Up to now there are two possible target systems for the alerts:
-- Opsgenie - https://www.atlassian.com/software/opsgenie
-- PagerDuty - https://events.pagerduty.com
-
-
 Opsgenie
 --------
+
+- Create an account at Opsgenie. 
+- In your Opsgenie account, create new **Team**.
+- Add an integration to your Team - choose **API**.
+- API Key will be generated for you.
 
 *myapplication.conf*
 
 .. code::
 
 	[asab:alert:opsgenie]
-	api_key=my-api-key-123456
+	api_key=my-api-key
 	tags=my-tag, my-application
 	url=https://api.eu.opsgenie.com  # this is default value
 
@@ -49,13 +54,28 @@ Opsgenie
 PagerDuty
 ---------
 
+- Create an account at PagerDuty. 
+- In your PagerDuty account, generate **Api Key** (Integrations > Developer Tools > Api Access Keys). 
+- Create new Service in Service Directory and add an integration in the Integrations folder. 
+- Choose **Events API V2**. An **Integration Key** will be generated for you.
+
 *myapplication.conf*
 
 .. code::
 
 	[asab:alert:pagerduty]
-	api_key=w_8PcNuhHa-y3xYdmc1x
-	integration_key=f
+	api_key=my-api-key
+	integration_key=my-integration-key
 	url=https://events.pagerduty.com  # this is default value
 
-	
+
+
+De-duplication
+--------------
+
+`alert_id` argument serves as de-duplication ID for the third party services. It enables grouping of alerts and prevents noise.
+More about alert grouping:
+
+- Opsgenie: https://support.atlassian.com/opsgenie/docs/what-is-alert-de-duplication/
+
+- PagerDuty: https://support.pagerduty.com/docs/intelligent-alert-grouping
