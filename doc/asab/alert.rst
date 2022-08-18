@@ -37,8 +37,8 @@ Opsgenie
 --------
 
 - Create an account at Opsgenie. 
-- In your Opsgenie account, create new **Team**.
-- Add an integration to your Team - choose **API**.
+- In your Opsgenie account, create a new **Team**.
+- Add integration to your Team - choose **API**.
 - API Key will be generated for you.
 
 *myapplication.conf*
@@ -56,7 +56,7 @@ PagerDuty
 
 - Create an account at PagerDuty. 
 - In your PagerDuty account, generate **Api Key** (Integrations > Developer Tools > Api Access Keys). 
-- Create new Service in Service Directory and add an integration in the Integrations folder. 
+- Create a new Service in Service Directory and add integration in the Integrations folder. 
 - Choose **Events API V2**. An **Integration Key** will be generated for you.
 
 *myapplication.conf*
@@ -73,7 +73,7 @@ PagerDuty
 De-duplication
 --------------
 
-`alert_id` argument serves as de-duplication ID for the third party services. It enables grouping of alerts and prevents noise.
+`alert_id` argument serves as a de-duplication ID for the third-party services. It enables the grouping of alerts and prevents noise.
 More about alert grouping:
 
 - Opsgenie: https://support.atlassian.com/opsgenie/docs/what-is-alert-de-duplication/
