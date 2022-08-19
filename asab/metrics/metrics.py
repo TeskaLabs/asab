@@ -60,8 +60,8 @@ class Counter(Metric):
 		:param name: name of the counter
 		:param value: value to be added to the counter
 
-		Adds to the counter specified by `name` the `value`.
-		If name is not in Counter Values, it will be added to Values.
+		Adds the `value` to the counter Values specified by `name`.
+		If `name` is not in Counter Values, it will be added.
 
 		"""
 		try:
@@ -77,8 +77,8 @@ class Counter(Metric):
 		:param name: name of the counter
 		:param value: value to be subtracted from the counter
 
-		Subtracts to the counter specified by `name` the `value`.
-		If name is not in Counter Values, it will be added to Values.
+		Subtracts the `value` from the counter Values specified by `name`.
+		If `name` is not in Counter Values, it will be added.
 
 		"""
 		try:
@@ -363,8 +363,8 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 		:param name: name of the counter
 		:param value: value to be added to the counter
 
-		Adds to the counter specified by `name` the `value`.
-		If name is not in Counter Values, it will be added to Values.
+		Adds the `value` to the counter Values specified by `name`.
+		If name is not in Counter Values, it will be added there.
 		"""
 
 		field = self.locate_field(tags)
@@ -381,8 +381,8 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 		:param name: name of the counter
 		:param value: value to be subtracted from the counter
 
-		Subtracts to the counter specified by `name` the `value`.
-		If name is not in Counter Values, it will be added to Values.
+		Subtracts the `value` from the counter Values specified by `name`.
+		If name is not in Counter Values, it will be added there.
 		"""
 
 		field = self.locate_field(tags)

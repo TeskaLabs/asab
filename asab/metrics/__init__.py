@@ -2,7 +2,7 @@ import logging
 import asab
 
 from .service import MetricsService
-from .metrics import Metric, Gauge, Counter, EPSCounter, DutyCycle, AggregationCounter
+from .metrics import Metric, Gauge, Counter, EPSCounter, DutyCycle, AggregationCounter, Histogram, CounterWithDynamicTags, AggregationCounterWithDynamicTags, HistogramWithDynamicTags
 
 #
 
@@ -26,4 +26,8 @@ __all__ = (
 	'EPSCounter',
 	'DutyCycle',
 	'AggregationCounter',
+	'Histogram',
+	'CounterWithDynamicTags',
+	'AggregationCounterWithDynamicTags',
+	'HistogramWithDynamicTags',
 )
