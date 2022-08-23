@@ -137,6 +137,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		commit_id = self.fetch()
 		self.GitRepository.merge(commit_id)
 
+	async def list(self, path: str) -> list:
+		# Keep in mind this magical update before every `list` when implementing the GitProvider
+		await self.ProactorService.execute(self.pull)
+		return await super().list(path)
+
 
 def get_git_credentials(url):
 	"""
