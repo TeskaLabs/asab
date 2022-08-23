@@ -12,7 +12,7 @@ L = logging.getLogger(__name__)
 # Fake config file
 asab.Config.read_string("""
 [rc]
-ws=http://localhost:8080/rc
+ws=http://localhost:8080/ws
 		""")
 
 
@@ -24,8 +24,10 @@ class MyApplication(asab.Application):
 		super().__init__()
 
 		self.Task = None
+		self.WS = None
 		# Calls `_on_tick` method every second
 		self.PubSub.subscribe("Application.tick!", self._on_tick)
+		self.PubSub.subscribe("Application.tick/10!", self._on_tick_send)
 
 
 	async def finalize(self):
@@ -68,6 +70,7 @@ class MyApplication(asab.Application):
 		"""
 		async with aiohttp.ClientSession() as session:
 			async with session.ws_connect(asab.Config.get("rc", "ws")) as ws:
+				self.WS = ws
 				async for msg in ws:
 					if msg.type == aiohttp.WSMsgType.TEXT:
 						cont = await self.dispatch(msg)
@@ -79,6 +82,10 @@ class MyApplication(asab.Application):
 					elif msg.type == aiohttp.WSMsgType.ERROR:
 						break
 				await ws.close()
+
+	async def _on_tick_send(self, _):
+		if self.WS is not None:
+			await self.WS.send_str("ahoj!")
 
 
 	async def dispatch(self, msg):
