@@ -215,16 +215,17 @@ class TestHistogram(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE testhistogram histogram\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="10.0",name="value2"} 1\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="100.0",name="value2"} 2\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="inf",name="value2"} 2\n',
-				'testhistogram_count{host="mockedhost.com",foo="bar"} 2\n',
-				'testhistogram_sum{host="mockedhost.com",foo="bar"} 55.0\n',
 				'testhistogram{tag="yes",host="mockedhost.com",foo="bar",le="10.0",name="value1"} 1\n',
 				'testhistogram{tag="yes",host="mockedhost.com",foo="bar",le="100.0",name="value1"} 1\n',
 				'testhistogram{tag="yes",host="mockedhost.com",foo="bar",le="inf",name="value1"} 1\n',
 				'testhistogram_count{tag="yes",host="mockedhost.com",foo="bar"} 1\n',
-				'testhistogram_sum{tag="yes",host="mockedhost.com",foo="bar"} 5.0',
+				'testhistogram_sum{tag="yes",host="mockedhost.com",foo="bar"} 5.0\n',
+				'testhistogram{host="mockedhost.com",foo="bar",le="10.0",name="value2"} 1\n',
+				'testhistogram{host="mockedhost.com",foo="bar",le="100.0",name="value2"} 2\n',
+				'testhistogram{host="mockedhost.com",foo="bar",le="inf",name="value2"} 2\n',
+				'testhistogram_count{host="mockedhost.com",foo="bar"} 2\n',
+				'testhistogram_sum{host="mockedhost.com",foo="bar"} 55.0',
+
 			])
 		)
 
