@@ -257,8 +257,8 @@ class Histogram(Metric):
 	"""
 	Creates cumulative histograms.
 	"""
-	def __init__(self, buckets: list):
-		super().__init__()
+	def __init__(self, buckets: list, init_values=None):
+		super().__init__(init_values)
 		_buckets = [float(b) for b in buckets]
 
 		if _buckets != sorted(buckets):
@@ -271,20 +271,27 @@ class Histogram(Metric):
 			raise ValueError("Must have at least two buckets")
 
 		self.InitBuckets = {b: dict() for b in _buckets}
-		self.Buckets = copy.deepcopy(self.InitBuckets)
 		self.Count = 0
 		self.Sum = 0.0
-		self.Init = {
+		self.InitHistogram = {
 			"buckets": self.InitBuckets,
 			"sum": 0.0,
 			"count": 0
 		}
 
+		if self.Init:
+			for value_name, value in self.Init.items():
+				for upper_bound in self.InitHistogram["buckets"]:
+					if value <= upper_bound:
+						self.InitHistogram["buckets"][upper_bound][value_name] = 1
+				self.InitHistogram["sum"] += value
+				self.InitHistogram["count"] += 1
+
 	def add_field(self, tags):
 		field = {
 			"tags": tags,
-			"values": copy.deepcopy(self.Init),
-			"actuals": copy.deepcopy(self.Init),
+			"values": copy.deepcopy(self.InitHistogram),
+			"actuals": copy.deepcopy(self.InitHistogram),
 		}
 		self.Storage['fieldset'].append(field)
 		self._actuals = field['actuals']
@@ -294,7 +301,7 @@ class Histogram(Metric):
 		if self.Storage.get("reset") is True:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
-				field['actuals'] = copy.deepcopy(self.Init)
+				field['actuals'] = copy.deepcopy(self.InitHistogram)
 				self._actuals = field['actuals']
 		else:
 			for field in self.Storage['fieldset']:
@@ -443,8 +450,8 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 	Creates cumulative histograms with dynamic tags
 	"""
 
-	def __init__(self, buckets: list):
-		super().__init__()
+	def __init__(self, buckets: list, init_values=None):
+		super().__init__(init_values)
 		_buckets = [float(b) for b in buckets]
 
 		if _buckets != sorted(buckets):
@@ -457,20 +464,27 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 			raise ValueError("Must have at least two buckets")
 
 		self.InitBuckets = {b: dict() for b in _buckets}
-		self.Buckets = copy.deepcopy(self.InitBuckets)
 		self.Count = 0
 		self.Sum = 0.0
-		self.Init = {
+		self.InitHistogram = {
 			"buckets": self.InitBuckets,
 			"sum": 0.0,
 			"count": 0
 		}
 
+		if self.Init:
+			for value_name, value in self.Init.items():
+				for upper_bound in self.InitHistogram["buckets"]:
+					if value <= upper_bound:
+						self.InitHistogram["buckets"][upper_bound][value_name] = 1
+				self.InitHistogram["sum"] += value
+				self.InitHistogram["count"] += 1
+
 	def add_field(self, tags):
 		field = {
 			"tags": tags,
-			"values": copy.deepcopy(self.Init),
-			"actuals": copy.deepcopy(self.Init),
+			"values": copy.deepcopy(self.InitHistogram),
+			"actuals": copy.deepcopy(self.InitHistogram),
 			"expires_at": self.App.time() + self.Expiration,
 		}
 		self.Storage['fieldset'].append(field)
@@ -487,7 +501,7 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 		if self.Storage.get("reset") is True:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
-				field['actuals'] = copy.deepcopy(self.Init)
+				field['actuals'] = copy.deepcopy(self.InitHistogram)
 		else:
 			for field in self.Storage['fieldset']:
 				field['values'] = copy.deepcopy(field['actuals'])
