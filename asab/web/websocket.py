@@ -79,12 +79,10 @@ class WebSocketFactory(object):
 		'''
 		Send string to all connected websockets
 		'''
-		print("!!! send_str_all", data)
 		x = await asyncio.gather(
 			*[ws.send_str(data, compress=compress) for ws in self.WebSockets.values()],
 			return_exceptions=True
 		)
-		print(">>>", x)
 
 
 	def get(self, wsid):
