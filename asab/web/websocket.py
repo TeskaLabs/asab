@@ -43,24 +43,17 @@ class WebSocketFactory(object):
 		app.PubSub.subscribe("Application.stop!", self._on_app_stop)
 
 
-	def _on_app_stop(self, message_type, counter):
+	async def _on_app_stop(self, message_type, counter):
 		# Clean up during application exit
-		wslist = [ws.close(code=aiohttp.WSCloseCode.GOING_AWAY, message='Server shutdown') for ws in self.WebSockets.values()]
-		asyncio.gather(*wslist, return_exceptions=True)
+		await self.close_all(code=aiohttp.WSCloseCode.GOING_AWAY, message='Server shutdown')
 
 
-	def send_parallely(self, send_futures):
-		# THIS METHOD IS OBSOLETED, DON'T USE IT IN A NEW CODE.
-		# Send messages in parallel
-		asyncio.gather(*send_futures, return_exceptions=True)
-
-
-	async def close_all(self):
+	async def close_all(self, *, code=aiohttp.WSCloseCode.OK, message=b''):
 		'''
 		Close all websockets
 		'''
 		await asyncio.gather(
-			*[ws.close() for ws in self.WebSockets.values()],
+			*[ws.close(code=code, message=message) for ws in self.WebSockets.values()],
 			return_exceptions=True
 		)
 
@@ -79,7 +72,7 @@ class WebSocketFactory(object):
 		'''
 		Send string to all connected websockets
 		'''
-		x = await asyncio.gather(
+		await asyncio.gather(
 			*[ws.send_str(data, compress=compress) for ws in self.WebSockets.values()],
 			return_exceptions=True
 		)
