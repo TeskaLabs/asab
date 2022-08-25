@@ -2,6 +2,8 @@ import logging
 import asyncio
 import aiohttp
 
+from ..logging import LOG_NOTICE
+
 #
 
 L = logging.getLogger(__name__)
@@ -12,7 +14,12 @@ L = logging.getLogger(__name__)
 class WebSocketFactory(object):
 
 	'''
-	websvc.WebApp.router.add_get('/api/ws', asab.web.WebSocketFactory(self))
+	wsfactory = asab.web.WebSocketFactory(self)
+	websvc.WebApp.router.add_get('/api/ws', wsfactory)
+	wsfactory.on_message = ...
+
+
+	Javascript example:
 
 	<script type="text/javascript">
 		var connection = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + window.location.host + "/api/ws");
@@ -25,8 +32,8 @@ class WebSocketFactory(object):
 
 
 	def __init__(self, app, *, timeout=10.0, protocols=(), compress=True, max_msg_size=4194304):
-		self.Loop = app.Loop
-		self.WebSockets = set([])
+		self.Counter = 0
+		self.WebSockets = {}
 
 		self.Timeout = timeout
 		self.Protocols = protocols
@@ -39,66 +46,96 @@ class WebSocketFactory(object):
 	def _on_app_stop(self, message_type, counter):
 		# Clean up during application exit
 		wslist = [ws.close(code=aiohttp.WSCloseCode.GOING_AWAY, message='Server shutdown') for ws in self.WebSockets]
-		asyncio.gather(*wslist, loop=self.Loop)
+		asyncio.gather(*wslist, return_exceptions=True)
 
 
 	def send_parallely(self, send_futures):
 		# THIS METHOD IS OBSOLETED, DON'T USE IT IN A NEW CODE.
 		# Send messages in parallel
-		asyncio.gather(*send_futures, loop=self.Loop)
+		asyncio.gather(*send_futures, return_exceptions=True)
+
+
+	async def close_all(self):
+		'''
+		Close all websockets
+		'''
+		await asyncio.gather(
+			*[ws.close() for ws in self.WebSockets.values()],
+			return_exceptions=True
+		)
+
+
+	async def ping_all(self):
+		'''
+		Ping all connected websockets
+		'''
+		await asyncio.gather(
+			*[ws.ping() for ws in self.WebSockets.values()],
+			return_exceptions=True
+		)
+
+
+	def get(self, wsid):
+		'''
+		Get a websocket using its wsid.
+
+		IMPORTANT: This method can return None if the websocket has been already closed.
+		'''
+		return self.get(wsid)
 
 
 	async def __call__(self, request):
-		ws = await self.on_request(request)
-
-		try:
-			self.WebSockets.add(ws)
-
-			async for msg in ws:
-				await self.on_message(request, ws, msg)
-
-		except asyncio.CancelledError:
-			await ws.close()
-
-		finally:
-			await self.on_close(request, ws)
-			self.WebSockets.remove(ws)
-
-		return ws
-
-
-	async def on_request(self, request):
-		'''
-		Override this to initialize websocket:
-
-		async def on_request(self, request):
-			...
-			ws = super().on_request(request)
-			...
-			return ws
-
-		'''
 		ws = aiohttp.web.WebSocketResponse(
 			timeout=self.Timeout,
 			protocols=self.Protocols,
 			compress=self.Compress,
 			max_msg_size=self.MaxMsgSize,
 		)
-		session = request.get('Session')
-		if session is not None:
-			await session.Storage.set(session, ws)
+
 		await ws.prepare(request)
+
+		L.log(LOG_NOTICE, "Websocket connection accepted")
+
+		wsid = await self.on_connect(ws, request)
+
+		try:
+			self.WebSockets[wsid] = ws
+
+			async for msg in ws:
+				if msg.type == aiohttp.WSMsgType.ERROR:
+					break
+				else:
+					await self.on_message(ws, msg, wsid)
+
+		except asyncio.CancelledError:
+			await ws.close()
+
+		finally:
+			del self.WebSockets[wsid]
+			L.log(LOG_NOTICE, "Websocket connection closed")
+			await self.on_close(ws, wsid)
+
 		return ws
 
 
-	async def on_message(self, request, websocket, message):
+	async def on_connect(self, ws, request):
+		'''
+		Must return the unique identified of the websocket `wsid`.
+		The default implementation is the unique counter.
+		You may overload this to provide custom unique identifer
+		'''
+		self.Counter += 1
+		return self.Counter
+
+
+	async def on_message(self, websocket, message, wsid):
 		'''
 		Override this method to receive messages from client over the websocket
 		'''
 		pass
 
 
-	async def on_close(self, request, websocket):
+	async def on_close(self, websocket, wsid):
 		'''
 		Override this method to receive a notification that client closed the websocket connection
 		'''
