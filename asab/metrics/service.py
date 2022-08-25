@@ -143,10 +143,10 @@ class MetricsService(Service):
 		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
 
-	def create_histogram(self, metric_name, buckets: list, tags=None, reset: bool = True, help=None, unit=None, dynamic_tags=False):
+	def create_histogram(self, metric_name, buckets: list, tags=None, init_values=None, reset: bool = True, help=None, unit=None, dynamic_tags=False):
 		if dynamic_tags:
-			m = HistogramWithDynamicTags(buckets=buckets)
+			m = HistogramWithDynamicTags(buckets=buckets, init_values=init_values)
 		else:
-			m = Histogram(buckets=buckets)
+			m = Histogram(buckets=buckets, init_values=init_values)
 		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
