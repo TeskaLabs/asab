@@ -2,7 +2,7 @@ import logging
 import asyncio
 import aiohttp
 
-from ..logging import LOG_NOTICE
+from ..log import LOG_NOTICE
 
 #
 
@@ -45,7 +45,7 @@ class WebSocketFactory(object):
 
 	def _on_app_stop(self, message_type, counter):
 		# Clean up during application exit
-		wslist = [ws.close(code=aiohttp.WSCloseCode.GOING_AWAY, message='Server shutdown') for ws in self.WebSockets]
+		wslist = [ws.close(code=aiohttp.WSCloseCode.GOING_AWAY, message='Server shutdown') for ws in self.WebSockets.values()]
 		asyncio.gather(*wslist, return_exceptions=True)
 
 
@@ -73,6 +73,18 @@ class WebSocketFactory(object):
 			*[ws.ping() for ws in self.WebSockets.values()],
 			return_exceptions=True
 		)
+
+
+	async def send_str_all(self, data, compress=None):
+		'''
+		Send string to all connected websockets
+		'''
+		print("!!! send_str_all", data)
+		x = await asyncio.gather(
+			*[ws.send_str(data, compress=compress) for ws in self.WebSockets.values()],
+			return_exceptions=True
+		)
+		print(">>>", x)
 
 
 	def get(self, wsid):
