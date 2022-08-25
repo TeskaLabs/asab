@@ -403,11 +403,9 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 
 	def flush(self, now):
 		# Filter expired fields
-		# TODO: Refactor this into for-based scan from the end
-		self.Storage["fieldset"] = [
-			field for field in self.Storage["fieldset"]
-			if field["expires_at"] >= now
-		]
+		for field in self.Storage["fieldset"][::-1]:
+			if field["expires_at"] < now:
+				self.Storage["fieldset"].remove(field)
 
 		if self.Storage.get("reset") is True:
 			for field in self.Storage['fieldset']:
@@ -492,11 +490,9 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 
 	def flush(self, now):
 		# Filter expired fields
-		# TODO: Refactor this into for-based scan from the end
-		self.Storage["fieldset"] = [
-			field for field in self.Storage["fieldset"]
-			if field["expires_at"] >= now
-		]
+		for field in self.Storage["fieldset"][::-1]:
+			if field["expires_at"] < now:
+				self.Storage["fieldset"].remove(field)
 
 		if self.Storage.get("reset") is True:
 			for field in self.Storage['fieldset']:
