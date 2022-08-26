@@ -77,6 +77,15 @@ class WebSocketFactory(object):
 			return_exceptions=True
 		)
 
+	async def send_json_all(self, data, compress=None):
+		'''
+		Send string to all connected websockets
+		'''
+		await asyncio.gather(
+			*[ws.send_json(data, compress=compress) for ws in self.WebSockets.values()],
+			return_exceptions=True
+		)
+
 
 	def get(self, wsid):
 		'''
@@ -84,7 +93,7 @@ class WebSocketFactory(object):
 
 		IMPORTANT: This method can return None if the websocket has been already closed.
 		'''
-		return self.get(wsid)
+		return self.WebSockets.get(wsid)
 
 
 	async def __call__(self, request):
