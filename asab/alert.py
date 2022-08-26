@@ -63,8 +63,8 @@ class AlertHTTPProviderABC(AlertProviderABC):
 			mt.cancel()
 
 
-	def trigger(self, tenant_id, alert_cls, alert_id, title, detail):
-		self.Queue.put_nowait((tenant_id, alert_cls, alert_id, title, detail))
+	def trigger(self, tenant_id, alert_cls, alert_id, title, detail, data):
+		self.Queue.put_nowait((tenant_id, alert_cls, alert_id, title, detail, data))
 
 
 	def _start_main_task(self):
@@ -116,7 +116,7 @@ class OpsGenieAlertProvider(AlertHTTPProviderABC):
 
 	async def _main(self):
 		while True:
-			source, alert_cls, alert_id, title, detail = await self.Queue.get()
+			source, alert_cls, alert_id, title, detail, data = await self.Queue.get()
 
 			headers = {
 				'Authorization': 'GenieKey {}'.format(self.APIKey)
@@ -124,6 +124,7 @@ class OpsGenieAlertProvider(AlertHTTPProviderABC):
 
 			create_alert = {
 				'message': title,
+				'note': detail,
 				'alias': '{}:{}:{}'.format(source, alert_cls, alert_id),
 				'tags': self.Tags,
 				'details': {
@@ -135,8 +136,8 @@ class OpsGenieAlertProvider(AlertHTTPProviderABC):
 				'source': self.Hostname,
 			}
 
-			if detail:
-				create_alert["details"].update(detail)
+			if data:
+				create_alert["details"].update(data)
 
 			async with aiohttp.ClientSession(headers=headers) as session:
 				async with session.post(self.URL + "/v2/alerts", json=create_alert) as resp:
@@ -169,7 +170,7 @@ class PagerDutyAlertProvider(AlertHTTPProviderABC):
 
 	async def _main(self):
 		while True:
-			source, alert_cls, alert_id, title, detail = await self.Queue.get()
+			source, alert_cls, alert_id, title, detail, data = await self.Queue.get()
 
 			headers = {
 				'Authorization': 'Token token={}'.format(self.APIKey)
@@ -195,8 +196,8 @@ class PagerDutyAlertProvider(AlertHTTPProviderABC):
 				},
 			}
 
-			if detail:
-				create_alert["payload"]["custom_details"].update(detail)
+			if data:
+				create_alert["payload"]["custom_details"].update(data)
 
 			async with aiohttp.ClientSession(headers=headers) as session:
 				async with session.post(self.URL + "/v2/enqueue", json=create_alert) as resp:
@@ -240,6 +241,6 @@ class AlertService(asab.Service):
 		])
 
 
-	def trigger(self, source, alert_cls, alert_id, title, detail: dict = None):
+	def trigger(self, source, alert_cls, alert_id, title, *, detail: str = None, data: dict = None):
 		for p in self.Providers:
-			p.trigger(source, alert_cls, alert_id, title, detail)
+			p.trigger(source, alert_cls, alert_id, title, detail, data)
