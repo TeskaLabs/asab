@@ -23,6 +23,7 @@ contain the root `toctree` directive.
    asab/web/cors
    asab/mom/index
    asab/metrics
+   asab/alert
 
 .. toctree::
    :maxdepth: 2

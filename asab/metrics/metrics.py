@@ -60,8 +60,8 @@ class Counter(Metric):
 		:param name: name of the counter
 		:param value: value to be added to the counter
 
-		Adds to the counter specified by `name` the `value`.
-		If name is not in Counter Values, it will be added to Values.
+		Adds the `value` to the counter Values specified by `name`.
+		If `name` is not in Counter Values, it will be added.
 
 		"""
 		try:
@@ -77,8 +77,8 @@ class Counter(Metric):
 		:param name: name of the counter
 		:param value: value to be subtracted from the counter
 
-		Subtracts to the counter specified by `name` the `value`.
-		If name is not in Counter Values, it will be added to Values.
+		Subtracts the `value` from the counter Values specified by `name`.
+		If `name` is not in Counter Values, it will be added.
 
 		"""
 		try:
@@ -257,8 +257,8 @@ class Histogram(Metric):
 	"""
 	Creates cumulative histograms.
 	"""
-	def __init__(self, buckets: list):
-		super().__init__()
+	def __init__(self, buckets: list, init_values=None):
+		super().__init__(init_values)
 		_buckets = [float(b) for b in buckets]
 
 		if _buckets != sorted(buckets):
@@ -271,20 +271,27 @@ class Histogram(Metric):
 			raise ValueError("Must have at least two buckets")
 
 		self.InitBuckets = {b: dict() for b in _buckets}
-		self.Buckets = copy.deepcopy(self.InitBuckets)
 		self.Count = 0
 		self.Sum = 0.0
-		self.Init = {
+		self.InitHistogram = {
 			"buckets": self.InitBuckets,
 			"sum": 0.0,
 			"count": 0
 		}
 
+		if self.Init:
+			for value_name, value in self.Init.items():
+				for upper_bound in self.InitHistogram["buckets"]:
+					if value <= upper_bound:
+						self.InitHistogram["buckets"][upper_bound][value_name] = 1
+				self.InitHistogram["sum"] += value
+				self.InitHistogram["count"] += 1
+
 	def add_field(self, tags):
 		field = {
 			"tags": tags,
-			"values": copy.deepcopy(self.Init),
-			"actuals": copy.deepcopy(self.Init),
+			"values": copy.deepcopy(self.InitHistogram),
+			"actuals": copy.deepcopy(self.InitHistogram),
 		}
 		self.Storage['fieldset'].append(field)
 		self._actuals = field['actuals']
@@ -294,7 +301,7 @@ class Histogram(Metric):
 		if self.Storage.get("reset") is True:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
-				field['actuals'] = copy.deepcopy(self.Init)
+				field['actuals'] = copy.deepcopy(self.InitHistogram)
 				self._actuals = field['actuals']
 		else:
 			for field in self.Storage['fieldset']:
@@ -363,8 +370,8 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 		:param name: name of the counter
 		:param value: value to be added to the counter
 
-		Adds to the counter specified by `name` the `value`.
-		If name is not in Counter Values, it will be added to Values.
+		Adds the `value` to the counter Values specified by `name`.
+		If name is not in Counter Values, it will be added there.
 		"""
 
 		field = self.locate_field(tags)
@@ -381,8 +388,8 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 		:param name: name of the counter
 		:param value: value to be subtracted from the counter
 
-		Subtracts to the counter specified by `name` the `value`.
-		If name is not in Counter Values, it will be added to Values.
+		Subtracts the `value` from the counter Values specified by `name`.
+		If name is not in Counter Values, it will be added there.
 		"""
 
 		field = self.locate_field(tags)
@@ -396,11 +403,9 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 
 	def flush(self, now):
 		# Filter expired fields
-		# TODO: Refactor this into for-based scan from the end
-		self.Storage["fieldset"] = [
-			field for field in self.Storage["fieldset"]
-			if field["expires_at"] >= now
-		]
+		for field in self.Storage["fieldset"][::-1]:
+			if field["expires_at"] < now:
+				self.Storage["fieldset"].remove(field)
 
 		if self.Storage.get("reset") is True:
 			for field in self.Storage['fieldset']:
@@ -443,8 +448,8 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 	Creates cumulative histograms with dynamic tags
 	"""
 
-	def __init__(self, buckets: list):
-		super().__init__()
+	def __init__(self, buckets: list, init_values=None):
+		super().__init__(init_values)
 		_buckets = [float(b) for b in buckets]
 
 		if _buckets != sorted(buckets):
@@ -457,20 +462,27 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 			raise ValueError("Must have at least two buckets")
 
 		self.InitBuckets = {b: dict() for b in _buckets}
-		self.Buckets = copy.deepcopy(self.InitBuckets)
 		self.Count = 0
 		self.Sum = 0.0
-		self.Init = {
+		self.InitHistogram = {
 			"buckets": self.InitBuckets,
 			"sum": 0.0,
 			"count": 0
 		}
 
+		if self.Init:
+			for value_name, value in self.Init.items():
+				for upper_bound in self.InitHistogram["buckets"]:
+					if value <= upper_bound:
+						self.InitHistogram["buckets"][upper_bound][value_name] = 1
+				self.InitHistogram["sum"] += value
+				self.InitHistogram["count"] += 1
+
 	def add_field(self, tags):
 		field = {
 			"tags": tags,
-			"values": copy.deepcopy(self.Init),
-			"actuals": copy.deepcopy(self.Init),
+			"values": copy.deepcopy(self.InitHistogram),
+			"actuals": copy.deepcopy(self.InitHistogram),
 			"expires_at": self.App.time() + self.Expiration,
 		}
 		self.Storage['fieldset'].append(field)
@@ -478,16 +490,14 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 
 	def flush(self, now):
 		# Filter expired fields
-		# TODO: Refactor this into for-based scan from the end
-		self.Storage["fieldset"] = [
-			field for field in self.Storage["fieldset"]
-			if field["expires_at"] >= now
-		]
+		for field in self.Storage["fieldset"][::-1]:
+			if field["expires_at"] < now:
+				self.Storage["fieldset"].remove(field)
 
 		if self.Storage.get("reset") is True:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
-				field['actuals'] = copy.deepcopy(self.Init)
+				field['actuals'] = copy.deepcopy(self.InitHistogram)
 		else:
 			for field in self.Storage['fieldset']:
 				field['values'] = copy.deepcopy(field['actuals'])

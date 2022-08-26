@@ -24,9 +24,10 @@ class DocWebHandler(object):
 		self.WebContainer.WebApp.router.add_get('/oauth2-redirect.html', self.oauth2_redirect)
 		self.WebContainer.WebApp.router.add_get('/asab/v1/openapi', self.openapi)
 
-		self.AuthorizationUrl = asab.Config.get(config_section_name, "authorizationUrl")
-		self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl")
-		self.Scopes = asab.Config.get(config_section_name, "scopes").split(",")
+		self.AuthorizationUrl = asab.Config.get(config_section_name, "authorizationUrl", fallback=None)
+		self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl", fallback=None)
+		self.Scopes = asab.Config.get(config_section_name, "scopes", fallback=None)
+
 		self.Manifest = api_service.Manifest
 
 
@@ -68,7 +69,13 @@ class DocWebHandler(object):
 			"paths": {},
 
 			# Authorization
-			"components": {
+			# TODO: Authorization must not be always of OAuth type
+			"components": {},
+		}
+
+		# Get rid of securitySchemes if there is no authorizationUrl or tokenUrl
+		if self.AuthorizationUrl and self.TokenUrl:
+			specs["components"].update({
 				"securitySchemes": {
 					"oAuth": {
 						"type": "oauth2",
@@ -84,12 +91,12 @@ class DocWebHandler(object):
 						}
 					}
 				},
-			},
-		}
+			})
 
 		# Gets all the scopes from config and puts them into scopes
-		for scope in self.Scopes:
-			specs["components"]["securitySchemes"]["oAuth"]["flows"]["authorizationCode"]["scopes"].update({scope: "{} scope.".format(scope.strip().capitalize())})
+		if self.Scopes and self.AuthorizationUrl and self.TokenUrl:
+			for scope in self.Scopes.split(","):
+				specs["components"]["securitySchemes"]["oAuth"]["flows"]["authorizationCode"]["scopes"].update({scope: "{} scope.".format(scope.strip().capitalize())})
 
 		# Version from MANIFEST.json
 		if self.Manifest:
