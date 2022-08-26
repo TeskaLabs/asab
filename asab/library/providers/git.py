@@ -96,7 +96,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		def init_task():
 			if pygit2.discover_repository(self.RepoPath) is None:
 				# For a new repository, clone the remote bit
-				os.makedirs(self.RepoPath, mode=0o700)
+				try:
+					os.makedirs(self.RepoPath, mode=0o700)
+				except FileExistsError:
+					pass
 				self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks, checkout_branch=self.Branch)
 			else:
 				# For existing repository, pull the latest changes
