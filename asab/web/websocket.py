@@ -79,7 +79,7 @@ class WebSocketFactory(object):
 
 	async def send_json_all(self, data, compress=None):
 		'''
-		Send string to all connected websockets
+		Send json to all connected websockets
 		'''
 		await asyncio.gather(
 			*[ws.send_json(data, compress=compress) for ws in self.WebSockets.values()],
