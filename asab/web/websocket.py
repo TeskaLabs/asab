@@ -132,9 +132,9 @@ class WebSocketFactory(object):
 
 	async def on_connect(self, ws, request):
 		'''
-		Must return the unique identified of the websocket `wsid`.
+		Must return the unique identifier of the websocket `wsid`.
 		The default implementation is the unique counter.
-		You may overload this to provide custom unique identifer
+		You may overload this to provide custom unique identifier
 		'''
 		self.Counter += 1
 		return self.Counter
