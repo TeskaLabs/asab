@@ -303,7 +303,13 @@ class LibraryService(Service):
 		:param tenant: The tenant name
 		:return: Boolean
 		"""
-		disabled = self.Disabled.get(path)
+
+		try:
+			disabled = self.Disabled.get(path)
+
+		except AttributeError:
+			return False
+
 		if disabled is None:
 			return False
 
