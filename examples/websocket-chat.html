@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>ASAB Chat</title>
+
+<style>
+html {
+	height: 100%;
+}
+
+.container {
+	display: grid;
+	grid-template-columns: 100%;
+	grid-template-rows: auto 3em;
+	height: 100%;
+}
+</style>
+</head>
+
+
+<body class="container">
+	<div style="grid-column: 1; grid-row: 1; white-space: pre;" id="chat"></div>
+	<div style="grid-column: 1; grid-row: 2;">
+		<input id="myline" type="text" value="Hi!" style="width: 50%">
+		<button onclick="chat_submit()">Submit</button>
+	</div>
+</body>
+
+<script type="text/javascript">
+var connection = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + window.location.host + "/ws");
+
+connection.onmessage = function (e) {
+	const chat = document.getElementById("chat");
+	var text = document.createTextNode(e.data + '\n');
+	chat.appendChild(text);
+};
+
+function chat_submit() {
+	const myline = document.getElementById("myline");
+	connection.send(myline.value);
+	myline.value = "";
+}
+</script>
+</html>
