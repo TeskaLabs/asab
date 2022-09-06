@@ -134,16 +134,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 
 	def pull(self):
-		'''
-		Emulates `git pull` command.
-		'''
-		commit_id = self.fetch()
-		self.GitRepository.merge(commit_id)
 
-	async def list(self, path: str) -> list:
-		# Keep in mind this magical update before every `list` when implementing the GitProvider
-		await self.ProactorService.execute(self.pull)
-		return await super().list(path)
+		commit_id = self.fetch()
+
+		self.GitRepository.head.set_target(commit_id)
+		self.GitRepository.reset(commit_id, pygit2.GIT_RESET_HARD)
 
 
 def get_git_credentials(url):
