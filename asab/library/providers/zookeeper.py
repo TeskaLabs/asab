@@ -176,9 +176,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	def _check_version_counter(self, version):
 		# If version is `None` aka `/.version.yaml` doesn't exists, then assume version -1
-		try:
-			version = int(version)
-		except ValueError:
+		if version is not None:
+			try:
+				version = int(version)
+			except ValueError:
+				version = 1
+		else:
 			version = 1
 
 		if self.Version is None:
