@@ -135,10 +135,14 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 	def pull(self):
 
-		commit_id = self.fetch()
+		new_commit_id = self.fetch()
 
-		self.GitRepository.head.set_target(commit_id)
-		self.GitRepository.reset(commit_id, pygit2.GIT_RESET_HARD)
+		if new_commit_id == self.GitRepository.head.target:
+			return
+
+		self.GitRepository.head.set_target(new_commit_id)
+		self.GitRepository.reset(new_commit_id, pygit2.GIT_RESET_HARD)
+		self.App.PubSub.publish("GitProviderUpdated!", self)
 
 
 def get_git_credentials(url):
