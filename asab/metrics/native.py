@@ -18,6 +18,10 @@ class NativeMetrics(Service):
 
 	def __init__(self, app, metrics_svc):
 		self.MemoryGauge = metrics_svc.create_gauge("os.stat")
+
+		# injecting logging metrics into logging manager
+		logging.root.manager.LogCounter = metrics_svc.create_counter("logs", dynamic_tags=True)
+
 		app.PubSub.subscribe("Metrics.flush!", self._on_flushing_event)
 		self._on_flushing_event()
 

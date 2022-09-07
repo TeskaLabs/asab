@@ -25,6 +25,7 @@ class Logging(object):
 
 	def __init__(self, app):
 		self.RootLogger = logging.getLogger()
+		self.RootLogger.app = app
 
 		self.ConsoleHandler = None
 		self.FileHandler = None
@@ -155,6 +156,8 @@ class Logging(object):
 			level = logging.getLevelName(levelname.upper())
 			logging.getLogger(loggername).setLevel(level)
 
+		# adding placeholder for LogCounter - see native metrics
+		self.RootLogger.manager.LogCounter = None
 
 	def rotate(self):
 		if self.FileHandler is not None:
@@ -191,6 +194,13 @@ It means that you can use expressions such as ``logger.info("Hello world!", stru
 			if extra is None:
 				extra = dict()
 			extra['_struct_data'] = struct_data
+
+		# Add to LogCounter if exists.
+		if self.manager.LogCounter:
+			if level == 30:
+				self.manager.LogCounter.add("warnings", 1, {"logger": self.name})
+			elif level == 40:
+				self.manager.LogCounter.add("errors", 1, {"logger": self.name})
 
 		super()._log(level, msg, args, exc_info=exc_info, extra=extra, stack_info=stack_info)
 
