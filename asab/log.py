@@ -25,7 +25,6 @@ class Logging(object):
 
 	def __init__(self, app):
 		self.RootLogger = logging.getLogger()
-		self.RootLogger.app = app
 
 		self.ConsoleHandler = None
 		self.FileHandler = None
