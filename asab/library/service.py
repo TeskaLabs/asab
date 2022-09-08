@@ -173,9 +173,9 @@ class LibraryService(Service):
 
 		```
 		itemio = await library.read('/path', 'tenant')
-		if itemio is not:
+		if itemio is not None:
 			with itemio:
-				return itemio.readall()
+				return itemio.read()
 		```
 
 		:param path: The path to the file, `LibraryItem.name` can be used directly
