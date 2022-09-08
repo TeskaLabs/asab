@@ -197,9 +197,9 @@ It means that you can use expressions such as ``logger.info("Hello world!", stru
 		# Add to LogCounter if exists.
 		if self.manager.LogCounter:
 			if level == 30:
-				self.manager.LogCounter.add("warnings", 1, {"logger": self.name})
+				self.manager.LogCounter.add("warnings", 1)
 			elif level == 40:
-				self.manager.LogCounter.add("errors", 1, {"logger": self.name})
+				self.manager.LogCounter.add("errors", 1)
 
 		super()._log(level, msg, args, exc_info=exc_info, extra=extra, stack_info=stack_info)
 
