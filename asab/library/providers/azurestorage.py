@@ -10,7 +10,7 @@ import urllib.parse
 import aiohttp
 import xml.dom.minidom
 
-import asab
+from ...config import Config
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
 
@@ -50,7 +50,7 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 		self.URL = urllib.parse.urlparse(path[6:])
 		self.Model = None  # Will be set by `_load_model` method
-		self.UseCache = asab.Config.getboolean("use_cache")
+		self.UseCache = Config.getboolean("use_cache")
 		self.ETag = None
 		self.Path = path
 		self.CachePath = None
