@@ -92,7 +92,7 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 						L.warning("Failed to list blobs:\n{}".format(await resp.text()))
 						return
 			except aiohttp.ClientConnectorError as e:
-				L.warning("{}: Failed to contact lookup master at '{}': {}".format(self.Id, self.URL, e))
+				L.warning("Failed to contact azure master at '{}': {}".format(self.URL, e))
 				return self.load_from_cache()
 
 		model = AzureDirectory("/", sub=dict())
