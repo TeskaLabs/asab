@@ -70,12 +70,16 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		))
 
 		async with aiohttp.ClientSession() as session:
-			async with session.get(url) as resp:
-				if resp.status == 200:
-					content = await resp.text()
-				else:
-					L.warning("Failed to list blobs:\n{}".format(await resp.text()))
-					return
+			try:
+				async with session.get(url) as resp:
+					if resp.status == 200:
+						content = await resp.text()
+					else:
+						L.warning("Failed to list blobs:\n{}".format(await resp.text()))
+						return
+			except aiohttp.ClientConnectorError as e:
+				L.warning("{}: Failed to contact lookup master at '{}': {}".format(self.Id, self.URL, e))
+				return self.load_from_cache()
 
 		model = AzureDirectory("/", sub=dict())
 
