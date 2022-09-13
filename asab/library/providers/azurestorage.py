@@ -38,6 +38,11 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 	azure+https://ACCOUNT-NAME.blob.core.windows.net/BLOB-CONTAINER?sv=2020-10-02&si=XXXX&sr=c&sig=XXXXXXXXXXXXXX
 
 	'''
+	ConfigDefaults = {
+		"master_timeout": 30,
+		"use_cache": "yes",
+		"cache_dir": ""
+	}
 
 	def __init__(self, library, path):
 		super().__init__(library)
@@ -48,6 +53,14 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		self.UseCache = asab.Config.getboolean("use_cache")
 		self.Path = path
 		self.CachePath = None
+		if self.UseCache is True:
+			cache_path = asab.Config.get("cache_dir", "").strip()
+			if len(cache_path) == 0 and "general" in asab.Config and "var_dir" in asab.Config["general"]:
+				cache_path = os.path.abspath(asab.Config["general"]["var_dir"])
+				self.CachePath = os.path.join(cache_path, "azure_{}.cache")
+			else:
+				self.UseCache = False
+				L.warning("No cache path specified. Cache disabled.")
 		self.App.TaskService.schedule(self._start())
 
 	async def _start(self):
