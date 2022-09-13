@@ -51,6 +51,7 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		self.URL = urllib.parse.urlparse(path[6:])
 		self.Model = None  # Will be set by `_load_model` method
 		self.UseCache = asab.Config.getboolean("use_cache")
+		self.ETag = None
 		self.Path = path
 		self.CachePath = None
 		if self.UseCache is True:
