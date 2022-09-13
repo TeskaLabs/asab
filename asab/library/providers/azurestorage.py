@@ -7,6 +7,7 @@ import os
 import struct
 import urllib.parse
 
+import asyncio
 import aiohttp
 import xml.dom.minidom
 
@@ -55,9 +56,9 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		self.Path = path
 		self.CachePath = None
 		if self.UseCache is True:
-			cache_path = asab.Config.get("cache_dir", "").strip()
-			if len(cache_path) == 0 and "general" in asab.Config and "var_dir" in asab.Config["general"]:
-				cache_path = os.path.abspath(asab.Config["general"]["var_dir"])
+			cache_path = Config.get("cache_dir", "").strip()
+			if len(cache_path) == 0 and "general" in Config and "var_dir" in Config["general"]:
+				cache_path = os.path.abspath(Config["general"]["var_dir"])
 				self.CachePath = os.path.join(cache_path, "azure_{}.cache")
 			else:
 				self.UseCache = False
@@ -188,6 +189,10 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 			fo.write(data)
 
 	async def read(self, path: str) -> typing.IO:
+		headers = {}
+		if self.ETag is not None:
+			headers['ETag'] = self.ETag
+
 		assert path[:1] == '/'
 		assert '//' not in path
 		assert len(path) == 1 or path[-1:] != '/'
@@ -205,12 +210,11 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 			try:
 				async with session.get(url) as resp:
 					if resp.status == 200:
-						# read data
+						# read data and ETag
 						self.ETag = resp.headers.get('ETag')
 						data = await resp.read()
 						if self.CachePath is not None:
 							self.save_to_cache(data)
-						# TODO: Use of resp.headers['Etag'] for a local cache
 
 						# Load the response into the temporary file
 						# ... that's to avoid storing the whole (and possibly large) file in the memory
@@ -222,6 +226,9 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 						return None
 			except aiohttp.ClientConnectorError as e:
 				L.warning("Failed to contact azure master at '{}': {}".format(self.URL, e))
+				return self.load_from_cache()
+			except asyncio.TimeoutError as e:
+				L.warning("{}: Failed to contact lookup master at '{}' (timeout): {}".format(self.Id, self.URL, e))
 				return self.load_from_cache()
 
 		# Rewind the file so the reader can start consuming from the beginning
