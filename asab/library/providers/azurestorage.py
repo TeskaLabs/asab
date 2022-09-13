@@ -172,10 +172,22 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 			os.unlink(self.CachePath)
 		return False
 
+	def save_to_cache(self, data):
+		if self.UseCache is False:
+			return
+		dirname = os.path.dirname(self.CachePath)
+		if not os.path.isdir(dirname):
+			os.makedirs(dirname)
+
+		with open(self.CachePath, 'wb') as fo:
+			# Write E-Tag and '\n'
+			etag_b = self.ETag.encode('utf-8')
+			fo.write(struct.pack(r"<L", len(etag_b)) + etag_b + b'\n')
+
+			# Write Data
+			fo.write(data)
+
 	async def read(self, path: str) -> typing.IO:
-		headers = {}
-		if self.ETag is not None:
-			headers['ETag'] = self.ETag
 		assert path[:1] == '/'
 		assert '//' not in path
 		assert len(path) == 1 or path[-1:] != '/'
@@ -193,6 +205,11 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 			try:
 				async with session.get(url) as resp:
 					if resp.status == 200:
+						# read data
+						self.ETag = resp.headers.get('ETag')
+						data = await resp.read()
+						if self.CachePath is not None:
+							self.save_to_cache(data)
 						# TODO: Use of resp.headers['Etag'] for a local cache
 
 						# Load the response into the temporary file
