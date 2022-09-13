@@ -70,10 +70,6 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 	# TODO: Call this periodically
 	async def _load_model(self):
-		headers = {}
-		if self.ETag is not None:
-			headers['ETag'] = self.ETag
-
 		url = urllib.parse.urlunparse(urllib.parse.ParseResult(
 			scheme=self.URL.scheme,
 			netloc=self.URL.netloc,
@@ -84,16 +80,12 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		))
 
 		async with aiohttp.ClientSession() as session:
-			try:
-				async with session.get(url) as resp:
-					if resp.status == 200:
-						content = await resp.text()
-					else:
-						L.warning("Failed to list blobs:\n{}".format(await resp.text()))
-						return
-			except aiohttp.ClientConnectorError as e:
-				L.warning("Failed to contact azure master at '{}': {}".format(self.URL, e))
-				return self.load_from_cache()
+			async with session.get(url) as resp:
+				if resp.status == 200:
+					content = await resp.text()
+				else:
+					L.warning("Failed to list blobs:\n{}".format(await resp.text()))
+					return
 
 		model = AzureDirectory("/", sub=dict())
 
@@ -181,6 +173,9 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		return False
 
 	async def read(self, path: str) -> typing.IO:
+		headers = {}
+		if self.ETag is not None:
+			headers['ETag'] = self.ETag
 		assert path[:1] == '/'
 		assert '//' not in path
 		assert len(path) == 1 or path[-1:] != '/'
@@ -195,18 +190,22 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		))
 
 		async with aiohttp.ClientSession() as session:
-			async with session.get(url) as resp:
-				if resp.status == 200:
-					# TODO: Use of resp.headers['Etag'] for a local cache
+			try:
+				async with session.get(url) as resp:
+					if resp.status == 200:
+						# TODO: Use of resp.headers['Etag'] for a local cache
 
-					# Load the response into the temporary file
-					# ... that's to avoid storing the whole (and possibly large) file in the memory
-					output = tempfile.TemporaryFile()
-					async for chunk in resp.content.iter_chunked(16 * io.DEFAULT_BUFFER_SIZE):
-						output.write(chunk)
-				else:
-					L.warning("Failed to get blob:\n{}".format(await resp.text()))
-					return None
+						# Load the response into the temporary file
+						# ... that's to avoid storing the whole (and possibly large) file in the memory
+						output = tempfile.TemporaryFile()
+						async for chunk in resp.content.iter_chunked(16 * io.DEFAULT_BUFFER_SIZE):
+							output.write(chunk)
+					else:
+						L.warning("Failed to get blob:\n{}".format(await resp.text()))
+						return None
+			except aiohttp.ClientConnectorError as e:
+				L.warning("Failed to contact azure master at '{}': {}".format(self.URL, e))
+				return self.load_from_cache()
 
 		# Rewind the file so the reader can start consuming from the beginning
 		output.seek(0)
