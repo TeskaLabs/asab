@@ -3,6 +3,8 @@ import typing
 import logging
 import tempfile
 import dataclasses
+import os
+import struct
 import urllib.parse
 
 import aiohttp
@@ -14,6 +16,7 @@ from ..item import LibraryItem
 #
 
 L = logging.getLogger(__name__)
+
 
 #
 
@@ -35,7 +38,6 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 	'''
 
-
 	def __init__(self, library, path):
 		super().__init__(library)
 		assert path[:6] == "azure+"
@@ -46,14 +48,16 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 		self.App.TaskService.schedule(self._start())
 
-
 	async def _start(self):
 		await self._load_model()
 		await self._set_ready()
 
-
 	# TODO: Call this periodically
 	async def _load_model(self):
+		headers = {}
+		if self.ETag is not None:
+			headers['ETag'] = self.ETag
+
 		url = urllib.parse.urlunparse(urllib.parse.ParseResult(
 			scheme=self.URL.scheme,
 			netloc=self.URL.netloc,
@@ -128,6 +132,33 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 		return items
 
+	def load_from_cache(self):
+		"""
+		Load the lookup data (bytes) from cache.
+		"""
+		if self.UseCache is False:
+			return False
+		# Load the ETag from cached file, if have one
+		if not os.path.isfile(self.CachePath):
+			L.warning("Cache '{}': not a file".format(self.CachePath))
+			return False
+
+		if not os.access(self.CachePath, os.R_OK):
+			L.warning("Cannot read cache from '{}'".format(self.CachePath))
+			return False
+
+		try:
+			with open(self.CachePath, 'rb') as f:
+				tlen, = struct.unpack(r"<L", f.read(struct.calcsize(r"<L")))
+				etag_b = f.read(tlen)
+				self.ETag = etag_b.decode('utf-8')
+				f.read(1)
+				data = f.read()
+			return data
+		except Exception as e:
+			L.warning("Failed to read content of lookup cache '{}' from '{}': {}".format(self.Id, self.CachePath, e))
+			os.unlink(self.CachePath)
+		return False
 
 	async def read(self, path: str) -> typing.IO:
 		assert path[:1] == '/'
