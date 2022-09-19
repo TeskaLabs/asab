@@ -155,6 +155,7 @@ class Logging(object):
 			level = logging.getLevelName(levelname.upper())
 			logging.getLogger(loggername).setLevel(level)
 
+
 	def rotate(self):
 		if self.FileHandler is not None:
 			self.RootLogger.log(LOG_NOTICE, "Rotating logs")
