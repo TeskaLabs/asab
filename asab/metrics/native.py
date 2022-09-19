@@ -19,8 +19,10 @@ class NativeMetrics(Service):
 	def __init__(self, app, metrics_svc):
 		self.MemoryGauge = metrics_svc.create_gauge("os.stat")
 
-		# Injecting logging metrics into logging manager
-		logging.root.manager.LogCounter = metrics_svc.create_counter("logs", init_values={"warnings": 0, "errors": 0}, help="Counts WARNING and ERROR logs per minute.")
+		# Injecting logging metrics into MetricsHandler and MetricsHandler into Root Logger
+		self.MetricsLoggingHandler = MetricsLoggingHandler()
+		self.MetricsLoggingHandler.LogCounter = metrics_svc.create_counter("logs", init_values={"warnings": 0, "errors": 0}, help="Counts WARNING and ERROR logs per minute.")
+		logging.root.addHandler(self.MetricsLoggingHandler)
 
 		app.PubSub.subscribe("Metrics.flush!", self._on_flushing_event)
 		self._on_flushing_event()
@@ -44,3 +46,14 @@ class NativeMetrics(Service):
 		except FileNotFoundError:
 			pass
 			# L.warning("File '/proc/self/status' was not found, skipping reading native metrics.")
+
+
+class MetricsLoggingHandler(logging.Handler):
+
+	def emit(self, record):
+		level = record.levelno
+
+		if level == 30:
+			self.LogCounter.add("warnings", 1)
+		elif level == 40:
+			self.LogCounter.add("errors", 1)

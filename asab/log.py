@@ -29,6 +29,7 @@ class Logging(object):
 		self.ConsoleHandler = None
 		self.FileHandler = None
 		self.SyslogHandler = None
+		self.MetricsHandler = None
 
 		if not self.RootLogger.hasHandlers():
 
@@ -193,13 +194,6 @@ It means that you can use expressions such as ``logger.info("Hello world!", stru
 			if extra is None:
 				extra = dict()
 			extra['_struct_data'] = struct_data
-
-		# Add to LogCounter if exists.
-		if self.manager.LogCounter:
-			if level == 30:
-				self.manager.LogCounter.add("warnings", 1)
-			elif level == 40:
-				self.manager.LogCounter.add("errors", 1)
 
 		super()._log(level, msg, args, exc_info=exc_info, extra=extra, stack_info=stack_info)
 
