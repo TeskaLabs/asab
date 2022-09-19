@@ -29,7 +29,6 @@ class Logging(object):
 		self.ConsoleHandler = None
 		self.FileHandler = None
 		self.SyslogHandler = None
-		self.MetricsHandler = None
 
 		if not self.RootLogger.hasHandlers():
 
@@ -155,9 +154,6 @@ class Logging(object):
 			loggername, levelname = levelconf.split(' ', 1)
 			level = logging.getLevelName(levelname.upper())
 			logging.getLogger(loggername).setLevel(level)
-
-		# adding placeholder for LogCounter - see native metrics
-		self.RootLogger.manager.LogCounter = None
 
 	def rotate(self):
 		if self.FileHandler is not None:
