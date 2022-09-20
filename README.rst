@@ -72,6 +72,16 @@ Example
         app.run()
 
 
+
+Microservices
+-------------
+
+Here is a growing list of Open Source microservices built using ASAB:
+
+* `SeaCat Auth <https://github.com/TeskaLabs/seacat-auth>`_: authentication, authorization, identity management, session management and other access control features
+
+
+
 Highlights
 ----------
 
