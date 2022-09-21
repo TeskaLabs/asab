@@ -1,5 +1,6 @@
 import logging
 from ..abc import Service
+from ..log import LOG_NOTICE
 
 #
 
@@ -21,7 +22,7 @@ class NativeMetrics(Service):
 
 		# Injecting logging metrics into MetricsHandler and MetricsHandler into Root Logger
 		self.MetricsLoggingHandler = MetricsLoggingHandler()
-		self.MetricsLoggingHandler.LogCounter = metrics_svc.create_counter("logs", init_values={"warnings": 0, "errors": 0}, help="Counts WARNING and ERROR logs per minute.")
+		self.MetricsLoggingHandler.LogCounter = metrics_svc.create_counter("logs", init_values={"warnings": 0, "errors": 0, "critical": 0}, help="Counts WARNING, ERROR and CRITICAL logs per minute.")
 		logging.root.addHandler(self.MetricsLoggingHandler)
 
 		app.PubSub.subscribe("Metrics.flush!", self._on_flushing_event)
@@ -52,8 +53,11 @@ class MetricsLoggingHandler(logging.Handler):
 
 	def emit(self, record):
 		level = record.levelno
-
-		if level == 30:
+		if level <= LOG_NOTICE:
+			return
+		elif level <= logging.WARNING:
 			self.LogCounter.add("warnings", 1)
-		elif level == 40:
+		elif level <= logging.ERROR:
 			self.LogCounter.add("errors", 1)
+		elif level <= logging.CRITICAL:
+			self.LogCounter.add("critical", 1)
