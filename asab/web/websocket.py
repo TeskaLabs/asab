@@ -39,6 +39,7 @@ class WebSocketFactory(object):
 		self.Protocols = protocols
 		self.Compress = compress
 		self.MaxMsgSize = max_msg_size
+		self.__doc__ = "Provides WebSocket connection. Requires WebSocket upgrade."
 
 		app.PubSub.subscribe("Application.stop!", self._on_app_stop)
 
