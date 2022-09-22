@@ -112,6 +112,9 @@ class EPSCounter(Counter):
 	def __init__(self, init_values=None):
 		super().__init__(init_values=init_values)
 		self.LastTime = time.time()
+		for v in self.Init.values():
+			assert isinstance(v, (int, float))
+		self.Init = {k: float(v) for k, v in self.Init.items()}
 
 	def flush(self, now):
 
