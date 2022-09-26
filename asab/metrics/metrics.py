@@ -110,11 +110,14 @@ class EPSCounter(Counter):
 	"""
 
 	def __init__(self, init_values=None):
+		if init_values:
+			for v in init_values.values():
+				assert isinstance(v, (int, float))
+			init_values = {k: float(v) for k, v in init_values.items()}
+
 		super().__init__(init_values=init_values)
 		self.LastTime = time.time()
-		for v in self.Init.values():
-			assert isinstance(v, (int, float))
-		self.Init = {k: float(v) for k, v in self.Init.items()}
+
 
 	def flush(self, now):
 
@@ -126,7 +129,7 @@ class EPSCounter(Counter):
 
 		for field in self.Storage['fieldset']:
 			field['values'] = {
-				k: v / delta
+				k: v / float(delta)
 				for k, v in self._actuals.items()
 			}
 
