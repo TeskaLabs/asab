@@ -110,9 +110,7 @@ class EPSCounter(Counter):
 	"""
 
 	def __init__(self, init_values=None):
-		if init_values:
-			for v in init_values.values():
-				assert isinstance(v, (int, float))
+		if init_values is not None:
 			init_values = {k: float(v) for k, v in init_values.items()}
 
 		super().__init__(init_values=init_values)
