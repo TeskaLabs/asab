@@ -112,6 +112,11 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 			)
 
 		self.Model = model
+
+		# TODO: If the cache is active, remove items from the cache that:
+		# 1) are not in the list
+		# 2) their etag differs
+
 		L.info("is connected.", struct_data={'path': self.Path})
 
 

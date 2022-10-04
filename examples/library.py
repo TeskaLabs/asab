@@ -51,7 +51,7 @@ class MyApplication(asab.Application):
 				if itemio is not None:
 					with itemio:
 						content = itemio.read()
-						print("  - content: {}".format(len(content)))
+						print("  - content: {} bytes".format(len(content)))
 				else:
 					print("  - N/A")  # Item is likely disabled
 		print("\n===")
