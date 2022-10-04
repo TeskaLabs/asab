@@ -81,7 +81,7 @@ class ConfigParser(configparser.ConfigParser):
 		},
 
 		"library": {
-			"azure_cache": "false",
+			"azure_cache": "false",  # true or the actual path of where the cache should be located
 		},
 
 		# "passwords" section serves to securely store passwords

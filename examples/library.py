@@ -11,6 +11,10 @@ asab.Config.add_defaults({
 		"servers": "zookeeper-1:2181"
 	},
 
+	"library": {
+		"azure_cache": "true",
+	}
+
 })
 
 
@@ -22,7 +26,9 @@ class MyApplication(asab.Application):
 		# Specify a locations of the default library
 		asab.Config["library"]["providers"] = '\n'.join([
 			os.path.join(os.path.dirname(__file__), "library"),
-			"zk:///library",
+			# "zk:///library",
+			# "git+https://github.com/TeskaLabs/asab.git"
+			"azure+https://lmio.blob.core.windows.net/library"
 		])
 
 		self.LibraryService = asab.library.LibraryService(

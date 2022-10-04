@@ -1,19 +1,18 @@
+import os
 import io
 import typing
+import hashlib
 import logging
 import tempfile
 import dataclasses
-import os
-import struct
 import urllib.parse
-
-import asyncio
-import aiohttp
 import xml.dom.minidom
 
+import aiohttp
+
 from ...config import Config
-from .abc import LibraryProviderABC
 from ..item import LibraryItem
+from .abc import LibraryProviderABC
 
 #
 
@@ -46,9 +45,20 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 		self.URL = urllib.parse.urlparse(path[6:])
 		self.Model = None  # Will be set by `_load_model` method
-
-		self.UseCache = Config.getboolean("library", "azure_cache")
 		self.Path = path
+
+		self.CacheDir = Config.get("library", "azure_cache")
+		if self.CacheDir == 'false':
+			self.CacheDir = None
+		elif self.CacheDir == 'true':
+			self.CacheDir = os.path.join(tempfile.gettempdir(), "asab.library.azure.{}".format(hashlib.sha256(path.encode('utf-8')).hexdigest()))
+
+		# Ensure that the case directory exists
+		if self.CacheDir is not None:
+			try:
+				os.makedirs(self.CacheDir)
+			except FileExistsError:
+				pass  # Cache directory already exists
 
 		self.App.TaskService.schedule(self._start())
 
@@ -137,57 +147,27 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 		return items
 
-	def load_from_cache(self):
-		"""
-		Load the lookup data (bytes) from cache.
-		"""
-		if self.UseCache is False:
-			return False
-		# Load the ETag from cached file, if have one
-		if not os.path.isfile(self.CachePath):
-			L.warning("Cache '{}': not a file".format(self.CachePath))
-			return False
-
-		if not os.access(self.CachePath, os.R_OK):
-			L.warning("Cannot read cache from '{}'".format(self.CachePath))
-			return False
-
-		try:
-			with open(self.CachePath, 'rb') as f:
-				tlen, = struct.unpack(r"<L", f.read(struct.calcsize(r"<L")))
-				etag_b = f.read(tlen)
-				self.ETag = etag_b.decode('utf-8')
-				f.read(1)
-				data = f.read()
-			return data
-		except Exception as e:
-			L.warning("Failed to read content of lookup cache '{}' from '{}': {}".format(self.Id, self.CachePath, e))
-			os.unlink(self.CachePath)
-		return False
-
-	def save_to_cache(self, data):
-		if self.UseCache is False:
-			return
-		dirname = os.path.dirname(self.CachePath)
-		if not os.path.isdir(dirname):
-			os.makedirs(dirname)
-
-		with open(self.CachePath, 'wb') as fo:
-			# Write E-Tag and '\n'
-			etag_b = self.ETag.encode('utf-8')
-			fo.write(struct.pack(r"<L", len(etag_b)) + etag_b + b'\n')
-
-			# Write Data
-			fo.write(data)
 
 	async def read(self, path: str) -> typing.IO:
-		headers = {}
-		if self.ETag is not None:
-			headers['ETag'] = self.ETag
 
 		assert path[:1] == '/'
 		assert '//' not in path
 		assert len(path) == 1 or path[-1:] != '/'
+
+		headers = {}
+
+		pathhash = hashlib.sha256(path.encode('utf-8')).hexdigest()
+		cachefname = os.path.join(self.CacheDir, pathhash)
+		if self.CacheDir is not None:
+			try:
+				with open(cachefname + '.etag', "r") as etagf:
+					etag = etagf.read()
+				# We found a local cached file with the etag, we will use that in the request
+				# if the request returns "304 Not Modified" then we will ship the local version of the file
+				headers['If-None-Match'] = etag
+			except FileNotFoundError:
+				pass
+
 
 		url = urllib.parse.urlunparse(urllib.parse.ParseResult(
 			scheme=self.URL.scheme,
@@ -199,29 +179,32 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		))
 
 		async with aiohttp.ClientSession() as session:
-			try:
-				async with session.get(url) as resp:
-					if resp.status == 200:
-						# read data and ETag
-						self.ETag = resp.headers.get('ETag')
-						data = await resp.read()
-						if self.CachePath is not None:
-							self.save_to_cache(data)
+			async with session.get(url, headers=headers) as resp:
+				if resp.status == 200:
 
-						# Load the response into the temporary file
+					etag = resp.headers.get('ETag')
+
+					if self.CacheDir is not None and etag is not None:
+						output = open(cachefname, "w+b")
+
+						with open(cachefname + '.etag', "w") as etagf:
+							etagf.write(etag)
+
+					else:
+						# Store the response into the temporary file
 						# ... that's to avoid storing the whole (and possibly large) file in the memory
 						output = tempfile.TemporaryFile()
-						async for chunk in resp.content.iter_chunked(16 * io.DEFAULT_BUFFER_SIZE):
-							output.write(chunk)
-					else:
-						L.warning("Failed to get blob:\n{}".format(await resp.text()))
-						return None
-			except aiohttp.ClientConnectorError as e:
-				L.warning("Failed to contact azure master at '{}': {}".format(self.URL, e))
-				return self.load_from_cache()
-			except asyncio.TimeoutError as e:
-				L.warning("{}: Failed to contact lookup master at '{}' (timeout): {}".format(self.Id, self.URL, e))
-				return self.load_from_cache()
+
+					async for chunk in resp.content.iter_chunked(16 * io.DEFAULT_BUFFER_SIZE):
+						output.write(chunk)
+
+				elif resp.status == 304 and self.CacheDir is not None:  # 304 is Not Modified
+					# The file should be read from cache
+					output = open(cachefname, "r+b")
+
+				else:
+					L.warning("Failed to get blob:\n{}".format(await resp.text()), struct_data={'status': resp.status})
+					return None
 
 		# Rewind the file so the reader can start consuming from the beginning
 		output.seek(0)
