@@ -39,11 +39,6 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 	azure+https://ACCOUNT-NAME.blob.core.windows.net/BLOB-CONTAINER?sv=2020-10-02&si=XXXX&sr=c&sig=XXXXXXXXXXXXXX
 
 	'''
-	ConfigDefaults = {
-		"master_timeout": 30,
-		"use_cache": "yes",
-		"cache_dir": ""
-	}
 
 	def __init__(self, library, path):
 		super().__init__(library)
@@ -51,23 +46,18 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 		self.URL = urllib.parse.urlparse(path[6:])
 		self.Model = None  # Will be set by `_load_model` method
-		self.UseCache = Config.getboolean("use_cache")
-		self.ETag = None
+
+		self.UseCache = Config.getboolean("library", "azure_cache")
 		self.Path = path
-		self.CachePath = None
-		if self.UseCache is True:
-			cache_path = Config.get("cache_dir", "").strip()
-			if len(cache_path) == 0 and "general" in Config and "var_dir" in Config["general"]:
-				cache_path = os.path.abspath(Config["general"]["var_dir"])
-				self.CachePath = os.path.join(cache_path, "azure_{}.cache")
-			else:
-				self.UseCache = False
-				L.warning("No cache path specified. Cache disabled.")
+
 		self.App.TaskService.schedule(self._start())
+
 
 	async def _start(self):
 		await self._load_model()
-		await self._set_ready()
+		if self.Model is not None:
+			await self._set_ready()
+
 
 	# TODO: Call this periodically
 	async def _load_model(self):
@@ -85,7 +75,8 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 				if resp.status == 200:
 					content = await resp.text()
 				else:
-					L.warning("Failed to list blobs:\n{}".format(await resp.text()))
+					err = await resp.text()
+					L.warning("Failed to list blobs from `{}`:\n{}".format(url, err))
 					return
 
 		model = AzureDirectory("/", sub=dict())
@@ -112,6 +103,7 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 		self.Model = model
 		L.info("is connected.", struct_data={'path': self.Path})
+
 
 	async def list(self, path: str) -> list:
 		if self.Model is None:
