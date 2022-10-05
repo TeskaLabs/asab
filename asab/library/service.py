@@ -132,12 +132,13 @@ class LibraryService(Service):
 		# `.disabled.yaml` is read from the first configured library
 		# It is applied on all libraries in the configuration.
 		disabled = await self.Libraries[0].read('/.disabled.yaml')
+		if disabled is None or disabled == b'':
+			disabled = {}
 		try:
 			self.Disabled = yaml.safe_load(disabled)
 		except Exception:
 			L.exception("Failed to parse '/.disabled.yaml'")
-		if disabled is None:
-			self.Disabled = {}
+
 
 
 	def is_ready(self):
