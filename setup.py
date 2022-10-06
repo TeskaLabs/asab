@@ -63,10 +63,10 @@ setup(
 		'Source': 'https://github.com/TeskaLabs/asab'
 	},
 	install_requires=[
-		'aiohttp>=3.6.2',
-		'fastjsonschema>=2.14.4',
-		'kazoo>=2.8.0',
-		'PyYAML>=6.0'
+		'aiohttp==3.8.3',
+		'kazoo==2.8.0',
+		'pyyaml==6.0',
+		'fastjsonschema==2.16.2',
 	],
 	extras_require={
 		'git': 'pygit2>=1.9.1',
