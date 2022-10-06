@@ -106,7 +106,7 @@ class Counter(Metric):
 class EPSCounter(Counter):
 	"""
 	Event per Second Counter
-	Divides all values by delta time
+	Divides all values by delta time and returns events per second as integer values
 	"""
 
 	def __init__(self, init_values=None):
