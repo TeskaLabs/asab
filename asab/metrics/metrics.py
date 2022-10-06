@@ -108,7 +108,7 @@ class EPSCounter(Counter):
 	Event per Second Counter
 	Divides the count of event by a time difference between measurements.
 	It effectively produces the EPS metric.
-	The metric is int.
+	The type of the metric is an integer (int).
 	"""
 
 	def __init__(self, init_values=None):
