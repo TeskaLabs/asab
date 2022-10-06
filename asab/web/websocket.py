@@ -110,10 +110,10 @@ class WebSocketFactory(object):
 		L.log(LOG_NOTICE, "Websocket connection accepted")
 
 		wsid = await self.register(ws, request)
-		await self.on_connect(ws)
 
 		try:
 			self.WebSockets[wsid] = ws
+			await self.on_connect(ws, wsid)
 
 			async for msg in ws:
 				if msg.type == aiohttp.WSMsgType.ERROR:
@@ -142,7 +142,7 @@ class WebSocketFactory(object):
 		return self.Counter
 
 
-	async def on_connect(self, ws):
+	async def on_connect(self, websocket, wsid):
 		'''
 		Override this method to implement action on websocket connection
 		'''
