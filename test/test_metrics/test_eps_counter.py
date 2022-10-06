@@ -36,7 +36,7 @@ class TestEPSCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1={},value2=0.0 123450000000\n".format(value),
+				"mycounter,host=mockedhost.com,foo=bar value1={}i,value2=0i 123450000000\n".format(value),
 			])
 		)
 
@@ -47,7 +47,7 @@ class TestEPSCounter(MetricsTestCase):
 			''.join([
 				'# TYPE mycounter gauge\n',
 				'mycounter{host="mockedhost.com",foo="bar",name="value1"} ' + '{}\n'.format(value),
-				'mycounter{host="mockedhost.com",foo="bar",name="value2"} 0.0',
+				'mycounter{host="mockedhost.com",foo="bar",name="value2"} 0',
 			])
 		)
 
@@ -82,7 +82,7 @@ class TestEPSCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1={},value2=0.0 123450000000\n".format(value),
+				"mycounter,host=mockedhost.com,foo=bar value1={}i,value2=0i 123450000000\n".format(value),
 			])
 		)
 
@@ -93,6 +93,6 @@ class TestEPSCounter(MetricsTestCase):
 			''.join([
 				'# TYPE mycounter gauge\n',
 				'mycounter{host="mockedhost.com",foo="bar",name="value1"} ' + '{}\n'.format(value),
-				'mycounter{host="mockedhost.com",foo="bar",name="value2"} 0.0',
+				'mycounter{host="mockedhost.com",foo="bar",name="value2"} 0',
 			])
 		)

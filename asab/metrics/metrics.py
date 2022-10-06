@@ -106,12 +106,14 @@ class Counter(Metric):
 class EPSCounter(Counter):
 	"""
 	Event per Second Counter
-	Divides all values by delta time
+	Divides the count of event by a time difference between measurements.
+	It effectively produces the EPS metric.
+	The type of the metric is an integer (int).
 	"""
 
 	def __init__(self, init_values=None):
 		if init_values is not None:
-			init_values = {k: float(v) for k, v in init_values.items()}
+			init_values = {k: int(v) for k, v in init_values.items()}
 
 		super().__init__(init_values=init_values)
 		self.LastTime = time.time()
@@ -127,7 +129,7 @@ class EPSCounter(Counter):
 
 		for field in self.Storage['fieldset']:
 			field['values'] = {
-				k: v / float(delta)
+				k: int(v / delta)
 				for k, v in self._actuals.items()
 			}
 
