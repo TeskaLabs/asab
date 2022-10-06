@@ -107,7 +107,7 @@ class EPSCounter(Counter):
 	"""
 	Event per Second Counter
 	Divides the count of event by a time difference between measurements.
-	It effectively produce the EPS metric.
+	It effectively produces the EPS metric.
 	The metric is int.
 	"""
 
