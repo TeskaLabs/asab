@@ -109,10 +109,11 @@ class WebSocketFactory(object):
 
 		L.log(LOG_NOTICE, "Websocket connection accepted")
 
-		wsid = await self.on_connect(ws, request)
+		wsid = await self.register(ws, request)
 
 		try:
 			self.WebSockets[wsid] = ws
+			await self.on_connect(ws, wsid)
 
 			async for msg in ws:
 				if msg.type == aiohttp.WSMsgType.ERROR:
@@ -131,7 +132,7 @@ class WebSocketFactory(object):
 		return ws
 
 
-	async def on_connect(self, ws, request):
+	async def register(self, ws, request):
 		'''
 		Must return the unique identifier of the websocket `wsid`.
 		The default implementation is the unique counter.
@@ -139,6 +140,13 @@ class WebSocketFactory(object):
 		'''
 		self.Counter += 1
 		return self.Counter
+
+
+	async def on_connect(self, websocket, wsid):
+		'''
+		Override this method to implement action on websocket connection
+		'''
+		pass
 
 
 	async def on_message(self, websocket, message, wsid):
