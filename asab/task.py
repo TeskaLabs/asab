@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import typing
 
 import asab
 
@@ -16,7 +17,6 @@ class TaskService(asab.Service):
 	Task service is for managed execution of fire-and-forget, one-off, background tasks.
 	The task is a coroutine, future (asyncio.ensure_future) or task (asyncio.create_task).
 	The task is executed in the main event loop.
-	The task should be a relatively short-lived (~5 seconds) asynchronous procedure.
 
 	The result of the task is collected (and discarted) automatically
 	and if there was an exception, it will be printed to the log.
@@ -25,7 +25,7 @@ class TaskService(asab.Service):
 	def __init__(self, app, service_name="asab.TaskService"):
 		super().__init__(app, service_name)
 
-		self.NewTasks = []
+		self.NewTasks = asyncio.Queue()
 		self.PendingTasks = set()
 		self.Main = None
 
@@ -54,9 +54,20 @@ class TaskService(asab.Service):
 			except Exception as e:
 				L.exception("Error '{}' during task service:".format(e))
 
-		total_tasks = len(self.PendingTasks) + len(self.NewTasks)
+		for task in list(self.PendingTasks):
+			task.cancel()
+			try:
+				await task
+				self.PendingTasks.remove(task)
+			except asyncio.CancelledError:
+				self.PendingTasks.remove(task)
+			except Exception as e:
+				L.exception("Error '{}' during task service:".format(e))
+
+
+		total_tasks = len(self.PendingTasks) + self.NewTasks.qsize()
 		if total_tasks > 0:
-			L.warning("{} pending and incompleted tasks".format(total_tasks))
+			L.warning("{}+{} pending and incompleted tasks".format(len(self.PendingTasks), self.NewTasks.qsize()))
 
 
 	def _main_task_exited(self, ctx):
@@ -76,23 +87,61 @@ class TaskService(asab.Service):
 
 	def schedule(self, *tasks):
 		'''
-		Schedule execution of task(s).
-		Tasks will be started in 1-5 seconds (not immediately).
+		Schedule a task (or tasks) for immediate fire-and-forget execution.
 
 		Task can be a simple coroutine, future or task.
+
+		Example of use:
+
+		app.TaskService.schedule(self._start())
+
 		'''
-		self.NewTasks.extend(tasks)
+		for task in tasks:
+			self.NewTasks.put_nowait(task)
+
+
+	def run_forever(self, *async_functions):
+		'''
+		Schedule an async function (or functions) for immediate fire-and-forget execution.
+		The function is expected to run forever.
+		If function exits, the error is logged and the function is restarted.
+		Function is called without any argument.
+
+		Example of use:
+
+		class MyClass(object):
+
+			def __init__(self, app):
+				...
+				app.TaskService.run_forever(self.my_forever_method)
+
+
+			async def my_forever_method(self):
+				while True:
+					await ...
+
+		'''
+		for async_fn in async_functions:
+			self.NewTasks.put_nowait(
+				forever(async_fn)
+			)
 
 
 	async def main(self):
 		while True:
 
-			while len(self.NewTasks) > 0:
-				task = self.NewTasks.pop()
+			while self.NewTasks.qsize() > 0:
+				task = self.NewTasks.get_nowait()
+				if isinstance(task, typing.Coroutine):
+					task = asyncio.create_task(task)
 				self.PendingTasks.add(task)
 
 			if len(self.PendingTasks) == 0:
-				await asyncio.sleep(5.0)
+				task = await self.NewTasks.get()
+				if isinstance(task, typing.Coroutine):
+					task = asyncio.create_task(task)
+				self.PendingTasks.add(task)
+
 			else:
 				done, self.PendingTasks = await asyncio.wait(self.PendingTasks, timeout=1.0)
 				for task in done:
@@ -100,3 +149,13 @@ class TaskService(asab.Service):
 						await task
 					except Exception as e:
 						L.exception("Error '{}' during task:".format(e))
+
+
+async def forever(async_fn):
+	while True:
+		try:
+			await async_fn()
+		except asyncio.CancelledError:
+			break
+		except Exception as e:
+			L.exception("Error '{}' during forever task:".format(e))
