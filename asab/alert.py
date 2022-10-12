@@ -210,7 +210,7 @@ class PagerDutyAlertProvider(AlertHTTPProviderABC):
 
 class AlertService(asab.Service):
 
-	def __init__(self, app, service_name="AlertService"):
+	def __init__(self, app, service_name="asab.AlertService"):
 		super().__init__(app, service_name)
 		self.Providers = []
 

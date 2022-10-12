@@ -72,7 +72,7 @@ class LibraryService(Service):
 
 		super().__init__(app, service_name)
 		self.Libraries = list()
-		self.Disabled = None
+		self.Disabled = {}
 
 		if paths is None:
 			try:
@@ -126,19 +126,6 @@ class LibraryService(Service):
 			raise SystemExit("Exit due to a critical configuration error.")
 
 		self.Libraries.append(library_provider)
-
-
-	async def _read_disabled(self):
-		# `.disabled.yaml` is read from the first configured library
-		# It is applied on all libraries in the configuration.
-		disabled = await self.Libraries[0].read('/.disabled.yaml')
-		if disabled is None:
-			self.Disabled = {}
-		else:
-			try:
-				self.Disabled = yaml.safe_load(disabled)
-			except Exception:
-				L.exception("Failed to parse '/.disabled.yaml'")
 
 
 	def is_ready(self):
@@ -294,6 +281,24 @@ class LibraryService(Service):
 		return items
 
 
+	async def _read_disabled(self):
+		# `.disabled.yaml` is read from the first configured library
+		# It is applied on all libraries in the configuration.
+		disabled = await self.Libraries[0].read('/.disabled.yaml')
+		if disabled is None:
+			self.Disabled = {}
+		else:
+			try:
+				self.Disabled = yaml.safe_load(disabled)
+				if self.Disabled is None:
+					self.Disabled = {}
+				else:
+					assert (isinstance(self.Disabled, dict))
+			except Exception:
+				self.Disabled = {}
+				L.exception("Failed to parse '/.disabled.yaml'")
+
+
 	def check_disabled(self, path, tenant=None):
 		"""
 		If the item is disabled for everybody, or if the item is disabled for the specified tenant, then
@@ -304,12 +309,7 @@ class LibraryService(Service):
 		:return: Boolean
 		"""
 
-		try:
-			disabled = self.Disabled.get(path)
-
-		except AttributeError:
-			return False
-
+		disabled = self.Disabled.get(path)
 		if disabled is None:
 			return False
 

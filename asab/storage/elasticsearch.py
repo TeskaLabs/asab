@@ -350,13 +350,6 @@ class StorageService(StorageServiceABC):
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 
-	# TODO: Remove this method after Jun 2022
-	@property
-	def ESURL(self):
-		L.warning("Use of the obsolete property .ESURL - please refactor")
-		return self.ServerUrls[0]
-
-
 class ElasicSearchUpsertor(UpsertorABC):
 
 	def __init__(self, storage, collection, obj_id, version=None):
