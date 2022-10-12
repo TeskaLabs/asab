@@ -80,6 +80,10 @@ class ConfigParser(configparser.ConfigParser):
 			"rbac_url": "http://localhost:8081/rbac",
 		},
 
+		"library": {
+			"azure_cache": "false",  # true or the actual path of where the cache should be located
+		},
+
 		# "passwords" section serves to securely store passwords
 		# in the configuration file; the passwords are not
 		# shown in the default API
