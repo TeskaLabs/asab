@@ -293,7 +293,7 @@ class LibraryService(Service):
 				if self.Disabled is None:
 					self.Disabled = {}
 				else:
-					assert(isinstance(self.Disabled, dict))
+					assert (isinstance(self.Disabled, dict))
 			except Exception:
 				self.Disabled = {}
 				L.exception("Failed to parse '/.disabled.yaml'")
