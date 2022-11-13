@@ -56,6 +56,8 @@ setup(
 		'Programming Language :: Python :: 3.7',
 		'Programming Language :: Python :: 3.8',
 		'Programming Language :: Python :: 3.9',
+		'Programming Language :: Python :: 3.10',
+		'Programming Language :: Python :: 3.11',
 	],
 	keywords='asyncio',
 	packages=find_packages(exclude=['module_sample']),
@@ -63,9 +65,9 @@ setup(
 		'Source': 'https://github.com/TeskaLabs/asab'
 	},
 	install_requires=[
-		'aiohttp>=3.6.2',
-		'fastjsonschema>=2.14.4',
-		'kazoo>=2.8.0',
+		'aiohttp>=3.8.3',
+		'fastjsonschema>=2.16.2',
+		'kazoo>=2.9.0',
 		'PyYAML>=6.0'
 	],
 	extras_require={
