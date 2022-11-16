@@ -31,7 +31,7 @@ See the full example here: https://github.com/TeskaLabs/asab/blob/master/example
 
 
 Types of Metrics
----------------
+----------------
 
 - :class:`Gauge` stores single numerical values which can go up and down. Implements :func:`set` method to set the metric values.
 - :class:`Counter` is a cumulative metric whose values can increase or decrease. Implements :func:`add` and :func:`sub` methods.
@@ -193,7 +193,7 @@ Configuration is required.
 Web Requests Metrics
 --------------------
 
-There are default metrics in ASAB framework. :class:`WebService` class automatically provides metrics counting web requests. 
+ASAB :class:`WebService` class automatically provides metrics counting web requests. 
 There are 5 metrics quantifying requests to all ASAB endpoints. 
 
 - `web_requests` - Counts requests to asab endpoints as events per minute.
@@ -203,8 +203,20 @@ There are 5 metrics quantifying requests to all ASAB endpoints.
 - `web_requests_duration_hist` - Cumulative histogram counting requests in buckets defined by the request duration.
 
 
-Memory Metrics
+Native Metrics
 --------------
+
+You can opt out of Native Metrics through configuration by setting `native_metrics` to `false`. Default is `true`.
+
+*example configuration*
+
+.. code::
+
+    [asab:metrics]
+    native_metrics=true
+
+**Memory Metrics**
+
 A gauge with the name ``os.stat`` gathers information about memory usage by your application.
 
 You can find several metric values there:
@@ -220,14 +232,11 @@ You can find several metric values there:
 - VmPMD - Size of second-level page tables
 - VmSwap - Swapped-out virtual memory size by anonymous private pages; shmem swap usage is not included
 
-You can opt out of Memory Metrics through configuration by setting `native_metrics` to `false`. Default is `true`.
+**Logs Counter**
 
-*example configuration*
+There is a default Counter named ``logs`` with values ``warnings``, ``errors``, and ``critical``, counting logs with respective levels.
+It is a humble tool for application health monitoring. 
 
-.. code::
-
-    [asab:metrics]
-    native_metrics=true
 
 
 Reference

@@ -32,6 +32,7 @@ class WebSocketFactory(object):
 
 
 	def __init__(self, app, *, timeout=10.0, protocols=(), compress=True, max_msg_size=4194304):
+		self.App = app
 		self.Counter = 0
 		self.WebSockets = {}
 

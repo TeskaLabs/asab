@@ -78,6 +78,7 @@ Microservices
 
 Here is a growing list of Open Source microservices built using ASAB:
 
+* `ASAB Iris <https://github.com/TeskaLabs/asab-iris>`_:  document rendering, sends output using email, SMS and instant messaging
 * `SeaCat Auth <https://github.com/TeskaLabs/seacat-auth>`_: authentication, authorization, identity management, session management and other access control features
 
 
