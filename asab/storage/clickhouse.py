@@ -15,7 +15,6 @@ Config.add_defaults(
 	{
 		"asab:storage": {
 			"host": "",
-			"port": "",
 			"user": "",
 			"password": "",
 			"bulk_size": 1000,
@@ -77,7 +76,8 @@ class StorageService(StorageServiceABC):
 
 	def _insert_bulk_to_database(self):
 		self.Client.execute('INSERT INTO {}.{} VALUES'.format(
-			self.Database, self.Table), self.Bulk)
+			self.Database, self.Table), self.Bulk
+		)
 
 
 	def list(self):
