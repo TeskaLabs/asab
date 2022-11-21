@@ -26,5 +26,9 @@ class Module(asab.Module):
 			from .elasticsearch import StorageService
 			self.Service = StorageService(app, "asab.StorageService")
 
+		elif sttype == "clickhouse":
+			from .clickhouse import StorageService
+			self.Service = StorageService(app, "asab.StorageService")
+
 		else:
 			L.error("Unknown asab:storage type '{}'".format(sttype))
