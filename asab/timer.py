@@ -40,7 +40,7 @@ class Timer(object):
 		'''
 		if self.is_started():
 			raise RuntimeError("Timer is already started")
-		self.Task = asyncio.ensure_future(self._job(timeout), loop=self.App.Loop)
+		self.Task = asyncio.ensure_future(self._job(timeout))
 
 
 	def stop(self):

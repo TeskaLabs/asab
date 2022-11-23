@@ -44,7 +44,7 @@ The :py:mod:`asyncio` event loop that is used by this application.
 
 .. code:: python
 
-    asyncio.ensure_future(my_coro(), loop=Application.Loop)
+    asyncio.ensure_future(my_coro())
 
 
 Application Lifecycle
