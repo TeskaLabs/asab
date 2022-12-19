@@ -1,8 +1,9 @@
 import abc
 import secrets
 import hashlib
-
+import logging
 import asab
+import re
 
 try:
 	import cryptography.hazmat.primitives.ciphers
@@ -10,6 +11,12 @@ try:
 	import cryptography.hazmat.primitives.ciphers.modes
 except ModuleNotFoundError:
 	cryptography = None
+
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 
 ENCRYPTED_PREFIX = b"$aes-cbc$"
@@ -19,7 +26,9 @@ class StorageServiceABC(asab.Service):
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
-		self.WebhookURI = asab.Config.get("asab:storage:changestream", "webhook_uri", fallback="") or None
+		self.WebhookURIs = asab.Config.get("asab:storage:changestream", "webhook_uris", fallback="") or None
+		if self.WebhookURIs is not None:
+			self.WebhookURIs = [uri for uri in re.split(r"\s+", self.WebhookURIs) if len(uri) > 0]
 		self.WebhookAuth = asab.Config.get("asab:storage:changestream", "webhook_auth", fallback="") or None
 
 		# Specify a non-empty AES key to enable AES encryption of selected fields

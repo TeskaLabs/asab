@@ -181,7 +181,7 @@ class MongoDBUpsertor(UpsertorABC):
 		# 			pass
 		# 	obj[k] = o
 
-		if self.Storage.WebhookURI is not None:
+		if self.Storage.WebhookURIs is not None:
 			webhook_data = {
 				"collection": self.Collection,
 			}
