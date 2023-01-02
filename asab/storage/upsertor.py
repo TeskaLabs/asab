@@ -4,7 +4,6 @@ import uuid
 import hashlib
 import datetime
 import logging
-import aiohttp
 import asab.web.rest.json
 import requests
 import typing
