@@ -6,6 +6,7 @@ import datetime
 import logging
 import aiohttp
 import asab.web.rest.json
+import requests
 import typing
 
 #
@@ -143,25 +144,32 @@ class UpsertorABC(abc.ABC):
 		pass
 
 
-	async def _webhook(self, data: dict):
+	async def webhook(self, data: dict):
 		assert self.Storage.WebhookURIs is not None
 		json_dump = asab.web.rest.json.JSONDumper(pretty=False)(data)
-		for webhook_uri in self.Storage.WebhookURIs:
-			try:
-				async with aiohttp.ClientSession(auth=self.Storage.WebhookAuth) as session:
-					async with session.put(
-						webhook_uri,
-						data=json_dump,
-						headers={"Content-Type": "application/json"}
-					) as response:
-						if response.status // 100 != 2:
-							text = await response.text()
-							L.error(
-								"Webhook endpoint responded with {}:\n{}".format(response.status, text),
-								struct_data={"uri": webhook_uri})
-							continue
-						self.WebhookResponseData[webhook_uri] = await response.json()
-			except json.decoder.JSONDecodeError as e:
-				L.error("Failed to decode JSON response from webhook: {}".format(str(e)))
-			except Exception as e:
-				L.error("Webhook call failed with {}: {}".format(type(e).__name__, str(e)))
+		for uri in self.Storage.WebhookURIs:
+			self.WebhookResponseData[uri] = await self.Storage.ProactorService.execute(
+				self._webhook, json_dump, uri, self.Storage.WebhookAuth)
+
+
+
+	def _webhook(self, data, uri, auth=None):
+		try:
+			with requests.Session() as session:
+				if self.Storage.WebhookAuth:
+					session.auth = ("Basic", self.Storage.WebhookAuth)
+				with session.put(
+					uri,
+					data=data,
+					headers={"Content-Type": "application/json"}
+				) as response:
+					if response.status_code // 100 != 2:
+						text = response.text
+						L.error(
+							"Webhook endpoint responded with {}:\n{}".format(response.status_code, text),
+							struct_data={"uri": uri})
+					return response.json()
+		except json.decoder.JSONDecodeError as e:
+			L.error("Failed to decode JSON response from webhook: {}".format(str(e)))
+		except Exception as e:
+			L.error("Webhook call failed with {}: {}".format(type(e).__name__, str(e)))

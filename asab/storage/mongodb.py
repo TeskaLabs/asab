@@ -205,6 +205,6 @@ class MongoDBUpsertor(UpsertorABC):
 				upsertor_data["unset"] = {k: v for k, v in self.ModUnset.items() if not k.startswith("__")}
 			webhook_data["upsertor"] = upsertor_data
 
-			await self._webhook(webhook_data)
+			await self.webhook(webhook_data)
 
 		return self.ObjId
