@@ -156,7 +156,9 @@ class UpsertorABC(abc.ABC):
 					) as response:
 						if response.status // 100 != 2:
 							text = await response.text()
-							L.error("Webhook endpoint responded with {}:\n{}".format(response.status, text))
+							L.error(
+								"Webhook endpoint responded with {}:\n{}".format(response.status, text),
+								struct_data={"uri": webhook_uri})
 							continue
 						self.WebhookResponseData[webhook_uri] = await response.json()
 			except json.decoder.JSONDecodeError as e:
