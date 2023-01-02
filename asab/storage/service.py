@@ -26,7 +26,7 @@ class StorageServiceABC(asab.Service):
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
-		self.WebhookURIs = asab.Config.get("asab:storage:changestream", "webhook_uris", fallback="") or None
+		self.WebhookURIs = asab.Config.get("asab:storage:changestream", "webhook_uri", fallback="") or None
 		if self.WebhookURIs is not None:
 			self.WebhookURIs = [uri for uri in re.split(r"\s+", self.WebhookURIs) if len(uri) > 0]
 		self.WebhookAuth = asab.Config.get("asab:storage:changestream", "webhook_auth", fallback="") or None
