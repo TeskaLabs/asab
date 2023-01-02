@@ -185,7 +185,7 @@ Configuration is required.
     [asab:metrics]
     target=http
 
-    [asab:metrics:influxdb]
+    [asab:metrics:http]
     url=http://consumer_example:8080/consume
 
 
