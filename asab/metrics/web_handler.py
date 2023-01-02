@@ -81,14 +81,16 @@ class MetricWebHandler(object):
 def watch_table(metric_records: list(), filter, tags):
 	lines = []
 	m_name_len = max([len(i["name"]) for i in metric_records])
-	v_name_len = max(
-		[
-			len(str(value_name))
-			for i in metric_records
-			if i["fieldset"][0].get("values") is not None
-			for value_name in i["fieldset"][0].get("values").keys()
-		]
-	) + 10
+
+	v_name_len = 0
+	for i in metric_records:
+		if len(i["fieldset"]) == 0:
+			continue
+		if len(i["fieldset"][0].get("values", {})) == 0:
+			continue
+		metric_name_len = max([len(str(value_name)) for value_name in i["fieldset"][0].get("values").keys()]) + 10
+		if metric_name_len > v_name_len:
+			v_name_len = metric_name_len
 
 	t_name_len = max([len(str(field["tags"])) for i in metric_records for field in i["fieldset"]])
 
