@@ -156,7 +156,7 @@ class UpsertorABC(abc.ABC):
 		try:
 			with requests.Session() as session:
 				if self.Storage.WebhookAuth:
-					session.auth = ("Basic", self.Storage.WebhookAuth)
+					session.headers["Authorization"] = self.Storage.WebhookAuth
 				with session.put(
 					uri,
 					data=data,
