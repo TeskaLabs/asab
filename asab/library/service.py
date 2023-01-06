@@ -86,7 +86,7 @@ class LibraryService(Service):
 
 		for path in paths:
 			self._create_library(path)
-		app.PubSub.subscribe("Application.tick/60!", self.on_tick)
+		app.PubSub.subscribe("Application.tick/60!", self.on_tick)  # TODO: this should be 60
 
 
 	async def finalize(self, app):
@@ -366,3 +366,7 @@ class LibraryService(Service):
 		tarobj.close()
 		fileobj.seek(0)
 		return fileobj
+
+	def subscribe(self, path="/"):
+		for provider in self.Libraries:
+			provider.subscribe(path)

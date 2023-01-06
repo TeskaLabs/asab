@@ -72,8 +72,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.ProactorService = self.App.get_service("asab.ProactorService")
 		self.PullLock = False
 
+		self.SubscribedPath = None
+
 		self.App.TaskService.schedule(self.intialize_git_repo())
-		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
+		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)  # TODO: Application.tick/60!
 
 
 	async def _periodic_pull(self, event_name):
@@ -134,15 +136,31 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 
 	def pull(self):
-
 		new_commit_id = self.fetch()
+
+		# Before new head is set, check the diffs. If changes in subscribed directory occured, set `publish` flag.
+
+		publish = False
+		if self.SubscribedPath is not None:
+			for i in self.GitRepository.diff(self.GitRepository.head.target, new_commit_id).deltas:
+				if self.SubscribedPath == "/":
+					publish = True
+				elif "/" + i.old_file.path.split("/")[0] == self.SubscribedPath:
+					publish = True
 
 		if new_commit_id == self.GitRepository.head.target:
 			return
 
+		# Reset HEAD
 		self.GitRepository.head.set_target(new_commit_id)
 		self.GitRepository.reset(new_commit_id, pygit2.GIT_RESET_HARD)
-		self.App.PubSub.publish("GitProviderUpdated!", self)
+
+		# Once reset of the head is finished, PubSub message about the change in the subsrcibed directory gets published.
+		if publish:
+			self.App.PubSub.publish("ASABLibrary.change!", self)
+
+	def subscribe(self, path):
+		self.SubscribedPath = path
 
 
 def get_git_credentials(url):

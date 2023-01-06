@@ -38,3 +38,10 @@ class LibraryProviderABC(object):
 	async def _set_ready(self):
 		self.IsReady = True
 		await self.Library._set_ready(self)
+
+	async def subscribe(self, path: str):
+		"""
+		It takes a path and if it exists in the library, it subscribs to changes in this path.
+		When change occurs, it creates PubSub signal.
+		"""
+		raise NotImplementedError("{}.list()".format(self.__class__.__name__))
