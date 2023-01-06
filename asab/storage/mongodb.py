@@ -181,7 +181,7 @@ class MongoDBUpsertor(UpsertorABC):
 		# 			pass
 		# 	obj[k] = o
 
-		if self.Storage.WebhookURI is not None:
+		if self.Storage.WebhookURIs is not None:
 			webhook_data = {
 				"collection": self.Collection,
 			}
@@ -205,6 +205,6 @@ class MongoDBUpsertor(UpsertorABC):
 				upsertor_data["unset"] = {k: v for k, v in self.ModUnset.items() if not k.startswith("__")}
 			webhook_data["upsertor"] = upsertor_data
 
-			await self._webhook(webhook_data)
+			await self.webhook(webhook_data)
 
 		return self.ObjId

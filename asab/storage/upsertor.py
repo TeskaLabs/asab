@@ -4,8 +4,8 @@ import uuid
 import hashlib
 import datetime
 import logging
-import aiohttp
 import asab.web.rest.json
+import requests
 import typing
 
 #
@@ -43,7 +43,7 @@ class UpsertorABC(abc.ABC):
 		self.ModPush = {}
 		self.ModPull = {}
 
-		self.WebhookResponseData = None
+		self.WebhookResponseData = {}
 
 
 	def get_id_name(self):
@@ -117,14 +117,14 @@ class UpsertorABC(abc.ABC):
 			```python
 			upsertor = storage_service.upsertor("users")
 			upsertor.set("name", "Raccoon")
-			await upsertor.execute(custom_data={"action": "user_creation"})
+			await upsertor.execute(custom_data={"event_type": "create_user"})
 			```
 
 			will trigger a webhook whose payload may look like this:
 			```json
 			{
 				"collection": "users",
-				"custom": {"action": "user_creation"},
+				"custom": {"event_type": "create_user"},
 				"upsertor": {
 					"id": "2O-h3ulpO-ZwDrkSbQlYB3pYS0JJxCJj3nr6uQAu8aU",
 					"id_field_name": "_id",
@@ -143,21 +143,31 @@ class UpsertorABC(abc.ABC):
 		pass
 
 
-	async def _webhook(self, data: dict):
-		assert self.Storage.WebhookURI is not None
+	async def webhook(self, data: dict):
+		assert self.Storage.WebhookURIs is not None
 		json_dump = asab.web.rest.json.JSONDumper(pretty=False)(data)
+		for uri in self.Storage.WebhookURIs:
+			self.WebhookResponseData[uri] = await self.Storage.ProactorService.execute(
+				self._webhook, json_dump, uri, self.Storage.WebhookAuth)
+
+
+
+	def _webhook(self, data, uri, auth=None):
 		try:
-			async with aiohttp.ClientSession(auth=self.Storage.WebhookAuth) as session:
-				async with session.put(
-					self.Storage.WebhookURI,
-					data=json_dump,
+			with requests.Session() as session:
+				if self.Storage.WebhookAuth:
+					session.headers["Authorization"] = self.Storage.WebhookAuth
+				with session.put(
+					uri,
+					data=data,
 					headers={"Content-Type": "application/json"}
 				) as response:
-					if response.status // 100 != 2:
-						text = await response.text()
-						L.error("Webhook endpoint responded with {}:\n{}".format(response.status, text))
-						return
-					self.WebhookResponseData = await response.json()
+					if response.status_code // 100 != 2:
+						text = response.text
+						L.error(
+							"Webhook endpoint responded with {}:\n{}".format(response.status_code, text),
+							struct_data={"uri": uri})
+					return response.json()
 		except json.decoder.JSONDecodeError as e:
 			L.error("Failed to decode JSON response from webhook: {}".format(str(e)))
 		except Exception as e:
