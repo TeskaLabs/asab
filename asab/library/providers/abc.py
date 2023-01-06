@@ -41,7 +41,7 @@ class LibraryProviderABC(object):
 
 	async def subscribe(self, path: str):
 		"""
-		It takes a path and if it exists in the library, it subscribs to changes in this path.
+		It takes a path and if it exists in the library, it subscribes to changes in this directory.
 		When change occurs, it creates PubSub signal.
 		"""
-		raise NotImplementedError("{}.list()".format(self.__class__.__name__))
+		raise NotImplementedError("{}.subscribe()".format(self.__class__.__name__))
