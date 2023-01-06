@@ -75,7 +75,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.SubscribedPath = None
 
 		self.App.TaskService.schedule(self.intialize_git_repo())
-		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)  # TODO: Application.tick/60!
+		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
 
 	async def _periodic_pull(self, event_name):
