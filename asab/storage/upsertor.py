@@ -1,11 +1,12 @@
 import abc
 import json
+import urllib.parse
 import uuid
 import hashlib
 import datetime
 import logging
 import asab.web.rest.json
-import requests
+import http.client
 import typing
 
 #
@@ -153,22 +154,28 @@ class UpsertorABC(abc.ABC):
 
 
 	def _webhook(self, data, uri, auth=None):
+		u = urllib.parse.urlparse(uri)
+		if u.scheme == "https":
+			conn = http.client.HTTPSConnection(u.netloc)
+		else:
+			conn = http.client.HTTPConnection(u.netloc)
 		try:
-			with requests.Session() as session:
-				if self.Storage.WebhookAuth:
-					session.headers["Authorization"] = self.Storage.WebhookAuth
-				with session.put(
-					uri,
-					data=data,
-					headers={"Content-Type": "application/json"}
-				) as response:
-					if response.status_code // 100 != 2:
-						text = response.text
-						L.error(
-							"Webhook endpoint responded with {}:\n{}".format(response.status_code, text),
-							struct_data={"uri": uri})
-					return response.json()
+			conn.request(
+				"PUT", uri, data,
+				{"Authorization": auth, "Content-Type": "application/json"}
+			)
+			response = conn.getresponse()
+			if response.status // 100 != 2:
+				text = response.read()
+				L.error("Webhook endpoint responded with {}:\n{}".format(response.status, text))
+				return
+			self.WebhookResponseData = json.load(response)
+		except ConnectionRefusedError:
+			L.error("Webhook call failed: Connection refused.", struct_data={"uri": uri})
+			return
 		except json.decoder.JSONDecodeError as e:
 			L.error("Failed to decode JSON response from webhook: {}".format(str(e)))
 		except Exception as e:
 			L.error("Webhook call failed with {}: {}".format(type(e).__name__, str(e)))
+		finally:
+			conn.close()
