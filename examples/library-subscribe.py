@@ -12,7 +12,7 @@ class MyApplication(asab.Application):
 		asab.Config.read_string(
 			"""
 [library]
-providers=git+<deploy token>
+providers=git+https://github.com/TeskaLabs/asab.git
 """
 		)
 		self.LibraryService = asab.library.LibraryService(
@@ -32,7 +32,7 @@ providers=git+<deploy token>
 			print(" *", item)
 		print("\n===")
 
-		self.LibraryService.subscribe()
+		self.LibraryService.subscribe("/asab")
 
 	def on_library_change(self, msg, provider):
 		print("\N{rabbit} New changes in the library found by provider: '{}'".format(provider))

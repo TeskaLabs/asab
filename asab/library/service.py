@@ -367,7 +367,7 @@ class LibraryService(Service):
 		fileobj.seek(0)
 		return fileobj
 
-	def subscribe(self, path="/"):
+	def subscribe(self, path):
 		# Normalize path
 		# Path must NOT end with '/'
 		while path[-1:] == '/':
