@@ -72,7 +72,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.ProactorService = self.App.get_service("asab.ProactorService")
 		self.PullLock = False
 
-		self.SubscribedPath = []
+		self.SubscribedPaths = set()
 
 		self.App.TaskService.schedule(self.intialize_git_repo())
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
@@ -141,7 +141,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		# Before new head is set, check the diffs. If changes in subscribed directory occured, set `publish` flag.
 
 		to_publish = []
-		for path in self.SubscribedPath:
+		for path in self.SubscribedPaths:
 			for i in self.GitRepository.diff(self.GitRepository.head.target, new_commit_id).deltas:
 				if path == "/":
 					to_publish.append(path)
@@ -160,7 +160,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.App.PubSub.publish("ASABLibrary.change!", self, path)
 
 	def subscribe(self, path):
-		self.SubscribedPath.append(path)
+		self.SubscribedPaths.add(path)
 
 
 def get_git_credentials(url):
