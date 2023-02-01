@@ -10,7 +10,7 @@ import struct
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
 from ...timer import Timer
-from .library_utils.inotify import inotify_init, inotify_add_watch, IN_CREATE, IN_ISDIR, IN_ALL_EVENTS, _EVENT_FMT, _EVENT_SIZE
+from .library_utils.inotify import inotify_init, inotify_add_watch, IN_CREATE, IN_ISDIR, IN_ALL_EVENTS, _EVENT_FMT, _EVENT_SIZE, IN_MOVED_TO
 
 #
 
@@ -126,7 +126,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			pos += _EVENT_SIZE + namesize
 			name = (data[pos - namesize: pos].split(b'\x00', 1)[0]).decode()
 
-			if mask & IN_ISDIR == IN_ISDIR and mask & IN_CREATE == IN_CREATE:
+			if mask & IN_ISDIR == IN_ISDIR and (mask & IN_CREATE == IN_CREATE or mask & IN_MOVED_TO == IN_MOVED_TO):
 				subscribed_path, child_path = self.WDs[wd]
 				self._subscribe_recursive(subscribed_path, "/".join([child_path, name]))
 
