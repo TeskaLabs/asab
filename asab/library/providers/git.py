@@ -140,15 +140,13 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		# Before new head is set, check the diffs. If changes in subscribed directory occured, set `publish` flag.
 
-		publish = False
+		to_publish = []
 		for path in self.SubscribedPath:
 			for i in self.GitRepository.diff(self.GitRepository.head.target, new_commit_id).deltas:
 				if path == "/":
-					publish = True
+					to_publish.append(path)
 				elif ("/" + i.old_file.path).startswith(path):
-					publish = True
-			if publish is True:
-				break
+					to_publish.append(path)
 
 		if new_commit_id == self.GitRepository.head.target:
 			return
@@ -158,8 +156,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.GitRepository.reset(new_commit_id, pygit2.GIT_RESET_HARD)
 
 		# Once reset of the head is finished, PubSub message about the change in the subsrcibed directory gets published.
-		if publish:
-			self.App.PubSub.publish("ASABLibrary.change!", self)
+		for path in to_publish:
+			self.App.PubSub.publish("ASABLibrary.change!", self, path)
 
 	def subscribe(self, path):
 		self.SubscribedPath.append(path)
