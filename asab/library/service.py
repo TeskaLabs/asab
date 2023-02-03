@@ -368,13 +368,7 @@ class LibraryService(Service):
 		return fileobj
 
 	def subscribe(self, path):
-		# Normalize path
-		# Path must NOT end with '/'
-		while path[-1:] == '/':
-			path = path[:-1]
-		# Path must start with '/'
-		if path[:1] != '/':
-			path = '/' + path
+		assert path[:1] == '/', "Absolute path must be used when subscribing to the library changes"
 
 		for provider in self.Libraries:
 			provider.subscribe(path)
