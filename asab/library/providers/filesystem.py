@@ -10,7 +10,7 @@ import struct
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
 from ...timer import Timer
-from .library_utils.inotify import inotify_init, inotify_add_watch, IN_CREATE, IN_ISDIR, IN_ALL_EVENTS, _EVENT_FMT, _EVENT_SIZE, IN_MOVED_TO
+from .library_utils.inotify import inotify_init, inotify_add_watch, IN_CREATE, IN_ISDIR, IN_ALL_EVENTS, _EVENT_FMT, _EVENT_SIZE, IN_MOVED_TO, IN_IGNORED
 
 #
 
@@ -68,6 +68,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	async def list(self, path: str) -> list:
+		# This list method is completely synchronous, but it should look like asynchronous to make all list methods unified among providers.
 		return self._list(path)
 
 	def _list(self, path: str):
@@ -126,9 +127,14 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			pos += _EVENT_SIZE + namesize
 			name = (data[pos - namesize: pos].split(b'\x00', 1)[0]).decode()
 
-			if mask & IN_ISDIR == IN_ISDIR and (mask & IN_CREATE == IN_CREATE or mask & IN_MOVED_TO == IN_MOVED_TO):
+			if mask & IN_ISDIR == IN_ISDIR and ((mask & IN_CREATE == IN_CREATE) or (mask & IN_MOVED_TO == IN_MOVED_TO)):
 				subscribed_path, child_path = self.WDs[wd]
 				self._subscribe_recursive(subscribed_path, "/".join([child_path, name]))
+
+			if mask & IN_IGNORED == IN_IGNORED:
+				# cleanup
+				del self.WDs[wd]
+				continue
 
 			self.AggrEvents.append((wd, mask, cookie, os.fsdecode(name)))
 
@@ -137,14 +143,17 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 	async def _on_aggr_timer(self):
 		to_advertise = set()
-		# TODO: race condition?: self.AggrEvents can be modified during this for cycle by _on_inotify_read() method
-		# copy self.AggrEvents, clear self.AggrEvents and iterate through a copy?
 		for wd, mask, cookie, name in self.AggrEvents:
-			subscribed_path, _ = self.WDs.get(wd)
+			# When wathed directory is being removed, more than one inotify events are being produced.
+			# When IN_IGNORED event occurs, respective wd is removed from self.WDs,
+			# but some other events (like IN_DELETE_SELF) get to this point, without having its reference in self.WDs.
+			subscribed_path, _ = self.WDs.get(wd, (None, None))
 			to_advertise.add(subscribed_path)
 		self.AggrEvents.clear()
 
 		for path in to_advertise:
+			if path is None:
+				continue
 			self.App.PubSub.publish("ASABLibrary.change!", self, path)
 
 
@@ -155,11 +164,17 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		binary = (self.BasePath + path_to_be_listed).encode()
 		wd = inotify_add_watch(self.fd, binary, IN_ALL_EVENTS)
 		if wd == -1:
-			# TODO: -1 means some error - what should happen then?
+			L.error("Error in inotify_add_watch.")
 			return
 		self.WDs[wd] = (subscribed_path, path_to_be_listed)
 
-		for item in self._list(path_to_be_listed):
+		try:
+			items = self._list(path_to_be_listed)
+		except KeyError:
+			# subscribing to non-existing directory is silent
+			return
+
+		for item in items:
 			if item.type == "dir":
 				self._subscribe_recursive(subscribed_path, item.name)
 
