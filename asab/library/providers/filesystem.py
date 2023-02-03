@@ -10,7 +10,7 @@ import struct
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
 from ...timer import Timer
-from .library_utils.inotify import inotify_init, inotify_add_watch, IN_CREATE, IN_ISDIR, IN_ALL_EVENTS, _EVENT_FMT, _EVENT_SIZE, IN_MOVED_TO, IN_IGNORED
+from .filesystem_inotify import inotify_init, inotify_add_watch, IN_CREATE, IN_ISDIR, IN_ALL_EVENTS, _EVENT_FMT, _EVENT_SIZE, IN_MOVED_TO, IN_IGNORED
 
 #
 
