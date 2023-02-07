@@ -32,9 +32,9 @@ providers=git+https://github.com/TeskaLabs/asab.git
 			print(" *", item)
 		print("\n===")
 
-		self.LibraryService.subscribe("/asab")
+		self.LibraryService.subscribe(["/asab"])
 
-	def on_library_change(self, msg, provider):
+	def on_library_change(self, msg, provider, path):
 		print("\N{rabbit} New changes in the library found by provider: '{}'".format(provider))
 
 
