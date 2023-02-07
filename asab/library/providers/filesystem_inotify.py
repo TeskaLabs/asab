@@ -40,5 +40,5 @@ inotify_add_watch.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_uint32]
 inotify_add_watch.restype = ctypes.c_int
 
 
-_EVENT_FMT = 'iIII'
-_EVENT_SIZE = struct.calcsize(_EVENT_FMT)
+EVENT_FMT = 'iIII'
+EVENT_SIZE = struct.calcsize(EVENT_FMT)

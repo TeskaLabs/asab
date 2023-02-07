@@ -1,5 +1,6 @@
 import io
 import os
+import os.path
 import stat
 import glob
 import typing
@@ -10,7 +11,7 @@ import struct
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
 from ...timer import Timer
-from .filesystem_inotify import inotify_init, inotify_add_watch, IN_CREATE, IN_ISDIR, IN_ALL_EVENTS, _EVENT_FMT, _EVENT_SIZE, IN_MOVED_TO, IN_IGNORED
+from .filesystem_inotify import inotify_init, inotify_add_watch, IN_CREATE, IN_ISDIR, IN_ALL_EVENTS, EVENT_FMT, EVENT_SIZE, IN_MOVED_TO, IN_IGNORED
 
 #
 
@@ -37,9 +38,9 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			self.App.TaskService.schedule(self._set_ready())
 
 		# Open inotify file descriptor
-		self.fd = inotify_init()
+		self.FD = inotify_init()
 
-		self.App.Loop.add_reader(self.fd, self._on_inotify_read)
+		self.App.Loop.add_reader(self.FD, self._on_inotify_read)
 		self.AggrTimer = Timer(self.App, self._on_aggr_timer)
 		self.AggrEvents = []
 		self.WDs = {}
@@ -119,12 +120,12 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	def _on_inotify_read(self):
-		data = os.read(self.fd, 64 * 1024)
+		data = os.read(self.FD, 64 * 1024)
 
 		pos = 0
 		while pos < len(data):
-			wd, mask, cookie, namesize = struct.unpack_from(_EVENT_FMT, data, pos)
-			pos += _EVENT_SIZE + namesize
+			wd, mask, cookie, namesize = struct.unpack_from(EVENT_FMT, data, pos)
+			pos += EVENT_SIZE + namesize
 			name = (data[pos - namesize: pos].split(b'\x00', 1)[0]).decode()
 
 			if mask & IN_ISDIR == IN_ISDIR and ((mask & IN_CREATE == IN_CREATE) or (mask & IN_MOVED_TO == IN_MOVED_TO)):
@@ -158,11 +159,13 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	def subscribe(self, path):
+		if not os.path.isdir(self.BasePath + path):
+			return
 		self._subscribe_recursive(path, path)
 
 	def _subscribe_recursive(self, subscribed_path, path_to_be_listed):
 		binary = (self.BasePath + path_to_be_listed).encode()
-		wd = inotify_add_watch(self.fd, binary, IN_ALL_EVENTS)
+		wd = inotify_add_watch(self.FD, binary, IN_ALL_EVENTS)
 		if wd == -1:
 			L.error("Error in inotify_add_watch.")
 			return
@@ -180,5 +183,5 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	async def finalize(self, app):
-		self.App.Loop.remove_reader(self.fd)
-		os.close(self.fd)
+		self.App.Loop.remove_reader(self.FD)
+		os.close(self.FD)

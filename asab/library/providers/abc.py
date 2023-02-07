@@ -41,7 +41,14 @@ class LibraryProviderABC(object):
 
 	async def subscribe(self, path: str):
 		"""
-		It takes a path and if it exists in the library, it subscribes to changes in this directory.
-		When change occurs, it creates PubSub signal.
+		It takes a path and subscribes to changes in this directory.
+		When change occurs, it creates a PubSub signal.
+		Use absolute path, startng with "/".
+		Keep in mind every provider requires specific implementation. These might vary in lag between change if the librarby and its propagation.
+
+		Mind following when implementing this method:
+		- user can subscribe only on existing directory. -> Check whether subscribed path is a directory, specifically in the provider
+		- subscribing to nonexisting directory or file should lead to silent error
+
 		"""
 		raise NotImplementedError("{}.subscribe()".format(self.__class__.__name__))
