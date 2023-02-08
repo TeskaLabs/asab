@@ -170,7 +170,7 @@ class LibraryService(Service):
 		:return: I/O stream (read) with the content of the libary item.
 		"""
 		# It must start with '/'
-		assert(path[:1] == '/')
+		assert path[:1] == '/'
 
 		if self.check_disabled(path, tenant=tenant):
 			return None
@@ -205,15 +205,12 @@ class LibraryService(Service):
 			The method returns list of items that are located at `path`
 		"""
 
-		# Normalize path
+		# Path must start with '/'
+		assert path[:1] == '/'
 
 		# Path must NOT end with '/'
 		while path[-1:] == '/':
 			path = path[:-1]
-
-		# Path must start with '/'
-		if path[:1] != '/':
-			path = '/' + path
 
 		# List requested level using all available providers
 		items = await self._list(path, tenant, providers=self.Libraries)
