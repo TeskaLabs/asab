@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import aiohttp
@@ -18,7 +19,7 @@ L = logging.getLogger(__name__)
 
 asab.Config.add_defaults({
 	"authz": {
-		"public_keys_url": "",  # If no public keys url is provided, ID tokens are not validated
+		"public_keys_url": "http://localhost:8081/.well_known/jwks.json",  # If set to "", ID tokens are not validated
 		"cache_expiration": "1 m"
 	}
 })
@@ -30,6 +31,11 @@ class AuthzService(asab.Service):
 		super().__init__(app, service_name)
 		self.PublicKeysUrl = asab.Config.get("authz", "public_keys_url")
 		self.PublicKey = None
+		if self.PublicKeysUrl is not None and len(self.PublicKeysUrl) != 0:
+			self.ValidationEnabled = True
+		else:
+			L.warning("No public_keys_url provided! Authenticity of incoming ID tokens cannot be verified!")
+			self.ValidationEnabled = False
 
 	async def initialize(self, app):
 		if self.PublicKeysUrl is not None:
@@ -47,8 +53,8 @@ class AuthzService(asab.Service):
 					})
 					raise ConnectionError()
 
-				jwkeys = await response.json()
-				self.PublicKey = jwcrypto.jwk.JWK(**jwkeys.pop())
+				data = await response.json()
+				self.PublicKey = jwcrypto.jwk.JWK(**data["keys"].pop())
 
 	async def authorize(self, resources, bearer_token, tenant=None):
 		# Use userinfo to make RBAC check
@@ -87,6 +93,10 @@ class AuthzService(asab.Service):
 		return self._get_id_token_claims(bearer_token)
 
 	def _get_id_token_claims(self, bearer_token):
+		if not self.ValidationEnabled:
+			# TODO: Safer deserialization
+			return json.loads(base64.b64decode(bearer_token.split(".")[1].encode("utf-8"), validate=False))
+
 		# TODO: Don't check signature if no public key url is provided
 		try:
 			token = jwcrypto.jwt.JWT(jwt=bearer_token, key=self.PublicKey)

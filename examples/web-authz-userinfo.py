@@ -22,6 +22,11 @@ class MyApplication(asab.Application):
 	python3 examples/web-authz-userinfo.py -c examples/web-authz-userinfo.conf
 	```
 
+	TODO:
+		- Add protected ngingx location with introspection!
+		- Register client!
+		- Set up introspection!
+
 	Test by:
 	1) Run SeaCat Auth at: http://localhost:8081
 	2) Perform OAuth authentication to obtain access token

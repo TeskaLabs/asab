@@ -86,14 +86,6 @@ def userinfo_handler(func):
 		# Obtain authz service from the request
 		authz_service = request.AuthzService
 
-		# RBAC URL is disabled, so no authorization can be performed
-		if request.AuthzService.OAuth2Url == "!DISABLED!":
-			return await func(*args, **kargs)
-
-		elif request.AuthzService.OAuth2Url == "":
-			L.error("oauth2_url is not configured ;-(")
-			raise aiohttp.web.HTTPUnauthorized()
-
 		bearer_token = _get_bearer_token(request)
 
 		# Fail if no access token is found in the request
