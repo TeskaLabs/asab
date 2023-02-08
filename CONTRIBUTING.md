@@ -73,5 +73,5 @@ def publish(self, event_name, *args, **kwargs):
 
 1. Create a version tag (`git tag -a v19.10`)
 1. Push a tag to GitHub (`git push origin v19.10`)
-1. Make local build (`setup.py sdist bdist_wheel`)
+1. Make local build (`python3 setup.py sdist bdist_wheel`)
 1. Publish a package to pypi.org (`twine upload dist/*`)

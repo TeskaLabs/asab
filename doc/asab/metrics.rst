@@ -162,15 +162,16 @@ The **API Service** in ASAB offers several endpoints that monitor internal ASAB 
 
 - Use this endpoint for developing or monitoring your app from the terminal. It returns a simple table of ASAB metrics. You can filter metrics by name using the ``filter`` parameter and ``tags`` parameter to show or hide tags.
 
-    *example commands:*
+
+*example commands:*
 
 .. code::
 
-    watch curl localhost:8080/asab/v1/metrics_watch
+    watch curl localhost:8080/asab/v1/watch_metrics
 
 .. code::
 
-    watch curl localhost:8080/asab/v1/metrics_watch?name=web_requests_duration_max,tags=True
+    watch curl localhost:8080/asab/v1/watch_metrics?name=web_requests_duration_max,tags=True
 
 
 HTTP Target
@@ -185,7 +186,7 @@ Configuration is required.
     [asab:metrics]
     target=http
 
-    [asab:metrics:influxdb]
+    [asab:metrics:http]
     url=http://consumer_example:8080/consume
 
 
