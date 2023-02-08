@@ -44,15 +44,15 @@ def required(*resources):
 				L.error("oauth2_url is not configured ;-(")
 				raise aiohttp.web.HTTPUnauthorized()
 
-			access_token = _get_access_token(request)
+			bearer_token = _get_bearer_token(request)
 
 			# For resistancy against security attacks
-			if access_token is None:
+			if bearer_token is None:
 				raise aiohttp.web.HTTPUnauthorized()
 
 			if await authz_service.authorize(
 				resources=resources,
-				access_token=access_token,
+				bearer_token=bearer_token,
 				tenant=getattr(request, "Tenant", None),
 			):
 				return await func(*args, **kargs)
@@ -94,14 +94,14 @@ def userinfo_handler(func):
 			L.error("oauth2_url is not configured ;-(")
 			raise aiohttp.web.HTTPUnauthorized()
 
-		access_token = _get_access_token(request)
+		bearer_token = _get_bearer_token(request)
 
 		# Fail if no access token is found in the request
-		if access_token is None:
+		if bearer_token is None:
 			L.warning("Access token has not been provided in the request - unauthorized.")
 			raise aiohttp.web.HTTPUnauthorized()
 
-		userinfo_data = await authz_service.userinfo(access_token=access_token)
+		userinfo_data = await authz_service.userinfo(bearer_token=bearer_token)
 		if userinfo_data is not None:
 			return await func(*args, userinfo=userinfo_data, **kargs)
 
@@ -112,16 +112,16 @@ def userinfo_handler(func):
 	return wrapper
 
 
-def _get_access_token(request):
+def _get_bearer_token(request):
 	authorization_header_rg = re.compile(r"^\s*Bearer ([A-Za-z0-9\-\.\+_~/=]*)")
 
 	authorization_value = request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
-	access_token = None
+	bearer_token = None
 
 	# Obtain access token from the authorization header
 	if authorization_value is not None:
 		authorization_match = authorization_header_rg.match(authorization_value)
 		if authorization_match is not None:
-			access_token = authorization_match.group(1)
+			bearer_token = authorization_match.group(1)
 
-	return access_token
+	return bearer_token

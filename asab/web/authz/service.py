@@ -1,8 +1,13 @@
-import hashlib
+import json
+import logging
 import aiohttp
 
+import jwcrypto.jwk
+import jwcrypto.jwt
+import jwcrypto.jws
+
 import asab
-import logging
+import asab.exceptions
 
 #
 
@@ -13,8 +18,7 @@ L = logging.getLogger(__name__)
 
 asab.Config.add_defaults({
 	"authz": {
-		"oauth2_url": "",
-		"userinfo_endpoint": "/userinfo",
+		"public_keys_url": "",  # If no public keys url is provided, ID tokens are not validated
 		"cache_expiration": "1 m"
 	}
 })
@@ -24,29 +28,36 @@ class AuthzService(asab.Service):
 
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
+		self.PublicKeysUrl = asab.Config.get("authz", "public_keys_url")
+		self.PublicKey = None
 
-		self.OAuth2Url = asab.Config.get("authz", "oauth2_url")
-		if self.OAuth2Url.endswith("/"):
-			self.OAuth2Url = self.OAuth2Url[:-1]
+	async def initialize(self, app):
+		if self.PublicKeysUrl is not None:
+			# TODO: Retry if unsuccessful
+			await self.get_public_keys()
 
-		self.UserInfoEndpoint = asab.Config.get("authz", "userinfo_endpoint")
-		self.CacheExpiration = asab.Config.getseconds("authz", "cache_expiration")
+	async def get_public_keys(self):
+		async with aiohttp.ClientSession() as session:
+			async with session.get(self.PublicKeysUrl) as response:
+				if response.status != 200:
+					L.error("Cannot retrieve public keys from authorization server", struct_data={
+						"status": response.status,
+						"url": self.PublicKeysUrl,
+						"text": await response.text(),
+					})
+					raise ConnectionError()
 
-		self.Cache = {}
+				jwkeys = await response.json()
+				self.PublicKey = jwcrypto.jwk.JWK(**jwkeys.pop())
 
-		app.PubSub.subscribe("Application.tick/60!", self._evaluate_expiration_in_cache)
-
-	async def authorize(self, resources, access_token, tenant=None):
+	async def authorize(self, resources, bearer_token, tenant=None):
 		# Use userinfo to make RBAC check
-		userinfo = await self.userinfo(access_token)
+		userinfo = await self.userinfo(bearer_token)
 
 		# Fail if userinfo cannot be fetched or resources are missing
 		if userinfo is None:
 			return False
 		user_resources = userinfo.get("resources")
-		if not isinstance(user_resources, dict):
-			# TODO: Backward compatibility. Remove after Dec 2022
-			user_resources = userinfo.get("authz")
 		if user_resources is None:
 			return False
 
@@ -72,62 +83,23 @@ class AuthzService(asab.Service):
 
 		return True
 
-	async def userinfo(self, access_token):
-		# TODO: Replace cache invalidation with more clever approach like session indicator in the HTTP request
-		# Check that the item is located in the cache
-		userinfo = self._get_from_cache(access_token)
+	async def userinfo(self, bearer_token):
+		return self._get_id_token_claims(bearer_token)
 
-		# Check if the authorization is cached
-		if userinfo is not None:
-			return userinfo
+	def _get_id_token_claims(self, bearer_token):
+		# TODO: Don't check signature if no public key url is provided
+		try:
+			token = jwcrypto.jwt.JWT(jwt=bearer_token, key=self.PublicKey)
+		except jwcrypto.jwt.JWTExpired:
+			raise asab.exceptions.NotAuthenticatedError("ID token expired.")
+		except jwcrypto.jws.InvalidJWSSignature:
+			raise asab.exceptions.NotAuthenticatedError("Invalid ID token signature.")
+		except ValueError as e:
+			raise asab.exceptions.NotAuthenticatedError("Authentication failed: {}".format(e))
 
-		async with aiohttp.ClientSession() as session:
-			userinfo_url = "{}{}".format(self.OAuth2Url, self.UserInfoEndpoint)
+		try:
+			token_claims = json.loads(token.claims)
+		except ValueError:
+			raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token claims.")
 
-			headers = {}
-			if access_token is not None:
-				headers["Authorization"] = "Bearer {}".format(access_token)
-
-			async with session.get(
-				userinfo_url,
-				headers=headers,
-			) as response:
-				if response.status != 200:
-					L.error("Failed to fetch userinfo", struct_data={
-						"status": response.status,
-						**dict(response.headers),
-					})
-					return None
-
-				response_json = await response.json()
-				if len(response_json) > 0:
-					userinfo = response_json
-
-				self._set_to_cache(access_token, userinfo)
-
-		return userinfo
-
-	async def _evaluate_expiration_in_cache(self, event_name):
-		cache_keys_to_delete = list()
-
-		for cache_key, cache_value in self.Cache.items():
-			authorized, expiration = cache_value
-			if self.App.time() >= expiration:
-				cache_keys_to_delete.append(cache_key)
-
-		for cache_key in cache_keys_to_delete:
-			del self.Cache[cache_key]
-
-	def _get_from_cache(self, access_token):
-		key = access_token.encode("utf-8")
-		hashed = hashlib.sha256(key).digest()
-		cache_value = self.Cache.get(hashed)
-		if cache_value is None:
-			return None
-
-		return cache_value[0]
-
-	def _set_to_cache(self, access_token, userinfo):
-		key = access_token.encode("utf-8")
-		hashed = hashlib.sha256(key).digest()
-		self.Cache[hashed] = (userinfo, self.App.time() + self.CacheExpiration)
+		return token_claims
