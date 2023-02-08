@@ -170,8 +170,7 @@ class LibraryService(Service):
 		:return: I/O stream (read) with the content of the libary item.
 		"""
 		# It must start with '/'
-		if path[:1] != '/':
-			path = '/' + path
+		assert(path[:1] == '/')
 
 		if self.check_disabled(path, tenant=tenant):
 			return None
