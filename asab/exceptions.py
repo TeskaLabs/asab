@@ -5,6 +5,20 @@ class ValidationError(Exception):
 	pass
 
 
+class NotAuthenticatedError(Exception):
+	"""
+	Request could not be authenticated
+	"""
+	pass
+
+
+class NotAuthorizedError(Exception):
+	"""
+	Subject is not allowed to access this resource
+	"""
+	pass
+
+
 class Conflict(Exception):
 	"""
 	Request cannot be satisfied because it would introduce a state that violates some uniqueness requirement
