@@ -366,3 +366,14 @@ class LibraryService(Service):
 		tarobj.close()
 		fileobj.seek(0)
 		return fileobj
+
+	def subscribe(self, paths):
+		"""
+		It subscribes to the changes in the library
+		:param paths: A list of absolute paths to subscribe to
+		"""
+		for path in paths:
+			assert path[:1] == '/', "Absolute path must be used when subscribing to the library changes"
+
+			for provider in self.Libraries:
+				provider.subscribe(path)
