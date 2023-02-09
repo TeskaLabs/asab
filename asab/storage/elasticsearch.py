@@ -71,9 +71,9 @@ class StorageService(StorageServiceABC):
 
 	def session(self):
 		if self._ClientSession is None:
-			self._ClientSession = aiohttp.ClientSession(auth=self._auth, loop=self.Loop)
+			self._ClientSession = aiohttp.ClientSession(auth=self._auth)
 		elif self._ClientSession.closed:
-			self._ClientSession = aiohttp.ClientSession(auth=self._auth, loop=self.Loop)
+			self._ClientSession = aiohttp.ClientSession(auth=self._auth)
 		return self._ClientSession
 
 

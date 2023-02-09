@@ -81,7 +81,7 @@ class Logging(object):
 							async def schedule(app, interval):
 								self.LogRotatingTime = Timer(app, self._on_tick_rotate_check, autorestart=True)
 								self.LogRotatingTime.start(i)
-							asyncio.ensure_future(schedule(app, i), loop=app.Loop)
+							asyncio.ensure_future(schedule(app, i))
 
 					else:
 						self.RootLogger.error("Invalid 'rotate_every' configuration value.")

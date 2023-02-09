@@ -46,7 +46,7 @@ class MyApplication(asab.Application):
 			t = self.Loop.run_in_executor(self.Executor, task, i)
 			tasks.append(t)
 
-		results = await asyncio.gather(*tasks, loop=self.Loop)
+		results = await asyncio.gather(*tasks)
 		print("Result:", sum(results))
 
 		self.stop()

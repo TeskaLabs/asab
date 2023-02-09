@@ -495,7 +495,7 @@ class Application(metaclass=Singleton):
 		futures = set()
 		for service in self.Services.values():
 			futures.add(
-				service.finalize(self)
+				asyncio.ensure_future(service.finalize(self))
 			)
 
 		while len(futures) > 0:
@@ -511,7 +511,7 @@ class Application(metaclass=Singleton):
 		futures = set()
 		for module in self.Modules:
 			futures.add(
-				module.finalize(self)
+				asyncio.ensure_future(module.finalize(self))
 			)
 
 		while len(futures) > 0:

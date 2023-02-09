@@ -86,7 +86,7 @@ class PubSub(object):
 	def _callback_iter(self, message_type):
 
 		def _deliver_async(loop, callback, message_type, *args, **kwargs):
-			asyncio.ensure_future(callback(message_type, *args, **kwargs), loop=loop)
+			asyncio.ensure_future(callback(message_type, *args, **kwargs))
 
 		callback_list = self.Subscribers.get(message_type)
 		if callback_list is None:
