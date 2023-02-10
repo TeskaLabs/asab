@@ -89,11 +89,11 @@ class MetricsService(Service):
 		pending = set()
 		for target in self.Targets:
 			pending.add(
-				target.process(self.Storage.Metrics, now)
+				asyncio.ensure_future(target.process(self.Storage.Metrics, now))
 			)
 
 		while len(pending) > 0:
-			done, pending = await asyncio.wait(pending, loop=self.App.Loop, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
+			done, pending = await asyncio.wait(pending, timeout=180.0, return_when=asyncio.ALL_COMPLETED)
 
 
 	def _add_metric(self, metric: Metric, metric_name: str, tags=None, reset=None, help=None, unit=None):

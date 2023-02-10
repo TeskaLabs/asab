@@ -78,6 +78,7 @@ want to allow OPTIONS method for preflight requests.
 		'servertokens': 'full',  # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
 		'cors': '',
 		'cors_preflight_paths': '/openidconnect/*, /test/*',
+		'body_max_size': 1024**2,  # Client’s maximum body size in a request, in bytes
 	}
 
 
@@ -119,7 +120,7 @@ want to allow OPTIONS method for preflight requests.
 			for param in line:
 				if param.startswith('ssl:'):
 					# Dedicated section for SSL
-					ssl_context = SSLContextBuilder(param).build()
+					ssl_context = SSLContextBuilder(param, config=self.Config).build()
 					# SSL parameters are included in the current config section
 				elif param.startswith('ssl'):
 					ssl_context = SSLContextBuilder("<none>", config=self.Config).build()
@@ -132,7 +133,8 @@ want to allow OPTIONS method for preflight requests.
 		if len(self._listen) == 0:
 			L.warning("Missing configuration.")
 
-		self.WebApp = aiohttp.web.Application(loop=websvc.App.Loop)
+		client_max_size = int(self.Config.get("body_max_size"))
+		self.WebApp = aiohttp.web.Application(client_max_size=client_max_size)
 		self.WebApp.on_response_prepare.append(self._on_prepare_response)
 		self.WebApp['app'] = websvc.App
 
