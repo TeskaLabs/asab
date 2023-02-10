@@ -134,7 +134,7 @@ want to allow OPTIONS method for preflight requests.
 			L.warning("Missing configuration.")
 
 		client_max_size = int(self.Config.get("body_max_size"))
-		self.WebApp = aiohttp.web.Application(loop=websvc.App.Loop, client_max_size=client_max_size)
+		self.WebApp = aiohttp.web.Application(client_max_size=client_max_size)
 		self.WebApp.on_response_prepare.append(self._on_prepare_response)
 		self.WebApp['app'] = websvc.App
 
