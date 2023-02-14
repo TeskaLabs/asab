@@ -157,8 +157,105 @@ class DocWebHandler(object):
 				L.warning("asab NOT in path: {}".format(path))
 				service_routers.append(route)
     
+		for route in service_routers:
+			if route.method == 'HEAD':
+				# Skip HEAD methods
+				# TODO: once/if there is graphql, its method name is probably `*`
+				continue
 
-		for route in self.WebContainer.WebApp.router.routes():
+			parameters = []
+			method_dict = {}
+
+			route_info = route.get_info()
+			if "path" in route_info:
+				path = route_info["path"]
+
+			elif "formatter" in route_info:
+				# Extract URL parameters from formatter string
+				path = route_info["formatter"]
+
+				for params in re.findall(r'\{.*\}', path):
+					if "/" in params:
+						for parameter in params.split("/"):
+							parameters.append({
+								'in': 'path',
+								'name': parameter[1:-1],
+								'required': True,
+							})
+					else:
+						parameters.append({
+							'in': 'path',
+							'name': params[1:-1],
+							'required': True,
+						})
+
+			else:
+				L.warning("Cannot obtain path info from route", struct_data=route_info)
+				continue
+
+			path_object = specs['paths'].get(path)
+			if path_object is None:
+				specs['paths'][path] = path_object = {}
+
+			if inspect.ismethod(route.handler):
+				if route.handler.__name__ == "validator":
+					json_schema = route.handler.__getattribute__("json_schema")
+					doc_str = route.handler.__getattribute__("func").__doc__
+
+					method_dict["requestBody"] = {
+						"content": {
+							"application/json": {
+								"schema": json_schema
+							}
+						},
+					}
+					handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__getattribute__("func").__name__)
+
+				else:
+					handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
+					doc_str = route.handler.__doc__
+
+			else:
+				handler_name = str(route.handler)
+				doc_str = route.handler.__doc__
+
+			add_dict = None
+
+			if doc_str is not None:
+				doc_str = inspect.cleandoc(doc_str)
+				i = doc_str.find("\n---\n")
+				if i >= 0:
+					description = doc_str[:i]
+					try:
+						add_dict = yaml.load(doc_str[i:], Loader=yaml.SafeLoader)
+					except yaml.YAMLError as e:
+						L.error("Failed to parse '{}' doc string {}".format(handler_name, e))
+				else:
+					description = doc_str
+			else:
+				description = ""
+
+			description += '\n\nHandler: `{}`'.format(handler_name)
+
+			method_dict.update({
+				'summary': description.split("\n")[0],
+				'description': description,
+				'tags': ['general'],
+				'responses': {
+					'200': {'description': 'Success'}
+				},
+			})
+
+			if len(parameters) > 0:
+				method_dict['parameters'] = parameters
+
+			if add_dict is not None:
+				method_dict.update(add_dict)
+
+			path_object[route.method.lower()] = method_dict
+
+
+		for route in asab_routers:
 			if route.method == 'HEAD':
 				# Skip HEAD methods
 				# TODO: once/if there is graphql, its method name is probably `*`
