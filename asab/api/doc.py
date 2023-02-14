@@ -37,20 +37,20 @@ class DocWebHandler(object):
 		into a Swagger specification.
 		"""
 
-		docstr = self.App.__doc__
-		adddict = None
+		doc_str = self.App.__doc__
+		add_dict = None
 
-		if docstr is not None:
-			docstr = inspect.cleandoc(docstr)
-			i = docstr.find("\n---\n")
+		if doc_str is not None:
+			doc_str = inspect.cleandoc(doc_str)
+			i = doc_str.find("\n---\n")
 			if i >= 0:
-				description = docstr[:i]
+				description = doc_str[:i]
 				try:
-					adddict = yaml.load(docstr[i:], Loader=yaml.SafeLoader)
+					add_dict = yaml.load(doc_str[i:], Loader=yaml.SafeLoader)
 				except yaml.YAMLError as e:
 					L.error("Failed to parse '{}' doc string {}".format(self.App.__class__.__name__, e))
 			else:
-				description = docstr
+				description = doc_str
 		else:
 			description = ""
 
@@ -107,8 +107,12 @@ class DocWebHandler(object):
 			self.App.ServerName, self.WebContainer.Addresses) + "<p>{}</p>".format(description))
 		# specs["servers"].append({"url": "http://{}:{}".format(server[0], server[1])})
 
-		if adddict is not None:
-			specs.update(adddict)
+		if add_dict is not None:
+			specs.update(add_dict)
+
+
+		asab_routers = []
+		service_routers = []
 
 		for route in self.WebContainer.WebApp.router.routes():
 			if route.method == 'HEAD':
@@ -117,7 +121,7 @@ class DocWebHandler(object):
 				continue
 
 			parameters = []
-			methoddict = {}
+			method_dict = {}
 
 			route_info = route.get_info()
 			if "path" in route_info:
@@ -146,16 +150,60 @@ class DocWebHandler(object):
 				L.warning("Cannot obtain path info from route", struct_data=route_info)
 				continue
 
-			pathobj = specs['paths'].get(path)
-			if pathobj is None:
-				specs['paths'][path] = pathobj = {}
+			if re.search("asab/", path):
+				L.warning("asab in path: {}".format(path))
+				asab_routers.append(route)
+			else:
+				L.warning("asab NOT in path: {}".format(path))
+				service_routers.append(route)
+    
+
+		for route in self.WebContainer.WebApp.router.routes():
+			if route.method == 'HEAD':
+				# Skip HEAD methods
+				# TODO: once/if there is graphql, its method name is probably `*`
+				continue
+
+			parameters = []
+			method_dict = {}
+
+			route_info = route.get_info()
+			if "path" in route_info:
+				path = route_info["path"]
+
+			elif "formatter" in route_info:
+				# Extract URL parameters from formatter string
+				path = route_info["formatter"]
+
+				for params in re.findall(r'\{.*\}', path):
+					if "/" in params:
+						for parameter in params.split("/"):
+							parameters.append({
+								'in': 'path',
+								'name': parameter[1:-1],
+								'required': True,
+							})
+					else:
+						parameters.append({
+							'in': 'path',
+							'name': params[1:-1],
+							'required': True,
+						})
+
+			else:
+				L.warning("Cannot obtain path info from route", struct_data=route_info)
+				continue
+
+			path_object = specs['paths'].get(path)
+			if path_object is None:
+				specs['paths'][path] = path_object = {}
 
 			if inspect.ismethod(route.handler):
 				if route.handler.__name__ == "validator":
 					json_schema = route.handler.__getattribute__("json_schema")
-					docstr = route.handler.__getattribute__("func").__doc__
+					doc_str = route.handler.__getattribute__("func").__doc__
 
-					methoddict["requestBody"] = {
+					method_dict["requestBody"] = {
 						"content": {
 							"application/json": {
 								"schema": json_schema
@@ -166,31 +214,31 @@ class DocWebHandler(object):
 
 				else:
 					handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
-					docstr = route.handler.__doc__
+					doc_str = route.handler.__doc__
 
 			else:
 				handler_name = str(route.handler)
-				docstr = route.handler.__doc__
+				doc_str = route.handler.__doc__
 
-			adddict = None
+			add_dict = None
 
-			if docstr is not None:
-				docstr = inspect.cleandoc(docstr)
-				i = docstr.find("\n---\n")
+			if doc_str is not None:
+				doc_str = inspect.cleandoc(doc_str)
+				i = doc_str.find("\n---\n")
 				if i >= 0:
-					description = docstr[:i]
+					description = doc_str[:i]
 					try:
-						adddict = yaml.load(docstr[i:], Loader=yaml.SafeLoader)
+						add_dict = yaml.load(doc_str[i:], Loader=yaml.SafeLoader)
 					except yaml.YAMLError as e:
 						L.error("Failed to parse '{}' doc string {}".format(handler_name, e))
 				else:
-					description = docstr
+					description = doc_str
 			else:
 				description = ""
 
 			description += '\n\nHandler: `{}`'.format(handler_name)
 
-			methoddict.update({
+			method_dict.update({
 				'summary': description.split("\n")[0],
 				'description': description,
 				'tags': ['general'],
@@ -200,13 +248,13 @@ class DocWebHandler(object):
 			})
 
 			if len(parameters) > 0:
-				methoddict['parameters'] = parameters
+				method_dict['parameters'] = parameters
 
-			if adddict is not None:
-				methoddict.update(adddict)
+			if add_dict is not None:
+				method_dict.update(add_dict)
 
-			pathobj[route.method.lower()] = methoddict
-
+			path_object[route.method.lower()] = method_dict
+		# L.warning("specs: {}".format(specs))
 		return specs
 
 
@@ -354,6 +402,6 @@ window.onload = () => {{
 
 		'''
 		return aiohttp.web.Response(
-			text=yaml.dump(self.build_swagger_specs()),
+			text=yaml.dump(self.build_swagger_specs(), sort_keys=False),
 			content_type="text/yaml"
 		)
