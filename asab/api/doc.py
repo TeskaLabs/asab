@@ -31,7 +31,7 @@ class DocWebHandler(object):
 		self.Manifest = api_service.Manifest
 
 
-	def build_swagger_specs(self):
+	def prepare_specs(self):
 		"""
 		Takes a docstring of a class and a docstring of methods and merges them
 		into a Swagger specification.
@@ -359,16 +359,19 @@ class DocWebHandler(object):
 
 
 
-	def build_swagger_specs_all(self):
-		"""
-		Takes a docstring of a class and a docstring of methods and merges them
-		into a Swagger specification.
-		"""
+	def build_swagger_spec_mejroslav(self):
+    
+		self.create_description()
+		self.prepare_specs()
+		self.build_swagger_header()
+		self.build_swagger_routes()
 
+		return self.specs
+
+	def create_description(self):
+		self.add_dict = None
 		doc_str = self.App.__doc__
   
-		self.add_dict = None
-
 		if doc_str is not None:
 			doc_str = inspect.cleandoc(doc_str)
 			i = doc_str.find("\n---\n")
@@ -382,7 +385,14 @@ class DocWebHandler(object):
 				self.description = doc_str
 		else:
 			self.description = ""
+     
 
+	def prepare_specs(self):
+		"""
+		Takes a docstring of a class and a docstring of methods and merges them
+		into a Swagger specification.
+		"""
+  
 		self.specs = {
 			"openapi": "3.0.1",
 			"info": {
@@ -402,11 +412,6 @@ class DocWebHandler(object):
 			"components": {},
 		}
   
-		self.build_swagger_header()
-		self.build_swagger_routes()
-  
-		return self.specs
-
 
 	def erase_obsolete_security_schemes(self):
 		"""Get rid of securitySchemes if there is no authorizationUrl or tokenUrl."""
@@ -580,21 +585,21 @@ class DocWebHandler(object):
 				doc_str = inspect.cleandoc(doc_str)
 				i = doc_str.find("\n---\n")
 				if i >= 0:
-					description = doc_str[:i]
+					self.description = doc_str[:i]
 					try:
 						add_dict = yaml.load(doc_str[i:], Loader=yaml.SafeLoader)
 					except yaml.YAMLError as e:
 						L.error("Failed to parse '{}' doc string {}".format(handler_name, e))
 				else:
-					description = doc_str
+					self.description = doc_str
 			else:
-				description = ""
+				self.description = ""
 
-			description += '\n\nHandler: `{}`'.format(handler_name)
+			self.description += '\n\nHandler: `{}`'.format(handler_name)
 
 			method_dict.update({
-				'summary': description.split("\n")[0],
-				'description': description,
+				'summary': self.description.split("\n")[0],
+				'description': self.description,
 				'tags': ['general'],
 				'responses': {
 					'200': {'description': 'Success'}
@@ -678,21 +683,21 @@ class DocWebHandler(object):
 				doc_str = inspect.cleandoc(doc_str)
 				i = doc_str.find("\n---\n")
 				if i >= 0:
-					description = doc_str[:i]
+					self.description = doc_str[:i]
 					try:
 						add_dict = yaml.load(doc_str[i:], Loader=yaml.SafeLoader)
 					except yaml.YAMLError as e:
 						L.error("Failed to parse '{}' doc string {}".format(handler_name, e))
 				else:
-					description = doc_str
+					self.description = doc_str
 			else:
-				description = ""
+				self.description = ""
 
-			description += '\n\nHandler: `{}`'.format(handler_name)
+			self.description += '\n\nHandler: `{}`'.format(handler_name)
 
 			method_dict.update({
-				'summary': description.split("\n")[0],
-				'description': description,
+				'summary': self.description.split("\n")[0],
+				'description': self.description,
 				'tags': ['general'],
 				'responses': {
 					'200': {'description': 'Success'}
@@ -851,7 +856,7 @@ window.onload = () => {{
 
 		'''
 		return aiohttp.web.Response(
-			text=(yaml.dump(self.build_swagger_specs_all(), sort_keys=False)),
+			text=(yaml.dump(self.build_swagger_spec_mejroslav(), sort_keys=False)),
 	
 			content_type="text/yaml"
 		)
