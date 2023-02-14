@@ -60,7 +60,7 @@ Example
 
         # This is the web request handler
         async def hello(self, request):
-            return aiohttp.web.Response(text="Hello, world!\n")
+            return asab.web.rest.json_response(request, data="Hello, world!\n")
     
     if __name__ == '__main__':
         # Create and start the application
