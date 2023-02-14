@@ -467,7 +467,6 @@ class DocWebHandler(object):
 		self.route_info = route.get_info()
 		if "path" in self.route_info:
 			self.path = self.route_info["path"]
-
 		elif "formatter" in self.route_info:
 			# Extract URL parameters from formatter string
 			self.path = self.route_info["formatter"]
@@ -486,7 +485,6 @@ class DocWebHandler(object):
 						'name': params[1:-1],
 						'required': True,
 					})
-
 		else:
 			L.warning("Cannot obtain path info from route", struct_data=self.route_info)
 
@@ -502,9 +500,15 @@ class DocWebHandler(object):
 				# TODO: once/if there is graphql, its method name is probably `*`
 				continue
 
+			# self.get_path(route)
+
+			self.parameters = []
+			self.method_dict = {}
+
 			self.get_path(route)
 
-			if re.search("/doc", self.path) or re.search("/oauth-redirect.html", self.path):
+			# sort by asab and nonasab
+			if re.search("/doc", self.path) or re.search("/oauth2-redirect.html", self.path):
 				self.doc_routers.append(route)
 			elif re.search("asab", self.path):
 				L.warning("asab in path: {}".format(self.path))
@@ -513,37 +517,6 @@ class DocWebHandler(object):
 				L.warning("asab NOT in path: {}".format(self.path))
 				self.service_routers.append(route)
 
-
-			self.parameters = []
-			self.method_dict = {}
-
-			self.route_info = route.get_info()
-			if "path" in self.route_info:
-				self.path = self.route_info["path"]
-
-			elif "formatter" in self.route_info:
-				# Extract URL parameters from formatter string
-				self.path = self.route_info["formatter"]
-
-				for params in re.findall(r'\{.*\}', self.path):
-					if "/" in params:
-						for parameter in params.split("/"):
-							self.parameters.append({
-								'in': 'path',
-								'name': parameter[1:-1],
-								'required': True,
-							})
-					else:
-						self.parameters.append({
-							'in': 'path',
-							'name': params[1:-1],
-							'required': True,
-						})
-
-			else:
-				L.warning("Cannot obtain path info from route", struct_data=self.route_info)
-				continue
-
 			path_object = self.specs['paths'].get(self.path)
 			if path_object is None:
 				self.specs['paths'][self.path] = path_object = {}
@@ -606,102 +579,6 @@ class DocWebHandler(object):
 			path_object[route.method.lower()] = self.method_dict
 
 
-		for route in self.asab_routers:
-			if route.method == 'HEAD':
-				# Skip HEAD methods
-				# TODO: once/if there is graphql, its method name is probably `*`
-				continue
-
-			self.parameters = []
-			self.method_dict = {}
-
-			self.route_info = route.get_info()
-			if "path" in self.route_info:
-				self.path = self.route_info["path"]
-
-			elif "formatter" in self.route_info:
-				# Extract URL parameters from formatter string
-				self.path = self.route_info["formatter"]
-
-				for params in re.findall(r'\{.*\}', self.path):
-					if "/" in params:
-						for parameter in params.split("/"):
-							self.parameters.append({
-								'in': 'path',
-								'name': parameter[1:-1],
-								'required': True,
-							})
-					else:
-						self.parameters.append({
-							'in': 'path',
-							'name': params[1:-1],
-							'required': True,
-						})
-
-			else:
-				L.warning("Cannot obtain path info from route", struct_data=self.route_info)
-				continue
-
-			path_object = self.specs['paths'].get(self.path)
-			if path_object is None:
-				self.specs['paths'][self.path] = path_object = {}
-
-			if inspect.ismethod(route.handler):
-				if route.handler.__name__ == "validator":
-					json_schema = route.handler.__getattribute__("json_schema")
-					doc_str = route.handler.__getattribute__("func").__doc__
-
-					self.method_dict["requestBody"] = {
-						"content": {
-							"application/json": {
-								"schema": json_schema
-							}
-						},
-					}
-					handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__getattribute__("func").__name__)
-
-				else:
-					handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
-					doc_str = route.handler.__doc__
-
-			else:
-				handler_name = str(route.handler)
-				doc_str = route.handler.__doc__
-
-			add_dict = None
-
-			if doc_str is not None:
-				doc_str = inspect.cleandoc(doc_str)
-				i = doc_str.find("\n---\n")
-				if i >= 0:
-					self.description = doc_str[:i]
-					try:
-						add_dict = yaml.load(doc_str[i:], Loader=yaml.SafeLoader)
-					except yaml.YAMLError as e:
-						L.error("Failed to parse '{}' doc string {}".format(handler_name, e))
-				else:
-					self.description = doc_str
-			else:
-				self.description = ""
-
-			self.description += '\n\nHandler: `{}`'.format(handler_name)
-
-			self.method_dict.update({
-				'summary': self.description.split("\n")[0],
-				'description': self.description,
-				'tags': ['general'],
-				'responses': {
-					'200': {'description': 'Success'}
-				},
-			})
-
-			if len(self.parameters) > 0:
-				self.method_dict['parameters'] = self.parameters
-
-			if add_dict is not None:
-				self.method_dict.update(add_dict)
-
-			path_object[route.method.lower()] = self.method_dict
 
 	# This is the web request handler
 	async def doc(self, request):
