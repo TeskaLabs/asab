@@ -19,10 +19,11 @@ L = logging.getLogger(__name__)
 
 
 class ApiService(Service):
-
+ 
 	def __init__(self, app, service_name="asab.ApiService"):
 		super().__init__(app, service_name)
 
+		L.warning("ApiService started")
 		self.WebContainer = None
 		self.ZkContainer = None
 		self.MetricWebHandler = None
