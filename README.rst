@@ -26,7 +26,10 @@ Contributions are welcome!
 Installation
 ------------
 
-``pip install asab``
+
+.. code:: shell
+
+    $ pip install asab
 
 
 Documentation
@@ -68,7 +71,10 @@ Example
 The application is available at http://localhost:8080/.
 You can test it by:
 
-    curl http://localhost:8080/hello
+
+.. code:: shell
+
+    $ curl http://localhost:8080/hello
 
 
 Microservices
