@@ -407,8 +407,10 @@ class DocWebHandler(object):
   
 		return self.specs
 
-	def build_swagger_header(self):
-     # Get rid of securitySchemes if there is no authorizationUrl or tokenUrl
+
+	def erase_obsolete_security_schemes(self):
+		"""Get rid of securitySchemes if there is no authorizationUrl or tokenUrl."""
+     
 		if self.AuthorizationUrl and self.TokenUrl:
 			self.specs["components"].update({
 				"securitySchemes": {
@@ -428,19 +430,29 @@ class DocWebHandler(object):
 				},
 			})
 
-		# Gets all the scopes from config and puts them into scopes
+	def extract_scopes(self):
+		"""Get all the scopes from config and puts them into scopes.
+		"""
 		if self.Scopes and self.AuthorizationUrl and self.TokenUrl:
 			for scope in self.Scopes.split(","):
 				self.specs["components"]["securitySchemes"]["oAuth"]["flows"]["authorizationCode"]["scopes"].update({scope: "{} scope.".format(scope.strip().capitalize())})
 
-		# Version from MANIFEST.json
+	def add_version_from_manifest(self):
+		"""Add version from MANIFEST.json if exists.
+		"""
 		if self.Manifest:
 			self.specs["info"]["version"] = self.Manifest["version"]
 
-		# Show what server/docker container you are on, and it's IP
+	def add_server_and_container_info(self):
 		self.specs["info"]["description"] = ("Running on: <strong>{}</strong> on: <strong>{}</strong>".format(
-			self.App.ServerName, self.WebContainer.Addresses) + "<p>{}</p>".format(self.description))
-		# specs["servers"].append({"url": "http://{}:{}".format(server[0], server[1])})
+		self.App.ServerName, self.WebContainer.Addresses) + "<p>{}</p>".format(self.description))
+
+	def build_swagger_header(self):
+     
+		self.erase_obsolete_security_schemes()
+		self.extract_scopes()
+		self.add_version_from_manifest()
+		self.add_server_and_container_info()
 
 		if self.add_dict is not None:
 			self.specs.update(self.add_dict)
@@ -464,13 +476,13 @@ class DocWebHandler(object):
 
 			route_info = route.get_info()
 			if "path" in route_info:
-				path = route_info["path"]
+				self.path = route_info["path"]
 
 			elif "formatter" in route_info:
 				# Extract URL parameters from formatter string
-				path = route_info["formatter"]
+				self.path = route_info["formatter"]
 
-				for params in re.findall(r'\{.*\}', path):
+				for params in re.findall(r'\{.*\}', self.path):
 					if "/" in params:
 						for parameter in params.split("/"):
 							parameters.append({
@@ -489,13 +501,13 @@ class DocWebHandler(object):
 				L.warning("Cannot obtain path info from route", struct_data=route_info)
 				continue
 
-			if re.search("/doc", path) or re.search("/oauth-redirect.html", path):
+			if re.search("/doc", self.path) or re.search("/oauth-redirect.html", self.path):
 				doc_routers.append(route)
-			elif re.search("asab", path):
-				L.warning("asab in path: {}".format(path))
+			elif re.search("asab", self.path):
+				L.warning("asab in path: {}".format(self.path))
 				asab_routers.append(route)
 			else:
-				L.warning("asab NOT in path: {}".format(path))
+				L.warning("asab NOT in path: {}".format(self.path))
 				service_routers.append(route)
 
 
@@ -511,13 +523,13 @@ class DocWebHandler(object):
 
 			route_info = route.get_info()
 			if "path" in route_info:
-				path = route_info["path"]
+				self.path = route_info["path"]
 
 			elif "formatter" in route_info:
 				# Extract URL parameters from formatter string
-				path = route_info["formatter"]
+				self.path = route_info["formatter"]
 
-				for params in re.findall(r'\{.*\}', path):
+				for params in re.findall(r'\{.*\}', self.path):
 					if "/" in params:
 						for parameter in params.split("/"):
 							parameters.append({
@@ -536,9 +548,9 @@ class DocWebHandler(object):
 				L.warning("Cannot obtain path info from route", struct_data=route_info)
 				continue
 
-			path_object = self.specs['paths'].get(path)
+			path_object = self.specs['paths'].get(self.path)
 			if path_object is None:
-				self.specs['paths'][path] = path_object = {}
+				self.specs['paths'][self.path] = path_object = {}
 
 			if inspect.ismethod(route.handler):
 				if route.handler.__name__ == "validator":
@@ -609,13 +621,13 @@ class DocWebHandler(object):
 
 			route_info = route.get_info()
 			if "path" in route_info:
-				path = route_info["path"]
+				self.path = route_info["path"]
 
 			elif "formatter" in route_info:
 				# Extract URL parameters from formatter string
-				path = route_info["formatter"]
+				self.path = route_info["formatter"]
 
-				for params in re.findall(r'\{.*\}', path):
+				for params in re.findall(r'\{.*\}', self.path):
 					if "/" in params:
 						for parameter in params.split("/"):
 							parameters.append({
@@ -634,9 +646,9 @@ class DocWebHandler(object):
 				L.warning("Cannot obtain path info from route", struct_data=route_info)
 				continue
 
-			path_object = self.specs['paths'].get(path)
+			path_object = self.specs['paths'].get(self.path)
 			if path_object is None:
-				self.specs['paths'][path] = path_object = {}
+				self.specs['paths'][self.path] = path_object = {}
 
 			if inspect.ismethod(route.handler):
 				if route.handler.__name__ == "validator":
