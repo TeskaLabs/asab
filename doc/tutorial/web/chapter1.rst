@@ -57,7 +57,11 @@ The ``asab.web`` module provides a ``create_web_server()`` function that simplif
     ...
     
     async def hello(self, request):
-        return asab.web.rest.json_response(request, data="Hello, world!\n")
+        return asab.web.rest.json_response(
+            request,
+            data="Hello, world!\n"
+        )
+
 
 The handler method ``hello()`` is installed at the web server at ``/hello`` endpoint.
 HTTP method is ``GET``.

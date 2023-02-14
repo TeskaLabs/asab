@@ -15,7 +15,10 @@ class MyWebApplication(asab.Application):
 
 	# This is the web request handler
 	async def hello(self, request):
-		return asab.web.rest.json_response(request, data="Hello, world!\n")
+		return asab.web.rest.json_response(
+			request,
+			data="Hello, world!\n"
+		)
 
 
 if __name__ == '__main__':
