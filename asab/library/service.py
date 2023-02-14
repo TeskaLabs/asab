@@ -3,6 +3,7 @@ import typing
 import asyncio
 import logging
 import functools
+import os
 import configparser
 import tempfile
 import tarfile
@@ -207,13 +208,14 @@ class LibraryService(Service):
 
 		# Path must start with '/'
 		assert path[:1] == '/'
-
 		# Path must NOT end with '/'
-		while path[-1:] == '/':
-			path = path[:-1]
 
-		# List requested level using all available providers
-		items = await self._list(path, tenant, providers=self.Libraries)
+		if os.path.isfile(path):
+			while path[-1:] == '/':
+				path = path[:-1]
+		else:
+			# List requested level using all available providers
+			items = await self._list(path, tenant, providers=self.Libraries)
 
 		if recursive:
 			# If recursive scan is requested, then iterate thru list of items
