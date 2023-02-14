@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-import asab
-import asab.web
-import aiohttp.web
+import asab.web.rest
 
 
 class MyWebApplication(asab.Application):
 
-	async def initialize(self):
-		self.add_module(asab.web.Module)
-		websvc = self.get_service("asab.WebService")
-		websvc.WebApp.router.add_get('/', self.index)
+	def __init__(self):
+		super().__init__()
 
-	async def index(self, request):
-		return aiohttp.web.Response(text='Hello, world.\n')
+		# Create the Web server
+		web = asab.web.create_web_server(self)
+
+		# Add a route to the handler method
+		web.add_get('/hello', self.hello)
+
+	# This is the web request handler
+	async def hello(self, request):
+		return asab.web.rest.json_response(request, data="Hello, world!\n")
 
 
 if __name__ == '__main__':
