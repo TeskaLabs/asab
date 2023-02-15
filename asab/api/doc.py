@@ -65,7 +65,9 @@ class DocWebHandler(object):
 				},
 				"version": "1.0.0"
 			},
-			"servers": [{"url": "../../"}],  # Base path relative to openapi endpoint
+			"servers": [
+				{"url": "/", "description": "Here"}
+			],
 			"paths": {},
 
 			# Authorization
@@ -105,7 +107,6 @@ class DocWebHandler(object):
 		# Show what server/docker container you are on, and it's IP
 		specs["info"]["description"] = ("Running on: <strong>{}</strong> on: <strong>{}</strong>".format(
 			self.App.ServerName, self.WebContainer.Addresses) + "<p>{}</p>".format(description))
-		# specs["servers"].append({"url": "http://{}:{}".format(server[0], server[1])})
 
 		if adddict is not None:
 			specs.update(adddict)
@@ -127,20 +128,12 @@ class DocWebHandler(object):
 				# Extract URL parameters from formatter string
 				path = route_info["formatter"]
 
-				for params in re.findall(r'\{.*\}', path):
-					if "/" in params:
-						for parameter in params.split("/"):
-							parameters.append({
-								'in': 'path',
-								'name': parameter[1:-1],
-								'required': True,
-							})
-					else:
-						parameters.append({
-							'in': 'path',
-							'name': params[1:-1],
-							'required': True,
-						})
+				for params in re.findall(r'\{[^\}]+\}', path):
+					parameters.append({
+						'in': 'path',
+						'name': params[1:-1],
+						'required': True,
+					})
 
 			else:
 				L.warning("Cannot obtain path info from route", struct_data=route_info)
@@ -151,10 +144,11 @@ class DocWebHandler(object):
 				specs['paths'][path] = pathobj = {}
 
 			if inspect.ismethod(route.handler):
-				if route.handler.__name__ == "validator":
-					json_schema = route.handler.__getattribute__("json_schema")
-					docstr = route.handler.__getattribute__("func").__doc__
+				handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
+				docstr = route.handler.__doc__
 
+				try:
+					json_schema = route.handler.__getattribute__("json_schema")
 					methoddict["requestBody"] = {
 						"content": {
 							"application/json": {
@@ -162,11 +156,9 @@ class DocWebHandler(object):
 							}
 						},
 					}
-					handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__getattribute__("func").__name__)
 
-				else:
-					handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
-					docstr = route.handler.__doc__
+				except AttributeError:
+					pass
 
 			else:
 				handler_name = str(route.handler)
@@ -188,7 +180,7 @@ class DocWebHandler(object):
 			else:
 				description = ""
 
-			description += '\n\nHandler: `{}`'.format(handler_name)
+			description += '\n\n\nHandler: `{}`'.format(handler_name)
 
 			methoddict.update({
 				'summary': description.split("\n")[0],
@@ -218,20 +210,24 @@ class DocWebHandler(object):
 		tags: ['asab.doc']
 		'''
 
-		swagger_js_url: str = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui-bundle.js"
-		swagger_css_url: str = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui.css"
+		swagger_js_url: str = "https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui-bundle.js"
+		swagger_css_url: str = "https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui.css"
 
 		page = '''<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<link type="text/css" rel="stylesheet" href="{swagger_css_url}">
 	<title>{title} API Documentation</title>
+	<style>
+code {{ tab-size: 4; }}
+pre {{ tab-size: 4; }}
+	</style>
 </head>
 <body>
-<div id="swagger-ui">
-</div>
+<div id="swagger-ui"></div>
 <script src="{swagger_js_url}"></script>
-	<!-- `SwaggerUIBundle` is now available on the page -->
 <script>
 window.onload = () => {{
 	window.ui = SwaggerUIBundle({{
