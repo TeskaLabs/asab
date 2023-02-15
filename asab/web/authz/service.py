@@ -174,4 +174,3 @@ class AuthzService(asab.Service):
 
 		self.PublicKey = public_key
 		L.log(asab.LOG_NOTICE, "Public key loaded.", struct_data={"url": self.PublicKeysUrl})
-
