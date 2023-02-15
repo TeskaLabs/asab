@@ -265,6 +265,8 @@ class DocWebHandler(object):
         self.asab_routers = []
         self.service_routers = []
         self.doc_routers = []
+        
+        
 
         for route in self.WebContainer.WebApp.router.routes():
             if route.method == "HEAD":
@@ -278,19 +280,18 @@ class DocWebHandler(object):
             self.get_path(route)
             self.determine_router_type(route)
 
-            # no idea what is this good for?
-            path_object = self.specs["paths"].get(self.path)
-            if path_object is None:
-                self.specs["paths"][self.path] = path_object = {}
 
             self.create_handle_name_and_docstring(route)
             self.update_methods(route)
 
+
+
+            # no idea what is this good for?
+            path_object = self.specs["paths"].get(self.path)
+            if path_object is None:
+                self.specs["paths"][self.path] = path_object = {}
             path_object[route.method.lower()] = self.method_dict
 
-    def add_swagger_routes_to_dict(self):
-        self.create_swagger_routes()
-        return self.specs
 
     # This is the web request handler
     async def doc(self, request):
@@ -337,6 +338,6 @@ class DocWebHandler(object):
 
         """
         return aiohttp.web.Response(
-            text=(yaml.dump(self.build_swagger_specification(), sort_keys=True)),
+            text=(yaml.dump(self.build_swagger_specification(), sort_keys=False)),
             content_type="text/yaml",
         )
