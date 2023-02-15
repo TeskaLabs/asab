@@ -43,11 +43,12 @@ class DocWebHandler(object):
         L.warning(f"scopes: {self.Scopes}")
         specification = {}
         add_dict = None
+        app_doc_string = self.App.__doc__
 
         additional_info_dict = {}
 
-        description = self.add_app_description()
-        additional_info_dict.update(self.add_additional_app_info())
+        description = self.add_description(app_doc_string)
+        additional_info_dict.update(self.add_additional_info(app_doc_string))
         specification.update(self.add_info(description))
         specification["components"] = self.create_security_schemes()
         specification["info"]["version"] = self.add_manifest()
@@ -57,6 +58,23 @@ class DocWebHandler(object):
             specification.update(additional_info_dict)
             
         router_types: dict = self.determine_router_type2()
+        
+        for route in router_types["asab-routers"]:
+            path: str = self.get_path_from_route_info(route)
+            parameters = self.extract_parameters(route)
+            
+            handle_name: str = self.create_handle_name(route)
+            doc_string: str = self.create_docstring(route)
+            method_dict: dict = self.create_method_dict(route)
+
+            method_dict.update(self.update_methods2(doc_string, add_dict, handle_name, parameters)) 
+
+            path_object = specification["paths"].get(path)
+            if path_object is None:
+                specification["paths"][path] = path_object = {}
+            path_object[route.method.lower()] = method_dict
+        
+        
         
         L.warning(f"router-types: {router_types}")
         L.warning(f"specification: {specification}")
@@ -84,41 +102,37 @@ class DocWebHandler(object):
             "components": {},
         }
 
-    def add_app_description(self) -> str:
+    def add_description(self, docstring: str | None) -> str:
         """Return the app description if exists."""
-
-        doc_str = self.App.__doc__
-
-        if doc_str is not None:
-            doc_str = inspect.cleandoc(doc_str)
-            dashes_index = doc_str.find(
+        if docstring is not None:
+            docstring = inspect.cleandoc(docstring)
+            dashes_index = docstring.find(
                 "\n---\n"
             )  # find the index of the first three dashes
             if dashes_index >= 0:
-                description = doc_str[
+                description = docstring[
                     :dashes_index
                 ]  # everything before --- goes to description
             else:
-                description = doc_str
+                description = docstring
         else:
             description = ""
         return description
 
-    def add_additional_app_info(self) -> dict:
+    def add_additional_info(self, docstring: str | None) -> dict:
         """Search for '---' and add everything that comes after into add_dict."""
 
-        doc_string = self.App.__doc__
         additional_info_dict = {}
 
-        if doc_string is not None:
-            doc_string = inspect.cleandoc(doc_string)
-            dashes_index = doc_string.find(
+        if docstring is not None:
+            docstring = inspect.cleandoc(docstring)
+            dashes_index = docstring.find(
                 "\n---\n"
             )  # find the index of the first three dashes
             if dashes_index >= 0:
                 try:
                     additional_info_dict = yaml.load(
-                        doc_string[dashes_index:], Loader=yaml.SafeLoader
+                        docstring[dashes_index:], Loader=yaml.SafeLoader
                     )  # everything after --- goes to add_dict
                 except yaml.YAMLError as e:
                     L.error(
@@ -220,8 +234,6 @@ class DocWebHandler(object):
                 # Skip HEAD methods
                 # TODO: once/if there is graphql, its method name is probably `*`
                 continue
-            self.parameters = []
-
             path = self.get_path_from_route_info(route)
             if re.search("/doc", path) or re.search(
                 "/oauth2-redirect.html", path
@@ -231,8 +243,124 @@ class DocWebHandler(object):
                 router_types_dict["asab-routers"].append(route)
             else:
                 router_types_dict["microservice-routers"].append(route)
-                
         return router_types_dict
+    
+
+    def create_handle_name(self, route) -> str:
+        if inspect.ismethod(route.handler):
+            if route.handler.__name__ == "validator":
+                handler_name = "{}.{}()".format(
+                    route.handler.__self__.__class__.__name__,
+                    route.handler.__getattribute__("func").__name__,
+                )
+
+            else:
+                handler_name = "{}.{}()".format(
+                    route.handler.__self__.__class__.__name__, route.handler.__name__
+                )
+        else:
+            handler_name = str(route.handler)
+            
+        return handler_name
+        
+    def create_docstring(self, route) -> str:
+        if inspect.ismethod(route.handler):
+            if route.handler.__name__ == "validator":
+                doc_str = route.handler.__getattribute__("func").__doc__
+            else:
+                doc_str = route.handler.__doc__
+        else:
+            doc_str = route.handler.__doc__
+        
+        return doc_str
+
+
+    def create_method_dict(self, route) -> dict:
+        method_dict = {}
+        if inspect.ismethod(route.handler) and route.handler.__name__ == "validator":
+            json_schema = route.handler.__getattribute__("json_schema")
+            method_dict["requestBody"] = {
+                "content": {"application/json": {"schema": json_schema}},
+            }
+        return method_dict
+    
+    def update_methods2(self, docstring: str | None, add_dict, handler_name, parameters):
+        
+        method_dict = {}
+        
+        description = self.add_description(docstring)
+
+        description += "\n\nHandler: `{}`".format(handler_name)
+
+        method_dict.update(
+            {
+                "summary": description.split("\n")[0],
+                "description": description,
+                "tags": ["general"],
+                "responses": {"200": {"description": "Success"}},
+            }
+        )
+
+        if len(parameters) > 0:
+            method_dict["parameters"] = parameters
+
+        if add_dict is not None:
+            method_dict.update(self.add_dict)
+            
+        return method_dict
+
+    def get_path(self, route):
+        self.route_info = route.get_info()
+        if "path" in self.route_info:
+            self.path = self.route_info["path"]
+        elif "formatter" in self.route_info:
+            # Extract URL parameters from formatter string
+            self.path = self.route_info["formatter"]
+
+            for params in re.findall(r"\{.*\}", self.path):
+                if "/" in params:
+                    for parameter in params.split("/"):
+                        self.parameters.append(
+                            {
+                                "in": "path",
+                                "name": parameter[1:-1],
+                                "required": True,
+                            }
+                        )
+                else:
+                    self.parameters.append(
+                        {
+                            "in": "path",
+                            "name": params[1:-1],
+                            "required": True,
+                        }
+                    )
+        else:
+            L.warning("Cannot obtain path info from route", struct_data=self.route_info)
+
+    def create_handle_name_and_docstring2(self, route):
+        if inspect.ismethod(route.handler):
+            if route.handler.__name__ == "validator":
+                json_schema = route.handler.__getattribute__("json_schema")
+                self.doc_str = route.handler.__getattribute__("func").__doc__
+
+                self.method_dict["requestBody"] = {
+                    "content": {"application/json": {"schema": json_schema}},
+                }
+                self.handler_name = "{}.{}()".format(
+                    route.handler.__self__.__class__.__name__,
+                    route.handler.__getattribute__("func").__name__,
+                )
+
+            else:
+                self.handler_name = "{}.{}()".format(
+                    route.handler.__self__.__class__.__name__, route.handler.__name__
+                )
+                self.doc_str = route.handler.__doc__
+
+        else:
+            self.handler_name = str(route.handler)
+            self.doc_str = route.handler.__doc__
 
 
     def build_swagger_specification(self) -> dict[str]:
@@ -580,6 +708,6 @@ class DocWebHandler(object):
 
         """
         return aiohttp.web.Response(
-            text=(yaml.dump(self.build_new(), sort_keys=False)),
+            text=(yaml.dump(self.build_swagger_specification(), sort_keys=False)),
             content_type="text/yaml",
         )
