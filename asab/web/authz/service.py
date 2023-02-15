@@ -25,7 +25,8 @@ L = logging.getLogger(__name__)
 asab.Config.add_defaults({
 	"authz": {
 		"public_keys_url": "",
-		"_disable_token_verifiction": "no",
+		"_disable_token_verification": "no",
+		"_disable_rbac": "no",
 	}
 })
 
@@ -34,35 +35,35 @@ class AuthzService(asab.Service):
 
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
-		self._DisableTokenVerification = asab.Config.getboolean("authz", "_disable_token_verifiction")
-		if jwcrypto is None and not self._DisableTokenVerification:
+		self.RBACDisabled = asab.Config.getboolean("authz", "_disable_rbac")
+		self._TokenVerificationDisabled = asab.Config.getboolean("authz", "_disable_token_verification")
+		if jwcrypto is None and not self._TokenVerificationDisabled:
 			raise ModuleNotFoundError(
 				"You are trying to use asab.web.authz without 'jwcrypto' installed. "
 				"Please run 'pip install jwcrypto' "
 				"or install asab with 'authz' optional dependency.")
 		self.PublicKeysUrl = asab.Config.get("authz", "public_keys_url")
-		if len(self.PublicKeysUrl) == 0 and not self._DisableTokenVerification:
+		if len(self.PublicKeysUrl) == 0 and not self._TokenVerificationDisabled:
 			raise ValueError("No public_keys_url provided in [authz] config section.")
-		self.PublicKey = None  # TODO: Support multiple public keys
-		self.App.PubSub.subscribe("Application.tick/10!", self.initialize)
+		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
+		self.App.PubSub.subscribe("Application.tick/30!", self._fetch_public_keys_if_needed)
 
 
 	async def initialize(self, *args, **kwargs):
-		if not self.is_ready():
-			await self._get_public_keys()
+		await self._fetch_public_keys_if_needed()
 
 
 	def is_ready(self):
-		if self._DisableTokenVerification is True:
+		if self._TokenVerificationDisabled is True:
 			return True
-		elif self.PublicKey is not None:
+		elif self.AuthServerPublicKey is not None:
 			return True
 		return False
 
 
 	async def authorize(self, resources, bearer_token, tenant=None):
 		# Use userinfo to make RBAC check
-		userinfo = await self.userinfo(bearer_token)
+		userinfo = self.userinfo(bearer_token)
 
 		# Fail if userinfo cannot be fetched or resources are missing
 		if userinfo is None:
@@ -94,53 +95,21 @@ class AuthzService(asab.Service):
 		return True
 
 
-	async def userinfo(self, bearer_token):
+	def userinfo(self, bearer_token):
 		if not self.is_ready():
 			L.error("AuthzService is not ready: No public keys loaded yet.")
 			return None
 
-		if self._DisableTokenVerification:
-			return self._get_id_token_claims_without_verification(bearer_token)
+		if self._TokenVerificationDisabled:
+			return _get_id_token_claims_without_verification(bearer_token)
 		else:
-			return self._get_id_token_claims(bearer_token)
+			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
 
 
-	def _get_id_token_claims(self, bearer_token: str):
-		assert jwcrypto is not None
-		try:
-			token = jwcrypto.jwt.JWT(jwt=bearer_token, key=self.PublicKey)
-		except jwcrypto.jwt.JWTExpired:
-			raise asab.exceptions.NotAuthenticatedError("ID token expired.")
-		except jwcrypto.jws.InvalidJWSSignature:
-			raise asab.exceptions.NotAuthenticatedError("Invalid ID token signature.")
-		except ValueError as e:
-			raise asab.exceptions.NotAuthenticatedError("Authentication failed: {}".format(e))
+	async def _fetch_public_keys_if_needed(self):
+		if self.is_ready():
+			return
 
-		try:
-			token_claims = json.loads(token.claims)
-		except ValueError:
-			raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token claims.")
-
-		return token_claims
-
-
-	def _get_id_token_claims_without_verification(self, bearer_token: str):
-		try:
-			header, payload, signature = bearer_token.split(".")
-		except IndexError:
-			raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token: Wrong number of '.'.")
-
-		try:
-			claims = json.loads(base64.b64decode(payload.encode("utf-8")))
-		except binascii.Error:
-			raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token: Payload is not base 64.")
-		except json.JSONDecodeError:
-			raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token: Payload cannot be parsed as JSON.")
-
-		return claims
-
-
-	async def _get_public_keys(self):
 		async with aiohttp.ClientSession() as session:
 			try:
 				async with session.get(self.PublicKeysUrl) as response:
@@ -181,5 +150,40 @@ class AuthzService(asab.Service):
 				})
 				return
 
-		self.PublicKey = public_key
+		self.AuthServerPublicKey = public_key
 		L.log(asab.LOG_NOTICE, "Public key loaded.", struct_data={"url": self.PublicKeysUrl})
+
+
+def _get_id_token_claims(bearer_token: str, auth_server_public_key):
+	assert jwcrypto is not None
+	try:
+		token = jwcrypto.jwt.JWT(jwt=bearer_token, key=auth_server_public_key)
+	except jwcrypto.jwt.JWTExpired:
+		raise asab.exceptions.NotAuthenticatedError("ID token expired.")
+	except jwcrypto.jws.InvalidJWSSignature:
+		raise asab.exceptions.NotAuthenticatedError("Invalid ID token signature.")
+	except ValueError as e:
+		raise asab.exceptions.NotAuthenticatedError("Authentication failed: {}".format(e))
+
+	try:
+		token_claims = json.loads(token.claims)
+	except ValueError:
+		raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token claims.")
+
+	return token_claims
+
+
+def _get_id_token_claims_without_verification(bearer_token: str):
+	try:
+		header, payload, signature = bearer_token.split(".")
+	except IndexError:
+		raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token: Wrong number of '.'.")
+
+	try:
+		claims = json.loads(base64.b64decode(payload.encode("utf-8")))
+	except binascii.Error:
+		raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token: Payload is not base 64.")
+	except json.JSONDecodeError:
+		raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token: Payload cannot be parsed as JSON.")
+
+	return claims

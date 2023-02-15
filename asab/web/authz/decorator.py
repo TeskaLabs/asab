@@ -36,12 +36,12 @@ def required(*resources):
 			# Obtain authz service from the request
 			authz_service = request.AuthzService
 
-			# RBAC URL is disabled, so no authorization can be performed
-			if request.AuthzService.OAuth2Url == "!DISABLED!":
+			# RBAC is disabled, so no authorization can be performed
+			if request.AuthzService.RBACDisabled:
 				return await func(*args, **kargs)
 
-			elif request.AuthzService.OAuth2Url == "":
-				L.error("oauth2_url is not configured ;-(")
+			if not request.AuthzService.is_ready():
+				L.error("Cannot authorize request - AuthzService is not ready.")
 				raise aiohttp.web.HTTPUnauthorized()
 
 			bearer_token = _get_bearer_token(request)
@@ -93,7 +93,7 @@ def userinfo_handler(func):
 			L.warning("Access token has not been provided in the request - unauthorized.")
 			raise aiohttp.web.HTTPUnauthorized()
 
-		userinfo_data = await authz_service.userinfo(bearer_token=bearer_token)
+		userinfo_data = authz_service.userinfo(bearer_token=bearer_token)
 		if userinfo_data is not None:
 			return await func(*args, userinfo=userinfo_data, **kargs)
 
