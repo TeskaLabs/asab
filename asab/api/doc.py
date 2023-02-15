@@ -35,79 +35,119 @@ class DocWebHandler(object):
 
         self.Manifest = api_service.Manifest
 
-
     def build_new(self) -> dict[str]:
+        
+        L.warning(f"auth: {self.AuthorizationUrl}")
+        L.warning(f"token: {self.TokenUrl}")
+        L.warning(f"scopes: {self.Scopes}")
         specification = {}
         add_dict = None
-        
+
         additional_info_dict = {}
-        
+
         description = self.add_app_description()
         additional_info_dict.update(self.add_additional_app_info())
-        
+
         specification.update(self.add_info(description))
+
+        specification["components"] = self.create_security_schemes()
         
         L.warning(f"specification: {specification}")
         L.warning(f"description: {description}")
         L.warning(f"add_dict: {additional_info_dict}")
-        
+
         return specification
 
     def add_info(self, description: str) -> dict[str]:
-            return {
-                "openapi": "3.0.1",
-                "info": {
-                    "title": "{}".format(self.App.__class__.__name__),
-                    "description": description,
-                    "contact": {
-                        "name": "ASAB microservice",
-                        "url": "https://www.github.com/teskalabs/asab",
-                    },
-                    "version": "1.0.0",
+        return {
+            "openapi": "3.0.1",
+            "info": {
+                "title": "{}".format(self.App.__class__.__name__),
+                "description": description,
+                "contact": {
+                    "name": "ASAB microservice",
+                    "url": "https://www.github.com/teskalabs/asab",
                 },
-                "servers": [{"url": "../../"}],  # Base path relative to openapi endpoint
-                "paths": {},
-                # Authorization
-                # TODO: Authorization must not be always of OAuth type
-                "components": {},
-            }
+                "version": "1.0.0",
+            },
+            "servers": [{"url": "../../"}],  # Base path relative to openapi endpoint
+            "paths": {},
+            # Authorization
+            # TODO: Authorization must not be always of OAuth type
+            "components": {},
+        }
 
     def add_app_description(self) -> str:
-        """Return the app description if exists.
-        """
+        """Return the app description if exists."""
 
         doc_str = self.App.__doc__
 
         if doc_str is not None:
             doc_str = inspect.cleandoc(doc_str)
-            dashes_index = doc_str.find("\n---\n") # find the index of the first three dashes
+            dashes_index = doc_str.find(
+                "\n---\n"
+            )  # find the index of the first three dashes
             if dashes_index >= 0:
-                description = doc_str[:dashes_index] # everything before --- goes to description
+                description = doc_str[
+                    :dashes_index
+                ]  # everything before --- goes to description
             else:
                 description = doc_str
         else:
             description = ""
         return description
-        
+
     def add_additional_app_info(self) -> dict:
-        """Search for '---' and add everything that comes after into add_dict.
-        """
+        """Search for '---' and add everything that comes after into add_dict."""
 
         doc_string = self.App.__doc__
         additional_info_dict = {}
-        
+
         if doc_string is not None:
             doc_string = inspect.cleandoc(doc_string)
-            dashes_index = doc_string.find("\n---\n") # find the index of the first three dashes
+            dashes_index = doc_string.find(
+                "\n---\n"
+            )  # find the index of the first three dashes
             if dashes_index >= 0:
                 try:
-                    additional_info_dict = yaml.load(doc_string[dashes_index:], Loader=yaml.SafeLoader) # everything after --- goes to add_dict
+                    additional_info_dict = yaml.load(
+                        doc_string[dashes_index:], Loader=yaml.SafeLoader
+                    )  # everything after --- goes to add_dict
                 except yaml.YAMLError as e:
                     L.error(
                         "Failed to parse '{}' doc string {}".format(
                             self.App.__class__.__name__, e
-                        ))
+                        )
+                    )
         return additional_info_dict
+
+    def create_security_schemes(self) -> dict[str]:
+        """Create security schemes if authorizationUrl and tokenUrl exist."""
+        security_schemes_dict = {}
+        if self.AuthorizationUrl and self.TokenUrl:
+            security_schemes_dict = {
+                "securitySchemes": {
+                    "oAuth": {
+                        "type": "oauth2",
+                        "description": "",
+                        "flows": {
+                            "authorizationCode": {
+                                "authorizationUrl": self.AuthorizationUrl,  # "http://localhost/seacat/api/openidconnect/authorize"
+                                "tokenUrl": self.TokenUrl,  # "http://localhost/seacat/api/openidconnect/token"
+                                "scopes": {
+                                    "openid": "Required Scope for OpenIDConnect!",
+                                },
+                            }
+                        },
+                    }
+                },
+            }
+            if self.Scopes:
+                for scope in self.Scopes.split(","):
+                    security_schemes_dict["securitySchemes"]["oAuth"]["flows"]["authorizationCode"]["scopes"].update(
+                        {"scope": "{} scope.".format(scope.strip().capitalize())}
+                    )
+        return security_schemes_dict
 
 
     def build_swagger_specification(self) -> dict[str]:
@@ -128,21 +168,21 @@ class DocWebHandler(object):
 
         if self.add_dict is not None:
             self.specs.update(self.add_dict)
-            
+
         self.asab_routers = []
         self.service_routers = []
         self.doc_routers = []
-        
+
         for route in self.WebContainer.WebApp.router.routes():
             if route.method == "HEAD":
                 # Skip HEAD methods
                 # TODO: once/if there is graphql, its method name is probably `*`
                 continue
             self.parameters = []
-            
+
             self.get_path(route)
             self.determine_router_type(route)
-        
+
         L.warning(f"asab routers: {self.asab_routers}")
         L.warning(f"service routers: {self.service_routers}")
         L.warning(f"doc routers: {self.doc_routers}")
@@ -152,16 +192,15 @@ class DocWebHandler(object):
                 # Skip HEAD methods
                 # TODO: once/if there is graphql, its method name is probably `*`
                 continue
-            
+
             self.get_path(route)
-            
+
             self.parameters = []
             self.method_dict = {}
 
             self.create_handle_name_and_docstring(route)
             self.update_methods(route)
-            
-            
+
             path_object = self.specs["paths"].get(self.path)
             if path_object is None:
                 self.specs["paths"][self.path] = path_object = {}
@@ -174,18 +213,18 @@ class DocWebHandler(object):
                 continue
 
             self.get_path(route)
-            
+
             self.parameters = []
             self.method_dict = {}
 
             self.create_handle_name_and_docstring(route)
             self.update_methods(route)
-            
+
             path_object = self.specs["paths"].get(self.path)
             if path_object is None:
                 self.specs["paths"][self.path] = path_object = {}
             path_object[route.method.lower()] = self.method_dict
-            
+
         for route in self.doc_routers:
             if route.method == "HEAD":
                 # Skip HEAD methods
@@ -193,20 +232,19 @@ class DocWebHandler(object):
                 continue
 
             self.get_path(route)
-            
+
             self.parameters = []
             self.method_dict = {}
 
             self.create_handle_name_and_docstring(route)
             self.update_methods(route)
-            
+
             path_object = self.specs["paths"].get(self.path)
             if path_object is None:
                 self.specs["paths"][self.path] = path_object = {}
             path_object[route.method.lower()] = self.method_dict
 
         return self.specs
-
 
     def create_description(self) -> str:
 
@@ -254,8 +292,7 @@ class DocWebHandler(object):
             # TODO: Authorization must not be always of OAuth type
             "components": {},
         }
-        
-    
+
     def add_security_schemes(self):
         """Add security schemes if authorizationUrl and tokenUrl exist."""
 
@@ -304,7 +341,6 @@ class DocWebHandler(object):
         ) + "<p>{}</p>".format(
             self.description
         )
-
 
     def get_path(self, route):
         self.route_info = route.get_info()
@@ -415,8 +451,6 @@ class DocWebHandler(object):
             self.specs["paths"][self.path] = path_object = {}
         path_object[route.method.lower()] = self.method_dict
 
-    
-
     # This is the web request handler
     async def doc(self, request):
         """
@@ -431,7 +465,6 @@ class DocWebHandler(object):
         swagger_css_url: str = (
             "https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui.css"
         )
-
 
         doc_page = SWAGGER_DOC_PAGE.format(
             title=self.App.__class__.__name__,
@@ -448,7 +481,7 @@ class DocWebHandler(object):
         ---
         tags: ['asab.doc']
         """
-        
+
         return aiohttp.web.Response(text=SWAGGER_OAUTH_PAGE, content_type="text/html")
 
     async def openapi(self, request):
