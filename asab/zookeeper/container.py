@@ -115,7 +115,6 @@ class ZooKeeperContainer(ConfigObject):
 			self.App.PubSub.publish(self.App.PubSub.publish("ZooKeeper.watcher!", data, stat))
 		self.App.Loop.call_soon_threadsafe(on_watcher_trigger)
 
-
 	async def create_watcher(self, client, path):
 		# Do this in executor
 		watcher = kazoo.recipe.watchers.DataWatch(client, path, func=self._on_watcher_trigger)
@@ -149,17 +148,8 @@ class ZooKeeperAdvertisement(object):
 				await zoocontainer.ZooKeeper.set_data(self.Node, self.Data)
 				return
 
-			# Parms description
-			# self.Path. Path to be created
-			# self.Data. Data in the path
-			# sequential=True. Path is suffixed with a unique index.
-			# ephemeral=True. Node created is ephemeral
-
-			async def create():
-				self.Node = await zoocontainer.ZooKeeper.create(self.Path, self.Data, True, True)
-
 			try:
-				await create()
+				self.Node = await zoocontainer.ZooKeeper.create(self.Path, self.Data, sequential=True, ephemeral=True)
 			except kazoo.exceptions.NoNodeError:
 				await zoocontainer.ZooKeeper.ensure_path(self.Path.rstrip(self.Path.split("/")[-1]))
-				await create()
+				self.Node = await zoocontainer.ZooKeeper.create(self.Path, self.Data, sequential=True, ephemeral=True)
