@@ -3,6 +3,7 @@ import binascii
 import json
 import logging
 import aiohttp
+import aiohttp.client_exceptions
 
 import jwcrypto.jwk
 import jwcrypto.jwt
@@ -33,7 +34,7 @@ class AuthzService(asab.Service):
 		self._DisableTokenVerification = asab.Config.getboolean("authz", "_disable_token_verifiction")
 		self.PublicKeysUrl = asab.Config.get("authz", "public_keys_url")
 		if len(self.PublicKeysUrl) == 0 and not self._DisableTokenVerification:
-			raise ValueError("No public_keys_url provided in [authz] section.")
+			raise ValueError("No public_keys_url provided in [authz] config section.")
 		self.PublicKey = None  # TODO: Support multiple public keys
 		self.App.PubSub.subscribe("Application.tick/10!", self.initialize)
 
@@ -87,48 +88,13 @@ class AuthzService(asab.Service):
 
 	async def userinfo(self, bearer_token):
 		if not self.is_ready():
-			raise Exception("AuthzService is not ready: No public keys loaded yet.")
+			L.error("AuthzService is not ready: No public keys loaded yet.")
+			return None
 
 		if self._DisableTokenVerification:
 			return self._get_id_token_claims_without_verification(bearer_token)
 		else:
 			return self._get_id_token_claims(bearer_token)
-
-
-	async def _get_public_keys(self):
-		async with aiohttp.ClientSession() as session:
-			async with session.get(self.PublicKeysUrl) as response:
-				if response.status != 200:
-					L.error("Error retrieving public keys from authorization server.", struct_data={
-						"status": response.status,
-						"url": self.PublicKeysUrl,
-						"text": await response.text(),
-					})
-					return
-				try:
-					data = await response.json()
-				except json.JSONDecodeError:
-					L.error("Authorization server response cannot be parsed as JSON.", struct_data={
-						"url": self.PublicKeysUrl,
-						"data": data,
-					})
-					return
-				try:
-					key_data = data["keys"].pop()
-				except (IndexError, KeyError):
-					L.error("Authorization server response contains no public keys.", struct_data={
-						"url": self.PublicKeysUrl,
-						"data": data,
-					})
-					return
-				try:
-					self.PublicKey = jwcrypto.jwk.JWK(**key_data)
-				except IndexError:
-					L.error("Error reading JSON Web Key.", struct_data={
-						"url": self.PublicKeysUrl,
-						"data": data,
-					})
-					return
 
 
 	def _get_id_token_claims(self, bearer_token: str):
@@ -163,3 +129,49 @@ class AuthzService(asab.Service):
 			raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token: Payload cannot be parsed as JSON.")
 
 		return claims
+
+
+	async def _get_public_keys(self):
+		async with aiohttp.ClientSession() as session:
+			try:
+				async with session.get(self.PublicKeysUrl) as response:
+					if response.status != 200:
+						L.error("HTTP error while loading public keys.", struct_data={
+							"status": response.status,
+							"url": self.PublicKeysUrl,
+							"text": await response.text(),
+						})
+						return
+					try:
+						data = await response.json()
+					except json.JSONDecodeError:
+						L.error("JSON decoding error while loading public keys.", struct_data={
+							"url": self.PublicKeysUrl,
+							"data": data,
+						})
+						return
+					try:
+						key_data = data["keys"].pop()
+					except (IndexError, KeyError):
+						L.error("Error while loading public keys: No public keys in server response.", struct_data={
+							"url": self.PublicKeysUrl,
+							"data": data,
+						})
+						return
+					try:
+						public_key = jwcrypto.jwk.JWK(**key_data)
+					except Exception as e:
+						L.error("JWK decoding error while loading public keys: {}.".format(e), struct_data={
+							"url": self.PublicKeysUrl,
+							"data": data,
+						})
+						return
+			except aiohttp.client_exceptions.ClientConnectorError as e:
+				L.error("Connection error while loading public keys: {}".format(e), struct_data={
+					"url": self.PublicKeysUrl,
+				})
+				return
+
+		self.PublicKey = public_key
+		L.log(asab.LOG_NOTICE, "Public key loaded.", struct_data={"url": self.PublicKeysUrl})
+
