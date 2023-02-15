@@ -260,37 +260,90 @@ class DocWebHandler(object):
             L.warning("asab NOT in path: {}".format(self.path))
             self.service_routers.append(route)
 
+    def add_methods_to_path(self, route):
+        path_object = self.specs["paths"].get(self.path)
+        if path_object is None:
+            self.specs["paths"][self.path] = path_object = {}
+        path_object[route.method.lower()] = self.method_dict
+
     def create_swagger_routes(self):
 
         self.asab_routers = []
         self.service_routers = []
         self.doc_routers = []
         
-        
-
         for route in self.WebContainer.WebApp.router.routes():
             if route.method == "HEAD":
                 # Skip HEAD methods
                 # TODO: once/if there is graphql, its method name is probably `*`
                 continue
+            self.parameters = []
+            
+            self.get_path(route)
+            self.determine_router_type(route)
+        
+        L.warning(f"asab routers: {self.asab_routers}")
+        L.warning(f"service routers: {self.service_routers}")
+        L.warning(f"doc routers: {self.doc_routers}")
 
+        for route in self.service_routers:
+            if route.method == "HEAD":
+                # Skip HEAD methods
+                # TODO: once/if there is graphql, its method name is probably `*`
+                continue
+            
+            self.get_path(route)
+            
             self.parameters = []
             self.method_dict = {}
 
-            self.get_path(route)
-            self.determine_router_type(route)
-
-
             self.create_handle_name_and_docstring(route)
             self.update_methods(route)
-
-
-
-            # no idea what is this good for?
+            
+            
             path_object = self.specs["paths"].get(self.path)
             if path_object is None:
                 self.specs["paths"][self.path] = path_object = {}
             path_object[route.method.lower()] = self.method_dict
+
+        for route in self.asab_routers:
+            if route.method == "HEAD":
+                # Skip HEAD methods
+                # TODO: once/if there is graphql, its method name is probably `*`
+                continue
+
+            self.get_path(route)
+            
+            self.parameters = []
+            self.method_dict = {}
+
+            self.create_handle_name_and_docstring(route)
+            self.update_methods(route)
+            
+            path_object = self.specs["paths"].get(self.path)
+            if path_object is None:
+                self.specs["paths"][self.path] = path_object = {}
+            path_object[route.method.lower()] = self.method_dict
+            
+        for route in self.doc_routers:
+            if route.method == "HEAD":
+                # Skip HEAD methods
+                # TODO: once/if there is graphql, its method name is probably `*`
+                continue
+
+            self.get_path(route)
+            
+            self.parameters = []
+            self.method_dict = {}
+
+            self.create_handle_name_and_docstring(route)
+            self.update_methods(route)
+            
+            path_object = self.specs["paths"].get(self.path)
+            if path_object is None:
+                self.specs["paths"][self.path] = path_object = {}
+            path_object[route.method.lower()] = self.method_dict
+            
 
 
     # This is the web request handler
