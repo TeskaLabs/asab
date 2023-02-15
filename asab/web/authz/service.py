@@ -5,12 +5,15 @@ import logging
 import aiohttp
 import aiohttp.client_exceptions
 
-import jwcrypto.jwk
-import jwcrypto.jwt
-import jwcrypto.jws
-
 import asab
 import asab.exceptions
+
+try:
+	import jwcrypto.jwk
+	import jwcrypto.jwt
+	import jwcrypto.jws
+except ModuleNotFoundError:
+	jwcrypto = None
 
 #
 
@@ -32,6 +35,11 @@ class AuthzService(asab.Service):
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
 		self._DisableTokenVerification = asab.Config.getboolean("authz", "_disable_token_verifiction")
+		if jwcrypto is None and not self._DisableTokenVerification:
+			raise ModuleNotFoundError(
+				"You are trying to use asab.web.authz without 'jwcrypto' installed. "
+				"Please run 'pip install jwcrypto' "
+				"or install asab with 'authz' optional dependency.")
 		self.PublicKeysUrl = asab.Config.get("authz", "public_keys_url")
 		if len(self.PublicKeysUrl) == 0 and not self._DisableTokenVerification:
 			raise ValueError("No public_keys_url provided in [authz] config section.")
@@ -98,6 +106,7 @@ class AuthzService(asab.Service):
 
 
 	def _get_id_token_claims(self, bearer_token: str):
+		assert jwcrypto is not None
 		try:
 			token = jwcrypto.jwt.JWT(jwt=bearer_token, key=self.PublicKey)
 		except jwcrypto.jwt.JWTExpired:
