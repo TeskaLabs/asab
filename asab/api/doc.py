@@ -34,15 +34,15 @@ class DocWebHandler(object):
         self.Scopes = asab.Config.get(config_section_name, "scopes", fallback=None)
 
         self.Manifest = api_service.Manifest
-        
 
-    def build_new(self) -> dict[str]:
-        
+    def build_new(self) -> dict:
+
         L.warning(f"auth: {self.AuthorizationUrl}")
         L.warning(f"token: {self.TokenUrl}")
         L.warning(f"scopes: {self.Scopes}")
-        specification = {}
-        add_dict = None
+        specification: dict = {}
+        add_dict: dict | None = None
+        # TODO: check for the add_dict in the primary code
         app_doc_string = self.App.__doc__
 
         additional_info_dict = {}
@@ -52,30 +52,54 @@ class DocWebHandler(object):
         specification.update(self.add_info(description))
         specification["components"] = self.create_security_schemes()
         specification["info"]["version"] = self.add_manifest()
-        specification["info"]["description"] = self.add_server_and_container_info2(description)
-        
+        specification["info"]["description"] = self.add_server_and_container_info2(
+            description
+        )
+
         if additional_info_dict is not None:
             specification.update(additional_info_dict)
-            
+
         router_types: dict = self.determine_router_type2()
-        
-        for route in router_types["asab-routers"]:
+
+
+
+        for route in router_types["microservice-routers"]:
             path: str = self.get_path_from_route_info(route)
             parameters = self.extract_parameters(route)
-            
+
             handle_name: str = self.create_handle_name(route)
             doc_string: str = self.create_docstring(route)
             method_dict: dict = self.create_method_dict(route)
 
-            method_dict.update(self.update_methods2(doc_string, add_dict, handle_name, parameters)) 
+            add_dict = self.add_additional_info(doc_string)
+            method_dict.update(
+                self.update_methods2(doc_string, add_dict, handle_name, parameters)
+            )
 
             path_object = specification["paths"].get(path)
             if path_object is None:
                 specification["paths"][path] = path_object = {}
             path_object[route.method.lower()] = method_dict
-        
-        
-        
+
+        for route in router_types["asab-routers"]:
+            path: str = self.get_path_from_route_info(route)
+            parameters = self.extract_parameters(route)
+
+            handle_name: str = self.create_handle_name(route)
+            doc_string: str = self.create_docstring(route)
+            method_dict: dict = self.create_method_dict(route)
+
+            add_dict = self.add_additional_info(doc_string)
+            method_dict.update(
+                self.update_methods2(doc_string, add_dict, handle_name, parameters)
+            )
+
+            path_object = specification["paths"].get(path)
+            if path_object is None:
+                specification["paths"][path] = path_object = {}
+            path_object[route.method.lower()] = method_dict
+
+
         L.warning(f"router-types: {router_types}")
         L.warning(f"specification: {specification}")
         L.warning(f"description: {description}")
@@ -165,7 +189,9 @@ class DocWebHandler(object):
             }
             if self.Scopes:
                 for scope in self.Scopes.split(","):
-                    security_schemes_dict["securitySchemes"]["oAuth"]["flows"]["authorizationCode"]["scopes"].update(
+                    security_schemes_dict["securitySchemes"]["oAuth"]["flows"][
+                        "authorizationCode"
+                    ]["scopes"].update(
                         {"scope": "{} scope.".format(scope.strip().capitalize())}
                     )
         return security_schemes_dict
@@ -181,9 +207,7 @@ class DocWebHandler(object):
         """Add on which server and web container the user operates into description."""
         return "Running on: <strong>{}</strong> on: <strong>{}</strong>".format(
             self.App.ServerName, self.WebContainer.Addresses
-        ) + "<p>{}</p>".format(
-            description
-        )
+        ) + "<p>{}</p>".format(description)
 
     def get_path_from_route_info(self, route) -> str:
         route_info = route.get_info()
@@ -196,8 +220,8 @@ class DocWebHandler(object):
             L.warning("Cannot obtain path info from route", struct_data=self.route_info)
         return path
 
-    def extract_parameters(self, route) -> dict[str]:
-        parameters = {}
+    def extract_parameters(self, route) -> list[dict]:
+        parameters = []
         route_info = route.get_info()
         if "formatter" in route_info:
             # Extract URL parameters from formatter string
@@ -205,7 +229,7 @@ class DocWebHandler(object):
             for params in re.findall(r"\{.*\}", path):
                 if "/" in params:
                     for parameter in params.split("/"):
-                        parameters.update(
+                        parameters.append(
                             {
                                 "in": "path",
                                 "name": parameter[1:-1],
@@ -213,38 +237,36 @@ class DocWebHandler(object):
                             }
                         )
                 else:
-                    parameters.update(
+                    parameters.append(
                         {
                             "in": "path",
                             "name": params[1:-1],
                             "required": True,
                         }
                     )
+        L.warning(f"parameters: {parameters}")
         return parameters
-    
+
     def determine_router_type2(self) -> dict[list]:
         router_types_dict = {
             "asab-routers": [],
             "doc-routers": [],
-            "microservice-routers": []
+            "microservice-routers": [],
         }
-        
+
         for route in self.WebContainer.WebApp.router.routes():
             if route.method == "HEAD":
                 # Skip HEAD methods
                 # TODO: once/if there is graphql, its method name is probably `*`
                 continue
             path = self.get_path_from_route_info(route)
-            if re.search("/doc", path) or re.search(
-                "/oauth2-redirect.html", path
-            ):
+            if re.search("/doc", path) or re.search("/oauth2-redirect.html", path):
                 router_types_dict["doc-routers"].append(route)
             elif re.search("asab", path):
                 router_types_dict["asab-routers"].append(route)
             else:
                 router_types_dict["microservice-routers"].append(route)
         return router_types_dict
-    
 
     def create_handle_name(self, route) -> str:
         if inspect.ismethod(route.handler):
@@ -260,9 +282,9 @@ class DocWebHandler(object):
                 )
         else:
             handler_name = str(route.handler)
-            
+
         return handler_name
-        
+
     def create_docstring(self, route) -> str:
         if inspect.ismethod(route.handler):
             if route.handler.__name__ == "validator":
@@ -271,9 +293,8 @@ class DocWebHandler(object):
                 doc_str = route.handler.__doc__
         else:
             doc_str = route.handler.__doc__
-        
-        return doc_str
 
+        return doc_str
 
     def create_method_dict(self, route) -> dict:
         method_dict = {}
@@ -283,11 +304,13 @@ class DocWebHandler(object):
                 "content": {"application/json": {"schema": json_schema}},
             }
         return method_dict
-    
-    def update_methods2(self, docstring: str | None, add_dict, handler_name, parameters):
-        
+
+    def update_methods2(
+        self, docstring: str | None, add_dict, handler_name, parameters
+    ):
+
         method_dict = {}
-        
+
         description = self.add_description(docstring)
 
         description += "\n\nHandler: `{}`".format(handler_name)
@@ -305,8 +328,8 @@ class DocWebHandler(object):
             method_dict["parameters"] = parameters
 
         if add_dict is not None:
-            method_dict.update(self.add_dict)
-            
+            method_dict.update(add_dict)
+
         return method_dict
 
     def get_path(self, route):
@@ -361,7 +384,6 @@ class DocWebHandler(object):
         else:
             self.handler_name = str(route.handler)
             self.doc_str = route.handler.__doc__
-
 
     def build_swagger_specification(self) -> dict[str]:
         """Take a docstring of a class and a docstring of methods and merge them
@@ -708,6 +730,6 @@ class DocWebHandler(object):
 
         """
         return aiohttp.web.Response(
-            text=(yaml.dump(self.build_swagger_specification(), sort_keys=False)),
+            text=(yaml.dump(self.build_new(), sort_keys=False)),
             content_type="text/yaml",
         )
