@@ -49,7 +49,7 @@ class AuthzService(asab.Service):
 		self.App.PubSub.subscribe("Application.tick/30!", self._fetch_public_keys_if_needed)
 
 
-	async def initialize(self, *args, **kwargs):
+	async def initialize(self, app):
 		await self._fetch_public_keys_if_needed()
 
 
@@ -106,7 +106,7 @@ class AuthzService(asab.Service):
 			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
 
 
-	async def _fetch_public_keys_if_needed(self):
+	async def _fetch_public_keys_if_needed(self, *args, **kwargs):
 		if self.is_ready():
 			return
 
