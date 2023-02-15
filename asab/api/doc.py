@@ -34,6 +34,7 @@ class DocWebHandler(object):
         self.Scopes = asab.Config.get(config_section_name, "scopes", fallback=None)
 
         self.Manifest = api_service.Manifest
+        
 
     def build_new(self) -> dict[str]:
         
@@ -47,18 +48,24 @@ class DocWebHandler(object):
 
         description = self.add_app_description()
         additional_info_dict.update(self.add_additional_app_info())
-
         specification.update(self.add_info(description))
-
         specification["components"] = self.create_security_schemes()
+        specification["info"]["version"] = self.add_manifest()
+        specification["info"]["description"] = self.add_server_and_container_info2(description)
         
+        if additional_info_dict is not None:
+            specification.update(additional_info_dict)
+            
+        router_types: dict = self.determine_router_type2()
+        
+        L.warning(f"router-types: {router_types}")
         L.warning(f"specification: {specification}")
         L.warning(f"description: {description}")
         L.warning(f"add_dict: {additional_info_dict}")
 
         return specification
 
-    def add_info(self, description: str) -> dict[str]:
+    def add_info(self, description: str) -> dict:
         return {
             "openapi": "3.0.1",
             "info": {
@@ -121,8 +128,8 @@ class DocWebHandler(object):
                     )
         return additional_info_dict
 
-    def create_security_schemes(self) -> dict[str]:
-        """Create security schemes if authorizationUrl and tokenUrl exist."""
+    def create_security_schemes(self) -> dict:
+        """Create security schemes if tokenUrl, authorizationUrl and Scopes exist."""
         security_schemes_dict = {}
         if self.AuthorizationUrl and self.TokenUrl:
             security_schemes_dict = {
@@ -148,6 +155,84 @@ class DocWebHandler(object):
                         {"scope": "{} scope.".format(scope.strip().capitalize())}
                     )
         return security_schemes_dict
+
+    def add_manifest(self) -> dict[str]:
+        """Add version from MANIFEST.json if exists."""
+        version = {}
+        if self.Manifest:
+            version = self.Manifest["version"]
+        return version
+
+    def add_server_and_container_info2(self, description) -> str:
+        """Add on which server and web container the user operates into description."""
+        return "Running on: <strong>{}</strong> on: <strong>{}</strong>".format(
+            self.App.ServerName, self.WebContainer.Addresses
+        ) + "<p>{}</p>".format(
+            description
+        )
+
+    def get_path_from_route_info(self, route) -> str:
+        route_info = route.get_info()
+        if "path" in route_info:
+            path = route_info["path"]
+        elif "formatter" in route_info:
+            # Extract URL parameters from formatter string
+            path = route_info["formatter"]
+        else:
+            L.warning("Cannot obtain path info from route", struct_data=self.route_info)
+        return path
+
+    def extract_parameters(self, route) -> dict[str]:
+        parameters = {}
+        route_info = route.get_info()
+        if "formatter" in route_info:
+            # Extract URL parameters from formatter string
+            path = route_info["formatter"]
+            for params in re.findall(r"\{.*\}", path):
+                if "/" in params:
+                    for parameter in params.split("/"):
+                        parameters.update(
+                            {
+                                "in": "path",
+                                "name": parameter[1:-1],
+                                "required": True,
+                            }
+                        )
+                else:
+                    parameters.update(
+                        {
+                            "in": "path",
+                            "name": params[1:-1],
+                            "required": True,
+                        }
+                    )
+        return parameters
+    
+    def determine_router_type2(self) -> dict[list]:
+        router_types_dict = {
+            "asab-routers": [],
+            "doc-routers": [],
+            "microservice-routers": []
+        }
+        
+        for route in self.WebContainer.WebApp.router.routes():
+            if route.method == "HEAD":
+                # Skip HEAD methods
+                # TODO: once/if there is graphql, its method name is probably `*`
+                continue
+            self.parameters = []
+
+            path = self.get_path_from_route_info(route)
+            if re.search("/doc", path) or re.search(
+                "/oauth2-redirect.html", path
+            ):
+                router_types_dict["doc-routers"].append(route)
+            elif re.search("asab", path):
+                router_types_dict["asab-routers"].append(route)
+            else:
+                router_types_dict["microservice-routers"].append(route)
+                
+        return router_types_dict
 
 
     def build_swagger_specification(self) -> dict[str]:
