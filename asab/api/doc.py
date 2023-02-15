@@ -210,8 +210,8 @@ class DocWebHandler(object):
 		tags: ['asab.doc']
 		'''
 
-		swagger_js_url: str = "https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui-bundle.js"
-		swagger_css_url: str = "https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui.css"
+		swagger_js_url: str = "https://unpkg.com/swagger-ui-dist@4/swagger-ui-bundle.js"
+		swagger_css_url: str = "https://unpkg.com/swagger-ui-dist@4/swagger-ui.css"
 
 		page = '''<!DOCTYPE html>
 <html lang="en">
