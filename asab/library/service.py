@@ -20,6 +20,7 @@ from ..log import LOG_NOTICE
 
 L = logging.getLogger(__name__)
 
+
 #
 
 
@@ -89,7 +90,6 @@ class LibraryService(Service):
 			self._create_library(path)
 		app.PubSub.subscribe("Application.tick/60!", self.on_tick)
 
-
 	async def finalize(self, app):
 		while len(self.Libraries) > 0:
 			lib = self.Libraries.pop(-1)
@@ -97,8 +97,6 @@ class LibraryService(Service):
 
 	async def on_tick(self, message_type):
 		await self._read_disabled()
-
-
 
 	def _create_library(self, path):
 		library_provider = None
@@ -128,7 +126,6 @@ class LibraryService(Service):
 
 		self.Libraries.append(library_provider)
 
-
 	def is_ready(self):
 		"""
 		It checks if all the libraries are ready.
@@ -148,7 +145,6 @@ class LibraryService(Service):
 		if self.is_ready():
 			L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("ASABLibrary.ready!", self)
-
 
 	async def read(self, path: str, tenant: str = None) -> typing.IO:
 		"""
@@ -184,7 +180,6 @@ class LibraryService(Service):
 
 		return None
 
-
 	async def list(self, path="/", tenant=None, recursive=False):
 		"""
 		List the directory of the library specified by the path.
@@ -208,14 +203,15 @@ class LibraryService(Service):
 
 		# Path must start with '/'
 		assert path[:1] == '/'
-		# Path must NOT end with '/'
 
-		if os.path.isfile(path):
-			while path[-1:] == '/':
-				path = path[:-1]
+		# Path must NOT end with '/' if item is a file but must end for dir's/folder's
+		if os.path.splitext(path)[1]:
+			path = path.rstrip('/')
 		else:
-			# List requested level using all available providers
-			items = await self._list(path, tenant, providers=self.Libraries)
+			path = path.rstrip('/') + '/'
+
+		# List requested level using all available providers
+		items = await self._list(path, tenant, providers=self.Libraries)
 
 		if recursive:
 			# If recursive scan is requested, then iterate thru list of items
@@ -235,7 +231,6 @@ class LibraryService(Service):
 				recitems.extend(child_items)
 
 		return items
-
 
 	async def _list(self, path, tenant, providers):
 
@@ -278,7 +273,6 @@ class LibraryService(Service):
 
 		return items
 
-
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
 		# It is applied on all libraries in the configuration.
@@ -295,7 +289,6 @@ class LibraryService(Service):
 			except Exception:
 				self.Disabled = {}
 				L.exception("Failed to parse '/.disabled.yaml'")
-
 
 	def check_disabled(self, path, tenant=None):
 		"""
@@ -320,7 +313,6 @@ class LibraryService(Service):
 			return True
 
 		return False
-
 
 	async def export(self, path="/", tenant=None):
 
