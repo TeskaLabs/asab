@@ -53,20 +53,39 @@ class DocWebHandler(object):
         if additional_info_dict is not None:
             specification.update(additional_info_dict)
 
-        router_types_dict = {
-            "asab-routers": {},
-            "doc-routers": {},
-            "microservice-routers": {},
-        }
 
+        asab_routers = []
+        doc_routers = []
+        microservice_routers = []
+       
         for route in self.WebContainer.WebApp.router.routes():
             if route.method == "HEAD":
                 # Skip HEAD methods
                 # TODO: once/if there is graphql, its method name is probably `*`
                 continue
-            specification["paths"].update(self.create_route_info(route))        
-
+            
+            path = self.get_path_from_route_info(route)
+            
+            if re.search("/doc", path) or re.search("/oauth2-redirect.html", path):
+                doc_routers.append(self.create_route_info(route))
+            elif re.search("asab", path):
+                asab_routers.append(self.create_route_info(route))
+            else:
+                microservice_routers.append(self.create_route_info(route))
+        
+        L.warning(f"microservice-routers: {microservice_routers}")
+        
+        for endpoint in microservice_routers:
+                specification["paths"].update(endpoint)
+        for endpoint in asab_routers:
+                specification["paths"].update(endpoint)
+        for endpoint in doc_routers:
+                specification["paths"].update(endpoint)         
+            
         return specification
+    
+
+    
     
     def create_route_info(self, route) -> dict:
         """
@@ -87,17 +106,15 @@ class DocWebHandler(object):
                     "200":
                         description: Success
         """
-        
-        route_path = self.get_path_from_route_info(route)
         route_dict: dict = {}
         route_name: str = route.method.lower()
         
+        route_path = self.get_path_from_route_info(route)
         path_object = route_dict.get(route_path)
+        
         if path_object is None:
             route_dict[route_path] = path_object = {}
         path_object[route_name] = self.add_method_description(route)
-        
-        L.warning(f"route dict: {route_dict}")
         
         return route_dict
         
