@@ -36,7 +36,6 @@ class DocWebHandler(object):
 
     def build_swagger_documentation(self) -> dict:
         specification: dict = {}
-        add_dict: dict | None = None
         # TODO: check for the add_dict in the primary code
         app_doc_string: str = self.App.__doc__
         additional_info_dict: dict = {}
@@ -54,18 +53,57 @@ class DocWebHandler(object):
         if additional_info_dict is not None:
             specification.update(additional_info_dict)
 
-        router_types: dict = self.determine_router_types()
+        router_types_dict = {
+            "asab-routers": {},
+            "doc-routers": {},
+            "microservice-routers": {},
+        }
 
-        for route in router_types["microservice-routers"]:
-            self.handle_route(specification, route)
-
-        for route in router_types["asab-routers"]:
-            self.handle_route(specification, route)
-        
-        for route in router_types["doc-routers"]:
-            self.handle_route(specification, route)
+        for route in self.WebContainer.WebApp.router.routes():
+            if route.method == "HEAD":
+                # Skip HEAD methods
+                # TODO: once/if there is graphql, its method name is probably `*`
+                continue
+            specification["paths"].update(self.create_route_info(route))        
 
         return specification
+    
+    def create_route_info(self, route) -> dict:
+        """
+        Example return: 
+            /asab/v1/manifest:
+            get:
+                summary: It returns the manifest of the ASAB service.
+                description:
+                    "It returns the manifest of the ASAB service.\n\nTHe manifest is\
+                    \ a JSON object loaded from `MANIFEST.json` file.\nThe manifest contains the\
+                    \ creation (build) time and the version of the ASAB service.\nThe `MANIFEST.json`\
+                    \ is produced during the creation of docker image by `asab-manifest.py` script.\n\
+                    \nExample of `MANIFEST.json`:\n\n```\n{\n        'created_at': 2022-03-21T15:49:37.14000,\n\
+                    \        'version' :v22.9-4\n}\n```\n\n\nHandler: `APIWebHandler.manifest()`"
+                tags:
+                    - asab.api
+                responses:
+                    "200":
+                        description: Success
+        """
+        
+        route_path = self.get_path_from_route_info(route)
+        route_dict: dict = {}
+        route_name: str = route.method.lower()
+        
+        path_object = route_dict.get(route_path)
+        if path_object is None:
+            route_dict[route_path] = path_object = {}
+        path_object[route_name] = self.add_method_description(route)
+        
+        L.warning(f"route dict: {route_dict}")
+        
+        return route_dict
+        
+        
+        
+    
 
     def create_base_info(self, description: str) -> dict:
         return {
@@ -230,6 +268,8 @@ class DocWebHandler(object):
                 router_types_dict["microservice-routers"].append(route)
         return router_types_dict
 
+
+
     def create_handle_name(self, route) -> str:
         if inspect.ismethod(route.handler):
             if route.handler.__name__ == "validator":
@@ -267,7 +307,7 @@ class DocWebHandler(object):
             }
         return method_dict
 
-    def update_methods2(
+    def add_methods(
         self, docstring: str | None, add_dict: dict | None, handler_name: str, parameters: list
     ):
 
@@ -294,7 +334,26 @@ class DocWebHandler(object):
 
         return new_methods
 
-    def handle_route(self, specification: dict, route) -> None:
+    def add_method_description(self, route) -> dict:
+        """Return summary, description, tags and responses for the specified route.
+        """
+        parameters = self.extract_parameters(route)
+
+        handle_name: str = self.create_handle_name(route)
+        doc_string: str = self.create_docstring(route)
+        method_dict: dict = self.create_method_dict(route)
+
+        add_dict = self.add_additional_info(doc_string)
+        method_dict.update(
+            self.add_methods(doc_string, add_dict, handle_name, parameters)
+        )
+        
+        return method_dict
+        
+        
+
+
+    def extract_methods_from_route(self, specification: dict, route) -> None:
         path: str = self.get_path_from_route_info(route)
         parameters = self.extract_parameters(route)
 
@@ -304,7 +363,7 @@ class DocWebHandler(object):
 
         add_dict = self.add_additional_info(doc_string)
         method_dict.update(
-            self.update_methods2(doc_string, add_dict, handle_name, parameters)
+            self.add_methods(doc_string, add_dict, handle_name, parameters)
         )
 
         path_object = specification["paths"].get(path)

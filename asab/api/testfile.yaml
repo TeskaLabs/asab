@@ -1,0 +1,331 @@
+openapi: 3.0.1
+info:
+    title: MySuperCoolApp
+    description:
+        "Running on: <strong>roztomila-veverka</strong> on: <strong>[('0.0.0.0',
+        8000)]</strong><p>This is the best app ever.</p>"
+    contact:
+        name: ASAB microservice
+        url: https://www.github.com/teskalabs/asab
+    version: {}
+servers:
+    - url: ../../
+paths:
+    /asab/v1/environ:
+        get:
+            summary:
+                It returns a JSON response containing the contents of the environment
+                variables.
+            description:
+                "It returns a JSON response containing the contents of the environment\
+                \ variables.\n\nExample:\n\n```\n{\n        \"LANG\": \"en_GB.UTF-8\",\n \
+                \       \"SHELL\": \"/bin/zsh\",\n        \"HOME\": \"/home/foobar\",\n}\n\
+                \n```\n\n\nHandler: `APIWebHandler.environ()`"
+            tags:
+                - asab.api
+            responses:
+                "200":
+                    description: Success
+    /asab/v1/config:
+        get:
+            summary: It returns the JSON with the config of the ASAB service.
+            description:
+                "It returns the JSON with the config of the ASAB service.\n\nIMPORTANT:\
+                \ All passwords are erased.\n\nExample:\n\n```\n{\n        \"general\": {\n\
+                \                \"config_file\": \"\",\n                \"tick_period\":\
+                \ \"1\",\n                \"uid\": \"\",\n                \"gid\": \"\"\n\
+                \        },\n        \"asab:metrics\": {\n                \"native_metrics\"\
+                : \"true\",\n                \"expiration\": \"60\"\n        }\n}\n```\n\n\
+                \nHandler: `APIWebHandler.config()`"
+            tags:
+                - asab.api
+            responses:
+                "200":
+                    description: Success
+    /asab/v1/logs:
+        get:
+            summary: Get logs.
+            description: "Get logs.
+
+
+                Handler: `WebApiLoggingHandler.get_logs()`"
+            tags:
+                - asab.log
+            responses:
+                "200":
+                    description: Success
+    /asab/v1/logws:
+        get:
+            summary: "# Live feed of logs over websocket"
+            description:
+                "# Live feed of logs over websocket\n\nUsable with e.g. with React\
+                \ Lazylog\n\n```\n<LazyLog\n        url={this.AsabLogWsURL}\n        follow\n\
+                \        websocket\n        websocketOptions={{\n                formatMessage:\
+                \ e => log_message_format(e),\n        }}\n/>\n\nfunction log_message_format(e)\
+                \ {\n        e = JSON.parse(e)\n        var msg = e.t;\n        if (e.l !=\
+                \ undefined) msg += \" \" + e.l;\n        if (e.sd != undefined) msg += `\
+                \ ${JSON.stringify(e.sd)}`;\n        if (e.M != undefined) msg += \" \" +\
+                \ e.M;\n        if (e.C != undefined) msg += ` [${e.C}]`\n        return msg;\n\
+                }\n```\n\n\nHandler: `WebApiLoggingHandler.ws()`"
+            tags:
+                - asab.log
+            responses:
+                "200":
+                    description: Success
+            externalDocs:
+                description: React Lazylog
+                url: https://github.com/mozilla-frontend-infra/react-lazylog#readme
+    /asab/v1/changelog:
+        get:
+            summary: It returns a change log file.
+            description: "It returns a change log file.
+
+
+                Handler: `APIWebHandler.changelog()`"
+            tags:
+                - asab.api
+            responses:
+                "200":
+                    description: Success
+    /asab/v1/manifest:
+        get:
+            summary: It returns the manifest of the ASAB service.
+            description:
+                "It returns the manifest of the ASAB service.\n\nTHe manifest is\
+                \ a JSON object loaded from `MANIFEST.json` file.\nThe manifest contains the\
+                \ creation (build) time and the version of the ASAB service.\nThe `MANIFEST.json`\
+                \ is produced during the creation of docker image by `asab-manifest.py` script.\n\
+                \nExample of `MANIFEST.json`:\n\n```\n{\n        'created_at': 2022-03-21T15:49:37.14000,\n\
+                \        'version' :v22.9-4\n}\n```\n\n\nHandler: `APIWebHandler.manifest()`"
+            tags:
+                - asab.api
+            responses:
+                "200":
+                    description: Success
+    /doc:
+        get:
+            summary: Access the API documentation using a browser.
+            description: "Access the API documentation using a browser.
+
+
+                Handler: `DocWebHandler.doc()`"
+            tags:
+                - asab.doc
+            responses:
+                "200":
+                    description: Success
+    /oauth2-redirect.html:
+        get:
+            summary: Required for the authorization to work.
+            description: "Required for the authorization to work.
+
+
+                Handler: `<function DocWebHandler.oauth2_redirect at 0x7f9c28b20c10>`"
+            tags:
+                - asab.doc
+            responses:
+                "200":
+                    description: Success
+    /asab/v1/openapi:
+        get:
+            summary: Download OpenAPI (version 3) API documentation (aka Swagger) in YAML.
+            description:
+                "Download OpenAPI (version 3) API documentation (aka Swagger) in
+                YAML.
+
+
+                Handler: `DocWebHandler.openapi()`"
+            tags:
+                - asab.doc
+            responses:
+                "200":
+                    description: Success
+            externalDocs:
+                description: OpenAPI Specification
+                url: https://swagger.io/specification/
+    /asab/v1/metrics:
+        get:
+            summary: Produce the OpenMetrics output.
+            description: "Produce the OpenMetrics output.
+
+
+                Handler: `MetricWebHandler.metrics()`"
+            tags:
+                - asab.metrics
+            responses:
+                "200":
+                    description: Success
+    /asab/v1/watch_metrics:
+        get:
+            summary: Endpoint to list ASAB metrics in the command line.
+            description: "Endpoint to list ASAB metrics in the command line.
+
+
+                Example commands:
+
+                * watch curl localhost:8080/asab/v1/metrics_watch
+
+                * watch curl localhost:8080/asab/v1/metrics_watch?name=web_requests_duration_max
+
+
+
+                Handler: `MetricWebHandler.watch()`"
+            tags:
+                - asab.metrics
+            responses:
+                "200":
+                    description: Success
+    /asab/v1/metrics.json:
+        get:
+            summary: Get metrics in a JSON.
+            description: "Get metrics in a JSON.
+
+
+                Handler: `MetricWebHandler.metrics_json()`"
+            tags:
+                - asab.metrics
+            responses:
+                "200":
+                    description: Success
+    /{username}:
+        put:
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                _id:
+                                    type: string
+                                firstName:
+                                    type: string
+                                lastName:
+                                    type: string
+                                age:
+                                    type: number
+            summary: Create a user.
+            description: "Create a user.
+
+
+
+                Handler: `MyBeautifulHandler.createUser()`"
+            tags:
+                - COOLAPP.api
+            responses:
+                "200":
+                    description: Success
+            parameters:
+                - in: path
+                  name: username
+                  required: true
+    /{username}/{id}:
+        get:
+            summary: Read user with ID.
+            description: "Read user with ID.
+
+
+                Handler: `MyBeautifulHandler.readUser()`"
+            tags:
+                - general
+            responses:
+                "200":
+                    description: Success
+            parameters:
+                - in: path
+                  name: username
+                  required: true
+                - in: path
+                  name: id
+                  required: true
+        post:
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                _id:
+                                    type: string
+                                field1:
+                                    type: string
+                                field2:
+                                    type: number
+                                field3:
+                                    type: number
+            summary: Update username.
+            description: "Update username.
+
+
+                Handler: `MyBeautifulHandler.updateUser()`"
+            tags:
+                - general
+            responses:
+                "200":
+                    description: Success
+            parameters:
+                - in: path
+                  name: username
+                  required: true
+                - in: path
+                  name: id
+                  required: true
+        delete:
+            summary: Delete user completely.
+            description: "Delete user completely.\n        \n\nHandler: `MyBeautifulHandler.deleteUser()`"
+            tags:
+                - general
+            responses:
+                "200":
+                    description: Success
+            parameters:
+                - in: path
+                  name: username
+                  required: true
+                - in: path
+                  name: id
+                  required: true
+    /zamilovana/kocicka:
+        get:
+            summary:
+                "Po\u0159\xEDd\xED si kr\xE1sn\xE9ho nov\xE9ho pejska a bude mu \u0159\
+                \xEDkat Haf\xED\u010Dek."
+            description:
+                "Po\u0159\xEDd\xED si kr\xE1sn\xE9ho nov\xE9ho pejska a bude mu\
+                \ \u0159\xEDkat Haf\xED\u010Dek.\n\n\nHandler: `MyBeautifulHandler.poriditPejska()`"
+            tags:
+                - milujicikocka.api
+                - novysvet.api
+            responses:
+                "200":
+                    description: Success
+        put:
+            summary: "Mus\xED\u0161 si prost\u011B pohladit beru\u0161ku."
+            description:
+                "Mus\xED\u0161 si prost\u011B pohladit beru\u0161ku.\n\n\nHandler:\
+                \ `MyBeautifulHandler.beruskuPohladit()`"
+            tags:
+                - beruska.api
+            responses:
+                "200":
+                    description: Success
+    /potrebuju/svetr:
+        put:
+            summary: "Uplete kr\xE1sn\xFD nov\xFD svetr."
+            description: "Uplete kr\xE1sn\xFD nov\xFD svetr.\n\n\nHandler: `MyBeautifulHandler.upletSvetr()`"
+            tags:
+                - jeMiZima.txt
+            responses:
+                "200":
+                    description: Success
+components:
+    securitySchemes:
+        oAuth:
+            type: oauth2
+            description: ""
+            flows:
+                authorizationCode:
+                    authorizationUrl: google.com
+                    tokenUrl: zmrzlina.org
+                    scopes:
+                        openid: Required Scope for OpenIDConnect!
+                        scope: Pravoveta scope.
