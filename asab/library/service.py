@@ -20,7 +20,6 @@ from ..log import LOG_NOTICE
 
 L = logging.getLogger(__name__)
 
-
 #
 
 
@@ -89,6 +88,7 @@ class LibraryService(Service):
 		for path in paths:
 			self._create_library(path)
 		app.PubSub.subscribe("Application.tick/60!", self.on_tick)
+
 
 	async def finalize(self, app):
 		while len(self.Libraries) > 0:
@@ -210,11 +210,14 @@ class LibraryService(Service):
 		# Path must start with '/'
 		assert path[:1] == '/'
 
-		# Path must NOT end with '/' if item is a file but must end for dir's/folder's
 		if os.path.splitext(path)[1]:
-			path = path.rstrip('/')
+			# Path is now a file, get rid of trailing slash if present.
+			if path.endswith('/'):
+				path = path[:-1]
 		else:
-			path = path.rstrip('/') + '/'
+			# Path is now a dir/Node, append trailing slash if not present.
+			if not path.endswith('/'):
+				path += '/'
 
 		# List requested level using all available providers
 		items = await self._list(path, tenant, providers=self.Libraries)
