@@ -76,45 +76,57 @@ class DocWebHandler(object):
         L.warning(f"microservice-routers: {microservice_routers}")
         
         for endpoint in microservice_routers:
-                specification["paths"].update(endpoint)
+            endpoint_name = list(endpoint.keys())[0]
+            # if endpoint already exists, then update, else create a new one
+            spec_endpoint = specification["paths"].get(endpoint_name)
+            if spec_endpoint is None:
+                spec_endpoint = specification["paths"][endpoint_name] = {}
+                
+            spec_endpoint.update(endpoint[endpoint_name])
+        
         for endpoint in asab_routers:
-                specification["paths"].update(endpoint)
+            endpoint_name = list(endpoint.keys())[0]
+            # if endpoint already exists, then update, else create a new one
+            spec_endpoint = specification["paths"].get(endpoint_name)
+            if spec_endpoint is None:
+                spec_endpoint = specification["paths"][endpoint_name] = {}
+                
+            spec_endpoint.update(endpoint[endpoint_name])
+        
         for endpoint in doc_routers:
-                specification["paths"].update(endpoint)         
+            endpoint_name = list(endpoint.keys())[0]
+            # if endpoint already exists, then update, else create a new one
+            spec_endpoint = specification["paths"].get(endpoint_name)
+            if spec_endpoint is None:
+                spec_endpoint = specification["paths"][endpoint_name] = {}
+                
+            spec_endpoint.update(endpoint[endpoint_name])
             
         return specification
     
 
     
-    
     def create_route_info(self, route) -> dict:
-        """
-        Example return: 
-            /asab/v1/manifest:
-            get:
-                summary: It returns the manifest of the ASAB service.
-                description:
-                    "It returns the manifest of the ASAB service.\n\nTHe manifest is\
-                    \ a JSON object loaded from `MANIFEST.json` file.\nThe manifest contains the\
-                    \ creation (build) time and the version of the ASAB service.\nThe `MANIFEST.json`\
-                    \ is produced during the creation of docker image by `asab-manifest.py` script.\n\
-                    \nExample of `MANIFEST.json`:\n\n```\n{\n        'created_at': 2022-03-21T15:49:37.14000,\n\
-                    \        'version' :v22.9-4\n}\n```\n\n\nHandler: `APIWebHandler.manifest()`"
-                tags:
-                    - asab.api
-                responses:
-                    "200":
-                        description: Success
-        """
         route_dict: dict = {}
-        route_name: str = route.method.lower()
+        method_name: str = route.method.lower()
         
         route_path = self.get_path_from_route_info(route)
-        path_object = route_dict.get(route_path)
         
+        path_object = route_dict.get(route_path)
         if path_object is None:
             route_dict[route_path] = path_object = {}
-        path_object[route_name] = self.add_method_description(route)
+            
+        path_object[method_name] = self.add_method_description(route)
+        
+        L.warning(f"""
+                  ROUTER INFO
+                  
+                  method_name: {method_name}
+                  
+                  route_path: {route_path}
+                  
+                  route_dict: {route_dict}
+                  """)
         
         return route_dict
         
@@ -263,29 +275,6 @@ class DocWebHandler(object):
         L.warning(f"parameters: {parameters}")
         return parameters
 
-    def determine_router_types(self) -> dict[list]:
-        # TODO: maybe dict with lists is not the right option for storing such data?
-        router_types_dict = {
-            "asab-routers": [],
-            "doc-routers": [],
-            "microservice-routers": [],
-        }
-
-        for route in self.WebContainer.WebApp.router.routes():
-            if route.method == "HEAD":
-                # Skip HEAD methods
-                # TODO: once/if there is graphql, its method name is probably `*`
-                continue
-            path = self.get_path_from_route_info(route)
-            if re.search("/doc", path) or re.search("/oauth2-redirect.html", path):
-                router_types_dict["doc-routers"].append(route)
-            elif re.search("asab", path):
-                router_types_dict["asab-routers"].append(route)
-            else:
-                router_types_dict["microservice-routers"].append(route)
-        return router_types_dict
-
-
 
     def create_handle_name(self, route) -> str:
         if inspect.ismethod(route.handler):
@@ -366,9 +355,6 @@ class DocWebHandler(object):
         )
         
         return method_dict
-        
-        
-
 
     def extract_methods_from_route(self, specification: dict, route) -> None:
         path: str = self.get_path_from_route_info(route)
