@@ -296,7 +296,6 @@ class DocWebHandler(object):
                     )
         return parameters
 
-
     def create_handle_name(self, route) -> str:
         if inspect.ismethod(route.handler):
             if route.handler.__name__ == "validator":
