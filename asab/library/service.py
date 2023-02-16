@@ -215,7 +215,7 @@ class LibraryService(Service):
 			path = path.rstrip('/')
 		else:
 			# Path is now a dir/Node, append trailing slash if not present.
-			path += '/'
+			path = path.rstrip('/') + '/'
 
 		# List requested level using all available providers
 		items = await self._list(path, tenant, providers=self.Libraries)
