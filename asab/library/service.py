@@ -95,8 +95,10 @@ class LibraryService(Service):
 			lib = self.Libraries.pop(-1)
 			await lib.finalize(self.App)
 
+
 	async def on_tick(self, message_type):
 		await self._read_disabled()
+
 
 	def _create_library(self, path):
 		library_provider = None
@@ -126,6 +128,7 @@ class LibraryService(Service):
 
 		self.Libraries.append(library_provider)
 
+
 	def is_ready(self):
 		"""
 		It checks if all the libraries are ready.
@@ -138,6 +141,7 @@ class LibraryService(Service):
 			True
 		)
 
+
 	async def _set_ready(self, provider):
 		if provider == self.Libraries[0]:
 			await self._read_disabled()
@@ -145,6 +149,7 @@ class LibraryService(Service):
 		if self.is_ready():
 			L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("ASABLibrary.ready!", self)
+
 
 	async def read(self, path: str, tenant: str = None) -> typing.IO:
 		"""
@@ -179,6 +184,7 @@ class LibraryService(Service):
 			return itemio
 
 		return None
+
 
 	async def list(self, path="/", tenant=None, recursive=False):
 		"""
@@ -232,6 +238,7 @@ class LibraryService(Service):
 
 		return items
 
+
 	async def _list(self, path, tenant, providers):
 
 		# Execute the list query in all providers in-parallel
@@ -273,6 +280,7 @@ class LibraryService(Service):
 
 		return items
 
+
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
 		# It is applied on all libraries in the configuration.
@@ -289,6 +297,7 @@ class LibraryService(Service):
 			except Exception:
 				self.Disabled = {}
 				L.exception("Failed to parse '/.disabled.yaml'")
+
 
 	def check_disabled(self, path, tenant=None):
 		"""
@@ -313,6 +322,7 @@ class LibraryService(Service):
 			return True
 
 		return False
+
 
 	async def export(self, path="/", tenant=None):
 
@@ -356,6 +366,7 @@ class LibraryService(Service):
 		tarobj.close()
 		fileobj.seek(0)
 		return fileobj
+
 
 	def subscribe(self, paths):
 		"""
