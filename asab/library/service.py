@@ -213,10 +213,9 @@ class LibraryService(Service):
 		if os.path.splitext(path)[1]:
 			# Path is now a file, get rid of trailing slash if present.
 			if path.endswith('/'):
-				path = path[:-1]
+				path = path.rstrip('/')
 		else:
 			# Path is now a dir/Node, append trailing slash if not present.
-			if not path.endswith('/'):
 				path += '/'
 
 		# List requested level using all available providers
