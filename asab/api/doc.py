@@ -9,6 +9,7 @@ import yaml
 
 from .doc_templates import SWAGGER_OAUTH_PAGE, SWAGGER_DOC_PAGE
 
+
 ##
 
 L = logging.getLogger(__name__)
@@ -37,26 +38,24 @@ class DocWebHandler(object):
 	def build_swagger_documentation(self) -> dict:
 		"""Take a docstring of the class and a docstring of methods and merge them into Swagger data."""
 		specification: dict = {}
-		# TODO: check for the add_dict in the primary code
 		app_doc_string: str = self.App.__doc__
 		additional_info_dict: dict = {}
 
-		app_description: str = self.get_description(app_doc_string)
+		app_description: str = get_description(app_doc_string)
 		additional_info_dict.update(self.get_additional_info(app_doc_string))
 		if additional_info_dict is not None:
 			specification.update(additional_info_dict)
 
 		specification.update(self.prepare_description_frame(app_description))
-		specification["components"] = self.create_security_schemes()
+		specification["components"]["securitySchemes"] = self.create_security_schemes()
 		specification["info"]["version"] = self.get_manifest()
 		specification["info"]["description"] = self.get_server_and_container_info(
 			app_description
 		)
 
 		# routers sorting
-		asab_routers = []
-		doc_routers = []
-		microservice_routers = []
+		asab_routes = []
+		microservice_routes = []
 
 		for route in self.WebContainer.WebApp.router.routes():
 			if route.method == "HEAD":
@@ -66,17 +65,15 @@ class DocWebHandler(object):
 
 			path = self.get_path_from_route_info(route)
 
-			if re.search("/doc", path) or re.search("/oauth2-redirect.html", path):
-				doc_routers.append(self.parse_route_data(route))
-			elif re.search("asab", path):
-				asab_routers.append(self.parse_route_data(route))
+			if re.search("asab", path) or re.search("/doc", path) or re.search("/oauth2-redirect.html", path):
+				asab_routes.append(self.parse_route_data(route))
 			else:
-				microservice_routers.append(self.parse_route_data(route))
+				microservice_routes.append(self.parse_route_data(route))
 
 		# add routers to 'paths' in order
 		# TODO: sorting by tags alphabetically?
 
-		for endpoint in microservice_routers:
+		for endpoint in microservice_routes:
 			endpoint_name = list(endpoint.keys())[0]
 			# if endpoint already exists, then update, else create a new one
 			spec_endpoint = specification["paths"].get(endpoint_name)
@@ -85,15 +82,7 @@ class DocWebHandler(object):
 
 			spec_endpoint.update(endpoint[endpoint_name])
 
-		for endpoint in asab_routers:
-			endpoint_name = list(endpoint.keys())[0]
-			spec_endpoint = specification["paths"].get(endpoint_name)
-			if spec_endpoint is None:
-				spec_endpoint = specification["paths"][endpoint_name] = {}
-
-			spec_endpoint.update(endpoint[endpoint_name])
-
-		for endpoint in doc_routers:
+		for endpoint in asab_routes:
 			endpoint_name = list(endpoint.keys())[0]
 			spec_endpoint = specification["paths"].get(endpoint_name)
 			if spec_endpoint is None:
@@ -162,22 +151,7 @@ class DocWebHandler(object):
 			"components": {},
 		}
 
-	def get_description(self, docstring: str | None) -> str:
-		"""Take the docstring of a function and parse it into description. Omit everything that comes after '---'."""
-		if docstring is not None:
-			docstring = inspect.cleandoc(docstring)
-			dashes_index = docstring.find(
-				"\n---\n"
-			)  # find the index of the first three dashes
-
-			# everything before --- goes to description
-			if dashes_index >= 0:
-				description = docstring[:dashes_index]
-			else:
-				description = docstring
-		else:
-			description = ""
-		return description
+	
 
 	def get_additional_info(self, docstring: str | None) -> dict:
 		"""Take the docstring of a function and return additional data if they exist."""
@@ -205,25 +179,23 @@ class DocWebHandler(object):
 		security_schemes_dict = {}
 		if self.AuthorizationUrl and self.TokenUrl:
 			security_schemes_dict = {
-				"securitySchemes": {
-					"oAuth": {
-						"type": "oauth2",
-						"description": "",
-						"flows": {
-							"authorizationCode": {
-								"authorizationUrl": self.AuthorizationUrl,  # "http://localhost/seacat/api/openidconnect/authorize"
-								"tokenUrl": self.TokenUrl,  # "http://localhost/seacat/api/openidconnect/token"
-								"scopes": {
-									"openid": "Required Scope for OpenIDConnect!",
-								},
-							}
-						},
-					}
-				},
+				"oAuth": {
+					"type": "oauth2",
+					"description": "",
+					"flows": {
+						"authorizationCode": {
+							"authorizationUrl": self.AuthorizationUrl,  # "http://localhost/seacat/api/openidconnect/authorize"
+							"tokenUrl": self.TokenUrl,  # "http://localhost/seacat/api/openidconnect/token"
+							"scopes": {
+								"openid": "Required Scope for OpenIDConnect!",
+							},
+						}
+					},
+				}
 			}
 			if self.Scopes:
 				for scope in self.Scopes.split(","):
-					security_schemes_dict["securitySchemes"]["oAuth"]["flows"][
+					security_schemes_dict["oAuth"]["flows"][
 						"authorizationCode"
 					]["scopes"].update(
 						{"scope": "{} scope.".format(scope.strip().capitalize())}
@@ -335,7 +307,7 @@ class DocWebHandler(object):
 		parameters: list,
 	):
 
-		description: str = self.get_description(docstring)
+		description: str = get_description(docstring)
 		description += "\n\nHandler: `{}`".format(handler_name)
 
 		new_methods: dict = {
@@ -400,3 +372,21 @@ class DocWebHandler(object):
 			text=(yaml.dump(self.build_swagger_documentation(), sort_keys=False)),
 			content_type="text/yaml",
 		)
+
+
+def get_description(docstring: str | None) -> str:
+		"""Take the docstring of a function and parse it into description. Omit everything that comes after '---'."""
+		if docstring is not None:
+			docstring = inspect.cleandoc(docstring)
+			dashes_index = docstring.find(
+				"\n---\n"
+			)  # find the index of the first three dashes
+
+			# everything before --- goes to description
+			if dashes_index >= 0:
+				description = docstring[:dashes_index]
+			else:
+				description = docstring
+		else:
+			description = ""
+		return description
