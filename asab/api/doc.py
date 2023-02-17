@@ -39,10 +39,26 @@ class DocWebHandler(object):
 		"""Take a docstring of the class and a docstring of methods and merge them into Swagger data."""
 		app_doc_string: str = self.App.__doc__
 		app_description: str = get_description(app_doc_string)
+
+		specification: dict = {
+			"openapi": "3.0.1",
+			"info": {
+				"title": "{}".format(self.App.__class__.__name__),
+				"description": app_description,
+				"contact": {
+					"name": "ASAB microservice",
+					"url": "https://www.github.com/teskalabs/asab",
+				},
+				"version": "1.0.0",
+			},
+			"servers": [{"url": "../../"}],  # Base path relative to openapi endpoint
+			"paths": {},
+			# Authorization
+			# TODO: Authorization must not be always of OAuth type
+			"components": {},
+		}
+
 		additional_info_dict: dict = self.get_additional_info(app_doc_string)
-
-		specification: dict = self.prepare_description_frame(app_description)
-
 		if additional_info_dict is not None:
 			specification.update(additional_info_dict)
 
@@ -62,7 +78,7 @@ class DocWebHandler(object):
 				# TODO: once/if there is graphql, its method name is probably `*`
 				continue
 
-			path = self.get_path_from_route_info(route)
+			path: str = self.get_path_from_route_info(route)
 
 			if re.search("asab", path) or re.search("/doc", path) or re.search("/oauth2-redirect.html", path):
 				asab_routes.append(self.parse_route_data(route))
@@ -114,12 +130,12 @@ class DocWebHandler(object):
 		method_name: str = route.method.lower()
 		route_path: str = self.get_path_from_route_info(route)
 
-		parameters: list[dict] = self.extract_parameters(route)
-		handle_name: str = self.create_handle_name(route)
-		doc_string: str = self.create_docstring(route)
+		parameters: list[dict] = extract_parameters(route)
+		handle_name: str = create_handle_name(route)
+		doc_string: str = create_docstring(route)
 		add_dict: dict = self.get_additional_info(doc_string)
 
-		method_dict: dict = self.create_method_dict(route)
+		method_dict: dict = create_method_dict(route)
 		method_dict.update(
 			self.add_methods(doc_string, add_dict, handle_name, parameters)
 		)
@@ -131,26 +147,6 @@ class DocWebHandler(object):
 
 		return route_dict
 
-	def prepare_description_frame(self, description: str) -> dict:
-		return {
-			"openapi": "3.0.1",
-			"info": {
-				"title": "{}".format(self.App.__class__.__name__),
-				"description": description,
-				"contact": {
-					"name": "ASAB microservice",
-					"url": "https://www.github.com/teskalabs/asab",
-				},
-				"version": "1.0.0",
-			},
-			"servers": [{"url": "../../"}],  # Base path relative to openapi endpoint
-			"paths": {},
-			# Authorization
-			# TODO: Authorization must not be always of OAuth type
-			"components": {},
-		}
-
-	
 
 	def get_additional_info(self, docstring: str | None) -> dict | None:
 		"""Take the docstring of a function and return additional data if they exist."""
@@ -225,79 +221,6 @@ class DocWebHandler(object):
 			L.warning("Cannot obtain path info from route", struct_data=self.route_info)
 		return path
 
-	def extract_parameters(self, route) -> list[dict]:
-		"""Take a single route and return its parameters.
-
-		---
-		Example:
-
-		>>> self.extract_parameters(myTestRoute)
-		[
-				{'in': 'path', 'name': 'parameter1', 'required': True},
-				{'in': 'path', 'name': 'parameter2', 'required': True}
-		]
-		"""
-		parameters: list = []
-		route_info = route.get_info()
-		if "formatter" in route_info:
-			path = route_info["formatter"]
-			for params in re.findall(r"\{.*\}", path):
-				if "/" in params:
-					for parameter in params.split("/"):
-						parameters.append(
-							{
-								"in": "path",
-								"name": parameter[1:-1],
-								"required": True,
-							}
-						)
-				else:
-					parameters.append(
-						{
-							"in": "path",
-							"name": params[1:-1],
-							"required": True,
-						}
-					)
-		return parameters
-
-	def create_handle_name(self, route) -> str:
-		if inspect.ismethod(route.handler):
-			if route.handler.__name__ == "validator":
-				handler_name = "{}.{}()".format(
-					route.handler.__self__.__class__.__name__,
-					route.handler.__getattribute__("func").__name__,
-				)
-
-			else:
-				handler_name = "{}.{}()".format(
-					route.handler.__self__.__class__.__name__, route.handler.__name__
-				)
-		else:
-			handler_name = str(route.handler)
-
-		return handler_name
-
-	def create_docstring(self, route) -> str:
-		if inspect.ismethod(route.handler):
-			if route.handler.__name__ == "validator":
-				doc_str = route.handler.__getattribute__("func").__doc__
-			else:
-				doc_str = route.handler.__doc__
-		else:
-			doc_str = route.handler.__doc__
-
-		return doc_str
-
-	def create_method_dict(self, route) -> dict:
-		method_dict = {}
-		if inspect.ismethod(route.handler) and route.handler.__name__ == "validator":
-			json_schema = route.handler.__getattribute__("json_schema")
-			method_dict["requestBody"] = {
-				"content": {"application/json": {"schema": json_schema}},
-			}
-		return method_dict
-
 	def add_methods(
 		self,
 		docstring: str | None,
@@ -363,8 +286,8 @@ class DocWebHandler(object):
 		---
 		tags: ['asab.doc']
 		externalDocs:
-						description: OpenAPI Specification
-						url: https://swagger.io/specification/
+		description: OpenAPI Specification
+		url: https://swagger.io/specification/
 
 		"""
 		return aiohttp.web.Response(
@@ -389,3 +312,80 @@ def get_description(docstring: str | None) -> str:
 		else:
 			description = ""
 		return description
+
+
+def extract_parameters(route) -> list[dict]:
+		"""Take a single route and return its parameters.
+
+		---
+		Example:
+
+		>>> extract_parameters(myTestRoute)
+		[
+				{'in': 'path', 'name': 'parameter1', 'required': True},
+				{'in': 'path', 'name': 'parameter2', 'required': True}
+		]
+		"""
+		parameters: list = []
+		route_info = route.get_info()
+		if "formatter" in route_info:
+			path = route_info["formatter"]
+			for params in re.findall(r"\{.*\}", path):
+				if "/" in params:
+					for parameter in params.split("/"):
+						parameters.append(
+							{
+								"in": "path",
+								"name": parameter[1:-1],
+								"required": True,
+							}
+						)
+				else:
+					parameters.append(
+						{
+							"in": "path",
+							"name": params[1:-1],
+							"required": True,
+						}
+					)
+		return parameters
+
+
+def create_handle_name(route) -> str:
+		if inspect.ismethod(route.handler):
+			if route.handler.__name__ == "validator":
+				handler_name = "{}.{}()".format(
+					route.handler.__self__.__class__.__name__,
+					route.handler.__getattribute__("func").__name__,
+				)
+
+			else:
+				handler_name = "{}.{}()".format(
+					route.handler.__self__.__class__.__name__, route.handler.__name__
+				)
+		else:
+			handler_name = str(route.handler)
+
+		return handler_name
+
+
+def create_docstring(route) -> str:
+	if inspect.ismethod(route.handler):
+		if route.handler.__name__ == "validator":
+			doc_str = route.handler.__getattribute__("func").__doc__
+		else:
+			doc_str = route.handler.__doc__
+	else:
+		doc_str = route.handler.__doc__
+
+	return doc_str
+
+
+def create_method_dict(route) -> dict:
+		method_dict = {}
+		if inspect.ismethod(route.handler) and route.handler.__name__ == "validator":
+			json_schema = route.handler.__getattribute__("json_schema")
+			method_dict["requestBody"] = {
+				"content": {"application/json": {"schema": json_schema}},
+			}
+		return method_dict
