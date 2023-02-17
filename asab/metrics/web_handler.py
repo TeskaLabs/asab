@@ -1,5 +1,6 @@
 import aiohttp.web
 import copy
+import time
 
 from .openmetric import metric_to_openmetric
 from ..web.rest import json_response
@@ -60,8 +61,8 @@ class MetricWebHandler(object):
 		Endpoint to list ASAB metrics in the command line.
 
 		Example commands:
-		* watch curl localhost:8080/asab/v1/metrics_watch
-		* watch curl localhost:8080/asab/v1/metrics_watch?name=web_requests_duration_max
+		* watch curl localhost:8080/asab/v1/watch_metrics
+		* watch curl localhost:8080/asab/v1/watch_metrics?name=web_requests_duration_max
 
 		---
 		tags: ['asab.metrics']
@@ -69,7 +70,9 @@ class MetricWebHandler(object):
 
 		filter = request.query.get("name")
 		tags = request.query.get("tags")
-		text = watch_table(self.MetricsService.Storage.Metrics, filter, tags)
+		flush_time = time.gmtime(self.MetricsService.Storage.LastFlush)
+		flush_time = time.strftime("%Y-%m-%d %H:%M:%S", flush_time)
+		text = watch_table(self.MetricsService.Storage.Metrics, filter, tags, flush_time)
 
 		return aiohttp.web.Response(
 			text=text,
@@ -78,7 +81,7 @@ class MetricWebHandler(object):
 		)
 
 
-def watch_table(metric_records: list(), filter, tags):
+def watch_table(metric_records: list(), filter, tags, flush_time):
 	lines = []
 	m_name_len = max([len(i["name"]) for i in metric_records])
 
@@ -99,6 +102,7 @@ def watch_table(metric_records: list(), filter, tags):
 	else:
 		separator = "-" * (m_name_len + v_name_len + 30 + 2)
 
+	lines.append(flush_time)
 	lines.append(separator)
 	lines.append(build_line("Metric name", "Value name", "Value", m_name_len, v_name_len, tags, t_string="Tags", t_name_len=t_name_len))
 	lines.append(separator)
