@@ -85,17 +85,6 @@ class MockedRouterObject():
 		return None
 
 # TODO: route_info v route generuje slovník, ve kterém je buďto 'path' anebo 'formatter' - mám použít nějaké randomizování při mockování do unit testu
-# TODO: zjistit další metody na route objektu
 
-# TESTY:
-# 1. test na to, jestli funkce vrací slovník s klíči:
-# openapi, info, servers, paths, components
-#
-# 2. test na to, jestli generuje správně hlavičku v info
-#
-# 3. test na to, jestli generuje asabí routy správně
-#
-# 4. test na to, jestli generuje microservisní routy správně
-#
-# 5. test na to, jestli je generuje ve 'správném' pořadí
-#
+# TODO: vymyslet, jaké unit testy by se daly pro tu funkci napsat
+# MOŽNÁ: vygenerovat template pro swagger a pak se ptát, jestli obsahuje správné slovníky
