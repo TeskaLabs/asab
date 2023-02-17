@@ -29,7 +29,7 @@ class MetricsService(Service):
 		self.Tags = {
 			"host": app.HostName,
 		}
-		self.Storage = Storage()
+		self.Storage = Storage(app)
 
 		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
 
@@ -85,6 +85,7 @@ class MetricsService(Service):
 			return
 
 		now = self._flush_metrics()
+		self.Storage.LastFlush = now
 
 		pending = set()
 		for target in self.Targets:

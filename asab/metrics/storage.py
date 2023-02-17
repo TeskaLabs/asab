@@ -9,8 +9,9 @@ L = logging.getLogger(__name__)
 
 class Storage(object):
 
-	def __init__(self):
+	def __init__(self, app):
 		self.Metrics = []
+		self.LastFlush = app.time()
 
 
 	def add(self, metric_name: str, tags: dict, reset: bool, help: str, unit: str):
