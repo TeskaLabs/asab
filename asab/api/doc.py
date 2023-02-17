@@ -37,16 +37,15 @@ class DocWebHandler(object):
 
 	def build_swagger_documentation(self) -> dict:
 		"""Take a docstring of the class and a docstring of methods and merge them into Swagger data."""
-		specification: dict = {}
 		app_doc_string: str = self.App.__doc__
-		additional_info_dict: dict = {}
-
 		app_description: str = get_description(app_doc_string)
-		additional_info_dict.update(self.get_additional_info(app_doc_string))
+		additional_info_dict: dict = self.get_additional_info(app_doc_string)
+
+		specification: dict = self.prepare_description_frame(app_description)
+
 		if additional_info_dict is not None:
 			specification.update(additional_info_dict)
 
-		specification.update(self.prepare_description_frame(app_description))
 		specification["components"]["securitySchemes"] = self.create_security_schemes()
 		specification["info"]["version"] = self.get_manifest()
 		specification["info"]["description"] = self.get_server_and_container_info(
@@ -153,10 +152,10 @@ class DocWebHandler(object):
 
 	
 
-	def get_additional_info(self, docstring: str | None) -> dict:
+	def get_additional_info(self, docstring: str | None) -> dict | None:
 		"""Take the docstring of a function and return additional data if they exist."""
 
-		additional_info_dict = {}
+		additional_info_dict: dict | None = None
 
 		if docstring is not None:
 			docstring = inspect.cleandoc(docstring)
