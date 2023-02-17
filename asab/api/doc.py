@@ -35,11 +35,11 @@ class DocWebHandler(object):
 
 		self.Manifest = api_service.Manifest
 
+
 	def build_swagger_documentation(self) -> dict:
 		"""Take a docstring of the class and a docstring of methods and merge them into Swagger data."""
 		app_doc_string: str = self.App.__doc__
 		app_description: str = get_description(app_doc_string)
-
 		specification: dict = {
 			"openapi": "3.0.1",
 			"info": {
@@ -72,6 +72,7 @@ class DocWebHandler(object):
 		asab_routes = []
 		microservice_routes = []
 
+		L.warning(self.WebContainer.WebApp.router.routes())
 		for route in self.WebContainer.WebApp.router.routes():
 			if route.method == "HEAD":
 				# Skip HEAD methods
