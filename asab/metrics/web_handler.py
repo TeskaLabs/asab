@@ -60,16 +60,20 @@ class MetricWebHandler(object):
 		Endpoint to list ASAB metrics in the command line.
 
 		Example commands:
-		* watch curl localhost:8080/asab/v1/metrics_watch
-		* watch curl localhost:8080/asab/v1/metrics_watch?name=web_requests_duration_max
+		* watch curl localhost:8080/asab/v1/watch_metrics
+		* watch curl localhost:8080/asab/v1/watch_metrics?name=web_requests
+		* watch curl localhost:8080/asab/v1/watch_metrics?web_requests_metrics=True
 
 		---
 		tags: ['asab.metrics']
 		"""
 
 		filter = request.query.get("name")
+		web_metrics_flag = request.query.get("web_requests_metrics")
+		web_metrics_flag = True if web_metrics_flag is not None and web_metrics_flag.lower() == 'true' else False
 		tags = request.query.get("tags")
-		text = watch_table(self.MetricsService.Storage.Metrics, filter, tags)
+		tags = True if tags is not None and tags.lower() == 'true' else False
+		text = watch_table(self.MetricsService.Storage.Metrics, filter, tags, web_metrics_flag)
 
 		return aiohttp.web.Response(
 			text=text,
@@ -78,7 +82,7 @@ class MetricWebHandler(object):
 		)
 
 
-def watch_table(metric_records: list(), filter, tags):
+def watch_table(metric_records: list, filter, tags, web_metrics_flag):
 	lines = []
 	m_name_len = max([len(i["name"]) for i in metric_records])
 
@@ -108,6 +112,9 @@ def watch_table(metric_records: list(), filter, tags):
 			if field.get("values") is None:
 				continue
 			name = metric_record.get("name")
+			if filter is None and name.startswith('web_requests'):
+				if web_metrics_flag is False:
+					continue
 			if filter is not None and not name.startswith(filter):
 				continue
 			if metric_record.get("type") in ["Histogram", "HistogramWithDynamicTags"]:
