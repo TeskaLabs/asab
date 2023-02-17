@@ -1,16 +1,9 @@
 import unittest
 import logging
-from enum import Enum
 
 from asab.api.doc import DocWebHandler
 
 L = logging.getLogger(__name__)
-
-
-class HttpMethod(Enum):
-	PUT = "PUT"
-	GET = "GET"
-	DELETE = "DELETE"
 
 
 class TestDocWebHandler(unittest.TestCase):
@@ -28,7 +21,7 @@ class TestDocWebHandler(unittest.TestCase):
 
 		# in order to access 'self.WebContainer.WebApp.router.routes()', we have to mock these classes below
 		self.WebContainer = WebContainer()
-		
+
 
 class ServiceWithManifest:
 	def __init__(self) -> None:
@@ -60,24 +53,25 @@ class router:
 
 	def routes(self):
 		mocked_router_list = []
+		mocked_router_list.append(MockedRouterObject("path/to/file", "PUT"))
+		mocked_router_list.append(MockedRouterObject("path/to/file", "GET"))
+		mocked_router_list.append(MockedRouterObject("another/path", "GET"))
+		mocked_router_list.append(MockedRouterObject("another/path", "DELETE"))
 
-		for i in range(1, 6):
-			mocked_router_list.append(MockedRouterObject("PUT"))
 		return mocked_router_list
 
 	def add_get(endpoint, function, neco):
 		pass
 
 
-
-
 class MockedRouterObject():
-	def __init__(self, http_method: str, ) -> None:
+	def __init__(self, endpoint_name: str, http_method: str, ) -> None:
 		self.method = http_method
+		self.endpoint = endpoint_name
 
 	def get_info(self) -> dict[str]:
 		return {
-			"path": "/path/to/endpoint",
+			"path": self.endpoint,
 		}
 
 	def handler(self) -> None:
@@ -105,5 +99,3 @@ class MockedRouterObject():
 #
 # 5. test na to, jestli je generuje ve 'správném' pořadí
 #
-#
-

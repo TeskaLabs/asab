@@ -4,7 +4,7 @@ from .swagger_template import SWAGGER_TEMPLATE
 
 class TestSwagger(TestDocWebHandler):
 
-	def test_base_keys(self):
+	def test_parent_keys(self):
 		"""Documentation should contain these keys:
 'openapi', 'info', 'servers', 'paths', 'components'
 		"""
@@ -12,9 +12,14 @@ class TestSwagger(TestDocWebHandler):
 		keys = ["openapi", "info", "servers", "paths", "components"]
 		self.assertTrue(check_keys(documentation, keys))
 
-	def test_document_structure_keys(self):
+	def test_all_keys(self):
+		"""Documentation should contain the same keys as a dictionary in `swagger_template.py`"""
 		documentation: dict = self.handlerObject.build_swagger_documentation()
+		print("Test documentation was generated. The corresponding object is:\n{0}".format(documentation))
 		self.assertTrue(compare_keys(documentation, SWAGGER_TEMPLATE))
+
+	def test_(self):
+		pass
 
 
 def check_keys(dictionary: dict, keys: list) -> bool:
