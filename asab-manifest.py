@@ -20,6 +20,21 @@ when generated the help of the current script.
 
 """
 
+# List of environment variables to be included in the MANIFEST.json
+envvars = [
+	"GITHUB_REPOSITORY",
+	"GITHUB_REF_NAME",
+	"GITHUB_REF",
+	"GITHUB_REF_TYPE",
+	"GITHUB_BASE_REF",
+	"GITHUB_HEAD_REF",
+	"GITHUB_JOB",
+	"GITHUB_RUN_ID",
+	"GITHUB_SHA",
+	"RUNNER_ARCH",
+]
+
+
 def create_manifest(args):
 	manifest = {
 		'created_at': datetime.datetime.utcnow().isoformat() + 'Z',  # This is OK, no tzinfo needed
@@ -40,19 +55,6 @@ def create_manifest(args):
 			gitr.stderr.decode('ascii')
 		))
 		sys.exit(1)
-
-	envvars = [
-		"GITHUB_REPOSITORY",
-		"GITHUB_REF_NAME",
-		"GITHUB_REF",
-		"GITHUB_REF_TYPE",
-		"GITHUB_BASE_REF",
-		"GITHUB_HEAD_REF",
-		"GITHUB_JOB",
-		"GITHUB_RUN_ID",
-		"GITHUB_SHA",
-		"RUNNER_ARCH",
-	]
 
 	for envvar in envvars:
 		envvarvalue = os.environ.get(envvar)
