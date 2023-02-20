@@ -18,11 +18,12 @@ class WebService(Service):
 		super().__init__(app, service_name)
 
 		# Web service is dependent on Metrics service
-		app.add_module(metrics.Module)
-		self.MetricsService = app.get_service("asab.MetricsService")
-		self.WebRequestsMetrics = WebRequestsMetrics(self.MetricsService)
+		web_metrics_config = Config.getboolean("asab:metrics", "web_requests", fallback=False)
+		if web_metrics_config is True:
+			app.add_module(metrics.Module)
+			self.MetricsService = app.get_service("asab.MetricsService")
+			self.WebRequestsMetrics = WebRequestsMetrics(self.MetricsService)
 		self.Containers = {}
-
 
 	async def finalize(self, app):
 		for containers in self.Containers.values():

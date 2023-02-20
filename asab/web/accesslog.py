@@ -1,6 +1,7 @@
 import aiohttp.abc
 
 from ..log import LOG_NOTICE
+from .. import Config
 
 
 class AccessLogger(aiohttp.abc.AbstractAccessLogger):
@@ -45,4 +46,6 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 		if path is None:
 			path = request.path
 
-		self.WebService.WebRequestsMetrics.set_metrics(time, request.method, path, str(response.status))
+		web_metrics_config = Config.getboolean("asab:metrics", "web_requests", fallback=False)
+		if web_metrics_config is True:
+			self.WebService.WebRequestsMetrics.set_metrics(time, request.method, path, str(response.status))
