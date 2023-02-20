@@ -22,16 +22,19 @@ when generated the help of the current script.
 
 # List of environment variables to be included in the MANIFEST.json
 envvars = [
-	"GITHUB_REPOSITORY",
-	"GITHUB_REF_NAME",
-	"GITHUB_REF",
-	"GITHUB_REF_TYPE",
-	"GITHUB_BASE_REF",
+	"CI_COMMIT_BRANCH",
+	"CI_COMMIT_TAG",
+	"CI_COMMIT_REF_NAME",
+	"CI_COMMIT_SHA",
+	"CI_COMMIT_TIMESTAMP",
+	"CI_JOB_ID",
+	"CI_PIPELINE_CREATED_AT",
+	"CI_RUNNER_ID",
+	"CI_RUNNER_EXECUTABLE_ARCH",
 	"GITHUB_HEAD_REF",
 	"GITHUB_JOB",
-	"GITHUB_RUN_ID",
 	"GITHUB_SHA",
-	"RUNNER_ARCH",
+	"GITHUB_REPOSITORY",
 ]
 
 
