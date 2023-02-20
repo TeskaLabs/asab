@@ -13,10 +13,29 @@ and the version of the service running in the container. The MANIFEST.json is pr
 of docker image. When the MANIFEST.json is populated it could look something similar to illustration below 
 when generated the help of the current script.
 
+```
 {
 	"created_at": "2022-03-21T15:49:37.14000",
 	"version": "v22.04"
 }
+```
+
+If GitLab CI/CD is configured properly, additional infomation can be included:
+
+```
+{
+	"created_at": "2023-02-20T20:00:37.022980Z",
+	"version": "v23.08-alpha2",
+	"CI_COMMIT_BRANCH": "master",
+	"CI_COMMIT_REF_NAME": "master",
+	"CI_COMMIT_SHA": "dae2cfa8f7d4769375e73499c4aaffea727f8501",
+	"CI_COMMIT_TIMESTAMP": "2023-02-20T20:57:59+01:00",
+	"CI_JOB_ID": "30420",
+	"CI_PIPELINE_CREATED_AT": "2023-02-20T19:58:06Z",
+	"CI_RUNNER_ID": "54",
+	"CI_RUNNER_EXECUTABLE_ARCH": "linux/amd64"
+}
+```
 
 """
 
