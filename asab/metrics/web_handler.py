@@ -1,5 +1,6 @@
 import aiohttp.web
 import copy
+import re
 
 from .openmetric import metric_to_openmetric
 from ..web.rest import json_response
@@ -60,20 +61,21 @@ class MetricWebHandler(object):
 		Endpoint to list ASAB metrics in the command line.
 
 		Example commands:
-		* watch curl localhost:8080/asab/v1/watch_metrics
-		* watch curl localhost:8080/asab/v1/watch_metrics?name=web_requests
-		* watch curl localhost:8080/asab/v1/watch_metrics?web_requests_metrics=True
+		* watch curl localhost:8080/asab/v1/watch_metrics -> full list
+		* watch curl localhost:8080/asab/v1/watch_metrics?name=web_requests -> web_requests only
+		* watch curl localhost:8080/asab/v1/watch_metrics?name=-web_requests* -> full list w/o web requests
 
 		---
 		tags: ['asab.metrics']
 		"""
 
 		filter = request.query.get("name")
-		web_metrics_flag = request.query.get("web_requests_metrics")
-		web_metrics_flag = True if web_metrics_flag is not None and web_metrics_flag.lower() == 'true' else False
+		print(filter)
+		# web_metrics_flag = request.query.get("web_requests_metrics")
+		# web_metrics_flag = True if web_metrics_flag is not None and web_metrics_flag.lower() == 'true' else False
 		tags = request.query.get("tags")
 		tags = True if tags is not None and tags.lower() == 'true' else False
-		text = watch_table(self.MetricsService.Storage.Metrics, filter, tags, web_metrics_flag)
+		text = watch_table(self.MetricsService.Storage.Metrics, filter, tags)
 
 		return aiohttp.web.Response(
 			text=text,
@@ -82,7 +84,7 @@ class MetricWebHandler(object):
 		)
 
 
-def watch_table(metric_records: list, filter, tags, web_metrics_flag):
+def watch_table(metric_records: list, filter, tags):
 	lines = []
 	m_name_len = max([len(i["name"]) for i in metric_records])
 
@@ -112,11 +114,13 @@ def watch_table(metric_records: list, filter, tags, web_metrics_flag):
 			if field.get("values") is None:
 				continue
 			name = metric_record.get("name")
-			if filter is None and name.startswith('web_requests'):
-				if web_metrics_flag is False:
+			if filter is not None and re.fullmatch("\w*", filter):
+				if not name.startswith(filter):
 					continue
-			if filter is not None and not name.startswith(filter):
-				continue
+			if filter is not None and re.fullmatch("\-\w*", filter):
+				if name.startswith(filter[1:]):
+					continue
+
 			if metric_record.get("type") in ["Histogram", "HistogramWithDynamicTags"]:
 				for upperboud, values in field.get("values").get("buckets").items():
 					for v_name, value in values.items():
