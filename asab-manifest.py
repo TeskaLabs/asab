@@ -56,8 +56,6 @@ def create_manifest(args):
 		))
 		sys.exit(1)
 
-	print("ASAB Manifest environment")
-	for k,v in os.environ.items(): print("  {}={}".format(k, v))
 	for envvar in envvars:
 		envvarvalue = os.environ.get(envvar)
 		if envvarvalue is not None:
