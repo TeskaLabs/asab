@@ -1,5 +1,5 @@
 from .doc_web_handler_class import TestDocWebHandler
-from .swagger_template import SWAGGER_TEMPLATE
+from .expected_swagger_output import TEST_ALL_KEYS_EXPECTED_OUTPUT
 
 
 class TestSwagger(TestDocWebHandler):
@@ -16,7 +16,7 @@ class TestSwagger(TestDocWebHandler):
 		"""Documentation should contain the same keys as a dictionary in `swagger_template.py`"""
 		documentation: dict = self.handlerObject.build_swagger_documentation()
 		print("Test documentation was generated. The corresponding object is:\n{0}".format(documentation))
-		self.assertTrue(compare_keys(documentation, SWAGGER_TEMPLATE))
+		self.assertTrue(compare_keys(documentation, TEST_ALL_KEYS_EXPECTED_OUTPUT))
 
 	def test_(self):
 		pass
