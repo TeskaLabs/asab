@@ -62,7 +62,7 @@ class MetricWebHandler(object):
 
 		Example commands:
 		* watch curl localhost:8080/asab/v1/watch_metrics -> full list
-		* watch curl localhost:8080/asab/v1/watch_metrics?name=web_requests -> web_requests only
+		* watch curl localhost:8080/asab/v1/watch_metrics?name=web_requests* -> web_requests only
 		* watch curl localhost:8080/asab/v1/watch_metrics?name=-web_requests* -> full list w/o web requests
 
 		---
@@ -114,12 +114,28 @@ def watch_table(metric_records: list, filter, tags):
 			if field.get("values") is None:
 				continue
 			name = metric_record.get("name")
-			if filter is not None and re.fullmatch("\w*", filter):
-				if not name.startswith(filter):
-					continue
-			if filter is not None and re.fullmatch("\-\w*", filter):
-				if name.startswith(filter[1:]):
-					continue
+
+			# if filter is not None and re.fullmatch("\w*", filter):
+			# 	if not name.startswith(filter):
+			# 		continue
+			# if filter is not None and re.fullmatch("\-\w*", filter):
+			# 	if name.startswith(filter[1:]):
+			# 		continue
+
+			if filter is not None:
+				filter_root = filter.partition("*")[0]
+				if re.fullmatch("\w*", filter_root):
+					if "*" in filter and not name.startswith(filter_root):
+						continue
+					if "*" not in filter and not name == filter:
+						continue
+				if re.fullmatch("\-\w*", filter_root):
+					print("negative filter")
+					if "*" in filter and name.startswith(filter_root[1:]):
+						print("there is a star!")
+						continue
+					if "*" not in filter and name == filter[1:]:
+						continue
 
 			if metric_record.get("type") in ["Histogram", "HistogramWithDynamicTags"]:
 				for upperboud, values in field.get("values").get("buckets").items():
