@@ -70,9 +70,6 @@ class MetricWebHandler(object):
 		"""
 
 		filter = request.query.get("name")
-		print(filter)
-		# web_metrics_flag = request.query.get("web_requests_metrics")
-		# web_metrics_flag = True if web_metrics_flag is not None and web_metrics_flag.lower() == 'true' else False
 		tags = request.query.get("tags")
 		tags = True if tags is not None and tags.lower() == 'true' else False
 		text = watch_table(self.MetricsService.Storage.Metrics, filter, tags)
@@ -130,9 +127,7 @@ def watch_table(metric_records: list, filter, tags):
 					if "*" not in filter and not name == filter:
 						continue
 				if re.fullmatch("\-\w*", filter_root):
-					print("negative filter")
 					if "*" in filter and name.startswith(filter_root[1:]):
-						print("there is a star!")
 						continue
 					if "*" not in filter and name == filter[1:]:
 						continue
