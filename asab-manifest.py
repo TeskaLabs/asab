@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import sys
 import json
 import argparse
@@ -13,8 +14,8 @@ of docker image. When the MANIFEST.json is populated it could look something sim
 when generated the help of the current script.
 
 {
-		'created_at': 2022-03-21T15:49:37.14000,
-		'version' :v22.9-4
+	"created_at": "2022-03-21T15:49:37.14000",
+	"version": "v22.04"
 }
 
 """
@@ -39,6 +40,24 @@ def create_manifest(args):
 			gitr.stderr.decode('ascii')
 		))
 		sys.exit(1)
+
+	envvars = [
+		"GITHUB_REPOSITORY",
+		"GITHUB_REF_NAME",
+		"GITHUB_REF",
+		"GITHUB_REF_TYPE",
+		"GITHUB_BASE_REF",
+		"GITHUB_HEAD_REF",
+		"GITHUB_JOB",
+		"GITHUB_RUN_ID",
+		"GITHUB_SHA",
+		"RUNNER_ARCH",
+	]
+
+	for envvar in envvars:
+		envvarvalue = os.environ.get(envvar)
+		if envvarvalue is not None:
+			manifest[envvar] = envvarvalue
 
 	with open(args.manifest, "w") as f:
 		json.dump(manifest, f, indent='\t')
