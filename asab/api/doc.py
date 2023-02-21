@@ -53,7 +53,11 @@ class DocWebHandler(object):
 				},
 				"version": "1.0.0",
 			},
-			"servers": [{"url": "../../"}],  # Base path relative to openapi endpoint
+			"servers": [
+				{"url": "/", "description": "Here"}
+			],
+
+			# Base path relative to openapi endpoint
 			"paths": {},
 			# Authorization
 			# TODO: Authorization must not be always of OAuth type
@@ -257,12 +261,8 @@ class DocWebHandler(object):
 		tags: ['asab.doc']
 		"""
 
-		swagger_js_url: str = (
-			"https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui-bundle.js"
-		)
-		swagger_css_url: str = (
-			"https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui.css"
-		)
+		swagger_js_url: str = "https://unpkg.com/swagger-ui-dist@4/swagger-ui-bundle.js"
+		swagger_css_url: str = "https://unpkg.com/swagger-ui-dist@4/swagger-ui.css"
 
 		doc_page = SWAGGER_DOC_PAGE.format(
 			title=self.App.__class__.__name__,
@@ -332,39 +332,18 @@ def extract_parameters(route) -> list:
 		route_info = route.get_info()
 		if "formatter" in route_info:
 			path = route_info["formatter"]
-			for params in re.findall(r"\{.*\}", path):
-				if "/" in params:
-					for parameter in params.split("/"):
-						parameters.append(
-							{
-								"in": "path",
-								"name": parameter[1:-1],
-								"required": True,
-							}
-						)
-				else:
-					parameters.append(
-						{
-							"in": "path",
-							"name": params[1:-1],
-							"required": True,
-						}
-					)
+			for params in re.findall(r'\{[^\}]+\}', path):
+					parameters.append({
+						'in': 'path',
+						'name': params[1:-1],
+						'required': True,
+					})
 		return parameters
 
 
 def create_handle_name(route) -> str:
 		if inspect.ismethod(route.handler):
-			if route.handler.__name__ == "validator":
-				handler_name = "{}.{}()".format(
-					route.handler.__self__.__class__.__name__,
-					route.handler.__getattribute__("func").__name__,
-				)
-
-			else:
-				handler_name = "{}.{}()".format(
-					route.handler.__self__.__class__.__name__, route.handler.__name__
-				)
+			handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
 		else:
 			handler_name = str(route.handler)
 
@@ -372,22 +351,16 @@ def create_handle_name(route) -> str:
 
 
 def create_docstring(route) -> str:
-	if inspect.ismethod(route.handler):
-		if route.handler.__name__ == "validator":
-			doc_str = route.handler.__getattribute__("func").__doc__
-		else:
-			doc_str = route.handler.__doc__
-	else:
-		doc_str = route.handler.__doc__
-
-	return doc_str
+	return route.handler.__doc__
 
 
 def create_method_dict(route) -> dict:
 		method_dict = {}
-		if inspect.ismethod(route.handler) and route.handler.__name__ == "validator":
+		try:
 			json_schema = route.handler.__getattribute__("json_schema")
 			method_dict["requestBody"] = {
 				"content": {"application/json": {"schema": json_schema}},
 			}
+		except AttributeError:
+			pass
 		return method_dict

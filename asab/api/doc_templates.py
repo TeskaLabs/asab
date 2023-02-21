@@ -79,16 +79,20 @@ SWAGGER_OAUTH_PAGE = """<!doctype html>
 </html>"""
 
 SWAGGER_DOC_PAGE = """<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<link type="text/css" rel="stylesheet" href="{swagger_css_url}">
 	<title>{title} API Documentation</title>
+	<style>
+		code {{ tab-size: 4; }}
+		pre {{ tab-size: 4; }}
+	</style>
 </head>
 <body>
-<div id="swagger-ui">
-</div>
+<div id="swagger-ui"></div>
 <script src="{swagger_js_url}"></script>
-	<!-- `SwaggerUIBundle` is now available on the page -->
 <script>
 window.onload = () => {{
 	window.ui = SwaggerUIBundle({{
