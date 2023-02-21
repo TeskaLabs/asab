@@ -5,9 +5,7 @@ from .expected_swagger_output import TEST_ALL_KEYS_EXPECTED_OUTPUT
 class TestSwagger(TestDocWebHandler):
 
 	def test_parent_keys(self):
-		"""Documentation should contain these keys:
-'openapi', 'info', 'servers', 'paths', 'components'
-		"""
+		"""Documentation should contain these keys: 'openapi', 'info', 'servers', 'paths', 'components'"""
 		documentation: dict = self.handlerObject.build_swagger_documentation()
 		keys = ["openapi", "info", "servers", "paths", "components"]
 		self.assertTrue(check_keys(documentation, keys))
@@ -15,11 +13,9 @@ class TestSwagger(TestDocWebHandler):
 	def test_all_keys(self):
 		"""Documentation should contain the same keys as a dictionary in `expected_swagger_output.py`"""
 		documentation: dict = self.handlerObject.build_swagger_documentation()
-		print("Test documentation was generated. The corresponding object is:\n{0}".format(documentation))
+		# print("Test documentation was generated. The corresponding object is:\n{0}".format(documentation))
 		self.assertTrue(compare_keys(documentation, TEST_ALL_KEYS_EXPECTED_OUTPUT))
 
-	def test_(self):
-		pass
 
 
 def check_keys(dictionary: dict, keys: list) -> bool:

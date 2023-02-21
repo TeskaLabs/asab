@@ -83,8 +83,3 @@ class MockedRouterObject():
 		tags: [test_handler]
 		"""
 		return None
-
-# TODO: route_info v route generuje slovník, ve kterém je buďto 'path' anebo 'formatter' - mám použít nějaké randomizování při mockování do unit testu
-
-# TODO: vymyslet, jaké unit testy by se daly pro tu funkci napsat
-# MOŽNÁ: vygenerovat template pro swagger a pak se ptát, jestli obsahuje správné slovníky
