@@ -18,8 +18,7 @@ class WebService(Service):
 		super().__init__(app, service_name)
 
 		# Web service is dependent on Metrics service
-		web_metrics_config = Config.getboolean("asab:metrics", "web_requests", fallback=False)
-		if web_metrics_config is True:
+		if Config.getboolean("asab:metrics", "web_requests_metrics", fallback=False):
 			app.add_module(metrics.Module)
 			self.MetricsService = app.get_service("asab.MetricsService")
 			self.WebRequestsMetrics = WebRequestsMetrics(self.MetricsService)

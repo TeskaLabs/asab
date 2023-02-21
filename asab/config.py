@@ -42,6 +42,7 @@ class ConfigParser(configparser.ConfigParser):
 
 		"asab:metrics": {
 			"native_metrics": "true",
+			"web_requests_metrics": False,
 			"expiration": 60,
 		},
 
