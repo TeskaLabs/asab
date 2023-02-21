@@ -127,17 +127,15 @@ def watch_table(metric_records: list, filter, tags):
 			name = metric_record.get("name")
 
 			if filter is not None:
-				filter_root = [item for item in re.split("\*", filter) if len(item) > 0 and item != "-"][0].replace("-", "")
+				filter_parsed = [item for item in re.split("\*", filter) if len(item) > 0 and item != "-"]
+				filter_root = filter_parsed[0].replace("-", "")
 				if re.fullmatch("\-\D*", filter):
-					if "*" in filter and filter_root in name:
-						continue
-					if "*" not in filter and name == filter_root:
+					if filter_for_exclusion(filter, filter_root, name):
 						continue
 				elif re.fullmatch("\D*", filter):
-					if "*" in filter and not filter_root in name:
+					if filter_for_inclusion(filter, filter_root, name):
 						continue
-					if "*" not in filter and not name == filter_root:
-						continue
+
 
 			if metric_record.get("type") in ["Histogram", "HistogramWithDynamicTags"]:
 				for upperboud, values in field.get("values").get("buckets").items():
@@ -153,6 +151,14 @@ def watch_table(metric_records: list, filter, tags):
 
 	text = "\n".join(lines)
 	return text
+
+
+def filter_for_exclusion(filter, filter_root, name):
+		return ("*" in filter and filter_root in name) or ("*" not in filter and name == filter_root)
+
+
+def filter_for_inclusion(filter, filter_root, name):
+		return ("*" in filter and not filter_root in name) or ("*" not in filter and not name == filter_root)
 
 
 def build_line(name, value_name, value, m_name_len, v_name_len, tags, upperbound=None, t_string=None, t_name_len=None):
