@@ -25,7 +25,7 @@ class TestDocWebHandler(unittest.TestCase):
 
 class ServiceWithManifest:
 	def __init__(self) -> None:
-		self.Manifest = {}
+		self.Manifest = None
 
 
 class App:

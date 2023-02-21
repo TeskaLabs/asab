@@ -199,7 +199,7 @@ class DocWebHandler(object):
 					)
 		return security_schemes_dict
 
-	def get_manifest(self) -> dict[str]:
+	def get_manifest(self) -> dict:
 		"""Get version from MANIFEST.json if exists."""
 		version = {}
 		if self.Manifest:
