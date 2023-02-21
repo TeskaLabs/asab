@@ -62,15 +62,15 @@ class MetricWebHandler(object):
 
 		Example commands:
 		* watch curl localhost:8080/asab/v1/watch_metrics -> all metrics
-		
+
 		Strict filters (inclusion and exclusion):
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=web_requests -> web_requests metric only 
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=-web_requests -> all metrics w/o web_requests
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=web_requests -> web_requests metric only
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=-web_requests -> all metrics w/o web_requests metric
 
 		Includes:
 		* watch curl localhost:8080/asab/v1/watch_metrics?f=web* -> metrics that start with "web"
 		* watch curl localhost:8080/asab/v1/watch_metrics?f=*web -> metrics that end with "web"
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=*web_requests* -> metrics that contain "web"
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=*web* -> metrics that contain "web"
 
 		Excludes:
 		* watch curl localhost:8080/asab/v1/watch_metrics?f=-web* -> metrics that start with "web"
@@ -126,7 +126,7 @@ def watch_table(metric_records: list, filter, tags):
 
 			if filter is not None:
 				if filter.startswith("-"):
-					if fnmatch.fnmatch(name, filter.replace('-','')):
+					if fnmatch.fnmatch(name, filter[1:]):
 						continue
 				else:
 					if not fnmatch.fnmatch(name, filter):
