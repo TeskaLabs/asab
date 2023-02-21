@@ -341,6 +341,7 @@ def extract_parameters(route) -> list:
 		return parameters
 
 
+# REVIEW: Rename to extract_
 def create_handler_name(route) -> str:
 		if inspect.ismethod(route.handler):
 			handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
@@ -349,11 +350,11 @@ def create_handler_name(route) -> str:
 
 		return handler_name
 
-
+# REVIEW: Rename to extract_
 def create_docstring(route) -> str:
 	return route.handler.__doc__
 
-
+# REVIEW: Rename to extract_
 def create_method_dict(route) -> dict:
 		method_dict = {}
 		try:
