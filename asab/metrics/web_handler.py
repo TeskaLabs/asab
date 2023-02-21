@@ -1,6 +1,7 @@
 import aiohttp.web
 import copy
 import re
+import fnmatch
 
 from .openmetric import metric_to_openmetric
 from ..web.rest import json_response
@@ -64,20 +65,18 @@ class MetricWebHandler(object):
 		* watch curl localhost:8080/asab/v1/watch_metrics -> all metrics
 		
 		Strict filters (inclusion and exclusion):
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=web_requests -> web_requests only 
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=web_requests -> web_requests metric only 
 		* watch curl localhost:8080/asab/v1/watch_metrics?f=-web_requests -> all metrics w/o web_requests
 
-		Loose filters (inclusion):
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=web_requests*
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=*web_requests
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=*web_requests*
-		-> all metrics that contain "web_requests"
-		
-		Loose filters (exclusion)
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=-web_requests*
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=-*web_requests
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=-*web_requests*
-		-> all metrics that do not contain "web_requests"
+		Includes:
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=web* -> metrics that start with "web"
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=*web -> metrics that end with "web"
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=*web_requests* -> metrics that contain "web"
+
+		Excludes:
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=-web* -> metrics that start with "web"
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=-*web -> metrics that end with "web"
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=-*web* -> metrics that contain "web"
 
 		---
 		tags: ['asab.metrics']
@@ -127,15 +126,12 @@ def watch_table(metric_records: list, filter, tags):
 			name = metric_record.get("name")
 
 			if filter is not None:
-				filter_parsed = [item for item in re.split("\*", filter) if len(item) > 0 and item != "-"]
-				filter_root = filter_parsed[0].replace("-", "")
-				if re.fullmatch("\-\D*", filter):
-					if filter_for_exclusion(filter, filter_root, name):
+				if filter.startswith("-"):
+					if fnmatch.fnmatch(name, filter.replace('-','')):
 						continue
-				elif re.fullmatch("\D*", filter):
-					if filter_for_inclusion(filter, filter_root, name):
+				else:
+					if not fnmatch.fnmatch(name, filter):
 						continue
-
 
 			if metric_record.get("type") in ["Histogram", "HistogramWithDynamicTags"]:
 				for upperboud, values in field.get("values").get("buckets").items():
@@ -151,14 +147,6 @@ def watch_table(metric_records: list, filter, tags):
 
 	text = "\n".join(lines)
 	return text
-
-
-def filter_for_exclusion(filter, filter_root, name):
-		return ("*" in filter and filter_root in name) or ("*" not in filter and name == filter_root)
-
-
-def filter_for_inclusion(filter, filter_root, name):
-		return ("*" in filter and not filter_root in name) or ("*" not in filter and not name == filter_root)
 
 
 def build_line(name, value_name, value, m_name_len, v_name_len, tags, upperbound=None, t_string=None, t_name_len=None):
