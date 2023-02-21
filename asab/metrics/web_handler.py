@@ -61,15 +61,29 @@ class MetricWebHandler(object):
 		Endpoint to list ASAB metrics in the command line.
 
 		Example commands:
-		* watch curl localhost:8080/asab/v1/watch_metrics -> full list
-		* watch curl localhost:8080/asab/v1/watch_metrics?name=web_requests* -> web_requests only
-		* watch curl localhost:8080/asab/v1/watch_metrics?name=-web_requests* -> full list w/o web requests
+		* watch curl localhost:8080/asab/v1/watch_metrics -> all metrics
+		
+		Strict filters (inclusion and exclusion):
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=web_requests -> web_requests only 
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=-web_requests -> all metrics w/o web_requests
+
+		Loose filters (inclusion):
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=web_requests*
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=*web_requests
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=*web_requests*
+		-> all metrics that contain "web_requests"
+		
+		Loose filters (exclusion)
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=-web_requests*
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=-*web_requests
+		* watch curl localhost:8080/asab/v1/watch_metrics?f=-*web_requests*
+		-> all metrics that do not contain "web_requests"
 
 		---
 		tags: ['asab.metrics']
 		"""
 
-		filter = request.query.get("name")
+		filter = request.query.get("f")
 		tags = request.query.get("tags")
 		tags = True if tags is not None and tags.lower() == 'true' else False
 		text = watch_table(self.MetricsService.Storage.Metrics, filter, tags)
@@ -112,24 +126,17 @@ def watch_table(metric_records: list, filter, tags):
 				continue
 			name = metric_record.get("name")
 
-			# if filter is not None and re.fullmatch("\w*", filter):
-			# 	if not name.startswith(filter):
-			# 		continue
-			# if filter is not None and re.fullmatch("\-\w*", filter):
-			# 	if name.startswith(filter[1:]):
-			# 		continue
-
 			if filter is not None:
-				filter_root = filter.partition("*")[0]
-				if re.fullmatch("\w*", filter_root):
-					if "*" in filter and not name.startswith(filter_root):
+				filter_root = [item for item in re.split("\*", filter) if len(item) > 0 and item != "-"][0].replace("-", "")
+				if re.fullmatch("\-\D*", filter):
+					if "*" in filter and filter_root in name:
 						continue
-					if "*" not in filter and not name == filter:
+					if "*" not in filter and name == filter_root:
 						continue
-				if re.fullmatch("\-\w*", filter_root):
-					if "*" in filter and name.startswith(filter_root[1:]):
+				elif re.fullmatch("\D*", filter):
+					if "*" in filter and not filter_root in name:
 						continue
-					if "*" not in filter and name == filter[1:]:
+					if "*" not in filter and not name == filter_root:
 						continue
 
 			if metric_record.get("type") in ["Histogram", "HistogramWithDynamicTags"]:
