@@ -11,7 +11,11 @@ import struct
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
 from ...timer import Timer
-from .filesystem_inotify import inotify_init, inotify_add_watch, IN_CREATE, IN_ISDIR, IN_ALL_EVENTS, EVENT_FMT, EVENT_SIZE, IN_MOVED_TO, IN_IGNORED
+
+try:
+	from .filesystem_inotify import inotify_init, inotify_add_watch, IN_CREATE, IN_ISDIR, IN_ALL_EVENTS, EVENT_FMT, EVENT_SIZE, IN_MOVED_TO, IN_IGNORED
+except OSError:
+	inotify_init = None
 
 #
 
@@ -38,10 +42,14 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			self.App.TaskService.schedule(self._set_ready())
 
 		# Open inotify file descriptor
-		self.FD = inotify_init()
+		if inotify_init is not None:
+			self.FD = inotify_init()
 
-		self.App.Loop.add_reader(self.FD, self._on_inotify_read)
-		self.AggrTimer = Timer(self.App, self._on_aggr_timer)
+			self.App.Loop.add_reader(self.FD, self._on_inotify_read)
+			self.AggrTimer = Timer(self.App, self._on_aggr_timer)
+		else:
+			self.FD = None
+
 		self.AggrEvents = []
 		self.WDs = {}
 
