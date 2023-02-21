@@ -1,6 +1,5 @@
 import aiohttp.web
 import copy
-import re
 import fnmatch
 
 from .openmetric import metric_to_openmetric
