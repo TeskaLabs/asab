@@ -7,6 +7,8 @@ import aiohttp
 import aiohttp.web
 import yaml
 
+import typing
+
 from .doc_templates import SWAGGER_OAUTH_PAGE, SWAGGER_DOC_PAGE
 
 
@@ -72,7 +74,6 @@ class DocWebHandler(object):
 		asab_routes = []
 		microservice_routes = []
 
-		L.warning(self.WebContainer.WebApp.router.routes())
 		for route in self.WebContainer.WebApp.router.routes():
 			if route.method == "HEAD":
 				# Skip HEAD methods
@@ -149,10 +150,10 @@ class DocWebHandler(object):
 		return route_dict
 
 
-	def get_additional_info(self, docstring: str | None) -> dict | None:
+	def get_additional_info(self, docstring: typing.Optional[str]) -> typing.Optional[dict]:
 		"""Take the docstring of a function and return additional data if they exist."""
 
-		additional_info_dict: dict | None = None
+		additional_info_dict: typing.Optional[dict] = None
 
 		if docstring is not None:
 			docstring = inspect.cleandoc(docstring)
@@ -224,8 +225,8 @@ class DocWebHandler(object):
 
 	def add_methods(
 		self,
-		docstring: str | None,
-		add_dict: dict | None,
+		docstring: typing.Optional[str],
+		add_dict: typing.Optional[dict],
 		handler_name: str,
 		parameters: list,
 	):
@@ -297,7 +298,7 @@ class DocWebHandler(object):
 		)
 
 
-def get_description(docstring: str | None) -> str:
+def get_description(docstring: typing.Optional[str]) -> str:
 		"""Take the docstring of a function and parse it into description. Omit everything that comes after '---'."""
 		if docstring is not None:
 			docstring = inspect.cleandoc(docstring)
