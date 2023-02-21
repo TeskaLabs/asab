@@ -132,7 +132,7 @@ class DocWebHandler(object):
 		method_name: str = route.method.lower()
 		route_path: str = self.get_path_from_route_info(route)
 
-		parameters: list[dict] = extract_parameters(route)
+		parameters: list = extract_parameters(route)
 		handle_name: str = create_handle_name(route)
 		doc_string: str = create_docstring(route)
 		add_dict: dict = self.get_additional_info(doc_string)
@@ -316,7 +316,7 @@ def get_description(docstring: typing.Optional[str]) -> str:
 		return description
 
 
-def extract_parameters(route) -> list[dict]:
+def extract_parameters(route) -> list:
 		"""Take a single route and return its parameters.
 
 		---
