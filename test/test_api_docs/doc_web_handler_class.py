@@ -69,7 +69,7 @@ class MockedRouterObject():
 		self.method = http_method
 		self.endpoint = endpoint_name
 
-	def get_info(self) -> dict[str]:
+	def get_info(self) -> dict:
 		return {
 			"path": self.endpoint,
 		}
