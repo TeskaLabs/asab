@@ -39,7 +39,7 @@ class LibraryProviderABC(object):
 		self.IsReady = True
 		await self.Library._set_ready(self)
 
-	async def subscribe(self, path: str):
+	def subscribe(self, path: str):
 		"""
 		It takes a path and subscribes to changes in this directory.
 		When change occurs, it creates a PubSub signal.
