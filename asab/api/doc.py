@@ -137,13 +137,13 @@ class DocWebHandler(object):
 		route_path: str = self.get_path_from_route_info(route)
 
 		parameters: list = extract_parameters(route)
-		handle_name: str = create_handle_name(route)
+		handler_name: str = create_handler_name(route)
 		doc_string: str = create_docstring(route)
 		add_dict: dict = self.get_additional_info(doc_string)
 
 		method_dict: dict = create_method_dict(route)
 		method_dict.update(
-			self.add_methods(doc_string, add_dict, handle_name, parameters)
+			self.add_methods(doc_string, add_dict, handler_name, parameters)
 		)
 
 		path_object = route_dict.get(route_path)
@@ -341,7 +341,7 @@ def extract_parameters(route) -> list:
 		return parameters
 
 
-def create_handle_name(route) -> str:
+def create_handler_name(route) -> str:
 		if inspect.ismethod(route.handler):
 			handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
 		else:
