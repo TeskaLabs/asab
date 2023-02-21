@@ -137,11 +137,11 @@ class DocWebHandler(object):
 		route_path: str = self.get_path_from_route_info(route)
 
 		parameters: list = extract_parameters(route)
-		handler_name: str = create_handler_name(route)
-		doc_string: str = create_docstring(route)
+		handler_name: str = extract_handler_name(route)
+		doc_string: str = extract_docstring(route)
 		add_dict: dict = self.get_additional_info(doc_string)
 
-		method_dict: dict = create_method_dict(route)
+		method_dict: dict = extract_method_dict(route)
 		method_dict.update(
 			self.add_methods(doc_string, add_dict, handler_name, parameters)
 		)
@@ -341,8 +341,7 @@ def extract_parameters(route) -> list:
 		return parameters
 
 
-# REVIEW: Rename to extract_
-def create_handler_name(route) -> str:
+def extract_handler_name(route) -> str:
 		if inspect.ismethod(route.handler):
 			handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
 		else:
@@ -350,12 +349,12 @@ def create_handler_name(route) -> str:
 
 		return handler_name
 
-# REVIEW: Rename to extract_
-def create_docstring(route) -> str:
+
+def extract_docstring(route) -> str:
 	return route.handler.__doc__
 
-# REVIEW: Rename to extract_
-def create_method_dict(route) -> dict:
+
+def extract_method_dict(route) -> dict:
 		method_dict = {}
 		try:
 			json_schema = route.handler.__getattribute__("json_schema")
