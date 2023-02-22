@@ -320,7 +320,17 @@ class LibraryService(Service):
 		return False
 
 
-	async def export(self, path="/", tenant=None):
+	async def export(self, path="/", tenant=None, remove_path=False):
+		"""
+		It takes a path, and returns a file-like object containing a gzipped tar archive of the library contents of
+		that path
+
+		:param path: The path to export, defaults to / (optional)
+		:param tenant: The tenant to use for the operation
+		:param remove_path: If True, the path will be removed from the tar file, defaults to False
+		(optional)
+		:return: A file object.
+		"""
 
 		fileobj = tempfile.TemporaryFile()
 		tarobj = tarfile.open(name=None, mode='w:gz', fileobj=fileobj)
@@ -352,7 +362,12 @@ class LibraryService(Service):
 			if item.type != 'item':
 				continue
 			my_data = await self.Libraries[0].read(item.name)
-			info = tarfile.TarInfo(item.name)
+			if remove_path:
+				assert item.name.startswith(path)
+				tar_name = item.name[len(path):]
+			else:
+				tar_name = item.name
+			info = tarfile.TarInfo(tar_name)
 			my_data.seek(0, SEEK_END)
 			info.size = my_data.tell()
 			my_data.seek(0, SEEK_SET)

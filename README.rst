@@ -26,7 +26,10 @@ Contributions are welcome!
 Installation
 ------------
 
-``pip install asab``
+
+.. code:: shell
+
+    $ pip install asab
 
 
 Documentation
@@ -42,35 +45,36 @@ Example
 .. code:: python
 
     #!/usr/bin/env python3
-    import asab
-    import asab.web
-    import aiohttp
+    import asab.web.rest
     
     class MyApplication(asab.Application):
 
         def __init__(self):
-            # Load the ASAB Web module
-            super().__init__(modules=[asab.web.Module])
+            super().__init__()
 
-            # Locate the Web service
-            websvc = self.get_service("asab.WebService")
-            
-            # Create the Web container
-            container = asab.web.WebContainer(websvc, 'my:web', config={"listen": "0.0.0.0:8080"})
-            
-            # Add a route to the handler
-            container.WebApp.router.add_get('/', self.hello)
+            # Create the Web server
+            web = asab.web.create_web_server(self)
+
+            # Add a route to the handler method
+            web.add_get('/hello', self.hello)
 
         # This is the web request handler
         async def hello(self, request):
-            return aiohttp.web.Response(text="Hello, world!\n")
+            return asab.web.rest.json_response(request, data="Hello, world!\n")
     
     if __name__ == '__main__':
         # Create and start the application
-        # The application will be available at http://localhost:8080/
         app = MyApplication()
         app.run()
 
+
+The application is available at http://localhost:8080/.
+You can test it by:
+
+
+.. code:: shell
+
+    $ curl http://localhost:8080/hello
 
 
 Microservices
