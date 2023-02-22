@@ -64,24 +64,24 @@ class MetricWebHandler(object):
 		* watch curl localhost:8080/asab/v1/watch_metrics -> all metrics
 
 		Strict filters (inclusion and exclusion):
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=web_requests -> web_requests metric only
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=-web_requests -> all metrics w/o web_requests metric
+		* watch curl localhost:8080/asab/v1/watch_metrics?filter=web_requests -> web_requests metric only
+		* watch curl localhost:8080/asab/v1/watch_metrics?filter=-web_requests -> all metrics w/o web_requests metric
 
-		Includes:
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=web* -> metrics that start with "web"
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=*web -> metrics that end with "web"
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=*web* -> metrics that contain "web"
+		Includes only:
+		* watch curl localhost:8080/asab/v1/watch_metrics?filter=web* -> metrics that start with "web"
+		* watch curl localhost:8080/asab/v1/watch_metrics?filter=*web -> metrics that end with "web"
+		* watch curl localhost:8080/asab/v1/watch_metrics?filter=*web* -> metrics that contain "web"
 
 		Excludes:
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=-web* -> metrics that start with "web"
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=-*web -> metrics that end with "web"
-		* watch curl localhost:8080/asab/v1/watch_metrics?f=-*web* -> metrics that contain "web"
+		* watch curl localhost:8080/asab/v1/watch_metrics?filter=-web* -> metrics that start with "web"
+		* watch curl localhost:8080/asab/v1/watch_metrics?filter=-*web -> metrics that end with "web"
+		* watch curl localhost:8080/asab/v1/watch_metrics?filter=-*web* -> metrics that contain "web"
 
 		---
 		tags: ['asab.metrics']
 		"""
 
-		filter = request.query.get("f")
+		filter = request.query.get("filter")
 		tags = request.query.get("tags")
 		tags = True if tags is not None and tags.lower() == 'true' else False
 		text = watch_table(self.MetricsService.Storage.Metrics, filter, tags)
