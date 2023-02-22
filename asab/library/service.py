@@ -171,7 +171,7 @@ class LibraryService(Service):
 		:return: I/O stream (read) with the content of the libary item.
 		"""
 		# It must start with '/'
-		assert path[:1] == '/'
+		assert path[:1] == '/', "Path must start with '/'. Example : /library/sample.html"
 
 		if self.check_disabled(path, tenant=tenant):
 			return None
@@ -207,9 +207,9 @@ class LibraryService(Service):
 		"""
 
 		# Path must start with '/'
-		assert path[:1] == '/'
-
-		assert (path[-1:]) == '/'
+		assert path[:1] == '/', "Path must start with '/'. Example : /library/Templates/"
+		# Path must end with '/'
+		assert (path[-1:]) == '/', "Path must start with '/'. Example : /library/Templates/"
 
 		# List requested level using all available providers
 		items = await self._list(path, tenant, providers=self.Libraries)
@@ -288,7 +288,8 @@ class LibraryService(Service):
 				if self.Disabled is None:
 					self.Disabled = {}
 				else:
-					assert (isinstance(self.Disabled, dict))
+					# Disabled must be a dictionary object
+					assert (isinstance(self.Disabled, dict)), "Disabled must be a dictionary only"
 			except Exception:
 				self.Disabled = {}
 				L.exception("Failed to parse '/.disabled.yaml'")
