@@ -170,7 +170,7 @@ class LibraryService(Service):
 		:param tenant: The tenant to apply. If not specified, the global access is assumed
 		:return: I/O stream (read) with the content of the libary item.
 		"""
-		# It must start with '/'
+		# item path must start with '/'
 		assert path[:1] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
 
 		if self.check_disabled(path, tenant=tenant):
@@ -206,9 +206,9 @@ class LibraryService(Service):
 			The method returns list of items that are located at `path`
 		"""
 
-		# Path must start with '/'
+		# Directory path must start with '/'
 		assert path[:1] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
-		# Path must end with '/'
+		# Directory path must end with '/'
 		assert (path[-1:]) == '/', "Directory path must end with a forward slash (/). For example: /library/Templates/"
 
 		# List requested level using all available providers
