@@ -363,7 +363,7 @@ class LibraryService(Service):
 				continue
 			my_data = await self.Libraries[0].read(item.name)
 			if remove_path:
-				assert(item.name.startswith(path))
+				assert item.name.startswith(path)
 				tar_name = item.name[len(path):]
 			else:
 				tar_name = item.name
