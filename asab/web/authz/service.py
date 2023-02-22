@@ -46,6 +46,7 @@ class AuthzService(asab.Service):
 		if len(self.PublicKeysUrl) == 0 and not self._TokenVerificationDisabled:
 			raise ValueError("No public_keys_url provided in [authz] config section.")
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
+		# TODO: Fetch public keys if validation fails (instead of periodic fetch)
 		self.App.PubSub.subscribe("Application.tick/30!", self._fetch_public_keys_if_needed)
 
 
