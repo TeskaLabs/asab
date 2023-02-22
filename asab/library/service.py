@@ -171,7 +171,7 @@ class LibraryService(Service):
 		:return: I/O stream (read) with the content of the libary item.
 		"""
 		# item path must start with '/'
-		assert path[:1] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
+		assert path[:1] == '/', "Item path must start with a forward slash (/). For example: /library/Templates/"
 
 		if self.check_disabled(path, tenant=tenant):
 			return None
