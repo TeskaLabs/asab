@@ -210,12 +210,7 @@ class LibraryService(Service):
 		# Path must start with '/'
 		assert path[:1] == '/'
 
-		if os.path.splitext(path)[1]:
-			# Path is now a file, get rid of trailing slash if present.
-			path = path.rstrip('/')
-		else:
-			# Path is now a dir/Node, append trailing slash always.
-			path = path.rstrip('/') + '/'
+		assert (path[-1:]) == '/'
 
 		# List requested level using all available providers
 		items = await self._list(path, tenant, providers=self.Libraries)
