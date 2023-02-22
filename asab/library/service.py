@@ -3,7 +3,6 @@ import typing
 import asyncio
 import logging
 import functools
-import os
 import configparser
 import tempfile
 import tarfile
