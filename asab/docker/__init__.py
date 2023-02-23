@@ -46,6 +46,7 @@ def running_in_container():
 
 	return False
 
+
 running_in_docker = running_in_container
 
 
