@@ -33,7 +33,7 @@ def running_in_docker():
 	# since Ubuntu 22.04 linux kernel uses cgroups v2 which do not operate with /proc/self/cgroup file
 	if os.path.exists('/.dockerenv') and os.path.isfile('/proc/self/mountinfo'):
 		with open('/proc/self/mountinfo', "r") as f:
-			if any('docker/container' in line for line in f.readlines()):
+			if any('/docker/overlay2/' in line for line in f.readlines()):
 				return True
 
 	return False
