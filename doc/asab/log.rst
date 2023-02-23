@@ -60,6 +60,7 @@ ASAB uses Python logging levels with the addition of ``LOG_NOTICE`` level.
 | ``NOTSET``     | 0             |                              |
 +----------------+---------------+------------------------------+
 
+
 Example of a custom level configuration:
 
 .. code:: ini
