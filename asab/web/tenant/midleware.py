@@ -36,4 +36,7 @@ def tenant_handler(func):
 			}, status=404)
 		return await func(*args, **kargs)
 
+	wrapper.__doc__ = func.__doc__
+	wrapper.__name__ = func.__name__
+
 	return wrapper
