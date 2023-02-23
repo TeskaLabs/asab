@@ -31,10 +31,10 @@ Example:
      - /folder2/folder2.3/item4.json
 
 
-Path rules
-----------
+Library path rules
+-------------------
 
- * The path must start with `/`, including the root path (`/`).
+ * Any path must start with `/`, including the root path (`/`).
  * The directory path must end with `/`.
  * The file path must end with extension (eg. `.json`).
 
@@ -42,8 +42,10 @@ Path rules
 Library service
 ---------------
 
-.. py:class:: LibraryService
+.. autoclass:: LibraryService
 
+
+Example of the use:
 
 .. code:: python
 
@@ -73,31 +75,65 @@ Library service
                         print("  - (DISABLED)")
 
 
-.. py:method:: LibraryService.read(self, path: str, tenant: str = None)
+.. automethod:: LibraryService.read
 
-.. py:method:: LibraryService.list(self, path="/", tenant=None, recursive=False)
+.. automethod:: LibraryService.list
 
-.. py:method:: LibraryService.export(self, path="/", tenant=None, remove_path=False)
-
+.. automethod:: LibraryService.export
 
 
 
 Notification of changes
 -----------------------
 
-.. py:method:: LibraryService.subscribe(self, paths)
+
+.. automethod:: LibraryService.subscribe
 
 
 
 Providers
 ---------
 
+.. py:currentmodule:: asab.library.providers
+
 The library can be configured to work with following "backends" (aka providers):
 
-* Filesystem
-* Apache Zookeeper
-* Microsoft Azure Storage
-* git repository
+
+Filesystem
+^^^^^^^^^^
+
+.. py:currentmodule:: asab.library.providers.filesystem
+
+.. autoclass:: FileSystemLibraryProvider
+    :no-undoc-members:
+
+
+Apache Zookeeper
+^^^^^^^^^^^^^^^^
+
+.. py:currentmodule:: asab.library.providers.zookeeper
+
+.. autoclass:: ZooKeeperLibraryProvider
+    :no-undoc-members:
+
+
+Microsoft Azure Storage
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. py:currentmodule:: asab.library.providers.azurestorage
+
+.. autoclass:: AzureStorageLibraryProvider
+    :no-undoc-members:
+
+
+Git repository
+^^^^^^^^^^^^^^
+
+.. py:currentmodule:: asab.library.providers.git
+
+.. autoclass:: GitLibraryProvider
+    :no-undoc-members:
+
 
 
 Layers
@@ -111,20 +147,13 @@ Library configuration
 ---------------------
 
 
+Example:
+
 .. code:: ini
 
     [library]
     providers:
-        provider+1://
-        provider+2://
-        provider+3://
+        provider+1://...
+        provider+2://...
+        provider+3://...
 
-
-
-Reference
----------
-
-.. automodule:: asab.library
-    :members:
-    :undoc-members:
-    :show-inheritance:
