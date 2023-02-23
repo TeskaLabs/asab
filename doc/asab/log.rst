@@ -64,6 +64,7 @@ ASAB uses Python logging levels with the addition of ``LOG_NOTICE`` level.
 Example of a custom level configuration:
 
 .. code:: ini
+    [logging]
     levels=
         myApp.module1 DEBUG
         myApp.module2 WARNING
