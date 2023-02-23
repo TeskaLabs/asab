@@ -40,3 +40,8 @@ The library content can be organized into unlimmited number of layers.
 Each layer is represented by a `provider` with a specific configuration.
 
 
+Library service
+---------------
+
+.. py:class:: LibraryService
+
