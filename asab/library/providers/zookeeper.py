@@ -237,7 +237,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				continue
 
 			items.append(LibraryItem(
-				name=(path + node) if path == '/' else (path + '/' + node),
+				name=(path + node) if path == '/' else (path + node),
 				type="item" if '.' in node else "dir",  # We detect files in zookeeper by presence of the dot in the filename,
 				providers=[self],
 			))
