@@ -21,7 +21,6 @@ contain the root `toctree` directive.
    asab/web/restapidocs
    asab/web/authn
    asab/web/cors
-   asab/mom/index
    asab/metrics
    asab/alert
 
@@ -35,8 +34,8 @@ contain the root `toctree` directive.
    asab/pubsub
    asab/service
    asab/module
-
    asab/various
+   asab/library
 
 .. toctree::
    :maxdepth: 2
