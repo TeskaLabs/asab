@@ -18,14 +18,14 @@ Library structure
 
 The library content is organized in simplified filesystem manner, with directories and files.
 
-Example:
+Example of the library structure:
 
 .. code:: 
 
  + /folder1/
    - /folder1/item1.yaml
    - /folder1/item2.json
- + folder2/
+ + /folder2/
    - /folder2/item3.yaml
    + /folder2folder2.3/
      - /folder2/folder2.3/item4.json
@@ -34,9 +34,9 @@ Example:
 Library path rules
 -------------------
 
- * Any path must start with `/`, including the root path (`/`).
- * The directory path must end with `/`.
- * The file path must end with extension (eg. `.json`).
+* Any path must start with `/`, including the root path (`/`).
+* The folder path must end with `/`.
+* The item path must end with extension (eg. `.json`).
 
 
 Library service
