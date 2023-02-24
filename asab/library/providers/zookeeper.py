@@ -259,6 +259,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		else:
 			node_path = self.BasePath
 
+		# Zookeeper path should not have forward slash at the end of path
+		node_path = node_path.rstrip("/")
+
 		assert '//' not in node_path
 		assert node_path[0] == '/'
 		assert len(node_path) == 1 or node_path[-1:] != '/'
