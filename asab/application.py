@@ -407,15 +407,10 @@ class Application(metaclass=Singleton):
 	def get_service(self, service_name):
 		"""
 		Get a new service by its name.
+
+		Returns `None` if the service is not registered.
 		"""
-
-		try:
-			return self.Services[service_name]
-		except KeyError:
-			pass
-
-		L.error("Cannot find service '{}' - not registered?".format(service_name))
-		raise KeyError("Cannot find service '{}'".format(service_name))
+		return self.Services.get(service_name)
 
 
 	def _register_service(self, service):
