@@ -71,7 +71,7 @@ setup(
 		'PyYAML>=6.0,<7'
 	],
 	extras_require={
-		'git': 'pygit2>=1.9,<1.10',
+		'git': 'pygit2>=1.9,<1.10',  # The upper version bound is needed for Alpine 3.16 / Python 3.10
 		'encryption': 'cryptography',
 		'authz': 'jwcrypto',
 	},
