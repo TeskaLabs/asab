@@ -169,6 +169,8 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 	def subscribe(self, path):
 		if not os.path.isdir(self.BasePath + path):
 			return
+		if self.FD is None:
+			return 
 		self._subscribe_recursive(path, path)
 
 	def _subscribe_recursive(self, subscribed_path, path_to_be_listed):
@@ -191,5 +193,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	async def finalize(self, app):
-		self.App.Loop.remove_reader(self.FD)
-		os.close(self.FD)
+		if self.FD is not None:
+			self.App.Loop.remove_reader(self.FD)
+			os.close(self.FD)
