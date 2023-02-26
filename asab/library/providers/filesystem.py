@@ -170,7 +170,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		if not os.path.isdir(self.BasePath + path):
 			return
 		if self.FD is None:
-			return 
+			return
 		self._subscribe_recursive(path, path)
 
 	def _subscribe_recursive(self, subscribed_path, path_to_be_listed):
