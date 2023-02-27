@@ -27,6 +27,21 @@ class Metric(abc.ABC):
 	def flush(self, now):
 		pass
 
+	# def get_timestamp(self, now):
+	# 	is_resettable = self.Storage.get("reset")
+	# 	if is_resettable is None or is_resettable is False:  # e.g. Gauge
+	# 		measure_time = self.App.time()
+	# 		print(f"This is a current time, app time: {measure_time}")
+	# 	elif is_resettable:  # metric resets every 60 seconds (e.g. DutyCycle or EPSCounter)
+	# 		if self.last_flush_time == 0:
+	# 			measure_time = self.request_time
+	# 			print(f"This is the time of the request: {measure_time}")
+	# 		else:
+	# 			measure_time = self.last_flush_time
+	# 			print(f"This is the time of the latest flush: {measure_time}")
+	# 	self._field['measured@'] = measure_time
+	# 	print(self.Storage)
+
 
 class Gauge(Metric):
 
@@ -34,6 +49,7 @@ class Gauge(Metric):
 		field = {
 			"tags": tags,
 			"values": self.Init.copy() if self.Init is not None else dict(),
+			"measured@": self.App.time()
 		}
 		self.Storage['fieldset'].append(field)
 		self._field = field
@@ -41,7 +57,9 @@ class Gauge(Metric):
 
 	def set(self, name: str, value):
 		self._field['values'][name] = value
-
+		self._field['measured@'] = self.App.time()
+		print(self.Storage)
+		
 
 class Counter(Metric):
 
@@ -50,9 +68,11 @@ class Counter(Metric):
 			"tags": tags,
 			"values": self.Init.copy() if self.Init is not None else dict(),
 			"actuals": self.Init.copy() if self.Init is not None else dict(),
+			"measured@": self.App.time()
 		}
 		self.Storage['fieldset'].append(field)
 		self._actuals = field['actuals']
+		self._field = field
 		return field
 
 	def add(self, name, value, init_value=None):
@@ -71,6 +91,9 @@ class Counter(Metric):
 				self._actuals[name] = init_value + value
 			else:
 				self._actuals[name] = value
+		if not self.Storage.get("reset"):
+			self._field['measured@'] = self.App.time()
+		print(self.Storage)
 
 	def sub(self, name, value, init_value=None):
 		"""
@@ -88,9 +111,16 @@ class Counter(Metric):
 				self._actuals[name] = init_value - value
 			else:
 				self._actuals[name] = -value
-
+		if not self.Storage.get("reset"):
+			self._field['measured@'] = self.App.time()
+		print(self.Storage)
+					
 	def flush(self, now):
 		if self.Storage.get("reset") is True:
+			print(f"This is the time of the last flush: {now}")
+			print(f"This is app time: {self.App.time()}")
+			self._field['measured@'] = now
+			print(self.Storage)
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
 				if self.Init is not None:
@@ -114,12 +144,14 @@ class EPSCounter(Counter):
 	def __init__(self, init_values=None):
 		if init_values is not None:
 			init_values = {k: int(v) for k, v in init_values.items()}
-
 		super().__init__(init_values=init_values)
 		self.LastTime = time.time()
 
-
 	def flush(self, now):
+		print(f"This is the time of the last flush: {now}")
+		print(f"This is app time: {self.App.time()}")
+		self._field['measured@'] = now
+		print(self.Storage)
 
 		delta = now - self.LastTime
 		if delta <= 0.0:
@@ -177,6 +209,7 @@ class DutyCycle(Metric):
 			"tags": tags,
 			"actuals": self.Init.copy(),
 			"values": dict(),
+			"measured@": self.App.time()
 		}
 		self.Storage['fieldset'].append(field)
 		self._field = field
@@ -184,6 +217,7 @@ class DutyCycle(Metric):
 
 
 	def set(self, name, on_off: bool):
+		print(self.Storage)
 		now = self.Loop.time()
 		values = self._field["actuals"].get(name)
 		if values is None:
@@ -213,6 +247,10 @@ class DutyCycle(Metric):
 
 
 	def flush(self, now):
+		print(f"This is the time of the last flush: {now}")
+		print(f"This is app time: {self.App.time()}")
+		self._field['measured@'] = now
+		print(self.Storage)
 		for field in self.Storage["fieldset"]:
 			actuals = field.get("actuals")
 			for v_name, values in actuals.items():
@@ -247,6 +285,9 @@ class AggregationCounter(Counter):
 		self.Aggregator = aggregator
 
 	def set(self, name, value):
+		if not self.Storage.get("reset"):
+			self._field['measured@'] = self.App.time()
+		print(self.Storage)
 		try:
 			self._actuals[name] = self.Aggregator(value, self._actuals[name])
 		except KeyError:
@@ -298,13 +339,18 @@ class Histogram(Metric):
 			"tags": tags,
 			"values": copy.deepcopy(self.InitHistogram),
 			"actuals": copy.deepcopy(self.InitHistogram),
+			"measured@": self.App.time()
 		}
 		self.Storage['fieldset'].append(field)
 		self._actuals = field['actuals']
+		self._field = field
 		return field
 
 	def flush(self, now):
 		if self.Storage.get("reset") is True:
+			print(f"This is the time of the last flush: {now}")
+			print(f"This is app time: {self.App.time()}")
+			self._field['measured@'] = now
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
 				field['actuals'] = copy.deepcopy(self.InitHistogram)
@@ -314,6 +360,9 @@ class Histogram(Metric):
 				field['values'] = copy.deepcopy(field['actuals'])
 
 	def set(self, value_name, value):
+		if not self.Storage.get("reset"):
+			self._field['measured@'] = self.App.time()
+		print(self.Storage)
 		buckets = self._actuals["buckets"]
 		summary = self._actuals["sum"]
 		count = self._actuals["count"]
