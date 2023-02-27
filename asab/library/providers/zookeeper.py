@@ -264,6 +264,5 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		assert '//' not in node_path
 		assert node_path[0] == '/'
-		assert len(node_path) == 1 or node_path[-1:] != '/'
 
 		return node_path
