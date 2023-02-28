@@ -147,7 +147,7 @@ class Application(metaclass=Singleton):
 
 		# Add listener for housekeeping
 		try:
-			self.PubSub.subscribe("Application.tick!", self.housekeeping)
+			self.PubSub.subscribe("Application.tick/60!", self.check_for_housekeeping)
 		except Exception as err:
 			L.error(err)
 
@@ -591,16 +591,25 @@ class Application(metaclass=Singleton):
 		'''
 		return self.BaseTime + self.Loop.time()
 
-	def housekeeping(self, message_type):
-		house_time = datetime.datetime.strptime(Config['general']['housekeeping_time'], "%H:%M")
+
+	# Housekeeping
+
+	def check_for_housekeeping(self, message_type):
+		"""Check if the time for 'Application.housekeeping!' and if so, publish the message."""
+		house_time = datetime.datetime.strptime(Config['general']['housekeeping_time'], "%H:%M")  # default: 03:00
 		now = datetime.datetime.today()
 		td_midnight = now - datetime.timedelta(
 			hours=now.hour,
 			minutes=now.minute,
 			seconds=now.second,
 			microseconds=now.microsecond)  # today at 00:00
-		td_house_time = td_midnight + datetime.timedelta(hours=house_time.hour, minutes=house_time.minute)  # today at 03:00
+		td_house_time = td_midnight + datetime.timedelta(
+			hours=house_time.hour,
+			minutes=house_time.minute)  # today at time for housekeeping
 		delta = datetime.timedelta(minutes=1)
+		L.warning(f"{now - td_house_time}")
+		L.warning(f"house_time: {house_time}")
+		L.warning(f"is it time? {(now - td_house_time) < delta}")
 
 		if (now - td_house_time) < delta:
-			self.PubSub.subscribe("Application.housekeeping!")
+			self.PubSub.publish("Application.housekeeping!")
