@@ -1,3 +1,4 @@
+import os
 import json
 import asyncio
 import logging
@@ -60,19 +61,19 @@ class ZooKeeperContainer(ConfigObject):
 
 		2. Relative URL with full path
 			Example: zookeeper:///etc/configs/file1
-			
+
 			In this case the relative url is expanded as follows:
 			zookeeper://{zookeeper_server}/etc/configs/file1
-			
+
 			Where {zookeeper_server} is substituted with the server entry of the [zookeeper] configuration file section.
 
 
 
 		3. Relative URL with relative path
-		
+
 			Example: zookeeper:./etc/configs/file1
 				In this case, the relative URL is expanded as follows:
-				
+
 				zookeper://{zookeeper_server}/{zookeeper_path}/etc/configs/file1
 				Where {zookeeper_server} is substituted with the "server" entry of the [zookeeper] configuration file section and
 				{zookeeper_path} is substituted with the "path" entry of the [zookeeper] configuration file section.
@@ -98,14 +99,14 @@ class ZooKeeperContainer(ConfigObject):
 		# If there is no location, use the value of 'servers' from the configuration
 		if url_netloc == "":
 			url_netloc = self.Config.get("servers", "")
-		
+
 		if url_netloc == "":
 			from ..config import Config
 			try:
 				url_netloc = Config.get("zookeeper", "servers")
 			except (configparser.NoOptionError, configparser.NoSectionError):
 				pass
-		
+
 		if url_netloc == "":
 			url_netloc = os.environ.get("ZOOKEEPER_SERVERS", "")
 
@@ -136,7 +137,7 @@ class ZooKeeperContainer(ConfigObject):
 
 		self.ZooKeeper = KazooWrapper(zksvc, url_netloc)
 		self.Path = url_path
-		
+
 		self.Advertisments = dict()
 		self.DataWatchers = set()
 		self.App.PubSub.subscribe("Application.tick/300!", self._readvertise)
@@ -223,10 +224,10 @@ class ZooKeeperAdvertisement(object):
 
 	def __init__(self, path):
 		self.Data = None
-		
+
 		self.Path = path
 		self.RealPath = None
-		
+
 		self.Lock = asyncio.Lock()
 
 
@@ -268,4 +269,3 @@ class ZooKeeperAdvertisement(object):
 				self.RealPath = zoocontainer.ZooKeeper.Client.create(self.Path, self.Data, sequence=True, ephemeral=True)
 
 			await zoocontainer.ZooKeeper.ProactorService.execute(check_at_zk)
-

@@ -100,6 +100,6 @@ class KazooWrapper(object):
 			try:
 				return self.Client.create(path, value=value)
 			except kazoo.exceptions.NodeExistsError:
-				return self.Client.set(path, data)
+				return self.Client.set(path, value)
 
 		return await self.ProactorService.execute(do)
