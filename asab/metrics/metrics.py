@@ -48,7 +48,7 @@ class Gauge(Metric):
 		self._field['values'][name] = value
 		self._field['measured@'] = self.app.time()
 		print(self.Storage)
-		
+
 
 class Counter(Metric):
 
@@ -103,7 +103,7 @@ class Counter(Metric):
 		if not self.Storage.get("reset"):
 			self._field['measured@'] = self.App.time()
 		print(self.Storage)
-					
+
 	def flush(self, now):
 		if self.Storage.get("reset") is True:
 			print(f"This is the time of the last flush: {now}")
