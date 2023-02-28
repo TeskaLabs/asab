@@ -27,29 +27,18 @@ class Metric(abc.ABC):
 	def flush(self, now):
 		pass
 
-	# def get_timestamp(self, now):
-	# 	is_resettable = self.Storage.get("reset")
-	# 	if is_resettable is None or is_resettable is False:  # e.g. Gauge
-	# 		measure_time = self.App.time()
-	# 		print(f"This is a current time, app time: {measure_time}")
-	# 	elif is_resettable:  # metric resets every 60 seconds (e.g. DutyCycle or EPSCounter)
-	# 		if self.last_flush_time == 0:
-	# 			measure_time = self.request_time
-	# 			print(f"This is the time of the request: {measure_time}")
-	# 		else:
-	# 			measure_time = self.last_flush_time
-	# 			print(f"This is the time of the latest flush: {measure_time}")
-	# 	self._field['measured@'] = measure_time
-	# 	print(self.Storage)
-
 
 class Gauge(Metric):
+
+	def __init__(self, app, init_values=None):
+		super().__init__(init_values=init_values)
+		self.app = app
 
 	def add_field(self, tags):
 		field = {
 			"tags": tags,
 			"values": self.Init.copy() if self.Init is not None else dict(),
-			"measured@": self.App.time()
+			"measured@": self.app.time()
 		}
 		self.Storage['fieldset'].append(field)
 		self._field = field
@@ -57,7 +46,7 @@ class Gauge(Metric):
 
 	def set(self, name: str, value):
 		self._field['values'][name] = value
-		self._field['measured@'] = self.App.time()
+		self._field['measured@'] = self.app.time()
 		print(self.Storage)
 		
 

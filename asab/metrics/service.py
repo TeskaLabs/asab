@@ -112,8 +112,8 @@ class MetricsService(Service):
 
 		self.Metrics.append(metric)
 
-	def create_gauge(self, metric_name, tags=None, init_values=None, help=None, unit=None):
-		m = Gauge(init_values=init_values)
+	def create_gauge(self, metric_name, app, tags=None, init_values=None, help=None, unit=None):
+		m = Gauge(app, init_values=init_values)
 		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 

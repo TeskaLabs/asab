@@ -21,9 +21,14 @@ class MetricsTestCase(unittest.TestCase):
 		self.MetricsService.clear()
 		self.MetricsService.Tags['host'] = "mockedhost.com"
 		self.MockedLoop = MockedLoop()
+		self.MockApplication = MockApplication()
 
 
 class MockedLoop(object):
 	def time(self):
 		return 123.45
 
+
+class MockApplication(object):
+	def time(self):
+		return 777.7

@@ -18,7 +18,7 @@ class NativeMetrics(Service):
 
 
 	def __init__(self, app, metrics_svc):
-		self.MemoryGauge = metrics_svc.create_gauge("os.stat")
+		self.MemoryGauge = metrics_svc.create_gauge("os.stat", app)
 
 		# Injecting logging metrics into MetricsHandler and MetricsHandler into Root Logger
 		self.MetricsLoggingHandler = MetricsLoggingHandler()

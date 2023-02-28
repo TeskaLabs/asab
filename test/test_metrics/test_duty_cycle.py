@@ -33,6 +33,7 @@ class TestDutyCycle(MetricsTestCase):
 					}
 				},
 				"values": {},
+				"measured@": 123.45
 			}
 			]
 		}
@@ -75,6 +76,7 @@ class TestDutyCycle(MetricsTestCase):
 					}
 				},
 				"values": {"v1": 1.0},
+				"measured@": now
 			}
 			]
 		}
@@ -117,6 +119,7 @@ class TestDutyCycle(MetricsTestCase):
 					}
 				},
 				"values": {"v1": 0.0},
+				"measured@": 124.45
 			}
 			]
 		}
