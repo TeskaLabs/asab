@@ -145,11 +145,10 @@ class Application(metaclass=Singleton):
 		for module in modules:
 			self.add_module(module)
 
-		# Add listener for housekeeping
-		try:
-			self.PubSub.subscribe("Application.tick/60!", self.check_for_housekeeping)
-		except Exception as err:
-			L.error(err)
+		# Every 10 minutes listen for housekeeping
+		self.NextHousekeeping = self.set_housekeeping_time_from_config()
+		self.PubSub.subscribe("Application.tick/600!", self.check_for_housekeeping)
+
 
 	def create_argument_parser(
 		self,
@@ -594,22 +593,23 @@ class Application(metaclass=Singleton):
 
 	# Housekeeping
 
-	def check_for_housekeeping(self, message_type):
-		"""Check if the time for 'Application.housekeeping!' and if so, publish the message."""
-		house_time = datetime.datetime.strptime(Config['general']['housekeeping_time'], "%H:%M")  # default: 03:00
-		now = datetime.datetime.today()
+	def set_housekeeping_time_from_config(self):
+		config_house_time = datetime.datetime.strptime(Config['general']['housekeeping_time'], "%H:%M")  # default: 03:00
+		now = datetime.datetime.now(datetime.timezone.utc)
 		td_midnight = now - datetime.timedelta(
 			hours=now.hour,
 			minutes=now.minute,
 			seconds=now.second,
 			microseconds=now.microsecond)  # today at 00:00
-		td_house_time = td_midnight + datetime.timedelta(
-			hours=house_time.hour,
-			minutes=house_time.minute)  # today at time for housekeeping
-		delta = datetime.timedelta(minutes=1)
-		L.warning(f"{now - td_house_time}")
-		L.warning(f"house_time: {house_time}")
-		L.warning(f"is it time? {(now - td_house_time) < delta}")
+		next_housekeeping_time = td_midnight + datetime.timedelta(
+			hours=config_house_time.hour,
+			minutes=config_house_time.minute)
+		return next_housekeeping_time
 
-		if (now - td_house_time) < delta:
+	def check_for_housekeeping(self, message_type):
+		"""Check if it's time for 'Application.housekeeping!'.
+		If so, publish the message and set housekeeping time for the next day.
+		"""
+		if datetime.datetime.now(datetime.timezone.utc) > self.NextHousekeeping:
 			self.PubSub.publish("Application.housekeeping!")
+			self.NextHousekeeping += datetime.timedelta(days=1)
