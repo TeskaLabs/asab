@@ -150,7 +150,7 @@ class ZooKeeperContainer(ConfigObject):
 
 	# Reading
 
-	async def get_children(self, path = ""):
+	async def get_children(self, path=""):
 		return await self.ZooKeeper.get_children("{}/{}".format(self.Path, path))
 
 	async def get_data(self, path, encoding="utf-8"):
