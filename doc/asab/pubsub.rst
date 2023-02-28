@@ -35,11 +35,11 @@ Example of a subscription to an :any:`Application.tick!` messages.
 .. code:: python
 
 	class MyClass(object):
-	    def __init__(self, app):
-	        app.PubSub.subscribe("Application.tick!", self.on_tick)
+		def __init__(self, app):
+			app.PubSub.subscribe("Application.tick!", self.on_tick)
 
-	    def on_tick(self, message_type):
-	        print(message_type)
+		def on_tick(self, message_type):
+			print(message_type)
 
 
 Asynchronous version of the above:
@@ -47,12 +47,12 @@ Asynchronous version of the above:
 .. code:: python
 
 	class MyClass(object):
-	    def __init__(self, app):
-	        app.PubSub.subscribe("Application.tick!", self.on_tick)
+		def __init__(self, app):
+			app.PubSub.subscribe("Application.tick!", self.on_tick)
 
-	    async def on_tick(self, message_type):
-	    	await asyncio.sleep(5)
-	        print(message_type)
+		async def on_tick(self, message_type):
+			await asyncio.sleep(5)
+			print(message_type)
 
 
 .. py:method:: PubSub.subscribe_all(obj)
@@ -65,16 +65,16 @@ In the followin example, both ``on_tick()`` and ``on_exit()`` methods are subscr
 .. code:: python
 
 	class MyClass(object):
-	    def __init__(self, app):
-	        app.PubSub.subscribe_all(self)
+		def __init__(self, app):
+			app.PubSub.subscribe_all(self)
 
-	    @asab.subscribe("Application.tick!")
-	    async def on_tick(self, message_type):
-	        print(message_type)
+		@asab.subscribe("Application.tick!")
+		async def on_tick(self, message_type):
+			print(message_type)
 
-	    @asab.subscribe("Application.exit!")
-	    def on_exit(self, message_type):
-	        print(message_type)
+		@asab.subscribe("Application.exit!")
+		def on_exit(self, message_type):
+			print(message_type)
 
 
 .. py:method:: PubSub.unsubscribe(message_type, callback)
@@ -83,8 +83,8 @@ Unsubscribe from a message delivery.
 
 
 .. autoclass:: asab.Subscriber
-    :members:
-    :undoc-members:
+	:members:
+	:undoc-members:
 
 The subscriber object can be also used as `an asynchonous generator`.
 The example of the subscriber object usage in `async for` statement:
@@ -92,16 +92,16 @@ The example of the subscriber object usage in `async for` statement:
 .. code:: python
 
 	async def my_coroutine(self):
-	    # Subscribe for a two application events
-	    subscriber = asab.Subscriber(
-	        self.PubSub,
-	        "Application.tick!",
-	        "Application.exit!"
-	    )
-	    async for message_type, args, kwargs in subscriber:
-	        if message_type == "Application.exit!":
-	            break;
-	        print("Tick.")
+		# Subscribe for a two application events
+		subscriber = asab.Subscriber(
+			self.PubSub,
+			"Application.tick!",
+			"Application.exit!"
+		)
+		async for message_type, args, kwargs in subscriber:
+			if message_type == "Application.exit!":
+				break;
+			print("Tick.")
 
 
 Publishing
@@ -118,7 +118,7 @@ The example of a message publish to the :any:`Application.PubSub` message bus:
 .. code:: python
 
 	def my_function(app):
-	    app.PubSub.publish("mymessage!")
+		app.PubSub.publish("mymessage!")
 
 
 Asynchronous publishing of a message is requested by ``asynchronously=True`` argument.
@@ -129,7 +129,7 @@ The example of a **asynchronous version** of a message publish to the :any:`Appl
 .. code:: python
 
 	def my_function(app):
-	    app.PubSub.publish("mymessage!", asynchronously=True)
+		app.PubSub.publish("mymessage!", asynchronously=True)
 
 
 Synchronous vs. asynchronous messaging
@@ -204,3 +204,15 @@ The default tick frequency is 1 second but you can change it by configuration ``
 
 This message is emitted when application receives UNIX signal ``SIGHUP`` or equivalent.
 
+.. option:: Application.housekeeping!
+
+This message is published when application is on the time for housekeeping. The time for housekeeping is set to 03:00 AM UTC. It can be changed in the configuration file:
+
+.. code:: ini
+
+	[general]
+	housekeeping_time=19:30
+
+This sets the housekeeping time to 7:30 PM UTC.
+The time must be written in the format 'HH:MM'.
+Remind yourself that the time is set to UTC, so you should be careful when operating in a different timezone.
