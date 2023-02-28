@@ -594,6 +594,9 @@ class Application(metaclass=Singleton):
 	# Housekeeping
 
 	def set_housekeeping_time_from_config(self):
+		"""Set the housekeeping time from `Config['general']['housekeeping_time']`
+		for today or tomorrow.
+		"""
 		config_house_time = datetime.datetime.strptime(Config['general']['housekeeping_time'], "%H:%M")  # default: 03:00
 		now = datetime.datetime.now(datetime.timezone.utc)
 		td_midnight = now - datetime.timedelta(
@@ -603,7 +606,9 @@ class Application(metaclass=Singleton):
 			microseconds=now.microsecond)  # today at 00:00
 		next_housekeeping_time = td_midnight + datetime.timedelta(
 			hours=config_house_time.hour,
-			minutes=config_house_time.minute)
+			minutes=config_house_time.minute)  # today at the time for housekeeping
+		if now > next_housekeeping_time:
+			next_housekeeping_time += datetime.timedelta(days=1)
 		return next_housekeeping_time
 
 	def check_for_housekeeping(self, message_type):
