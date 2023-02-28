@@ -147,7 +147,7 @@ class Application(metaclass=Singleton):
 
 		# Every 10 minutes listen for housekeeping
 		self.NextHousekeeping = self.set_housekeeping_time_from_config()
-		self.PubSub.subscribe("Application.tick/600!", self.check_for_housekeeping)
+		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
 
 
 	def create_argument_parser(
@@ -594,8 +594,7 @@ class Application(metaclass=Singleton):
 	# Housekeeping
 
 	def set_housekeeping_time_from_config(self):
-		"""Set the housekeeping time from `Config['general']['housekeeping_time']`
-		for today or tomorrow.
+		"""Set the housekeeping time from `Config['general']['housekeeping_time']`.
 		"""
 		config_house_time = datetime.datetime.strptime(Config['general']['housekeeping_time'], "%H:%M")  # default: 03:00
 		now = datetime.datetime.now(datetime.timezone.utc)
@@ -607,11 +606,13 @@ class Application(metaclass=Singleton):
 		next_housekeeping_time = td_midnight + datetime.timedelta(
 			hours=config_house_time.hour,
 			minutes=config_house_time.minute)  # today at the time for housekeeping
+
+		# if the app started after the housekeeping time, set it to the next day
 		if now > next_housekeeping_time:
 			next_housekeeping_time += datetime.timedelta(days=1)
 		return next_housekeeping_time
 
-	def check_for_housekeeping(self, message_type):
+	def _on_housekeeping_tick(self, message_type):
 		"""Check if it's time for 'Application.housekeeping!'.
 		If so, publish the message and set housekeeping time for the next day.
 		"""
