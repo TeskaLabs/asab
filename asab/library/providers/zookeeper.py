@@ -99,6 +99,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		super().__init__(library)
 
 		url_pieces = urllib.parse.urlparse(path)
+
 		self.FullPath = url_pieces.scheme + '://'
 		self.BasePath = url_pieces.path.lstrip("/")
 		while self.BasePath.endswith("/"):
@@ -124,6 +125,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			z_path=z_url
 		)
 		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
+
 		if config_section_name == 'zookeeper':
 			self.FullPath += self.ZookeeperContainer.Config['servers']
 		else:
@@ -137,8 +139,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if z_url is None and url_pieces.netloc == "." and self.Zookeeper.Path != '':
 			self.BasePath = '/' + self.Zookeeper.Path + self.BasePath
 
-		self.Version = None  # Will be read when a library become ready
 		self.FullPath += self.BasePath
+
+		self.VersionNodePath = self.build_path('/.version.yaml')
+		self.Version = None  # Will be read when a library become ready
+		self.VersionWatch = None
 
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
 		self.App.PubSub.subscribe("Application.tick/60!", self._get_version_counter)
@@ -155,24 +160,29 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		When the Zookeeper container is ready, set the self.Zookeeper property to the Zookeeper object.
 		"""
-		if zkcontainer == self.ZookeeperContainer:
-			self.Zookeeper = self.ZookeeperContainer.ZooKeeper
-			self.VersionNodePath = self.build_path('/.version.yaml')
-			L.info("is connected.", struct_data={'path': self.FullPath})
+		if zkcontainer != self.ZookeeperContainer:
+			return
+		
+		L.info("is connected.", struct_data={'path': self.FullPath})
 
-			def on_version_changed(version, event):
-				self.App.Loop.call_soon_threadsafe(self._check_version_counter, version)
-			kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.VersionNodePath, on_version_changed)
+		def on_version_changed(version, event):
+			self.App.Loop.call_soon_threadsafe(self._check_version_counter, version)
+		
+		def install_watcher():
+			return kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.VersionNodePath, on_version_changed)
 
-			await self._set_ready()
+		self.VersionWatch =await self.Zookeeper.ProactorService.execute(install_watcher)
+
+		await self._set_ready()
 
 
 	async def _get_version_counter(self, event_name=None):
 		if self.Zookeeper is None:
 			return
-		version = await self.Zookeeper.get_data(self.VersionNodePath)
 
-		self.Zookeeper.ProactorService.execute(self._check_version_counter, version)
+		version = await self.Zookeeper.get_data(self.VersionNodePath)
+		await self.Zookeeper.ProactorService.execute(self._check_version_counter, version)
+
 
 	def _check_version_counter(self, version):
 		# If version is `None` aka `/.version.yaml` doesn't exists, then assume version -1
