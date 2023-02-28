@@ -19,7 +19,9 @@ L = logging.getLogger(__name__)
 
 
 class ZooKeeperContainer(ConfigObject):
-
+	"""
+	Create a Zookeeper container with a specifications of the connectivity.
+	"""
 
 	ConfigDefaults = {
 		# Server list to which ZooKeeper Client tries connecting.
@@ -36,56 +38,10 @@ class ZooKeeperContainer(ConfigObject):
 	}
 
 
-	def __init__(self, zksvc, config_section_name, config=None, z_path=None):
-		"""
-		Zookeeper cofiguration:
-
-		* Source 1: Obtain Zookeeper configuration from the configuration section specified by `config_section_name` argument
-
-		* Source 2: Obtain Zookeeper configuration from `z_path` argument, which is Zookeeper URL (see below)
-
-		* Source 3: `ZOOKEEPER_SERVERS` environment variable
-
-
-		The `z_path` argument has precedence over config but the implementation will look
-		at configuration if `z_path` URL is missing completely or partially.
-
-		Supported types of z_path` URLs:
-
-		1. Absolute URL
-			Example: zookeeper://zookeeper:12181/etc/configs/file1
-
-			There is no fallback to the configuration.
-
-
-
-		2. Relative URL with full path
-			Example: zookeeper:///etc/configs/file1
-
-			In this case the relative url is expanded as follows:
-			zookeeper://{zookeeper_server}/etc/configs/file1
-
-			Where {zookeeper_server} is substituted with the server entry of the [zookeeper] configuration file section.
-
-
-
-		3. Relative URL with relative path
-
-			Example: zookeeper:./etc/configs/file1
-				In this case, the relative URL is expanded as follows:
-
-				zookeper://{zookeeper_server}/{zookeeper_path}/etc/configs/file1
-				Where {zookeeper_server} is substituted with the "server" entry of the [zookeeper] configuration file section and
-				{zookeeper_path} is substituted with the "path" entry of the [zookeeper] configuration file section.
-
-		Sample config file:
-		[zookeeper]
-		server=server1:port1,server2:port2,server3:port3
-		path=myfolder
-
-		"""
+	def __init__(self, zookeeper_service, config_section_name="zookeeper", config=None, z_path=None):
 		super().__init__(config_section_name=config_section_name, config=config)
-		self.App = zksvc.App
+
+		self.App = zookeeper_service.App
 
 		# Parse URL from z_path
 		if z_path is not None:
@@ -135,15 +91,15 @@ class ZooKeeperContainer(ConfigObject):
 		while url_path.startswith('/'):
 			url_path = url_path[1:]
 
-		self.ZooKeeper = KazooWrapper(zksvc, url_netloc)
+		self.ZooKeeper = KazooWrapper(zookeeper_service, url_netloc)
 		self.Path = url_path
 
 		self.Advertisments = dict()
 		self.DataWatchers = set()
 		self.App.PubSub.subscribe("Application.tick/300!", self._readvertise)
 
-		zksvc.Containers.append(self)
-		zksvc.ProactorService.schedule(self._start, self.App)
+		zookeeper_service.Containers.append(self)
+		zookeeper_service.ProactorService.schedule(self._start, self.App)
 
 
 	def _start(self, app):
@@ -194,30 +150,17 @@ class ZooKeeperContainer(ConfigObject):
 
 	# Reading
 
-	async def get_children(self):
-		return await self.ZooKeeper.get_children(self.Path)
+	async def get_children(self, path = ""):
+		return await self.ZooKeeper.get_children("{}/{}".format(self.Path, path))
 
-	async def get_data(self, child, encoding="utf-8"):
-		raw_data = await self.get_raw_data(child)
+	async def get_data(self, path, encoding="utf-8"):
+		raw_data = await self.get_raw_data(path)
 		if raw_data is None:
 			return {}
 		return json.loads(raw_data.decode(encoding))
 
-	async def get_raw_data(self, child):
-		return await self.ZooKeeper.get_data("{}/{}".format(self.Path, child))
-
-
-	# Watcher
-
-	def _on_watcher_trigger(self, data, stat):
-		def on_watcher_trigger():
-			self.App.PubSub.publish(self.App.PubSub.publish("ZooKeeper.watcher!", data, stat))
-		self.App.Loop.call_soon_threadsafe(on_watcher_trigger)
-
-	async def create_watcher(self, client, path):
-		# Do this in executor
-		watcher = kazoo.recipe.watchers.DataWatch(client, path, func=self._on_watcher_trigger)
-		self.DataWatchers.add(watcher)
+	async def get_raw_data(self, path):
+		return await self.ZooKeeper.get_data("{}/{}".format(self.Path, path))
 
 
 class ZooKeeperAdvertisement(object):

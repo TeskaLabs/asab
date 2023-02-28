@@ -1,7 +1,4 @@
 .. ASAB documentation master file, created by
-sphinx-quickstart on Sat Mar  3 23:48:03 2018.
-You can adapt this file completely to your liking, but it should at least
-contain the root `toctree` directive.
 
 .. include:: asab/index.rst
 
@@ -35,6 +32,7 @@ contain the root `toctree` directive.
    asab/service
    asab/module
    asab/various
+   asab/zookeeper
    asab/library
 
 .. toctree::
