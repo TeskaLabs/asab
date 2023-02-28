@@ -162,16 +162,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		if zkcontainer != self.ZookeeperContainer:
 			return
-		
+
 		L.info("is connected.", struct_data={'path': self.FullPath})
 
 		def on_version_changed(version, event):
 			self.App.Loop.call_soon_threadsafe(self._check_version_counter, version)
-		
+
 		def install_watcher():
 			return kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.VersionNodePath, on_version_changed)
 
-		self.VersionWatch =await self.Zookeeper.ProactorService.execute(install_watcher)
+		self.VersionWatch = await self.Zookeeper.ProactorService.execute(install_watcher)
 
 		await self._set_ready()
 
