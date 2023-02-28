@@ -598,14 +598,11 @@ class Application(metaclass=Singleton):
 		"""
 		config_house_time = datetime.datetime.strptime(Config['general']['housekeeping_time'], "%H:%M")  # default: 03:00
 		now = datetime.datetime.now(datetime.timezone.utc)
-		td_midnight = now - datetime.timedelta(
-			hours=now.hour,
-			minutes=now.minute,
-			seconds=now.second,
-			microseconds=now.microsecond)  # today at 00:00
-		next_housekeeping_time = td_midnight + datetime.timedelta(
-			hours=config_house_time.hour,
-			minutes=config_house_time.minute)  # today at the time for housekeeping
+		next_housekeeping_time = now.replace(
+			hour=config_house_time.hour,
+			minute=config_house_time.minute,
+			second=0,
+			microsecond=0)
 
 		# if the app started after the housekeeping time, set it to the next day
 		if now > next_housekeeping_time:
@@ -619,3 +616,9 @@ class Application(metaclass=Singleton):
 		if datetime.datetime.now(datetime.timezone.utc) > self.NextHousekeeping:
 			self.PubSub.publish("Application.housekeeping!")
 			self.NextHousekeeping += datetime.timedelta(days=1)
+			L.log(
+				LOG_NOTICE,
+				"Setting time for the next housekeeping: {} UTC".format(
+					self.NextHousekeeping.strftime("%Y-%m-%d %H:%M:%S")
+				)
+			)
