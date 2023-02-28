@@ -8,6 +8,7 @@ import asyncio
 import argparse
 import itertools
 import platform
+import datetime
 
 try:
 	import daemon
@@ -144,6 +145,11 @@ class Application(metaclass=Singleton):
 		for module in modules:
 			self.add_module(module)
 
+		# Add listener for housekeeping
+		try:
+			self.PubSub.subscribe("Application.tick!", self.housekeeping)
+		except Exception as err:
+			L.error(err)
 
 	def create_argument_parser(
 		self,
@@ -584,3 +590,17 @@ class Application(metaclass=Singleton):
 		Return UTC unix timestamp using a loop time (a fast way how to get a wall clock time).
 		'''
 		return self.BaseTime + self.Loop.time()
+
+	def housekeeping(self, message_type):
+		house_time = datetime.datetime.strptime(Config['general']['housekeeping_time'], "%H:%M")
+		now = datetime.datetime.today()
+		td_midnight = now - datetime.timedelta(
+			hours=now.hour,
+			minutes=now.minute,
+			seconds=now.second,
+			microseconds=now.microsecond)  # today at 00:00
+		td_house_time = td_midnight + datetime.timedelta(hours=house_time.hour, minutes=house_time.minute)  # today at 03:00
+		delta = datetime.timedelta(minutes=1)
+
+		if (now - td_house_time) < delta:
+			self.PubSub.subscribe("Application.housekeeping!")

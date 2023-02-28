@@ -38,6 +38,8 @@ class ConfigParser(configparser.ConfigParser):
 			'working_dir': '.',
 			'uid': '',
 			'gid': '',
+
+			'housekeeping_time': '03:00',
 		},
 
 		"asab:metrics": {
