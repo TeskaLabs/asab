@@ -146,7 +146,7 @@ class Application(metaclass=Singleton):
 			self.add_module(module)
 
 		# Every 10 minutes listen for housekeeping
-		self.NextHousekeeping = self.set_housekeeping_time_from_config()
+		self.NextHousekeeping = self._set_housekeeping_time_from_config()
 		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
 
 
@@ -593,7 +593,7 @@ class Application(metaclass=Singleton):
 
 	# Housekeeping
 
-	def set_housekeeping_time_from_config(self):
+	def _set_housekeeping_time_from_config(self):
 		"""Set the housekeeping time from `Config['general']['housekeeping_time']`.
 		"""
 		config_house_time = datetime.datetime.strptime(Config['general']['housekeeping_time'], "%H:%M")  # default: 03:00
