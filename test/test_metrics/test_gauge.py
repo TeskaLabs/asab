@@ -16,7 +16,6 @@ class TestGauge(MetricsTestCase):
 		'''
 		gauge = self.MetricsService.create_gauge(
 			"testgauge",
-			app=self.MockApplication,
 			init_values={"v1": 1},
 			help='This is a test Gauge.'
 		)
@@ -74,7 +73,6 @@ class TestGauge(MetricsTestCase):
 		'''
 		gauge = self.MetricsService.create_gauge(
 			"testgauge",
-			self.MockApplication,
 			help='This is a test Gauge.'
 		)
 
