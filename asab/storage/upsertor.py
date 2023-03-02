@@ -159,10 +159,15 @@ class UpsertorABC(abc.ABC):
 			conn = http.client.HTTPSConnection(u.netloc)
 		else:
 			conn = http.client.HTTPConnection(u.netloc)
+
+		headers = {"Content-Type": "application/json"}
+		if auth is not None:
+			headers["Authorization"] = auth
+
 		try:
 			conn.request(
 				"PUT", uri, data,
-				{"Authorization": auth, "Content-Type": "application/json"}
+				headers
 			)
 			response = conn.getresponse()
 			if response.status // 100 != 2:
@@ -177,7 +182,7 @@ class UpsertorABC(abc.ABC):
 			return
 		except json.decoder.JSONDecodeError as e:
 			L.error("Failed to decode JSON response from webhook: {}".format(str(e)), struct_data={"uri": uri})
-		except Exception as e:
-			L.error("Webhook call failed with {}: {}".format(type(e).__name__, str(e)), struct_data={"uri": uri})
+		# except Exception as e:
+		# 	L.error("Webhook call failed with {}: {}".format(type(e).__name__, str(e)), struct_data={"uri": uri})
 		finally:
 			conn.close()
