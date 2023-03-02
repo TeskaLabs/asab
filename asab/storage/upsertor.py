@@ -173,7 +173,7 @@ class UpsertorABC(abc.ABC):
 			if response.status // 100 != 2:
 				text = response.read()
 				L.error(
-					"Webhook endpoint responded with {}:\n{}".format(response.status, text),
+					"Webhook endpoint responded with {}: {}".format(response.status, text),
 					struct_data={"uri": uri})
 				return
 			self.WebhookResponseData = json.load(response)
@@ -182,7 +182,7 @@ class UpsertorABC(abc.ABC):
 			return
 		except json.decoder.JSONDecodeError as e:
 			L.error("Failed to decode JSON response from webhook: {}".format(str(e)), struct_data={"uri": uri})
-		# except Exception as e:
-		# 	L.error("Webhook call failed with {}: {}".format(type(e).__name__, str(e)), struct_data={"uri": uri})
+		except Exception as e:
+			L.error("Webhook call failed with {}: {}".format(type(e).__name__, str(e)), struct_data={"uri": uri})
 		finally:
 			conn.close()
