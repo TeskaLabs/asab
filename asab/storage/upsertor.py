@@ -159,16 +159,18 @@ class UpsertorABC(abc.ABC):
 			conn = http.client.HTTPSConnection(u.netloc)
 		else:
 			conn = http.client.HTTPConnection(u.netloc)
+
+		headers = {"Content-Type": "application/json"}
+		if auth is not None:
+			headers["Authorization"] = auth
+
 		try:
-			conn.request(
-				"PUT", uri, data,
-				{"Authorization": auth, "Content-Type": "application/json"}
-			)
+			conn.request("PUT", uri, data, headers)
 			response = conn.getresponse()
 			if response.status // 100 != 2:
 				text = response.read()
 				L.error(
-					"Webhook endpoint responded with {}:\n{}".format(response.status, text),
+					"Webhook endpoint responded with {}: {}".format(response.status, text),
 					struct_data={"uri": uri})
 				return
 			self.WebhookResponseData = json.load(response)
