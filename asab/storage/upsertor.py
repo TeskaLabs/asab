@@ -165,10 +165,7 @@ class UpsertorABC(abc.ABC):
 			headers["Authorization"] = auth
 
 		try:
-			conn.request(
-				"PUT", uri, data,
-				headers
-			)
+			conn.request("PUT", uri, data, headers)
 			response = conn.getresponse()
 			if response.status // 100 != 2:
 				text = response.read()
