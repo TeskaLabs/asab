@@ -153,27 +153,35 @@ def get_field(fk, fv):
 	return field
 
 
-def combine_tags_and_field(tags, values):
+def combine_tags_and_field(tags, values, timestamp):
 	# First escape tags and values
 	tags = escape_tags(tags)
 	values = escape_values(values)
 	# Then combine the tags and then values
 	tags_string = ",".join(["{}={}".format(tk, tv) for tk, tv in tags.items()])
 	field_set = ",".join([get_field(value_name, value) for value_name, value in values.items()])
-	return tags_string + " " + field_set
+	return tags_string + " " + field_set + " " + str(int(timestamp * 1e9))
 
 
-def build_metric_line(tags, values, upperbound=None):
+def build_metric_line(tags, values, timestamp, upperbound=None):
 	if upperbound is not None:
 		tags["le"] = upperbound
-	return combine_tags_and_field(tags, values)
+	return combine_tags_and_field(tags, values, timestamp)
+
+
+def get_timestamp(metric_record, field, now):
+	fieldset = metric_record.get("fieldset")
+	if fieldset is None or len(fieldset) == 0:
+		timestamp = now
+	else:
+		if "measured@" in field:
+			timestamp = field["measured@"]
+		else:
+			timestamp = now
+	return timestamp
 
 
 def metric_to_influxdb(metric_record, now):
-	if metric_record.get("@timestamp") is None:
-		timestamp = now
-	else:
-		timestamp = metric_record.get("@timestamp")
 	name = escape_name(metric_record.get("name"))
 	fieldset = metric_record.get("fieldset")
 	metric_type = metric_record.get("type")
@@ -184,22 +192,24 @@ def metric_to_influxdb(metric_record, now):
 			# SKIP empty fields
 			if all([bucket == {} for bucket in field.get("values").get("buckets").values()]):
 				continue
+			timestamp = get_timestamp(metric_record, field, now)
 			for upperbound, bucket in field.get("values").get("buckets").items():
 				upperbound = str(upperbound)
 				if bucket == {}:
 					continue
-				values_lines.append(build_metric_line(field.get("tags").copy(), bucket, upperbound))
-			values_lines.append(build_metric_line(field.get("tags").copy(), {"sum": field.get("values").get("sum")}))
-			values_lines.append(build_metric_line(field.get("tags").copy(), {"count": field.get("values").get("count")}))
+				values_lines.append(build_metric_line(field.get("tags").copy(), bucket, timestamp, upperbound))
+			values_lines.append(build_metric_line(field.get("tags").copy(), {"sum": field.get("values").get("sum")}, timestamp))
+			values_lines.append(build_metric_line(field.get("tags").copy(), {"count": field.get("values").get("count")}, timestamp))
 
 	else:
 		for field in fieldset:
 			# SKIP empty fields
 			if not field.get("values") or field.get("values") == {}:
 				continue
-			values_lines.append(build_metric_line(field.get("tags"), (field.get("values"))))
+			timestamp = get_timestamp(metric_record, field, now)
+			values_lines.append(build_metric_line(field.get("tags"), (field.get("values")), timestamp))
 
-	return ["{},{} {}\n".format(name, line, int(timestamp * 1e9)) for line in values_lines]
+	return ["{},{}\n".format(name, line) for line in values_lines]
 
 
 def escape_name(name: str):
