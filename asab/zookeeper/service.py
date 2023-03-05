@@ -16,8 +16,14 @@ class ZooKeeperService(Service):
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
-		self.App = app
+
+		# Make sure that the proactor service exists
+		from ..proactor import Module
+		app.add_module(Module)
+		self.ProactorService = app.get_service("asab.ProactorService")
+
 		self.Containers = []
+
 
 
 	async def finalize(self, app):
@@ -51,11 +57,6 @@ class ZooKeeperService(Service):
 
 		container = ZooKeeperContainer(self, config_section_name=config_section)
 		return container
-
-
-	def _register_container(self, container):
-		self.Containers.append(container)
-		container.ZooKeeper.ProactorService.schedule(container._start, self.App)
 
 
 	async def advertise(self, data, path, encoding="utf-8", container=None):
