@@ -94,9 +94,9 @@ class LibraryService(Service):
 			lib = self.Libraries.pop(-1)
 			await lib.finalize(self.App)
 
+
 	async def on_tick(self, message_type):
 		await self._read_disabled()
-
 
 
 	def _create_library(self, path):
@@ -140,6 +140,7 @@ class LibraryService(Service):
 			True
 		)
 
+
 	async def _set_ready(self, provider):
 		if provider == self.Libraries[0]:
 			await self._read_disabled()
@@ -169,8 +170,8 @@ class LibraryService(Service):
 		:param tenant: The tenant to apply. If not specified, the global access is assumed
 		:return: I/O stream (read) with the content of the libary item.
 		"""
-		# It must start with '/'
-		assert path[:1] == '/'
+		# item path must start with '/'
+		assert path[:1] == '/', "Item path must start with a forward slash (/). For example: /library/Templates/"
 
 		if self.check_disabled(path, tenant=tenant):
 			return None
@@ -205,12 +206,10 @@ class LibraryService(Service):
 			The method returns list of items that are located at `path`
 		"""
 
-		# Path must start with '/'
-		assert path[:1] == '/'
-
-		# Path must NOT end with '/'
-		while path[-1:] == '/':
-			path = path[:-1]
+		# Directory path must start with '/'
+		assert path[:1] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
+		# Directory path must end with '/'
+		assert (path[-1:]) == '/', "Directory path must end with a forward slash (/). For example: /library/Templates/"
 
 		# List requested level using all available providers
 		items = await self._list(path, tenant, providers=self.Libraries)
@@ -289,7 +288,8 @@ class LibraryService(Service):
 				if self.Disabled is None:
 					self.Disabled = {}
 				else:
-					assert (isinstance(self.Disabled, dict))
+					# Disabled must be a dictionary object
+					assert (isinstance(self.Disabled, dict)), "The 'Disabled' attribute must be a dictionary instance."
 			except Exception:
 				self.Disabled = {}
 				L.exception("Failed to parse '/.disabled.yaml'")
@@ -320,7 +320,17 @@ class LibraryService(Service):
 		return False
 
 
-	async def export(self, path="/", tenant=None):
+	async def export(self, path="/", tenant=None, remove_path=False):
+		"""
+		It takes a path, and returns a file-like object containing a gzipped tar archive of the library contents of
+		that path
+
+		:param path: The path to export, defaults to / (optional)
+		:param tenant: The tenant to use for the operation
+		:param remove_path: If True, the path will be removed from the tar file, defaults to False
+		(optional)
+		:return: A file object.
+		"""
 
 		fileobj = tempfile.TemporaryFile()
 		tarobj = tarfile.open(name=None, mode='w:gz', fileobj=fileobj)
@@ -352,7 +362,12 @@ class LibraryService(Service):
 			if item.type != 'item':
 				continue
 			my_data = await self.Libraries[0].read(item.name)
-			info = tarfile.TarInfo(item.name)
+			if remove_path:
+				assert item.name.startswith(path)
+				tar_name = item.name[len(path):]
+			else:
+				tar_name = item.name
+			info = tarfile.TarInfo(tar_name)
 			my_data.seek(0, SEEK_END)
 			info.size = my_data.tell()
 			my_data.seek(0, SEEK_SET)
@@ -362,6 +377,7 @@ class LibraryService(Service):
 		tarobj.close()
 		fileobj.seek(0)
 		return fileobj
+
 
 	def subscribe(self, paths):
 		"""

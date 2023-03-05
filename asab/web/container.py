@@ -19,10 +19,17 @@ class WebContainer(ConfigObject):
 	'''
 # Configuration examples
 
-## Simple HTTP on 8080
+## HTTP on TCP port 8080, IPv4 and IPv6 if applicable
+
+[web]
+listen=8080
+
+
+## Interface specified
 
 [web]
 listen=0.0.0.0 8080
+
 
 ## Multiple interfaces
 
@@ -62,9 +69,11 @@ key=...
 
 ...
 
+
 # Preflight paths
 Preflight requests are sent by the browser, for some cross domain request (custom header etc.).
-Browser sends preflight request first. It is request on same endpoint as app demanded request, but of OPTIONS method.
+Browser sends preflight request first.
+It is request on same endpoint as app demanded request, but of OPTIONS method.
 Only when satisfactory response is returned, browser proceeds with sending original request.
 Use `cors_preflight_paths` to specify all paths and path prefixes (separated by comma) for which you
 want to allow OPTIONS method for preflight requests.
@@ -112,9 +121,16 @@ want to allow OPTIONS method for preflight requests.
 				# such as "0.0.0.0:8001"
 				line = re.split(r"[:\s]", line, 1)
 
-			addr = line.pop(0).strip()
-			port = line.pop(0).strip()
-			port = int(port)
+			if all([c in '0123456789' for c in line[0]]):
+				# If the first item is a number, consider that a port number
+				addr = ["0.0.0.0", "::"]  # We want to listen on IPv4 and IPv6
+				port = line.pop(0).strip()
+				port = int(port)
+			else:
+				# First item is a port, a second is an IP address of the network interface to listen to
+				addr = line.pop(0).strip()
+				port = line.pop(0).strip()
+				port = int(port)
 			ssl_context = None
 
 			for param in line:
@@ -128,7 +144,12 @@ want to allow OPTIONS method for preflight requests.
 					raise RuntimeError(
 						"Unknown listen parameter in section [{}]: {}".format(config_section_name, param)
 					)
-			self._listen.append((addr, port, ssl_context))
+
+			if isinstance(addr, list):
+				for a in addr:
+					self._listen.append((a, port, ssl_context))
+			else:
+				self._listen.append((addr, port, ssl_context))
 
 		if len(self._listen) == 0:
 			L.warning("Missing configuration.")

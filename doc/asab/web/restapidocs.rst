@@ -7,7 +7,7 @@ of your endpoints and you can add summaries, descriptions, tags and more.
 If you want Authorization in Swagger docs, you will need an OpenIDConnect endpoint.
 
 In your microservice
------------
+--------------------
 
 First you need to initialize the API Service:
 
@@ -48,7 +48,8 @@ Also by adding a docstring to your ASAB Application, a description will be autom
         """
 
 Authorization in Swagger
------------
+------------------------
+
 Authorization requires making an OpenIDConnect endpoint with an Authorization and Token endpoint (like with using `SeaCat Auth <https://github.com/TeskaLabs/seacat-auth>`_).
 
 After your endpoint has authorization, `here's an example <https://github.com/TeskaLabs/asab/blob/master/examples/web-authz-userinfo.py>`_,
@@ -74,7 +75,7 @@ It does not matter what it is called or if it exists, but it's needed to be ther
 After setting up Authorization, a green `Authorize` button should appear in the Swagger docs.
 
 Configuration
------------
+-------------
 
 For authorization you will need to add a `authorizationUrl` and `tokenUrl`:
 
