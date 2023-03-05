@@ -67,6 +67,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		super().__init__(library, self.RepoPath, set_ready=False)
 
+		self.GitRepository = None
+
 		from ...proactor import Module
 		self.App.add_module(Module)
 		self.ProactorService = self.App.get_service("asab.ProactorService")
@@ -82,6 +84,9 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 		Changes in remote repository are being pulled every minute. `PullLock` flag ensures that only if previous "pull" has finished, new one can start.
 		"""
+		if self.GitRepository is None:
+			return
+
 		if self.PullLock:
 			return
 
@@ -108,7 +113,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				self.GitRepository = pygit2.Repository(self.RepoPath)
 				self.pull()
 
-		await self.ProactorService.execute(init_task)
+		try:
+			await self.ProactorService.execute(init_task)
+		except:
+			L.exception("Initialize git repo failed.")
 
 		try:
 			assert self.GitRepository.remotes["origin"] is not None
@@ -126,6 +134,9 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		:return: The commit id of the latest commit on the remote repository.
 		"""
+		if self.GitRepository is None:
+			return None
+
 		self.GitRepository.remotes["origin"].fetch(callbacks=self.Callbacks)
 		if self.Branch is None:
 			reference = self.GitRepository.lookup_reference("refs/remotes/origin/HEAD")
