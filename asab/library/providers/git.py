@@ -115,7 +115,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		try:
 			await self.ProactorService.execute(init_task)
-		except:
+		except Exception:
 			L.exception("Initialize git repo failed.")
 
 		try:
