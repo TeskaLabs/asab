@@ -147,7 +147,7 @@ class TestDutyCycle(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testdc,host=mockedhost.com v1=1.0 123450000000\n',
+				'testdc,host=mockedhost.com v1=1.0 124450000000\n',
 			])
 		)
 

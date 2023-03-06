@@ -384,6 +384,7 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 			"values": self.Init.copy() if self.Init is not None else dict(),
 			"actuals": self.Init.copy() if self.Init is not None else dict(),
 			"expires_at": self.App.time() + self.Expiration,
+			"measured@": self.App.time()
 		}
 		self.Storage['fieldset'].append(field)
 		return field
@@ -404,6 +405,9 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 		except KeyError:
 			actuals[name] = value
 
+		if self.Storage.get("reset") is False:
+			field['measured@'] = self.App.time()
+
 		field["expires_at"] = self.App.time() + self.Expiration
 
 	def sub(self, name, value, tags):
@@ -422,6 +426,9 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 		except KeyError:
 			actuals[name] = -value
 
+		if self.Storage.get("reset") is False:
+			field['measured@'] = self.App.time()
+
 		field["expires_at"] = self.App.time() + self.Expiration
 
 	def flush(self, now):
@@ -437,6 +444,7 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 					field['actuals'] = self.Init.copy()
 				else:
 					field['actuals'] = dict()
+				field['measured@'] = self.App.time()
 		else:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals'].copy()
