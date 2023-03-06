@@ -3,6 +3,7 @@ import unittest
 import asab
 import asab.metrics
 import asab.metrics.influxdb
+from . import Module
 
 
 class MetricsTestCase(unittest.TestCase):
@@ -16,19 +17,13 @@ class MetricsTestCase(unittest.TestCase):
 				"native_metrics": "false",
 			}
 		})
-		self.App = asab.Application(args=[], modules=[asab.metrics.Module])
-		self.MetricsService = self.App.get_service('asab.MetricsService')
+		self.App = asab.Application(args=[], modules=[Module])
+		self.MetricsService = self.App.get_service('asab.MockMetricsService')
 		self.MetricsService.clear()
 		self.MetricsService.Tags['host'] = "mockedhost.com"
 		self.MockedLoop = MockedLoop()
-		self.MockApplication = MockApplication()
 
 
 class MockedLoop(object):
 	def time(self):
 		return 123.45
-
-
-class MockApplication(object):
-	def time(self):
-		return 777.7
