@@ -59,7 +59,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		# File path must start with '/'
 		assert node_path[:1] == '/', "File path must start with a forward slash (/). For example: /library/Templates/file.json"
-		# File path must end with '/'
+		# File path must end with the extension
 		assert len(os.path.splitext(node_path)[1]) > 0, "File path must end with an extension. For example: /library/Templates/item.json"
 		# File cannot contain '//'
 		assert '//' not in node_path
