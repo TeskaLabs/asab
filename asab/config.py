@@ -99,6 +99,10 @@ class ConfigParser(configparser.ConfigParser):
 		# [passwords]
 		# kafka_password=<MY_SECRET_PASSWORD>
 		"passwords": {
+		},
+
+		"swagger": {
+			"default_tag": "module_name"  # module_name, general, ...?
 		}
 	}
 

@@ -140,10 +140,11 @@ class DocWebHandler(object):
 		handler_name: str = extract_handler_name(route)
 		doc_string: str = extract_docstring(route)
 		add_dict: dict = self.get_additional_info(doc_string)
+		module_name: str = extract_module_name(route)
 
 		method_dict: dict = extract_method_dict(route)
 		method_dict.update(
-			self.add_methods(doc_string, add_dict, handler_name, parameters)
+			self.add_methods(doc_string, add_dict, handler_name, parameters, module_name)
 		)
 
 		path_object = route_dict.get(route_path)
@@ -233,6 +234,7 @@ class DocWebHandler(object):
 		add_dict: typing.Optional[dict],
 		handler_name: str,
 		parameters: list,
+		module_name: str
 	):
 
 		description: str = get_description(docstring)
@@ -241,9 +243,14 @@ class DocWebHandler(object):
 		new_methods: dict = {
 			"summary": description.split("\n")[0],
 			"description": description,
-			"tags": ["general"],
 			"responses": {"200": {"description": "Success"}},
 		}
+
+		default_tag: str = asab.Config["swagger"].get("default_tag")
+		if default_tag == "general":
+			new_methods["tags"] = ["general"]
+		elif default_tag == "module_name":
+			new_methods["tags"] = module_name  # TODO: needs something like myApp.path.to.module 
 
 		if len(parameters) > 0:
 			new_methods["parameters"] = parameters
@@ -317,37 +324,45 @@ def get_description(docstring: typing.Optional[str]) -> str:
 
 
 def extract_parameters(route) -> list:
-		"""Take a single route and return its parameters.
+	"""Take a single route and return its parameters.
 
-		---
-		Example:
+	---
+	Example:
 
-		>>> extract_parameters(myTestRoute)
-		[
-				{'in': 'path', 'name': 'parameter1', 'required': True},
-				{'in': 'path', 'name': 'parameter2', 'required': True}
-		]
-		"""
-		parameters: list = []
-		route_info = route.get_info()
-		if "formatter" in route_info:
-			path = route_info["formatter"]
-			for params in re.findall(r'\{[^\}]+\}', path):
-					parameters.append({
-						'in': 'path',
-						'name': params[1:-1],
-						'required': True,
-					})
-		return parameters
+	>>> extract_parameters(myTestRoute)
+	[
+			{'in': 'path', 'name': 'parameter1', 'required': True},
+			{'in': 'path', 'name': 'parameter2', 'required': True}
+	]
+	"""
+	parameters: list = []
+	route_info = route.get_info()
+	if "formatter" in route_info:
+		path = route_info["formatter"]
+		for params in re.findall(r'\{[^\}]+\}', path):
+				parameters.append({
+					'in': 'path',
+					'name': params[1:-1],
+					'required': True,
+				})
+	return parameters
 
 
 def extract_handler_name(route) -> str:
-		if inspect.ismethod(route.handler):
-			handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
-		else:
-			handler_name = str(route.handler)
+	if inspect.ismethod(route.handler):
+		handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
+	else:
+		handler_name = str(route.handler)
+	L.warning("handler name: {}".format(handler_name))
+	return handler_name
 
-		return handler_name
+
+def extract_module_name(route) -> str:
+	if inspect.ismethod(route.handler):
+		handler_name = route.handler.__self__.__class__.__name__
+	else:
+		handler_name = str(route.handler)
+	return handler_name
 
 
 def extract_docstring(route) -> str:
