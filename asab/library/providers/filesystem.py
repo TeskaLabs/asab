@@ -3,10 +3,9 @@ import os
 import os.path
 import stat
 import glob
-import typing
-import functools
-import logging
 import struct
+import typing
+import logging
 
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
