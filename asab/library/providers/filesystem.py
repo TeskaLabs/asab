@@ -56,15 +56,14 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 	async def read(self, path: str) -> typing.IO:
 
-		assert path[:1] == '/'
-		if path != '/':
-			node_path = self.BasePath + path
-		else:
-			node_path = self.BasePath
+		node_path = self.BasePath + path
 
+		# File path must start with '/'
+		assert node_path[:1] == '/', "File path must start with a forward slash (/). For example: /library/Templates/file.json"
+		# File path must end with '/'
+		assert len(os.path.splitext(node_path)[1]) > 0, "File path must end with an extension. For example: /library/Templates/item.json"
+		# File cannot contain '//'
 		assert '//' not in node_path
-		assert node_path[0] == '/'
-		assert len(node_path) == 1 or node_path[-1:] != '/'
 
 		try:
 			return io.FileIO(node_path, 'rb')
@@ -80,46 +79,44 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		# This list method is completely synchronous, but it should look like asynchronous to make all list methods unified among providers.
 		return self._list(path)
 
+
 	def _list(self, path: str):
 
-		assert path[:1] == '/'
-		if path != '/':
-			node_path = self.BasePath + path
-		else:
-			node_path = self.BasePath
+		node_path = self.BasePath + path
 
+		# Directory path must start with '/'
+		assert node_path[:1] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
+		# Directory path must end with '/'
+		assert node_path[-1:] == '/', "Directory path must end with a forward slash (/). For example: /library/Templates/"
+		# Directory cannot contain '//'
 		assert '//' not in node_path
-		assert node_path[0] == '/'
-		assert len(node_path) == 1 or node_path[-1:] != '/'
-
-		iglobpath = os.path.join(node_path, "*")
 
 		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
 		if not exists:
 			raise KeyError(" '{}' not found".format(path))
 
 		items = []
-		for fname in glob.iglob(iglobpath):
+		for fname in glob.iglob(os.path.join(node_path, "*")):
 
 			fstat = os.stat(fname)
 
-			assert fname.startswith(node_path)
-			fname = fname[len(node_path) + 1:]
+			assert fname.startswith(self.BasePath)
+			fname = fname[len(self.BasePath):]
 
 			if stat.S_ISREG(fstat.st_mode):
 				ftype = "item"
 			elif stat.S_ISDIR(fstat.st_mode):
 				ftype = "dir"
+				fname += '/'
 			else:
 				ftype = "?"
 
 			# Remove any component that starts with '.'
-			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), fname.split(os.path.sep), False)
-			if startswithdot:
+			if any(x.startswith('.') for x in fname.split('/')):
 				continue
 
 			items.append(LibraryItem(
-				name=(path + fname) if path == '/' else (path + '/' + fname),
+				name=fname,
 				type=ftype,
 				providers=[self],
 			))
@@ -166,18 +163,19 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			self.App.PubSub.publish("ASABLibrary.change!", self, path)
 
 
-	def subscribe(self, path):
+	async def subscribe(self, path):
 		if not os.path.isdir(self.BasePath + path):
 			return
 		if self.FD is None:
 			return
 		self._subscribe_recursive(path, path)
 
+
 	def _subscribe_recursive(self, subscribed_path, path_to_be_listed):
 		binary = (self.BasePath + path_to_be_listed).encode()
 		wd = inotify_add_watch(self.FD, binary, IN_ALL_EVENTS)
 		if wd == -1:
-			L.error("Error in inotify_add_watch.")
+			L.error("Error in inotify_add_watch")
 			return
 		self.WDs[wd] = (subscribed_path, path_to_be_listed)
 
