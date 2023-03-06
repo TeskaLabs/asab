@@ -64,7 +64,6 @@ class ApiService(Service):
 		else:
 			self.ChangeLog = None
 
-		self.App.PubSub.subscribe("WebContainer.started!", self._on_webcontainer_start)
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zkcontainer_start)
 
 		self._do_zookeeper_adv_data()
@@ -141,19 +140,28 @@ class ApiService(Service):
 		'''
 		Example:
 
-		zksvc = self.App.get_service("asab.ZooKeeperService")
-		zoocontainer = zksvc.DefaultContainer
-		ApiService.initialize_zookeeper(zksvc)
-
-
 		Initialize into a default zookeeper container:
+
+		```
 		ApiService.initialize_zookeeper()
+		```
+
+
+		Intialize with a custom Zookeeper container:
+
+		```
+		zksvc = self.App.get_service("asab.ZooKeeperService")
+		zoocontainer = ZooKeeperContainer(zksvc, "mycontainer")
+		ApiService.initialize_zookeeper(zoocontainer)
+		```
+
 		'''
 		assert self.ZkContainer is None
 
 		if zoocontainer is None:
 			zksvc = self.App.get_service("asab.ZooKeeperService")
-			zoocontainer = zksvc.DefaultContainer
+			from ..zookeeper import ZooKeeperContainer
+			zoocontainer = ZooKeeperContainer(zksvc)
 
 		# get zookeeper-service
 		self.ZkContainer = zoocontainer
@@ -197,10 +205,6 @@ class ApiService(Service):
 			path="/run/{}.".format(self.App.__class__.__name__),
 		)
 
-
-	def _on_webcontainer_start(self, message_type, container):
-		if container == self.WebContainer:
-			self._do_zookeeper_adv_data()
 
 
 	def _on_zkcontainer_start(self, message_type, container):
