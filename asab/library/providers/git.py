@@ -170,7 +170,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		for path in to_publish:
 			self.App.PubSub.publish("ASABLibrary.change!", self, path)
 
-	def subscribe(self, path):
+	async def subscribe(self, path):
 		if not os.path.isdir(self.BasePath + path):
 			return
 		self.SubscribedPaths.add(path)

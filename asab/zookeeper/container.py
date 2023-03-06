@@ -42,6 +42,7 @@ class ZooKeeperContainer(ConfigObject):
 		super().__init__(config_section_name=config_section_name, config=config)
 
 		self.App = zookeeper_service.App
+		self.ConfigSectionName = config_section_name
 
 		# Parse URL from z_path
 		if z_path is not None:
