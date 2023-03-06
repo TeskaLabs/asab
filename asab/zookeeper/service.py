@@ -33,31 +33,6 @@ class ZooKeeperService(Service):
 			await container._stop(app)
 
 
-	@property
-	def DefaultContainer(self):
-		'''
-		This is here to maintain backward compatibility.
-		'''
-		config_section = 'zookeeper'
-
-		# The WebContainer should be configured in the config section [web]
-		if config_section not in Config.sections():
-			# If there is no [web] section, try other aliases for backwards compatibility
-			for alias in self.ConfigSectionAliases:
-				if alias in Config.sections():
-					config_section = alias
-					L.warning("Using obsolete config section [{}]. Preferred section name is [zookeeper]. ".format(alias))
-					break
-			else:
-				raise RuntimeError("No [zookeeper] section configured.")
-
-		for container in self.Containers:
-			if container.ConfigSectionName == config_section:
-				return container
-
-		container = ZooKeeperContainer(self, config_section_name=config_section)
-		return container
-
 
 	async def advertise(self, data, path, encoding="utf-8", container=None):
 		if container is None:
