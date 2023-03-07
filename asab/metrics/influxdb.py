@@ -169,15 +169,11 @@ def build_metric_line(tags, values, timestamp, upperbound=None):
 	return combine_tags_and_field(tags, values, timestamp)
 
 
-def get_timestamp(metric_record, field, now):
-	fieldset = metric_record.get("fieldset")
-	if fieldset is None or len(fieldset) == 0:
-		timestamp = now
+def get_timestamp(field, now):
+	if "measured@" in field:
+		timestamp = field["measured@"]
 	else:
-		if "measured@" in field:
-			timestamp = field["measured@"]
-		else:
-			timestamp = now
+		timestamp = now
 	return timestamp
 
 
@@ -192,7 +188,7 @@ def metric_to_influxdb(metric_record, now):
 			# SKIP empty fields
 			if all([bucket == {} for bucket in field.get("values").get("buckets").values()]):
 				continue
-			timestamp = get_timestamp(metric_record, field, now)
+			timestamp = get_timestamp(field, now)
 			for upperbound, bucket in field.get("values").get("buckets").items():
 				upperbound = str(upperbound)
 				if bucket == {}:
@@ -206,7 +202,7 @@ def metric_to_influxdb(metric_record, now):
 			# SKIP empty fields
 			if not field.get("values") or field.get("values") == {}:
 				continue
-			timestamp = get_timestamp(metric_record, field, now)
+			timestamp = get_timestamp(field, now)
 			values_lines.append(build_metric_line(field.get("tags"), (field.get("values")), timestamp))
 
 	return ["{},{}\n".format(name, line) for line in values_lines]
