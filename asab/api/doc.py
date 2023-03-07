@@ -91,8 +91,9 @@ class DocWebHandler(object):
 			else:
 				microservice_routes.append(self.parse_route_data(route))
 
-		# add routers to 'paths' in order
-		# TODO: sorting by tags alphabetically?
+		microservice_routes.sort(key=get_tag)
+		for i in microservice_routes:
+			L.warning(get_tag(i))
 
 		for endpoint in microservice_routes:
 			endpoint_name = list(endpoint.keys())[0]
@@ -388,3 +389,11 @@ def extract_method_dict(route) -> dict:
 		except AttributeError:
 			pass
 		return method_dict
+
+
+def get_tag(route_data: dict) -> str:
+	"""Sort alphabetically by tags."""
+	for endpoint in route_data.values():
+		for method in endpoint.values():
+			if method.get("tags"):
+				return method.get("tags")[0].lower()
