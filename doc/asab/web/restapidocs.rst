@@ -97,7 +97,7 @@ Tags
 ---
 
 The routes in the documentation can be sorted by tags. 
-You can give every method you have a tag in it's docstring.
+You can give every method you have a special tag in it's docstring.
 
 .. code:: python
 
@@ -108,3 +108,16 @@ You can give every method you have a tag in it's docstring.
     """
 
 (Remember to use exactly three dashes on the separate line and put tags in array with `[]` even if you want to have a single tag).
+
+If there is no custom tag defined, the tag name is automatically set to be `general`. If you do not want to use custom tags but still would like to sort the routes, you can configure the options in the config file:
+
+.. code-block:: ini
+
+    [asab:doc]
+    default_route_tag=module_name
+
+There are three options for `default_route_tag`:
+
+- `general`: All tags without custom name are set to `general`.
+- `module_name`: All tags without custom name are displayed with the name of the **module** where the handler is defined.
+- `class_name`: All tags without custom name are displayed with the name of the **class** where the handler is defined.
