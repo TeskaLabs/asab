@@ -355,14 +355,14 @@ def extract_handler_name(route) -> str:
 	if inspect.ismethod(route.handler):
 		handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
 	else:
-		handler_name = str(route.handler)
+		handler_name = "{}()".format(route.handler.__qualname__)
 	return handler_name
 
 
 def extract_class_name(route) -> str:
 	L.warning("{:<20}".format("xxx"))
 	if inspect.ismethod(route.handler):
-		class_name = route.handler.__self__.__class__.__name__
+		class_name = str(route.handler.__self__.__class__.__name__)
 	else:
 		class_name = str(route.handler.__qualname__.split(".")[0])
 	L.warning("class name: {}".format(class_name))
@@ -371,7 +371,7 @@ def extract_class_name(route) -> str:
 
 
 def extract_module_name(route) -> str:
-	return route.handler.__module__
+	return str(route.handler.__module__)
 
 
 def extract_docstring(route) -> str:
