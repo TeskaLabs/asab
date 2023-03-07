@@ -94,7 +94,7 @@ If you have an endpoint that requires a scope, you can add it with the configura
 
 
 Tags
----
+----
 
 The routes in the documentation can be sorted by tags. 
 You can give every method you have a special tag in it's docstring.
