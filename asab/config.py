@@ -48,6 +48,10 @@ class ConfigParser(configparser.ConfigParser):
 			"expiration": 60,
 		},
 
+		"asab:doc": {
+			"default_route_tag": "general"
+		},
+
 		"logging": {
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			"app_name": os.path.basename(sys.argv[0]),
@@ -100,10 +104,6 @@ class ConfigParser(configparser.ConfigParser):
 		# kafka_password=<MY_SECRET_PASSWORD>
 		"passwords": {
 		},
-
-		"swagger": {
-			"default_tag": "general"
-		}
 	}
 
 

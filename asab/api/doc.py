@@ -245,7 +245,7 @@ class DocWebHandler(object):
 			"responses": {"200": {"description": "Success"}},
 		}
 
-		default_tag: str = asab.Config["swagger"].get("default_tag")
+		default_tag: str = asab.Config["asab:doc"].get("default_route_tag")
 		if default_tag == "general":
 			new_methods["tags"] = ["general"]
 		elif default_tag == "class_name":
