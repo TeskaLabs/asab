@@ -91,3 +91,20 @@ If you have an endpoint that requires a scope, you can add it with the configura
 
     [asab:doc]
     scopes=read,write
+
+
+Tags
+---
+
+The routes in the documentation can be sorted by tags. 
+You can give every method you have a tag in it's docstring.
+
+.. code:: python
+
+    async def my_function(self, request):
+    """<function description>
+    ---
+    tags: ['custom tag 1', 'custom tag 2', 'custom tag 3']
+    """
+
+(Remember to use exactly three dashes on the separate line and put tags in array with `[]` even if you want to have a single tag).
