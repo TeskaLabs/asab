@@ -92,8 +92,6 @@ class DocWebHandler(object):
 				microservice_routes.append(self.parse_route_data(route))
 
 		microservice_routes.sort(key=get_tag)
-		for i in microservice_routes:
-			L.warning(get_tag(i))
 
 		for endpoint in microservice_routes:
 			endpoint_name = list(endpoint.keys())[0]
@@ -174,7 +172,6 @@ class DocWebHandler(object):
 						"Failed to parse '{}' doc string {}".format(
 							self.App.__class__.__name__, e
 						))
-		L.warning("additional info dict: {}".format(additional_info_dict))
 		return additional_info_dict
 
 	def create_security_schemes(self) -> dict:
@@ -361,13 +358,10 @@ def extract_handler_name(route) -> str:
 
 
 def extract_class_name(route) -> str:
-	L.warning("{:<20}".format("xxx"))
 	if inspect.ismethod(route.handler):
 		class_name = str(route.handler.__self__.__class__.__name__)
 	else:
 		class_name = str(route.handler.__qualname__.split(".")[0])
-	L.warning("class name: {}".format(class_name))
-	L.warning("module name: {}".format(route.handler.__module__))
 	return class_name
 
 
