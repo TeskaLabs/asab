@@ -362,11 +362,9 @@ def extract_handler_name(route) -> str:
 def extract_class_name(route) -> str:
 	L.warning("{:<20}".format("xxx"))
 	if inspect.ismethod(route.handler):
-		L.warning("is method used")
 		class_name = route.handler.__self__.__class__.__name__
 	else:
-		class_name = str(route.handler.__class__.__name__)  # TODO: fix this
-		L.warning("is not method used")
+		class_name = str(route.handler.__qualname__.split(".")[0])
 	L.warning("class name: {}".format(class_name))
 	L.warning("module name: {}".format(route.handler.__module__))
 	return class_name
