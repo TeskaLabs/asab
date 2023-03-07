@@ -49,7 +49,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1=1i,value2=0i 123450000000\n",
+				"mycounter,host=mockedhost.com,foo=bar value1=1i,value2=0i 153450000000\n",
 			])
 		)
 
@@ -219,7 +219,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com value1=1i 123450000000\n",
+				"mycounter,host=mockedhost.com value1=1i 153450000000\n",
 			])
 		)
 
@@ -363,7 +363,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com value1=2.2 123450000000\n",
+				"mycounter,host=mockedhost.com value1=2.2 153450000000\n",
 			])
 		)
 
@@ -387,7 +387,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com value2=t 123450000000\n",
+				"mycounter,host=mockedhost.com value2=t 153450000000\n",
 			])
 		)
 
@@ -410,6 +410,6 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				'mycounter,host=mockedhost.com value3="nice_weather" 123450000000\n',
+				'mycounter,host=mockedhost.com value3="nice_weather" 153450000000\n',
 			])
 		)

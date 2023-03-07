@@ -33,7 +33,7 @@ class TestEPSCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1={}i,value2=0i 123450000000\n".format(value),
+				"mycounter,host=mockedhost.com,foo=bar value1={}i,value2=0i 153450000000\n".format(value),
 			])
 		)
 
@@ -72,7 +72,7 @@ class TestEPSCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,foo=bar value1={}i,value2=0i 123450000000\n".format(value),
+				"mycounter,host=mockedhost.com,foo=bar value1={}i,value2=0i 153450000000\n".format(value),
 			])
 		)
 
