@@ -465,6 +465,9 @@ class AggregationCounterWithDynamicTags(CounterWithDynamicTags):
 		except KeyError:
 			actuals[name] = value
 
+		if self.Storage.get("reset") is False:
+			field['measured@'] = self.App.time()
+
 		field["expires_at"] = self.App.time() + self.Expiration
 
 	def add(self, name, value, tags):
@@ -515,6 +518,7 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 			"values": copy.deepcopy(self.InitHistogram),
 			"actuals": copy.deepcopy(self.InitHistogram),
 			"expires_at": self.App.time() + self.Expiration,
+			"measured@": self.App.time()
 		}
 		self.Storage['fieldset'].append(field)
 		return field
@@ -529,6 +533,7 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
 				field['actuals'] = copy.deepcopy(self.InitHistogram)
+				field['measured@'] = self.App.time()
 		else:
 			for field in self.Storage['fieldset']:
 				field['values'] = copy.deepcopy(field['actuals'])
@@ -546,5 +551,8 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 					buckets[upper_bound][value_name] += 1
 		field.get("actuals")["sum"] = summary + value
 		field.get("actuals")["count"] = count + 1
+
+		if self.Storage.get("reset") is False:
+			field['measured@'] = self.App.time()
 
 		field["expires_at"] = self.App.time() + self.Expiration
