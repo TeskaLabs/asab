@@ -137,14 +137,14 @@ class DocWebHandler(object):
 		route_path: str = self.get_path_from_route_info(route)
 
 		parameters: list = extract_parameters(route)
-		handler_name: str = extract_handler_name(route)
 		doc_string: str = extract_docstring(route)
 		add_dict: dict = self.get_additional_info(doc_string)
+		handler_name: str = extract_handler_name(route)
+		class_name: str = extract_class_name(route)
 		module_name: str = extract_module_name(route)
-
 		method_dict: dict = extract_method_dict(route)
 		method_dict.update(
-			self.add_methods(doc_string, add_dict, handler_name, parameters, module_name)
+			self.add_methods(doc_string, add_dict, handler_name, class_name, module_name, parameters)
 		)
 
 		path_object = route_dict.get(route_path)
@@ -172,8 +172,8 @@ class DocWebHandler(object):
 					L.error(
 						"Failed to parse '{}' doc string {}".format(
 							self.App.__class__.__name__, e
-						)
-					)
+						))
+		L.warning("additional info dict: {}".format(additional_info_dict))
 		return additional_info_dict
 
 	def create_security_schemes(self) -> dict:
@@ -233,8 +233,9 @@ class DocWebHandler(object):
 		docstring: typing.Optional[str],
 		add_dict: typing.Optional[dict],
 		handler_name: str,
+		class_name: str,
+		module_name: str,
 		parameters: list,
-		module_name: str
 	):
 
 		description: str = get_description(docstring)
@@ -249,8 +250,10 @@ class DocWebHandler(object):
 		default_tag: str = asab.Config["swagger"].get("default_tag")
 		if default_tag == "general":
 			new_methods["tags"] = ["general"]
+		elif default_tag == "class_name":
+			new_methods["tags"] = [class_name]
 		elif default_tag == "module_name":
-			new_methods["tags"] = module_name  # TODO: needs something like myApp.path.to.module 
+			new_methods["tags"] = [module_name]
 
 		if len(parameters) > 0:
 			new_methods["parameters"] = parameters
@@ -353,16 +356,24 @@ def extract_handler_name(route) -> str:
 		handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
 	else:
 		handler_name = str(route.handler)
-	L.warning("handler name: {}".format(handler_name))
 	return handler_name
+
+
+def extract_class_name(route) -> str:
+	L.warning("{:<20}".format("xxx"))
+	if inspect.ismethod(route.handler):
+		L.warning("is method used")
+		class_name = route.handler.__self__.__class__.__name__
+	else:
+		class_name = str(route.handler.__class__.__name__)  # TODO: fix this
+		L.warning("is not method used")
+	L.warning("class name: {}".format(class_name))
+	L.warning("module name: {}".format(route.handler.__module__))
+	return class_name
 
 
 def extract_module_name(route) -> str:
-	if inspect.ismethod(route.handler):
-		handler_name = route.handler.__self__.__class__.__name__
-	else:
-		handler_name = str(route.handler)
-	return handler_name
+	return route.handler.__module__
 
 
 def extract_docstring(route) -> str:

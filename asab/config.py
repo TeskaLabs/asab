@@ -102,7 +102,7 @@ class ConfigParser(configparser.ConfigParser):
 		},
 
 		"swagger": {
-			"default_tag": "module_name"  # module_name, general, ...?
+			"default_tag": "general"  # module_name, class_name, general
 		}
 	}
 
