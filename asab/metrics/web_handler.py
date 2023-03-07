@@ -1,6 +1,7 @@
 import aiohttp.web
 import copy
 import fnmatch
+import time
 
 from .openmetric import metric_to_openmetric
 from ..web.rest import json_response
@@ -107,15 +108,16 @@ def watch_table(metric_records: list, filter, tags):
 		if metric_name_len > v_name_len:
 			v_name_len = metric_name_len
 
+	timestamp_len = 25
 	t_name_len = max([len(str(field["tags"])) for i in metric_records for field in i["fieldset"]])
 
 	if tags:
-		separator = "-" * (m_name_len + v_name_len + t_name_len + 30 + 2)
+		separator = "-" * (m_name_len + v_name_len + t_name_len + timestamp_len + 30 + 2)
 	else:
-		separator = "-" * (m_name_len + v_name_len + 30 + 2)
+		separator = "-" * (m_name_len + v_name_len + timestamp_len + 30 + 2)
 
 	lines.append(separator)
-	lines.append(build_line("Metric name", "Value name", "Value", m_name_len, v_name_len, tags, t_string="Tags", t_name_len=t_name_len))
+	lines.append(build_line("Metric name", "Value name", "Value", "Timestamp", m_name_len, v_name_len, tags, timestamp_len, t_string="Tags", t_name_len=t_name_len))
 	lines.append(separator)
 
 	for metric_record in metric_records:
@@ -123,6 +125,8 @@ def watch_table(metric_records: list, filter, tags):
 			if field.get("values") is None:
 				continue
 			name = metric_record.get("name")
+			timestamp = time.gmtime(field.get("measured@"))
+			timestamp = time.strftime("%Y-%m-%d %H:%M:%S", timestamp)
 
 			if filter is not None:
 				if filter.startswith("-"):
@@ -135,66 +139,74 @@ def watch_table(metric_records: list, filter, tags):
 			if metric_record.get("type") in ["Histogram", "HistogramWithDynamicTags"]:
 				for upperboud, values in field.get("values").get("buckets").items():
 					for v_name, value in values.items():
-						lines.append(build_line(str(name), str(v_name), str(value), m_name_len, v_name_len, tags, str(upperboud), t_string=str(field["tags"]), t_name_len=t_name_len))
+						lines.append(build_line(str(name), str(v_name), str(value), str(timestamp), m_name_len, v_name_len, tags, timestamp_len, str(upperboud), t_string=str(field["tags"]), t_name_len=t_name_len))
 
-				lines.append(build_line(str(name), "Sum", field.get("values").get("sum"), m_name_len, v_name_len, tags, t_string=str(field["tags"]), t_name_len=t_name_len))
-				lines.append(build_line(str(name), "Count", field.get("values").get("count"), m_name_len, v_name_len, tags, t_string=str(field["tags"]), t_name_len=t_name_len))
+				lines.append(build_line(str(name), "Sum", field.get("values").get("sum"), str(timestamp), m_name_len, v_name_len, tags, timestamp_len, t_string=str(field["tags"]), t_name_len=t_name_len))
+				lines.append(build_line(str(name), "Count", field.get("values").get("count"), str(timestamp), m_name_len, v_name_len, tags, timestamp_len, t_string=str(field["tags"]), t_name_len=t_name_len))
 
 			else:
 				for key, value in field.get("values").items():
-					lines.append(build_line(str(name), str(key), str(value), m_name_len, v_name_len, tags, t_string=str(field["tags"]), t_name_len=t_name_len))
+					lines.append(build_line(str(name), str(key), str(value), str(timestamp), m_name_len, v_name_len, tags, timestamp_len, t_string=str(field["tags"]), t_name_len=t_name_len))
 
 	text = "\n".join(lines)
 	return text
 
 
-def build_line(name, value_name, value, m_name_len, v_name_len, tags, upperbound=None, t_string=None, t_name_len=None):
+def build_line(name, value_name, value, timestamp, m_name_len, v_name_len, tags, timestamp_len, upperbound=None, t_string=None, t_name_len=None):
 	if upperbound is not None:
 		if tags:
 			line = (
-				"{:<{m_name_len}} | {:<{t_name_len}} | {:<{v_name_len}} | {:<7} | {:<30}".format(
+				"{:<{m_name_len}} | {:<{t_name_len}} | {:<{v_name_len}} | {:<7} | {:<25} | {:<{timestamp_len}}".format(
 					name,
 					t_string,
 					value_name,
 					upperbound,
 					value,
+					timestamp,
 					v_name_len=v_name_len - 10,
 					m_name_len=m_name_len,
 					t_name_len=t_name_len,
+					timestamp_len=timestamp_len
 				)
 			)
 		else:
 			line = (
-				"{:<{m_name_len}} | {:<{v_name_len}} | {:<7} | {:<30}".format(
+				"{:<{m_name_len}} | {:<{v_name_len}} | {:<7} | {:<25} | {:<{timestamp_len}}".format(
 					name,
 					value_name,
 					upperbound,
 					value,
+					timestamp,
 					v_name_len=v_name_len - 10,
 					m_name_len=m_name_len,
+					timestamp_len=timestamp_len
 				)
 			)
 	else:
 		if tags:
 			line = (
-				"{:<{m_name_len}} | {:<{t_name_len}} | {:<{v_name_len}} | {:<30}".format(
+				"{:<{m_name_len}} | {:<{t_name_len}} | {:<{v_name_len}} | {:<25} | {:<{timestamp_len}}".format(
 					name,
 					t_string,
 					value_name,
 					value,
+					timestamp,
 					v_name_len=v_name_len,
 					m_name_len=m_name_len,
 					t_name_len=t_name_len,
+					timestamp_len=timestamp_len
 				)
 			)
 		else:
 			line = (
-				"{:<{m_name_len}} | {:<{v_name_len}} | {:<30}".format(
+				"{:<{m_name_len}} | {:<{v_name_len}} | {:<25} | {:<{timestamp_len}}".format(
 					name,
 					value_name,
 					value,
+					timestamp,
 					v_name_len=v_name_len,
 					m_name_len=m_name_len,
+					timestamp_len=timestamp_len
 				)
 			)
 
