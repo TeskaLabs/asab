@@ -357,7 +357,12 @@ def extract_class_name(route) -> str:
 
 
 def extract_module_name(route) -> str:
-	return str(route.handler.__module__)
+	if inspect.ismethod(route.handler):
+		module_name = str(route.handler.__self__.__module__)
+	else:
+		# TODO: Inspect the cases when this is needed
+		module_name = str(route.handler.__qualname__.split(".")[0])
+	return module_name
 
 
 def extract_docstring(route) -> str:
