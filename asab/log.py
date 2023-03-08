@@ -176,7 +176,6 @@ class Logging(object):
 			sd_id=Config["logging"]["sd_id"],
 			use_color=True
 		))
-
 		self.ConsoleHandler.setLevel(logging.DEBUG)
 		self.RootLogger.addHandler(self.ConsoleHandler)
 
