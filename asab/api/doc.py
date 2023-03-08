@@ -146,8 +146,6 @@ Example:
 		doc_string: str = extract_docstring(route)
 		add_dict: dict = self.get_additional_info(doc_string)
 		handler_name: str = extract_handler_name(route)
-		class_name: str = extract_class_name(route)
-		module_name: str = extract_module_name(route)
 		method_dict: dict = extract_method_dict(route)
 
 		description: str = get_description(doc_string)
@@ -160,9 +158,9 @@ Example:
 		}
 
 		if self.DefaultRouteTag == "class_name":
-			new_methods["tags"] = [class_name]
+			new_methods["tags"] = [extract_class_name(route)]
 		elif self.DefaultRouteTag == "module_name":
-			new_methods["tags"] = [module_name]
+			new_methods["tags"] = [extract_module_name(route)]
 
 		if len(parameters) > 0:
 			new_methods["parameters"] = parameters
