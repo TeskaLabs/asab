@@ -39,8 +39,8 @@ class DocWebHandler(object):
 
 		self.DefaultRouteTag: str = asab.Config["asab:doc"].get("default_route_tag")
 		if self.DefaultRouteTag not in ["module_name", "class_name"]:
-			L.warning("Unknown default route tag: {}. Option 'module_name' will be used.".format(self.DefaultRouteTag))
-			self.DefaultRouteTag = "module_name"
+			raise ValueError("Unknown default_route_tag: {}. Choose between options 'module_name' and 'class_name'.".format(self.DefaultRouteTag))
+
 
 
 	def build_swagger_documentation(self) -> dict:

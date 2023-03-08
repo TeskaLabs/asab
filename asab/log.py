@@ -170,23 +170,12 @@ class Logging(object):
 
 	def _configure_console_logging(self):
 		self.ConsoleHandler = logging.StreamHandler(stream=sys.stderr)
-
-		# Disable colors when running in container
-		from .docker import running_in_container
-		if running_in_container():
-			self.ConsoleHandler.setFormatter(StructuredDataFormatter(
-				fmt=Config["logging:console"]["format"],
-				datefmt=Config["logging:console"]["datefmt"],
-				sd_id=Config["logging"]["sd_id"],
-				use_color=False
-			))
-		else:
-			self.ConsoleHandler.setFormatter(StructuredDataFormatter(
-				fmt=Config["logging:console"]["format"],
-				datefmt=Config["logging:console"]["datefmt"],
-				sd_id=Config["logging"]["sd_id"],
-				use_color=True
-			))
+		self.ConsoleHandler.setFormatter(StructuredDataFormatter(
+					fmt=Config["logging:console"]["format"],
+					datefmt=Config["logging:console"]["datefmt"],
+					sd_id=Config["logging"]["sd_id"],
+					use_color=True
+				))
 
 		self.ConsoleHandler.setLevel(logging.DEBUG)
 		self.RootLogger.addHandler(self.ConsoleHandler)
