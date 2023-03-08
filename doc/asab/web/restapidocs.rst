@@ -96,12 +96,12 @@ If you have an endpoint that requires a scope, you can add it with the configura
 Tags
 ----
 
-The routes in the documentation can be sorted by tags. 
-You can give every method you have a special tag in it's docstring.
+You can label your handler methods with custom tags.
+These tags are used for grouping and sorting your endpoints on the documentation page.
 
 .. code:: python
 
-    async def my_function(self, request):
+    async def my_method(self, request):
     """<function description>
     ---
     tags: ['custom tag 1', 'custom tag 2', 'custom tag 3']

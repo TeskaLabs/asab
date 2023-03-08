@@ -49,7 +49,7 @@ class ConfigParser(configparser.ConfigParser):
 		},
 
 		"asab:doc": {
-			"default_route_tag": "general"
+			"default_route_tag": "module_name"
 		},
 
 		"logging": {

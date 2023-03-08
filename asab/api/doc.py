@@ -37,6 +37,11 @@ class DocWebHandler(object):
 
 		self.Manifest = api_service.Manifest
 
+		self.DefaultRouteTag: str = asab.Config["asab:doc"].get("default_route_tag")
+		if self.DefaultRouteTag not in ["module_name", "class_name"]:
+			L.warning("Unknown default route tag: {}. Option 'module_name' will be used.".format(self.DefaultRouteTag))
+			self.DefaultRouteTag = "module_name"
+
 
 	def build_swagger_documentation(self) -> dict:
 		"""Take a docstring of the class and a docstring of methods and merge them into Swagger data."""
@@ -74,7 +79,7 @@ class DocWebHandler(object):
 			app_description
 		)
 
-		# routers sorting
+		# Extract asab and microservice routers, sort them alphabetically
 		asab_routes = []
 		microservice_routes = []
 
@@ -115,22 +120,24 @@ class DocWebHandler(object):
 	def parse_route_data(self, route) -> dict:
 		"""Take a route (a single endpoint with one method) and return its description data.
 
-		---
-		Example:
+---
+Example:
+---
 
-		>>> self.parse_route(myTestRoute)
-		{
-				'/my/endpoint': {
-						'get': {
-								'summary': 'This is a test route.',
-								'description': 'This is a test route.\\n\\n\\nHandler: `MyBeautifulHandler.myTestRoute()`',
-								'tags': ['myTag'],
-								'responses': {'200': {'description': 'Success'}}
-								}
-						}
+```python
+>>> self.parse_route(myTestRoute)
+{
+	'/my/endpoint': {
+		'get': {
+			'summary': 'This is a test route.',
+			'description': 'This is a test route.\\n\\n\\nHandler: `MyBeautifulHandler.myTestRoute()`',
+			'tags': ['myTag'],
+			'responses': {'200': {'description': 'Success'}}
 		}
-
-		"""
+	}
+}
+```
+"""
 		route_dict: dict = {}
 		method_name: str = route.method.lower()
 		route_path: str = self.get_path_from_route_info(route)
@@ -142,14 +149,33 @@ class DocWebHandler(object):
 		class_name: str = extract_class_name(route)
 		module_name: str = extract_module_name(route)
 		method_dict: dict = extract_method_dict(route)
-		method_dict.update(
-			self.add_methods(doc_string, add_dict, handler_name, class_name, module_name, parameters)
-		)
+
+		description: str = get_description(doc_string)
+		description += "\n\nHandler: `{}`".format(handler_name)
+
+		new_methods: dict = {
+			"summary": description.split("\n")[0],
+			"description": description,
+			"responses": {"200": {"description": "Success"}},
+		}
+
+		if self.DefaultRouteTag == "class_name":
+			new_methods["tags"] = [class_name]
+		elif self.DefaultRouteTag == "module_name":
+			new_methods["tags"] = [module_name]
+
+		if len(parameters) > 0:
+			new_methods["parameters"] = parameters
+
+		if add_dict is not None:
+			new_methods.update(add_dict)
 
 		path_object = route_dict.get(route_path)
 		if path_object is None:
 			route_dict[route_path] = path_object = {}
 		path_object[method_name] = method_dict
+
+		method_dict.update(new_methods)
 
 		return route_dict
 
@@ -225,41 +251,6 @@ class DocWebHandler(object):
 		else:
 			L.warning("Cannot obtain path info from route", struct_data=self.route_info)
 		return path
-
-	def add_methods(
-		self,
-		docstring: typing.Optional[str],
-		add_dict: typing.Optional[dict],
-		handler_name: str,
-		class_name: str,
-		module_name: str,
-		parameters: list,
-	):
-
-		description: str = get_description(docstring)
-		description += "\n\nHandler: `{}`".format(handler_name)
-
-		new_methods: dict = {
-			"summary": description.split("\n")[0],
-			"description": description,
-			"responses": {"200": {"description": "Success"}},
-		}
-
-		default_tag: str = asab.Config["asab:doc"].get("default_route_tag")
-		if default_tag == "general":
-			new_methods["tags"] = ["general"]
-		elif default_tag == "class_name":
-			new_methods["tags"] = [class_name]
-		elif default_tag == "module_name":
-			new_methods["tags"] = [module_name]
-
-		if len(parameters) > 0:
-			new_methods["parameters"] = parameters
-
-		if add_dict is not None:
-			new_methods.update(add_dict)
-
-		return new_methods
 
 	# This is the web request handler
 	async def doc(self, request):
@@ -386,7 +377,7 @@ def extract_method_dict(route) -> dict:
 
 
 def get_tag(route_data: dict) -> str:
-	"""Sort alphabetically by tags."""
+	"""Get tag from route data. Used for sorting tags alphabetically."""
 	for endpoint in route_data.values():
 		for method in endpoint.values():
 			if method.get("tags"):
