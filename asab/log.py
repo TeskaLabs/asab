@@ -171,11 +171,11 @@ class Logging(object):
 	def _configure_console_logging(self):
 		self.ConsoleHandler = logging.StreamHandler(stream=sys.stderr)
 		self.ConsoleHandler.setFormatter(StructuredDataFormatter(
-					fmt=Config["logging:console"]["format"],
-					datefmt=Config["logging:console"]["datefmt"],
-					sd_id=Config["logging"]["sd_id"],
-					use_color=True
-				))
+			fmt=Config["logging:console"]["format"],
+			datefmt=Config["logging:console"]["datefmt"],
+			sd_id=Config["logging"]["sd_id"],
+			use_color=True
+		))
 
 		self.ConsoleHandler.setLevel(logging.DEBUG)
 		self.RootLogger.addHandler(self.ConsoleHandler)
