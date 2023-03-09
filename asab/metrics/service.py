@@ -1,6 +1,7 @@
 import configparser
 import logging
 import asyncio
+import os
 
 from ..config import Config
 from ..abc import Service
@@ -28,7 +29,12 @@ class MetricsService(Service):
 		self.Targets = []
 		self.Tags = {
 			"host": app.HostName,
+			"appname": app.__class__.__name__,
 		}
+		instance_id = os.getenv('INSTANCE_ID', None)
+		if instance_id is not None:
+			self.Tags["instance_id"] = instance_id
+
 		self.Storage = Storage()
 
 		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
