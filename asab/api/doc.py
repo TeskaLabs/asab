@@ -54,10 +54,10 @@ class DocWebHandler(object):
 				"version": "1.0.0",
 			},
 			"servers": [
-				{"url": "/", "description": "Here"}
+				# Get base API path relatively from openapi endpoint
+				{"url": "../../", "description": "Here"}
 			],
 
-			# Base path relative to openapi endpoint
 			"paths": {},
 			# Authorization
 			# TODO: Authorization must not be always of OAuth type
