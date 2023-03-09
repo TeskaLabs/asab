@@ -111,7 +111,7 @@ class ZooKeeperContainer(ConfigObject):
 			L.error(
 				"Failed to connect to ZooKeeper: {}".format(e),
 				struct_data={
-					'hosts': str(self.ZooKeeper.Hosts)
+					'hosts': str(self.ZooKeeper.Client.hosts),
 				}
 			)
 			return
