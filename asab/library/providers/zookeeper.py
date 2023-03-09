@@ -132,12 +132,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			self.FullPath += url_pieces.netloc
 
 		# Handle `zk://` configuration
-		if z_url is None and url_pieces.netloc == "" and url_pieces.path == "" and self.Zookeeper.Path != '':
-			self.BasePath = '/' + self.Zookeeper.Path
+		if z_url is None and url_pieces.netloc == "" and url_pieces.path == "" and self.ZookeeperContainer.Path != '':
+			self.BasePath = '/' + self.ZookeeperContainer.Path
 
 		# Handle `zk://./path` configuration
-		if z_url is None and url_pieces.netloc == "." and self.Zookeeper.Path != '':
-			self.BasePath = '/' + self.Zookeeper.Path + self.BasePath
+		if z_url is None and url_pieces.netloc == "." and self.ZookeeperContainer.Path != '':
+			self.BasePath = '/' + self.ZookeeperContainer.Path + self.BasePath
 
 		self.FullPath += self.BasePath
 
