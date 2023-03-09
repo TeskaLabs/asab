@@ -19,11 +19,14 @@ class TestDutyCycle(MetricsTestCase):
 		expectation = {
 			"type": "DutyCycle",
 			"name": "testdc",
-			'static_tags': {'host': 'mockedhost.com', 'appclass': 'mockappclass'},
+			'static_tags': {
+				'host': 'mockedhost.com', 'appclass': 'mockappclass', 'instance_id': 'test/instance/id'
+			},
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
-					"appclass": "mockappclass"
+					"appclass": "mockappclass",
+					"instance_id": "test/instance/id",
 				},
 				"actuals": {
 					"v1": {
@@ -62,11 +65,14 @@ class TestDutyCycle(MetricsTestCase):
 		expectation = {
 			"name": "testdc",
 			"type": "DutyCycle",
-			'static_tags': {'host': 'mockedhost.com', 'appclass': 'mockappclass'},
+			'static_tags': {
+				'host': 'mockedhost.com', 'appclass': 'mockappclass', 'instance_id': 'test/instance/id'
+			},
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
-					"appclass": "mockappclass"
+					"appclass": "mockappclass",
+					"instance_id": "test/instance/id",
 				},
 				"actuals": {
 					"v1": {
@@ -105,11 +111,14 @@ class TestDutyCycle(MetricsTestCase):
 		expectation = {
 			"name": "testdc",
 			"type": "DutyCycle",
-			'static_tags': {'host': 'mockedhost.com', 'appclass': 'mockappclass'},
+			'static_tags': {
+				'host': 'mockedhost.com', 'appclass': 'mockappclass', 'instance_id': 'test/instance/id'
+			},
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
-					"appclass": "mockappclass"
+					"appclass": "mockappclass",
+					"instance_id": "test/instance/id",
 				},
 				"actuals": {
 					"v1": {
@@ -147,7 +156,7 @@ class TestDutyCycle(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testdc,host=mockedhost.com,appclass=mockappclass v1=1.0 123450000000\n',
+				'testdc,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id v1=1.0 123450000000\n',
 			])
 		)
 
@@ -171,6 +180,6 @@ class TestDutyCycle(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE testdc gauge\n',
-				'testdc{host="mockedhost.com",appclass="mockappclass",name="v1"} 1.0',
+				'testdc{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",name="v1"} 1.0',
 			])
 		)
