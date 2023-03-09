@@ -35,9 +35,9 @@ class TestCounterWithDynamicTags(MetricsTestCase):
 				'# TYPE mycounter_ages gauge\n',
 				'# UNIT mycounter_ages ages\n',
 				'# HELP mycounter_ages Help!\n',
-				'mycounter_ages{foo="bar",host="mockedhost.com",name="value1"} 2\n',
-				'mycounter_ages{foo="bar",host="mockedhost.com",name="value2"} -2\n',
-				'mycounter_ages{foo="bar",status="200",host="mockedhost.com",name="value1"} -1',
+				'mycounter_ages{foo="bar",host="mockedhost.com",appclass="mockappclass",name="value1"} 2\n',
+				'mycounter_ages{foo="bar",host="mockedhost.com",appclass="mockappclass",name="value2"} -2\n',
+				'mycounter_ages{foo="bar",status="200",host="mockedhost.com",appclass="mockappclass",name="value1"} -1',
 
 			])
 		)
@@ -47,8 +47,8 @@ class TestCounterWithDynamicTags(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,foo=bar,host=mockedhost.com value1=2i,value2=-2i 123450000000\n",
-				"mycounter,foo=bar,status=200,host=mockedhost.com value1=-1i 123450000000\n",
+				"mycounter,foo=bar,host=mockedhost.com,appclass=mockappclass value1=2i,value2=-2i 123450000000\n",
+				"mycounter,foo=bar,status=200,host=mockedhost.com,appclass=mockappclass value1=-1i 123450000000\n",
 			])
 		)
 
@@ -81,9 +81,9 @@ class TestCounterWithDynamicTags(MetricsTestCase):
 				'# TYPE mycounter_ages counter\n',
 				'# UNIT mycounter_ages ages\n',
 				'# HELP mycounter_ages Help!\n',
-				'mycounter_ages_total{foo="bar",host="mockedhost.com",name="value1"} 4\n',
-				'mycounter_ages_total{foo="bar",host="mockedhost.com",name="value2"} -2\n',
-				'mycounter_ages_total{foo="bar",status="200",host="mockedhost.com",name="value1"} -1',
+				'mycounter_ages_total{foo="bar",host="mockedhost.com",appclass="mockappclass",name="value1"} 4\n',
+				'mycounter_ages_total{foo="bar",host="mockedhost.com",appclass="mockappclass",name="value2"} -2\n',
+				'mycounter_ages_total{foo="bar",status="200",host="mockedhost.com",appclass="mockappclass",name="value1"} -1',
 
 			])
 		)
@@ -111,7 +111,7 @@ class TestCounterWithDynamicTags(MetricsTestCase):
 				'# TYPE mycounter_ages gauge\n',
 				'# UNIT mycounter_ages ages\n',
 				'# HELP mycounter_ages Help!\n',
-				'mycounter_ages{foo="bar",host="mockedhost.com",name="value1"} 2.2',
+				'mycounter_ages{foo="bar",host="mockedhost.com",appclass="mockappclass",name="value1"} 2.2',
 			])
 		)
 
@@ -120,7 +120,7 @@ class TestCounterWithDynamicTags(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,foo=bar,host=mockedhost.com value1=2.2 123450000000\n",
+				"mycounter,foo=bar,host=mockedhost.com,appclass=mockappclass value1=2.2 123450000000\n",
 			])
 		)
 
@@ -144,7 +144,7 @@ class TestCounterWithDynamicTags(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,foo=bar,host=mockedhost.com value2=t 123450000000\n",
+				"mycounter,foo=bar,host=mockedhost.com,appclass=mockappclass value2=t 123450000000\n",
 			])
 		)
 
@@ -167,6 +167,6 @@ class TestCounterWithDynamicTags(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				'mycounter,foo=bar,host=mockedhost.com value3="nice_weather" 123450000000\n',
+				'mycounter,foo=bar,host=mockedhost.com,appclass=mockappclass value3="nice_weather" 123450000000\n',
 			])
 		)

@@ -29,7 +29,7 @@ class MetricsService(Service):
 		self.Targets = []
 		self.Tags = {
 			"host": app.HostName,
-			"appname": app.__class__.__name__,
+			"appclass": app.__class__.__name__,
 		}
 		instance_id = os.getenv('INSTANCE_ID', None)
 		if instance_id is not None:

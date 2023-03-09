@@ -19,10 +19,11 @@ class TestDutyCycle(MetricsTestCase):
 		expectation = {
 			"type": "DutyCycle",
 			"name": "testdc",
-			'static_tags': {'host': 'mockedhost.com'},
+			'static_tags': {'host': 'mockedhost.com', 'appclass': 'mockappclass'},
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
+					"appclass": "mockappclass"
 				},
 				"actuals": {
 					"v1": {
@@ -61,10 +62,11 @@ class TestDutyCycle(MetricsTestCase):
 		expectation = {
 			"name": "testdc",
 			"type": "DutyCycle",
-			'static_tags': {'host': 'mockedhost.com'},
+			'static_tags': {'host': 'mockedhost.com', 'appclass': 'mockappclass'},
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
+					"appclass": "mockappclass"
 				},
 				"actuals": {
 					"v1": {
@@ -103,10 +105,11 @@ class TestDutyCycle(MetricsTestCase):
 		expectation = {
 			"name": "testdc",
 			"type": "DutyCycle",
-			'static_tags': {'host': 'mockedhost.com'},
+			'static_tags': {'host': 'mockedhost.com', 'appclass': 'mockappclass'},
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
+					"appclass": "mockappclass"
 				},
 				"actuals": {
 					"v1": {
@@ -144,7 +147,7 @@ class TestDutyCycle(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testdc,host=mockedhost.com v1=1.0 123450000000\n',
+				'testdc,host=mockedhost.com,appclass=mockappclass v1=1.0 123450000000\n',
 			])
 		)
 
@@ -168,6 +171,6 @@ class TestDutyCycle(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE testdc gauge\n',
-				'testdc{host="mockedhost.com",name="v1"} 1.0',
+				'testdc{host="mockedhost.com",appclass="mockappclass",name="v1"} 1.0',
 			])
 		)
