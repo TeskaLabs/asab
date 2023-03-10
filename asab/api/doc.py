@@ -54,7 +54,7 @@ class DocWebHandler(object):
 				"version": "1.0.0",
 			},
 			"servers": [
-				# Get base API path relatively from openapi endpoint
+				# Get base API path relatively from /asab/v1/openapi endpoint
 				{"url": "../../", "description": "Here"}
 			],
 
