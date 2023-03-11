@@ -35,7 +35,7 @@ def running_in_container():
 		with open('/proc/self/mountinfo', "r") as f:
 			for line in f.readlines():
 				# Seek for a root filesystem
-				if ' / /' not in line:
+				if ' / / ' not in line:
 					continue
 
 				# Is the root filesystem runs on overlay?
