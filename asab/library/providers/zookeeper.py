@@ -246,9 +246,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			if startswithdot:
 				continue
 
+			if '.' in node:  # We detect files in zookeeper by presence of the dot in the filename,
+				fname = path + node
+				ftype = "item"
+			else:
+				fname = path + node + '/'
+				ftype = "dir"
+
 			items.append(LibraryItem(
-				name=(path + node) if path == '/' else (path.rstrip("/") + "/" + node),
-				type="item" if '.' in node else "dir",  # We detect files in zookeeper by presence of the dot in the filename,
+				name=fname,
+				type=ftype,
 				providers=[self],
 			))
 
