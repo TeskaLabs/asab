@@ -25,7 +25,7 @@ class TestGauge(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"testgauge,host=mockedhost.com v1=1i 123450000000\n",
+				"testgauge,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id v1=1i 123450000000\n",
 			])
 		)
 
@@ -36,7 +36,7 @@ class TestGauge(MetricsTestCase):
 			''.join([
 				'# TYPE testgauge gauge\n',
 				'# HELP testgauge This is a test Gauge.\n',
-				'testgauge{host="mockedhost.com",name="v1"} 1',
+				'testgauge{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",name="v1"} 1',
 			])
 		)
 
@@ -49,7 +49,7 @@ class TestGauge(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"testgauge,host=mockedhost.com v1=2i,v2=4i 123450000000\n",
+				"testgauge,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id v1=2i,v2=4i 123450000000\n",
 			])
 		)
 
@@ -60,8 +60,8 @@ class TestGauge(MetricsTestCase):
 			''.join([
 				'# TYPE testgauge gauge\n',
 				'# HELP testgauge This is a test Gauge.\n',
-				'testgauge{host="mockedhost.com",name="v1"} 2\n',
-				'testgauge{host="mockedhost.com",name="v2"} 4',
+				'testgauge{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",name="v1"} 2\n',
+				'testgauge{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",name="v2"} 4',
 			])
 		)
 
@@ -84,7 +84,7 @@ class TestGauge(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"testgauge,host=mockedhost.com v1=2i 123450000000\n",
+				"testgauge,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id v1=2i 123450000000\n",
 			])
 		)
 
@@ -95,6 +95,6 @@ class TestGauge(MetricsTestCase):
 			''.join([
 				'# TYPE testgauge gauge\n',
 				'# HELP testgauge This is a test Gauge.\n',
-				'testgauge{host="mockedhost.com",name="v1"} 2',
+				'testgauge{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",name="v1"} 2',
 			])
 		)

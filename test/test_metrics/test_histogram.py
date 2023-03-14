@@ -31,11 +31,11 @@ class TestHistogram(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testhistogram,host=mockedhost.com,foo=bar,le=10.0 value1=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar,le=100.0 value1=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar,le=inf value1=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar sum=5.0 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar count=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=10.0 value1=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=100.0 value1=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=inf value1=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar sum=5.0 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar count=1i 123450000000\n',
 			])
 		)
 
@@ -79,11 +79,11 @@ class TestHistogram(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE testhistogram histogram\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="10.0",name="value1"} 1\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="100.0",name="value1"} 1\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="inf",name="value1"} 1\n',
-				'testhistogram_count{host="mockedhost.com",foo="bar"} 1\n',
-				'testhistogram_sum{host="mockedhost.com",foo="bar"} 5.0',
+				'testhistogram{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="10.0",name="value1"} 1\n',
+				'testhistogram{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="100.0",name="value1"} 1\n',
+				'testhistogram{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="inf",name="value1"} 1\n',
+				'testhistogram_count{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar"} 1\n',
+				'testhistogram_sum{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar"} 5.0',
 			])
 		)
 
@@ -110,11 +110,11 @@ class TestHistogram(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testhistogram,host=mockedhost.com,foo=bar,le=10.0 value1=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar,le=100.0 value1=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar,le=inf value1=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar sum=5.0 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar count=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=10.0 value1=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=100.0 value1=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=inf value1=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar sum=5.0 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar count=1i 123450000000\n',
 			])
 		)
 
@@ -124,11 +124,11 @@ class TestHistogram(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE testhistogram histogram\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="10.0",name="value1"} 2\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="100.0",name="value1"} 2\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="inf",name="value1"} 2\n',
-				'testhistogram_count{host="mockedhost.com",foo="bar"} 2\n',
-				'testhistogram_sum{host="mockedhost.com",foo="bar"} 8.5',
+				'testhistogram{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="10.0",name="value1"} 2\n',
+				'testhistogram{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="100.0",name="value1"} 2\n',
+				'testhistogram{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="inf",name="value1"} 2\n',
+				'testhistogram_count{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar"} 2\n',
+				'testhistogram_sum{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar"} 8.5',
 			])
 		)
 
@@ -154,11 +154,11 @@ class TestHistogram(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testhistogram,tag=yes,host=mockedhost.com,foo=bar,le=10.0 value1=1i 123450000000\n',
-				'testhistogram,tag=yes,host=mockedhost.com,foo=bar,le=100.0 value1=1i 123450000000\n',
-				'testhistogram,tag=yes,host=mockedhost.com,foo=bar,le=inf value1=1i 123450000000\n',
-				'testhistogram,tag=yes,host=mockedhost.com,foo=bar sum=5.0 123450000000\n',
-				'testhistogram,tag=yes,host=mockedhost.com,foo=bar count=1i 123450000000\n',
+				'testhistogram,tag=yes,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=10.0 value1=1i 123450000000\n',
+				'testhistogram,tag=yes,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=100.0 value1=1i 123450000000\n',
+				'testhistogram,tag=yes,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=inf value1=1i 123450000000\n',
+				'testhistogram,tag=yes,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar sum=5.0 123450000000\n',
+				'testhistogram,tag=yes,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar count=1i 123450000000\n',
 			])
 		)
 
@@ -168,11 +168,11 @@ class TestHistogram(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE testhistogram histogram\n',
-				'testhistogram{tag="yes",host="mockedhost.com",foo="bar",le="10.0",name="value1"} 1\n',
-				'testhistogram{tag="yes",host="mockedhost.com",foo="bar",le="100.0",name="value1"} 1\n',
-				'testhistogram{tag="yes",host="mockedhost.com",foo="bar",le="inf",name="value1"} 1\n',
-				'testhistogram_count{tag="yes",host="mockedhost.com",foo="bar"} 1\n',
-				'testhistogram_sum{tag="yes",host="mockedhost.com",foo="bar"} 5.0',
+				'testhistogram{tag="yes",host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="10.0",name="value1"} 1\n',
+				'testhistogram{tag="yes",host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="100.0",name="value1"} 1\n',
+				'testhistogram{tag="yes",host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="inf",name="value1"} 1\n',
+				'testhistogram_count{tag="yes",host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar"} 1\n',
+				'testhistogram_sum{tag="yes",host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar"} 5.0',
 			])
 		)
 
@@ -201,11 +201,11 @@ class TestHistogram(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testhistogram,tag=yes,host=mockedhost.com,foo=bar,le=10.0 value1=1i 123450000000\n',
-				'testhistogram,tag=yes,host=mockedhost.com,foo=bar,le=100.0 value1=1i 123450000000\n',
-				'testhistogram,tag=yes,host=mockedhost.com,foo=bar,le=inf value1=1i 123450000000\n',
-				'testhistogram,tag=yes,host=mockedhost.com,foo=bar sum=5.0 123450000000\n',
-				'testhistogram,tag=yes,host=mockedhost.com,foo=bar count=1i 123450000000\n',
+				'testhistogram,tag=yes,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=10.0 value1=1i 123450000000\n',
+				'testhistogram,tag=yes,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=100.0 value1=1i 123450000000\n',
+				'testhistogram,tag=yes,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=inf value1=1i 123450000000\n',
+				'testhistogram,tag=yes,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar sum=5.0 123450000000\n',
+				'testhistogram,tag=yes,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar count=1i 123450000000\n',
 			])
 		)
 
@@ -215,16 +215,16 @@ class TestHistogram(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE testhistogram histogram\n',
-				'testhistogram{tag="yes",host="mockedhost.com",foo="bar",le="10.0",name="value1"} 1\n',
-				'testhistogram{tag="yes",host="mockedhost.com",foo="bar",le="100.0",name="value1"} 1\n',
-				'testhistogram{tag="yes",host="mockedhost.com",foo="bar",le="inf",name="value1"} 1\n',
-				'testhistogram_count{tag="yes",host="mockedhost.com",foo="bar"} 1\n',
-				'testhistogram_sum{tag="yes",host="mockedhost.com",foo="bar"} 5.0\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="10.0",name="value2"} 1\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="100.0",name="value2"} 2\n',
-				'testhistogram{host="mockedhost.com",foo="bar",le="inf",name="value2"} 2\n',
-				'testhistogram_count{host="mockedhost.com",foo="bar"} 2\n',
-				'testhistogram_sum{host="mockedhost.com",foo="bar"} 55.0',
+				'testhistogram{tag="yes",host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="10.0",name="value1"} 1\n',
+				'testhistogram{tag="yes",host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="100.0",name="value1"} 1\n',
+				'testhistogram{tag="yes",host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="inf",name="value1"} 1\n',
+				'testhistogram_count{tag="yes",host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar"} 1\n',
+				'testhistogram_sum{tag="yes",host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar"} 5.0\n',
+				'testhistogram{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="10.0",name="value2"} 1\n',
+				'testhistogram{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="100.0",name="value2"} 2\n',
+				'testhistogram{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="inf",name="value2"} 2\n',
+				'testhistogram_count{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar"} 2\n',
+				'testhistogram_sum{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar"} 55.0',
 
 			])
 		)
@@ -250,11 +250,11 @@ class TestHistogram(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testhistogram,host=mockedhost.com,foo=bar,le=10.0 value1=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar,le=100.0 value1=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar,le=inf value1=1i 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar sum=5.0 123450000000\n',
-				'testhistogram,host=mockedhost.com,foo=bar count=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=10.0 value1=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=100.0 value1=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar,le=inf value1=1i 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar sum=5.0 123450000000\n',
+				'testhistogram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar count=1i 123450000000\n',
 			])
 		)
 
@@ -266,10 +266,10 @@ class TestHistogram(MetricsTestCase):
 				'# TYPE testhistogram_seconds histogram\n',
 				'# UNIT testhistogram_seconds seconds\n',
 				'# HELP testhistogram_seconds This is a testing histogram.\n',
-				'testhistogram_seconds{host="mockedhost.com",foo="bar",le="10.0",name="value1"} 1\n',
-				'testhistogram_seconds{host="mockedhost.com",foo="bar",le="100.0",name="value1"} 1\n',
-				'testhistogram_seconds{host="mockedhost.com",foo="bar",le="inf",name="value1"} 1\n',
-				'testhistogram_seconds_count{host="mockedhost.com",foo="bar"} 1\n',
-				'testhistogram_seconds_sum{host="mockedhost.com",foo="bar"} 5.0',
+				'testhistogram_seconds{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="10.0",name="value1"} 1\n',
+				'testhistogram_seconds{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="100.0",name="value1"} 1\n',
+				'testhistogram_seconds{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",le="inf",name="value1"} 1\n',
+				'testhistogram_seconds_count{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar"} 1\n',
+				'testhistogram_seconds_sum{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar"} 5.0',
 			])
 		)
