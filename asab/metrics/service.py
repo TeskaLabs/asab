@@ -31,6 +31,7 @@ class MetricsService(Service):
 			"host": app.HostName,
 			"appclass": app.__class__.__name__,
 		}
+		# A unique identifier of a microservice; added as an environment variable.
 		instance_id = os.getenv('INSTANCE_ID', None)
 		if instance_id is not None:
 			self.Tags["instance_id"] = instance_id
