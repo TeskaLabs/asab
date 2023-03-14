@@ -23,7 +23,7 @@ class TestValidation(MetricsTestCase):
 			influxdb_format,
 			"".join(
 				[
-					"my\\,\\ count\\ er,host=mockedhost.com,foo=bar value1=0i,value2=0i 123450000000\n",
+					"my\\,\\ count\\ er,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar value1=0i,value2=0i 123450000000\n",
 				]
 			),
 		)
@@ -46,7 +46,7 @@ class TestValidation(MetricsTestCase):
 			influxdb_format,
 			"".join(
 				[
-					"mycounter,host=mockedhost.com,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r value1=0i,value2=0i 123450000000\n",
+					"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r value1=0i,value2=0i 123450000000\n",
 				]
 			),
 		)
@@ -69,7 +69,7 @@ class TestValidation(MetricsTestCase):
 			influxdb_format,
 			"".join(
 				[
-					"mycounter,host=mockedhost.com,foo=bar val\\,\\ ue1=0i,va\\,lue\\ 2=0i 123450000000\n",
+					"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar val\\,\\ ue1=0i,va\\,lue\\ 2=0i 123450000000\n",
 				]
 			),
 		)
@@ -92,7 +92,7 @@ class TestValidation(MetricsTestCase):
 			influxdb_format,
 			"".join(
 				[
-					'mycounter,host=mockedhost.com,foo=bar value1="te\\\\st\\\"1",value2="\\\"test\\\" 2" 123450000000\n',
+					'mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar value1="te\\\\st\\\"1",value2="\\\"test\\\" 2" 123450000000\n',
 				]
 			),
 		)
@@ -117,10 +117,10 @@ class TestValidation(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'test\\ histo\\,gram,host=mockedhost.com,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r,le=10.0 value1=1i 153450000000\n',
-				'test\\ histo\\,gram,host=mockedhost.com,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r,le=100.0 value1=1i 153450000000\n',
-				'test\\ histo\\,gram,host=mockedhost.com,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r,le=inf value1=1i 153450000000\n',
-				'test\\ histo\\,gram,host=mockedhost.com,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r sum=5.0 153450000000\n',
-				'test\\ histo\\,gram,host=mockedhost.com,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r count=1i 153450000000\n',
+				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r,le=10.0 value1=1i 153450000000\n',
+				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r,le=100.0 value1=1i 153450000000\n',
+				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r,le=inf value1=1i 153450000000\n',
+				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r sum=5.0 153450000000\n',
+				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r count=1i 153450000000\n',
 			])
 		)

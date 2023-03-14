@@ -8,6 +8,7 @@ import asyncio
 import argparse
 import itertools
 import platform
+import datetime
 
 try:
 	import daemon
@@ -20,7 +21,7 @@ from .config import Config
 from .abc.singleton import Singleton
 from .log import Logging, _loop_exception_handler, LOG_NOTICE
 from .task import TaskService
-from .docker import running_in_docker
+from .docker import running_in_container
 
 L = logging.getLogger(__name__)
 
@@ -84,7 +85,7 @@ class Application(metaclass=Singleton):
 
 		# Check if the application is running in Docker,
 		# if so, add Docker service
-		if running_in_docker():
+		if running_in_container():
 			from .docker import Module
 			self.add_module(Module)
 			self.DockerService = self.get_service("asab.DockerService")
@@ -143,6 +144,10 @@ class Application(metaclass=Singleton):
 
 		for module in modules:
 			self.add_module(module)
+
+		# Every 10 minutes listen for housekeeping
+		self.NextHousekeeping = self._set_housekeeping_time_from_config()
+		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
 
 
 	def create_argument_parser(
@@ -407,15 +412,10 @@ class Application(metaclass=Singleton):
 	def get_service(self, service_name):
 		"""
 		Get a new service by its name.
+
+		Returns `None` if the service is not registered.
 		"""
-
-		try:
-			return self.Services[service_name]
-		except KeyError:
-			pass
-
-		L.error("Cannot find service '{}' - not registered?".format(service_name))
-		raise KeyError("Cannot find service '{}'".format(service_name))
+		return self.Services.get(service_name)
 
 
 	def _register_service(self, service):
@@ -584,3 +584,36 @@ class Application(metaclass=Singleton):
 		Return UTC unix timestamp using a loop time (a fast way how to get a wall clock time).
 		'''
 		return self.BaseTime + self.Loop.time()
+
+
+	# Housekeeping
+
+	def _set_housekeeping_time_from_config(self):
+		"""Set the housekeeping time from `Config['general']['housekeeping_time']`.
+		"""
+		config_house_time = datetime.datetime.strptime(Config['general']['housekeeping_time'], "%H:%M")  # default: 03:00
+		now = datetime.datetime.now(datetime.timezone.utc)
+		next_housekeeping_time = now.replace(
+			hour=config_house_time.hour,
+			minute=config_house_time.minute,
+			second=0,
+			microsecond=0)
+
+		# if the app started after the housekeeping time, set it to the next day
+		if now > next_housekeeping_time:
+			next_housekeeping_time += datetime.timedelta(days=1)
+		return next_housekeeping_time
+
+	def _on_housekeeping_tick(self, message_type):
+		"""Check if it's time for 'Application.housekeeping!'.
+		If so, publish the message and set housekeeping time for the next day.
+		"""
+		if datetime.datetime.now(datetime.timezone.utc) > self.NextHousekeeping:
+			self.PubSub.publish("Application.housekeeping!")
+			self.NextHousekeeping += datetime.timedelta(days=1)
+			L.log(
+				LOG_NOTICE,
+				"Setting time for the next housekeeping: {} UTC".format(
+					self.NextHousekeeping.strftime("%Y-%m-%d %H:%M:%S")
+				)
+			)

@@ -99,6 +99,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		super().__init__(library)
 
 		url_pieces = urllib.parse.urlparse(path)
+
 		self.FullPath = url_pieces.scheme + '://'
 		self.BasePath = url_pieces.path.lstrip("/")
 		while self.BasePath.endswith("/"):
@@ -124,21 +125,25 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			z_path=z_url
 		)
 		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
+
 		if config_section_name == 'zookeeper':
 			self.FullPath += self.ZookeeperContainer.Config['servers']
 		else:
 			self.FullPath += url_pieces.netloc
 
 		# Handle `zk://` configuration
-		if z_url is None and url_pieces.netloc == "" and url_pieces.path == "" and self.Zookeeper.Path != '':
-			self.BasePath = '/' + self.Zookeeper.Path
+		if z_url is None and url_pieces.netloc == "" and url_pieces.path == "" and self.ZookeeperContainer.Path != '':
+			self.BasePath = '/' + self.ZookeeperContainer.Path
 
 		# Handle `zk://./path` configuration
-		if z_url is None and url_pieces.netloc == "." and self.Zookeeper.Path != '':
-			self.BasePath = '/' + self.Zookeeper.Path + self.BasePath
+		if z_url is None and url_pieces.netloc == "." and self.ZookeeperContainer.Path != '':
+			self.BasePath = '/' + self.ZookeeperContainer.Path + self.BasePath
 
-		self.Version = None  # Will be read when a library become ready
 		self.FullPath += self.BasePath
+
+		self.VersionNodePath = self.build_path('/.version.yaml')
+		self.Version = None  # Will be read when a library become ready
+		self.VersionWatch = None
 
 		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
 		self.App.PubSub.subscribe("Application.tick/60!", self._get_version_counter)
@@ -155,24 +160,29 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		When the Zookeeper container is ready, set the self.Zookeeper property to the Zookeeper object.
 		"""
-		if zkcontainer == self.ZookeeperContainer:
-			self.Zookeeper = self.ZookeeperContainer.ZooKeeper
-			self.VersionNodePath = self.build_path('/.version.yaml')
-			L.info("is connected.", struct_data={'path': self.FullPath})
+		if zkcontainer != self.ZookeeperContainer:
+			return
 
-			def on_version_changed(version, event):
-				self.App.Loop.call_soon_threadsafe(self._check_version_counter, version)
-			kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.VersionNodePath, on_version_changed)
+		L.info("is connected.", struct_data={'path': self.FullPath})
 
-			await self._set_ready()
+		def on_version_changed(version, event):
+			self.App.Loop.call_soon_threadsafe(self._check_version_counter, version)
+
+		def install_watcher():
+			return kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.VersionNodePath, on_version_changed)
+
+		self.VersionWatch = await self.Zookeeper.ProactorService.execute(install_watcher)
+
+		await self._set_ready()
 
 
 	async def _get_version_counter(self, event_name=None):
 		if self.Zookeeper is None:
 			return
-		version = await self.Zookeeper.get_data(self.VersionNodePath)
 
-		self.Zookeeper.ProactorService.execute(self._check_version_counter, version)
+		version = await self.Zookeeper.get_data(self.VersionNodePath)
+		await self.Zookeeper.ProactorService.execute(self._check_version_counter, version)
+
 
 	def _check_version_counter(self, version):
 		# If version is `None` aka `/.version.yaml` doesn't exists, then assume version -1
@@ -236,9 +246,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			if startswithdot:
 				continue
 
+			if '.' in node:  # We detect files in zookeeper by presence of the dot in the filename,
+				fname = path + node
+				ftype = "item"
+			else:
+				fname = path + node + '/'
+				ftype = "dir"
+
 			items.append(LibraryItem(
-				name=(path + node) if path == '/' else (path + '/' + node),
-				type="item" if '.' in node else "dir",  # We detect files in zookeeper by presence of the dot in the filename,
+				name=fname,
+				type=ftype,
 				providers=[self],
 			))
 
@@ -259,8 +276,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		else:
 			node_path = self.BasePath
 
+		# Zookeeper path should not have forward slash at the end of path
+		node_path = node_path.rstrip("/")
+
 		assert '//' not in node_path
 		assert node_path[0] == '/'
-		assert len(node_path) == 1 or node_path[-1:] != '/'
 
 		return node_path

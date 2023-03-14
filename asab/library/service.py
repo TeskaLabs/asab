@@ -1,13 +1,14 @@
 import re
+import io
+import time
+import os.path
 import typing
+import tarfile
 import asyncio
 import logging
+import tempfile
 import functools
 import configparser
-import tempfile
-import tarfile
-import time
-from io import SEEK_END, SEEK_SET
 
 import yaml
 
@@ -94,9 +95,9 @@ class LibraryService(Service):
 			lib = self.Libraries.pop(-1)
 			await lib.finalize(self.App)
 
+
 	async def on_tick(self, message_type):
 		await self._read_disabled()
-
 
 
 	def _create_library(self, path):
@@ -140,6 +141,7 @@ class LibraryService(Service):
 			True
 		)
 
+
 	async def _set_ready(self, provider):
 		if provider == self.Libraries[0]:
 			await self._read_disabled()
@@ -169,8 +171,10 @@ class LibraryService(Service):
 		:param tenant: The tenant to apply. If not specified, the global access is assumed
 		:return: I/O stream (read) with the content of the libary item.
 		"""
-		# It must start with '/'
-		assert path[:1] == '/'
+		# item path must start with '/'
+		assert path[:1] == '/', "Item path must start with a forward slash (/). For example: /library/Templates/item.json"
+		# Item path must end with the extension
+		assert len(os.path.splitext(path)[1]) > 0, "Item path must end with an extension. For example: /library/Templates/item.json"
 
 		if self.check_disabled(path, tenant=tenant):
 			return None
@@ -205,12 +209,12 @@ class LibraryService(Service):
 			The method returns list of items that are located at `path`
 		"""
 
-		# Path must start with '/'
-		assert path[:1] == '/'
-
-		# Path must NOT end with '/'
-		while path[-1:] == '/':
-			path = path[:-1]
+		# Directory path must start with '/'
+		assert path[:1] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
+		# Directory path must end with '/'
+		assert path[-1:] == '/', "Directory path must end with a forward slash (/). For example: /library/Templates/"
+		# Directory path cannot contain '//'
+		assert '//' not in path
 
 		# List requested level using all available providers
 		items = await self._list(path, tenant, providers=self.Libraries)
@@ -289,7 +293,8 @@ class LibraryService(Service):
 				if self.Disabled is None:
 					self.Disabled = {}
 				else:
-					assert (isinstance(self.Disabled, dict))
+					# Disabled must be a dictionary object
+					assert (isinstance(self.Disabled, dict)), "The 'Disabled' attribute must be a dictionary instance."
 			except Exception:
 				self.Disabled = {}
 				L.exception("Failed to parse '/.disabled.yaml'")
@@ -332,15 +337,15 @@ class LibraryService(Service):
 		:return: A file object.
 		"""
 
+		# Directory path must start with '/'
+		assert path[:1] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
+		# Directory path must end with '/'
+		assert path[-1:] == '/', "Directory path must end with a forward slash (/). For example: /library/Templates/"
+		# Directory path cannot contain '//'
+		assert '//' not in path
+
 		fileobj = tempfile.TemporaryFile()
 		tarobj = tarfile.open(name=None, mode='w:gz', fileobj=fileobj)
-
-		while path[-1:] == '/':
-			path = path[:-1]
-
-		# Path must start with '/'
-		if path[:1] != '/':
-			path = '/' + path
 
 		# List requested level using all available providers
 		only_first = [self.Libraries[0]]
@@ -368,9 +373,9 @@ class LibraryService(Service):
 			else:
 				tar_name = item.name
 			info = tarfile.TarInfo(tar_name)
-			my_data.seek(0, SEEK_END)
+			my_data.seek(0, io.SEEK_END)
 			info.size = my_data.tell()
-			my_data.seek(0, SEEK_SET)
+			my_data.seek(0, io.SEEK_SET)
 			info.mtime = time.time()
 			tarobj.addfile(tarinfo=info, fileobj=my_data)
 
@@ -378,7 +383,8 @@ class LibraryService(Service):
 		fileobj.seek(0)
 		return fileobj
 
-	def subscribe(self, paths):
+
+	async def subscribe(self, paths):
 		"""
 		It subscribes to the changes in the library
 		:param paths: A list of absolute paths to subscribe to
@@ -387,4 +393,4 @@ class LibraryService(Service):
 			assert path[:1] == '/', "Absolute path must be used when subscribing to the library changes"
 
 			for provider in self.Libraries:
-				provider.subscribe(path)
+				await provider.subscribe(path)
