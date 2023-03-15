@@ -112,7 +112,7 @@ class UpsertorABC(abc.ABC):
 		Commit upsertor data to the storage. Afterwards, send a webhook request with upsertion details.
 
 		:custom_data: Custom execution data. Included in webhook payload.
-		
+
 		---
 		Example:
 		---
