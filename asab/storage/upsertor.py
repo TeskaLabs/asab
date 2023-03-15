@@ -113,6 +113,8 @@ class UpsertorABC(abc.ABC):
 
 		:custom_data: Custom execution data. Included in webhook payload.
 
+		:event_type: Event type included in webhook payload.
+
 		---
 		Example:
 		---
@@ -129,9 +131,9 @@ class UpsertorABC(abc.ABC):
 		```json
 		{
 			"collection": "users",
+			"event_type": "create_user",
 			"custom": {
-				"custom_key": "custom_value",
-				"event_type": "create_user"
+				"custom_key": "custom_value"
 				},
 			"upsertor": {
 				"id": "2O-h3ulpO-ZwDrkSbQlYB3pYS0JJxCJj3nr6uQAu8aU",
