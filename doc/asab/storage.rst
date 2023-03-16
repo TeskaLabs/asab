@@ -143,7 +143,7 @@ If the option `inmemory` is set, ASAB will store data in its own memory. In part
 
 .. note::
 
-    You can go through ale the databases by direct accessing `InMemoryCollections` attribute, although we do not recommend that.
+    You can go through all the databases directly by accessing `InMemoryCollections` attribute, although we do not recommend that.
 
     .. code:: python
 
