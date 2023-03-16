@@ -1,7 +1,7 @@
 import aiohttp.web
 import copy
 import fnmatch
-import time
+import datetime
 
 from .openmetric import metric_to_openmetric
 from ..web.rest import json_response
@@ -26,9 +26,6 @@ class MetricWebHandler(object):
 		tags: ['asab.metrics']
 		'''
 		metrics_to_send = copy.deepcopy(self.MetricsService.Storage.Metrics)
-		for metrics in metrics_to_send:
-			if metrics.get("@timestamp") is None:
-				metrics["@timestamp"] = self.App.time()
 		return json_response(request, metrics_to_send)
 
 
@@ -108,7 +105,7 @@ def watch_table(metric_records: list, filter, tags):
 		if metric_name_len > v_name_len:
 			v_name_len = metric_name_len
 
-	timestamp_len = 25
+	timestamp_len = 30
 	t_name_len = max([len(str(field["tags"])) for i in metric_records for field in i["fieldset"]])
 
 	if tags:
@@ -125,8 +122,8 @@ def watch_table(metric_records: list, filter, tags):
 			if field.get("values") is None:
 				continue
 			name = metric_record.get("name")
-			timestamp = time.gmtime(field.get("measured@"))
-			timestamp = time.strftime("%Y-%m-%d %H:%M:%S", timestamp)
+			timestamp = field.get("measured_at")
+			timestamp = datetime.datetime.fromtimestamp(timestamp)
 
 			if filter is not None:
 				if filter.startswith("-"):

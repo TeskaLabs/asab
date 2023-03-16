@@ -170,8 +170,8 @@ def build_metric_line(tags, values, timestamp, upperbound=None):
 
 
 def get_timestamp(field, now):
-	if "measured@" in field:
-		timestamp = field["measured@"]
+	if "measured_at" in field:
+		timestamp = field["measured_at"]
 	else:
 		timestamp = now
 	return timestamp

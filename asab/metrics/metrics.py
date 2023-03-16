@@ -34,7 +34,7 @@ class Gauge(Metric):
 		field = {
 			"tags": tags,
 			"values": self.Init.copy() if self.Init is not None else dict(),
-			"measured@": self.App.time()
+			"measured_at": self.App.time()
 		}
 		self.Storage['fieldset'].append(field)
 		self._field = field
@@ -42,7 +42,7 @@ class Gauge(Metric):
 
 	def set(self, name: str, value):
 		self._field['values'][name] = value
-		self._field['measured@'] = self.App.time()
+		self._field['measured_at'] = self.App.time()
 
 
 class Counter(Metric):
@@ -52,7 +52,7 @@ class Counter(Metric):
 			"tags": tags,
 			"values": self.Init.copy() if self.Init is not None else dict(),
 			"actuals": self.Init.copy() if self.Init is not None else dict(),
-			"measured@": self.App.time()
+			"measured_at": self.App.time()
 		}
 		self.Storage['fieldset'].append(field)
 		self._actuals = field['actuals']
@@ -76,7 +76,7 @@ class Counter(Metric):
 			else:
 				self._actuals[name] = value
 		if not self.Storage.get("reset"):
-			self._field['measured@'] = self.App.time()
+			self._field['measured_at'] = self.App.time()
 
 	def sub(self, name, value, init_value=None):
 		"""
@@ -95,11 +95,11 @@ class Counter(Metric):
 			else:
 				self._actuals[name] = -value
 		if not self.Storage.get("reset"):
-			self._field['measured@'] = self.App.time()
+			self._field['measured_at'] = self.App.time()
 
 	def flush(self, now):
 		if self.Storage.get("reset") is True:
-			self._field['measured@'] = now
+			self._field['measured_at'] = now
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
 				if self.Init is not None:
@@ -127,7 +127,7 @@ class EPSCounter(Counter):
 		self.LastTime = time.time()
 
 	def flush(self, now):
-		self._field['measured@'] = now
+		self._field['measured_at'] = now
 
 		delta = now - self.LastTime
 		if delta <= 0.0:
@@ -185,7 +185,7 @@ class DutyCycle(Metric):
 			"tags": tags,
 			"actuals": self.Init.copy(),
 			"values": dict(),
-			"measured@": self.App.time()
+			"measured_at": self.App.time()
 		}
 		self.Storage['fieldset'].append(field)
 		self._field = field
@@ -222,7 +222,7 @@ class DutyCycle(Metric):
 
 
 	def flush(self, now):
-		self._field['measured@'] = now
+		self._field['measured_at'] = now
 		for field in self.Storage["fieldset"]:
 			actuals = field.get("actuals")
 			for v_name, values in actuals.items():
@@ -258,7 +258,7 @@ class AggregationCounter(Counter):
 
 	def set(self, name, value):
 		if not self.Storage.get("reset"):
-			self._field['measured@'] = self.App.time()
+			self._field['measured_at'] = self.App.time()
 		try:
 			self._actuals[name] = self.Aggregator(value, self._actuals[name])
 		except KeyError:
@@ -310,7 +310,7 @@ class Histogram(Metric):
 			"tags": tags,
 			"values": copy.deepcopy(self.InitHistogram),
 			"actuals": copy.deepcopy(self.InitHistogram),
-			"measured@": self.App.time()
+			"measured_at": self.App.time()
 		}
 		self.Storage['fieldset'].append(field)
 		self._actuals = field['actuals']
@@ -319,7 +319,7 @@ class Histogram(Metric):
 
 	def flush(self, now):
 		if self.Storage.get("reset") is True:
-			self._field['measured@'] = now
+			self._field['measured_at'] = now
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
 				field['actuals'] = copy.deepcopy(self.InitHistogram)
@@ -330,7 +330,7 @@ class Histogram(Metric):
 
 	def set(self, value_name, value):
 		if not self.Storage.get("reset"):
-			self._field['measured@'] = self.App.time()
+			self._field['measured_at'] = self.App.time()
 		buckets = self._actuals["buckets"]
 		summary = self._actuals["sum"]
 		count = self._actuals["count"]
@@ -384,7 +384,7 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 			"values": self.Init.copy() if self.Init is not None else dict(),
 			"actuals": self.Init.copy() if self.Init is not None else dict(),
 			"expires_at": self.App.time() + self.Expiration,
-			"measured@": self.App.time()
+			"measured_at": self.App.time()
 		}
 		self.Storage['fieldset'].append(field)
 		return field
@@ -406,7 +406,7 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 			actuals[name] = value
 
 		if self.Storage.get("reset") is False:
-			field['measured@'] = self.App.time()
+			field['measured_at'] = self.App.time()
 
 		field["expires_at"] = self.App.time() + self.Expiration
 
@@ -427,7 +427,7 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 			actuals[name] = -value
 
 		if self.Storage.get("reset") is False:
-			field['measured@'] = self.App.time()
+			field['measured_at'] = self.App.time()
 
 		field["expires_at"] = self.App.time() + self.Expiration
 
@@ -444,7 +444,7 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 					field['actuals'] = self.Init.copy()
 				else:
 					field['actuals'] = dict()
-				field['measured@'] = self.App.time()
+				field['measured_at'] = self.App.time()
 		else:
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals'].copy()
@@ -466,7 +466,7 @@ class AggregationCounterWithDynamicTags(CounterWithDynamicTags):
 			actuals[name] = value
 
 		if self.Storage.get("reset") is False:
-			field['measured@'] = self.App.time()
+			field['measured_at'] = self.App.time()
 
 		field["expires_at"] = self.App.time() + self.Expiration
 
@@ -518,7 +518,7 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 			"values": copy.deepcopy(self.InitHistogram),
 			"actuals": copy.deepcopy(self.InitHistogram),
 			"expires_at": self.App.time() + self.Expiration,
-			"measured@": self.App.time()
+			"measured_at": self.App.time()
 		}
 		self.Storage['fieldset'].append(field)
 		return field
@@ -533,7 +533,7 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 			for field in self.Storage['fieldset']:
 				field['values'] = field['actuals']
 				field['actuals'] = copy.deepcopy(self.InitHistogram)
-				field['measured@'] = self.App.time()
+				field['measured_at'] = self.App.time()
 		else:
 			for field in self.Storage['fieldset']:
 				field['values'] = copy.deepcopy(field['actuals'])
@@ -553,6 +553,6 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 		field.get("actuals")["count"] = count + 1
 
 		if self.Storage.get("reset") is False:
-			field['measured@'] = self.App.time()
+			field['measured_at'] = self.App.time()
 
 		field["expires_at"] = self.App.time() + self.Expiration

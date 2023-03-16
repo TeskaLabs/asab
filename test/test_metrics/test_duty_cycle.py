@@ -37,7 +37,7 @@ class TestDutyCycle(MetricsTestCase):
 					}
 				},
 				"values": {},
-				"measured@": 123.45
+				"measured_at": 123.45
 			}
 			]
 		}
@@ -84,7 +84,7 @@ class TestDutyCycle(MetricsTestCase):
 					}
 				},
 				"values": {"v1": 1.0},
-				"measured@": now
+				"measured_at": now
 			}
 			]
 		}
@@ -131,7 +131,7 @@ class TestDutyCycle(MetricsTestCase):
 					}
 				},
 				"values": {"v1": 0.0},
-				"measured@": 124.45
+				"measured_at": 124.45
 			}
 			]
 		}
@@ -159,7 +159,7 @@ class TestDutyCycle(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testdc,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id v1=1.0 123450000000\n',
+				'testdc,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id v1=1.0 124450000000\n',
 			])
 		)
 
