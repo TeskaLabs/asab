@@ -19,12 +19,13 @@ L = logging.getLogger(__name__)
 class UpsertorABC(abc.ABC):
 
 	def __init__(self, storage, collection, obj_id, version=None):
-		'''
-		'''
 
 		self.Storage = storage
 		self.Collection = collection
 		self.ObjId = obj_id
+
+		if self.ObjId is None:
+			self.ObjId = self.__class__.generate_id()
 
 		self.Version = version
 
@@ -53,6 +54,11 @@ class UpsertorABC(abc.ABC):
 
 	@classmethod
 	def generate_id(cls):
+		"""
+		Generate a unique ID using a combination of UUID and SHA-256.
+
+		:return: A bytes object containing the hashed UUID.
+		"""
 		m = hashlib.sha256()
 		m.update(uuid.uuid4().bytes)
 		return m.digest()
