@@ -363,9 +363,7 @@ class ElasicSearchUpsertor(UpsertorABC):
 			self.ModSet['_c'] = now  # Set the creation timestamp
 
 
-	@classmethod
-	def generate_id(cls):
-		raise NotImplementedError("generate_id")
+
 
 
 	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
