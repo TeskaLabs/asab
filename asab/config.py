@@ -77,12 +77,6 @@ class ConfigParser(configparser.ConfigParser):
 			"rotate_every": "",
 		},
 
-		"authz": {
-			# RBAC URL
-			# If !DISABLED! is specified, all authorization checks will be skipped
-			"rbac_url": "http://localhost:8081/rbac",
-		},
-
 		"library": {
 			"azure_cache": "false",  # true or the actual path of where the cache should be located
 		},
