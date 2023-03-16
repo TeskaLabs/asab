@@ -53,9 +53,10 @@ class UpsertorABC(abc.ABC):
 
 
 	@classmethod
-	def generate_id(cls):
+	def generate_id(cls) -> bytes:
 		"""
-		Generate a unique ID using a combination of UUID and SHA-256.
+		Generate a unique binary ID using a combination of UUID and SHA-256.
+		Binary format is used for its high density so that it allows more data to be stored in the same physical space.
 
 		:return: A bytes object containing the hashed UUID.
 		"""
