@@ -122,7 +122,7 @@ class MongoDBUpsertor(UpsertorABC):
 		return bson.objectid.ObjectId()
 
 
-	async def execute(self, custom_data: typing.Optional[dict] = None):
+	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
 		id_name = self.get_id_name()
 		addobj = {}
 
@@ -188,6 +188,9 @@ class MongoDBUpsertor(UpsertorABC):
 
 			if custom_data is not None:
 				webhook_data["custom"] = custom_data
+
+			if event_type is not None:
+				webhook_data["event_type"] = event_type
 
 			# Add upsetor data; do not include fields that start with "__"
 			upsertor_data = {
