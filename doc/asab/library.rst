@@ -157,3 +157,10 @@ Example:
         provider+2://...
         provider+3://...
 
+
+PubSub messages
+---------------
+
+.. option:: Library.ready!
+
+.. option:: Library.change!

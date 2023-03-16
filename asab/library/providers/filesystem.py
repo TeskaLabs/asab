@@ -159,7 +159,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		for path in to_advertise:
 			if path is None:
 				continue
-			self.App.PubSub.publish("ASABLibrary.change!", self, path)
+			self.App.PubSub.publish("Library.change!", self, path)
 
 
 	async def subscribe(self, path):

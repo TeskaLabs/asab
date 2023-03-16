@@ -168,7 +168,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		# Once reset of the head is finished, PubSub message about the change in the subsrcibed directory gets published.
 		for path in to_publish:
-			self.App.PubSub.publish("ASABLibrary.change!", self, path)
+			self.App.PubSub.publish("Library.change!", self, path)
 
 	async def subscribe(self, path):
 		if not os.path.isdir(self.BasePath + path):

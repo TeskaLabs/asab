@@ -204,7 +204,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return
 
 		L.info("Version changed", struct_data={'version': version, 'name': self.Library.Name})
-		self.App.PubSub.publish("Library.changed!", self.Library, self)
+		self.App.PubSub.publish("Library.change!", self, "TODO")
 
 
 	async def read(self, path: str) -> typing.IO:
