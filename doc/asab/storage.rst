@@ -96,9 +96,15 @@ For getting a single object, use `get()` coroutine method that takes two argumen
 
     obj = await storage.get(collection="test-collection", obj_id=object_id)
 
+When the requested object is not found in the collection, the method raises ``KeyError``. Remember to handle this exception properly when using databases in your services and prevent them from crashing!
+
 .. note::
 
     MongoDB storage service in addition provides a coroutine method `get_by()` which is used for accessing an object by finding its key-value pair. 
+
+    .. code::python
+
+        obj = await storage.get_by(database="test-collection", key="key", value="value")
 
 Updating an object
 ~~~~~~~~~~~~~~~~~~
@@ -130,8 +136,8 @@ For deleting an object from database, use the `delete()` coroutine method which 
 
 
 
-Storing in memory
------------------
+Storing data in memory
+----------------------
 
 If the option `inmemory` is set, ASAB will store data in its own memory. In particular, `asab.StorageService` is initialized with an attribute `InMemoryCollections` which is a dictionary where all the collections are stored in.
 
@@ -146,3 +152,30 @@ If the option `inmemory` is set, ASAB will store data in its own memory. In part
         storage = self.get_service("asab.StorageService")
         pprint.pprint(storage.InMemoryCollections, indent=2)
 
+
+Storing data in MongoDB
+-----------------------
+
+If the option `mongodb` is set, ASAB will store data in MongoDB database.
+
+ASAB uses `motor library <https://pypi.org/project/motor/>`_ which provides non-blocking MongoDB driver for `asyncio`.
+
+Mongo Storage class provides in addition a method `database()` for accessing database directly. It takes `collection` as the argument and returns `motor.motor_asyncio.AsyncIOMotorCollection` object, which can be used for calling MongoDB directives. The full list of methods suitable for this object is described in `official motor documentation <https://motor.readthedocs.io/en/stable/api-asyncio/asyncio_motor_collection.html>`_
+
+
+Storing data in Elastic Search
+------------------------------
+
+TODO
+
+
+Encryption and decryption
+-------------------------
+
+TODO
+
+
+Object ID
+---------
+
+TODO (how ID's are generated via `generateid()` method)
