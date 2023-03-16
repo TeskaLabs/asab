@@ -102,6 +102,9 @@ class ConfigParser(configparser.ConfigParser):
 		}
 	}
 
+	if 'ASAB_ZOOKEEPER_SERVERS' in os.environ:
+		# If `ASAB_ZOOKEEPER_SERVERS` are specified, use that as a default value
+		_default_values['zookeeper'] = {'servers': os.environ['ASAB_ZOOKEEPER_SERVERS']}
 
 	def add_defaults(self, dictionary):
 		""" Add defaults to a current configuration """
