@@ -1,5 +1,6 @@
 import logging
 
+import kazoo.retry
 import kazoo.client
 import kazoo.exceptions
 
@@ -14,8 +15,28 @@ class KazooWrapper(object):
 
 
 	def __init__(self, zksvc, hosts):
+		self.App = zksvc.App
 		self.ProactorService = zksvc.ProactorService
-		self.Client = kazoo.client.KazooClient(hosts=hosts)
+
+		self.Client = kazoo.client.KazooClient(
+			hosts=hosts,
+			connection_retry=kazoo.retry.KazooRetry(
+				max_tries=-1,  # Try to reconnect indefinetively
+			),
+		)
+
+		self.Client.add_listener(self._listener)
+
+
+	def _listener(self, state):
+		'''
+		Generate PubSub events:
+
+		* ZooKeeperContainer.state/CONNECTED!
+		* ZooKeeperContainer.state/LOST!
+		* ZooKeeperContainer.state/SUSPENDED!
+		'''
+		self.App.PubSub.publish_threadsafe("ZooKeeperContainer.state/{}!".format(state), self)
 
 
 	# connection start/close calls

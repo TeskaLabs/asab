@@ -57,11 +57,11 @@ Specifications are obtained from:
 
 1. `z_path` argument, which is Zookeeper URL (see below)
 2. the configuration section specified by `config_section_name` argument
-3. `ZOOKEEPER_SERVERS` environment variable
+3. `ASAB_ZOOKEEPER_SERVERS` environment variable
 
 The `z_path` argument has precedence over config but the implementation will look
 at configuration if `z_path` URL is missing completely or partially.
-Also, if configuration section doesn't provide information about servers, `ZOOKEEPER_SERVERS` environment variable is used.
+Also, if configuration section doesn't provide information about servers, `ASAB_ZOOKEEPER_SERVERS` environment variable is used.
 
 
 Example of configuration section
@@ -74,12 +74,12 @@ Example of configuration section
     path=myfolder
 
 
-Example of `ZOOKEEPER_SERVER` environment variable
+Example of `ASAB_ZOOKEEPER_SERVERS` environment variable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: ini
 
-    ZOOKEEPER_SERVERS=zookeeper-1:2181,zookeeper-2:2181
+    ASAB_ZOOKEEPER_SERVERS=zookeeper-1:2181,zookeeper-2:2181
 
 
 Supported types of `z_path` URLs
@@ -132,6 +132,19 @@ Advertisement into Zookeeper
 ----------------------------
 
 .. automethod:: ZooKeeperContainer.advertise
+
+
+PubSub messages
+---------------
+
+.. option:: ZooKeeperContainer.started!
+
+
+.. option:: ZooKeeperContainer.state/CONNECTED!
+
+.. option:: ZooKeeperContainer.state/LOST!
+
+.. option:: ZooKeeperContainer.state/SUSPENDED!
 
 
 Kazoo
