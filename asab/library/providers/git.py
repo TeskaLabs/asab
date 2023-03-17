@@ -94,6 +94,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		try:
 			await self.ProactorService.execute(self.pull)
+		except pygit2._pygit2.GitError:
+			L.warning("Periodic pull from the remote repository failed.")
 		finally:
 			self.PullLock = False
 
