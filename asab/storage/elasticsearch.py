@@ -189,6 +189,7 @@ class StorageService(StorageServiceABC):
 	async def put_index_template(self, template_name, template):
 		for url in self.ServerUrls:
 			url = "{}_template/{}?include_type_name".format(url, template_name)
+			L.warning("sending into url: {}".format(url))
 			try:
 				async with self.session().request(method="POST", url=url, data=json.dumps(template), headers={
 					'Content-Type': 'application/json'

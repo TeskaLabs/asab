@@ -3,19 +3,19 @@
 Storage
 =======
 
-ASAB provides a service for storing data. Data can be stored in memory or in dedicated document database. For now, it supports `MongoDB <https://www.mongodb.com/>`_ and `Elastic Search <https://www.elastic.co/>`_ databases.
+ASAB provides a service for storing data. Data can be stored in memory or in dedicated document database. For now, `MongoDB <https://www.mongodb.com/>`_ and `Elastic Search <https://www.elastic.co/>`_ databases are supported.
 
 Specification of the storage type
 ---------------------------------
 
-In order to use `asab.storage`, first you have to specify the type of storage. You can add configurations in the config file 
+In order to use `asab.storage`, first you have to specify the type of storage. You can add configurations in the config file:
 
 .. code:: ini
 
     [asab:storage]
     type=mongodb
 
-or you can set it manually in the ASAB app
+or you can set it manually in the ASAB app:
 
 .. code:: python
 
@@ -32,24 +32,24 @@ or you can set it manually in the ASAB app
 
 The options for the storage type are:
 
-- `inmemory`: collects data directly in memory
-- `mongodb`: collects data using MongoDB database
-- `elasticsearch`: collects data using Elastic Search database
+- `inmemory`: Collects data directly in memory
+- `mongodb`: Collects data using MongoDB database. Depends on `pymongo <https://pymongo.readthedocs.io/en/stable/>`_ and `motor <https://motor.readthedocs.io/en/stable/api-asyncio/asyncio_motor_collection.html>`_ libraries.
+- `elasticsearch`: Collects data using Elastic Search database. Depends on `aiohttp <https://docs.aiohttp.org/en/latest/>`_ library.
 
 Although these three databases are different, accessing the database and manipulation with collections is done by using the same methods.
 
-For accessing the storage, simply add asab.storage.Module when initializing and register the service.
+For accessing the storage, simply `add asab.storage.Module`` when initializing and register the service.
 
 .. code:: python
 
     class MyApplication(asab.Application):
 
-    async def initialize(self):
+        async def initialize(self):
 
-        self.add_module(asab.storage.Module)
+            self.add_module(asab.storage.Module)
 
-    async def main(self):
-        storage = self.get_service("asab.StorageService")
+        async def main(self):
+            storage = self.get_service("asab.StorageService")
 
 
 Manipulation with databases
@@ -115,7 +115,7 @@ For updating an object, first obtain the upsertor specifying its `obj_id` and `v
 
     u = storage.upsertor("test-collection", obj_id=object_id, version=obj['_v']
 
-We strongly recommend to read version from the object such as above. That creates a soft lock on the record. It means that if the object is updated by other component in meanwhile, your upsertor will fail and you should retry the whole operation. The new objects should have a version set to 0, which is done by default.
+We strongly recommend to read the version from the object such as above. That creates a soft lock on the record. It means that if the object is updated by other component in meanwhile, your upsertor will fail and you should retry the whole operation. The new objects should have a version set to 0, which is done by default.
 
 After obtaining an upsertor, you can update the object via the `set()` coroutine.
 
@@ -160,13 +160,52 @@ If the option `mongodb` is set, ASAB will store data in MongoDB database.
 
 ASAB uses `motor library <https://pypi.org/project/motor/>`_ which provides non-blocking MongoDB driver for `asyncio`.
 
-Mongo Storage class provides in addition a method `database()` for accessing database directly. It takes `collection` as the argument and returns `motor.motor_asyncio.AsyncIOMotorCollection` object, which can be used for calling MongoDB directives. The full list of methods suitable for this object is described in `official motor documentation <https://motor.readthedocs.io/en/stable/api-asyncio/asyncio_motor_collection.html>`_
+You can specify the database name and URL for MongoDB in config file (the following example is the default configuration):
+
+.. code:: ini
+
+    [asab:storage]
+    type=mongodb
+    mongodb_uri=mongodb://localhost:27017
+    mongodb_database=asabdb
+
+
+
+.. py:method:: StorageService.get_by(collection: str, key: str, value, decrypt = None) -> dict
+
+
+.. py:method:: StorageService.collection(collection: str) -> motor.motor_asyncio.AsyncIOMotorCollection
+
+Mongo Storage class provides in addition a method `collection()` for accessing database directly. It takes `collection` as the argument and returns `motor.motor_asyncio.AsyncIOMotorCollection` object, which can be used for calling MongoDB directives. 
+
+Example of the use:
+
+.. code:: python
+
+    coll = await storage.collection("test-collection")
+    cursor = coll.find({})
+    while await cursor.fetch_next:
+        obj = cursor.next_object()
+        pprint.pprint(obj)
+
+The full list of methods suitable for this object is described in the `official documentation <https://motor.readthedocs.io/en/stable/api-asyncio/asyncio_motor_collection.html>`_
+
 
 
 Storing data in Elastic Search
 ------------------------------
 
-TODO
+When using Elastic Search, first TODO TODO TODO
+
+.. code:: ini
+
+    [asab:storage]
+    type=elasticsearch
+    elasticsearch_url=http://localhost:9200/
+    elasticsearch_username=JohnDoe
+    elasticsearch_password=lorem_ipsum_dolor?sit_amet!2023
+    refresh=true
+    scroll_timeout=1m
 
 
 Encryption and decryption
