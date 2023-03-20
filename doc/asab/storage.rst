@@ -64,7 +64,7 @@ Upsertors are used for manipulations with databases. Upsertor is an object that 
 
     u = storage.upsertor("test-collection")
 
-This will create an upsertor object associated with the specified collection. It takes `collection` as an argument and can have two parameters `obj_id` and `version`, which are used for getting an existing object by its ID and version.
+The method :func:`upsertor()` create an upsertor object associated with the specified collection. It takes `collection` as an argument and can have two parameters `obj_id` and `version`, which are used for getting an existing object by its ID and version.
 
 Inserting an object
 ~~~~~~~~~~~~~~~~~~~
@@ -75,7 +75,7 @@ For inserting an object to the collection, use the `set()` method.
 
     u.set("key", "value")
 
-To execute these procedures, simply run the `execute()` coroutine method, which commits the upsertor data to the storage and returns the ID of the object. Since it is a coroutine, it must be awaited.
+To execute these procedures, simply run the :func:`execute()` coroutine method, which commits the upsertor data to the storage and returns the ID of the object. Since it is a coroutine, it must be awaited.
 
 .. code:: python
 
@@ -90,7 +90,7 @@ The `execute()` method has optional parameters `custom_data` and `event_type`, w
 Getting a single object
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-For getting a single object, use `get()` coroutine method that takes two arguments `collection` and `obj_id` and finds an object by its ID in collection.
+For getting a single object, use :func:`get()` coroutine method that takes two arguments `collection` and `obj_id` and finds an object by its ID in collection.
 
 .. code:: python
 
@@ -100,7 +100,7 @@ When the requested object is not found in the collection, the method raises ``Ke
 
 .. note::
 
-    MongoDB storage service in addition provides a coroutine method `get_by()` which is used for accessing an object by finding its key-value pair. 
+    MongoDB storage service in addition provides a coroutine method :func:`get_by()` which is used for accessing an object by finding its key-value pair. 
 
     .. code::python
 
@@ -117,7 +117,7 @@ For updating an object, first obtain the upsertor specifying its `obj_id` and `v
 
 We strongly recommend to read the version from the object such as above. That creates a soft lock on the record. It means that if the object is updated by other component in meanwhile, your upsertor will fail and you should retry the whole operation. The new objects should have a version set to 0, which is done by default.
 
-After obtaining an upsertor, you can update the object via the `set()` coroutine.
+After obtaining an upsertor, you can update the object via the :func:`set()` coroutine.
 
 .. code::python
 
@@ -128,7 +128,7 @@ After obtaining an upsertor, you can update the object via the `set()` coroutine
 Deleting an object
 ~~~~~~~~~~~~~~~~~~
 
-For deleting an object from database, use the `delete()` coroutine method which takes arguments `collection` and `obj_id`, deletes the object and returns its ID.
+For deleting an object from database, use the :func:`delete()` coroutine method which takes arguments `collection` and `obj_id`, deletes the object and returns its ID.
 
 .. code:: python
 
@@ -176,26 +176,26 @@ You can specify the database name and URL for MongoDB in config file (the follow
 
 .. py:method:: StorageService.collection(collection: str) -> motor.motor_asyncio.AsyncIOMotorCollection
 
-Mongo Storage class provides in addition a method `collection()` for accessing database directly. It takes `collection` as the argument and returns `motor.motor_asyncio.AsyncIOMotorCollection` object, which can be used for calling MongoDB directives. 
+Mongo Storage class provides in addition a method :func:`collection()` for accessing database directly. It takes `collection` as the argument and returns `motor.motor_asyncio.AsyncIOMotorCollection` object, which can be used for calling MongoDB directives. 
 
 Example of the use:
 
 .. code:: python
 
-    coll = await storage.collection("test-collection")
-    cursor = coll.find({})
+    collection = await storage.collection("test-collection")
+    cursor = collection.find({})
     while await cursor.fetch_next:
-        obj = cursor.next_object()
-        pprint.pprint(obj)
+        data = cursor.next_object()
+        pprint.pprint(data)
 
-The full list of methods suitable for this object is described in the `official documentation <https://motor.readthedocs.io/en/stable/api-asyncio/asyncio_motor_collection.html>`_
+The full list of methods suitable for this object is described in the `official documentation <https://motor.readthedocs.io/en/stable/api-asyncio/asyncio_motor_collection.html>`_.
 
 
 
 Storing data in Elastic Search
 ------------------------------
 
-When using Elastic Search, first TODO TODO TODO
+When using Elastic Search, add configurations for URL, username and password.
 
 .. code:: ini
 
@@ -204,8 +204,15 @@ When using Elastic Search, first TODO TODO TODO
     elasticsearch_url=http://localhost:9200/
     elasticsearch_username=JohnDoe
     elasticsearch_password=lorem_ipsum_dolor?sit_amet!2023
+
+You can also specify `refreshing parameter <https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html#docs-refresh>`_ and scroll timeout for `Elastic Search Scroll API <https://www.elastic.co/guide/en/elasticsearch//reference/current/scroll-api.html>`_.
+
+.. code:: ini
+
+    [asab:storage]
     refresh=true
     scroll_timeout=1m
+
 
 
 Encryption and decryption
@@ -214,7 +221,89 @@ Encryption and decryption
 TODO
 
 
-Object ID
+
+Reference
 ---------
 
-TODO (how ID's are generated via `generateid()` method)
+In-memory storage
+~~~~~~~~~~~~~~~~~
+
+.. currentmodule:: asab.storage.inmemory
+
+.. autoclass:: StorageService
+    :show-inheritance:
+
+    .. automethod:: upsertor
+
+    .. automethod:: get
+
+    .. automethod:: get_by
+    
+    .. automethod:: delete
+
+.. autoclass:: InMemoryUpsertor
+
+    .. automethod:: execute
+
+
+MongoDB Storage
+~~~~~~~~~~~~~~~
+
+TODO: make changes in MongoDB storage.
+
+.. currentmodule:: asab.storage.mongodb
+
+.. autoclass:: StorageService
+    :show-inheritance:
+
+    .. automethod:: upsertor
+
+    .. automethod:: get
+
+    .. automethod:: get_by
+
+    .. automethod:: collection
+
+    .. automethod:: delete
+
+.. autoclass:: MongoDBUpsertor
+
+    .. automethod:: generate_id
+
+Elastic Search Storage
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. currentmodule:: asab.storage.elasticsearch
+
+.. autoclass:: StorageService
+    :show-inheritance:
+
+    .. automethod:: upsertor
+
+    .. automethod:: session
+
+    .. automethod:: finalize
+
+    .. automethod:: get
+
+    .. automethod:: get_by
+
+    .. automethod:: delete
+
+    .. automethod:: mapping
+
+    .. automethod:: get_index_template
+
+    .. automethod:: put_index_template
+
+    .. automethod:: reindex
+
+    .. automethod:: scroll
+
+    .. automethod:: list
+
+    .. automethod:: count
+
+    .. automethod:: indices
+
+    .. automethod:: empty_index
