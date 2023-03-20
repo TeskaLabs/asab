@@ -21,7 +21,7 @@ asab.Config.add_defaults(
 
 class StorageService(StorageServiceABC):
 	'''
-	Depends on `pymongo` and `motor`.
+	StorageService for MongoDB. Depends on `pymongo` and `motor`.
 	'''
 
 
@@ -54,7 +54,7 @@ class StorageService(StorageServiceABC):
 
 	async def get_by(self, collection: str, key: str, value, decrypt=None) -> dict:
 		"""
-		Get object from collection by its key/value
+		Get object from collection by its key and value.
 
 		:param collection: Collection to get from
 		:param key: Key to filter on
@@ -78,7 +78,7 @@ class StorageService(StorageServiceABC):
 
 	async def collection(self, collection: str) -> motor.motor_asyncio.AsyncIOMotorCollection:
 		"""
-		Get collection. Useful for custom operations
+		Get collection. Useful for custom operations.
 
 		:param collection: Collection to get
 		:return: AsyncIOMotorCollection
