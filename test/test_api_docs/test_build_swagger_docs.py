@@ -5,9 +5,12 @@ from .expected_swagger_output import TEST_ALL_KEYS_EXPECTED_OUTPUT
 class TestSwagger(TestDocWebHandler):
 
 	def test_parent_keys(self):
-		"""Documentation should contain these keys: 'openapi', 'info', 'servers', 'paths', 'components'"""
-		documentation: dict = self.handlerObject.build_swagger_documentation()
-		keys = ["openapi", "info", "servers", "paths", "components"]
+		"""Documentation should contain these keys: 'openapi', 'info', 'servers', 'paths', 'components', 'security'."""
+		try:
+			documentation: dict = self.handlerObject.build_swagger_documentation()
+		except Exception as err:
+			print(err)
+		keys = ["openapi", "info", "servers", "paths", "components", "security"]
 		self.assertTrue(check_keys(documentation, keys))
 
 	def test_all_keys(self):
