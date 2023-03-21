@@ -183,9 +183,9 @@ class StorageServiceABC(asab.Service):
 		raw = raw.rstrip(b"\x00")
 		return raw
 
+
 	def encryption_enabled(self) -> bool:
 		"""
 		Check if AESKey is not empty.
 		"""
 		return self._AESKey is not None
-
