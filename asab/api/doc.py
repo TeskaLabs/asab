@@ -30,11 +30,11 @@ class DocWebHandler(object):
 		self.WebContainer.WebApp.router.add_get("/asab/v1/openapi", self.openapi)
 
 		self.AuthorizationUrl = asab.Config.get(
-			config_section_name, "authorizationUrl", fallback=None
+			config_section_name, "authorization_url", fallback=None
 		)
-		self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl", fallback=None)
+		self.TokenUrl = asab.Config.get(config_section_name, "token_url", fallback=None)
 		self.Scopes = asab.Config.get(config_section_name, "scopes", fallback=None)
-		self.GlobalSecurity = asab.Config.get(config_section_name, "global_security", fallback=None)
+		self.GlobalSecurity = asab.Config.getboolean(config_section_name, "global_security")
 
 		self.Manifest = api_service.Manifest
 
@@ -59,7 +59,7 @@ class DocWebHandler(object):
 			],
 
 			# Global security
-			"security": {},
+			"security": [],
 
 			# Base path relative to openapi endpoint
 			"paths": {},
@@ -116,8 +116,8 @@ class DocWebHandler(object):
 			spec_endpoint.update(endpoint[endpoint_name])
 
 		# Global security
-		if self.GlobalSecurity == "true":
-			specification["security"] = {"oAuth": ["openid"]}
+		if self.GlobalSecurity:
+			specification["security"] = [{"oAuth": ["openid"]}]
 
 		return specification
 
