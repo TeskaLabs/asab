@@ -41,4 +41,5 @@ TEST_ALL_KEYS_EXPECTED_OUTPUT = {
 		},
 	},
 	"components": {"securitySchemes": {}},
+	"security": {"oAuth": ["openid"]},
 }
