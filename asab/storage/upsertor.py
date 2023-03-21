@@ -19,16 +19,12 @@ L = logging.getLogger(__name__)
 class UpsertorABC(abc.ABC):
 
 	def __init__(self, storage, collection, obj_id, version=None):
-		'''
-		'''
 
 		self.Storage = storage
 		self.Collection = collection
 		self.ObjId = obj_id
 
-		if self.ObjId is None:
-			# generate a random unique binary id
-			self.ObjId = self.__class__.generate_id()
+
 
 		self.Version = version
 
