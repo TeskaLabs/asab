@@ -24,8 +24,6 @@ class UpsertorABC(abc.ABC):
 		self.Collection = collection
 		self.ObjId = obj_id
 
-
-
 		self.Version = version
 
 		now = datetime.datetime.now(datetime.timezone.utc)
@@ -52,7 +50,7 @@ class UpsertorABC(abc.ABC):
 
 
 	@classmethod
-	def generate_id(cls):
+	def generate_id(cls) -> bytes:
 		"""
 		Generate a unique ID string using a combination of a random UUID and a SHA-256 hash.
 
@@ -60,7 +58,7 @@ class UpsertorABC(abc.ABC):
 		"""
 		m = hashlib.sha256()
 		m.update(uuid.uuid4().bytes)
-		return m.hexdigest()
+		return m.digest()
 
 
 	def set(self, objField, value, encrypt=False, encrypt_iv=None):
