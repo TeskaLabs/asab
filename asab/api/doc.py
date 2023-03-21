@@ -34,7 +34,7 @@ class DocWebHandler(object):
 		)
 		self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl", fallback=None)
 		self.Scopes = asab.Config.get(config_section_name, "scopes", fallback=None)
-		self.GlobalSecurity = asab.Config.get(config_section_name, "global_security", fallback=False)
+		self.GlobalSecurity = asab.Config.get(config_section_name, "global_security", fallback=None)
 
 		self.Manifest = api_service.Manifest
 
@@ -116,7 +116,7 @@ class DocWebHandler(object):
 			spec_endpoint.update(endpoint[endpoint_name])
 
 		# Global security
-		if self.GlobalSecurity:
+		if self.GlobalSecurity == "true":
 			specification["security"] = {"oAuth": ["openid"]}
 
 		return specification
