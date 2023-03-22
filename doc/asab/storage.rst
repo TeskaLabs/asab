@@ -5,7 +5,7 @@ Storage
 
 The ASAB's Storage Service supports data storage in-memory or in dedicated document databases, including  `MongoDB <https://www.mongodb.com/>`_ and `ElasticSearch <https://www.elastic.co/>`_.
 
-Storage Types
+Configuration
 -------------
 
 First, specify the storage type in the configuration. The options for the storage type are:
@@ -52,7 +52,7 @@ The :func:`upsertor()` method creates an upsertor object associated with the spe
 Inserting an object
 ~~~~~~~~~~~~~~~~~~~
 
-For inserting an object to the collection, use the `set()` method.
+For inserting an object to the collection, use the :func:`set()` method.
 
 .. code:: python
 
@@ -68,7 +68,7 @@ The `execute()` method has optional parameters `custom_data` and `event_type`, w
 
 .. code:: python
 
-    object_id = await u.execute(custom_data= {"foo": "bar"},event_type="object_created")
+    object_id = await u.execute(custom_data= {"foo": "bar"}, event_type="object_created")
 
 Getting a single object
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -78,6 +78,7 @@ For getting a single object, use :func:`get()` coroutine method that takes two a
 .. code:: python
 
     obj = await storage.get(collection="test-collection", obj_id=object_id)
+    print(obj)
 
 When the requested object is not found in the collection, the method raises ``KeyError``. Remember to handle this exception properly when using databases in your services and prevent them from crashing!
 
@@ -96,7 +97,7 @@ For updating an object, first obtain the upsertor specifying its `obj_id` and `v
 
 .. code:: python
 
-    u = storage.upsertor("test-collection", obj_id=object_id, version=obj['_v']
+    u = storage.upsertor(gcollection="test-collection", obj_id=object_id, version=obj['_v']
 
 We strongly recommend to read the version from the object such as above. That creates a soft lock on the record. It means that if the object is updated by other component in meanwhile, your upsertor will fail and you should retry the whole operation. The new objects should have a version set to 0, which is done by default.
 
@@ -201,12 +202,53 @@ You can also specify `refreshing parameter <https://www.elastic.co/guide/en/elas
 Encryption and decryption
 -------------------------
 
-The :func:`set()` method has an optional parameter `encrypt` which provides an encryption option for data that you want to store in the database. 
+Data stored in the database can be encrypted using an algorithm that adheres to the Advanced Encryption Standard (AES).
 
+AES Key settings
+~~~~~~~~~~~~~~~~
 
+In order to use encryption, first make sure you have the `cryptography package <https://pypi.org/project/cryptography/>`_ installed. Then specify the AES Key in the config file.
 
-Algorithm for encrypting
-~~~~~~~~~~~~~~~~~~~~~~~~
+.. code:: ini
+
+    [asab:storage]
+    aes_key=random_key_string
+
+.. note::
+
+    The AES Key is used as both an encryption and decryption key. It is recommended to keep it in `a separate configuration file <https://asab.readthedocs.io/en/latest/asab/config.html#including-other-configuration-files>`_ that is not exposed anywhere publicly.
+
+    The actual binary AES Key is obtained from the `aes_key` specified in the config file by encoding and hashing it using the standard `hashlib <https://docs.python.org/3/library/hashlib.html>`_ algorithms, so do not worry about the length and type of the key.
+
+Encrypting data
+~~~~~~~~~~~~~~~
+
+The :func:`set()` coroutine method has an optional boolean parameter `encrypt` which provides an encryption option for data that you want to store in the database. Only values of the type ``bytes`` can be encrypted. If you want to encrypt other values, make sure you encode them first.
+
+.. code:: python
+
+    message = "This is a super secret message!"
+    number = 2023
+    message_binary = message.encode("ascii")
+    number_binary = number.encode("ascii")
+
+    u.set("message", message_binary, encrypt=True)
+    u.set("number", number_binary, encrypt=True)
+    object_id = await u.execute()
+
+Decrypting data
+~~~~~~~~~~~~~~~
+
+The :func:`get()` method has an optional parameter `decrypt` which takes an ``iterable`` object (i.e. a list, tuple, set, ...)  with the names of keys whose values are to be decrypted.
+
+.. code:: python
+
+    data = await storage.get(collection="test-collection", obj_id=object_id, decrypt=["message", "number"])
+
+If some of the keys to be decrypted are missing in the required document, the method will just ignore them and continue.
+
+More on AES-CBC algorithm
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For encrypting data, we use the certified symmetric AES-CBC algorithm. In fact, the abstract base class :class:`StorageServiceABC` provides two methods :func:`aes_encrypt()` and :func:`aes_decrypt()` that are called automatically in :func:`set()` and :func:`get()` methods when the parameter `encrypt` or `decrypt` is specified.
 
