@@ -223,7 +223,7 @@ In order to use encryption, first make sure you have the `cryptography package <
 Encrypting data
 ~~~~~~~~~~~~~~~
 
-The :func:`set()` coroutine method has an optional boolean parameter `encrypt` which provides an encryption option for data that you want to store in the database. Only values of the type ``bytes`` can be encrypted. If you want to encrypt other values, make sure you encode them first.
+The :func:`set()` coroutine method has an optional boolean parameter `encrypt` which provides an encryption option for data that you want to store in the database. Only values of the type ``bytes`` can be encrypted. If you want to encrypt other values, encode them first.
 
 .. code:: python
 
@@ -245,7 +245,7 @@ The :func:`get()` method has an optional parameter `decrypt` which takes an ``it
 
     data = await storage.get(collection="test-collection", obj_id=object_id, decrypt=["message", "number"])
 
-If some of the keys to be decrypted are missing in the required document, the method will just ignore them and continue.
+If some of the keys to be decrypted are missing in the required document, the method will ignore them and continue.
 
 More on AES-CBC algorithm
 ~~~~~~~~~~~~~~~~~~~~~~~~~
