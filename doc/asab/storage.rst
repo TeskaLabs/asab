@@ -258,18 +258,17 @@ The :func:`get()` coroutine method has an optional parameter `decrypt` which tak
 
 If some of the keys to be decrypted are missing in the required document, the method will ignore them and continue.
 
-More on AES-CBC algorithm
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Under the hood
+~~~~~~~~~~~~~~
 
 For encrypting data, we use the certified symmetric AES-CBC algorithm. In fact, the abstract base class :class:`StorageServiceABC` provides two methods :func:`aes_encrypt()` and :func:`aes_decrypt()` that are called automatically in :func:`set()` and :func:`get()` methods when the parameter `encrypt` or `decrypt` is specified.
 
-.. note::
 
-    AES-CBC is a mode of operation for the Advanced Encryption Standard (AES) algorithm that provides confidentiality and integrity for data. In AES-CBC, the plaintext is divided into blocks of fixed size (usually 128 bits), and each block is encrypted using the AES algorithm with a secret key.
+AES-CBC is a mode of operation for the Advanced Encryption Standard (AES) algorithm that provides confidentiality and integrity for data. In AES-CBC, the plaintext is divided into blocks of fixed size (usually 128 bits), and each block is encrypted using the AES algorithm with a secret key.
 
-    CBC stands for "Cipher Block Chaining" and it is a technique that adds an extra step to the encryption process to ensure that each ciphertext block depends on the previous one. This means that any modification to the ciphertext will produce a completely different plaintext after decryption.
+CBC stands for "Cipher Block Chaining" and it is a technique that adds an extra step to the encryption process to ensure that each ciphertext block depends on the previous one. This means that any modification to the ciphertext will produce a completely different plaintext after decryption.
 
-    The algorithm is a symmetric cipher, which is suitable for encrypting large amounts of data. It requires much less computation power than asymmetric ciphers and is much more useful for bulk encrypting large amounts of data.
+The algorithm is a symmetric cipher, which is suitable for encrypting large amounts of data. It requires much less computation power than asymmetric ciphers and is much more useful for bulk encrypting large amounts of data.
 
 
 
