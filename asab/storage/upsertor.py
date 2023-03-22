@@ -59,9 +59,17 @@ class UpsertorABC(abc.ABC):
 
 
 	def set(self, objField, value, encrypt=False, encrypt_iv=None):
-		'''
-		Scalar set
-		'''
+		"""
+		Add key and value to the upsertor.
+
+		:param objField: Key of the object.
+		:param value: Value of the object.
+		:param encrypt: Allow encryption. Defaults to False.
+		:type encrypt: bool
+		:param encrypt_iv: Custom initialization vector. Defaults to None.
+		:type encrypt_iv: bool
+		"""
+
 		if encrypt:
 			value = self.Storage.aes_encrypt(value, iv=encrypt_iv)
 		self.ModSet[objField] = value

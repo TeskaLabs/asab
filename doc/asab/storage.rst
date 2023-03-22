@@ -279,7 +279,11 @@ The algorithm is a symmetric cipher, which is suitable for encrypting large amou
 Reference
 ---------
 
-Here is a list of methods of the abstract class which can be used in all types of storages.
+StorageService
+~~~~~~~~~~~~~~
+
+Here is a list of methods of the abstract StorageService class which can be used for all types of storages.
+
 
 .. currentmodule:: asab.storage.service
 
@@ -295,70 +299,66 @@ Here is a list of methods of the abstract class which can be used in all types o
 
     .. automethod:: aes_decrypt
 
+
+Upsertor
+~~~~~~~~
+
+Here is a list of methods of the abstract Upsertor class which can be used for all types of storages.
+
+.. currentmodule:: asab.storage.upsertor
+
+.. autoclass:: UpsertorABC
+
+    .. automethod:: set
+
+    .. automethod:: unset
+
+    .. automethod:: generate_id
+
+    .. automethod:: execute
+
+
 In-memory storage
 ~~~~~~~~~~~~~~~~~
+
+Here is a list of methods that are specific for the in-memory storage.
 
 .. currentmodule:: asab.storage.inmemory
 
 .. autoclass:: StorageService
     :show-inheritance:
 
-    .. automethod:: upsertor
-
-    .. automethod:: get
-
     .. automethod:: get_by
-    
-    .. automethod:: delete
-
-.. autoclass:: InMemoryUpsertor
-
-    .. automethod:: execute
 
 
 MongoDB Storage
 ~~~~~~~~~~~~~~~
 
-TODO: make changes in MongoDB storage.
+Here is a list of methods that are specific for the MongoDB storage.
 
 .. currentmodule:: asab.storage.mongodb
 
 .. autoclass:: StorageService
     :show-inheritance:
 
-    .. automethod:: upsertor
-
-    .. automethod:: get
-
     .. automethod:: get_by
 
     .. automethod:: collection
 
-    .. automethod:: delete
-
-.. autoclass:: MongoDBUpsertor
-
-    .. automethod:: generate_id
 
 ElasticSearch Storage
 ~~~~~~~~~~~~~~~~~~~~~~
+
+Here is a list of methods that are specific for the ElasticSearch storage.
 
 .. currentmodule:: asab.storage.elasticsearch
 
 .. autoclass:: StorageService
     :show-inheritance:
 
-    .. automethod:: upsertor
-
     .. automethod:: session
 
     .. automethod:: finalize
-
-    .. automethod:: get
-
-    .. automethod:: get_by
-
-    .. automethod:: delete
 
     .. automethod:: mapping
 

@@ -105,10 +105,11 @@ class StorageServiceABC(asab.Service):
 		"""
 		Delete object from collection.
 
-		Args:
-			:param collection: Collection to get from
-			:type collection: str
-			:param obj_id: Object identification
+		:param collection: Collection to get from
+		:type collection: str
+		:param obj_id: Object identification
+
+		:return: ID of the deleted object.
 		"""
 		pass
 
