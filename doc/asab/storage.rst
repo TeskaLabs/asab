@@ -68,7 +68,10 @@ The `execute()` method has optional parameters `custom_data` and `event_type`, w
 
 .. code:: python
 
-    object_id = await u.execute(custom_data= {"foo": "bar"}, event_type="object_created")
+    object_id = await u.execute(
+        custom_data= {"foo": "bar"},
+        event_type="object_created"
+        )
 
 Getting a single object
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -97,7 +100,11 @@ For updating an object, first obtain the upsertor specifying its `obj_id` and `v
 
 .. code:: python
 
-    u = storage.upsertor(gcollection="test-collection", obj_id=object_id, version=obj['_v']
+    u = storage.upsertor(
+        collection="test-collection", 
+        obj_id=object_id, 
+        version=obj['_v']
+    )
 
 We strongly recommend to read the version from the object such as above. That creates a soft lock on the record. It means that if the object is updated by other component in meanwhile, your upsertor will fail and you should retry the whole operation. The new objects should have a version set to 0, which is done by default.
 
@@ -223,7 +230,7 @@ In order to use encryption, first make sure you have the `cryptography package <
 Encrypting data
 ~~~~~~~~~~~~~~~
 
-The :func:`set()` coroutine method has an optional boolean parameter `encrypt` which provides an encryption option for data that you want to store in the database. Only values of the type ``bytes`` can be encrypted. If you want to encrypt other values, encode them first.
+The :func:`set()` method has an optional boolean parameter `encrypt` for encrypting the data before they are stored. Only values of the type ``bytes`` can be encrypted. If you want to encrypt other values, encode them first.
 
 .. code:: python
 
@@ -239,11 +246,15 @@ The :func:`set()` coroutine method has an optional boolean parameter `encrypt` w
 Decrypting data
 ~~~~~~~~~~~~~~~
 
-The :func:`get()` method has an optional parameter `decrypt` which takes an ``iterable`` object (i.e. a list, tuple, set, ...)  with the names of keys whose values are to be decrypted.
+The :func:`get()` coroutine method has an optional parameter `decrypt` which takes an ``iterable`` object (i.e. a list, tuple, set, ...)  with the names of keys whose values are to be decrypted.
 
 .. code:: python
 
-    data = await storage.get(collection="test-collection", obj_id=object_id, decrypt=["message", "number"])
+    data = await storage.get(
+        collection="test-collection", 
+        obj_id=object_id, 
+        decrypt=["message", "number"]
+        )
 
 If some of the keys to be decrypted are missing in the required document, the method will ignore them and continue.
 
