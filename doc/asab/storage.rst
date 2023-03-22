@@ -47,12 +47,12 @@ Upsertors are used for manipulations with databases. Upsertor is an object that 
 
     u = storage.upsertor("test-collection")
 
-The :func:`upsertor()` method creates an upsertor object associated with the specified collection. It takes `collection` as an argument and can have two parameters `obj_id` and `version`, which are used for getting an existing object by its ID and version.
+The :func:`StorageService.upsertor()` method creates an upsertor object associated with the specified collection. It takes `collection` as an argument and can have two parameters `obj_id` and `version`, which are used for getting an existing object by its ID and version.
 
 Inserting an object
 ~~~~~~~~~~~~~~~~~~~
 
-For inserting an object to the collection, use the :func:`set()` method.
+For inserting an object to the collection, use the :func:`Upsertor.set()` method.
 
 .. code:: python
 
@@ -76,7 +76,7 @@ The `execute()` method has optional parameters `custom_data` and `event_type`, w
 Getting a single object
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-For getting a single object, use :func:`get()` coroutine method that takes two arguments `collection` and `obj_id` and finds an object by its ID in collection.
+For getting a single object, use :func:`StorageService.get()` coroutine method that takes two arguments `collection` and `obj_id` and finds an object by its ID in collection.
 
 .. code:: python
 
@@ -108,7 +108,7 @@ For updating an object, first obtain the upsertor specifying its `obj_id` and `v
 
 We strongly recommend to read the version from the object such as above. That creates a soft lock on the record. It means that if the object is updated by other component in meanwhile, your upsertor will fail and you should retry the whole operation. The new objects should have a version set to 0, which is done by default.
 
-After obtaining an upsertor, you can update the object via the :func:`set()` coroutine.
+After obtaining an upsertor, you can update the object via the :func:`Upsertor.set()` coroutine.
 
 .. code::python
 
@@ -119,7 +119,7 @@ After obtaining an upsertor, you can update the object via the :func:`set()` cor
 Deleting an object
 ~~~~~~~~~~~~~~~~~~
 
-For deleting an object from database, use the :func:`delete()` coroutine method which takes arguments `collection` and `obj_id`, deletes the object and returns its ID.
+For deleting an object from database, use the :func:`StorageService.delete()` coroutine method which takes arguments `collection` and `obj_id`, deletes the object and returns its ID.
 
 .. code:: python
 
@@ -227,10 +227,12 @@ In order to use encryption, first make sure you have the `cryptography package <
 
     The actual binary AES Key is obtained from the `aes_key` specified in the config file by encoding and hashing it using the standard `hashlib <https://docs.python.org/3/library/hashlib.html>`_ algorithms, so do not worry about the length and type of the key.
 
+
+
 Encrypting data
 ~~~~~~~~~~~~~~~
 
-The :func:`set()` method has an optional boolean parameter `encrypt` for encrypting the data before they are stored. Only values of the type ``bytes`` can be encrypted. If you want to encrypt other values, encode them first.
+The :func:`Upsertor.set()` method has an optional boolean parameter `encrypt` for encrypting the data before they are stored. Only values of the type ``bytes`` can be encrypted. If you want to encrypt other values, encode them first.
 
 .. code:: python
 
@@ -243,10 +245,11 @@ The :func:`set()` method has an optional boolean parameter `encrypt` for encrypt
     u.set("number", number_binary, encrypt=True)
     object_id = await u.execute()
 
+
 Decrypting data
 ~~~~~~~~~~~~~~~
 
-The :func:`get()` coroutine method has an optional parameter `decrypt` which takes an ``iterable`` object (i.e. a list, tuple, set, ...)  with the names of keys whose values are to be decrypted.
+The :func:`StorageService.get()` coroutine method has an optional parameter `decrypt` which takes an ``iterable`` object (i.e. a list, tuple, set, ...)  with the names of keys whose values are to be decrypted.
 
 .. code:: python
 
@@ -258,10 +261,11 @@ The :func:`get()` coroutine method has an optional parameter `decrypt` which tak
 
 If some of the keys to be decrypted are missing in the required document, the method will ignore them and continue.
 
+
 Under the hood
 ~~~~~~~~~~~~~~
 
-For encrypting data, we use the certified symmetric AES-CBC algorithm. In fact, the abstract base class :class:`StorageServiceABC` provides two methods :func:`aes_encrypt()` and :func:`aes_decrypt()` that are called automatically in :func:`set()` and :func:`get()` methods when the parameter `encrypt` or `decrypt` is specified.
+For encrypting data, we use the certified symmetric AES-CBC algorithm. In fact, the abstract base class :class:`StorageServiceABC` provides two methods :func:`aes_encrypt()` and :func:`aes_decrypt()` that are called automatically in :func:`Upsertor.set()` and :func:`StorageService.get()` methods when the parameter `encrypt` or `decrypt` is specified.
 
 
 AES-CBC is a mode of operation for the Advanced Encryption Standard (AES) algorithm that provides confidentiality and integrity for data. In AES-CBC, the plaintext is divided into blocks of fixed size (usually 128 bits), and each block is encrypted using the AES algorithm with a secret key.
@@ -274,6 +278,22 @@ The algorithm is a symmetric cipher, which is suitable for encrypting large amou
 
 Reference
 ---------
+
+Here is a list of methods of the abstract class which can be used in all types of storages.
+
+.. currentmodule:: asab.storage.service
+
+.. autoclass:: StorageServiceABC
+
+    .. automethod:: upsertor
+
+    .. automethod:: get
+
+    .. automethod:: delete
+
+    .. automethod:: aes_encrypt
+
+    .. automethod:: aes_decrypt
 
 In-memory storage
 ~~~~~~~~~~~~~~~~~

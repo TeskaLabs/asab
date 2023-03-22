@@ -49,6 +49,8 @@ class StorageServiceABC(asab.Service):
 	@abc.abstractmethod
 	def upsertor(self, collection: str, obj_id=None, version: int = 0):
 		'''
+		Create an upsertor object for the specified collection.
+
 		If updating an existing object, please specify its `obj_id` and also `version` that you need to read from a storage upfront.
 		If `obj_id` is None, we assume that you want to insert a new object and generate its new `obj_id`, `version` should be set to 0 (default) in that case.
 		If you want to insert a new object with a specific `obj_id`, specify `obj_id` and set a version to 0.
@@ -68,7 +70,7 @@ class StorageServiceABC(asab.Service):
 	@abc.abstractmethod
 	async def get(self, collection: str, obj_id, decrypt=None) -> dict:
 		"""
-		Get object from collection
+		Get object from collection by its ID.
 
 		:param collection: Collection to get from
 		:param obj_id: Object identification
@@ -84,7 +86,7 @@ class StorageServiceABC(asab.Service):
 	@abc.abstractmethod
 	async def get_by(self, collection: str, key: str, value, decrypt=None):
 		"""
-		Get object from collection by its key/value
+		Get object from collection by its key and value.
 
 		:param collection: Collection to get from
 		:param key: Key to filter on
@@ -100,6 +102,14 @@ class StorageServiceABC(asab.Service):
 
 	@abc.abstractmethod
 	async def delete(self, collection: str, obj_id):
+		"""
+		Delete object from collection.
+
+		Args:
+			:param collection: Collection to get from
+			:type collection: str
+			:param obj_id: Object identification
+		"""
 		pass
 
 
