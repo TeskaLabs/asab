@@ -3,42 +3,25 @@
 Storage
 =======
 
-ASAB provides a service for storing data. Data can be stored in memory or in dedicated document database. For now, `MongoDB <https://www.mongodb.com/>`_ and `Elastic Search <https://www.elastic.co/>`_ databases are supported.
+The ASAB's Storage Service supports data storage in-memory or in dedicated document databases, including  `MongoDB <https://www.mongodb.com/>`_ and `ElasticSearch <https://www.elastic.co/>`_.
 
-Specification of the storage type
----------------------------------
+Storage Types
+-------------
 
-In order to use `asab.storage`, first you have to specify the type of storage. You can add configurations in the config file:
+First, specify the storage type in the configuration. The options for the storage type are:
+
+- `inmemory`: Collects data directly in memory
+- `mongodb`: Collects data using MongoDB database. Depends on `pymongo <https://pymongo.readthedocs.io/en/stable/>`_ and `motor <https://motor.readthedocs.io/en/stable/api-asyncio/asyncio_motor_collection.html>`_ libraries.
+- `elasticsearch`: Collects data using ElasticSearch database. Depends on `aiohttp <https://docs.aiohttp.org/en/latest/>`_ library.
+
+Storage Service provides a unified interface for accessing and manipulating collections across multiple database technologies. 
 
 .. code:: ini
 
     [asab:storage]
     type=mongodb
 
-or you can set it manually in the ASAB app:
-
-.. code:: python
-
-    import asab
-    import asab.storage
-
-    asab.Config.add_defaults(
-        {
-            'asab:storage': {
-                'type': 'mongodb'
-            }
-        }
-    )
-
-The options for the storage type are:
-
-- `inmemory`: Collects data directly in memory
-- `mongodb`: Collects data using MongoDB database. Depends on `pymongo <https://pymongo.readthedocs.io/en/stable/>`_ and `motor <https://motor.readthedocs.io/en/stable/api-asyncio/asyncio_motor_collection.html>`_ libraries.
-- `elasticsearch`: Collects data using Elastic Search database. Depends on `aiohttp <https://docs.aiohttp.org/en/latest/>`_ library.
-
-Although these three databases are different, accessing the database and manipulation with collections is done by using the same methods.
-
-For accessing the storage, simply `add asab.storage.Module`` when initializing and register the service.
+For accessing the storage, simply add `asab.storage.Module`` when initializing and register the service.
 
 .. code:: python
 
@@ -64,7 +47,7 @@ Upsertors are used for manipulations with databases. Upsertor is an object that 
 
     u = storage.upsertor("test-collection")
 
-The method :func:`upsertor()` create an upsertor object associated with the specified collection. It takes `collection` as an argument and can have two parameters `obj_id` and `version`, which are used for getting an existing object by its ID and version.
+The :func:`upsertor()` method creates an upsertor object associated with the specified collection. It takes `collection` as an argument and can have two parameters `obj_id` and `version`, which are used for getting an existing object by its ID and version.
 
 Inserting an object
 ~~~~~~~~~~~~~~~~~~~
@@ -192,10 +175,10 @@ The full list of methods suitable for this object is described in the `official 
 
 
 
-Storing data in Elastic Search
+Storing data in ElasticSearch
 ------------------------------
 
-When using Elastic Search, add configurations for URL, username and password.
+When using ElasticSearch, add configurations for URL, username and password.
 
 .. code:: ini
 
@@ -205,7 +188,7 @@ When using Elastic Search, add configurations for URL, username and password.
     elasticsearch_username=JohnDoe
     elasticsearch_password=lorem_ipsum_dolor?sit_amet!2023
 
-You can also specify `refreshing parameter <https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html#docs-refresh>`_ and scroll timeout for `Elastic Search Scroll API <https://www.elastic.co/guide/en/elasticsearch//reference/current/scroll-api.html>`_.
+You can also specify `refreshing parameter <https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html#docs-refresh>`_ and scroll timeout for `ElasticSearch Scroll API <https://www.elastic.co/guide/en/elasticsearch//reference/current/scroll-api.html>`_.
 
 .. code:: ini
 
@@ -285,7 +268,7 @@ TODO: make changes in MongoDB storage.
 
     .. automethod:: generate_id
 
-Elastic Search Storage
+ElasticSearch Storage
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. currentmodule:: asab.storage.elasticsearch
