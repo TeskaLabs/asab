@@ -94,6 +94,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		try:
 			await self.ProactorService.execute(self.pull)
+		except pygit2.GitError:
+			L.warning("Periodic pull from the remote repository failed.")
 		finally:
 			self.PullLock = False
 
@@ -168,7 +170,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		# Once reset of the head is finished, PubSub message about the change in the subsrcibed directory gets published.
 		for path in to_publish:
-			self.App.PubSub.publish("ASABLibrary.change!", self, path)
+			self.App.PubSub.publish("Library.change!", self, path)
 
 	async def subscribe(self, path):
 		if not os.path.isdir(self.BasePath + path):

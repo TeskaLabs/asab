@@ -30,7 +30,7 @@ class ZooKeeperContainer(ConfigObject):
 		# Example:
 		# "servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181"
 		# If servers are empty, default from [zookeeper]/servers will be taken
-		# If [zookeeper]/servers value is not provided, ZOOKEEPER_SERVERS environment variable is used
+		# If [zookeeper]/servers value is not provided, ASAB_ZOOKEEPER_SERVERS environment variable is used
 		"servers": "",
 
 		# If not provided, "/asab" path will be used
@@ -65,7 +65,7 @@ class ZooKeeperContainer(ConfigObject):
 				pass
 
 		if url_netloc == "":
-			url_netloc = os.environ.get("ZOOKEEPER_SERVERS", "")
+			url_netloc = os.environ.get("ASAB_ZOOKEEPER_SERVERS", "")
 
 		if url_netloc == "":
 			# if server entry is missing exit

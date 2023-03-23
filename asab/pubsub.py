@@ -115,7 +115,9 @@ class PubSub(object):
 
 
 	def publish(self, message_type, *args, **kwargs):
-		""" Notify subscribers of an message type. Including arguments. """
+		"""
+		Notify subscribers of an `message type`. Including arguments.
+		"""
 
 		asynchronously = kwargs.pop('asynchronously', False)
 
@@ -126,6 +128,15 @@ class PubSub(object):
 		else:
 			for callback in self._callback_iter(message_type):
 				callback(message_type, *args, **kwargs)
+
+
+	def publish_threadsafe(self, message_type, *args, **kwargs):
+		"""
+		Notify subscribers of an `message type` safely form a different that main thread.
+		"""
+		def in_main_thread():
+			self.publish(message_type, *args, **kwargs)
+		self.Loop.call_soon_threadsafe(in_main_thread)
 
 
 ###

@@ -77,12 +77,6 @@ class ConfigParser(configparser.ConfigParser):
 			"rotate_every": "",
 		},
 
-		"authz": {
-			# RBAC URL
-			# If !DISABLED! is specified, all authorization checks will be skipped
-			"rbac_url": "http://localhost:8081/rbac",
-		},
-
 		"library": {
 			"azure_cache": "false",  # true or the actual path of where the cache should be located
 		},
@@ -102,6 +96,9 @@ class ConfigParser(configparser.ConfigParser):
 		}
 	}
 
+	if 'ASAB_ZOOKEEPER_SERVERS' in os.environ:
+		# If `ASAB_ZOOKEEPER_SERVERS` are specified, use that as a default value
+		_default_values['zookeeper'] = {'servers': os.environ['ASAB_ZOOKEEPER_SERVERS']}
 
 	def add_defaults(self, dictionary):
 		""" Add defaults to a current configuration """

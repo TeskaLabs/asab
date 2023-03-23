@@ -148,7 +148,7 @@ class LibraryService(Service):
 
 		if self.is_ready():
 			L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
-			self.App.PubSub.publish("ASABLibrary.ready!", self)
+			self.App.PubSub.publish("Library.ready!", self)
 
 
 	async def read(self, path: str, tenant: str = None) -> typing.IO:

@@ -7,7 +7,7 @@ from .exceptions import DuplicateError
 class InMemoryUpsertor(UpsertorABC):
 
 
-	async def execute(self, custom_data: typing.Optional[dict] = None):
+	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
 		# TODO: Implement webhook call
 		id_name = self.get_id_name()
 
