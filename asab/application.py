@@ -607,7 +607,7 @@ class Application(metaclass=Singleton):
 	def _on_housekeeping_tick(self, message_type):
 		"""Check if it's time for 'Application.housekeeping!'.
 		If so, publish the message and set housekeeping time for the next day.
-		There is a time limit that prevents the accidental publishing.
+		There is a time limit that prevents from the accidental publishing.
 		"""
 		now = datetime.datetime.now(datetime.timezone.utc)
 		time_limit = self.NextHousekeeping + datetime.timedelta(hours=2)
