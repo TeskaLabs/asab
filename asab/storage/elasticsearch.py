@@ -144,11 +144,9 @@ class StorageService(StorageServiceABC):
 	async def mapping(self, index: str) -> dict:
 		"""Retrieve mapping definitions for one index.
 
-		Args:
-			index (str): Specified index.
-
-		Raises:
-			Exception: Connection failed.
+		:param index: Specified index.
+		:type index: str
+		:raise Exception: Connection failed.
 
 		Returns:
 			dict: Mapping definitions for the index.
@@ -168,14 +166,10 @@ class StorageService(StorageServiceABC):
 	async def get_index_template(self, template_name: str) -> dict:
 		"""Retrieve ECS Index template for the given template name.
 
-		Args:
-			template_name (str): The name of the ECS template to retrieve.
-
-		Raises:
-			Exception: Raised if connection to all server URLs fails.
-
-		Returns:
-			dict: Elastic Search Index template.
+		:param template_name: The name of the ECS template to retrieve.
+		:type template_name: str
+		:raise Exception: Raised if connection to all server URLs fails.
+		:return: ElasticSearch Index template.
 		"""
 		for url in self.ServerUrls:
 			url = "{}_template/{}?format=json".format(url, template_name)
@@ -195,15 +189,10 @@ class StorageService(StorageServiceABC):
 	async def put_index_template(self, template_name: str, template: dict) -> dict:
 		"""Create a new ECS index template.
 
-		Args:
-			template_name (_type_): The name of ECS template.
-			template (_type_): Body for the request.
-
-		Raises:
-			Exception: Raised if connection to all server URLs fails.
-
-		Returns:
-			dict: JSON response.
+			:param template_name: The name of ECS template.
+			:param template: Body for the request.
+			:return: JSON response.
+			:raise Exception: Raised if connection to all server URLs fails.
 		"""
 		for url in self.ServerUrls:
 			url = "{}_template/{}?include_type_name".format(url, template_name)
@@ -262,15 +251,12 @@ class StorageService(StorageServiceABC):
 	async def scroll(self, index: str, body: typing.Optional[dict] = None) -> dict:
 		"""Retrieve the next batch of results for a scrolling search.
 
-		Args:
-			index (str): The index name.
-			body (dict, optional): Custom body for the request. Defaults to None.
-
-		Raises:
-			Exception: Raised if connection to all server URLs fails.
-
-		Returns:
-			dict: JSON response.
+		:param index: The index name.
+		:type index: str
+		:param body: Custom body for the request. Defaults to None.
+		:type body: dict
+		:return: JSON response.
+		:raise Exception: Raised if connection to all server URLs fails.
 		"""
 		if body is None:
 			body = {
@@ -336,17 +322,17 @@ class StorageService(StorageServiceABC):
 	async def list(self, index: str, _from: int = 0, size: int = 10000, body: dict = None) -> dict:
 		"""List data matching the index.
 
-		Args:
-			index (str): Specified index.
-			_from (int, optional):  Starting document offset. Defaults to 0.
-			size (int, optional): The number of hits to return. Defaults to 10000.
-			body (dict, optional): An optional request body. Defaults to None.
+		:param index: Specified index.
+		:param _from:  Starting document offset. Defaults to 0.
+		:type _from: int
+		:param size: The number of hits to return. Defaults to 10000.
+		:type size: int
+		:param body: An optional request body. Defaults to None.
+		:type body: dict
 
-		Raises:
-			Exception: Raised if connection to all server URLs fails.
+		:return: The query search result.
+		:raise Exception: Raised if connection to all server URLs fails.
 
-		Returns:
-			dict: The query search result.
 		"""
 		if body is None:
 			body = {
@@ -376,10 +362,14 @@ class StorageService(StorageServiceABC):
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
-	async def count(self, index):
-		'''
+	async def count(self, index) -> int:
+		"""
 		Get the number of matches for a given index.
-		'''
+
+		:param index: The specified index.
+		:return: The number of matches for a given index.
+		:raise Exception: Connection failed.
+		"""
 		for url in self.ServerUrls:
 			try:
 				count_url = "{}{}/_count".format(url, index)
@@ -394,9 +384,11 @@ class StorageService(StorageServiceABC):
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 	async def indices(self, search_string=None):
-		'''
+		"""
 		Return high-level information about indices in a cluster, including backing indices for data streams.
-		'''
+
+		:param search_string: A search string. Default to None.
+		"""
 		for url in self.ServerUrls:
 			try:
 				url = "{}_cat/indices/{}?format=json".format(url, search_string if search_string is not None else "*")

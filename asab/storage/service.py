@@ -146,7 +146,7 @@ class StorageServiceABC(asab.Service):
 		if iv is None:
 			iv = secrets.token_bytes(block_size)
 
-		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self._AESKey)
+		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self.AESKey)
 		mode = cryptography.hazmat.primitives.ciphers.modes.CBC(iv)
 		cipher = cryptography.hazmat.primitives.ciphers.Cipher(algorithm, mode)
 		encryptor = cipher.encryptor()

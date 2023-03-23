@@ -56,14 +56,12 @@ class StorageService(StorageServiceABC):
 		"""
 		Get object from collection by its key and value.
 
-		:param collection: Collection to get from
-		:param key: Key to filter on
-		:param value: Value to filter on
-		:param decrypt: Set of fields to decrypt
+		:param collection: Collection to get from.
+		:param key: Key to filter on.
+		:param value: Value to filter on.
+		:param decrypt: Set of fields to decrypt.
 		:return: The object retrieved from a storage
-
-		Raises:
-			KeyError: If object{key: value} not found in `collection`
+		:raise KeyError: Raised if object{key: value} cannot be found in `collection`.
 		"""
 		coll = self.Database[collection]
 		ret = await coll.find_one({key: value})

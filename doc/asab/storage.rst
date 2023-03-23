@@ -203,7 +203,7 @@ You can also specify the `refreshing parameter <https://www.elastic.co/guide/en/
     refresh=true
     scroll_timeout=1m
 
-
+ElasticSearch Storage provides in addition other methods for creating index templates, mappings etc (see the Reference section).
 
 
 Encryption and decryption
@@ -260,6 +260,10 @@ The :func:`StorageService.get()` coroutine method has an optional parameter `dec
         )
 
 If some of the keys to be decrypted are missing in the required document, the method will ignore them and continue.
+
+.. note::
+
+    Data that has been encrypted can be identified by the prefix "$aes-cbc$" and are stored in a binary format.
 
 
 Under the hood
@@ -327,8 +331,6 @@ Here is a list of methods that are specific for the in-memory storage.
 
 .. autoclass:: StorageService
     :show-inheritance:
-
-    .. automethod:: get_by
 
 
 MongoDB Storage

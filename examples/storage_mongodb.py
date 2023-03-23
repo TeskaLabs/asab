@@ -1,5 +1,5 @@
 import pprint
-
+import os
 import asab
 import asab.storage
 
@@ -8,6 +8,7 @@ asab.Config.add_defaults(
 	{
 		'asab:storage': {
 			'type': 'mongodb',
+			'aes_key': os.urandom(24)
 		}
 	}
 )
@@ -51,11 +52,11 @@ class MyApplication(asab.Application):
 
 		# See the encrypted data
 		obj = await storage.get("test-collection", object_id)
-		print("Encrypted data: {}".format(obj[object_id].get("super_secret")))
+		print("Encrypted data: {}".format(obj.get("super_secret")))
 
 		# See the decrypted data
 		obj = await storage.get("test-collection", object_id, decrypt=["super_secret"])
-		print("Decrypted data: {}".format(obj[object_id].get("super_secret")))
+		print("Decrypted data: {}".format(obj.get("super_secret")))
 
 		# Test the StorageService.collection() method
 		coll = await storage.collection("test-collection")
