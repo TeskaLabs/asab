@@ -6,6 +6,11 @@ from .exceptions import DuplicateError
 
 class InMemoryUpsertor(UpsertorABC):
 
+	def __init__(self, storage, collection, obj_id, version=None):
+		super().__init__(storage, collection, obj_id, version)
+		if self.ObjId is None:
+			# generate a random unique binary ID
+			self.ObjId = self.generate_id()
 
 	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
 		# TODO: Implement webhook call
