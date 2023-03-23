@@ -19,8 +19,7 @@ class TestDocWebHandler(unittest.TestCase):
 		self.Manifest = ""
 		self.handlerObject = DocWebHandler(self.test_api_service, self.test_app, self.test_web_container)
 		self.BaseApiUrl = "BaseAPIUrl"
-		self.ClientId = "ClientId"
-		self.GlobalSecurity = "yes"
+		self.GlobalSecurity = True
 
 		# in order to access 'self.WebContainer.WebApp.router.routes()', we have to mock these classes below
 		self.WebContainer = WebContainer()

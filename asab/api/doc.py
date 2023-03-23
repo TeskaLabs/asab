@@ -34,8 +34,7 @@ class DocWebHandler(object):
 		)
 		self.TokenUrl = asab.Config.get(config_section_name, "token_url", fallback=None)
 		self.Scopes = asab.Config.get(config_section_name, "scopes", fallback=None)
-		self.GlobalSecurity = asab.Config.getboolean(config_section_name, "global_security")
-		self.ClientId = asab.Config.get(config_section_name, "client_id")
+		self.GlobalSecurity = asab.Config.getboolean(config_section_name, "global_security", fallback=False)
 		self.BaseApiUrl = asab.Config.get(config_section_name, "base_api_url", fallback="/")
 		self.Manifest = api_service.Manifest
 
@@ -194,7 +193,6 @@ class DocWebHandler(object):
 					"description": "",
 					"flows": {
 						"authorizationCode": {
-							"clientId": self.ClientId,
 							"authorizationUrl": self.AuthorizationUrl,  # "http://localhost/seacat/api/openidconnect/authorize"
 							"tokenUrl": self.TokenUrl,  # "http://localhost/seacat/api/openidconnect/token"
 							"scopes": {
