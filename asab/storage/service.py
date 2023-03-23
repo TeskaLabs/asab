@@ -48,7 +48,7 @@ class StorageServiceABC(asab.Service):
 
 	@abc.abstractmethod
 	def upsertor(self, collection: str, obj_id=None, version: int = 0):
-		'''
+		"""
 		Create an upsertor object for the specified collection.
 
 		If updating an existing object, please specify its `obj_id` and also `version` that you need to read from a storage upfront.
@@ -59,11 +59,11 @@ class StorageServiceABC(asab.Service):
 		:param collection: Name of collection to work with
 		:param obj_id: Primary identification of an object in the storage (e.g. primary key)
 		:param version: Specify a current version of the object and hence prevent byzantine faults. \
-						You should always read the version from the storage upfront, prior using an upsertor. \
-						That creates a soft lock on the record. It means that if the object is updated by other \
-						component in meanwhile, your upsertor will fail and you should retry the whole operation. \
-						The new objects should have a `version` set to 0.
-		'''
+		You should always read the version from the storage upfront, prior using an upsertor. \
+		That creates a soft lock on the record. It means that if the object is updated by other \
+		component in meanwhile, your upsertor will fail and you should retry the whole operation. \
+		The new objects should have a `version` set to 0.
+		"""
 		pass
 
 
@@ -72,13 +72,12 @@ class StorageServiceABC(asab.Service):
 		"""
 		Get object from collection by its ID.
 
-		:param collection: Collection to get from
-		:param obj_id: Object identification
-		:param decrypt: Set of fields to decrypt
-		:return: The object retrieved from a storage
-
-		Raises:
-			KeyError: If `obj_id` not found in `collection`
+		:param collection: Collection to get from.
+		:type collection: str
+		:param obj_id: Object identification.
+		:param decrypt: Set of fields to decrypt.
+		:return: The object retrieved from a storage.
+		:raise KeyError: Raised if `obj_id` is not found in `collection`.
 		"""
 		pass
 
@@ -110,6 +109,8 @@ class StorageServiceABC(asab.Service):
 		:param obj_id: Object identification
 
 		:return: ID of the deleted object.
+
+		:raise KeyError: Raised when obj_id cannot be found in collection.
 		"""
 		pass
 
@@ -118,11 +119,13 @@ class StorageServiceABC(asab.Service):
 		"""
 		Take an array of bytes and encrypt it using AES-CBC.
 
-		:param raw: The data to be encrypted
+		:param raw: The data to be encrypted.
 		:type raw: bytes
 		:param iv: AES-CBC initialization vector, 16 bytes long. If left empty, a random 16-byte array will be used.
 		:type iv: bytes
 		:return: The encrypted data.
+
+		:raise TypeError: The data are not in binary format.
 		"""
 		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
 
@@ -143,7 +146,7 @@ class StorageServiceABC(asab.Service):
 		if iv is None:
 			iv = secrets.token_bytes(block_size)
 
-		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self.AESKey)
+		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self._AESKey)
 		mode = cryptography.hazmat.primitives.ciphers.modes.CBC(iv)
 		cipher = cryptography.hazmat.primitives.ciphers.Cipher(algorithm, mode)
 		encryptor = cipher.encryptor()

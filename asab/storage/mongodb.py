@@ -80,8 +80,8 @@ class StorageService(StorageServiceABC):
 		"""
 		Get collection. Useful for custom operations.
 
-		:param collection: Collection to get
-		:return: AsyncIOMotorCollection
+		:param collection: Collection to get.
+		:return: AsyncIOMotorCollection object connected to the queried database.
 
 		Examples:
 
@@ -104,8 +104,7 @@ class StorageService(StorageServiceABC):
 		:param obj_id: Object identification
 		:return: `obj_id` -- Object identification
 
-		Raises:
-			KeyError: If `obj_id` not found in `collection`
+		:raise KeyError: Raised if `obj_id` cannot be found in `collection`.
 		"""
 		coll = self.Database[collection]
 		ret = await coll.find_one_and_delete({'_id': obj_id})

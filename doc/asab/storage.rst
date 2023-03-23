@@ -160,16 +160,15 @@ You can specify the database name and URL for MongoDB in config file (the follow
     mongodb_uri=mongodb://localhost:27017
     mongodb_database=asabdb
 
+You can use all the methods from the abstract class. MongoDB Storage class provides in addition two methods, :func:`StorageService.get_by()` and :func:`StorageService.collection()`.
 
+The method :func:`StorageService.get_by()` is used in the same way as :func:`StorageService.get()` except that it takes the arguments `key` and `value` instead of `obj_id`.
 
-.. py:method:: StorageService.get_by(collection: str, key: str, value, decrypt = None) -> dict
+.. code:: python
 
+    obj = await storage.get_by(database="test-collection", key="key", value="value")
 
-.. py:method:: StorageService.collection(collection: str) -> motor.motor_asyncio.AsyncIOMotorCollection
-
-Mongo Storage class provides in addition a method :func:`collection()` for accessing database directly. It takes `collection` as the argument and returns `motor.motor_asyncio.AsyncIOMotorCollection` object, which can be used for calling MongoDB directives. 
-
-Example of the use:
+The method :func:`collection()` is used for accessing the database directly. It takes `collection` as the argument and returns `motor.motor_asyncio.AsyncIOMotorCollection` object, which can be used for calling MongoDB directives. 
 
 .. code:: python
 
@@ -196,13 +195,14 @@ When using ElasticSearch, add configurations for URL, username and password.
     elasticsearch_username=JohnDoe
     elasticsearch_password=lorem_ipsum_dolor?sit_amet!2023
 
-You can also specify `refreshing parameter <https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html#docs-refresh>`_ and scroll timeout for `ElasticSearch Scroll API <https://www.elastic.co/guide/en/elasticsearch//reference/current/scroll-api.html>`_.
+You can also specify the `refreshing parameter <https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html#docs-refresh>`_ and scroll timeout for `ElasticSearch Scroll API <https://www.elastic.co/guide/en/elasticsearch//reference/current/scroll-api.html>`_.
 
 .. code:: ini
 
     [asab:storage]
     refresh=true
     scroll_timeout=1m
+
 
 
 
