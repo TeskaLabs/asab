@@ -36,14 +36,16 @@ class StorageServiceABC(asab.Service):
 		self.WebhookAuth = asab.Config.get("asab:storage:changestream", "webhook_auth", fallback="") or None
 
 		# Specify a non-empty AES key to enable AES encryption of selected fields
-		self.AESKey = asab.Config.get("asab:storage", "aes_key", fallback="")
-		if len(self.AESKey) > 0:
+		self._AESKey = asab.Config.get("asab:storage", "aes_key", fallback="")
+		if len(self._AESKey) > 0:
 			if cryptography is None:
 				raise ModuleNotFoundError(
 					"You are using storage encryption without 'cryptography' installed. "
 					"Please run 'pip install cryptography' "
 					"or install asab with 'storage_encryption' optional dependency.")
-			self.AESKey = hashlib.sha256(self.AESKey.encode("utf-8")).digest()
+			self._AESKey = hashlib.sha256(self._AESKey.encode("utf-8")).digest()
+		else:
+			self._AESKey = None
 
 
 	@abc.abstractmethod
@@ -115,8 +117,11 @@ class StorageServiceABC(asab.Service):
 		"""
 		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
 
-		if self.AESKey is None:
-			raise RuntimeError("No aes_key configured in asab:storage")
+		if self._AESKey is None:
+			raise RuntimeError(
+				"No aes_key specified in asab:storage configuration. "
+				"If you want to use encryption, specify a non-empty aes_key."
+			)
 
 		if not isinstance(raw, bytes):
 			if isinstance(raw, str):
@@ -132,7 +137,7 @@ class StorageServiceABC(asab.Service):
 		if iv is None:
 			iv = secrets.token_bytes(block_size)
 
-		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self.AESKey)
+		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self._AESKey)
 		mode = cryptography.hazmat.primitives.ciphers.modes.CBC(iv)
 		cipher = cryptography.hazmat.primitives.ciphers.Cipher(algorithm, mode)
 		encryptor = cipher.encryptor()
@@ -151,8 +156,11 @@ class StorageServiceABC(asab.Service):
 		"""
 		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
 
-		if self.AESKey is None:
-			raise RuntimeError("No aes_key configured in asab:storage")
+		if self._AESKey is None:
+			raise RuntimeError(
+				"No aes_key specified in asab:storage configuration. "
+				"If you want to use encryption, specify a non-empty aes_key."
+			)
 
 		if not isinstance(encrypted, bytes):
 			raise TypeError("Only values of type 'bytes' can be decrypted")
@@ -165,7 +173,7 @@ class StorageServiceABC(asab.Service):
 		# Separate the initialization vector
 		iv, encrypted = encrypted[:block_size], encrypted[block_size:]
 
-		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self.AESKey)
+		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self._AESKey)
 		mode = cryptography.hazmat.primitives.ciphers.modes.CBC(iv)
 		cipher = cryptography.hazmat.primitives.ciphers.Cipher(algorithm, mode)
 		decryptor = cipher.decryptor()
@@ -174,3 +182,10 @@ class StorageServiceABC(asab.Service):
 		# Strip padding
 		raw = raw.rstrip(b"\x00")
 		return raw
+
+
+	def encryption_enabled(self) -> bool:
+		"""
+		Check if AESKey is not empty.
+		"""
+		return self._AESKey is not None
