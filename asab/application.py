@@ -609,7 +609,7 @@ class Application(metaclass=Singleton):
 
 		# compute the time limit for the housekeeping
 		time_delta_limit = config_time_limit - config_house_time
-		if time_delta_limit < 0:
+		if time_delta_limit < datetime.timedelta(hours=0):
 			time_delta_limit += datetime.timedelta(days=1)
 
 		next_time_limit = next_housekeeping_time + time_delta_limit
