@@ -41,7 +41,7 @@ Manipulation with databases
 Upsertor
 ~~~~~~~~
 
-Upsertors are used for manipulations with databases. Upsertor is an object that works like a pointer to the specified database and optionally to object id.
+Upsertor is an object that works like a pointer to the specified database and optionally to object id. It is used for inserting new objects, updating existing objects and deleting them.
 
 .. code:: python
 
@@ -58,13 +58,13 @@ For inserting an object to the collection, use the :func:`Upsertor.set()` method
 
     u.set("key", "value")
 
-To execute these procedures, simply run the :func:`execute()` coroutine method, which commits the upsertor data to the storage and returns the ID of the object. Since it is a coroutine, it must be awaited.
+To execute these procedures, simply run the :func:`Upsertor.execute()` coroutine method, which commits the upsertor data to the storage and returns the ID of the object. Since it is a coroutine, it must be awaited.
 
 .. code:: python
 
     object_id = await u.execute()
 
-The `execute()` method has optional parameters `custom_data` and `event_type`, which are used for webhook requests.
+The `Upsertor.execute()` method has optional parameters `custom_data` and `event_type`, which are used for webhook requests.
 
 .. code:: python
 
