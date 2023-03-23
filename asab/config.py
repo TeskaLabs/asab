@@ -40,6 +40,7 @@ class ConfigParser(configparser.ConfigParser):
 			'gid': '',
 
 			'housekeeping_time': '03:00',
+			'housekeeping_time_limit': '05:00'
 		},
 
 		"asab:metrics": {

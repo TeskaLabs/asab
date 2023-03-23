@@ -145,8 +145,9 @@ class Application(metaclass=Singleton):
 		for module in modules:
 			self.add_module(module)
 
+		# Set housekeeping time and time limit
+		self.HousekeepingTime, self.HousekeepingTimeLimit = self._set_housekeeping_time_from_config()
 		# Every 10 minutes listen for housekeeping
-		self.NextHousekeeping = self._set_housekeeping_time_from_config()
 		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
 
 
@@ -589,10 +590,13 @@ class Application(metaclass=Singleton):
 	# Housekeeping
 
 	def _set_housekeeping_time_from_config(self):
-		"""Set the housekeeping time from `Config['general']['housekeeping_time']`.
+		"""
+		Set the next housekeeping time and time limit from configuration.
 		"""
 		config_house_time = datetime.datetime.strptime(Config['general']['housekeeping_time'], "%H:%M")  # default: 03:00
+		config_time_limit = datetime.datetime.strptime(Config['general']['housekeeping_time_limit'], "%H:%M")  # default: 05:00
 		now = datetime.datetime.now(datetime.timezone.utc)
+
 		next_housekeeping_time = now.replace(
 			hour=config_house_time.hour,
 			minute=config_house_time.minute,
@@ -602,21 +606,31 @@ class Application(metaclass=Singleton):
 		# if the app started after the housekeeping time, set it to the next day
 		if now > next_housekeeping_time:
 			next_housekeeping_time += datetime.timedelta(days=1)
-		return next_housekeeping_time
+
+		# compute the time limit for the housekeeping
+		time_delta_limit = config_time_limit - config_house_time
+		if time_delta_limit < 0:
+			time_delta_limit += datetime.timedelta(days=1)
+
+		next_time_limit = next_housekeeping_time + time_delta_limit
+
+		return (next_housekeeping_time, next_time_limit)
 
 	def _on_housekeeping_tick(self, message_type):
 		"""Check if it's time for 'Application.housekeeping!'.
-		If so, publish the message and set housekeeping time for the next day.
-		There is a time limit that prevents from the accidental publishing.
+		If so, publish the message and set housekeeping time and the time limit for the next day.
 		"""
 		now = datetime.datetime.now(datetime.timezone.utc)
-		time_limit = self.NextHousekeeping + datetime.timedelta(hours=2)
-		if self.NextHousekeeping < now < time_limit:
-			self.PubSub.publish("Application.housekeeping!")
-			self.NextHousekeeping += datetime.timedelta(days=1)
+		if self.HousekeepingTime < now:
+			if now < self.HousekeepingTimeLimit:
+				self.PubSub.publish("Application.housekeeping!")
+			else:
+				L.warning("Housekeeping has not been performed. It is past the time limit.")
+			self.HousekeepingTime += datetime.timedelta(days=1)
+			self.HousekeepingTimeLimit += datetime.timedelta(days=1)
 			L.log(
 				LOG_NOTICE,
 				"Setting time for the next housekeeping: {} UTC".format(
-					self.NextHousekeeping.strftime("%Y-%m-%d %H:%M:%S")
+					self.HousekeepingTime.strftime("%Y-%m-%d %H:%M:%S")
 				)
 			)

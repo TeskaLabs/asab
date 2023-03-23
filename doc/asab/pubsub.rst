@@ -206,13 +206,19 @@ This message is emitted when application receives UNIX signal ``SIGHUP`` or equi
 
 .. option:: Application.housekeeping!
 
-This message is published when application is on the time for housekeeping. The time for housekeeping is set to 03:00 AM UTC. It can be changed in the configuration file:
+This message is published when application is on the time for housekeeping. The time for housekeeping is set to 03:00 AM UTC by default.
+
+The app listens every ten minutes to see if it's time for housekeeping. If the UTC time reaches the value for housekeeping, the app will publish it and set the time for the next housekeeping for the next day at the same time.
+There is also a time limit, which is set to 05:00 AM UTC by default. If the computer is in a sleep state, housekeeping will not be performed. Then, when the computer is reawakened again, it will check if it has exceeded the time limit. If not, then housekeeping will be published. If it has exceeded it, it simply informs the user and sets the housekeeping time for the next day.
+
+Both housekeeping time and time limit can be changed in the configuration file:
 
 .. code:: ini
 
 	[general]
 	housekeeping_time=19:30
+	housekeeping_time_limit=21:00
 
-This sets the housekeeping time to 7:30 PM UTC.
+This sets the housekeeping time to 7:30 PM UTC and the time limit to 9:00 PM UTC.
 The time must be written in the format 'HH:MM'.
 Remind yourself that the time is set to UTC, so you should be careful when operating in a different timezone.
