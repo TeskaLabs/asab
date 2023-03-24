@@ -117,10 +117,10 @@ class TestValidation(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r,le=10.0 value1=1i 123450000000\n',
-				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r,le=100.0 value1=1i 123450000000\n',
-				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r,le=inf value1=1i 123450000000\n',
-				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r sum=5.0 123450000000\n',
-				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r count=1i 123450000000\n',
+				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r,le=10.0 value1=1i 153450000000\n',
+				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r,le=100.0 value1=1i 153450000000\n',
+				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r,le=inf value1=1i 153450000000\n',
+				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r sum=5.0 153450000000\n',
+				'test\\ histo\\,gram,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,fo\\,\\ \\=\\ o=ba\\,\\ \\=\\ r count=1i 153450000000\n',
 			])
 		)
