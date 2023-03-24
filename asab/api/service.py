@@ -180,7 +180,7 @@ class ApiService(Service):
 			'launch_time': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'process_id': os.getpid(),
 		}
-		
+
 		# A unique identifier of a microservice; added as an environment variable
 		instance_id = os.getenv('INSTANCE_ID', None)
 		if instance_id is not None:
