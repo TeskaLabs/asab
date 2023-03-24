@@ -145,7 +145,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.Version = None  # Will be read when a library become ready
 		self.VersionWatch = None
 
-		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
+		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_connected)
+		self.App.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
+		self.App.PubSub.subscribe("ZooKeeperContainer.state/SUSPENDED!", self._on_zk_lost)
 		self.App.PubSub.subscribe("Application.tick/60!", self._get_version_counter)
 
 
@@ -156,9 +158,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		await self.Zookeeper._stop()
 
 
-	async def _on_zk_ready(self, event_name, zkcontainer):
+	async def _on_zk_connected(self, event_name, zkcontainer):
 		"""
-		When the Zookeeper container is ready, set the self.Zookeeper property to the Zookeeper object.
+		When the Zookeeper container is connected, set the self.Zookeeper property to the Zookeeper object.
 		"""
 		if zkcontainer != self.ZookeeperContainer:
 			return
@@ -174,6 +176,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.VersionWatch = await self.Zookeeper.ProactorService.execute(install_watcher)
 
 		await self._set_ready()
+
+
+	async def _on_zk_lost(self, event_name, zkcontainer):
+		if zkcontainer != self.ZookeeperContainer:
+			return
+
+		await self._set_ready(ready=False)
 
 
 	async def _get_version_counter(self, event_name=None):

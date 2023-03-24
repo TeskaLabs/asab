@@ -26,4 +26,4 @@ class ZooKeeperService(Service):
 		# Remove containers from the list
 		while len(self.Containers) > 0:
 			container = self.Containers.pop()
-			await container._stop(app)
+			await container._stop()

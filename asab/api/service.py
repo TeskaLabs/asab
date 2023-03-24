@@ -19,6 +19,7 @@ L = logging.getLogger(__name__)
 
 
 class ApiService(Service):
+
 	def __init__(self, app, service_name="asab.ApiService"):
 		super().__init__(app, service_name)
 
@@ -63,10 +64,6 @@ class ApiService(Service):
 			self.ChangeLog = path
 		else:
 			self.ChangeLog = None
-
-		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zkcontainer_start)
-
-		self._do_zookeeper_adv_data()
 
 
 	def attention_required(self, att: dict, att_id=None):
@@ -165,6 +162,9 @@ class ApiService(Service):
 
 		# get zookeeper-service
 		self.ZkContainer = zoocontainer
+
+		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zkcontainer_start)
+		self._do_zookeeper_adv_data()
 
 
 	def _do_zookeeper_adv_data(self):

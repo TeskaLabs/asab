@@ -143,12 +143,16 @@ class LibraryService(Service):
 
 
 	async def _set_ready(self, provider):
-		if provider == self.Libraries[0]:
+		if provider == self.Libraries[0] and provider.IsReady:
 			await self._read_disabled()
 
 		if self.is_ready():
 			L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("Library.ready!", self)
+		elif not provider.IsReady:
+			L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
+			self.App.PubSub.publish("Library.not_ready!", self)
+
 
 
 	async def read(self, path: str, tenant: str = None) -> typing.IO:
