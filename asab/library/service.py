@@ -135,6 +135,9 @@ class LibraryService(Service):
 
 		:return: A boolean value.
 		"""
+		if len(self.Libraries) == 0:
+			return False
+
 		return functools.reduce(
 			lambda x, provider: provider.IsReady and x,
 			self.Libraries,
@@ -143,7 +146,10 @@ class LibraryService(Service):
 
 
 	async def _set_ready(self, provider):
-		if provider == self.Libraries[0] and provider.IsReady:
+		if len(self.Libraries) == 0:
+			return
+
+		if (provider == self.Libraries[0]) and provider.IsReady:
 			await self._read_disabled()
 
 		if self.is_ready():
@@ -351,10 +357,7 @@ class LibraryService(Service):
 		fileobj = tempfile.TemporaryFile()
 		tarobj = tarfile.open(name=None, mode='w:gz', fileobj=fileobj)
 
-		# List requested level using all available providers
-		only_first = [self.Libraries[0]]
-		items = await self._list(path, tenant, providers=only_first)
-
+		items = await self._list(path, tenant, providers=self.Libraries[:1])
 		recitems = list(items[:])
 
 		while len(recitems) > 0:
