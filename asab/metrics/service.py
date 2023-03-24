@@ -28,7 +28,7 @@ class MetricsService(Service):
 		self.Metrics = []
 		self.Targets = []
 		self.Tags = {
-			"hostname": app.HostName,
+			"host": app.HostName,
 			"appclass": app.__class__.__name__,
 		}
 

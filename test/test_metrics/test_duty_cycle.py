@@ -20,13 +20,13 @@ class TestDutyCycle(MetricsTestCase):
 			"type": "DutyCycle",
 			"name": "testdc",
 			'static_tags': {
-				'host': 'mockedhost.com', 'appclass': 'mockappclass', 'instance_id': 'test/instance/id'
+				'host': 'mockedhost.com', 'appclass': 'mockappclass', 'instance_id': 'test-instance-id-1'
 			},
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
 					"appclass": "mockappclass",
-					"instance_id": "test/instance/id",
+					"instance_id": "test-instance-id-1",
 				},
 				"actuals": {
 					"v1": {
@@ -67,13 +67,13 @@ class TestDutyCycle(MetricsTestCase):
 			"name": "testdc",
 			"type": "DutyCycle",
 			'static_tags': {
-				'host': 'mockedhost.com', 'appclass': 'mockappclass', 'instance_id': 'test/instance/id'
+				'host': 'mockedhost.com', 'appclass': 'mockappclass', 'instance_id': 'test-instance-id-1'
 			},
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
 					"appclass": "mockappclass",
-					"instance_id": "test/instance/id",
+					"instance_id": "test-instance-id-1",
 				},
 				"actuals": {
 					"v1": {
@@ -114,13 +114,13 @@ class TestDutyCycle(MetricsTestCase):
 			"name": "testdc",
 			"type": "DutyCycle",
 			'static_tags': {
-				'host': 'mockedhost.com', 'appclass': 'mockappclass', 'instance_id': 'test/instance/id'
+				'host': 'mockedhost.com', 'appclass': 'mockappclass', 'instance_id': 'test-instance-id-1'
 			},
 			"fieldset": [{
 				"tags": {
 					"host": "mockedhost.com",
 					"appclass": "mockappclass",
-					"instance_id": "test/instance/id",
+					"instance_id": "test-instance-id-1",
 				},
 				"actuals": {
 					"v1": {
@@ -159,7 +159,7 @@ class TestDutyCycle(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testdc,hostname=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id v1=1.0 124450000000\n',
+				'testdc,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1 v1=1.0 124450000000\n',
 			])
 		)
 
@@ -183,6 +183,6 @@ class TestDutyCycle(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE testdc gauge\n',
-				'testdc{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",name="v1"} 1.0',
+				'testdc{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",name="v1"} 1.0',
 			])
 		)

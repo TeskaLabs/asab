@@ -26,7 +26,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,hostname=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar value1=0i,value2=0i 123450000000\n",
+				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1,foo=bar value1=0i,value2=0i 123450000000\n",
 			])
 		)
 
@@ -36,8 +36,8 @@ class TestCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value1"} 0\n',
-				'mycounter{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value2"} 0',
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value1"} 0\n',
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value2"} 0',
 			])
 		)
 
@@ -49,7 +49,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,hostname=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar value1=1i,value2=0i 153450000000\n",
+				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1,foo=bar value1=1i,value2=0i 153450000000\n",
 			])
 		)
 
@@ -59,8 +59,8 @@ class TestCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value1"} 1\n',
-				'mycounter{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value2"} 0',
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value1"} 1\n',
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value2"} 0',
 			])
 		)
 
@@ -83,8 +83,8 @@ class TestCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value1"} 0\n',
-				'mycounter{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value2"} 0',
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value1"} 0\n',
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value2"} 0',
 			])
 		)
 
@@ -97,8 +97,8 @@ class TestCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value1"} 0\n',
-				'mycounter{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value2"} 0',
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value1"} 0\n',
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value2"} 0',
 			])
 		)
 
@@ -111,8 +111,8 @@ class TestCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value1"} 1\n',
-				'mycounter{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value2"} 0',
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value1"} 1\n',
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value2"} 0',
 			])
 		)
 
@@ -134,7 +134,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,hostname=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar value1=0i,value2=0i 123450000000\n",
+				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1,foo=bar value1=0i,value2=0i 123450000000\n",
 			])
 		)
 
@@ -146,8 +146,8 @@ class TestCounter(MetricsTestCase):
 				'# TYPE mycounter_ages gauge\n',
 				'# UNIT mycounter_ages ages\n',
 				'# HELP mycounter_ages Help!\n',
-				'mycounter_ages{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value1"} 0\n',
-				'mycounter_ages{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value2"} 0',
+				'mycounter_ages{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value1"} 0\n',
+				'mycounter_ages{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value2"} 0',
 			])
 		)
 
@@ -162,8 +162,8 @@ class TestCounter(MetricsTestCase):
 				'# TYPE mycounter_ages gauge\n',
 				'# UNIT mycounter_ages ages\n',
 				'# HELP mycounter_ages Help!\n',
-				'mycounter_ages{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value1"} 1\n',
-				'mycounter_ages{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value2"} 0',
+				'mycounter_ages{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value1"} 1\n',
+				'mycounter_ages{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value2"} 0',
 			])
 		)
 
@@ -210,7 +210,7 @@ class TestCounter(MetricsTestCase):
 				'# TYPE mycounter_ages gauge\n',
 				'# UNIT mycounter_ages ages\n',
 				'# HELP mycounter_ages Help!\n',
-				'mycounter_ages{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",name="value1"} 1',
+				'mycounter_ages{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",name="value1"} 1',
 			])
 		)
 
@@ -219,7 +219,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,hostname=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id value1=1i 153450000000\n",
+				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1 value1=1i 153450000000\n",
 			])
 		)
 
@@ -250,8 +250,8 @@ class TestCounter(MetricsTestCase):
 				'# TYPE mycounter_ages counter\n',
 				'# UNIT mycounter_ages ages\n',
 				'# HELP mycounter_ages Help!\n',
-				'mycounter_ages_total{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",name="value1"} 1\n',
-				'mycounter_ages_total{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",name="value2"} 2',
+				'mycounter_ages_total{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",name="value1"} 1\n',
+				'mycounter_ages_total{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",name="value2"} 2',
 			])
 		)
 
@@ -261,7 +261,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,hostname=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id value1=2i 123450000000\n",
+				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1 value1=2i 123450000000\n",
 			])
 		)
 
@@ -288,8 +288,8 @@ class TestCounter(MetricsTestCase):
 				'# TYPE mycounter_ages counter\n',
 				'# UNIT mycounter_ages ages\n',
 				'# HELP mycounter_ages Help!\n',
-				'mycounter_ages_total{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value1"} 0\n',
-				'mycounter_ages_total{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value2"} 0',
+				'mycounter_ages_total{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value1"} 0\n',
+				'mycounter_ages_total{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value2"} 0',
 			])
 		)
 
@@ -299,7 +299,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,hostname=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar value1=0i,value2=0i 123450000000\n",
+				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1,foo=bar value1=0i,value2=0i 123450000000\n",
 			])
 		)
 
@@ -316,8 +316,8 @@ class TestCounter(MetricsTestCase):
 				'# TYPE mycounter_ages counter\n',
 				'# UNIT mycounter_ages ages\n',
 				'# HELP mycounter_ages Help!\n',
-				'mycounter_ages_total{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value1"} 1\n',
-				'mycounter_ages_total{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value2"} -2',
+				'mycounter_ages_total{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value1"} 1\n',
+				'mycounter_ages_total{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value2"} -2',
 			])
 		)
 
@@ -327,7 +327,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,hostname=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar value1=2i,value2=0i 123450000000\n",
+				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1,foo=bar value1=2i,value2=0i 123450000000\n",
 			])
 		)
 
@@ -354,7 +354,7 @@ class TestCounter(MetricsTestCase):
 				'# TYPE mycounter_ages gauge\n',
 				'# UNIT mycounter_ages ages\n',
 				'# HELP mycounter_ages Help!\n',
-				'mycounter_ages{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",name="value1"} 2.2',
+				'mycounter_ages{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",name="value1"} 2.2',
 			])
 		)
 
@@ -363,7 +363,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,hostname=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id value1=2.2 153450000000\n",
+				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1 value1=2.2 153450000000\n",
 			])
 		)
 
@@ -387,7 +387,7 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,hostname=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id value2=t 153450000000\n",
+				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1 value2=t 153450000000\n",
 			])
 		)
 
@@ -410,6 +410,6 @@ class TestCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				'mycounter,hostname=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id value3="nice_weather" 153450000000\n',
+				'mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1 value3="nice_weather" 153450000000\n',
 			])
 		)
