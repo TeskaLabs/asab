@@ -28,8 +28,8 @@ class MetricsService(Service):
 		self.Metrics = []
 		self.Targets = []
 		self.Tags = {
-			"appclass": app.__class__.__name__,
 			"hostname": app.HostName,
+			"appclass": app.__class__.__name__,
 		}
 
 		# A unique identifier of a microservice; added as an environment variable.

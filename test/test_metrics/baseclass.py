@@ -25,7 +25,7 @@ class MetricsTestCase(unittest.TestCase):
 		self.App = asab.Application(args=[], modules=[])
 		self.MetricsService = MockMetricsService(self.App, "asab.MetricsService")
 		self.MetricsService.clear()
-		self.MetricsService.Tags['host'] = "mockedhost.com"
+		self.MetricsService.Tags['hostname'] = "mockedhost.com"
 		self.MetricsService.Tags['appclass'] = "mockappclass"
 		self.MetricsService.Tags["instance_id"] = "test/instance/id"
 		self.MockedLoop = MockedLoop()

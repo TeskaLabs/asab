@@ -175,8 +175,8 @@ class ApiService(Service):
 			return
 
 		adv_data = {
-			'appclass': self.App.__class__.__name__,
 			'hostname': self.App.HostName,
+			'appclass': self.App.__class__.__name__,
 			'launch_time': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'process_id': os.getpid(),
 		}

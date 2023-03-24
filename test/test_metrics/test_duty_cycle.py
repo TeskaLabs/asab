@@ -159,7 +159,7 @@ class TestDutyCycle(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testdc,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id v1=1.0 124450000000\n',
+				'testdc,hostname=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id v1=1.0 124450000000\n',
 			])
 		)
 
@@ -183,6 +183,6 @@ class TestDutyCycle(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE testdc gauge\n',
-				'testdc{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",name="v1"} 1.0',
+				'testdc{hostname="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",name="v1"} 1.0',
 			])
 		)
