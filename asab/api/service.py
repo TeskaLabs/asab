@@ -176,14 +176,20 @@ class ApiService(Service):
 
 		adv_data = {
 			'appclass': self.App.__class__.__name__,
-			'launch_time': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
+			'launch_time': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'process_id': os.getpid(),
 		}
-		# A unique identifier of a microservice; added as an environment variable.
+		
+		# A unique identifier of a microservice; added as an environment variable
 		instance_id = os.getenv('INSTANCE_ID', None)
 		if instance_id is not None:
 			adv_data["instance_id"] = instance_id
+
+		# A identified of the host machine (node); added if available at environment variables
+		node_id = os.getenv('NODE_ID', None)
+		if node_id is not None:
+			adv_data["node_id"] = node_id
 
 		if running_in_container():
 			adv_data["containerized"] = "yes"
