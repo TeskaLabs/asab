@@ -131,8 +131,6 @@ class ZooKeeperContainer(ConfigObject):
 		* ZooKeeperContainer.state/LOST!
 		* ZooKeeperContainer.state/SUSPENDED!
 		'''
-		print("_listener", state)
-
 		if state == kazoo.protocol.states.KazooState.CONNECTED:
 			self.App.Loop.call_soon_threadsafe(self.ZooKeeper.Client.ensure_path, self.Path)
 
