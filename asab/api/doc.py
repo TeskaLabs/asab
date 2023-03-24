@@ -70,9 +70,7 @@ class DocWebHandler(object):
 
 		specification["components"]["securitySchemes"] = self.create_security_schemes()
 		specification["info"]["version"] = self.get_manifest()
-		specification["info"]["description"] = self.get_server_and_container_info(
-			app_description
-		)
+		specification["info"]["description"] = app_description
 
 		# routers sorting
 		asab_routes = []
@@ -209,12 +207,6 @@ class DocWebHandler(object):
 		if self.Manifest:
 			version = self.Manifest["version"]
 		return version
-
-	def get_server_and_container_info(self, description) -> str:
-		"""Return info on which server and web container the user operates into description."""
-		return "Running on: <strong>{}</strong> on: <strong>{}</strong>".format(
-			self.App.ServerName, self.WebContainer.Addresses
-		) + "<p>{}</p>".format(description)
 
 	def get_path_from_route_info(self, route) -> str:
 		"""Take a route and return its path."""

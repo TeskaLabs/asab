@@ -5,7 +5,7 @@ import datetime
 import logging
 
 from .. import Service, Config
-from ..docker import running_in_docker
+from ..utils import running_in_container
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
 from .doc import DocWebHandler
@@ -178,12 +178,11 @@ class ApiService(Service):
 			'appclass': self.App.__class__.__name__,
 			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
 			'hostname': self.App.HostName,
-			'servername': self.App.ServerName,
 			'processid': os.getpid(),
 		}
 
-		if running_in_docker():
-			adv_data["containerization"] = "docker"
+		if running_in_container():
+			adv_data["containerized"] = "yes"
 
 		if self.Manifest is not None:
 			adv_data.update(self.Manifest)
@@ -195,16 +194,10 @@ class ApiService(Service):
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
 
-
-		instance_id = os.getenv('INSTANCE_ID', None)
-		if instance_id is not None:
-			adv_data["instance_id"] = instance_id
-
 		self.ZkContainer.advertise(
 			data=adv_data,
 			path="/run/{}.".format(self.App.__class__.__name__),
 		)
-
 
 
 	def _on_zkcontainer_start(self, message_type, container):
