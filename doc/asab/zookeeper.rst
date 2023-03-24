@@ -40,10 +40,10 @@ This code illustrates the typical way how to create Zookeeper container:
             self.ZooKeeperContainer = asab.zookeeper.ZooKeeperContainer(self.ZooKeeperService)
 
             # Subscribe to Zookeeper container ready event
-            self.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zk_ready)
+            self.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_connected)
 
 
-        async def _on_zk_ready(self, event_name, zookeeper):
+        async def _on_zk_connected(self, event_name, zookeeper):
             if zookeeper != self.ZooKeeperContainer:
                 return
 
@@ -75,7 +75,7 @@ Example of configuration section
 
 
 Example of `ASAB_ZOOKEEPER_SERVERS` environment variable
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: ini
 
@@ -137,14 +137,20 @@ Advertisement into Zookeeper
 PubSub messages
 ---------------
 
-.. option:: ZooKeeperContainer.started!
-
-
 .. option:: ZooKeeperContainer.state/CONNECTED!
 
 .. option:: ZooKeeperContainer.state/LOST!
 
 .. option:: ZooKeeperContainer.state/SUSPENDED!
+
+When a Zookeeper connection is first created, it is in the LOST state.
+After a connection is established it transitions to the CONNECTED state.
+If any connection issues come up or if it needs to connect to a different Zookeeper cluster node, it will transition to SUSPENDED to let you know that commands cannot currently be run.
+The connection will also be lost if the Zookeeper node is no longer part of the quorum, resulting in a SUSPENDED state.
+
+Upon re-establishing a connection the client could transition to LOST if the session has expired, or CONNECTED if the session is still valid.
+
+For mor info, visit: https://kazoo.readthedocs.io/en/latest/basic_usage.html#understanding-kazoo-states
 
 
 Kazoo

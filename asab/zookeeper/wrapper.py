@@ -14,9 +14,9 @@ L = logging.getLogger(__name__.rsplit(".", 1)[0])  # We want just "asab.zookeepe
 class KazooWrapper(object):
 
 
-	def __init__(self, zksvc, hosts):
-		self.App = zksvc.App
-		self.ProactorService = zksvc.ProactorService
+	def __init__(self, zkcnt, hosts):
+		self.App = zkcnt.App
+		self.ProactorService = zkcnt.ProactorService
 
 		self.Client = kazoo.client.KazooClient(
 			hosts=hosts,
@@ -25,24 +25,7 @@ class KazooWrapper(object):
 			),
 		)
 
-		self.Client.add_listener(self._listener)
-
-
-	def _listener(self, state):
-		'''
-		Generate PubSub events:
-
-		* ZooKeeperContainer.state/CONNECTED!
-		* ZooKeeperContainer.state/LOST!
-		* ZooKeeperContainer.state/SUSPENDED!
-		'''
-		self.App.PubSub.publish_threadsafe("ZooKeeperContainer.state/{}!".format(state), self)
-
-
-	# connection start/close calls
-
-	def _start(self):
-		return self.Client.start()
+		self.Client.add_listener(zkcnt._listener)
 
 
 	async def _stop(self):
