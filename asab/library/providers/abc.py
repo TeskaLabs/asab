@@ -35,8 +35,8 @@ class LibraryProviderABC(object):
 		raise NotImplementedError("{}.list()".format(self.__class__.__name__))
 
 
-	async def _set_ready(self):
-		self.IsReady = True
+	async def _set_ready(self, ready=True):
+		self.IsReady = ready
 		await self.Library._set_ready(self)
 
 	async def subscribe(self, path: str):
