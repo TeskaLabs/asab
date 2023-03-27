@@ -215,9 +215,9 @@ Both housekeeping time and time limit can be changed in the configuration file:
 
 .. code:: ini
 
-	[general]
-	housekeeping_time=19:30
-	housekeeping_time_limit=21:00
+	[housekeeping]
+	at=19:30
+	limit=21:00
 
 This sets the housekeeping time to 7:30 PM UTC and the time limit to 9:00 PM UTC.
 The time must be written in the format 'HH:MM'.

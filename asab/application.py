@@ -592,6 +592,7 @@ class Application(metaclass=Singleton):
 	def _set_housekeeping_time_from_config(self):
 		"""
 		Set the next housekeeping time and time limit from configuration.
+		Returns: (next_housekeeping_time, next_time_limit, next_housekeeping_id)
 		"""
 		config_house_time = datetime.datetime.strptime(Config['housekeeping']['at'], "%H:%M")  # default: 03:00
 		config_time_limit = datetime.datetime.strptime(Config['housekeeping']['limit'], "%H:%M")  # default: 05:00
@@ -615,18 +616,21 @@ class Application(metaclass=Singleton):
 
 		next_time_limit = next_housekeeping_time + time_delta_limit
 
-		housekeeping_id = int(now.strftime("%Y%m%d"))
+		# Each time has its id that prevents from accidental executing housekeeping twice.
+		next_housekeeping_id = int(now.strftime("%Y%m%d"))
 
-		return (next_housekeeping_time, next_time_limit, housekeeping_id)
+		return (next_housekeeping_time, next_time_limit, next_housekeeping_id)
 
 	def _on_housekeeping_tick(self, message_type):
-		"""Check if it's time for 'Application.housekeeping!'.
-		If so, publish the message and set housekeeping time and the time limit for the next day.
+		"""
+		Check if it's time for publishing the 'Application.housekeeping!' message.
+		If so, publish the message and set housekeeping time, the time limit and time id for the next day.
 		"""
 		now = datetime.datetime.now(datetime.timezone.utc)
 		today_id = int(now.strftime("%Y%m%d"))
+
 		if self.HousekeepingTime < now:
-			if now < self.HousekeepingTimeLimit and today_id <= self.HousekeepingId:
+			if now < self.HousekeepingTimeLimit and self.HousekeepingId <= today_id:
 				self.PubSub.publish("Application.housekeeping!")
 			else:
 				L.warning("Housekeeping has not been performed. It is past the time limit.")
