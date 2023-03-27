@@ -28,19 +28,13 @@ class MetricsTestCase(unittest.TestCase):
 		self.MetricsService.Tags['host'] = "mockedhost.com"
 		self.MetricsService.Tags['appclass'] = "mockappclass"
 		self.MetricsService.Tags["instance_id"] = "test/instance/id"
-		self.MockedLoop = MockedLoop()
+		self.MockedApplication = MockApplication()
 
 	def tearDown(self):
 		asab.abc.singleton.Singleton.delete(self.App.__class__)
 		self.App = None
 		root_logger = logging.getLogger()
 		root_logger.handlers = []
-
-
-
-class MockedLoop(object):
-	def time(self):
-		return 123.45
 
 
 class MockApplication(object):
