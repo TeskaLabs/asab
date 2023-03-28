@@ -146,9 +146,10 @@ class Application(metaclass=Singleton):
 			self.add_module(module)
 
 		# Set housekeeping time and time limit
-		self.HousekeepingTime, self.HousekeepingTimeLimit, self.HousekeepingId = self._set_housekeeping_time_from_config()
+		self.HousekeepingTime, self.HousekeepingTimeLimit, self.HousekeepingId = self._initialize_housekeeping_schedule()
+		self.HousekeepingMissedEvents: list = []
 		# Every 10 minutes listen for housekeeping
-		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
+		self.PubSub.subscribe("Application.tick!", self._on_housekeeping_tick)
 
 
 	def create_argument_parser(
@@ -589,7 +590,7 @@ class Application(metaclass=Singleton):
 
 	# Housekeeping
 
-	def _set_housekeeping_time_from_config(self):
+	def _initialize_housekeeping_schedule(self):
 		"""
 		Set the next housekeeping time and time limit from configuration.
 		Returns: (next_housekeeping_time, next_time_limit, next_housekeeping_id)
@@ -619,6 +620,7 @@ class Application(metaclass=Singleton):
 		# Each time has its id that prevents from accidental executing housekeeping twice.
 		next_housekeeping_id = int(now.strftime("%Y%m%d"))
 
+
 		return (next_housekeeping_time, next_time_limit, next_housekeeping_id)
 
 	def _on_housekeeping_tick(self, message_type):
@@ -626,6 +628,7 @@ class Application(metaclass=Singleton):
 		Check if it's time for publishing the 'Application.housekeeping!' message.
 		If so, publish the message and set housekeeping time, the time limit and time id for the next day.
 		"""
+		L.warning("tick")
 		now = datetime.datetime.now(datetime.timezone.utc)
 		today_id = int(now.strftime("%Y%m%d"))
 
@@ -633,13 +636,32 @@ class Application(metaclass=Singleton):
 			if now < self.HousekeepingTimeLimit and self.HousekeepingId <= today_id:
 				self.PubSub.publish("Application.housekeeping!")
 			else:
-				L.warning("Housekeeping has not been performed. It is past the time limit.")
+				L.warning(
+					"Housekeeping has not been executed: It is past the time limit.",
+					struct_data={
+						"housekeeping_time": self.HousekeepingTime.strftime("%Y-%m-%d %H:%M:%S"),
+						"time_limit": self.HousekeepingTimeLimit.strftime("%Y-%m-%d %H:%M:%S"),
+						"housekeeping_id": self.HousekeepingId,
+					}
+				)
+				self.HousekeepingMissedEvents.append(today_id)
+
 			self.HousekeepingTime += datetime.timedelta(days=1)
 			self.HousekeepingTimeLimit += datetime.timedelta(days=1)
 			self.HousekeepingId = today_id + 1
 			L.log(
 				LOG_NOTICE,
-				"Setting time for the next housekeeping: {} UTC".format(
-					self.HousekeepingTime.strftime("%Y-%m-%d %H:%M:%S")
-				)
+				"Setting time for the next housekeeping.",
+				struct_data={
+					"next_housekeeping_time": self.HousekeepingTime.strftime("%Y-%m-%d %H:%M:%S"),
+					"next_time_limit": self.HousekeepingTimeLimit.strftime("%Y-%m-%d %H:%M:%S"),
+					"next_housekeeping_id": self.HousekeepingId,
+				}
 			)
+
+			if len(self.HousekeepingMissedEvents) > 0:
+				L.warning(
+					"One or more Housekeeping events have not been executed.",
+					struct_data={
+						"missed_housekeeping_events": self.HousekeepingMissedEvents
+					})
