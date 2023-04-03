@@ -1,6 +1,7 @@
 import re
 import logging
 import functools
+import inspect
 
 import aiohttp.web
 
@@ -11,95 +12,49 @@ L = logging.getLogger(__name__)
 #
 
 
-def required(*resources):
-	'''
-	Checks that user authorized with access token in
-	Authorization header has access to a given tenant space
-	using SeaCat Auth RBAC authorization.
+def require(*resources):
 
-	It uses a cache to limit the number of HTTP checks.
+	def decorator_required(handler):
+		handler_argspecs = inspect.getfullargspec(handler)
+		handler_kwargs = {}
 
-	Example of use:
+		# Add keyword arguments
+		if "user_info" in handler_argspecs.kwonlyargs:
+			handler_kwargs["user_info"] = None
+		if "tenant" in handler_argspecs.kwonlyargs:
+			handler_kwargs["tenant"] = None
+		if "resources" in handler_argspecs.kwonlyargs:
+			handler_kwargs["resources"] = None
 
-	@asab.web.tenant.tenant_handler
-	@asab.web.authz.required("tenant:access")
-	async def endpoint(self, request, *, tenant):
-		...
-	'''
-
-	def decorator_required(func):
-
-		@functools.wraps(func)
-		async def wrapper(*args, **kargs):
+		@functools.wraps(handler)
+		async def wrapper(*args, **kwargs):
 			request = args[-1]
-
-			# Obtain authz service from the request
 			authz_service = request.AuthzService
 
-			# RBAC is disabled, so no authorization can be performed
+			# Skip resource access check is skipped if RBAC is disabled
 			if request.AuthzService.RBACDisabled:
-				return await func(*args, **kargs)
+				return await handler(*args, **kwargs)
 
-			if not request.AuthzService.is_ready():
-				L.error("Cannot authorize request - AuthzService is not ready.")
-				raise aiohttp.web.HTTPUnauthorized()
+			if not hasattr(request, "_Resources"):
+				raise aiohttp.web.HTTPForbidden()
 
-			bearer_token = _get_bearer_token(request)
+			for resource in resources:
+				if not request.has_resource_access(resource):
+					raise aiohttp.web.HTTPForbidden()
 
-			# For resistancy against security attacks
-			if bearer_token is None:
-				raise aiohttp.web.HTTPUnauthorized()
-
-			if await authz_service.authorize(
-				resources=resources,
-				bearer_token=bearer_token,
-				tenant=getattr(request, "Tenant", None),
-			):
-				return await func(*args, **kargs)
-
-			# Be defensive
-			raise aiohttp.web.HTTPUnauthorized()
+			return await handler(*args, **kwargs)
 
 		return wrapper
 
 	return decorator_required
 
 
-def userinfo_handler(func):
-	"""
-	Fetches userinfo and passes the response dict to the decorated function.
+def no_auth(handler):
+	handler.NoAuth = True
 
-	It uses a cache to limit the number of HTTP checks.
-
-	Example of use:
-
-	@asab.web.tenant.tenant_handler
-	@asab.web.authz.userinfo
-	async def endpoint(self, request, *, tenant, userinfo):
-		...
-	"""
-
-	@functools.wraps(func)
-	async def wrapper(*args, **kargs):
-		request = args[-1]
-
-		# Obtain authz service from the request
-		authz_service = request.AuthzService
-
-		bearer_token = _get_bearer_token(request)
-
-		# Fail if no access token is found in the request
-		if bearer_token is None:
-			L.warning("Access token has not been provided in the request - unauthorized.")
-			raise aiohttp.web.HTTPUnauthorized()
-
-		userinfo_data = authz_service.userinfo(bearer_token=bearer_token)
-		if userinfo_data is not None:
-			return await func(*args, userinfo=userinfo_data, **kargs)
-
-		# Be defensive
-		L.warning("Failure to get userinfo  - unauthorized.")
-		raise aiohttp.web.HTTPUnauthorized()
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
+		return await handler(*args, **kwargs)
 
 	return wrapper
 
