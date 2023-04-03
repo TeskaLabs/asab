@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import asab.web.rest
-import asab.web.auth
+import asab.web.authz
 import typing
 
 asab.Config.add_defaults({
@@ -26,23 +26,28 @@ class MyApplication(asab.Application):
 	def __init__(self):
 		super().__init__()
 
+		self.add_module(asab.web.Module)
+
 		# Locate the web service
 		self.WebService = self.get_service("asab.WebService")
 		self.WebContainer = asab.web.WebContainer(self.WebService, "web")
+
+
+		self.AuthzService = asab.web.authz.AuthzService(self)
 		self.WebContainer.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
-		self.WebContainer.WebApp.middlewares.append(asab.web.auth.auth_middleware)
+		self.WebContainer.WebApp.middlewares.append(asab.web.authz.auth_middleware_factory(self.AuthzService))
 
 		# Add a route to the handler method
-		self.WebContainer.WebApp.add_get("/no_auth", self.simple)
-		self.WebContainer.WebApp.add_get("/auth", self.auth)  # equivalent to "/optional_tenant"
-		self.WebContainer.WebApp.add_get("/auth/resource_check", self.auth_resource)  # equivalent to "/optional_tenant/resource_check"
-		self.WebContainer.WebApp.add_get("/{tenant}/obligatory_tenant", self.tenant_in_path)
-		self.WebContainer.WebApp.add_get("/{tenant}/obligatory_tenant/resource_check", self.tenant_in_path_resources)
-		self.WebContainer.WebApp.add_get("/optional_tenant", self.tenant_in_query)
-		self.WebContainer.WebApp.add_get("/optional_tenant/resource_check", self.tenant_in_query_resources)
+		self.WebContainer.WebApp.router.add_get("/no_auth", self.simple)
+		self.WebContainer.WebApp.router.add_get("/auth", self.auth)  # equivalent to "/optional_tenant"
+		self.WebContainer.WebApp.router.add_get("/auth/resource_check", self.auth_resource)  # equivalent to "/optional_tenant/resource_check"
+		self.WebContainer.WebApp.router.add_get("/{tenant}/obligatory_tenant", self.tenant_in_path)
+		self.WebContainer.WebApp.router.add_get("/{tenant}/obligatory_tenant/resource_check", self.tenant_in_path_resources)
+		self.WebContainer.WebApp.router.add_get("/optional_tenant", self.tenant_in_query)
+		self.WebContainer.WebApp.router.add_get("/optional_tenant/resource_check", self.tenant_in_query_resources)
 
 
-	@asab.web.auth.no_auth
+	@asab.web.authz.no_auth
 	async def simple(self, request):
 		"""
 		NO AUTH
@@ -52,8 +57,8 @@ class MyApplication(asab.Application):
 		"""
 		data = {
 			"tenant": "NOT ALLOWED",
-			"user_info": "NOT ALLOWED",
 			"resources": "NOT ALLOWED",
+			"user_info": "NOT ALLOWED",
 		}
 		return asab.web.rest.json_response(request, data)
 
@@ -70,13 +75,13 @@ class MyApplication(asab.Application):
 		"""
 		data = {
 			"tenant": tenant,
+			"resources": list(resources),
 			"user_info": user_info,
-			"resources": resources,
 		}
 		return asab.web.rest.json_response(request, data)
 
 
-	@asab.web.auth.require("something:access", "something:edit")
+	@asab.web.authz.require("something:access", "something:edit")
 	# async def auth(self, request):  # MINIMAL
 	async def auth_resource(self, request, *, tenant: None, user_info: dict, resources: frozenset):
 		"""
@@ -91,8 +96,8 @@ class MyApplication(asab.Application):
 		"""
 		data = {
 			"tenant": tenant,
+			"resources": list(resources),
 			"user_info": user_info,
-			"resources": resources,
 		}
 		return asab.web.rest.json_response(request, data)
 
@@ -111,8 +116,8 @@ class MyApplication(asab.Application):
 		"""
 		data = {
 			"tenant": tenant,
+			"resources": list(resources),
 			"user_info": user_info,
-			"resources": resources,
 		}
 		return asab.web.rest.json_response(request, data)
 
@@ -132,13 +137,13 @@ class MyApplication(asab.Application):
 		"""
 		data = {
 			"tenant": tenant,
+			"resources": list(resources),
 			"user_info": user_info,
-			"resources": resources,
 		}
 		return asab.web.rest.json_response(request, data)
 
 
-	@asab.web.auth.require("something:access", "something:edit")
+	@asab.web.authz.require("something:access", "something:edit")
 	# async def auth(self, request, *, tenant):  # MINIMAL
 	async def tenant_in_path_resources(self, request, *, tenant: typing.Union[str|None], user_info: dict, resources: frozenset):
 		"""
@@ -155,13 +160,13 @@ class MyApplication(asab.Application):
 		"""
 		data = {
 			"tenant": tenant,
+			"resources": list(resources),
 			"user_info": user_info,
-			"resources": resources,
 		}
 		return asab.web.rest.json_response(request, data)
 
 
-	@asab.web.auth.require("something:access", "something:edit")
+	@asab.web.authz.require("something:access", "something:edit")
 	# async def auth(self, request, *, tenant):  # MINIMAL
 	async def tenant_in_query_resources(self, request, *, tenant: typing.Union[str|None], user_info: dict, resources: frozenset):
 		"""
@@ -180,8 +185,8 @@ class MyApplication(asab.Application):
 		"""
 		data = {
 			"tenant": tenant,
+			"resources": list(resources),
 			"user_info": user_info,
-			"resources": resources,
 		}
 		return asab.web.rest.json_response(request, data)
 
