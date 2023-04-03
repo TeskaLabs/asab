@@ -9,6 +9,7 @@ from ..docker import running_in_docker
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
 from .doc import DocWebHandler
+from .service_discovery import ServiceDiscoveryService
 
 ##
 
@@ -64,6 +65,9 @@ class ApiService(Service):
 			self.ChangeLog = path
 		else:
 			self.ChangeLog = None
+
+		# Service Discovery
+		self.ServiceDiscoveryService = None
 
 
 	def attention_required(self, att: dict, att_id=None):
@@ -132,6 +136,8 @@ class ApiService(Service):
 			from ..metrics.web_handler import MetricWebHandler
 			self.MetricWebHandler = MetricWebHandler(metrics_svc, self.WebContainer.WebApp)
 
+		self.App.PubSub.subscribe("WebContainer.started!", self._on_webcontainer_start)
+
 
 	def initialize_zookeeper(self, zoocontainer=None):
 		'''
@@ -162,6 +168,9 @@ class ApiService(Service):
 
 		# get zookeeper-service
 		self.ZkContainer = zoocontainer
+
+		# initialize service discovery
+		self.ServiceDiscoveryService = ServiceDiscoveryService(self.App, self.ZkContainer)
 
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zkcontainer_start)
 		self._do_zookeeper_adv_data()
@@ -209,4 +218,8 @@ class ApiService(Service):
 
 	def _on_zkcontainer_start(self, message_type, container):
 		if container == self.ZkContainer:
+			self._do_zookeeper_adv_data()
+
+	def _on_webcontainer_start(self, message_type, container):
+		if container == self.WebContainer:
 			self._do_zookeeper_adv_data()
