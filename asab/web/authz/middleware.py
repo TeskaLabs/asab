@@ -1,5 +1,4 @@
 import aiohttp.web
-from ...exceptions import NotAuthenticatedError, NotAuthorizedError
 import logging
 
 #
@@ -36,21 +35,20 @@ def auth_middleware_factory(authz_service):
 
 		# Extract globally-granted resources
 		request._Resources = frozenset(resource_dict["*"])
+		request.is_superuser = "authz:superuser" in request._Resources
 
+		# Authorize tenant access
 		if request._Tenant is not None:
-			# Authorize tenant access
 			if request._Tenant in resource_dict:
 				# Extract tenant-granted resources
 				request._Resources = frozenset(resource_dict[request._Tenant])
-			elif "authz:superuser" in request._Resources:
-				# Superuser may proceed
+			elif request.is_superuser:
+				# Superuser may proceed with globally-granted resources
 				pass
 			else:
 				L.warning("Unauthorized tenant access", struct_data={
 					"tenant": request._Tenant, "sub": request._UserInfo.get("sub")})
 				raise aiohttp.web.HTTPForbidden()
-
-		request.is_superuser = "authz:superuser" in request._Resources
 
 		def has_resource_access(resource: str) -> bool:
 			return request.is_superuser or resource in request._Resources
@@ -65,11 +63,14 @@ def auth_middleware_factory(authz_service):
 def _get_bearer_token(request):
 	authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
 	if authorization_header is None:
-		raise NotAuthenticatedError("No Authorization header")
+		L.warning("No Authorization header")
+		raise aiohttp.web.HTTPUnauthorized()
 	try:
 		auth_type, token_value = authorization_header.split(" ", 1)
 	except ValueError:
-		raise NotAuthenticatedError("Invalid Authorization header")
+		L.warning("Invalid Authorization header")
+		raise aiohttp.web.HTTPUnauthorized()
 	if auth_type != "Bearer":
-		raise NotAuthenticatedError("Unsupported Authorization header type: {!r}".format(auth_type))
+		L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
+		raise aiohttp.web.HTTPUnauthorized()
 	return token_value
