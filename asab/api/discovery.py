@@ -14,9 +14,9 @@ class DiscoveryService(Service):
 		self.ZooKeeperContainer = zkc
 
 
-	async def locate(self, instance_id: str = None, appclass: str = None) -> list:
-		if instance_id is None and appclass is None:
-			L.warning("Please provide instance_id or appclass to locate the service(s).")
+	async def locate(self, instance_id: str = None, service_id: str = None, appclass: str = None) -> list:
+		if instance_id is None and appclass is None and service_id is None:
+			L.warning("Please provide instance_id, service_id, or appclass to locate the service(s).")
 			return
 
 		instances = await self.get_advertised_instances()
@@ -28,6 +28,11 @@ class DiscoveryService(Service):
 			if appclass is not None:
 				if appclass != instance.get("appclass"):
 					continue
+
+			if service_id is not None:
+				if service_id != instance.get("service_id"):
+					continue
+
 			if instance_id is not None:
 				if instance_id != instance.get("instance_id"):
 					continue
