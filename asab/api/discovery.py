@@ -7,9 +7,9 @@ from .. import Service
 L = logging.getLogger(__name__)
 
 
-class ServiceDiscoveryService(Service):
+class DiscoveryService(Service):
 
-	def __init__(self, app, zkc, service_name="asab.ServiceDiscoveryService"):
+	def __init__(self, app, zkc, service_name="asab.DiscoveryService"):
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
 

@@ -9,7 +9,7 @@ from ..docker import running_in_docker
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
 from .doc import DocWebHandler
-from .service_discovery import ServiceDiscoveryService
+from .discovery import DiscoveryService
 
 ##
 
@@ -67,7 +67,7 @@ class ApiService(Service):
 			self.ChangeLog = None
 
 		# Service Discovery
-		self.ServiceDiscoveryService = None
+		self.DiscoveryService = None
 
 
 	def attention_required(self, att: dict, att_id=None):
@@ -170,7 +170,7 @@ class ApiService(Service):
 		self.ZkContainer = zoocontainer
 
 		# initialize service discovery
-		self.ServiceDiscoveryService = ServiceDiscoveryService(self.App, self.ZkContainer)
+		self.DiscoveryService = DiscoveryService(self.App, self.ZkContainer)
 
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zkcontainer_start)
 		self._do_zookeeper_adv_data()

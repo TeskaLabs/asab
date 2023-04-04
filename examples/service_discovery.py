@@ -1,6 +1,5 @@
 import logging
 import aiohttp
-import asyncio
 
 import asab
 import asab.web
@@ -46,13 +45,12 @@ class MyApplication(asab.Application):
 		self.ASABApiService.initialize_zookeeper(self.ZooKeeperContainer)
 
 		# Localize Service Discovery Service
-		self.ServiceDiscoveryService = self.get_service("asab.ServiceDiscoveryService")
+		self.DiscoveryService = self.get_service("asab.DiscoveryService")
 
 		self.WebContainer.WebApp.router.add_get('/locate', self.locate_self)
 
 	async def locate_self(self, request):
-		await asyncio.sleep(2)
-		urls = await self.ServiceDiscoveryService.locate(appclass="MyApplication")
+		urls = await self.DiscoveryService.locate(appclass="MyApplication")
 		if urls is None:
 			print("Application was not advertised properly")
 
