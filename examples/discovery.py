@@ -50,6 +50,10 @@ class MyApplication(asab.Application):
 		self.WebContainer.WebApp.router.add_get('/locate', self.locate_self)
 
 	async def locate_self(self, request):
+		# This `locate()` method seeks for its application in the ZooKeeper. Thus, it calls itself, being a tiny Oroboros.
+		# Try to run more than one ASAB Application with the same ZooKeeper configuration.
+		# You will get a tool to locate any service in the "cluster".
+
 		urls = await self.DiscoveryService.locate(appclass="MyApplication")
 		if urls is None:
 			print("Application was not advertised properly")
