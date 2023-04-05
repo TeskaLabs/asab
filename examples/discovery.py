@@ -47,13 +47,10 @@ class MyApplication(asab.Application):
 		self.ZooKeeperService = self.get_service("asab.ZooKeeperService")
 		self.ZooKeeperContainer = asab.zookeeper.ZooKeeperContainer(self.ZooKeeperService, "zookeeper")
 
-		# Service Discovery is part of ApiService and needs its full functionality
+		# The DiscoverySession is functional only with ApiService initialized.
 		self.ASABApiService = asab.api.ApiService(self)
 		self.ASABApiService.initialize_web(self.WebContainer)
 		self.ASABApiService.initialize_zookeeper(self.ZooKeeperContainer)
-
-		# Localize Service Discovery Service
-		self.DiscoveryService = self.get_service("asab.DiscoveryService")
 
 		self.WebContainer.WebApp.router.add_get('/locate', self.locate_self)
 
@@ -65,10 +62,9 @@ class MyApplication(asab.Application):
 		# Get config of the application:
 		config = None
 		# Pass the Application object to the DiscoverySession.
-		# The DiscoverySession is functional only with ApiService initialized.
 		async with asab.api.DiscoverySession(self) as session:
-			# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective serivce identificator
 			try:
+				# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective serivce identificator
 				async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
 					if resp.status == 200:
 						config = await resp.json()
