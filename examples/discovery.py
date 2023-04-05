@@ -5,6 +5,7 @@ import aiohttp.web
 import asab
 import asab.web
 import asab.api
+import asab.api.discovery
 import asab.zookeeper
 
 import os
@@ -67,9 +68,12 @@ class MyApplication(asab.Application):
 		# The DiscoverySession is functional only with ApiService initialized.
 		async with asab.api.DiscoverySession(self) as session:
 			# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective serivce identificator
-			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
-				if resp.status == 200:
-					config = await resp.json()
+			try:
+				async with session.get("http://my_application_.instance_id.asab/asab/v1/config") as resp:
+					if resp.status == 200:
+						config = await resp.json()
+			except asab.api.discovery.NotResolvedError as e:
+				L.error(e)
 
 		if config is None:
 			return aiohttp.web.json_response({"result": "FAILED"})
