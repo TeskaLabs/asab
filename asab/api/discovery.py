@@ -141,8 +141,12 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 		hosts = []
 		located_instances = await self.DiscoveryService._locate(**{key: value})
 		if located_instances is None or len(located_instances) == 0:
-			raise RuntimeError("'{}' '{}' was not resolved.".format(key, value))
+			raise NotResolvedError("'{}' '{}' was not resolved.".format(key, value))
 		for i in located_instances:
 			hosts.append(*await super().resolve(i[0], i[1], family))
 
 		return hosts
+
+
+class NotResolvedError(RuntimeError):
+	pass
