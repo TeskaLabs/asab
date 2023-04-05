@@ -59,7 +59,8 @@ class MyApplication(asab.Application):
 		config = None
 		session = await self.DiscoveryService.session()
 		try:
-			async with session.get("http://MyApplication.appclass/asab/v1/config") as resp:
+			# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective serivce identificator
+			async with session.get("http://MyApplication.appclass.asab/asab/v1/config") as resp:
 				if resp.status == 200:
 					config = await resp.json()
 

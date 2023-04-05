@@ -3,7 +3,7 @@ import json
 
 import aiohttp
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 import socket
 import asyncio
 
@@ -15,50 +15,40 @@ L = logging.getLogger(__name__)
 
 class DiscoveryService(Service):
 
-	def __init__(self, app, zkc, service_name="asab.DiscoveryService"):
+	def __init__(self, app, zkc, service_name="asab.DiscoveryService") -> None:
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
 
+	async def locate(self, instance_id: str = None, service_id: str = None) -> list:
+		"""
+		Returns a list of URLs for a given instance or service ID.
 
-	async def locate(self, instance_id: str = None, service_id: str = None, appclass: str = None) -> list:
-		if instance_id is None and appclass is None and service_id is None:
-			L.warning("Please provide instance_id, service_id, or appclass to locate the service(s).")
-			return
+		:param instance_id: The ID of a specific instance of a service that the client wants to locate.
+		:type instance_id: str
+		:param service_id: The `service_id` parameter represents identifier of a
+		service to locate. It is used to query a service registry to find the
+		instances of the service that are currently available.
+		:type service_id: str
+		:return: A list of URLs in the format "http://servername:port" for the specified instance or
+		service.
+		"""
+		return [
+			"http://{}:{}".format(servername, port)
+			for servername, port
+			in await self._locate(instance_id, service_id)
+		]
 
-		instances = await self.get_advertised_instances()
-		if len(instances) == 0:
-			L.warning("No instances available.")
-			return
-		urls = []
-		for instance in instances:
-			if appclass is not None:
-				if appclass != instance.get("appclass"):
-					continue
+	async def _locate(self, instance_id: str = None, service_id: str = None) -> List[Tuple]:
+		"""
+		Locates service instances based on their instance ID or service ID.
 
-			if service_id is not None:
-				if service_id != instance.get("service_id"):
-					continue
-
-			if instance_id is not None:
-				if instance_id != instance.get("instance_id"):
-					continue
-
-			web = instance.get("web")
-			servername = instance.get("servername")
-			if web is None or servername is None:
-				continue
-			for i in web:
-				try:
-					# ip = i[0]
-					port = i[1]
-				except KeyError:
-					L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
-					return
-				urls.append("http://{}:{}".format(servername, port))
-		return urls
-
-	async def _locate(self, instance_id: str = None, service_id: str = None, appclass: str = None) -> list:
-		if instance_id is None and appclass is None and service_id is None:
+		:param instance_id: The unique identifier for a specific instance of a service
+		:type instance_id: str
+		:param service_id: The ID of the service to locate
+		:type service_id: str
+		:return: a list of tuples containing the server name and port number of the located service(s).
+		"""
+		if instance_id is None and service_id is None:
 			L.warning("Please provide instance_id, service_id, or appclass to locate the service(s).")
 			return
 
@@ -68,10 +58,6 @@ class DiscoveryService(Service):
 			return
 		res = []
 		for instance in instances:
-			if appclass is not None:
-				if appclass != instance.get("appclass", "").lower():
-					continue
-
 			if service_id is not None:
 				if service_id != instance.get("service_id", "").lower():
 					continue
@@ -86,16 +72,22 @@ class DiscoveryService(Service):
 				continue
 			for i in web:
 				try:
-					# ip = i[0]
+					ip = i[0]
 					port = i[1]
 				except KeyError:
 					L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
 					return
+				if ip not in ("0.0.0.0", "::", ""):
+					continue
 				res.append((servername, port))
 		return res
 
 
-	async def get_advertised_instances(self):
+	async def get_advertised_instances(self) -> List[Dict]:
+		"""
+		Returns a list of dictionaries. Each dictionary represents an advertised instance
+		obtained by iterating over the items in the `/run` path in ZooKeeper.
+		"""
 		advertised = []
 		async for item, item_data in self._iter_zk_items("/run"):
 			data_dict = json.loads(item_data)
@@ -116,12 +108,18 @@ class DiscoveryService(Service):
 			item_data = await self.ZooKeeperContainer.ZooKeeper.get_data(base_path + '/' + item)
 			yield item, item_data
 
-	async def session(self):
+
+	async def session(self) -> aiohttp.ClientSession:
+		"""
+		This function creates an asynchronous HTTP client session with a custom DNS resolver.
+		:return: The `session` method is returning an instance of `aiohttp.ClientSession` with a custom
+		`TCPConnector` that uses a `DiscoveryResolver` instance as its resolver.
+		"""
 		return aiohttp.ClientSession(connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)))
 
 
 class DiscoveryResolver(aiohttp.DefaultResolver):
-	"""Custom aiohttpResolver for Discovery Session"""
+	"""Custom aiohttp Resolver for Discovery Session based on default aiohttp resolver."""
 
 	def __init__(self, svc) -> None:
 		self._loop = asyncio.get_running_loop()
@@ -129,10 +127,19 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 
 
 	async def resolve(self, hostname: str, port: int = 0, family: int = socket.AF_INET) -> List[Dict[str, Any]]:
-		value, key = hostname.split(".")
-		listik = await self.DiscoveryService._locate(**{key: value})
+		"""
+		Resolves a hostname only with '.asab' domain. and returns a list of dictionaries
+		containing information about the resolved hosts further used by aiohttp.TCPConnector
+
+		The hostname to resolve must be in the format of "<value>.<key>.asab",
+		where key is "service_id" or "instance_id" and value is the particular identificator of the service to be resolved.
+		The "asab" domain is required
+		"""
+		value, key, domain = hostname.rsplit(".", 3)
+		if domain != "asab":
+			raise RuntimeError("'asab' domain required. Example url: http://<service>.service_id.asab/asab/v1/config")
 		hosts = []
-		for i in listik:
+		for i in await self.DiscoveryService._locate(**{key: value}):
 			hosts.append(*await super().resolve(i[0], i[1], family))
 
 		return hosts
