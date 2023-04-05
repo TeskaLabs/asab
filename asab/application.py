@@ -648,7 +648,7 @@ class Application(metaclass=Singleton):
 
 			self.HousekeepingTime += datetime.timedelta(days=1)
 			self.HousekeepingTimeLimit += datetime.timedelta(days=1)
-			self.HousekeepingId = today_id + 1
+			self.HousekeepingId = today_id + 1  # FIXME:
 			L.log(
 				LOG_NOTICE,
 				"Setting time for the next housekeeping.",
