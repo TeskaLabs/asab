@@ -7,6 +7,12 @@ import asab.web
 import asab.api
 import asab.zookeeper
 
+import os
+
+# `instance_id`` and `service_id` are identificators set as environemnt variables.
+# ASAB miroservices are meant to run in separate (Docker) containers.
+os.environ["INSTANCE_ID"] = "my_application_1"
+
 #
 
 L = logging.getLogger(__name__)
@@ -51,21 +57,19 @@ class MyApplication(asab.Application):
 		self.WebContainer.WebApp.router.add_get('/locate', self.locate_self)
 
 	async def locate_self(self, request):
-		# This method seeks for MyApplication in the ZooKeeper. Thus, it calls itself, being a tiny Oroboros.
+		# This method seeks for this application in the ZooKeeper. Thus, it calls itself, being a tiny Oroboros.
 		# Try to run more than one ASAB Application with the same ZooKeeper configuration.
 		# You will get a tool to locate any service in the "cluster".
 
 		# Get config of the application:
 		config = None
-		session = await self.DiscoveryService.session()
-		try:
+		# Pass the Application object to the DiscoverySession.
+		# The DiscoverySession is functional only with ApiService initialized.
+		async with asab.api.DiscoverySession(self) as session:
 			# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective serivce identificator
-			async with session.get("http://MyApplication.appclass.asab/asab/v1/config") as resp:
+			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
 				if resp.status == 200:
 					config = await resp.json()
-
-		finally:
-			await session.close()
 
 		if config is None:
 			return aiohttp.web.json_response({"result": "FAILED"})

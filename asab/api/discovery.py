@@ -109,13 +109,13 @@ class DiscoveryService(Service):
 			yield item, item_data
 
 
-	async def session(self) -> aiohttp.ClientSession:
-		"""
-		This function creates an asynchronous HTTP client session with a custom DNS resolver.
-		:return: The `session` method is returning an instance of `aiohttp.ClientSession` with a custom
-		`TCPConnector` that uses a `DiscoveryResolver` instance as its resolver.
-		"""
-		return aiohttp.ClientSession(connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)))
+class DiscoverySession(aiohttp.ClientSession):
+
+	def __init__(self, app):
+		self.Session = None
+		self.DiscoveryService = app.get_service("asab.DiscoveryService")
+		super().__init__(connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self.DiscoveryService)))
+
 
 
 class DiscoveryResolver(aiohttp.DefaultResolver):
@@ -139,7 +139,10 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 		if domain != "asab":
 			raise RuntimeError("'asab' domain required. Example url: http://<service>.service_id.asab/asab/v1/config")
 		hosts = []
-		for i in await self.DiscoveryService._locate(**{key: value}):
+		located_instances = await self.DiscoveryService._locate(**{key: value})
+		if located_instances is None or len(located_instances) == 0:
+			raise RuntimeError("'{}' '{}' was not resolved.".format(key, value))
+		for i in located_instances:
 			hosts.append(*await super().resolve(i[0], i[1], family))
 
 		return hosts
