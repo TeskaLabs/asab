@@ -15,13 +15,10 @@ L = logging.getLogger(__name__)
 def require(*resources):
 
 	def decorator_required(handler):
-		handler_argspecs = inspect.getfullargspec(handler)
-		handler_kwargs = {}
 
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			authz_service = request.AuthzService
 
 			# Skip resource access check is skipped if RBAC is disabled
 			if request.AuthzService.RBACDisabled:
