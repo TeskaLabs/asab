@@ -1,5 +1,6 @@
 import aiohttp.web
 import logging
+import inspect
 
 #
 
@@ -8,12 +9,29 @@ L = logging.getLogger(__name__)
 #
 
 
-def auth_middleware_factory(authz_service):
+def auth_middleware_factory(authz_service, web_app):
+	async def extract_auth_attributes(aiohttp_app):
+		for route in aiohttp_app.router.routes():
+			if inspect.iscoroutinefunction(route.handler):
+				if hasattr(route.handler, "__wrapped__"):
+					handler = route.handler.__wrapped__
+				else:
+					handler = route.handler.__func__
+				argspec = inspect.getfullargspec(handler)
+				args = set(argspec.kwonlyargs).union(argspec.args)
+				if "tenant" in args:
+					handler.Tenant = True
+				if "user_info" in args:
+					handler.UserInfo = True
+				if "resources" in args:
+					handler.Resources = True
+
+	web_app.on_startup.append(extract_auth_attributes)
 
 	@aiohttp.web.middleware
 	async def auth_middleware(request, handler):
 		# Handlers with the @no_auth decorator are not authenticated nor authorized
-		# and do not have access to tenant or userinfo
+		# and do not have access to tenant or user_info
 		if hasattr(handler, "NoAuth"):
 			return await handler(request)
 
@@ -23,39 +41,44 @@ def auth_middleware_factory(authz_service):
 		request.AuthzService = authz_service
 
 		# Extract tenant from request
-		request._Tenant = request.match_info.get("tenant")
-		if request._Tenant is None:
-			request._Tenant = request.query.get("tenant")
+		tenant = request.match_info.get("tenant")
+		if tenant is None:
+			tenant = request.query.get("tenant")
 
 		# Authenticate the request
 		bearer_token = _get_bearer_token(request)
-		request._UserInfo = authz_service.userinfo(bearer_token)
+		user_info = authz_service.userinfo(bearer_token)
 
-		resource_dict = request._UserInfo.get("resources")
+		resource_dict = user_info.get("resources")
 
 		# Extract globally-granted resources
-		request._Resources = frozenset(resource_dict["*"])
-		request.is_superuser = "authz:superuser" in request._Resources
+		resources = frozenset(resource_dict["*"])
+		request.is_superuser = "authz:superuser" in resources
 
 		# Authorize tenant access
-		if request._Tenant is not None:
-			if request._Tenant in resource_dict:
+		if tenant is not None:
+			if tenant in resource_dict:
 				# Extract tenant-granted resources
-				request._Resources = frozenset(resource_dict[request._Tenant])
-			elif request.is_superuser:
-				# Superuser may proceed with globally-granted resources
-				pass
+				resources = frozenset(resource_dict[tenant])
 			else:
 				L.warning("Unauthorized tenant access", struct_data={
-					"tenant": request._Tenant, "sub": request._UserInfo.get("sub")})
-				raise aiohttp.web.HTTPForbidden()
+					"tenant": tenant, "sub": user_info.get("sub")})
+				raise aiohttp.web.HTTPUnauthorized()
 
 		def has_resource_access(resource: str) -> bool:
-			return request.is_superuser or resource in request._Resources
+			return request.is_superuser or resource in resources
 
 		request.has_resource_access = has_resource_access
 
-		return await handler(request, tenant=request._Tenant, user_info=request._UserInfo, resources=request._Resources)
+		kwargs = {}
+		if hasattr(handler, "Tenant"):
+			kwargs["tenant"] = tenant
+		if hasattr(handler, "Resources"):
+			kwargs["resources"] = resources
+		if hasattr(handler, "UserInfo"):
+			kwargs["user_info"] = user_info
+
+		return await handler(request, **kwargs)
 
 	return auth_middleware
 

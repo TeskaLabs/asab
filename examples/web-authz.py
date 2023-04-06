@@ -35,7 +35,7 @@ class MyApplication(asab.Application):
 
 		self.AuthzService = asab.web.authz.AuthzService(self)
 		self.WebContainer.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
-		self.WebContainer.WebApp.middlewares.append(asab.web.authz.auth_middleware_factory(self.AuthzService))
+		self.WebContainer.WebApp.middlewares.append(asab.web.authz.auth_middleware_factory(self.AuthzService, self.WebContainer.WebApp))
 
 		# Add a route to the handler method
 		self.WebContainer.WebApp.router.add_get("/no_auth", self.simple)
@@ -56,9 +56,9 @@ class MyApplication(asab.Application):
 		- `tenant`, `user_info`, `resources` params not allowed
 		"""
 		data = {
-			"tenant": "NOT ALLOWED",
-			"resources": "NOT ALLOWED",
-			"user_info": "NOT ALLOWED",
+			"tenant": "NOT AVAILABLE",
+			"resources": "NOT AVAILABLE",
+			"user_info": "NOT AVAILABLE",
 		}
 		return asab.web.rest.json_response(request, data)
 
@@ -82,7 +82,7 @@ class MyApplication(asab.Application):
 
 
 	@asab.web.authz.require("something:access", "something:edit")
-	# async def auth(self, request):  # MINIMAL
+	# async def auth_resource(self, request):  # MINIMAL
 	async def auth_resource(self, request, *, tenant: None, user_info: dict, resources: frozenset):
 		"""
 		AUTH + RESOURCE CHECK
