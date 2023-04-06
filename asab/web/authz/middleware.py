@@ -10,6 +10,8 @@ L = logging.getLogger(__name__)
 
 
 def auth_middleware_factory(authz_service, web_app):
+
+	# TODO: This probably does not belong here (Auth Module, maybe?)
 	async def extract_auth_attributes(aiohttp_app):
 		for route in aiohttp_app.router.routes():
 			if inspect.iscoroutinefunction(route.handler):
