@@ -11,7 +11,6 @@ class TestDutyCycle(MetricsTestCase):
 		"""
 		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedApplication,
 			"testdc",
 			init_values={"v1": True}
 		)
@@ -55,7 +54,6 @@ class TestDutyCycle(MetricsTestCase):
 		"""
 		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedApplication,
 			"testdc",
 			init_values={"v1": True}
 		)
@@ -101,7 +99,6 @@ class TestDutyCycle(MetricsTestCase):
 		"""
 		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedApplication,
 			"testdc",
 			init_values={"v1": True}
 		)
@@ -145,8 +142,8 @@ class TestDutyCycle(MetricsTestCase):
 		"""
 		InfluxDB
 		"""
+		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedApplication,
 			"testdc",
 			init_values={"v1": True}
 		)
@@ -168,8 +165,8 @@ class TestDutyCycle(MetricsTestCase):
 		"""
 		OpenMetric
 		"""
+		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedApplication,
 			"testdc",
 			init_values={"v1": True}
 		)

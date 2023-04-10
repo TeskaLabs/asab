@@ -137,8 +137,8 @@ class MetricsService(Service):
 		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
 
-	def create_duty_cycle(self, app, metric_name, tags=None, init_values=None, help=None, unit=None):
-		m = DutyCycle(app, init_values=init_values)
+	def create_duty_cycle(self, metric_name, tags=None, init_values=None, help=None, unit=None):
+		m = DutyCycle(self.App, init_values=init_values)
 		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 
