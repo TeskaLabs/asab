@@ -79,6 +79,84 @@ Specify expiration period in confiuration. Default is 60 s.
     expiration=60
 
 
+Timestamp
+---------
+
++---+--------------+---------------------------------+-----------------------+-----------------------+---------+
+|   |Metric's Type |Description / Methods            |Time is Measured       |Timestamp Value Appears|is_reset |
++===+==============+=================================+=======================+=======================+=========+
+|1F |**Gauge**     |Stores single numerical values   |when metric is created |**set()**              |**False**|
+|   |              |which can go up and down.        |`(actual time)`        |for actual time        |         |
+|   |              |                                 |                       |                       |         |
+|   |              |**add_field() /**                |                       |                       |         |
+|   |              |**set()**                        |                       |                       |         |
++---+--------------+---------------------------------+-----------------------+-----------------------+---------+
+|2F |**Counter**   |A cumulative metric;             |when metric is created |**add()** or **sub()** |**False**|
+|   |              |values can increase or decrease  |`(actual time)`        |for actual time        |         |
+|   |              |Never stops.                     |                       |                       |         |
+|   |              |                                 |                       |                       |         |
+|   |`Allows       |**add_field() /**                |                       |                       |         |
+|   |dynamic tags` |**add() / sub() / flush()**      |                       |                       |         |
++---+--------------+---------------------------------+-----------------------+-----------------------+---------+
+|2T |**Counter**   |A cumulative metric;             |every 60 seconds       |**flush()**            |**True** |
+|   |              |values can increase or decrease  |                       |- time of the test     |         |
+|   |              |Set to 0 every 60 seconds.       |                       |flush                  |         |
+|   |              |                                 |                       |                       |         |
+|   |`Allows       |`AgregationCounter behavior is   |                       |                       |         |
+|   |dynamic tags` |based on the resettable Counter.`|                       |                       |         |
++---+--------------+---------------------------------+-----------------------+-----------------------+---------+
+|3F |**EPSCounter**|There is an adjustable           |`*****`                |`*****`                |**False**|
+|   |              |reset parameter                  |                       |                       |         |
+|   |              |in the metric’s constructor.     |                       |                       |         |
+|   |              |                                 |                       |                       |         |
+|   |              |`reset: bool = True`             |                       |                       |         |
+|   |              |`reset: bool = False`            |                       |                       |         |
++---+--------------+---------------------------------+-----------------------+-----------------------+---------+
+|3T |**EPSCounter**|Divides the count of events      |every 60 seconds       |**flush()**            |**True** |
+|   |              |by the time difference between   |                       |                       |         |
+|   |              |measurements.                    |                       |                       |         |
+|   |              |                                 |                       |                       |         |
+|   |              |**flush()**                      |                       |                       |         |
++---+--------------+---------------------------------+-----------------------+-----------------------+---------+
+|4T |**DutyCycle** |The fraction of one period in    |every 60 seconds       |**flush()**            |**True** |
+|   |              |which a signal/system is active. |                       |                       |         |
+|   |              |A 60% DC means the signal is on  |                       |                       |         |
+|   |              |60% and off 40% of the time.     |                       |                       |         |
+|   |              |                                 |                       |                       |         |
+|   |              |**add_field() /**                |                       |                       |         |
+|   |              |**set() / flush()**              |                       |                       |         |
++---+--------------+---------------------------------+-----------------------+-----------------------+---------+
+|5F |**Aggregation |Keeps track of max or min value  |when metric is created |**set()**              |**False**|
+|   |Counter**     |of the Counter.                  |`(actual time)`        |                       |         |
+|   |              |Maximum value is a default.      |                       |                       |         |
+|   |              |                                 |                       |                       |         |
+|   |              |                                 |                       |                       |         |
+|   |              |**set() /**                      |                       |                       |         |
+|   |`Allows       |`+inherits from the Counter`     |                       |                       |         |
+|   |dynamic tags` |**add()/sub()** `are overwritten`|                       |                       |         |
++---+--------------+---------------------------------+-----------------------+-----------------------+---------+
+|5T |**Aggregation |`*****`                          |every 60 seconds       |**flush()**            |**True** |
+|   |Counter**     |                                 |                       |                       |         |
+|   |              |                                 |                       |                       |         |
+|   |`Allows       |                                 |                       |                       |         |
+|   |dynamic tags` |                                 |                       |                       |         |
++---+--------------+---------------------------------+-----------------------+-----------------------+---------+
+|6F |**Histogram** |Represents cumulative histogram  |when metric is created |**set()**              |**False**|
+|   |              |with a set() method.             |`(actual time)`        |                       |         |
+|   |              |                                 |                       |                       |         |
+|   |              |                                 |                       |                       |         |
+|   |              |                                 |                       |                       |         |
+|   |              |                                 |                       |                       |         |
+|   |`Allows       |**add_field() /**                |                       |                       |         |
+|   |dynamic tags` |**set() / flush()**              |                       |                       |         |
++---+--------------+---------------------------------+-----------------------+-----------------------+---------+
+|6T |**Histogram** |`*****`                          |every 60 seconds       |**flush()**            |**True** |
+|   |              |                                 |                       |                       |         |
+|   |`Allows       |                                 |                       |                       |         |
+|   |dynamic tags` |                                 |                       |                       |         |
++---+--------------+---------------------------------+-----------------------+-----------------------+---------+
+
+
 InfluxDB
 --------
 Metrics can be collected in the Influx time-series database.
