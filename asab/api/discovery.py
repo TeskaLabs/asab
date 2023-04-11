@@ -13,6 +13,12 @@ from .. import Service
 L = logging.getLogger(__name__)
 
 
+def discoverdecorator(f):
+	def wrapper(svc):
+		return DiscoverySession(svc.App)
+	return wrapper
+
+
 class DiscoveryService(Service):
 
 	def __init__(self, app, zkc, service_name="asab.DiscoveryService") -> None:
@@ -107,6 +113,11 @@ class DiscoveryService(Service):
 		for item in items:
 			item_data = await self.ZooKeeperContainer.ZooKeeper.get_data(base_path + '/' + item)
 			yield item, item_data
+
+
+	@discoverdecorator
+	async def session(self):
+		pass
 
 
 class DiscoverySession(aiohttp.ClientSession):

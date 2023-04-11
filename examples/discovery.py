@@ -52,6 +52,8 @@ class MyApplication(asab.Application):
 		self.ASABApiService.initialize_web(self.WebContainer)
 		self.ASABApiService.initialize_zookeeper(self.ZooKeeperContainer)
 
+		self.DiscoveryService = self.get_service("asab.DiscoveryService")
+
 		self.WebContainer.WebApp.router.add_get('/locate', self.locate_self)
 
 	async def locate_self(self, request):
@@ -61,8 +63,7 @@ class MyApplication(asab.Application):
 
 		# Get config of the application:
 		config = None
-		# Pass the Application object to the DiscoverySession.
-		async with asab.api.DiscoverySession(self) as session:
+		async with self.DiscoveryService.session() as session:  # Possible option is also: 	`async with asab.api.DiscoverySession(self) as session:`
 			try:
 				# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective serivce identificator
 				async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
