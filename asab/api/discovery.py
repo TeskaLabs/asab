@@ -77,7 +77,7 @@ class DiscoveryService(Service):
 				except KeyError:
 					L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
 					return
-				if ip not in ("0.0.0.0", "::", ""):
+				if ip not in ("0.0.0.0", "::"):
 					continue
 				res.append((servername, port))
 		return res
@@ -101,7 +101,7 @@ class DiscoveryService(Service):
 		base_path = self.ZooKeeperContainer.Path + path
 		items = await self.ZooKeeperContainer.ZooKeeper.get_children(base_path)
 		if items is None:
-			L.error("Missing '/run' folder in ZooKeeper basepath '{}'".format(self.ZooKeeperContainer.Path))
+			L.error("Missing '{}/run' folder in ZooKeeper.".format(self.ZooKeeperContainer.Path))
 			return
 
 		for item in items:
@@ -141,12 +141,12 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 		hosts = []
 		located_instances = await self.DiscoveryService._locate(**{key: value})
 		if located_instances is None or len(located_instances) == 0:
-			raise NotResolvedError("Service with '{}' '{}' was not resolved.".format(key, value))
+			raise NotDiscoveredError("Failed to discover service '{}'.".format(value))
 		for i in located_instances:
 			hosts.append(*await super().resolve(i[0], i[1], family))
 
 		return hosts
 
 
-class NotResolvedError(RuntimeError):
+class NotDiscoveredError(RuntimeError):
 	pass
