@@ -1,11 +1,10 @@
 import logging
 import json
-
-import aiohttp
-
-from typing import List, Dict, Any, Tuple
 import socket
 import asyncio
+import typing
+
+import aiohttp
 
 from .. import Service
 
@@ -13,7 +12,7 @@ from .. import Service
 L = logging.getLogger(__name__)
 
 
-def discoverdecorator(f):
+def discoverydecorator(f):
 	def wrapper(svc):
 		return DiscoverySession(svc.App)
 	return wrapper
@@ -44,7 +43,7 @@ class DiscoveryService(Service):
 			in await self._locate(instance_id, service_id)
 		]
 
-	async def _locate(self, instance_id: str = None, service_id: str = None) -> List[Tuple]:
+	async def _locate(self, instance_id: str = None, service_id: str = None) -> typing.List[typing.Tuple]:
 		"""
 		Locates service instances based on their instance ID or service ID.
 
@@ -89,7 +88,7 @@ class DiscoveryService(Service):
 		return res
 
 
-	async def get_advertised_instances(self) -> List[Dict]:
+	async def get_advertised_instances(self) -> typing.List[typing.Dict]:
 		"""
 		Returns a list of dictionaries. Each dictionary represents an advertised instance
 		obtained by iterating over the items in the `/run` path in ZooKeeper.
@@ -115,7 +114,7 @@ class DiscoveryService(Service):
 			yield item, item_data
 
 
-	@discoverdecorator
+	@discoverydecorator
 	async def session(self):
 		pass
 
@@ -137,7 +136,7 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 		self.DiscoveryService = svc
 
 
-	async def resolve(self, hostname: str, port: int = 0, family: int = socket.AF_INET) -> List[Dict[str, Any]]:
+	async def resolve(self, hostname: str, port: int = 0, family: int = socket.AF_INET) -> typing.List[typing.Dict[str, typing.Any]]:
 		"""
 		Resolves a hostname only with '.asab' domain. and returns a list of dictionaries
 		containing information about the resolved hosts further used by aiohttp.TCPConnector
