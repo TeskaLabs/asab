@@ -20,10 +20,6 @@ def require(*resources):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 
-			# Skip resource access check is skipped if RBAC is disabled
-			if request.AuthzService.RBACDisabled:
-				return await handler(*args, **kwargs)
-
 			for resource in resources:
 				if not request.has_resource_access(resource):
 					raise aiohttp.web.HTTPForbidden()
@@ -38,9 +34,10 @@ def require(*resources):
 def no_auth(handler):
 	argspec = inspect.getfullargspec(handler)
 	args = set(argspec.kwonlyargs).union(argspec.args)
-	for arg in ("tenant", "userinfo", "resources"):
+	for arg in ("tenant", "user_info", "resources"):
 		if arg in args:
-			raise Exception("Handler with @no_auth cannot have {!r} in its arguments.".format(arg))
+			raise Exception(
+				"{}(): Handler with @no_auth cannot have {!r} in its arguments.".format(handler.__qualname__, arg))
 	handler.NoAuth = True
 
 	@functools.wraps(handler)
