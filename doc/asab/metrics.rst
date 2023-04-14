@@ -380,8 +380,6 @@ Reference
 .. autoclass:: DutyCycle
     :show-inheritance:
 
-    To initialize DutyCycle, provide an application loop (asab.Application.Loop) as this object tracks the time of the application.
-
 
 .. autoclass:: AggregationCounter
     :show-inheritance:
