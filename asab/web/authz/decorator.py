@@ -13,7 +13,17 @@ L = logging.getLogger(__name__)
 
 
 def require(*resources):
+	"""
+	Check resource access. Failure results in HTTP 403 response.
 
+	Usage:
+	```python3
+	@asab.web.authz.require("my-app:token:generate")
+	async def generate_token(self, request):
+		data = await self.service.generate_token()
+		return asab.web.rest.json_response(request, data)
+	```
+	"""
 	def decorator_required(handler):
 
 		@functools.wraps(handler)
@@ -32,6 +42,18 @@ def require(*resources):
 
 
 def no_auth(handler):
+	"""
+	Skip request authentication and authorization for the decorated handler.
+	The handler cannot have `tenant`, `user_info` and `resources` arguments.
+
+	Usage:
+	```python3
+	@asab.web.authz.no_auth
+	async def get_info(self, request):
+		data = await self.service.get_info()
+		return asab.web.rest.json_response(request, data)
+	```
+	"""
 	argspec = inspect.getfullargspec(handler)
 	args = set(argspec.kwonlyargs).union(argspec.args)
 	for arg in ("tenant", "user_info", "resources"):
@@ -45,18 +67,3 @@ def no_auth(handler):
 		return await handler(*args, **kwargs)
 
 	return wrapper
-
-
-def _get_bearer_token(request):
-	authorization_header_rg = re.compile(r"^\s*Bearer ([A-Za-z0-9\-\.\+_~/=]*)")
-
-	authorization_value = request.headers.get(aiohttp.hdrs.AUTHORIZATION, None)
-	bearer_token = None
-
-	# Obtain access token from the authorization header
-	if authorization_value is not None:
-		authorization_match = authorization_header_rg.match(authorization_value)
-		if authorization_match is not None:
-			bearer_token = authorization_match.group(1)
-
-	return bearer_token

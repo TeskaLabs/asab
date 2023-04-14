@@ -27,9 +27,16 @@ L = logging.getLogger(__name__)
 
 asab.Config.add_defaults({
 	"authz": {
+		# URL location containing the authorization server's public JWK keys
 		"public_keys_url": "",
+
+		# Whether the app is tenant-aware
 		"multitenancy": "yes",
+
+		# Implicitly trust any incoming ID token
 		"_disable_token_verification": "no",
+
+		# Disable resource access control checks. This allows
 		"_disable_rbac": "no",
 	}
 })
@@ -137,7 +144,7 @@ class AuthzService(asab.Service):
 	def _authenticate_request(self, handler):
 		"""
 		Authenticate the request by the JWT ID token in the Authorization header.
-		Extract the token claims so that they can be used for authorization checks.
+		Extract the token claims into request attributes so that they can be used for authorization checks.
 		"""
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
@@ -147,12 +154,15 @@ class AuthzService(asab.Service):
 
 			request = args[-1]
 			bearer_token = _get_bearer_token(request)
+
+			# Add userinfo, tenants and global resources to the request
 			request._UserInfo = self.userinfo(bearer_token)
 
 			resource_dict = request._UserInfo["resources"]
 			request._Resources = frozenset(resource_dict.get("*", []))
 			request._Tenants = frozenset(t for t in resource_dict.keys() if t != "*")
 
+			# Add access control methods to the request
 			request.is_superuser = "authz:superuser" in request._Resources
 
 			def has_resource_access(resource: str) -> bool:
@@ -170,6 +180,7 @@ class AuthzService(asab.Service):
 		"""
 		Inspect all registered handlers and wrap them in decorators according to their parameters.
 		"""
+		# Iterate through registered routes
 		for route in aiohttp_app.router.routes():
 			if not inspect.iscoroutinefunction(route.handler):
 				continue
@@ -193,7 +204,7 @@ class AuthzService(asab.Service):
 			# Extract the whole handler for wrapping
 			handler = route.handler
 
-			# Apply the decorators in reverse order
+			# Apply the decorators in reverse order (the last applied wrapper affects the request first)
 			if "resources" in args:
 				handler = _add_resources(handler)
 			if "user_info" in args:
@@ -246,6 +257,9 @@ def _get_id_token_claims_without_verification(bearer_token: str):
 
 
 def _get_bearer_token(request):
+	"""
+	Validate the Authorizetion header and extract the Bearer token value
+	"""
 	authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
 	if authorization_header is None:
 		L.warning("No Authorization header")
@@ -262,6 +276,9 @@ def _get_bearer_token(request):
 
 
 def _authorize_tenant_request(request, tenant):
+	"""
+	Check access to requested tenant and add tenant resources to the request
+	"""
 	if tenant not in request._Tenants:
 		L.warning("Tenant not authorized", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
 		raise aiohttp.web.HTTPUnauthorized()
@@ -269,6 +286,9 @@ def _authorize_tenant_request(request, tenant):
 
 
 def _add_tenant_from_path(handler):
+	"""
+	Extract tenant from request path and authorize it
+	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
@@ -279,6 +299,9 @@ def _add_tenant_from_path(handler):
 
 
 def _add_tenant_from_query(handler):
+	"""
+	Extract tenant from request query and authorize it
+	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
@@ -292,6 +315,9 @@ def _add_tenant_from_query(handler):
 
 
 def _add_tenant_none(handler):
+	"""
+	Add tenant=None to the handler arguments
+	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		return await handler(*args, tenant=None, **kwargs)
@@ -299,6 +325,9 @@ def _add_tenant_none(handler):
 
 
 def _add_user_info(handler):
+	"""
+	Add user info to the handler arguments
+	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
@@ -307,6 +336,9 @@ def _add_user_info(handler):
 
 
 def _add_resources(handler):
+	"""
+	Add resources to the handler arguments
+	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
