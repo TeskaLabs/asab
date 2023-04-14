@@ -192,7 +192,7 @@ class ApiService(Service):
 			adv_data["node_id"] = node_id
 
 		if running_in_container():
-			adv_data["containerized"] = true
+			adv_data["containerized"] = True
 
 		if self.Manifest is not None:
 			adv_data.update(self.Manifest)
