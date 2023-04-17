@@ -1,4 +1,3 @@
-import re
 import logging
 import functools
 import inspect
