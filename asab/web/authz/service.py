@@ -4,6 +4,8 @@ import functools
 import inspect
 import json
 import logging
+import typing
+
 import aiohttp
 import aiohttp.web
 import aiohttp.client_exceptions
@@ -23,6 +25,8 @@ except ModuleNotFoundError:
 L = logging.getLogger(__name__)
 
 #
+
+SUPERUSER_RESOURCE = "authz:superuser"
 
 
 asab.Config.add_defaults({
@@ -60,6 +64,20 @@ class AuthzService(asab.Service):
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
 		# TODO: Fetch public keys if validation fails (instead of periodic fetch)
 		self.App.PubSub.subscribe("Application.tick/30!", self._fetch_public_keys_if_needed)
+
+
+	def has_superuser_access(self, authorized_resources: typing.Iterable) -> bool:
+		return SUPERUSER_RESOURCE in authorized_resources
+
+
+	def has_resource_access(self, authorized_resources: typing.Iterable, required_resources: typing.Iterable) -> bool:
+		if self.RBACDisabled:
+			return True
+		if self.has_superuser_access(authorized_resources):
+			return True
+		for resource in required_resources:
+			if resource not in authorized_resources:
+				return False
 
 
 	async def initialize(self, app):
@@ -163,14 +181,13 @@ class AuthzService(asab.Service):
 			request._Tenants = frozenset(t for t in resource_dict.keys() if t != "*")
 
 			# Add access control methods to the request
-			request.is_superuser = "authz:superuser" in request._Resources
-
-			def has_resource_access(resource: str) -> bool:
-				if self.RBACDisabled:
-					return True
-				return request.is_superuser or resource in request._Resources
-
+			def has_resource_access(*required_resources: list) -> bool:
+				return self.has_resource_access(request._Resources, required_resources)
 			request.has_resource_access = has_resource_access
+
+			def has_superuser_access() -> bool:
+				return self.has_superuser_access(request._Resources)
+			request.has_superuser_access = has_superuser_access
 
 			return await handler(*args, **kwargs)
 		return wrapper

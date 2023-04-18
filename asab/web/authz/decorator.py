@@ -29,9 +29,8 @@ def require(*resources):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 
-			for resource in resources:
-				if not request.has_resource_access(resource):
-					raise aiohttp.web.HTTPForbidden()
+			if not request.has_resource_access(*resources):
+				raise aiohttp.web.HTTPForbidden()
 
 			return await handler(*args, **kwargs)
 
