@@ -5,10 +5,11 @@ import datetime
 import logging
 
 from .. import Service, Config
-from ..docker import running_in_docker
+from ..utils import running_in_container
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
 from .doc import DocWebHandler
+from .discovery import DiscoveryService
 
 ##
 
@@ -64,6 +65,9 @@ class ApiService(Service):
 			self.ChangeLog = path
 		else:
 			self.ChangeLog = None
+
+		# Service Discovery
+		self.DiscoveryService = None
 
 
 	def attention_required(self, att: dict, att_id=None):
@@ -132,6 +136,8 @@ class ApiService(Service):
 			from ..metrics.web_handler import MetricWebHandler
 			self.MetricWebHandler = MetricWebHandler(metrics_svc, self.WebContainer.WebApp)
 
+		self.App.PubSub.subscribe("WebContainer.started!", self._on_webcontainer_start)
+
 
 	def initialize_zookeeper(self, zoocontainer=None):
 		'''
@@ -163,6 +169,9 @@ class ApiService(Service):
 		# get zookeeper-service
 		self.ZkContainer = zoocontainer
 
+		# initialize service discovery
+		self.DiscoveryService = DiscoveryService(self.App, self.ZkContainer)
+
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zkcontainer_start)
 		self._do_zookeeper_adv_data()
 
@@ -175,15 +184,24 @@ class ApiService(Service):
 			return
 
 		adv_data = {
+			'host': self.App.HostName,
 			'appclass': self.App.__class__.__name__,
-			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
-			'hostname': self.App.HostName,
-			'servername': self.App.ServerName,
-			'processid': os.getpid(),
+			'launch_time': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
+			'process_id': os.getpid(),
 		}
 
-		if running_in_docker():
-			adv_data["containerization"] = "docker"
+		# A unique identifier of a microservice; added as an environment variable
+		instance_id = os.getenv('INSTANCE_ID', None)
+		if instance_id is not None:
+			adv_data["instance_id"] = instance_id
+
+		# A identified of the host machine (node); added if available at environment variables
+		node_id = os.getenv('NODE_ID', None)
+		if node_id is not None:
+			adv_data["node_id"] = node_id
+
+		if running_in_container():
+			adv_data["containerized"] = True
 
 		if self.Manifest is not None:
 			adv_data.update(self.Manifest)
@@ -195,6 +213,13 @@ class ApiService(Service):
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
 
+		node_id = os.getenv('NODE_ID', None)
+		if node_id is not None:
+			adv_data["node_id"] = node_id
+
+		service_id = os.getenv('SERVICE_ID', None)
+		if service_id is not None:
+			adv_data["service_id"] = service_id
 
 		instance_id = os.getenv('INSTANCE_ID', None)
 		if instance_id is not None:
@@ -206,7 +231,10 @@ class ApiService(Service):
 		)
 
 
-
 	def _on_zkcontainer_start(self, message_type, container):
 		if container == self.ZkContainer:
+			self._do_zookeeper_adv_data()
+
+	def _on_webcontainer_start(self, message_type, container):
+		if container == self.WebContainer:
 			self._do_zookeeper_adv_data()

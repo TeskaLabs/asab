@@ -1,3 +1,4 @@
+import os
 import urllib.parse
 
 
@@ -55,3 +56,27 @@ def validate_url(input_url: str, scheme):
 		else:
 			raise ValueError("'{}' has an invalid scheme".format(url.geturl()))
 	return url.geturl()
+
+
+def running_in_container():
+
+	if os.path.exists('/.dockerenv') and os.path.isfile('/proc/self/cgroup'):
+		with open('/proc/self/cgroup', "r") as f:
+			if any('docker' in line for line in f.readlines()):
+				return True
+
+	# since Ubuntu 22.04 linux kernel uses cgroups v2 which do not operate with /proc/self/cgroup file
+	if os.path.isfile('/proc/self/mountinfo'):
+		with open('/proc/self/mountinfo', "r") as f:
+			for line in f.readlines():
+				# Seek for a root filesystem
+				if ' / / ' not in line:
+					continue
+
+				# Is the root filesystem runs on overlay?
+				if ' overlay ' not in line:
+					continue
+
+				return True
+
+	return False
