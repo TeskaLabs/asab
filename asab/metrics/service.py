@@ -38,7 +38,7 @@ class MetricsService(Service):
 			self.Tags["node_id"] = node_id
 
 		service_id = os.getenv('SERVICE_ID', None)
-		if instance_id is not None:
+		if service_id is not None:
 			self.Tags["service_id"] = service_id
 
 		# A unique identifier of a microservice; added as an environment variable.
