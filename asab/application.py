@@ -149,7 +149,7 @@ class Application(metaclass=Singleton):
 		self.HousekeepingTime, self.HousekeepingTimeLimit, self.HousekeepingId = self._initialize_housekeeping_schedule()
 		self.HousekeepingMissedEvents: list = []
 		# Every 10 minutes listen for housekeeping
-		self.PubSub.subscribe("Application.tick!", self._on_housekeeping_tick)
+		self.PubSub.subscribe("Application.tick/60!", self._on_housekeeping_tick)
 
 
 	def create_argument_parser(
@@ -628,7 +628,6 @@ class Application(metaclass=Singleton):
 		Check if it's time for publishing the 'Application.housekeeping!' message.
 		If so, publish the message and set housekeeping time, the time limit and time id for the next day.
 		"""
-		L.warning("tick")
 		now = datetime.datetime.now(datetime.timezone.utc)
 		today_id = housekeeping_id(now)
 
