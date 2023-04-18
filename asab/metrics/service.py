@@ -32,19 +32,19 @@ class MetricsService(Service):
 			"appclass": app.__class__.__name__,
 		}
 
-		# A unique identifier of a microservice; added as an environment variable.
-		instance_id = os.getenv('INSTANCE_ID', None)
-		if instance_id is not None:
-			self.Tags["instance_id"] = instance_id
+		# A identified of the host machine (node); added if available at environment variables
+		node_id = os.getenv('NODE_ID', None)
+		if node_id is not None:
+			self.Tags["node_id"] = node_id
 
 		service_id = os.getenv('SERVICE_ID', None)
 		if instance_id is not None:
 			self.Tags["service_id"] = service_id
 
-		# A identified of the host machine (node); added if available at environment variables
-		node_id = os.getenv('NODE_ID', None)
-		if node_id is not None:
-			self.Tags["node_id"] = node_id
+		# A unique identifier of a microservice; added as an environment variable.
+		instance_id = os.getenv('INSTANCE_ID', None)
+		if instance_id is not None:
+			self.Tags["instance_id"] = instance_id
 
 		self.Storage = Storage()
 
