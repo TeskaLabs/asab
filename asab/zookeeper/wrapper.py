@@ -1,5 +1,6 @@
 import logging
 
+import kazoo.retry
 import kazoo.client
 import kazoo.exceptions
 
@@ -13,15 +14,18 @@ L = logging.getLogger(__name__.rsplit(".", 1)[0])  # We want just "asab.zookeepe
 class KazooWrapper(object):
 
 
-	def __init__(self, zksvc, hosts):
-		self.ProactorService = zksvc.ProactorService
-		self.Client = kazoo.client.KazooClient(hosts=hosts)
+	def __init__(self, zkcnt, hosts):
+		self.App = zkcnt.App
+		self.ProactorService = zkcnt.ProactorService
 
+		self.Client = kazoo.client.KazooClient(
+			hosts=hosts,
+			connection_retry=kazoo.retry.KazooRetry(
+				max_tries=-1,  # Try to reconnect indefinetively
+			),
+		)
 
-	# connection start/close calls
-
-	def _start(self):
-		return self.Client.start()
+		self.Client.add_listener(zkcnt._listener)
 
 
 	async def _stop(self):

@@ -20,9 +20,6 @@ class HTTPTarget(asab.ConfigObject):
 
 	async def process(self, metrics, now):
 		metrics_to_send = copy.deepcopy(metrics)
-		for metrics in metrics_to_send:
-			if metrics.get("@timestamp") is None:
-				metrics["@timestamp"] = now
 		async with aiohttp.ClientSession() as session:
 			async with session.post(self.URL, json=metrics_to_send) as resp:
 				response = await resp.text()

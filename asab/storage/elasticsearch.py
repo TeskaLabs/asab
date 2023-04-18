@@ -36,7 +36,7 @@ Config.add_defaults(
 
 class StorageService(StorageServiceABC):
 	"""
-	Depends on `aiohttp`.
+	StorageService for Elastic Search. Depends on `aiohttp` library.
 	"""
 
 	def __init__(self, app, service_name, config_section_name='asab:storage'):
@@ -64,18 +64,60 @@ class StorageService(StorageServiceABC):
 
 
 	async def finalize(self, app):
+		"""
+		Close the current client session.
+		"""
 		if self._ClientSession is not None and not self._ClientSession.closed:
 			await self._ClientSession.close()
 			self._ClientSession = None
 
 
 	def session(self):
+		"""
+		Get the current client session.
+		"""
 		if self._ClientSession is None:
 			self._ClientSession = aiohttp.ClientSession(auth=self._auth)
 		elif self._ClientSession.closed:
 			self._ClientSession = aiohttp.ClientSession(auth=self._auth)
 		return self._ClientSession
 
+
+	async def get(self, index: str, obj_id: str, decrypt=None) -> dict:
+		"""Get object by its index and object ID.
+
+		Args:
+			index (str): Index for the query.
+			obj_id (str): ID of the object.
+			decrypt (None): Not implemented yet. Defaults to None.
+
+		Raises:
+			NotImplementedError: Encryption and decryption has not yet been implemented for ECS.
+			Exception: Connection failed.
+
+		Returns:
+			dict: The query result.
+		"""
+		if decrypt is not None:
+			raise NotImplementedError("AES encryption for ElasticSearch not implemented")
+
+		for url in self.ServerUrls:
+			url = "{}{}/_doc/{}".format(url, index, obj_id)
+			try:
+				async with self.session().request(method="GET", url=url) as resp:
+					obj = await resp.json()
+					ret = obj['_source']
+					ret['_v'] = obj['_version']
+					ret['_id'] = obj['_id']
+					return ret
+			except aiohttp.client_exceptions.ClientConnectorError:
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
+	async def get_by(self, collection: str, key: str, value, decrypt=None):
+		raise NotImplementedError("get_by")
 
 	async def delete(self, index, _id=None):
 		for url in self.ServerUrls:
@@ -97,6 +139,77 @@ class StorageService(StorageServiceABC):
 					raise Exception("Failed to connect to '{}'".format(url))
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
+
+	async def mapping(self, index: str) -> dict:
+		"""Retrieve mapping definitions for one index.
+
+		:param index: Specified index.
+		:type index: str
+		:raise Exception: Connection failed.
+
+		Returns:
+			dict: Mapping definitions for the index.
+		"""
+		for url in self.ServerUrls:
+			url = "{}{}/_mapping".format(url, index)
+			try:
+				async with self.session().request(method="GET", url=url) as resp:
+					obj = await resp.json()
+					return obj
+			except aiohttp.client_exceptions.ClientConnectorError:
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
+	async def get_index_template(self, template_name: str) -> dict:
+		"""Retrieve ECS Index template for the given template name.
+
+		:param template_name: The name of the ECS template to retrieve.
+		:type template_name: str
+		:raise Exception: Raised if connection to all server URLs fails.
+		:return: ElasticSearch Index template.
+		"""
+		for url in self.ServerUrls:
+			url = "{}_template/{}?format=json".format(url, template_name)
+			try:
+				async with self.session().request(method="GET", url=url, headers={
+					'Content-Type': 'application/json'
+				}) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+					content = await resp.json()
+					return content
+			except aiohttp.client_exceptions.ClientConnectorError:
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
+	async def put_index_template(self, template_name: str, template: dict) -> dict:
+		"""Create a new ECS index template.
+
+			:param template_name: The name of ECS template.
+			:param template: Body for the request.
+			:return: JSON response.
+			:raise Exception: Raised if connection to all server URLs fails.
+		"""
+		for url in self.ServerUrls:
+			url = "{}_template/{}?include_type_name".format(url, template_name)
+			L.warning("sending into url: {}".format(url))
+			try:
+				async with self.session().request(method="POST", url=url, data=json.dumps(template), headers={
+					'Content-Type': 'application/json'
+				}) as resp:
+					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+					resp = await resp.json()
+					return resp
+			except aiohttp.client_exceptions.ClientConnectorError:
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
 
 	async def reindex(self, previous_index, new_index):
 		for url in self.ServerUrls:
@@ -134,76 +247,17 @@ class StorageService(StorageServiceABC):
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
-	async def get_by(self, collection: str, key: str, value, decrypt=None):
-		raise NotImplementedError("get_by")
 
+	async def scroll(self, index: str, body: typing.Optional[dict] = None) -> dict:
+		"""Retrieve the next batch of results for a scrolling search.
 
-	async def mapping(self, index: str) -> dict:
-		for url in self.ServerUrls:
-			url = "{}{}/_mapping".format(url, index)
-			try:
-				async with self.session().request(method="GET", url=url) as resp:
-					obj = await resp.json()
-					return obj
-			except aiohttp.client_exceptions.ClientConnectorError:
-				if url == self.Storage.ServerUrls[-1]:
-					raise Exception("Failed to connect to '{}'".format(url))
-				else:
-					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
-
-	async def get(self, index: str, obj_id, decrypt=None) -> dict:
-		if decrypt is not None:
-			raise NotImplementedError("AES encryption for ElasticSearch not implemented")
-
-		for url in self.ServerUrls:
-			url = "{}{}/_doc/{}".format(url, index, obj_id)
-			try:
-				async with self.session().request(method="GET", url=url) as resp:
-					obj = await resp.json()
-					ret = obj['_source']
-					ret['_v'] = obj['_version']
-					ret['_id'] = obj['_id']
-					return ret
-			except aiohttp.client_exceptions.ClientConnectorError:
-				if url == self.Storage.ServerUrls[-1]:
-					raise Exception("Failed to connect to '{}'".format(url))
-				else:
-					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
-
-	async def get_index_template(self, template_name) -> dict:
-		for url in self.ServerUrls:
-			url = "{}_template/{}?format=json".format(url, template_name)
-			try:
-				async with self.session().request(method="GET", url=url, headers={
-					'Content-Type': 'application/json'
-				}) as resp:
-					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-					content = await resp.json()
-					return content
-			except aiohttp.client_exceptions.ClientConnectorError:
-				if url == self.Storage.ServerUrls[-1]:
-					raise Exception("Failed to connect to '{}'".format(url))
-				else:
-					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
-
-	async def put_index_template(self, template_name, template):
-		for url in self.ServerUrls:
-			url = "{}_template/{}?include_type_name".format(url, template_name)
-			try:
-				async with self.session().request(method="POST", url=url, data=json.dumps(template), headers={
-					'Content-Type': 'application/json'
-				}) as resp:
-					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-					resp = await resp.json()
-					return resp
-			except aiohttp.client_exceptions.ClientConnectorError:
-				if url == self.Storage.ServerUrls[-1]:
-					raise Exception("Failed to connect to '{}'".format(url))
-				else:
-					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
-
-
-	async def scroll(self, index: str, body=None):
+		:param index: The index name.
+		:type index: str
+		:param body: Custom body for the request. Defaults to None.
+		:type body: dict
+		:return: JSON response.
+		:raise Exception: Raised if connection to all server URLs fails.
+		"""
 		if body is None:
 			body = {
 				"query": {"bool": {"must": {"match_all": {}}}}
@@ -265,10 +319,21 @@ class StorageService(StorageServiceABC):
 		return ElasicSearchUpsertor(self, index, obj_id, version)
 
 
-	async def list(self, index, _from=0, size=10000, body=None):
-		'''
-		Custom ElasticSearch method
-		'''
+	async def list(self, index: str, _from: int = 0, size: int = 10000, body: dict = None) -> dict:
+		"""List data matching the index.
+
+		:param index: Specified index.
+		:param _from:  Starting document offset. Defaults to 0.
+		:type _from: int
+		:param size: The number of hits to return. Defaults to 10000.
+		:type size: int
+		:param body: An optional request body. Defaults to None.
+		:type body: dict
+
+		:return: The query search result.
+		:raise Exception: Raised if connection to all server URLs fails.
+
+		"""
 		if body is None:
 			body = {
 				'query': {
@@ -297,10 +362,14 @@ class StorageService(StorageServiceABC):
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
-	async def count(self, index):
-		'''
-		Custom ElasticSearch method
-		'''
+	async def count(self, index) -> int:
+		"""
+		Get the number of matches for a given index.
+
+		:param index: The specified index.
+		:return: The number of matches for a given index.
+		:raise Exception: Connection failed.
+		"""
 		for url in self.ServerUrls:
 			try:
 				count_url = "{}{}/_count".format(url, index)
@@ -315,9 +384,11 @@ class StorageService(StorageServiceABC):
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 	async def indices(self, search_string=None):
-		'''
-		Custom ElasticSearch method
-		'''
+		"""
+		Return high-level information about indices in a cluster, including backing indices for data streams.
+
+		:param search_string: A search string. Default to None.
+		"""
 		for url in self.ServerUrls:
 			try:
 				url = "{}_cat/indices/{}?format=json".format(url, search_string if search_string is not None else "*")
@@ -334,7 +405,7 @@ class StorageService(StorageServiceABC):
 
 	async def empty_index(self, index):
 		'''
-		Custom ElasticSearch method
+		Create an empty ECS index.
 		'''
 		# TODO: There is an option here to specify settings (e.g. shard number, replica number etc) and mappings here
 		for url in self.ServerUrls:

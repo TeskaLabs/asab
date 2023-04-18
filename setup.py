@@ -13,10 +13,19 @@ if (here / '.git').exists():
 	module_dir = (here / 'asab')
 
 	version = subprocess.check_output(
-		['git', 'describe', '--abbrev=7', '--tags', '--dirty=+dirty', '--always'], cwd=module_dir)
+		['git', 'describe', '--abbrev=7', '--tags', '--dirty=-dirty', '--always'], cwd=module_dir)
 	version = version.decode('utf-8').strip()
 	if version[:1] == 'v':
 		version = version[1:]
+
+	# PEP 440 requires that the PUBLIC version field does not contain hyphens or pluses.
+	# https://peps.python.org/pep-0440/#semantic-versioning
+	# The commit number, hash and the "dirty" string must be in the LOCAL version field,
+	# separated from the public version by "+".
+	# For example, "v22.06-rc6-291-g3021077-dirty" becomes "v22.06-rc6+291-g3021077-dirty".
+	match = re.match(r"^(.+)-([0-9]+-g[0-9a-f]{7}(?:-dirty)?)$", version)
+	if match is not None:
+		version = "{}+{}".format(match[1], match[2])
 
 	build = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=module_dir)
 	build = build.decode('utf-8').strip()

@@ -7,6 +7,7 @@ import configparser
 
 import kazoo.exceptions
 import kazoo.recipe.watchers
+import kazoo.protocol.states
 
 from .wrapper import KazooWrapper
 from ..config import ConfigObject
@@ -43,6 +44,7 @@ class ZooKeeperContainer(ConfigObject):
 
 		self.App = zookeeper_service.App
 		self.ConfigSectionName = config_section_name
+		self.ProactorService = zookeeper_service.ProactorService
 
 		# Parse URL from z_path
 		if z_path is not None:
@@ -92,21 +94,22 @@ class ZooKeeperContainer(ConfigObject):
 		while url_path.startswith('/'):
 			url_path = url_path[1:]
 
-		self.ZooKeeper = KazooWrapper(zookeeper_service, url_netloc)
 		self.Path = url_path
 
 		self.Advertisments = dict()
 		self.DataWatchers = set()
 		self.App.PubSub.subscribe("Application.tick/300!", self._readvertise)
 
+		self.ZooKeeper = KazooWrapper(self, url_netloc)
+
 		zookeeper_service.Containers.append(self)
-		zookeeper_service.ProactorService.schedule(self._start, self.App)
+		self.ProactorService.schedule(self._start)
 
 
-	def _start(self, app):
+	def _start(self):
 		# This method is called on proactor thread
 		try:
-			self.ZooKeeper._start()
+			self.ZooKeeper.Client.start()
 		except Exception as e:
 			L.error(
 				"Failed to connect to ZooKeeper: {}".format(e),
@@ -114,17 +117,25 @@ class ZooKeeperContainer(ConfigObject):
 					'hosts': str(self.ZooKeeper.Client.hosts),
 				}
 			)
-			return
-
-		self.ZooKeeper.Client.ensure_path(self.Path)
-
-		def in_main_thread():
-			self.App.PubSub.publish("ZooKeeperContainer.started!", self)
-		self.App.Loop.call_soon_threadsafe(in_main_thread)
 
 
-	async def _stop(self, app):
+	async def _stop(self):
 		await self.ZooKeeper._stop()
+
+
+	def _listener(self, state):
+		'''
+		Generate PubSub events:
+
+		* ZooKeeperContainer.state/CONNECTED!
+		* ZooKeeperContainer.state/LOST!
+		* ZooKeeperContainer.state/SUSPENDED!
+		'''
+		if state == kazoo.protocol.states.KazooState.CONNECTED:
+			self.App.Loop.call_soon_threadsafe(self.ZooKeeper.Client.ensure_path, self.Path)
+
+		self.App.PubSub.publish_threadsafe("ZooKeeperContainer.state/{}!".format(state), self)
+
 
 
 	def is_connected(self):

@@ -19,6 +19,7 @@
    asab/web/authn
    asab/web/cors
    asab/metrics
+   asab/storage
    asab/alert
 
 .. toctree::

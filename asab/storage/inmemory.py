@@ -6,8 +6,24 @@ from .exceptions import DuplicateError
 
 class InMemoryUpsertor(UpsertorABC):
 
+	def __init__(self, storage, collection, obj_id, version=None):
+		super().__init__(storage, collection, obj_id, version)
+		if self.ObjId is None:
+			# generate a random unique binary ID
+			self.ObjId = self.generate_id()
 
-	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
+	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None) -> typing.Union[str, bytes]:
+		"""Commit the changes prepared in upsertor.
+
+		:custom_data (dict, optional): Not implemented yet. Defaults to None.
+		:event_type (str, optional): Not implemented yet. Defaults to None.
+
+		Raises: :RuntimeError: Raised if the object ID was not found in the previous version.
+
+		Returns:
+			:str | bytes: ID of the created or updated document.
+		"""
+
 		# TODO: Implement webhook call
 		id_name = self.get_id_name()
 
@@ -69,11 +85,31 @@ class StorageService(StorageServiceABC):
 		self.InMemoryCollections = {}
 
 
-	def upsertor(self, collection: str, obj_id=None, version=0):
+	def upsertor(self, collection: str, obj_id=None, version=0) -> InMemoryUpsertor:
+		"""Obtain an in-memory upsertor for given collection and possibly for the specified object.
+
+		:collection (str): The name of the collection.
+		:obj_id (_type_, optional): The ID of the document to retrieve. Defaults to None.
+		:version (int, optional): The version of the collection. Defaults to 0.
+
+		Returns:
+			:InMemoryUpsertor: Upsertor for given collection.
+
+		"""
 		return InMemoryUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection: str, obj_id, decrypt=None):
+	async def get(self, collection: str, obj_id: typing.Union[str, bytes], decrypt=None) -> dict:
+		"""Retrieve a document from an in-memory collection by its ID.
+
+		:collection (str): The name of the collection to retrieve the document from.
+		:obj_id (str | bytes): The ID of the document to retrieve.
+		:decrypt (_type_, optional): A list of field names to decrypt. Defaults to None.
+
+		Returns:
+			:dict: A dictionary representing the retrieved document.bIf `decrypt` is not None, the specified fields in the document are decrypted using AES decryption algorithm.
+
+		"""
 		coll = self.InMemoryCollections[collection]
 		data = coll[obj_id]
 		if decrypt is not None:
@@ -83,23 +119,25 @@ class StorageService(StorageServiceABC):
 		return data
 
 
-	async def get_by(self, collection: str, key: str, value, decrypt=None):
+	async def get_by(self, collection: str, key: str, value, decrypt=None) -> dict:
 		"""
+		Retrieve a document from an in-memory collection by key and value. Not implemented yet.
+
 		Raises:
-			NotImplementedError: Not implemented on InMemoryStorage
+			:NotImplementedError: Not implemented on InMemoryStorage
 		"""
 		raise NotImplementedError()
 
 
 	async def delete(self, collection: str, obj_id):
 		"""
-		Delete object from `collection` by its `obj_id`
+		Delete a document from an in-memory collection.
 
 		:param collection: Collection to delete from
 		:param obj_id: Object identification
 
 		Raises:
-			KeyError: If `obj_id` not found in `collection`
+			:KeyError: If `obj_id` not found in `collection`
 		"""
 		coll = self.InMemoryCollections[collection]
 		del coll[obj_id]

@@ -37,6 +37,11 @@ class DocWebHandler(object):
 
 		self.Manifest = api_service.Manifest
 
+		self.DefaultRouteTag: str = asab.Config["asab:doc"].get("default_route_tag")
+		if self.DefaultRouteTag not in ["module_name", "class_name"]:
+			raise ValueError("Unknown default_route_tag: {}. Choose between options 'module_name' and 'class_name'.".format(self.DefaultRouteTag))
+
+
 
 	def build_swagger_documentation(self) -> dict:
 		"""Take a docstring of the class and a docstring of methods and merge them into Swagger data."""
@@ -74,7 +79,7 @@ class DocWebHandler(object):
 			app_description
 		)
 
-		# routers sorting
+		# Extract asab and microservice routers, sort them alphabetically
 		asab_routes = []
 		microservice_routes = []
 
@@ -91,8 +96,7 @@ class DocWebHandler(object):
 			else:
 				microservice_routes.append(self.parse_route_data(route))
 
-		# add routers to 'paths' in order
-		# TODO: sorting by tags alphabetically?
+		microservice_routes.sort(key=get_tag)
 
 		for endpoint in microservice_routes:
 			endpoint_name = list(endpoint.keys())[0]
@@ -116,40 +120,60 @@ class DocWebHandler(object):
 	def parse_route_data(self, route) -> dict:
 		"""Take a route (a single endpoint with one method) and return its description data.
 
-		---
-		Example:
+---
+Example:
+---
 
-		>>> self.parse_route(myTestRoute)
-		{
-				'/my/endpoint': {
-						'get': {
-								'summary': 'This is a test route.',
-								'description': 'This is a test route.\\n\\n\\nHandler: `MyBeautifulHandler.myTestRoute()`',
-								'tags': ['myTag'],
-								'responses': {'200': {'description': 'Success'}}
-								}
-						}
+```python
+>>> self.parse_route(myTestRoute)
+{
+	'/my/endpoint': {
+		'get': {
+			'summary': 'This is a test route.',
+			'description': 'This is a test route.\\n\\n\\nHandler: `MyBeautifulHandler.myTestRoute()`',
+			'tags': ['myTag'],
+			'responses': {'200': {'description': 'Success'}}
 		}
-
-		"""
+	}
+}
+```
+"""
 		route_dict: dict = {}
 		method_name: str = route.method.lower()
 		route_path: str = self.get_path_from_route_info(route)
 
 		parameters: list = extract_parameters(route)
-		handler_name: str = extract_handler_name(route)
 		doc_string: str = extract_docstring(route)
 		add_dict: dict = self.get_additional_info(doc_string)
-
+		handler_name: str = extract_handler_name(route)
 		method_dict: dict = extract_method_dict(route)
-		method_dict.update(
-			self.add_methods(doc_string, add_dict, handler_name, parameters)
-		)
+
+		description: str = get_description(doc_string)
+		description += "\n\nHandler: `{}`".format(handler_name)
+
+		new_methods: dict = {
+			"summary": description.split("\n")[0],
+			"description": description,
+			"responses": {"200": {"description": "Success"}},
+		}
+
+		if self.DefaultRouteTag == "class_name":
+			new_methods["tags"] = [extract_class_name(route)]
+		elif self.DefaultRouteTag == "module_name":
+			new_methods["tags"] = [extract_module_name(route)]
+
+		if len(parameters) > 0:
+			new_methods["parameters"] = parameters
+
+		if add_dict is not None:
+			new_methods.update(add_dict)
 
 		path_object = route_dict.get(route_path)
 		if path_object is None:
 			route_dict[route_path] = path_object = {}
 		path_object[method_name] = method_dict
+
+		method_dict.update(new_methods)
 
 		return route_dict
 
@@ -171,8 +195,7 @@ class DocWebHandler(object):
 					L.error(
 						"Failed to parse '{}' doc string {}".format(
 							self.App.__class__.__name__, e
-						)
-					)
+						))
 		return additional_info_dict
 
 	def create_security_schemes(self) -> dict:
@@ -226,32 +249,6 @@ class DocWebHandler(object):
 		else:
 			L.warning("Cannot obtain path info from route", struct_data=self.route_info)
 		return path
-
-	def add_methods(
-		self,
-		docstring: typing.Optional[str],
-		add_dict: typing.Optional[dict],
-		handler_name: str,
-		parameters: list,
-	):
-
-		description: str = get_description(docstring)
-		description += "\n\nHandler: `{}`".format(handler_name)
-
-		new_methods: dict = {
-			"summary": description.split("\n")[0],
-			"description": description,
-			"tags": ["general"],
-			"responses": {"200": {"description": "Success"}},
-		}
-
-		if len(parameters) > 0:
-			new_methods["parameters"] = parameters
-
-		if add_dict is not None:
-			new_methods.update(add_dict)
-
-		return new_methods
 
 	# This is the web request handler
 	async def doc(self, request):
@@ -317,37 +314,53 @@ def get_description(docstring: typing.Optional[str]) -> str:
 
 
 def extract_parameters(route) -> list:
-		"""Take a single route and return its parameters.
+	"""Take a single route and return its parameters.
 
-		---
-		Example:
+	---
+	Example:
 
-		>>> extract_parameters(myTestRoute)
-		[
-				{'in': 'path', 'name': 'parameter1', 'required': True},
-				{'in': 'path', 'name': 'parameter2', 'required': True}
-		]
-		"""
-		parameters: list = []
-		route_info = route.get_info()
-		if "formatter" in route_info:
-			path = route_info["formatter"]
-			for params in re.findall(r'\{[^\}]+\}', path):
-					parameters.append({
-						'in': 'path',
-						'name': params[1:-1],
-						'required': True,
-					})
-		return parameters
+	>>> extract_parameters(myTestRoute)
+	[
+			{'in': 'path', 'name': 'parameter1', 'required': True},
+			{'in': 'path', 'name': 'parameter2', 'required': True}
+	]
+	"""
+	parameters: list = []
+	route_info = route.get_info()
+	if "formatter" in route_info:
+		path = route_info["formatter"]
+		for params in re.findall(r'\{[^\}]+\}', path):
+				parameters.append({
+					'in': 'path',
+					'name': params[1:-1],
+					'required': True,
+				})
+	return parameters
 
 
 def extract_handler_name(route) -> str:
-		if inspect.ismethod(route.handler):
-			handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
-		else:
-			handler_name = str(route.handler)
+	if inspect.ismethod(route.handler):
+		handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
+	else:
+		handler_name = "{}()".format(route.handler.__qualname__)
+	return handler_name
 
-		return handler_name
+
+def extract_class_name(route) -> str:
+	if inspect.ismethod(route.handler):
+		class_name = str(route.handler.__self__.__class__.__name__)
+	else:
+		class_name = str(route.handler.__qualname__.split(".")[0])
+	return class_name
+
+
+def extract_module_name(route) -> str:
+	if inspect.ismethod(route.handler):
+		module_name = str(route.handler.__self__.__module__)
+	else:
+		# TODO: Inspect the cases when this is needed
+		module_name = str(route.handler.__qualname__.split(".")[0])
+	return module_name
 
 
 def extract_docstring(route) -> str:
@@ -364,3 +377,11 @@ def extract_method_dict(route) -> dict:
 		except AttributeError:
 			pass
 		return method_dict
+
+
+def get_tag(route_data: dict) -> str:
+	"""Get tag from route data. Used for sorting tags alphabetically."""
+	for endpoint in route_data.values():
+		for method in endpoint.values():
+			if method.get("tags"):
+				return method.get("tags")[0].lower()

@@ -36,6 +36,10 @@ class MetricsService(Service):
 		if instance_id is not None:
 			self.Tags["instance_id"] = instance_id
 
+		service_id = os.getenv('SERVICE_ID', None)
+		if instance_id is not None:
+			self.Tags["service_id"] = service_id
+
 		self.Storage = Storage()
 
 		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
@@ -137,8 +141,8 @@ class MetricsService(Service):
 		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
 		return m
 
-	def create_duty_cycle(self, loop, metric_name, tags=None, init_values=None, help=None, unit=None):
-		m = DutyCycle(loop, init_values=init_values)
+	def create_duty_cycle(self, metric_name, tags=None, init_values=None, help=None, unit=None):
+		m = DutyCycle(self.App, init_values=init_values)
 		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
 		return m
 

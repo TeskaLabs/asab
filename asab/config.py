@@ -46,6 +46,10 @@ class ConfigParser(configparser.ConfigParser):
 			"expiration": 60,
 		},
 
+		"asab:doc": {
+			"default_route_tag": "module_name"
+		},
+
 		"logging": {
 			'verbose': os.environ.get('ASAB_VERBOSE', False),
 			"app_name": os.path.basename(sys.argv[0]),
@@ -97,6 +101,7 @@ class ConfigParser(configparser.ConfigParser):
 			"at": "03:00",
 			"limit": "05:00"
 		}
+
 	}
 
 	if 'ASAB_ZOOKEEPER_SERVERS' in os.environ:

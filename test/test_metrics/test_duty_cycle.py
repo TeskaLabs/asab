@@ -9,9 +9,8 @@ class TestDutyCycle(MetricsTestCase):
 		"""
 		Storage wire-format
 		"""
-		self.MetricsService.App = self.MockedLoop
+		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedLoop,
 			"testdc",
 			init_values={"v1": True}
 		)
@@ -37,6 +36,7 @@ class TestDutyCycle(MetricsTestCase):
 					}
 				},
 				"values": {},
+				"measured_at": 123.45
 			}
 			]
 		}
@@ -52,9 +52,8 @@ class TestDutyCycle(MetricsTestCase):
 		Storage wire-format
 		dutycycle True
 		"""
-		self.MetricsService.App = self.MockedLoop
+		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedLoop,
 			"testdc",
 			init_values={"v1": True}
 		)
@@ -83,6 +82,7 @@ class TestDutyCycle(MetricsTestCase):
 					}
 				},
 				"values": {"v1": 1.0},
+				"measured_at": now
 			}
 			]
 		}
@@ -97,9 +97,8 @@ class TestDutyCycle(MetricsTestCase):
 		Storage wire-format
 		dutycycle False
 		"""
-		self.MetricsService.App = self.MockedLoop
+		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedLoop,
 			"testdc",
 			init_values={"v1": True}
 		)
@@ -129,6 +128,7 @@ class TestDutyCycle(MetricsTestCase):
 					}
 				},
 				"values": {"v1": 0.0},
+				"measured_at": 124.45
 			}
 			]
 		}
@@ -142,8 +142,8 @@ class TestDutyCycle(MetricsTestCase):
 		"""
 		InfluxDB
 		"""
+		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedLoop,
 			"testdc",
 			init_values={"v1": True}
 		)
@@ -156,7 +156,7 @@ class TestDutyCycle(MetricsTestCase):
 		self.assertEqual(
 			influx_format,
 			''.join([
-				'testdc,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id v1=1.0 123450000000\n',
+				'testdc,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id v1=1.0 124450000000\n',
 			])
 		)
 
@@ -165,8 +165,8 @@ class TestDutyCycle(MetricsTestCase):
 		"""
 		OpenMetric
 		"""
+		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedLoop,
 			"testdc",
 			init_values={"v1": True}
 		)

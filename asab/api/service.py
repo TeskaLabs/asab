@@ -9,6 +9,7 @@ from ..docker import running_in_docker
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
 from .doc import DocWebHandler
+from .discovery import DiscoveryService
 
 ##
 
@@ -19,6 +20,7 @@ L = logging.getLogger(__name__)
 
 
 class ApiService(Service):
+
 	def __init__(self, app, service_name="asab.ApiService"):
 		super().__init__(app, service_name)
 
@@ -64,9 +66,8 @@ class ApiService(Service):
 		else:
 			self.ChangeLog = None
 
-		self.App.PubSub.subscribe("ZooKeeperContainer.started!", self._on_zkcontainer_start)
-
-		self._do_zookeeper_adv_data()
+		# Service Discovery
+		self.DiscoveryService = None
 
 
 	def attention_required(self, att: dict, att_id=None):
@@ -135,6 +136,8 @@ class ApiService(Service):
 			from ..metrics.web_handler import MetricWebHandler
 			self.MetricWebHandler = MetricWebHandler(metrics_svc, self.WebContainer.WebApp)
 
+		self.App.PubSub.subscribe("WebContainer.started!", self._on_webcontainer_start)
+
 
 	def initialize_zookeeper(self, zoocontainer=None):
 		'''
@@ -165,6 +168,12 @@ class ApiService(Service):
 
 		# get zookeeper-service
 		self.ZkContainer = zoocontainer
+
+		# initialize service discovery
+		self.DiscoveryService = DiscoveryService(self.App, self.ZkContainer)
+
+		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zkcontainer_start)
+		self._do_zookeeper_adv_data()
 
 
 	def _do_zookeeper_adv_data(self):
@@ -197,8 +206,13 @@ class ApiService(Service):
 
 
 		instance_id = os.getenv('INSTANCE_ID', None)
+		service_id = os.getenv('SERVICE_ID', None)
+
 		if instance_id is not None:
 			adv_data["instance_id"] = instance_id
+
+		if service_id is not None:
+			adv_data["service_id"] = service_id
 
 		self.ZkContainer.advertise(
 			data=adv_data,
@@ -209,4 +223,8 @@ class ApiService(Service):
 
 	def _on_zkcontainer_start(self, message_type, container):
 		if container == self.ZkContainer:
+			self._do_zookeeper_adv_data()
+
+	def _on_webcontainer_start(self, message_type, container):
+		if container == self.WebContainer:
 			self._do_zookeeper_adv_data()
