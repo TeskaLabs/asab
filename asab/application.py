@@ -618,7 +618,7 @@ class Application(metaclass=Singleton):
 		next_time_limit = next_housekeeping_time + time_delta_limit
 
 		# Each time has its id that prevents from accidental executing housekeeping twice.
-		next_housekeeping_id = int(now.strftime("%Y%m%d"))
+		next_housekeeping_id = housekeeping_id(now)
 
 
 		return (next_housekeeping_time, next_time_limit, next_housekeeping_id)
@@ -630,7 +630,7 @@ class Application(metaclass=Singleton):
 		"""
 		L.warning("tick")
 		now = datetime.datetime.now(datetime.timezone.utc)
-		today_id = int(now.strftime("%Y%m%d"))
+		today_id = housekeeping_id(now)
 
 		if self.HousekeepingTime < now:
 			if now < self.HousekeepingTimeLimit and self.HousekeepingId <= today_id:
@@ -648,7 +648,7 @@ class Application(metaclass=Singleton):
 
 			self.HousekeepingTime += datetime.timedelta(days=1)
 			self.HousekeepingTimeLimit += datetime.timedelta(days=1)
-			self.HousekeepingId = today_id + 1  # FIXME:
+			self.HousekeepingId = housekeeping_id(self.HousekeepingTime)
 			L.log(
 				LOG_NOTICE,
 				"Setting time for the next housekeeping.",
@@ -665,3 +665,13 @@ class Application(metaclass=Singleton):
 					struct_data={
 						"missed_housekeeping_events": self.HousekeepingMissedEvents
 					})
+
+
+def housekeeping_id(dt: datetime.datetime) -> int:
+	"""
+	Create a unique ID for each date. Utility function for housekeeping.
+
+	>>> housekeeping_id(datetime.datetime.now())
+	20230418
+	"""
+	return int(dt.strftime("%Y%m%d"))
