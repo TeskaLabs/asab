@@ -62,9 +62,17 @@ class UpsertorABC(abc.ABC):
 
 
 	def set(self, objField, value, encrypt=False, encrypt_iv=None):
-		'''
-		Scalar set
-		'''
+		"""
+		Add key and value to the upsertor.
+
+		:param objField: Key of the object.
+		:param value: Value of the object.
+		:param encrypt: Allow encryption. Defaults to False.
+		:type encrypt: bool
+		:param encrypt_iv: Custom initialization vector. Defaults to None.
+		:type encrypt_iv: bool
+		"""
+
 		if encrypt:
 			value = self.Storage.aes_encrypt(value, iv=encrypt_iv)
 		self.ModSet[objField] = value
@@ -114,44 +122,9 @@ class UpsertorABC(abc.ABC):
 		"""
 		Commit upsertor data to the storage. Afterwards, send a webhook request with upsertion details.
 
-		:custom_data: Custom execution data. Included in webhook payload.
-
-		:event_type: Event type included in webhook payload.
-
-		---
-		Example:
-		---
-
-		The following upsertion
-
-		```python
-		upsertor = storage_service.upsertor("users")
-		upsertor.set("name", "Raccoon")
-		await upsertor.execute(custom_data={"custom_key": "custom_value"}, event_type = "create_user")
-		```
-
-		will trigger a webhook whose payload may look like this:
-		```json
-		{
-			"collection": "users",
-			"event_type": "create_user",
-			"custom": {
-				"custom_key": "custom_value"
-				},
-			"upsertor": {
-				"id": "2O-h3ulpO-ZwDrkSbQlYB3pYS0JJxCJj3nr6uQAu8aU",
-				"id_field_name": "_id",
-				"_v": 0,
-				"inc": {"_v": 1},
-				"set": {
-					"_c": "2022-07-11T16:06:04.380445+00:00",
-					"_id": "2O-h3ulpO-ZwDrkSbQlYB3pYS0JJxCJj3nr6uQAu8aU",
-					"_m": "2022-07-11T16:06:04.380445+00:00",
-					"name": "Raccoon"
-				}
-			}
-		}
-		```
+		:param custom_data: Custom execution data. Included in webhook payload.
+		:param event_type: Event type included in webhook payload.
+		:raise DuplicateError: Raised if  thre is a colliding object already stored in a storage.
 		"""
 
 		pass

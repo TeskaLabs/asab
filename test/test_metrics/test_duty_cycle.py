@@ -9,9 +9,8 @@ class TestDutyCycle(MetricsTestCase):
 		"""
 		Storage wire-format
 		"""
-		self.MetricsService.App = self.MockedLoop
+		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedLoop,
 			"testdc",
 			init_values={"v1": True}
 		)
@@ -53,9 +52,8 @@ class TestDutyCycle(MetricsTestCase):
 		Storage wire-format
 		dutycycle True
 		"""
-		self.MetricsService.App = self.MockedLoop
+		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedLoop,
 			"testdc",
 			init_values={"v1": True}
 		)
@@ -99,9 +97,8 @@ class TestDutyCycle(MetricsTestCase):
 		Storage wire-format
 		dutycycle False
 		"""
-		self.MetricsService.App = self.MockedLoop
+		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedLoop,
 			"testdc",
 			init_values={"v1": True}
 		)
@@ -145,8 +142,8 @@ class TestDutyCycle(MetricsTestCase):
 		"""
 		InfluxDB
 		"""
+		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedLoop,
 			"testdc",
 			init_values={"v1": True}
 		)
@@ -168,8 +165,8 @@ class TestDutyCycle(MetricsTestCase):
 		"""
 		OpenMetric
 		"""
+		self.MetricsService.App = self.MockedApplication
 		my_dutycycle = self.MetricsService.create_duty_cycle(
-			self.MockedLoop,
 			"testdc",
 			init_values={"v1": True}
 		)

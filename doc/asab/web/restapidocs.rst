@@ -91,3 +91,32 @@ If you have an endpoint that requires a scope, you can add it with the configura
 
     [asab:doc]
     scopes=read,write
+
+
+Tags
+----
+
+You can label your handler methods with custom tags.
+These tags are used for grouping and sorting your endpoints on the documentation page.
+
+.. code:: python
+
+    async def my_method(self, request):
+    """<function description>
+    ---
+    tags: ['custom tag 1', 'custom tag 2', 'custom tag 3']
+    """
+
+(Remember to use exactly three dashes on the separate line and put tags in array with `[]` even if you want to have a single tag).
+
+If there is no custom tag defined, the tag name is automatically set to be `module_name`. If you do not want to use custom tags but still would like to sort the routes, you can configure the options in the config file:
+
+.. code-block:: ini
+
+    [asab:doc]
+    default_route_tag=class_name
+
+There are two options for `default_route_tag`:
+
+- `module_name`: All tags without custom name are displayed with the name of the **module** where the handler is defined.
+- `class_name`: All tags without custom name are displayed with the name of the **class** where the handler is defined.

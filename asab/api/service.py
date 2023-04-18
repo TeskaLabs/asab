@@ -9,6 +9,7 @@ from ..utils import running_in_container
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
 from .doc import DocWebHandler
+from .discovery import DiscoveryService
 
 ##
 
@@ -64,6 +65,9 @@ class ApiService(Service):
 			self.ChangeLog = path
 		else:
 			self.ChangeLog = None
+
+		# Service Discovery
+		self.DiscoveryService = None
 
 
 	def attention_required(self, att: dict, att_id=None):
@@ -132,6 +136,8 @@ class ApiService(Service):
 			from ..metrics.web_handler import MetricWebHandler
 			self.MetricWebHandler = MetricWebHandler(metrics_svc, self.WebContainer.WebApp)
 
+		self.App.PubSub.subscribe("WebContainer.started!", self._on_webcontainer_start)
+
 
 	def initialize_zookeeper(self, zoocontainer=None):
 		'''
@@ -162,6 +168,9 @@ class ApiService(Service):
 
 		# get zookeeper-service
 		self.ZkContainer = zoocontainer
+
+		# initialize service discovery
+		self.DiscoveryService = DiscoveryService(self.App, self.ZkContainer)
 
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zkcontainer_start)
 		self._do_zookeeper_adv_data()
@@ -204,6 +213,16 @@ class ApiService(Service):
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
 
+
+		instance_id = os.getenv('INSTANCE_ID', None)
+		service_id = os.getenv('SERVICE_ID', None)
+
+		if instance_id is not None:
+			adv_data["instance_id"] = instance_id
+
+		if service_id is not None:
+			adv_data["service_id"] = service_id
+
 		self.ZkContainer.advertise(
 			data=adv_data,
 			path="/run/{}.".format(self.App.__class__.__name__),
@@ -212,4 +231,8 @@ class ApiService(Service):
 
 	def _on_zkcontainer_start(self, message_type, container):
 		if container == self.ZkContainer:
+			self._do_zookeeper_adv_data()
+
+	def _on_webcontainer_start(self, message_type, container):
+		if container == self.WebContainer:
 			self._do_zookeeper_adv_data()

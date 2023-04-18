@@ -21,7 +21,7 @@ asab.Config.add_defaults(
 
 class StorageService(StorageServiceABC):
 	'''
-	Depends on `pymongo` and `motor`.
+	StorageService for MongoDB. Depends on `pymongo` and `motor`.
 	'''
 
 
@@ -54,16 +54,14 @@ class StorageService(StorageServiceABC):
 
 	async def get_by(self, collection: str, key: str, value, decrypt=None) -> dict:
 		"""
-		Get object from collection by its key/value
+		Get object from collection by its key and value.
 
-		:param collection: Collection to get from
-		:param key: Key to filter on
-		:param value: Value to filter on
-		:param decrypt: Set of fields to decrypt
+		:param collection: Collection to get from.
+		:param key: Key to filter on.
+		:param value: Value to filter on.
+		:param decrypt: Set of fields to decrypt.
 		:return: The object retrieved from a storage
-
-		Raises:
-			KeyError: If object{key: value} not found in `collection`
+		:raise KeyError: Raised if object{key: value} cannot be found in `collection`.
 		"""
 		coll = self.Database[collection]
 		ret = await coll.find_one({key: value})
@@ -78,10 +76,10 @@ class StorageService(StorageServiceABC):
 
 	async def collection(self, collection: str) -> motor.motor_asyncio.AsyncIOMotorCollection:
 		"""
-		Get collection. Useful for custom operations
+		Get collection. Useful for custom operations.
 
-		:param collection: Collection to get
-		:return: AsyncIOMotorCollection
+		:param collection: Collection to get.
+		:return: AsyncIOMotorCollection object connected to the queried database.
 
 		Examples:
 
@@ -104,8 +102,7 @@ class StorageService(StorageServiceABC):
 		:param obj_id: Object identification
 		:return: `obj_id` -- Object identification
 
-		Raises:
-			KeyError: If `obj_id` not found in `collection`
+		:raise KeyError: Raised if `obj_id` cannot be found in `collection`.
 		"""
 		coll = self.Database[collection]
 		ret = await coll.find_one_and_delete({'_id': obj_id})

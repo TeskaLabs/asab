@@ -24,7 +24,7 @@ L = logging.getLogger(__name__)
 
 
 class LibraryService(Service):
-	'''
+	"""
 	ASAB library (aka LibraryService) is an abstration for unified filesystem-like access to resources.
 	In the cluster/cloud microservice architectures, it is imperative that all microservices have access to unified resources.
 	There are technologies such as Apache Zookeeper that provides means for it.
@@ -58,18 +58,17 @@ class LibraryService(Service):
 	A library is created in "not ready" state, each provider then inform library when it is ready (eg. Zookeeper provider needs to connect to Zookeeper servers).
 	Only after all providers are ready, the library itself become ready.
 	The library indicates that by the PubSub event `ASABLibrary.ready!`.
-
-	'''
+	"""
 
 	def __init__(self, app, service_name, paths=None):
-		'''
+		"""
 		The library service is designed to "exists" in multiple instances,
 		with different `paths` setup.
 		For that reason, you have to provide unique `service_name`
 		and there is no _default_ value for that.
 
 		If `paths` are not provided, they are fetched from `[library]providers` configuration.
-		'''
+		"""
 
 		super().__init__(app, service_name)
 		self.Libraries = list()
@@ -135,6 +134,9 @@ class LibraryService(Service):
 
 		:return: A boolean value.
 		"""
+		if len(self.Libraries) == 0:
+			return False
+
 		return functools.reduce(
 			lambda x, provider: provider.IsReady and x,
 			self.Libraries,
@@ -143,7 +145,10 @@ class LibraryService(Service):
 
 
 	async def _set_ready(self, provider):
-		if provider == self.Libraries[0] and provider.IsReady:
+		if len(self.Libraries) == 0:
+			return
+
+		if (provider == self.Libraries[0]) and provider.IsReady:
 			await self._read_disabled()
 
 		if self.is_ready():
@@ -351,10 +356,7 @@ class LibraryService(Service):
 		fileobj = tempfile.TemporaryFile()
 		tarobj = tarfile.open(name=None, mode='w:gz', fileobj=fileobj)
 
-		# List requested level using all available providers
-		only_first = [self.Libraries[0]]
-		items = await self._list(path, tenant, providers=only_first)
-
+		items = await self._list(path, tenant, providers=self.Libraries[:1])
 		recitems = list(items[:])
 
 		while len(recitems) > 0:

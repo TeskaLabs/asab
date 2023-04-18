@@ -155,16 +155,16 @@ class DutyCycle(Metric):
 	'''
 	https://en.wikipedia.org/wiki/Duty_cycle
 
-		now = self.Loop.time()
+		now = self.App.time()
 		d = now - self.LastReadyStateSwitch
 		self.LastReadyStateSwitch = now
 	'''
 
 
-	def __init__(self, loop, init_values=None):
+	def __init__(self, app, init_values=None):
 		super().__init__()
-		self.Loop = loop
-		now = self.Loop.time()
+		self.App = app
+		now = self.App.time()
 		self.EmptyValue = {
 			"on_off": None,
 			"timestamp": now,
@@ -193,7 +193,7 @@ class DutyCycle(Metric):
 
 
 	def set(self, name, on_off: bool):
-		now = self.Loop.time()
+		now = self.App.time()
 		values = self._field["actuals"].get(name)
 		if values is None:
 			value = self.EmptyValue.copy()

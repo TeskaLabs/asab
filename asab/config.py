@@ -38,14 +38,16 @@ class ConfigParser(configparser.ConfigParser):
 			'working_dir': '.',
 			'uid': '',
 			'gid': '',
-
-			'housekeeping_time': '03:00',
 		},
 
 		"asab:metrics": {
 			"native_metrics": "true",
 			"web_requests_metrics": False,  # False is a default, web_requests_metrics won't be generated.
 			"expiration": 60,
+		},
+
+		"asab:doc": {
+			"default_route_tag": "module_name"
 		},
 
 		"logging": {
@@ -93,7 +95,13 @@ class ConfigParser(configparser.ConfigParser):
 		# [passwords]
 		# kafka_password=<MY_SECRET_PASSWORD>
 		"passwords": {
+		},
+
+		"housekeeping": {
+			"at": "03:00",
+			"limit": "05:00"
 		}
+
 	}
 
 	if 'ASAB_ZOOKEEPER_SERVERS' in os.environ:
