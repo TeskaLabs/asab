@@ -27,7 +27,7 @@ class MetricsTestCase(unittest.TestCase):
 		self.MetricsService.clear()
 		self.MetricsService.Tags['host'] = "mockedhost.com"
 		self.MetricsService.Tags['appclass'] = "mockappclass"
-		self.MetricsService.Tags["instance_id"] = "test/instance/id"
+		self.MetricsService.Tags["instance_id"] = "test-instance-id-1"
 		self.MockedApplication = MockApplication()
 
 	def tearDown(self):

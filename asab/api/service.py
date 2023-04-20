@@ -5,7 +5,7 @@ import datetime
 import logging
 
 from .. import Service, Config
-from ..docker import running_in_docker
+from ..utils import running_in_container
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
 from .doc import DocWebHandler
@@ -184,15 +184,24 @@ class ApiService(Service):
 			return
 
 		adv_data = {
+			'host': self.App.HostName,
 			'appclass': self.App.__class__.__name__,
-			'launchtime': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
-			'hostname': self.App.HostName,
-			'servername': self.App.ServerName,
-			'processid': os.getpid(),
+			'launch_time': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
+			'process_id': os.getpid(),
 		}
 
-		if running_in_docker():
-			adv_data["containerization"] = "docker"
+		# A unique identifier of a microservice; added as an environment variable
+		instance_id = os.getenv('INSTANCE_ID', None)
+		if instance_id is not None:
+			adv_data["instance_id"] = instance_id
+
+		# A identified of the host machine (node); added if available at environment variables
+		node_id = os.getenv('NODE_ID', None)
+		if node_id is not None:
+			adv_data["node_id"] = node_id
+
+		if running_in_container():
+			adv_data["containerized"] = True
 
 		if self.Manifest is not None:
 			adv_data.update(self.Manifest)
@@ -204,21 +213,22 @@ class ApiService(Service):
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
 
+		node_id = os.getenv('NODE_ID', None)
+		if node_id is not None:
+			adv_data["node_id"] = node_id
 
-		instance_id = os.getenv('INSTANCE_ID', None)
 		service_id = os.getenv('SERVICE_ID', None)
-
-		if instance_id is not None:
-			adv_data["instance_id"] = instance_id
-
 		if service_id is not None:
 			adv_data["service_id"] = service_id
+
+		instance_id = os.getenv('INSTANCE_ID', None)
+		if instance_id is not None:
+			adv_data["instance_id"] = instance_id
 
 		self.ZkContainer.advertise(
 			data=adv_data,
 			path="/run/{}.".format(self.App.__class__.__name__),
 		)
-
 
 
 	def _on_zkcontainer_start(self, message_type, container):

@@ -21,7 +21,6 @@ from .config import Config
 from .abc.singleton import Singleton
 from .log import Logging, _loop_exception_handler, LOG_NOTICE
 from .task import TaskService
-from .docker import running_in_container
 
 L = logging.getLogger(__name__)
 
@@ -82,20 +81,6 @@ class Application(metaclass=Singleton):
 
 		self.Modules = []
 		self.Services = {}
-
-		# Check if the application is running in Docker,
-		# if so, add Docker service
-		if running_in_container():
-			from .docker import Module
-			self.add_module(Module)
-			self.DockerService = self.get_service("asab.DockerService")
-
-			self.HostName = self.DockerService.load_hostname()
-			self.ServerName = self.DockerService.load_servername()
-			os.environ['HOSTNAME'] = self.HostName
-			Config._load()
-		else:
-			self.ServerName = self.HostName
 
 		# Setup logging
 		self.Logging = Logging(self)
