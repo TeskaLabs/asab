@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import asyncio
 import logging
@@ -108,15 +109,19 @@ class ZooKeeperContainer(ConfigObject):
 
 	def _start(self):
 		# This method is called on proactor thread
-		try:
-			self.ZooKeeper.Client.start()
-		except Exception as e:
-			L.error(
-				"Failed to connect to ZooKeeper: {}".format(e),
-				struct_data={
-					'hosts': str(self.ZooKeeper.Client.hosts),
-				}
-			)
+		while True:
+			try:
+				self.ZooKeeper.Client.start(timeout=600)  # 600 seconds
+				return
+			except Exception as e:
+				L.error(
+					"Failed to connect to ZooKeeper: {} (retrying in 2 seconds)".format(e),
+					struct_data={
+						'hosts': str(self.ZooKeeper.Client.hosts),
+					}
+				)
+				time.sleep(2)
+				continue
 
 
 	async def _stop(self):
