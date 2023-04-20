@@ -1,7 +1,6 @@
 import logging
 import json
 import socket
-import asyncio
 import typing
 
 import aiohttp
@@ -10,12 +9,6 @@ from .. import Service
 
 
 L = logging.getLogger(__name__)
-
-
-def discoverydecorator(f):
-	def wrapper(svc):
-		return DiscoverySession(svc.App)
-	return wrapper
 
 
 class DiscoveryService(Service):
@@ -114,25 +107,23 @@ class DiscoveryService(Service):
 			yield item, item_data
 
 
-	@discoverydecorator
-	async def session(self):
-		pass
+	def session(self):
+		'''
+		Usage:
 
-
-class DiscoverySession(aiohttp.ClientSession):
-
-	def __init__(self, app):
-		self.Session = None
-		self.DiscoveryService = app.get_service("asab.DiscoveryService")
-		super().__init__(connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self.DiscoveryService)))
-
+		async with self.DiscoveryService.session() as session:
+			# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective serivce identificator
+			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
+				...
+		'''
+		return aiohttp.ClientSession(connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)))
 
 
 class DiscoveryResolver(aiohttp.DefaultResolver):
 	"""Custom aiohttp Resolver for Discovery Session based on default aiohttp resolver."""
 
 	def __init__(self, svc) -> None:
-		self._loop = asyncio.get_running_loop()
+		super().__init__()
 		self.DiscoveryService = svc
 
 
