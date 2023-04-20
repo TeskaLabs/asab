@@ -14,6 +14,7 @@ import urllib.parse
 
 from .config import Config
 from .timer import Timer
+from .utils import running_in_container
 
 # Non-error/warning type of message that is visible without -v flag
 LOG_NOTICE = 25
@@ -133,8 +134,7 @@ class Logging(object):
 			# No logging is configured
 			if self.ConsoleHandler is None and self.FileHandler is None and self.SyslogHandler is None:
 				# Let's check if we run in Docker and if so, then log on stderr
-				from .docker import running_in_docker
-				if running_in_docker():
+				if running_in_container():
 					self._configure_console_logging()
 
 		else:
@@ -170,12 +170,23 @@ class Logging(object):
 
 	def _configure_console_logging(self):
 		self.ConsoleHandler = logging.StreamHandler(stream=sys.stderr)
-		self.ConsoleHandler.setFormatter(StructuredDataFormatter(
-			fmt=Config["logging:console"]["format"],
-			datefmt=Config["logging:console"]["datefmt"],
-			sd_id=Config["logging"]["sd_id"],
-			use_color=True
-		))
+
+		# Disable colors when running in container
+		if running_in_container():
+			self.ConsoleHandler.setFormatter(StructuredDataFormatter(
+				fmt=Config["logging:console"]["format"],
+				datefmt=Config["logging:console"]["datefmt"],
+				sd_id=Config["logging"]["sd_id"],
+				use_color=False
+			))
+		else:
+			self.ConsoleHandler.setFormatter(StructuredDataFormatter(
+				fmt=Config["logging:console"]["format"],
+				datefmt=Config["logging:console"]["datefmt"],
+				sd_id=Config["logging"]["sd_id"],
+				use_color=True
+			))
+
 		self.ConsoleHandler.setLevel(logging.DEBUG)
 		self.RootLogger.addHandler(self.ConsoleHandler)
 

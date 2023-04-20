@@ -38,8 +38,6 @@ class ConfigParser(configparser.ConfigParser):
 			'working_dir': '.',
 			'uid': '',
 			'gid': '',
-
-			'housekeeping_time': '03:00',
 		},
 
 		"asab:metrics": {
@@ -98,6 +96,12 @@ class ConfigParser(configparser.ConfigParser):
 		# kafka_password=<MY_SECRET_PASSWORD>
 		"passwords": {
 		},
+
+		"housekeeping": {
+			"at": "03:00",
+			"limit": "05:00"
+		}
+
 	}
 
 	if 'ASAB_ZOOKEEPER_SERVERS' in os.environ:

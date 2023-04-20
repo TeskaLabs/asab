@@ -33,7 +33,7 @@ class TestEPSCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar value1={}i,value2=0i 153450000000\n".format(value),
+				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1,foo=bar value1={}i,value2=0i 153450000000\n".format(value),
 			])
 		)
 
@@ -43,8 +43,8 @@ class TestEPSCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value1"} ' + '{}\n'.format(value),
-				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value2"} 0',
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value1"} ' + '{}\n'.format(value),
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value2"} 0',
 			])
 		)
 
@@ -72,7 +72,7 @@ class TestEPSCounter(MetricsTestCase):
 		self.assertEqual(
 			influxdb_format,
 			''.join([
-				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test/instance/id,foo=bar value1={}i,value2=0i 153450000000\n".format(value),
+				"mycounter,host=mockedhost.com,appclass=mockappclass,instance_id=test-instance-id-1,foo=bar value1={}i,value2=0i 153450000000\n".format(value),
 			])
 		)
 
@@ -82,7 +82,7 @@ class TestEPSCounter(MetricsTestCase):
 			om_format,
 			''.join([
 				'# TYPE mycounter gauge\n',
-				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value1"} ' + '{}\n'.format(value),
-				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test/instance/id",foo="bar",name="value2"} 0',
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value1"} ' + '{}\n'.format(value),
+				'mycounter{host="mockedhost.com",appclass="mockappclass",instance_id="test-instance-id-1",foo="bar",name="value2"} 0',
 			])
 		)

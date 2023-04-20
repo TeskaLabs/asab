@@ -21,7 +21,6 @@ from .config import Config
 from .abc.singleton import Singleton
 from .log import Logging, _loop_exception_handler, LOG_NOTICE
 from .task import TaskService
-from .docker import running_in_container
 
 L = logging.getLogger(__name__)
 
@@ -83,20 +82,6 @@ class Application(metaclass=Singleton):
 		self.Modules = []
 		self.Services = {}
 
-		# Check if the application is running in Docker,
-		# if so, add Docker service
-		if running_in_container():
-			from .docker import Module
-			self.add_module(Module)
-			self.DockerService = self.get_service("asab.DockerService")
-
-			self.HostName = self.DockerService.load_hostname()
-			self.ServerName = self.DockerService.load_servername()
-			os.environ['HOSTNAME'] = self.HostName
-			Config._load()
-		else:
-			self.ServerName = self.HostName
-
 		# Setup logging
 		self.Logging = Logging(self)
 
@@ -145,9 +130,11 @@ class Application(metaclass=Singleton):
 		for module in modules:
 			self.add_module(module)
 
+		# Set housekeeping time and time limit
+		self.HousekeepingTime, self.HousekeepingTimeLimit, self.HousekeepingId = self._initialize_housekeeping_schedule()
+		self.HousekeepingMissedEvents: list = []
 		# Every 10 minutes listen for housekeeping
-		self.NextHousekeeping = self._set_housekeeping_time_from_config()
-		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
+		self.PubSub.subscribe("Application.tick!", self._on_housekeeping_tick)
 
 
 	def create_argument_parser(
@@ -588,11 +575,16 @@ class Application(metaclass=Singleton):
 
 	# Housekeeping
 
-	def _set_housekeeping_time_from_config(self):
-		"""Set the housekeeping time from `Config['general']['housekeeping_time']`.
+	def _initialize_housekeeping_schedule(self):
 		"""
-		config_house_time = datetime.datetime.strptime(Config['general']['housekeeping_time'], "%H:%M")  # default: 03:00
+		Set the next housekeeping time and time limit from configuration.
+		Returns: (next_housekeeping_time, next_time_limit, next_housekeeping_id)
+		"""
+		config_house_time = datetime.datetime.strptime(Config['housekeeping']['at'], "%H:%M")  # default: 03:00
+		config_time_limit = datetime.datetime.strptime(Config['housekeeping']['limit'], "%H:%M")  # default: 05:00
+
 		now = datetime.datetime.now(datetime.timezone.utc)
+
 		next_housekeeping_time = now.replace(
 			hour=config_house_time.hour,
 			minute=config_house_time.minute,
@@ -602,18 +594,68 @@ class Application(metaclass=Singleton):
 		# if the app started after the housekeeping time, set it to the next day
 		if now > next_housekeeping_time:
 			next_housekeeping_time += datetime.timedelta(days=1)
-		return next_housekeeping_time
+
+		# compute the time limit for the housekeeping
+		time_delta_limit = config_time_limit - config_house_time
+		if time_delta_limit < datetime.timedelta(hours=0):
+			time_delta_limit += datetime.timedelta(days=1)
+
+		next_time_limit = next_housekeeping_time + time_delta_limit
+
+		# Each time has its id that prevents from accidental executing housekeeping twice.
+		next_housekeeping_id = housekeeping_id(now)
+
+
+		return (next_housekeeping_time, next_time_limit, next_housekeeping_id)
 
 	def _on_housekeeping_tick(self, message_type):
-		"""Check if it's time for 'Application.housekeeping!'.
-		If so, publish the message and set housekeeping time for the next day.
 		"""
-		if datetime.datetime.now(datetime.timezone.utc) > self.NextHousekeeping:
-			self.PubSub.publish("Application.housekeeping!")
-			self.NextHousekeeping += datetime.timedelta(days=1)
+		Check if it's time for publishing the 'Application.housekeeping!' message.
+		If so, publish the message and set housekeeping time, the time limit and time id for the next day.
+		"""
+		now = datetime.datetime.now(datetime.timezone.utc)
+		today_id = housekeeping_id(now)
+
+		if self.HousekeepingTime < now:
+			if now < self.HousekeepingTimeLimit and self.HousekeepingId <= today_id:
+				self.PubSub.publish("Application.housekeeping!")
+			else:
+				L.warning(
+					"Housekeeping has not been executed: It is past the time limit.",
+					struct_data={
+						"housekeeping_time": self.HousekeepingTime.strftime("%Y-%m-%d %H:%M:%S"),
+						"time_limit": self.HousekeepingTimeLimit.strftime("%Y-%m-%d %H:%M:%S"),
+						"housekeeping_id": self.HousekeepingId,
+					}
+				)
+				self.HousekeepingMissedEvents.append(today_id)
+
+			self.HousekeepingTime += datetime.timedelta(days=1)
+			self.HousekeepingTimeLimit += datetime.timedelta(days=1)
+			self.HousekeepingId = housekeeping_id(self.HousekeepingTime)
 			L.log(
 				LOG_NOTICE,
-				"Setting time for the next housekeeping: {} UTC".format(
-					self.NextHousekeeping.strftime("%Y-%m-%d %H:%M:%S")
-				)
+				"Setting time for the next housekeeping.",
+				struct_data={
+					"next_housekeeping_time": self.HousekeepingTime.strftime("%Y-%m-%d %H:%M:%S"),
+					"next_time_limit": self.HousekeepingTimeLimit.strftime("%Y-%m-%d %H:%M:%S"),
+					"next_housekeeping_id": self.HousekeepingId,
+				}
 			)
+
+			if len(self.HousekeepingMissedEvents) > 0:
+				L.warning(
+					"One or more Housekeeping events have not been executed.",
+					struct_data={
+						"missed_housekeeping_events": self.HousekeepingMissedEvents
+					})
+
+
+def housekeeping_id(dt: datetime.datetime) -> int:
+	"""
+	Create a unique ID for each date. Utility function for housekeeping.
+
+	>>> housekeeping_id(datetime.datetime.now())
+	20230418
+	"""
+	return int(dt.strftime("%Y%m%d"))
