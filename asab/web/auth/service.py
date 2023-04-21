@@ -46,7 +46,7 @@ asab.Config.add_defaults({
 })
 
 
-class AuthzService(asab.Service):
+class AuthService(asab.Service):
 
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)

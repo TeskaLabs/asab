@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import asab.web.rest
-import asab.web.authz
+import asab.web.auth
 import typing
 
 asab.Config.add_defaults({
@@ -35,7 +35,7 @@ class MyApplication(asab.Application):
 		self.WebContainer = asab.web.WebContainer(self.WebService, "web")
 
 
-		self.AuthzService = asab.web.authz.AuthzService(self)
+		self.AuthzService = asab.web.auth.AuthService(self)
 		self.WebContainer.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 		self.AuthzService.install(self.WebContainer)
 

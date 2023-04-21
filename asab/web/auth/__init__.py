@@ -1,8 +1,8 @@
 from .decorator import require, no_auth
-from .service import AuthzService
+from .service import AuthService
 
 __all__ = (
-	"AuthzService",
+	"AuthService",
 	"require",
 	"no_auth",
 )
