@@ -32,8 +32,16 @@ asab.Config.add_defaults({
 
 
 class AuthzService(asab.Service):
+	"""
+	OBSOLETE, use 'asab.web.auth' instead
+	"""
 
 	def __init__(self, app, service_name="asab.AuthzService"):
+
+		asab.LogObsolete.warning(
+			"Module 'asab.web.authz' is deprecated, please use 'asab.web.auth' instead.",
+			struct_data={"eol": "2024-01-31"})
+
 		super().__init__(app, service_name)
 		self.RBACDisabled = asab.Config.getboolean("authz", "_disable_rbac")
 		self._TokenVerificationDisabled = asab.Config.getboolean("authz", "_disable_token_verification")

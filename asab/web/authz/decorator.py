@@ -13,6 +13,8 @@ L = logging.getLogger(__name__)
 
 def required(*resources):
 	'''
+	OBSOLETE
+
 	Checks that user authorized with access token in
 	Authorization header has access to a given tenant space
 	using SeaCat Auth RBAC authorization.
