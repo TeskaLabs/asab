@@ -12,6 +12,7 @@ import aiohttp.client_exceptions
 
 import asab
 import asab.exceptions
+from . import dev_userinfo
 
 try:
 	import jwcrypto.jwk
@@ -30,18 +31,18 @@ SUPERUSER_RESOURCE = "authz:superuser"
 
 
 asab.Config.add_defaults({
-	"authz": {
+	"auth": {
 		# URL location containing the authorization server's public JWK keys
 		"public_keys_url": "",
 
 		# Whether the app is tenant-aware
 		"multitenancy": "yes",
 
-		# Implicitly trust any incoming ID token
-		"_disable_token_verification": "no",
-
-		# Disable resource access control checks. This allows
-		"_disable_rbac": "no",
+		# In DEV MODE
+		# - no authorization server is needed,
+		# - all incoming requests are "authorized" with custom mocked user info data loaded from a JSON file,
+		"dev_mode": "no",
+		"dev_user_info_path": "",
 	}
 })
 
@@ -50,19 +51,30 @@ class AuthService(asab.Service):
 
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
-		self.RBACDisabled = asab.Config.getboolean("authz", "_disable_rbac")
-		self.Multitenancy = asab.Config.getboolean("authz", "multitenancy")
-		self._TokenVerificationDisabled = asab.Config.getboolean("authz", "_disable_token_verification")
-		if jwcrypto is None and not self._TokenVerificationDisabled:
-			raise ModuleNotFoundError(
-				"You are trying to use asab.web.authz without 'jwcrypto' installed. "
-				"Please run 'pip install jwcrypto' "
-				"or install asab with 'authz' optional dependency.")
-		self.PublicKeysUrl = asab.Config.get("authz", "public_keys_url")
-		if len(self.PublicKeysUrl) == 0 and not self._TokenVerificationDisabled:
-			raise ValueError("No public_keys_url provided in [authz] config section.")
+		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
+		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
+
+		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
+		if self.DevModeEnabled:
+			L.warning("AuthService is running in developer mode.")
+			dev_user_info = asab.Config.get("auth", "dev_user_info_path")
+			if dev_user_info:
+				with open(dev_user_info, "rb") as fp:
+					self.DevUserInfo = json.load(fp)
+			else:
+				self.DevUserInfo = dev_userinfo.EXAMPLE
+		else:
+			if len(self.PublicKeysUrl) == 0:
+				raise ValueError("No public_keys_url provided in [auth] config section.")
+			if jwcrypto is None:
+				raise ModuleNotFoundError(
+					"You are trying to use asab.web.authz without 'jwcrypto' installed. "
+					"Please run 'pip install jwcrypto' "
+					"or install asab with 'authz' optional dependency.")
+
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
 		# TODO: Fetch public keys if validation fails (instead of periodic fetch)
+
 		self.App.PubSub.subscribe("Application.tick/30!", self._fetch_public_keys_if_needed)
 
 
@@ -71,8 +83,6 @@ class AuthService(asab.Service):
 
 
 	def has_resource_access(self, authorized_resources: typing.Iterable, required_resources: typing.Iterable) -> bool:
-		if self.RBACDisabled:
-			return True
 		if self.has_superuser_access(authorized_resources):
 			return True
 		for resource in required_resources:
@@ -93,7 +103,7 @@ class AuthService(asab.Service):
 
 
 	def is_ready(self):
-		if self._TokenVerificationDisabled is True:
+		if self.DevModeEnabled is True:
 			return True
 		elif self.AuthServerPublicKey is not None:
 			return True
@@ -105,8 +115,8 @@ class AuthService(asab.Service):
 			L.error("AuthzService is not ready: No public keys loaded yet.")
 			return None
 
-		if self._TokenVerificationDisabled:
-			return _get_id_token_claims_without_verification(bearer_token)
+		if self.DevModeEnabled:
+			return self.DevUserInfo
 		else:
 			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
 
@@ -229,7 +239,7 @@ class AuthService(asab.Service):
 			if "tenant" in args:
 				if tenant_in_path:
 					handler = _add_tenant_from_path(handler)
-				elif self.Multitenancy:
+				elif self.MultitenancyEnabled:
 					handler = _add_tenant_from_query(handler)
 				else:
 					handler = _add_tenant_none(handler)

@@ -38,10 +38,6 @@ def required(*resources):
 			# Obtain authz service from the request
 			authz_service = request.AuthzService
 
-			# RBAC is disabled, so no authorization can be performed
-			if request.AuthzService.RBACDisabled:
-				return await func(*args, **kargs)
-
 			if not request.AuthzService.is_ready():
 				L.error("Cannot authorize request - AuthzService is not ready.")
 				raise aiohttp.web.HTTPUnauthorized()
