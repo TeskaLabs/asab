@@ -49,7 +49,7 @@ class MyApplication(asab.Application):
 		self.WebContainer.WebApp.router.add_get("/optional_tenant/resource_check", self.tenant_in_query_resources)
 
 
-	@asab.web.authz.no_auth
+	@asab.web.auth.no_auth
 	async def simple(self, request):
 		"""
 		NO AUTH
@@ -83,7 +83,7 @@ class MyApplication(asab.Application):
 		return asab.web.rest.json_response(request, data)
 
 
-	@asab.web.authz.require("something:access", "something:edit")
+	@asab.web.auth.require("something:access", "something:edit")
 	# async def auth_resource(self, request):  # MINIMAL
 	async def auth_resource(self, request, *, user_info: dict, resources: frozenset):
 		"""
@@ -150,7 +150,7 @@ class MyApplication(asab.Application):
 		return asab.web.rest.json_response(request, data)
 
 
-	@asab.web.authz.require("something:access", "something:edit")
+	@asab.web.auth.require("something:access", "something:edit")
 	# async def auth(self, request, *, tenant):  # MINIMAL
 	async def tenant_in_path_resources(self, request, *, tenant: typing.Union[str|None], user_info: dict, resources: frozenset):
 		"""
@@ -173,7 +173,7 @@ class MyApplication(asab.Application):
 		return asab.web.rest.json_response(request, data)
 
 
-	@asab.web.authz.require("something:access", "something:edit")
+	@asab.web.auth.require("something:access", "something:edit")
 	# async def auth(self, request, *, tenant):  # MINIMAL
 	async def tenant_in_query_resources(self, request, *, tenant: typing.Union[str|None], user_info: dict, resources: frozenset):
 		"""
