@@ -3,54 +3,52 @@ import asab.web.rest
 import asab.web.auth
 import typing
 
-asab.Config.add_defaults({
-	"web": {
-		"authorization": True,
-		# Whether tenant is required in query params
-		"tenant": True,
-	}
-})
+# Set up a web container listening at port 8080
+asab.Config["web"] = {"listen": "0.0.0.0 8080"}
 
+# Changes the behavior of endpoints with configurable tenant parameter.
+# With multitenancy enabled, the tenant paramerter in query is required.
+# With multitenancy disabled, the tenant paramerter in query is ignored.
+asab.Config["auth"]["multitenancy"] = "yes"
+
+# Activating the dev mode disables communication with the authorization server.
+# The requests' Authorization headers are ignored and AuthService provides mock authorization with mock user info.
+# You can provide custom user info by specifying `dev_user_info_path` pointing to your JSON file.
+asab.Config["auth"]["dev_mode"] = "yes"
+asab.Config["auth"]["dev_user_info_path"] = ""
+
+# URL of the authorization server's JWK public keys, used for ID token verification.
+# This option is ignored in dev mode.
+asab.Config["auth"]["public_keys_url"] = "http://localhost:8081/.well-known/jwks.json"
 
 
 class MyApplication(asab.Application):
-	"""
-	7 possible variants:
-	- no tenant, no auth
-	- no tenant, authentication
-	- no tenant, authentication, resource authorization
-	- tenant in path, authentication, tenant authorization
-	- tenant in path, authentication, tenant authorization, resource authorization
-	- tenant in query, authentication, tenant authorization
-	- tenant in query, authentication, tenant authorization, resource authorization
-	"""
 
 	def __init__(self):
 		super().__init__()
 
+		# Initialize web container
 		self.add_module(asab.web.Module)
-
-		# Locate the web service
 		self.WebService = self.get_service("asab.WebService")
 		self.WebContainer = asab.web.WebContainer(self.WebService, "web")
 
-
+		# Initialize authorization
 		self.AuthzService = asab.web.auth.AuthService(self)
 		self.WebContainer.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 		self.AuthzService.install(self.WebContainer)
 
-		# Add a route to the handler method
-		self.WebContainer.WebApp.router.add_get("/no_auth", self.simple)
+		# Add routes
+		self.WebContainer.WebApp.router.add_get("/no_auth", self.no_auth)
 		self.WebContainer.WebApp.router.add_get("/auth", self.auth)
 		self.WebContainer.WebApp.router.add_get("/auth/resource_check", self.auth_resource)
-		self.WebContainer.WebApp.router.add_get("/{tenant}/obligatory_tenant", self.tenant_in_path)
-		self.WebContainer.WebApp.router.add_get("/{tenant}/obligatory_tenant/resource_check", self.tenant_in_path_resources)
-		self.WebContainer.WebApp.router.add_get("/optional_tenant", self.tenant_in_query)
-		self.WebContainer.WebApp.router.add_get("/optional_tenant/resource_check", self.tenant_in_query_resources)
+		self.WebContainer.WebApp.router.add_get("/{tenant}/required_tenant", self.tenant_in_path)
+		self.WebContainer.WebApp.router.add_get("/{tenant}/required_tenant/resource_check", self.tenant_in_path_resources)
+		self.WebContainer.WebApp.router.add_get("/configurable_tenant", self.tenant_in_query)
+		self.WebContainer.WebApp.router.add_get("/configurable_tenant/resource_check", self.tenant_in_query_resources)
 
 
 	@asab.web.auth.no_auth
-	async def simple(self, request):
+	async def no_auth(self, request):
 		"""
 		NO AUTH
 		- authentication skipped
