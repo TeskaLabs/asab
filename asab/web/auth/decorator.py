@@ -29,6 +29,11 @@ def require(*resources):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 
+			if not hasattr(request, "has_resource_access"):
+				raise Exception(
+					"Cannot check resource access. Make sure the handler method does not use "
+					"both the @no_auth and the @require decorators.")
+
 			if not request.has_resource_access(*resources):
 				raise aiohttp.web.HTTPForbidden()
 
@@ -45,7 +50,7 @@ def require_superuser(handler):
 
 	Usage:
 	```python3
-	@asab.web.authz.require("my-app:token:generate")
+	@asab.web.authz.require_superuser
 	async def generate_token(self, request):
 		data = await self.service.generate_token()
 		return asab.web.rest.json_response(request, data)
@@ -54,6 +59,11 @@ def require_superuser(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
+
+		if not hasattr(request, "has_superuser_access"):
+			raise Exception(
+				"Cannot check superuser access. Make sure the handler method does not use "
+				"both the @no_auth and the @require_superuser decorators.")
 
 		if not request.has_superuser_access():
 			raise aiohttp.web.HTTPForbidden()
