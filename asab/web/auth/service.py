@@ -12,7 +12,6 @@ import aiohttp.client_exceptions
 
 import asab
 import asab.exceptions
-from . import dev_userinfo
 
 try:
 	import jwcrypto.jwk
@@ -26,6 +25,37 @@ except ModuleNotFoundError:
 L = logging.getLogger(__name__)
 
 #
+
+# Mock user info used in dev mode
+DEV_USERINFO_DEFAULT = {
+	"iss": "auth.test.loc",      # Token issuer
+	"iat": 1682077901,         # Token issued at (timestamp)
+	"exp": 1682092289,         # Token expires at (timestamp)
+	"azp": "my-asab-app",        # Authorized party
+	"aud": "my-asab-app",        # Audience
+	"sub": "abc:xyz:799b53e0",   # Subject (Unique user ID)
+	"preferred_username": "little-capybara",  # Subject's preferred username
+	"email": "capybara1999@example.com",      # Subject's email
+	# Authorized tenants and resources
+	"resources": {
+		# Globally granted resources
+		"*": [
+			"wisdom:access"
+		],
+		# Resources granted within test-tenant
+		"test-tenant": [
+			"wisdom:access",
+			"cake:admire",
+			"cake:smell",
+			"cake:eat",
+		],
+	},
+	# Subject's assigned (not authorized!) tenants
+	"tenants": [
+		"test-tenant",
+		"another-tenant",
+	]
+}
 
 SUPERUSER_RESOURCE = "authz:superuser"
 
@@ -62,7 +92,7 @@ class AuthService(asab.Service):
 				with open(dev_user_info, "rb") as fp:
 					self.DevUserInfo = json.load(fp)
 			else:
-				self.DevUserInfo = dev_userinfo.EXAMPLE
+				self.DevUserInfo = DEV_USERINFO_DEFAULT
 		else:
 			if len(self.PublicKeysUrl) == 0:
 				raise ValueError("No public_keys_url provided in [auth] config section.")
