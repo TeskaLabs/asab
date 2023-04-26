@@ -1,6 +1,16 @@
 Asynchronous Server App Boilerplate
 ===================================
 
+
+.. image:: https://travis-ci.com/TeskaLabs/asab.svg?branch=master
+    :target: https://travis-ci.com/TeskaLabs/asab
+    
+.. image:: https://img.shields.io/github/license/TeskaLabs/asab
+    :target: https://github.com/TeskaLabs/asab/blob/master/LICENSE
+
+.. image:: https://readthedocs.org/projects/asab/badge/?version=latest
+    :target: https://asab.readthedocs.io/en/latest/?badge=latest
+
 Asynchronous Server App Boilerplate (or ASAB for short) is a microservice *framework* for Python 3 and `asyncio`.
 The aim of ASAB is to minimize the amount of code that needs to be written when building a microservice or an aplication server.
 ASAB is fully asynchronous using async/await syntax from Python 3, making your code modern, non-blocking, speedy and hence scalable.
@@ -14,13 +24,6 @@ ASAB is currently used for `microservices <https://en.wikipedia.org/wiki/Microse
 
 ASAB is developed on `GitHub <https://github.com/TeskaLabs/asab>`_.
 Contributions are welcome!
-
-.. image:: https://travis-ci.com/TeskaLabs/asab.svg?branch=master
-    :target: https://travis-ci.com/TeskaLabs/asab
-
-.. image:: https://badges.gitter.im/TeskaLabs/asab.svg
-   :alt: Join the chat at https://gitter.im/TeskaLabs/asab
-   :target: https://gitter.im/TeskaLabs/asab?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
 
 Installation
