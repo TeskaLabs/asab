@@ -15,6 +15,19 @@ Lex = logging.getLogger("asab.web")
 
 #
 
+_no_log_headers = {
+	"Authorization",
+}
+
+def _filter_logging_headers(headers):
+	"""
+	Filter HTTP headers to include in log messages.
+	"""
+	return {
+		k:v for k,v in headers.items()
+		if k not in _no_log_headers
+	}
+
 class JSONDumper(object):
 
 	def __init__(self, pretty):
@@ -102,7 +115,7 @@ async def JsonExceptionMiddleware(request, handler):
 				"uuid": str(euuid),
 				"path": request.path,
 				"status": ex.status,
-				**request.headers
+				**_filter_logging_headers(request.headers)
 			}
 			Lex.error(ex, struct_data=struct_data)
 
@@ -117,7 +130,7 @@ async def JsonExceptionMiddleware(request, handler):
 			"uuid": str(euuid),
 			"path": request.path,
 			"status": 404,
-			**request.headers
+			**_filter_logging_headers(request.headers)
 		}
 		Lex.warning("KeyError when handling web request", exc_info=True, struct_data=struct_data)
 
@@ -145,7 +158,7 @@ async def JsonExceptionMiddleware(request, handler):
 			"uuid": str(euuid),
 			"path": request.path,
 			"status": 400,
-			**request.headers
+			**_filter_logging_headers(request.headers)
 		}
 		Lex.warning("ValidationError when handling web request", exc_info=True, struct_data=struct_data)
 
@@ -165,14 +178,14 @@ async def JsonExceptionMiddleware(request, handler):
 			status=400,
 		)
 
-	# Conflict translates to 409
+	# Conflict surfaces as HTTP 409 Conflict
 	except exceptions.Conflict as e:
 		euuid = uuid.uuid4()
 		struct_data = {
 			"uuid": str(euuid),
 			"path": request.path,
 			"status": 409,
-			**request.headers
+			**_filter_logging_headers(request.headers)
 		}
 		Lex.warning("Conflict when handling web request", exc_info=True, struct_data=struct_data)
 
@@ -193,14 +206,14 @@ async def JsonExceptionMiddleware(request, handler):
 			status=409,
 		)
 
-	# Other errors to JSON
+	# Other errors surface as HTTP 500 Internal server error
 	except Exception:
 		euuid = uuid.uuid4()
 		struct_data = {
 			"uuid": str(euuid),
 			"path": request.path,
 			"status": 500,
-			**request.headers
+			**_filter_logging_headers(request.headers)
 		}
 		Lex.exception("Exception when handling web request", exc_info=True, struct_data=struct_data)
 		return json_response(
