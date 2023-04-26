@@ -308,13 +308,15 @@ def _get_id_token_claims(bearer_token: str, auth_server_public_key):
 		raise asab.exceptions.NotAuthenticatedError("ID token expired.")
 	except jwcrypto.jws.InvalidJWSSignature:
 		raise asab.exceptions.NotAuthenticatedError("Invalid ID token signature.")
-	except ValueError as e:
-		raise asab.exceptions.NotAuthenticatedError("Authentication failed: {}".format(e))
+	except Exception:
+		L.exception("Failed to parse JWT ID token.")
+		raise aiohttp.web.HTTPBadRequest()
 
 	try:
 		token_claims = json.loads(token.claims)
-	except ValueError:
-		raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token claims.")
+	except Exception:
+		L.exception("Failed to parse JWT token claims.")
+		raise aiohttp.web.HTTPBadRequest()
 
 	return token_claims
 
