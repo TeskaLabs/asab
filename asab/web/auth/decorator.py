@@ -4,6 +4,8 @@ import inspect
 
 import aiohttp.web
 
+import asab.exceptions
+
 #
 
 L = logging.getLogger(__name__)
@@ -23,7 +25,7 @@ def require(*resources):
 		return asab.web.rest.json_response(request, data)
 	```
 	"""
-	def decorator_required(handler):
+	def decorator_require(handler):
 
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
@@ -35,13 +37,13 @@ def require(*resources):
 					"both the @noauth and the @require decorators.")
 
 			if not request.has_resource_access(*resources):
-				raise aiohttp.web.HTTPForbidden()
+				raise asab.exceptions.AccessDeniedError()
 
 			return await handler(*args, **kwargs)
 
 		return wrapper
 
-	return decorator_required
+	return decorator_require
 
 
 def noauth(handler):

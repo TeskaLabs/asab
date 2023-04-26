@@ -305,9 +305,11 @@ def _get_id_token_claims(bearer_token: str, auth_server_public_key):
 	try:
 		token = jwcrypto.jwt.JWT(jwt=bearer_token, key=auth_server_public_key)
 	except jwcrypto.jwt.JWTExpired:
-		raise asab.exceptions.NotAuthenticatedError("ID token expired.")
+		L.warning("ID token expired.")
+		raise asab.exceptions.NotAuthenticatedError()
 	except jwcrypto.jws.InvalidJWSSignature:
-		raise asab.exceptions.NotAuthenticatedError("Invalid ID token signature.")
+		L.warning("Invalid ID token signature.")
+		raise asab.exceptions.NotAuthenticatedError()
 	except Exception:
 		L.exception("Failed to parse JWT ID token.")
 		raise aiohttp.web.HTTPBadRequest()
@@ -328,14 +330,17 @@ def _get_id_token_claims_without_verification(bearer_token: str):
 	try:
 		header, payload, signature = bearer_token.split(".")
 	except IndexError:
-		raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token: Wrong number of '.'.")
+		L.warning("Cannot parse ID token: Wrong number of '.'.")
+		raise aiohttp.web.HTTPBadRequest()
 
 	try:
 		claims = json.loads(base64.b64decode(payload.encode("utf-8")))
 	except binascii.Error:
-		raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token: Payload is not base 64.")
+		L.warning("Cannot parse ID token: Payload is not base 64.")
+		raise aiohttp.web.HTTPBadRequest()
 	except json.JSONDecodeError:
-		raise asab.exceptions.NotAuthenticatedError("Cannot parse ID token: Payload cannot be parsed as JSON.")
+		L.warning("Cannot parse ID token: Payload cannot be parsed as JSON.")
+		raise aiohttp.web.HTTPBadRequest()
 
 	return claims
 
@@ -346,13 +351,13 @@ def _get_bearer_token(request):
 	"""
 	authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
 	if authorization_header is None:
-		L.warning("No Authorization header")
+		L.warning("No Authorization header.")
 		raise aiohttp.web.HTTPUnauthorized()
 	try:
 		auth_type, token_value = authorization_header.split(" ", 1)
 	except ValueError:
-		L.warning("Invalid Authorization header")
-		raise aiohttp.web.HTTPUnauthorized()
+		L.warning("Cannot parse Authorization header.")
+		raise aiohttp.web.HTTPBadRequest()
 	if auth_type != "Bearer":
 		L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
 		raise aiohttp.web.HTTPUnauthorized()
@@ -365,7 +370,7 @@ def _authorize_tenant_request(request, tenant):
 	"""
 	if tenant not in request._Tenants:
 		L.warning("Tenant not authorized", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
-		raise aiohttp.web.HTTPUnauthorized()
+		raise asab.exceptions.AccessDeniedError()
 	request._Resources = request._UserInfo["resources"][tenant]
 
 
