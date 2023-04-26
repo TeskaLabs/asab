@@ -19,14 +19,16 @@ _no_log_headers = {
 	"Authorization",
 }
 
+
 def _filter_logging_headers(headers):
 	"""
 	Filter HTTP headers to include in log messages.
 	"""
 	return {
-		k:v for k,v in headers.items()
+		k: v for k, v in headers.items()
 		if k not in _no_log_headers
 	}
+
 
 class JSONDumper(object):
 
