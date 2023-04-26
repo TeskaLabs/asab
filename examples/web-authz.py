@@ -47,7 +47,7 @@ class MyApplication(asab.Application):
 		self.WebContainer.WebApp.router.add_get("/configurable_tenant/resource_check", self.tenant_in_query_resources)
 
 
-	@asab.web.auth.no_auth
+	@asab.web.auth.noauth
 	async def no_auth(self, request):
 		"""
 		NO AUTH

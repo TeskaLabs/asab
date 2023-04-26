@@ -32,7 +32,7 @@ def require(*resources):
 			if not hasattr(request, "has_resource_access"):
 				raise Exception(
 					"Cannot check resource access. Make sure the handler method does not use "
-					"both the @no_auth and the @require decorators.")
+					"both the @noauth and the @require decorators.")
 
 			if not request.has_resource_access(*resources):
 				raise aiohttp.web.HTTPForbidden()
@@ -44,14 +44,14 @@ def require(*resources):
 	return decorator_required
 
 
-def no_auth(handler):
+def noauth(handler):
 	"""
 	Skip request authentication and authorization for the decorated handler.
 	The handler cannot have `tenant`, `user_info` and `resources` arguments.
 
 	Usage:
 	```python3
-	@asab.web.authz.no_auth
+	@asab.web.authz.noauth
 	async def get_info(self, request):
 		data = await self.service.get_info()
 		return asab.web.rest.json_response(request, data)
@@ -62,7 +62,7 @@ def no_auth(handler):
 	for arg in ("tenant", "user_info", "resources"):
 		if arg in args:
 			raise Exception(
-				"{}(): Handler with @no_auth cannot have {!r} in its arguments.".format(handler.__qualname__, arg))
+				"{}(): Handler with @noauth cannot have {!r} in its arguments.".format(handler.__qualname__, arg))
 	handler.NoAuth = True
 
 	@functools.wraps(handler)
