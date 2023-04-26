@@ -59,7 +59,6 @@ DEV_USERINFO_DEFAULT = {
 
 SUPERUSER_RESOURCE = "authz:superuser"
 
-
 asab.Config.add_defaults({
 	"auth": {
 		# URL location containing the authorization server's public JWK keys
@@ -78,6 +77,9 @@ asab.Config.add_defaults({
 
 
 class AuthService(asab.Service):
+	"""
+	Provides authentication and authorization of incoming requests
+	"""
 
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
@@ -103,8 +105,8 @@ class AuthService(asab.Service):
 					"or install asab with 'authz' optional dependency.")
 
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
-		# TODO: Fetch public keys if validation fails (instead of periodic fetch)
 
+		# TODO: Fetch public keys if validation fails (instead of periodic fetch)
 		self.App.PubSub.subscribe("Application.tick/30!", self._fetch_public_keys_if_needed)
 
 
@@ -121,6 +123,9 @@ class AuthService(asab.Service):
 
 
 	def is_ready(self):
+		"""
+		Check if the service is ready to authorize requests.
+		"""
 		if self.DevModeEnabled is True:
 			return True
 		elif self.AuthServerPublicKey is not None:
@@ -129,6 +134,9 @@ class AuthService(asab.Service):
 
 
 	def userinfo(self, bearer_token):
+		"""
+		Parse the bearer ID token and extract user info.
+		"""
 		if not self.is_ready():
 			L.error("AuthzService is not ready: No public keys loaded yet.")
 			return None
@@ -160,6 +168,9 @@ class AuthService(asab.Service):
 
 
 	async def _fetch_public_keys_if_needed(self, *args, **kwargs):
+		"""
+		Check if public keys have been fetched from the authorization server and fetch them if not yet.
+		"""
 		if self.is_ready():
 			return
 
@@ -287,6 +298,9 @@ class AuthService(asab.Service):
 
 
 def _get_id_token_claims(bearer_token: str, auth_server_public_key):
+	"""
+	Parse and validate JWT ID token and extract the claims (user info)
+	"""
 	assert jwcrypto is not None
 	try:
 		token = jwcrypto.jwt.JWT(jwt=bearer_token, key=auth_server_public_key)
@@ -306,6 +320,9 @@ def _get_id_token_claims(bearer_token: str, auth_server_public_key):
 
 
 def _get_id_token_claims_without_verification(bearer_token: str):
+	"""
+	Parse JWT ID token without validation and extract the claims (user info)
+	"""
 	try:
 		header, payload, signature = bearer_token.split(".")
 	except IndexError:
