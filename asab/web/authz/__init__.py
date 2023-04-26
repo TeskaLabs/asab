@@ -1,5 +1,8 @@
 """
-OBSOLETE MODULE, use 'asab.web.auth' instead
+OBSOLETE MODULE, to be deleted after January 2024
+
+Use 'asab.web.auth' instead
+
 """
 
 from .decorator import required, userinfo_handler
