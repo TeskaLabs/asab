@@ -108,18 +108,6 @@ class AuthService(asab.Service):
 		self.App.PubSub.subscribe("Application.tick/30!", self._fetch_public_keys_if_needed)
 
 
-	def has_superuser_access(self, authorized_resources: typing.Iterable) -> bool:
-		return SUPERUSER_RESOURCE in authorized_resources
-
-
-	def has_resource_access(self, authorized_resources: typing.Iterable, required_resources: typing.Iterable) -> bool:
-		if self.has_superuser_access(authorized_resources):
-			return True
-		for resource in required_resources:
-			if resource not in authorized_resources:
-				return False
-
-
 	async def initialize(self, app):
 		await self._fetch_public_keys_if_needed()
 
@@ -149,6 +137,26 @@ class AuthService(asab.Service):
 			return self.DevUserInfo
 		else:
 			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
+
+
+	@staticmethod
+	def has_superuser_access(self, authorized_resources: typing.Iterable) -> bool:
+		"""
+		Check if the superuser resource is present in the authorized resource list.
+		"""
+		return SUPERUSER_RESOURCE in authorized_resources
+
+
+	@staticmethod
+	def has_resource_access(self, authorized_resources: typing.Iterable, required_resources: typing.Iterable) -> bool:
+		"""
+		Check if the requested resources or the superuser resource are present in the authorized resource list.
+		"""
+		if self.has_superuser_access(authorized_resources):
+			return True
+		for resource in required_resources:
+			if resource not in authorized_resources:
+				return False
 
 
 	async def _fetch_public_keys_if_needed(self, *args, **kwargs):
