@@ -33,9 +33,9 @@ class MyApplication(asab.Application):
 		self.WebContainer = asab.web.WebContainer(self.WebService, "web")
 
 		# Initialize authorization
-		self.AuthzService = asab.web.auth.AuthService(self)
+		self.AuthService = asab.web.auth.AuthService(self)
 		self.WebContainer.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
-		self.AuthzService.install(self.WebContainer)
+		self.AuthService.install(self.WebContainer)
 
 		# Add routes
 		self.WebContainer.WebApp.router.add_get("/no_auth", self.no_auth)
