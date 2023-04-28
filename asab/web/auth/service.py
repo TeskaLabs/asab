@@ -135,7 +135,7 @@ class AuthService(asab.Service):
 		return False
 
 
-	def userinfo(self, bearer_token):
+	def get_userinfo_from_id_token(self, bearer_token):
 		"""
 		Parse the bearer ID token and extract user info.
 		"""
@@ -143,10 +143,7 @@ class AuthService(asab.Service):
 			L.error("AuthzService is not ready: No public keys loaded yet.")
 			return None
 
-		if self.DevModeEnabled:
-			return self.DevUserInfo
-		else:
-			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
+		return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
 
 
 	@staticmethod
@@ -232,11 +229,15 @@ class AuthService(asab.Service):
 				raise aiohttp.web.HTTPUnauthorized()
 
 			request = args[-1]
-			bearer_token = _get_bearer_token(request)
+			if self.DevModeEnabled:
+				user_info = self.DevUserInfo
+			else:
+				# Extract user info from the request Authorization header
+				bearer_token = _get_bearer_token(request)
+				user_info = self.get_userinfo_from_id_token(bearer_token)
 
 			# Add userinfo, tenants and global resources to the request
-			request._UserInfo = self.userinfo(bearer_token)
-
+			request._UserInfo = user_info
 			resource_dict = request._UserInfo["resources"]
 			request._Resources = frozenset(resource_dict.get("*", []))
 			request._Tenants = frozenset(t for t in resource_dict.keys() if t != "*")
