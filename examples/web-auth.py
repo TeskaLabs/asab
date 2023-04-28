@@ -40,6 +40,7 @@ class MyApplication(asab.Application):
 		# Add routes
 		self.WebContainer.WebApp.router.add_get("/no_auth", self.no_auth)
 		self.WebContainer.WebApp.router.add_get("/auth", self.auth)
+		self.WebContainer.WebApp.router.add_put("/auth", self.auth_put)
 		self.WebContainer.WebApp.router.add_get("/auth/resource_check", self.auth_resource)
 		self.WebContainer.WebApp.router.add_get("/{tenant}/required_tenant", self.tenant_in_path)
 		self.WebContainer.WebApp.router.add_get("/{tenant}/required_tenant/resource_check", self.tenant_in_path_resources)
@@ -81,6 +82,24 @@ class MyApplication(asab.Application):
 		return asab.web.rest.json_response(request, data)
 
 
+	@asab.web.rest.json_schema_handler({
+		"type": "object"
+	})
+	async def auth_put(self, request, *, json_data: dict, user_info: dict, resources: frozenset):
+		"""
+		Intended for testing the composition of the json schema decorator with the auth middleware.
+
+		Uses the same auth as the `auth` handler above.
+		"""
+		data = {
+			"tenant": "NOT AVAILABLE",
+			"resources": list(resources),
+			"user_info": user_info,
+			"request_json_data": json_data,
+		}
+		return asab.web.rest.json_response(request, data)
+
+
 	@asab.web.auth.require("something:access", "something:edit")
 	# async def auth_resource(self, request):  # MINIMAL
 	async def auth_resource(self, request, *, user_info: dict, resources: frozenset):
@@ -88,7 +107,7 @@ class MyApplication(asab.Application):
 		TENANT-AGNOSTIC + RESOURCE CHECK
 		- returns 401 if authentication not successful
 		- globally granted resources checked
-		- returns 403 if resources not granted
+		- returns 403 if resource access not granted
 
 		- `user_info`, `resources` params allowed
 		- `tenant` param not allowed
@@ -108,7 +127,7 @@ class MyApplication(asab.Application):
 		TENANT-AWARE
 		- returns 401 if authentication not successful
 		- `tenant` access checked
-		- returns 401 if tenant not accessible
+		- returns 403 if tenant not accessible
 
 		- `user_info`, `resources` params allowed
 		- `tenant` param required in path, cannot be None
@@ -131,7 +150,7 @@ class MyApplication(asab.Application):
 			- `tenant` required in query string
 			- tenant access checked
 			- returns 400 if `tenant` not in query
-			- returns 401 if tenant not accessible
+			- returns 403 if tenant not accessible
 		- if multitenancy is disabled
 			- `tenant` is set to `None`
 
@@ -155,9 +174,9 @@ class MyApplication(asab.Application):
 		TENANT-AWARE + RESOURCE CHECK
 		- returns 401 if authentication not successful
 		- `tenant` access checked
-		- returns 401 if tenant not accessible
+		- returns 403 if tenant not accessible
 		- tenant-accessible resources checked
-		- returns 403 if resources not granted
+		- returns 403 if resource access not granted
 
 		- `user_info`, `resources` params allowed
 		- `tenant` param required, cannot be None
@@ -181,8 +200,8 @@ class MyApplication(asab.Application):
 			- `tenant` required in query string
 			- tenant access checked
 			- returns 400 if `tenant` not in query
-			- returns 401 if tenant not accessible
-			- returns 403 if resources not granted within tenant
+			- returns 403 if tenant not accessible
+			- returns 403 if resource access not granted within tenant
 		- if multitenancy is disabled
 			- `tenant` is set to `None`
 			- returns 403 if resources not granted globally
