@@ -5,6 +5,7 @@ import inspect
 import json
 import logging
 import typing
+import time
 
 import aiohttp
 import aiohttp.web
@@ -28,14 +29,22 @@ L = logging.getLogger(__name__)
 
 # Mock user info used in dev mode
 DEV_USERINFO_DEFAULT = {
-	"iss": "auth.test.loc",      # Token issuer
-	"iat": 1682077901,         # Token issued at (timestamp)
-	"exp": 1682092289,         # Token expires at (timestamp)
-	"azp": "my-asab-app",        # Authorized party
-	"aud": "my-asab-app",        # Audience
-	"sub": "abc:xyz:799b53e0",   # Subject (Unique user ID)
-	"preferred_username": "little-capybara",  # Subject's preferred username
-	"email": "capybara1999@example.com",      # Subject's email
+	# Token issuer
+	"iss": "auth.test.loc",
+	# Token issued at (timestamp)
+	"iat": int(time.time()),
+	# Token expires at (timestamp)
+	"exp": int(time.time() + 5*365*24*3600),
+	# Authorized party
+	"azp": "my-asab-app",
+	# Audience
+	"aud": "my-asab-app",
+	# Subject (Unique user ID)
+	"sub": "abc:xyz:799b53e0",
+	# Subject's preferred username
+	"preferred_username": "little-capybara",
+	# Subject's email
+	"email": "capybara1999@example.com",
 	# Authorized tenants and resources
 	"resources": {
 		# Globally granted resources
