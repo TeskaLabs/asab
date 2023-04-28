@@ -1,3 +1,4 @@
+import functools
 import json
 import logging
 import uuid
@@ -276,6 +277,7 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 
 		form_content_types = frozenset(['', 'application/x-www-form-urlencoded', 'multipart/form-data'])
 
+		@functools.wraps(func)
 		async def validator(*args, **kwargs):
 			# Initializing fastjsonschema.compile method and generating
 			# the validation function for validating JSON schema
