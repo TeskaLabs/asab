@@ -268,45 +268,60 @@ class AuthService(asab.Service):
 		"""
 		Inspect all registered handlers and wrap them in decorators according to their parameters.
 		"""
-		# Iterate through registered routes
 		for route in aiohttp_app.router.routes():
+			# Skip non-coroutines
 			if not inspect.iscoroutinefunction(route.handler):
-				continue
+				return
 
-			# Check if tenant is in route path
-			route_info = route.get_info()
-			tenant_in_path = "formatter" in route_info and "{tenant}" in route_info["formatter"]
+			# Skip auth for HEAD requests
+			if route.method == "HEAD":
+				return
 
-			# Extract the actual handler method for signature checks
-			if hasattr(route.handler, "__wrapped__"):
-				handler_method = route.handler.__wrapped__
+			try:
+				self._wrap_handler(route)
+			except Exception as e:
+				raise Exception("Failed to initialize auth for handler {!r}.".format(route.handler.__qualname__)) from e
+
+
+	def _wrap_handler(self, route):
+		"""
+		Inspect handler and apply suitable auth wrappers.
+		"""
+		# Check if tenant is in route path
+		route_info = route.get_info()
+		tenant_in_path = "formatter" in route_info and "{tenant}" in route_info["formatter"]
+
+		# Extract the actual handler method for signature checks
+		if hasattr(route.handler, "__wrapped__"):
+			handler_method = route.handler.__wrapped__
+		elif hasattr(route.handler, "__func__"):
+			handler_method = route.handler.__func__
+		else:
+			handler_method = route.handler
+
+		if hasattr(handler_method, "NoAuth"):
+			return
+		argspec = inspect.getfullargspec(handler_method)
+		args = set(argspec.kwonlyargs).union(argspec.args)
+
+		# Extract the whole handler for wrapping
+		handler = route.handler
+
+		# Apply the decorators in reverse order (the last applied wrapper affects the request first)
+		if "resources" in args:
+			handler = _add_resources(handler)
+		if "user_info" in args:
+			handler = _add_user_info(handler)
+		if "tenant" in args:
+			if tenant_in_path:
+				handler = _add_tenant_from_path(handler)
+			elif self.MultitenancyEnabled:
+				handler = _add_tenant_from_query(handler)
 			else:
-				handler_method = route.handler.__func__
+				handler = _add_tenant_none(handler)
 
-			if hasattr(handler_method, "NoAuth"):
-				continue
-
-			argspec = inspect.getfullargspec(handler_method)
-			args = set(argspec.kwonlyargs).union(argspec.args)
-
-			# Extract the whole handler for wrapping
-			handler = route.handler
-
-			# Apply the decorators in reverse order (the last applied wrapper affects the request first)
-			if "resources" in args:
-				handler = _add_resources(handler)
-			if "user_info" in args:
-				handler = _add_user_info(handler)
-			if "tenant" in args:
-				if tenant_in_path:
-					handler = _add_tenant_from_path(handler)
-				elif self.MultitenancyEnabled:
-					handler = _add_tenant_from_query(handler)
-				else:
-					handler = _add_tenant_none(handler)
-
-			handler = self._authenticate_request(handler)
-			route._handler = handler
+		handler = self._authenticate_request(handler)
+		route._handler = handler
 
 
 def _get_id_token_claims(bearer_token: str, auth_server_public_key):
