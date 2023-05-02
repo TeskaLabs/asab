@@ -23,7 +23,7 @@ asab.Config["auth"]["public_keys_url"] = "http://localhost:8081/.well-known/jwks
 
 # URL of the authorization server's tenant list, used for tenant verification.
 # This option is ignored in dev mode.
-asab.Config["auth"]["tenants_url"] = "http://localhost:8081/tenant"
+asab.Config["auth"]["tenant_url"] = "http://localhost:8081/tenant"
 
 
 class MyApplication(asab.Application):
