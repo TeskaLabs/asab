@@ -269,11 +269,11 @@ class AuthService(asab.Service):
 		for route in aiohttp_app.router.routes():
 			# Skip non-coroutines
 			if not inspect.iscoroutinefunction(route.handler):
-				return
+				continue
 
 			# Skip auth for HEAD requests
 			if route.method == "HEAD":
-				return
+				continue
 
 			try:
 				self._wrap_handler(route)
