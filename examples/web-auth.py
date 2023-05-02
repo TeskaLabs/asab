@@ -21,6 +21,10 @@ asab.Config["auth"]["dev_user_info_path"] = ""
 # This option is ignored in dev mode.
 asab.Config["auth"]["public_keys_url"] = "http://localhost:8081/.well-known/jwks.json"
 
+# URL of the authorization server's tenant list, used for tenant verification.
+# This option is ignored in dev mode.
+asab.Config["auth"]["tenants_url"] = "http://localhost:8081/tenant"
+
 
 class MyApplication(asab.Application):
 

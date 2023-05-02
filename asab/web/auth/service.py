@@ -75,6 +75,9 @@ asab.Config.add_defaults({
 		# URL location containing the authorization server's public JWK keys
 		"public_keys_url": "",
 
+		# URL location providing a JSON array of known tenants
+		"tenants_url": "",
+
 		# Whether the app is tenant-aware
 		"multitenancy": "yes",
 
@@ -96,6 +99,7 @@ class AuthService(asab.Service):
 		super().__init__(app, service_name)
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
+		self.TenantsUrl = asab.Config.get("auth", "tenants_url")
 
 		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
 		if self.DevModeEnabled:
@@ -108,7 +112,9 @@ class AuthService(asab.Service):
 				self.DevUserInfo = DEV_USERINFO_DEFAULT
 		else:
 			if len(self.PublicKeysUrl) == 0:
-				raise ValueError("No public_keys_url provided in [auth] config section.")
+				raise ValueError("No 'public_keys_url' provided in [auth] config section.")
+			if len(self.TenantsUrl) == 0:
+				raise ValueError("No 'tenants_url' provided in [auth] config section.")
 			if jwcrypto is None:
 				raise ModuleNotFoundError(
 					"You are trying to use asab.web.authz without 'jwcrypto' installed. "
@@ -116,13 +122,16 @@ class AuthService(asab.Service):
 					"or install asab with 'authz' optional dependency.")
 
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
+		self.Tenants = None
 
 		# TODO: Fetch public keys if validation fails (instead of periodic fetch)
 		self.App.PubSub.subscribe("Application.tick/30!", self._fetch_public_keys_if_needed)
+		self.App.PubSub.subscribe("Application.tick/300!", self._update_tenants)
 
 
 	async def initialize(self, app):
 		await self._fetch_public_keys_if_needed()
+		await self._update_tenants()
 
 
 	def install(self, web_container):
@@ -139,9 +148,11 @@ class AuthService(asab.Service):
 		"""
 		if self.DevModeEnabled is True:
 			return True
-		elif self.AuthServerPublicKey is not None:
-			return True
-		return False
+		elif self.AuthServerPublicKey is None:
+			return False
+		elif self.Tenants is None:
+			return False
+		return True
 
 
 	def get_userinfo_from_id_token(self, bearer_token):
@@ -222,6 +233,41 @@ class AuthService(asab.Service):
 
 		self.AuthServerPublicKey = public_key
 		L.log(asab.LOG_NOTICE, "Public key loaded.", struct_data={"url": self.PublicKeysUrl})
+
+
+	async def _update_tenants(self, *args, **kwargs):
+		"""
+		Check if public keys have been fetched from the authorization server and fetch them if not yet.
+		"""
+		if self.DevModeEnabled:
+			return
+
+		async with aiohttp.ClientSession() as session:
+			try:
+				async with session.get(self.TenantsUrl) as response:
+					if response.status != 200:
+						L.error("HTTP error while fetching tenants.", struct_data={
+							"status": response.status,
+							"url": self.TenantsUrl,
+							"text": await response.text(),
+						})
+						return
+					try:
+						data = await response.json()
+					except json.JSONDecodeError:
+						L.error("JSON decoding error while loading tenants.", struct_data={
+							"url": self.TenantsUrl,
+							"data": data,
+						})
+						return
+			except aiohttp.client_exceptions.ClientConnectorError as e:
+				L.error("Connection error while loading public keys: {}".format(e), struct_data={
+					"url": self.TenantsUrl,
+				})
+				return
+
+		self.Tenants = frozenset(data)
+		L.log(asab.LOG_NOTICE, "Tenants updated.", struct_data={"url": self.TenantsUrl})
 
 
 	def _authenticate_request(self, handler):
@@ -312,14 +358,77 @@ class AuthService(asab.Service):
 			handler = _add_user_info(handler)
 		if "tenant" in args:
 			if tenant_in_path:
-				handler = _add_tenant_from_path(handler)
+				handler = self._add_tenant_from_path(handler)
 			elif self.MultitenancyEnabled:
-				handler = _add_tenant_from_query(handler)
+				handler = self._add_tenant_from_query(handler)
 			else:
-				handler = _add_tenant_none(handler)
+				handler = self._add_tenant_none(handler)
 
 		handler = self._authenticate_request(handler)
 		route._handler = handler
+
+
+	def _authorize_tenant_request(self, request, tenant):
+		"""
+		Check access to requested tenant and add tenant resources to the request
+		"""
+		# Check if requested tenant exists (unless in dev mode)
+		if not self.DevModeEnabled and tenant not in self.Tenants:
+			L.warning("Unknown tenant.", struct_data={"tenant": tenant})
+			raise asab.exceptions.AccessDeniedError()
+
+		# Check if tenant access is authorized
+		if tenant not in request._Tenants and not request.has_superuser_access():
+			L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
+			raise asab.exceptions.AccessDeniedError()
+
+		# Extend globally granted resources with tenant-granted resources
+		request._Resources = frozenset(request._Resources.union(request._UserInfo["resources"].get(tenant, [])))
+
+
+	def _add_tenant_from_path(self, handler):
+		"""
+		Extract tenant from request path and authorize it
+		"""
+
+		@functools.wraps(handler)
+		async def wrapper(*args, **kwargs):
+			request = args[-1]
+			tenant = request.match_info["tenant"]
+			self._authorize_tenant_request(request, tenant)
+			return await handler(*args, tenant=tenant, **kwargs)
+
+		return wrapper
+
+
+	def _add_tenant_from_query(self, handler):
+		"""
+		Extract tenant from request query and authorize it
+		"""
+
+		@functools.wraps(handler)
+		async def wrapper(*args, **kwargs):
+			request = args[-1]
+			if "tenant" not in request.query:
+				L.error("Request is missing 'tenant' query parameter.")
+				raise aiohttp.web.HTTPBadRequest()
+			tenant = request.query["tenant"]
+			self._authorize_tenant_request(request, tenant)
+			return await handler(*args, tenant=tenant, **kwargs)
+
+		return wrapper
+
+
+	def _add_tenant_none(self, handler):
+		"""
+		Add tenant=None to the handler arguments
+		"""
+
+		@functools.wraps(handler)
+		async def wrapper(*args, **kwargs):
+			return await handler(*args, tenant=None, **kwargs)
+
+		return wrapper
 
 
 def _get_id_token_claims(bearer_token: str, auth_server_public_key):
@@ -387,56 +496,6 @@ def _get_bearer_token(request):
 		L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
 		raise aiohttp.web.HTTPUnauthorized()
 	return token_value
-
-
-def _authorize_tenant_request(request, tenant):
-	"""
-	Check access to requested tenant and add tenant resources to the request
-	"""
-	if tenant not in request._Tenants and not request.is_superuser():
-		L.warning("Tenant not authorized", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
-		raise asab.exceptions.AccessDeniedError()
-	# Extend globally granted resources with tenant-granted resources
-	request._Resources = frozenset(request._Resources.union(request._UserInfo["resources"].get(tenant, [])))
-
-
-def _add_tenant_from_path(handler):
-	"""
-	Extract tenant from request path and authorize it
-	"""
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		request = args[-1]
-		tenant = request.match_info["tenant"]
-		_authorize_tenant_request(request, tenant)
-		return await handler(*args, tenant=tenant, **kwargs)
-	return wrapper
-
-
-def _add_tenant_from_query(handler):
-	"""
-	Extract tenant from request query and authorize it
-	"""
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		request = args[-1]
-		if "tenant" not in request.query:
-			L.error("Request is missing 'tenant' query parameter.")
-			raise aiohttp.web.HTTPBadRequest()
-		tenant = request.query["tenant"]
-		_authorize_tenant_request(request, tenant)
-		return await handler(*args, tenant=tenant, **kwargs)
-	return wrapper
-
-
-def _add_tenant_none(handler):
-	"""
-	Add tenant=None to the handler arguments
-	"""
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		return await handler(*args, tenant=None, **kwargs)
-	return wrapper
 
 
 def _add_user_info(handler):
