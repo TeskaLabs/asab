@@ -6,6 +6,7 @@ import aiohttp
 
 from ..web.rest.json import json_response
 from ..log import LOG_NOTICE
+from ..web.auth import noauth
 
 ##
 
@@ -84,6 +85,7 @@ class WebApiLoggingHandler(logging.Handler):
 			asyncio.ensure_future(self._send_ws(log_entry))
 
 
+	@noauth
 	async def get_logs(self, request):
 		'''
 		Get logs.
@@ -94,6 +96,7 @@ class WebApiLoggingHandler(logging.Handler):
 		return json_response(request, self.Buffer)
 
 
+	@noauth
 	async def ws(self, request):
 		'''
 		# Live feed of logs over websocket
