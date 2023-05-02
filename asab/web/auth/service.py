@@ -155,7 +155,6 @@ class AuthService(asab.Service):
 		return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
 
 
-	@staticmethod
 	def has_superuser_access(self, authorized_resources: typing.Iterable) -> bool:
 		"""
 		Check if the superuser resource is present in the authorized resource list.
@@ -163,7 +162,6 @@ class AuthService(asab.Service):
 		return SUPERUSER_RESOURCE in authorized_resources
 
 
-	@staticmethod
 	def has_resource_access(self, authorized_resources: typing.Iterable, required_resources: typing.Iterable) -> bool:
 		"""
 		Check if the requested resources or the superuser resource are present in the authorized resource list.
