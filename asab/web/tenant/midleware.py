@@ -1,3 +1,5 @@
+import functools
+
 import aiohttp.web
 
 import asab
@@ -26,6 +28,7 @@ def tenant_middleware_factory(app, svc):
 
 def tenant_handler(func):
 
+	@functools.wraps(func)
 	async def wrapper(*args, **kargs):
 		request = args[-1]
 		try:
@@ -35,8 +38,5 @@ def tenant_handler(func):
 				'result': 'TENANT-NOT-FOUND',
 			}, status=404)
 		return await func(*args, **kargs)
-
-	wrapper.__doc__ = func.__doc__
-	wrapper.__name__ = func.__name__
 
 	return wrapper
