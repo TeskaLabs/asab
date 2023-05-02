@@ -76,7 +76,7 @@ asab.Config.add_defaults({
 		"public_keys_url": "",
 
 		# URL location providing a JSON array of known tenants
-		"tenants_url": "",
+		"tenant_url": "",
 
 		# Whether the app is tenant-aware
 		"multitenancy": "yes",
@@ -99,7 +99,7 @@ class AuthService(asab.Service):
 		super().__init__(app, service_name)
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
-		self.TenantsUrl = asab.Config.get("auth", "tenants_url")
+		self.TenantUrl = asab.Config.get("auth", "tenant_url")
 
 		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
 		if self.DevModeEnabled:
@@ -113,7 +113,7 @@ class AuthService(asab.Service):
 		else:
 			if len(self.PublicKeysUrl) == 0:
 				raise ValueError("No 'public_keys_url' provided in [auth] config section.")
-			if len(self.TenantsUrl) == 0:
+			if len(self.TenantUrl) == 0:
 				raise ValueError("No 'tenants_url' provided in [auth] config section.")
 			if jwcrypto is None:
 				raise ModuleNotFoundError(
