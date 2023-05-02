@@ -31,8 +31,8 @@ def require(*resources):
 
 			if not hasattr(request, "has_resource_access"):
 				raise Exception(
-					"Cannot check resource access. Make sure the handler method does not use "
-					"both the @noauth and the @require decorators.")
+					"Cannot check resource access. Make sure that AuthService is installed and that "
+					"the handler method does not use both the '@noauth' and the '@require' decorators at once.")
 
 			if not request.has_resource_access(*resources):
 				raise asab.exceptions.AccessDeniedError()
