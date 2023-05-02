@@ -395,10 +395,11 @@ def _authorize_tenant_request(request, tenant):
 	"""
 	Check access to requested tenant and add tenant resources to the request
 	"""
-	if tenant not in request._Tenants:
+	if tenant not in request._Tenants and not request.is_superuser():
 		L.warning("Tenant not authorized", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
 		raise asab.exceptions.AccessDeniedError()
-	request._Resources = request._UserInfo["resources"][tenant]
+	# Extend globally granted resources with tenant-granted resources
+	request._Resources = frozenset(request._Resources.union(request._UserInfo["resources"].get(tenant, [])))
 
 
 def _add_tenant_from_path(handler):
