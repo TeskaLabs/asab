@@ -82,6 +82,8 @@ Specify expiration period in confiuration. Default is 60 s.
 Timestamp
 ---------
 
+**Timestamp** contains the record of the precise moment the metric's value was created or committed to the database. There are two types of metrics: resettable (`is_reset` = True) and non-resettable (`is_reset` = False). To reset a metric means to set it back to its initial value (for example, back to 0). The metric's type is determined by the ``reset: bool = True`` parameter of the metric's constructor at the moment it is created. We measure non-resettable metrics at the time of their creation (`there are several possible methods depending on the metric's general logic`), while the resettable ones are measured when we send data to the database (`which is also the moment of them being reset`).
+
 +---+--------------+---------------------------------+-----------------------+-----------------------+---------+
 |   |Metric's Type |Description / Methods            |Time is Measured       |Timestamp Value Appears|is_reset |
 +===+==============+=================================+=======================+=======================+=========+
