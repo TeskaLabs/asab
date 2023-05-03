@@ -13,6 +13,8 @@ L = logging.getLogger(__name__)
 
 def required(*resources):
 	'''
+	OBSOLETE
+
 	Checks that user authorized with access token in
 	Authorization header has access to a given tenant space
 	using SeaCat Auth RBAC authorization.
@@ -35,10 +37,6 @@ def required(*resources):
 
 			# Obtain authz service from the request
 			authz_service = request.AuthzService
-
-			# RBAC is disabled, so no authorization can be performed
-			if request.AuthzService.RBACDisabled:
-				return await func(*args, **kargs)
 
 			if not request.AuthzService.is_ready():
 				L.error("Cannot authorize request - AuthzService is not ready.")

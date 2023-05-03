@@ -1,20 +1,26 @@
+import aiohttp.web
+
+
 class ValidationError(Exception):
 	"""
 	Request cannot be processed because it does not match expected schema
 	"""
+	# TODO: Inherit from aiohttp.web.HTTPBadRequest
 	pass
 
 
-class NotAuthenticatedError(Exception):
+class NotAuthenticatedError(aiohttp.web.HTTPUnauthorized):
 	"""
 	Request could not be authenticated
 	"""
-	pass
+	def __init__(self):
+		# TODO: Optionally include "error", "realm" etc. (https://www.rfc-editor.org/rfc/rfc6750#section-3)
+		super().__init__(headers={"WWW-Authenticate": "Bearer scope=openid"})
 
 
-class NotAuthorizedError(Exception):
+class AccessDeniedError(aiohttp.web.HTTPForbidden):
 	"""
-	Subject is not allowed to access this resource
+	Authenticated subject does not have the rights to access requested resource
 	"""
 	pass
 
@@ -23,6 +29,7 @@ class Conflict(Exception):
 	"""
 	Request cannot be satisfied because it would introduce a state that violates some uniqueness requirement
 	"""
+	# TODO: Inherit from aiohttp.web.HTTPConflict
 	# TODO: Handle when the value of `key` or `value` is actually `None`
 	def __init__(self, message=None, *args, key=None, value=None):
 		self.Key = key
