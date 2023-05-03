@@ -34,7 +34,7 @@ DEV_USERINFO_DEFAULT = {
 	# Token issued at (timestamp)
 	"iat": int(time.time()),
 	# Token expires at (timestamp)
-	"exp": int(time.time() + 5*365*24*3600),
+	"exp": int(time.time()) + 5 * 365 * 24 * 3600,
 	# Authorized party
 	"azp": "my-asab-app",
 	# Audience
