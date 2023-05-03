@@ -266,8 +266,13 @@ class AuthService(asab.Service):
 				})
 				return
 
-		self.Tenants = frozenset(data)
-		L.info("Tenants updated.", struct_data={"url": self.TenantUrl})
+		new_tenants = frozenset(data)
+		if self.Tenants == new_tenants:
+			L.info("Tenant list fetched. No changes.", struct_data={"url": self.TenantUrl})
+		else:
+			L.log(asab.LOG_NOTICE, "Tenant list updated.", struct_data={"url": self.TenantUrl})
+
+		self.Tenants = new_tenants
 
 
 	def _authenticate_request(self, handler):
