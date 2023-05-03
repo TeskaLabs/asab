@@ -244,11 +244,11 @@ class AuthService(asab.Service):
 
 		async with aiohttp.ClientSession() as session:
 			try:
-				async with session.get(self.TenantsUrl) as response:
+				async with session.get(self.TenantUrl) as response:
 					if response.status != 200:
 						L.error("HTTP error while fetching tenants.", struct_data={
 							"status": response.status,
-							"url": self.TenantsUrl,
+							"url": self.TenantUrl,
 							"text": await response.text(),
 						})
 						return
@@ -256,18 +256,18 @@ class AuthService(asab.Service):
 						data = await response.json()
 					except json.JSONDecodeError:
 						L.error("JSON decoding error while loading tenants.", struct_data={
-							"url": self.TenantsUrl,
+							"url": self.TenantUrl,
 							"data": data,
 						})
 						return
 			except aiohttp.client_exceptions.ClientConnectorError as e:
 				L.error("Connection error while loading public keys: {}".format(e), struct_data={
-					"url": self.TenantsUrl,
+					"url": self.TenantUrl,
 				})
 				return
 
 		self.Tenants = frozenset(data)
-		L.log(asab.LOG_NOTICE, "Tenants updated.", struct_data={"url": self.TenantsUrl})
+		L.log(asab.LOG_NOTICE, "Tenants updated.", struct_data={"url": self.TenantUrl})
 
 
 	def _authenticate_request(self, handler):
