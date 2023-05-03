@@ -237,7 +237,7 @@ class AuthService(asab.Service):
 
 	async def _update_tenants(self, *args, **kwargs):
 		"""
-		Check if public keys have been fetched from the authorization server and fetch them if not yet.
+		Fetch tenant list and update the local cache.
 		"""
 		if self.DevModeEnabled:
 			return
