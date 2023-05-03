@@ -267,7 +267,7 @@ class AuthService(asab.Service):
 				return
 
 		self.Tenants = frozenset(data)
-		L.log(asab.LOG_NOTICE, "Tenants updated.", struct_data={"url": self.TenantUrl})
+		L.info("Tenants updated.", struct_data={"url": self.TenantUrl})
 
 
 	def _authenticate_request(self, handler):
