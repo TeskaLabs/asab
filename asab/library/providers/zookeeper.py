@@ -235,8 +235,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		else:
 			return None
 
-
-	async def list(self, path: str) -> list:
+	async def list(self, path: str, index) -> list:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			raise RuntimeError("Not ready")
@@ -257,7 +256,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 			if '.' in node:  # We detect files in zookeeper by presence of the dot in the filename,
 				fname = path + node
-				ftype = "item"
+				ftype = f"item_{index}"
 			else:
 				fname = path + node + '/'
 				ftype = "dir"
@@ -269,7 +268,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			))
 
 		return items
-
 
 	def build_path(self, path):
 		"""

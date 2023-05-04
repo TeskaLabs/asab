@@ -249,11 +249,11 @@ class LibraryService(Service):
 
 
 	async def _list(self, path, tenant, providers):
-
 		# Execute the list query in all providers in-parallel
+
 		result = await asyncio.gather(*[
-			library.list(path)
-			for library in providers
+			library.list(path, index)
+			for index, library in enumerate(providers)
 		], return_exceptions=True)
 
 		items = []
