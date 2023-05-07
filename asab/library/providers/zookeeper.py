@@ -256,7 +256,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 			if '.' in node:  # We detect files in zookeeper by presence of the dot in the filename,
 				fname = path + node
-				ftype = f"item_{index}"
+				ftype = "item"
 			else:
 				fname = path + node + '/'
 				ftype = "dir"
@@ -264,9 +264,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
-				providers=[self],
+				layer= index,
+				providers=[self]
 			))
-
 		return items
 
 	def build_path(self, path):
