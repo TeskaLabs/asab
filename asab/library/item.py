@@ -20,6 +20,6 @@ class LibraryItem:
 
 	name: str
 	type: str
-	layer : int
+	layer: int
 	providers: list
 	disabled: bool = False
