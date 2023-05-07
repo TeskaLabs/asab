@@ -264,7 +264,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
-				layer= index,
+				layer=index,
 				providers=[self]
 			))
 		return items
