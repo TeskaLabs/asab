@@ -38,7 +38,7 @@ class MyApplication(asab.Application):
 
 		# Continue only if the library is ready
 		# We need to wait till eg. Zookeeper is connected
-		self.PubSub.subscribe("ASABLibrary.ready!", self.on_library_ready)
+		self.PubSub.subscribe("Library.ready!", self.on_library_ready)
 
 
 	async def on_library_ready(self, event_name, library):
