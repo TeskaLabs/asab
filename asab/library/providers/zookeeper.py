@@ -261,12 +261,22 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				fname = path + node + '/'
 				ftype = "dir"
 
-			items.append(LibraryItem(
-				name=fname,
-				type=ftype,
-				layer=index,
-				providers=[self]
-			))
+			if int(index) == 0:
+				items.append(LibraryItem(
+					name=fname,
+					type=ftype,
+					layer=index,
+					providers=[self],
+					override=True,
+				))
+			else:
+				items.append(LibraryItem(
+					name=fname,
+					type=ftype,
+					layer=index,
+					providers=[self],
+				))
+
 		return items
 
 	def build_path(self, path):

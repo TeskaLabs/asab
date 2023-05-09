@@ -107,7 +107,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			fname = fname[len(self.BasePath):]
 
 			if stat.S_ISREG(fstat.st_mode):
-				ftype = f"item_{index}"
+				ftype = "item"
 			elif stat.S_ISDIR(fstat.st_mode):
 				ftype = "dir"
 				fname += '/'
@@ -118,13 +118,21 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			if any(x.startswith('.') for x in fname.split('/')):
 				continue
 
-			items.append(LibraryItem(
-				name=fname,
-				type=ftype,
-				layer=index,
-				providers=[self],
-
-			))
+			if index == 0:
+				items.append(LibraryItem(
+					name=fname,
+					type=ftype,
+					layer=index,
+					providers=[self],
+					override=True,
+				))
+			else:
+				items.append(LibraryItem(
+					name=fname,
+					type=ftype,
+					layer=index,
+					providers=[self],
+				))
 
 		return items
 
