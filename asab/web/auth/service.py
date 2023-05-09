@@ -182,6 +182,7 @@ class AuthService(asab.Service):
 		for resource in required_resources:
 			if resource not in authorized_resources:
 				return False
+		return True
 
 
 	async def _fetch_public_keys_if_needed(self, *args, **kwargs):
