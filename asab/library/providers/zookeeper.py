@@ -205,10 +205,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		if self.Version is None:
 			# Initial grab of the version
-			self.Version = int(version)
+			self.Version = version
 			return
 
-		if self.Version == int(version):
+		if self.Version == version:
 			# The version has not changed
 			return
 
