@@ -26,8 +26,3 @@ class LibraryItem:
     providers: list
     disabled: bool = False
     override: bool = False  # Default value for override is False
-
-    def __post_init__(self):
-        if self.layer == 0:
-            self.override = True
-
