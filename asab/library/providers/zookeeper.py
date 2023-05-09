@@ -190,7 +190,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return
 
 		version = await self.Zookeeper.get_data(self.VersionNodePath)
-		await self.Zookeeper.ProactorService.execute(self._check_version_counter, version)
+		self._check_version_counter(version)
 
 
 	def _check_version_counter(self, version):
@@ -205,10 +205,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		if self.Version is None:
 			# Initial grab of the version
-			self.Version = int(version)
+			self.Version = version
 			return
 
-		if self.Version == int(version):
+		if self.Version == version:
 			# The version has not changed
 			return
 
