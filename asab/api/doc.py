@@ -10,6 +10,7 @@ import yaml
 import typing
 
 from .doc_templates import SWAGGER_OAUTH_PAGE, SWAGGER_DOC_PAGE
+from ..web.auth import noauth
 
 
 ##
@@ -242,6 +243,8 @@ Example:
 			L.warning("Cannot obtain path info from route", struct_data=self.route_info)
 		return path
 
+
+	@noauth
 	# This is the web request handler
 	async def doc(self, request):
 		"""
@@ -262,6 +265,8 @@ Example:
 
 		return aiohttp.web.Response(text=doc_page, content_type="text/html")
 
+
+	@noauth
 	def oauth2_redirect(self, request):
 		"""
 		Required for the authorization to work.
@@ -271,6 +276,8 @@ Example:
 
 		return aiohttp.web.Response(text=SWAGGER_OAUTH_PAGE, content_type="text/html")
 
+
+	@noauth
 	async def openapi(self, request):
 		"""
 		Download OpenAPI (version 3) API documentation (aka Swagger) in YAML.

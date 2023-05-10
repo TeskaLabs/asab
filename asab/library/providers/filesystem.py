@@ -42,10 +42,14 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		# Open inotify file descriptor
 		if inotify_init is not None:
-			self.FD = inotify_init()
-
-			self.App.Loop.add_reader(self.FD, self._on_inotify_read)
-			self.AggrTimer = Timer(self.App, self._on_aggr_timer)
+			init = inotify_init()
+			if init == -1:
+				L.warning("Subscribing to library changes in filesystem provider is not available. Inotify was not initialized.")
+				self.FD = None
+			else:
+				self.FD = init
+				self.App.Loop.add_reader(self.FD, self._on_inotify_read)
+				self.AggrTimer = Timer(self.App, self._on_aggr_timer)
 		else:
 			self.FD = None
 
@@ -166,6 +170,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		if not os.path.isdir(self.BasePath + path):
 			return
 		if self.FD is None:
+			L.warning("Cannot subscribe to changes in the filesystem layer of the library: '{}'".format(self.BasePath))
 			return
 		self._subscribe_recursive(path, path)
 

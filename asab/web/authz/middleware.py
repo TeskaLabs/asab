@@ -3,6 +3,8 @@ import aiohttp.web
 
 def authz_middleware_factory(app, svc):
 	"""
+	OBSOLETE
+
 	Ensures that AuthzService is part of the request.
 	:param app: application object
 	:param svc: AuthzService
