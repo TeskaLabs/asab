@@ -155,7 +155,6 @@ class PubSub(object):
 		message_type, args, kwargs = await subscriber.message()
 		return message_type, args, kwargs
 
-###
 
 class subscribe(object):
 
