@@ -219,12 +219,15 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	async def read(self, path: str) -> typing.IO:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
-			return None
+			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
 		node_path = self.build_path(path)
 
 		try:
 			node_data = await self.Zookeeper.get_data(node_path)
+		except kazoo.exceptions.ConnectionClosedError:
+			L.warning("Zookeeper library provider is not ready")
+			raise RuntimeError("Zookeeper library provider is not ready")
 		except kazoo.exceptions.NoNodeError:
 			return None
 
@@ -239,7 +242,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	async def list(self, path: str) -> list:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
-			raise RuntimeError("Not ready")
+			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
 		node_path = self.build_path(path)
 
