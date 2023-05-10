@@ -25,7 +25,6 @@ class PubSub(object):
 		# https://stackoverflow.com/questions/53225/how-do-you-check-whether-a-python-method-is-bound-or-not
 		if hasattr(callback, '__self__'):
 			callback = weakref.WeakMethod(callback)
-
 		else:
 			callback = weakref.ref(callback)
 
@@ -138,6 +137,23 @@ class PubSub(object):
 			self.publish(message_type, *args, **kwargs)
 		self.Loop.call_soon_threadsafe(in_main_thread)
 
+
+	async def message(self, message_type):
+		'''
+		This method allows to await a specific message from a coroutine.
+		It is a convenience method for `Subscriber` object.
+
+		Usage:
+		```
+		message_type, args, kwargs = await self.PubSub.message("Library.ready!")
+		```
+
+		`message_type`, `args` and `kwargs` are the same as in PubSub callback.
+
+		'''
+		subscriber = Subscriber(self, message_type)
+		message_type, args, kwargs = await subscriber.message()
+		return message_type, args, kwargs
 
 ###
 
