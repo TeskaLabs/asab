@@ -140,7 +140,8 @@ class PubSub(object):
 
 	async def message(self, message_type):
 		'''
-		This method allows to await a specific message from a coroutine
+		This method allows to await a specific message from a coroutine.
+		It is a convenience method for `Subscriber` object.
 
 		Usage:
 		```
