@@ -1,5 +1,6 @@
 import os
 import urllib.parse
+import configparser
 
 
 def convert_to_seconds(value: str) -> float:
@@ -32,6 +33,17 @@ def convert_to_seconds(value: str) -> float:
 		raise ValueError("'{}' is not a valid time specification: {}.".format(value, e))
 
 	return value
+
+
+def string_to_boolean(value: str) -> bool:
+	"""
+	Convert common boolean string values (e.g. "yes" or "no") into boolean.
+	"""
+	if isinstance(value, bool):
+		return value
+	if value.lower() not in configparser.ConfigParser.BOOLEAN_STATES:
+		raise ValueError("Not a boolean: {}".format(value))
+	return configparser.ConfigParser.BOOLEAN_STATES[value.lower()]
 
 
 def validate_url(input_url: str, scheme):

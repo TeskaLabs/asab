@@ -362,11 +362,7 @@ class ConfigObjectDict(collections.abc.MutableMapping):
 
 	def getboolean(self, key):
 		value = self._data[key]
-		if isinstance(value, bool):
-			return value
-		if value.lower() not in configparser.ConfigParser.BOOLEAN_STATES:
-			raise ValueError("Not a boolean: {}".format(value))
-		return configparser.ConfigParser.BOOLEAN_STATES[value.lower()]
+		return utils.string_to_boolean(value)
 
 
 	def getseconds(self, key):
