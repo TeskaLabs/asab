@@ -9,8 +9,8 @@ import subprocess
 
 """
 The purpose of this script is to generate a MANIFEST.json and populate it with container creation time
-and the version of the service running in the container. The MANIFEST.json is produced during the creation 
-of docker image. When the MANIFEST.json is populated it could look something similar to illustration below 
+and the version of the service running in the container. The MANIFEST.json is produced during the creation
+of docker image. When the MANIFEST.json is populated it could look something similar to illustration below
 when generated the help of the current script.
 
 ```

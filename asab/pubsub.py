@@ -172,6 +172,7 @@ class subscribe(object):
 	def __init__(self, message_type):
 		self.message_type = message_type
 
+
 	def __call__(self, f):
 		if getattr(f, 'asab_pubsub_subscribe_to_message_types', None) is None:
 			f.asab_pubsub_subscribe_to_message_types = [self.message_type]
@@ -179,8 +180,6 @@ class subscribe(object):
 			f.asab_pubsub_subscribe_to_message_types.append(self.message_type)
 		return f
 
-
-###
 
 class Subscriber(object):
 
