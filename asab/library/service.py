@@ -57,7 +57,7 @@ class LibraryService(Service):
 
 	A library is created in "not ready" state, each provider then inform library when it is ready (eg. Zookeeper provider needs to connect to Zookeeper servers).
 	Only after all providers are ready, the library itself become ready.
-	The library indicates that by the PubSub event `ASABLibrary.ready!`.
+	The library indicates that by the PubSub event `Library.ready!`.
 	"""
 
 	def __init__(self, app, service_name, paths=None):

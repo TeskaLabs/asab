@@ -21,8 +21,8 @@ providers=git+https://github.com/TeskaLabs/asab.git
 		)
 
 		# Continue only if the library is ready
-		self.PubSub.subscribe("ASABLibrary.ready!", self.on_library_ready)
-		self.PubSub.subscribe("ASABLibrary.change!", self.on_library_change)
+		self.PubSub.subscribe("Library.ready!", self.on_library_ready)
+		self.PubSub.subscribe("Library.change!", self.on_library_change)
 
 
 	async def on_library_ready(self, event_name, library=None):
