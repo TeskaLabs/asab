@@ -1,4 +1,6 @@
 import io
+import asyncio
+import hashlib
 import typing
 import logging
 import functools
@@ -150,6 +152,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/SUSPENDED!", self._on_zk_lost)
 		self.App.PubSub.subscribe("Application.tick/60!", self._get_version_counter)
 
+		# This will check a library for changes in subscribed folders even without version counter change.
+		self.App.PubSub.subscribe("Application.tick/60!", self._on_library_changed)
+
+		self.Subscriptions = {}
+
 
 	async def finalize(self, app):
 		"""
@@ -193,6 +200,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self._check_version_counter(version)
 
 
+
+
 	def _check_version_counter(self, version):
 		# If version is `None` aka `/.version.yaml` doesn't exists, then assume version -1
 		if version is not None:
@@ -212,8 +221,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			# The version has not changed
 			return
 
-		L.info("Version changed", struct_data={'version': version, 'name': self.Library.Name})
-		self.App.PubSub.publish("Library.change!", self, "TODO")
+		asyncio.create_task(self.on_library_changed())
+
 
 
 	async def read(self, path: str) -> typing.IO:
@@ -295,3 +304,34 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		assert node_path[0] == '/'
 
 		return node_path
+
+
+	async def subscribe(self, path):
+		path = self.BasePath + path
+		self.Subscriptions[path] = await self._get_directory_hash(path)
+
+
+	async def _get_directory_hash(self, path):
+		def recursive_traversal(path, digest):
+			if not self.Zookeeper.Client.exists(path):
+				return
+
+			children = self.Zookeeper.Client.get_children(path)
+			for child in children:
+				child_path = f"{path}/{child}" if path != "/" else f"/{child}"
+				zstat = self.Zookeeper.Client.exists(child_path)
+				digest.update("{}\n{}\n".format(child_path, zstat.version).encode('utf-8')) 
+				recursive_traversal(child_path, digest)
+
+		digest = hashlib.sha1()
+		await self.Zookeeper.ProactorService.execute(recursive_traversal, path, digest)
+		return digest.digest()
+
+
+	async def _on_library_changed(self, event_name=None):
+		for path, digest in self.Subscriptions.items():
+			newdigest = await self._get_directory_hash(path)
+
+			if newdigest != digest:
+				self.Subscriptions[path] = newdigest
+				self.App.PubSub.publish("Library.change!", self, path)
