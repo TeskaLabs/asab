@@ -318,9 +318,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 			children = self.Zookeeper.Client.get_children(path)
 			for child in children:
-				child_path = f"{path}/{child}" if path != "/" else f"/{child}"
+				if path != "/":
+					child_path = "{}/{}".format(path, child)
+				else:
+					child_path = "/{}".format(child)
 				zstat = self.Zookeeper.Client.exists(child_path)
-				digest.update("{}\n{}\n".format(child_path, zstat.version).encode('utf-8')) 
+				digest.update("{}\n{}\n".format(child_path, zstat.version).encode('utf-8'))
 				recursive_traversal(child_path, digest)
 
 		digest = hashlib.sha1()
