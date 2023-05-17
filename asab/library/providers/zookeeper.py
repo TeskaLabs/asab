@@ -221,7 +221,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			# The version has not changed
 			return
 
-		asyncio.create_task(self.on_library_changed())
+		asyncio.create_task(self._on_library_changed())
 
 
 
@@ -334,7 +334,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	async def _on_library_changed(self, event_name=None):
 		for path, digest in self.Subscriptions.items():
 			newdigest = await self._get_directory_hash(path)
-
 			if newdigest != digest:
 				self.Subscriptions[path] = newdigest
 				self.App.PubSub.publish("Library.change!", self, path)
