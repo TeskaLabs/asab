@@ -124,8 +124,6 @@ class AuthService(asab.Service):
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
 		self.Tenants = None
 
-		# TODO: Fetch public keys if validation fails (instead of periodic fetch)
-		self.App.PubSub.subscribe("Application.tick/30!", self._fetch_public_keys_if_needed)
 		self.App.PubSub.subscribe("Application.tick/300!", self._update_tenants)
 
 
@@ -160,10 +158,24 @@ class AuthService(asab.Service):
 		Parse the bearer ID token and extract user info.
 		"""
 		if not self.is_ready():
-			L.error("AuthzService is not ready: No public keys loaded yet.")
-			return None
+			# Try to load the public keys again
+			if self.AuthServerPublicKey is None:
+				await self._fetch_public_keys_if_needed()
+			if not self.is_ready():
+				L.error("AuthzService is not ready: Failed to load authorization server's public keys.")
+				return None
 
-		return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
+		try:
+			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
+		except jwcrypto.jws.InvalidJWSSignature:
+			# Authz server keys may have changed. Try to reload them.
+			await self._fetch_public_keys_if_needed()
+
+		try:
+			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
+		except jwcrypto.jws.InvalidJWSSignature:
+			L.error("Invalid ID token signature.")
+			raise asab.exceptions.NotAuthenticatedError()
 
 
 	def has_superuser_access(self, authorized_resources: typing.Iterable) -> bool:
@@ -446,9 +458,6 @@ def _get_id_token_claims(bearer_token: str, auth_server_public_key):
 		token = jwcrypto.jwt.JWT(jwt=bearer_token, key=auth_server_public_key)
 	except jwcrypto.jwt.JWTExpired:
 		L.warning("ID token expired.")
-		raise asab.exceptions.NotAuthenticatedError()
-	except jwcrypto.jws.InvalidJWSSignature:
-		L.warning("Invalid ID token signature.")
 		raise asab.exceptions.NotAuthenticatedError()
 	except Exception:
 		L.exception("Failed to parse JWT ID token.")
