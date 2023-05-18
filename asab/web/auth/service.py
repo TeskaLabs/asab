@@ -128,8 +128,9 @@ class AuthService(asab.Service):
 
 
 	async def initialize(self, app):
-		await self._fetch_public_keys_if_needed()
-		await self._update_tenants()
+		if self.DevModeEnabled is False:
+			await self._fetch_public_keys_if_needed()
+			await self._update_tenants()
 
 
 	def install(self, web_container):
@@ -201,9 +202,6 @@ class AuthService(asab.Service):
 		"""
 		Check if public keys have been fetched from the authorization server and fetch them if not yet.
 		"""
-		if self.is_ready():
-			return
-
 		async with aiohttp.ClientSession() as session:
 			try:
 				async with session.get(self.PublicKeysUrl) as response:
@@ -459,6 +457,9 @@ def _get_id_token_claims(bearer_token: str, auth_server_public_key):
 	except jwcrypto.jwt.JWTExpired:
 		L.warning("ID token expired.")
 		raise asab.exceptions.NotAuthenticatedError()
+	except jwcrypto.jws.InvalidJWSSignature as e:
+		L.warning("Invalid ID token signature.")
+		raise e
 	except Exception:
 		L.exception("Failed to parse JWT ID token.")
 		raise aiohttp.web.HTTPBadRequest()
