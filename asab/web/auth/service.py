@@ -365,7 +365,7 @@ class AuthService(asab.Service):
 		if "tenant" in args:
 			if tenant_in_path:
 				handler = self._add_tenant_from_path(handler)
-			elif self.MultitenancyEnabled:
+			elif self.MultitenancyEnabled or self.DevModeEnabled:
 				handler = self._add_tenant_from_query(handler)
 			else:
 				handler = self._add_tenant_none(handler)
@@ -416,10 +416,13 @@ class AuthService(asab.Service):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 			if "tenant" not in request.query:
-				L.error("Request is missing 'tenant' query parameter.")
-				raise aiohttp.web.HTTPBadRequest()
-			tenant = request.query["tenant"]
-			self._authorize_tenant_request(request, tenant)
+				if not self.DevModeEnabled:
+					L.error("Request is missing 'tenant' query parameter.")
+					raise aiohttp.web.HTTPBadRequest()
+				tenant = None
+			else:
+				tenant = request.query["tenant"]
+				self._authorize_tenant_request(request, tenant)
 			return await handler(*args, tenant=tenant, **kwargs)
 
 		return wrapper
