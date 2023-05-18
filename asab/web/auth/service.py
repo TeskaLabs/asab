@@ -153,7 +153,7 @@ class AuthService(asab.Service):
 		return True
 
 
-	def get_userinfo_from_id_token(self, bearer_token):
+	async def get_userinfo_from_id_token(self, bearer_token):
 		"""
 		Parse the bearer ID token and extract user info.
 		"""
@@ -305,7 +305,7 @@ class AuthService(asab.Service):
 			else:
 				# Extract user info from the request Authorization header
 				bearer_token = _get_bearer_token(request)
-				user_info = self.get_userinfo_from_id_token(bearer_token)
+				user_info = await self.get_userinfo_from_id_token(bearer_token)
 
 			# Add userinfo, tenants and global resources to the request
 			request._UserInfo = user_info
