@@ -1,5 +1,6 @@
 import base64
 import binascii
+import datetime
 import functools
 import inspect
 import json
@@ -122,6 +123,10 @@ class AuthService(asab.Service):
 					"or install asab with 'authz' optional dependency.")
 
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
+		# Limit the frequency of auth server requests to save network traffic
+		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
+		self.AuthServerLastSuccessfulCheck = None
+
 		self.Tenants = None
 
 		self.App.PubSub.subscribe("Application.tick/300!", self._update_tenants)
@@ -202,6 +207,12 @@ class AuthService(asab.Service):
 		"""
 		Check if public keys have been fetched from the authorization server and fetch them if not yet.
 		"""
+		now = datetime.datetime.now(datetime.timezone.utc)
+		if self.AuthServerLastSuccessfulCheck is not None \
+			and now < self.AuthServerLastSuccessfulCheck + self.AuthServerCheckCooldown:
+			# Public keys have been fetched recently
+			return
+
 		async with aiohttp.ClientSession() as session:
 			try:
 				async with session.get(self.PublicKeysUrl) as response:
@@ -243,6 +254,7 @@ class AuthService(asab.Service):
 				return
 
 		self.AuthServerPublicKey = public_key
+		self.AuthServerLastSuccessfulCheck = datetime.datetime.now(datetime.timezone.utc)
 		L.log(asab.LOG_NOTICE, "Public key loaded.", struct_data={"url": self.PublicKeysUrl})
 
 
