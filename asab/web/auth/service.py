@@ -196,12 +196,10 @@ class AuthService(asab.Service):
 		Check if public keys have been fetched from the authorization server and fetch them if not yet.
 		"""
 		now = datetime.datetime.now(datetime.timezone.utc)
-		print(self.AuthServerLastSuccessfulCheck)
 		if self.AuthServerLastSuccessfulCheck is not None \
 			and now < self.AuthServerLastSuccessfulCheck + self.AuthServerCheckCooldown:
 			# Public keys have been fetched recently
 			return
-		print("checking server")
 
 		async with aiohttp.ClientSession() as session:
 			try:
