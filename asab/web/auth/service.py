@@ -76,9 +76,6 @@ asab.Config.add_defaults({
 		# URL location containing the authorization server's public JWK keys
 		"public_keys_url": "",
 
-		# URL location providing a JSON array of known tenants
-		"tenant_url": "",
-
 		# Whether the app is tenant-aware
 		"multitenancy": "yes",
 
@@ -100,7 +97,6 @@ class AuthService(asab.Service):
 		super().__init__(app, service_name)
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
-		self.TenantUrl = asab.Config.get("auth", "tenant_url")
 
 		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
 		if self.DevModeEnabled:
@@ -114,8 +110,6 @@ class AuthService(asab.Service):
 		else:
 			if len(self.PublicKeysUrl) == 0:
 				raise ValueError("No 'public_keys_url' provided in [auth] config section.")
-			if len(self.TenantUrl) == 0:
-				raise ValueError("No 'tenants_url' provided in [auth] config section.")
 			if jwcrypto is None:
 				raise ModuleNotFoundError(
 					"You are trying to use asab.web.authz without 'jwcrypto' installed. "
@@ -127,15 +121,10 @@ class AuthService(asab.Service):
 		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
 		self.AuthServerLastSuccessfulCheck = None
 
-		self.Tenants = None
-
-		self.App.PubSub.subscribe("Application.tick/300!", self._update_tenants)
-
 
 	async def initialize(self, app):
 		if self.DevModeEnabled is False:
 			await self._fetch_public_keys_if_needed()
-			await self._update_tenants()
 
 
 	def install(self, web_container):
@@ -152,9 +141,7 @@ class AuthService(asab.Service):
 		"""
 		if self.DevModeEnabled is True:
 			return True
-		elif self.AuthServerPublicKey is None:
-			return False
-		elif self.Tenants is None:
+		if self.AuthServerPublicKey is None:
 			return False
 		return True
 
@@ -256,46 +243,6 @@ class AuthService(asab.Service):
 		self.AuthServerPublicKey = public_key
 		self.AuthServerLastSuccessfulCheck = datetime.datetime.now(datetime.timezone.utc)
 		L.log(asab.LOG_NOTICE, "Public key loaded.", struct_data={"url": self.PublicKeysUrl})
-
-
-	async def _update_tenants(self, *args, **kwargs):
-		"""
-		Fetch tenant list and update the local cache.
-		"""
-		if self.DevModeEnabled:
-			return
-
-		async with aiohttp.ClientSession() as session:
-			try:
-				async with session.get(self.TenantUrl) as response:
-					if response.status != 200:
-						L.error("HTTP error while fetching tenants.", struct_data={
-							"status": response.status,
-							"url": self.TenantUrl,
-							"text": await response.text(),
-						})
-						return
-					try:
-						data = await response.json()
-					except json.JSONDecodeError:
-						L.error("JSON decoding error while loading tenants.", struct_data={
-							"url": self.TenantUrl,
-							"data": data,
-						})
-						return
-			except aiohttp.client_exceptions.ClientConnectorError as e:
-				L.error("Connection error while loading public keys: {}".format(e), struct_data={
-					"url": self.TenantUrl,
-				})
-				return
-
-		new_tenants = frozenset(data)
-		if self.Tenants == new_tenants:
-			L.info("Tenant list fetched. No changes.", struct_data={"url": self.TenantUrl})
-		else:
-			L.log(asab.LOG_NOTICE, "Tenant list updated.", struct_data={"url": self.TenantUrl})
-
-		self.Tenants = new_tenants
 
 
 	def _authenticate_request(self, handler):
@@ -400,11 +347,6 @@ class AuthService(asab.Service):
 		"""
 		Check access to requested tenant and add tenant resources to the request
 		"""
-		# Check if requested tenant exists (unless in dev mode)
-		if not self.DevModeEnabled and tenant not in self.Tenants:
-			L.warning("Unknown tenant.", struct_data={"tenant": tenant})
-			raise asab.exceptions.AccessDeniedError()
-
 		# Check if tenant access is authorized
 		if tenant not in request._Tenants and not request.has_superuser_access():
 			L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
