@@ -155,19 +155,20 @@ class AuthService(asab.Service):
 			if self.AuthServerPublicKey is None:
 				await self._fetch_public_keys_if_needed()
 			if not self.is_ready():
-				L.error("AuthzService is not ready: Failed to load authorization server's public keys.")
-				return None
+				L.error("Cannot authenticate request: Failed to load authorization server's public keys.")
+				raise aiohttp.web.HTTPUnauthorized()
 
 		try:
 			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
 		except jwcrypto.jws.InvalidJWSSignature:
 			# Authz server keys may have changed. Try to reload them.
+			L.warning("Invalid ID token signature.")
 			await self._fetch_public_keys_if_needed()
 
 		try:
 			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
 		except jwcrypto.jws.InvalidJWSSignature:
-			L.error("Invalid ID token signature.")
+			L.error("Cannot authenticate request: Invalid ID token signature.")
 			raise asab.exceptions.NotAuthenticatedError()
 
 
@@ -195,10 +196,12 @@ class AuthService(asab.Service):
 		Check if public keys have been fetched from the authorization server and fetch them if not yet.
 		"""
 		now = datetime.datetime.now(datetime.timezone.utc)
+		print(self.AuthServerLastSuccessfulCheck)
 		if self.AuthServerLastSuccessfulCheck is not None \
 			and now < self.AuthServerLastSuccessfulCheck + self.AuthServerCheckCooldown:
 			# Public keys have been fetched recently
 			return
+		print("checking server")
 
 		async with aiohttp.ClientSession() as session:
 			try:
@@ -252,10 +255,6 @@ class AuthService(asab.Service):
 		"""
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
-			if not self.is_ready():
-				L.error("Cannot authenticate request: AuthzService is not ready.")
-				raise aiohttp.web.HTTPUnauthorized()
-
 			request = args[-1]
 			if self.DevModeEnabled:
 				user_info = self.DevUserInfo
@@ -263,6 +262,8 @@ class AuthService(asab.Service):
 				# Extract user info from the request Authorization header
 				bearer_token = _get_bearer_token(request)
 				user_info = await self.get_userinfo_from_id_token(bearer_token)
+
+			assert user_info is not None
 
 			# Add userinfo, tenants and global resources to the request
 			request._UserInfo = user_info
@@ -412,7 +413,6 @@ def _get_id_token_claims(bearer_token: str, auth_server_public_key):
 		L.warning("ID token expired.")
 		raise asab.exceptions.NotAuthenticatedError()
 	except jwcrypto.jws.InvalidJWSSignature as e:
-		L.warning("Invalid ID token signature.")
 		raise e
 	except Exception:
 		L.exception("Failed to parse JWT ID token.")
