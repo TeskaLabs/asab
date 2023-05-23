@@ -40,6 +40,12 @@ def convert_to_bytes(size):
 	Convert a size string to bytes. The size string should be a number
 	optionally followed by a unit (B, kB, MB, GB, or TB), e.g., "10MB".
 
+	Example of the usage:
+	
+	```
+	self.RotateAtSize = asab.utils.convert_to_bytes(asab.Config.get('rotate_size', '50G'))
+	```
+
 	:param size: Size string.
 	:return: Size in bytes.
 	:raise ValueError: If the size string does not have the correct format.
