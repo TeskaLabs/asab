@@ -43,7 +43,14 @@ def convert_to_bytes(size):
 	Example of the usage:
 
 	```
-	self.RotateAtSize = asab.utils.convert_to_bytes(asab.Config.get('rotate_size', '50G'))
+	self.RotateAtSize = asab.utils.convert_to_bytes(asab.Config.get('general', 'rotate_size'))
+	```
+
+	Example of the config:
+
+	```
+	[general]
+	rotate_size=30G
 	```
 
 	:param size: Size string.
