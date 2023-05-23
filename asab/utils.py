@@ -35,6 +35,54 @@ def convert_to_seconds(value: str) -> float:
 	return value
 
 
+def convert_to_bytes(size):
+	"""
+	Convert a size string to bytes. The size string should be a number
+	optionally followed by a unit (B, kB, MB, GB, or TB), e.g., "10MB".
+
+	:param size: Size string.
+	:return: Size in bytes.
+	:raise ValueError: If the size string does not have the correct format.
+	"""
+	units = {
+		"B": 1,
+
+		"kB": 10**3,
+		"MB": 10**6,
+		"GB": 10**9,
+		"TB": 10**12,
+
+		# These are typicall shortcuts that users take, we support them as well
+		"k": 10**3,
+		"K": 10**3,
+		"M": 10**6,
+		"G": 10**9,
+		"T": 10**12,
+
+	}
+	size = size.strip()  # remove leading and trailing whitespace
+
+	if size.isdigit():
+		# size is just a number, so it's already in bytes
+		return int(size)
+
+	# size has a unit, find where the number part ends
+	for i, char in enumerate(size):
+		if not char.isdigit() and char != '.':
+			break
+	else:
+		# no unit found
+		raise ValueError("Invalid size string: {}".format(size))
+
+	number = size[:i]
+	unit = size[i:].strip()
+
+	if unit not in units:
+		raise ValueError("Invalid unit: {}".format(unit))
+
+	return int(float(number) * units[unit])
+
+
 def string_to_boolean(value: str) -> bool:
 	"""
 	Convert common boolean string values (e.g. "yes" or "no") into boolean.
