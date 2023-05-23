@@ -41,7 +41,7 @@ def convert_to_bytes(size):
 	optionally followed by a unit (B, kB, MB, GB, or TB), e.g., "10MB".
 
 	Example of the usage:
-	
+
 	```
 	self.RotateAtSize = asab.utils.convert_to_bytes(asab.Config.get('rotate_size', '50G'))
 	```
