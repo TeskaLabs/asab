@@ -348,7 +348,7 @@ class Application(metaclass=Singleton):
 			if hasattr(self.Loop, "shutdown_asyncgens"):
 				self.Loop.run_until_complete(self.Loop.shutdown_asyncgens())
 			self.Loop.close()
-		
+
 		finally:
 			if self.ExitCode == "!RESTART!":
 				os.execv(sys.executable, [os.path.basename(sys.executable)] + sys.argv)
