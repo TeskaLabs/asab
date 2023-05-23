@@ -325,27 +325,35 @@ class Application(metaclass=Singleton):
 
 		))
 
-		# Comence run-time and application main() function
-		L.log(LOG_NOTICE, "is ready.")
-		self._stop_event.clear()
-		self.Loop.run_until_complete(asyncio.gather(
-			self._run_time_governor(),
-			self.main(),
-		))
+		try:
+			# Comence run-time and application main() function
+			L.log(LOG_NOTICE, "is ready.")
+			self._stop_event.clear()
+			self.Loop.run_until_complete(asyncio.gather(
+				self._run_time_governor(),
+				self.main(),
+			))
 
-		# Comence exit-time
-		L.log(LOG_NOTICE, "is exiting ...")
-		self.Loop.run_until_complete(asyncio.gather(
-			self.finalize(),
-			self._exit_time_governor(),
-		))
+			# Comence exit-time
+			if self.ExitCode == "!RESTART!":
+				L.log(LOG_NOTICE, "is restarting ...")
+			else:
+				L.log(LOG_NOTICE, "is exiting ...", struct_data={'exit_code': self.ExitCode})
+			self.Loop.run_until_complete(asyncio.gather(
+				self.finalize(),
+				self._exit_time_governor(),
+			))
 
-		# Python 3.5 lacks support for shutdown_asyncgens()
-		if hasattr(self.Loop, "shutdown_asyncgens"):
-			self.Loop.run_until_complete(self.Loop.shutdown_asyncgens())
-		self.Loop.close()
-
-		return self.ExitCode
+			# Python 3.5 lacks support for shutdown_asyncgens()
+			if hasattr(self.Loop, "shutdown_asyncgens"):
+				self.Loop.run_until_complete(self.Loop.shutdown_asyncgens())
+			self.Loop.close()
+		
+		finally:
+			if self.ExitCode == "!RESTART!":
+				os.execv(sys.executable, [os.path.basename(sys.executable)] + sys.argv)
+			else:
+				return self.ExitCode
 
 
 	def stop(self, exit_code: int = None):
@@ -368,6 +376,24 @@ class Application(metaclass=Singleton):
 
 		elif self._stop_counter > 1:
 			L.warning("{} tasks still active".format(len(asyncio.all_tasks())))
+
+
+	def _do_restart(self, event_name):
+		self.stop("!RESTART!")
+
+	def restart(self):
+		'''
+		Schedules a hard restart of the whole application.
+
+		This function works by using os.execv(), which replaces the current process with a new one (without creating a new process ID).
+		Arguments and environment variables will be retained.
+
+		IMPORTANT: Please note that this will work on Unix-based systems only, as it uses a feature specific to Unix.
+
+		A piece of advice: Be careful while using this function, make sure you have some control over when and how this function is being called to avoid any unexpected process restarts.
+		It is not common to use these types of function calls in Python applications.
+		'''
+		self.PubSub.subscribe("Application.tick/10!", self._do_restart)
 
 
 	def _hup(self):
@@ -559,7 +585,13 @@ class Application(metaclass=Singleton):
 
 
 	def set_exit_code(self, exit_code: int, force: bool = False):
-		if (self.ExitCode < exit_code) or force:
+		if self.ExitCode == "!RESTART!":
+			return
+
+		if exit_code == "!RESTART!":
+			self.ExitCode = exit_code
+
+		elif (self.ExitCode < exit_code) or force:
 			L.debug("Exit code set to {}".format(exit_code))
 			self.ExitCode = exit_code
 
