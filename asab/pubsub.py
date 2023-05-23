@@ -126,7 +126,10 @@ class PubSub(object):
 
 		else:
 			for callback in self._callback_iter(message_type):
-				callback(message_type, *args, **kwargs)
+				try:
+					callback(message_type, *args, **kwargs)
+				except Exception:
+					L.exception("Error in a PubSub callback", struct_data={'message_type': message_type})
 
 
 	def publish_threadsafe(self, message_type, *args, **kwargs):
