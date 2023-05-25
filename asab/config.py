@@ -142,7 +142,7 @@ class ConfigParser(configparser.ConfigParser):
 		if '\n' in includes:
 			sep = '\n'
 		else:
-			sep = os.pathsep
+			sep = " "
 
 		for include_glob in includes.split(sep):
 			include_glob = include_glob.strip()
