@@ -7,8 +7,10 @@ def convert_to_seconds(value: str) -> float:
 	"""
 	Parse time duration string (e.g. "3h", "20m" or "1y") and convert it into seconds.
 	"""
-	value = value.replace(" ", "")
+	if isinstance(value, (int, float)):
+		return float(value)
 
+	value = value.replace(" ", "")
 	try:
 		# Second condition in each IF is for backward compatibility
 		if value.endswith("ms"):
