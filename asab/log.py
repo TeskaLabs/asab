@@ -411,6 +411,10 @@ It implements a queue for decoupling logging from a networking. The networking i
 			self._socket = socket.socket(self._family, self._type)
 			self._socket.setblocking(0)
 			self._socket.connect(self._address)
+
+		except BlockingIOError as e:
+			print("Socket syslog connection is in progress to '{}'".format(self._address), e)
+
 		except Exception as e:
 			print("Error when opening syslog connection to '{}'".format(self._address), e, file=sys.stderr)
 			return
@@ -426,7 +430,7 @@ It implements a queue for decoupling logging from a networking. The networking i
 		while not self._queue.empty():
 			# TODO: Handle eventual error in writing -> break the cycle and restart on write handler
 			msg = self._queue.get_nowait()
-			self._socket.sendall(msg)
+			self._socket.sendall(msg + b'\n')
 
 
 	def _on_read(self):
@@ -445,12 +449,15 @@ It implements a queue for decoupling logging from a networking. The networking i
 		'''
 		This is the entry point for log entries.
 		'''
+
 		try:
 			msg = self.format(record).encode('utf-8')
 
 			if self._write_ready:
+
 				try:
-					self._socket.sendall(msg)
+					self._socket.sendall(msg + b'\n')
+
 				except Exception as e:
 					print("Error when writing to syslog '{}'".format(self._address), e, file=sys.stderr)
 					self._enqueue(msg)

@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
+import logging
+
 import asab
+
+#
+
+L = logging.getLogger(__name__)
+
+#
 
 
 class TimerApplication(asab.Application):
@@ -12,7 +20,7 @@ class TimerApplication(asab.Application):
 
 
 	async def on_tick(self):
-		print("Think!")
+		L.log(asab.LOG_NOTICE, "Think!")
 
 
 if __name__ == '__main__':
