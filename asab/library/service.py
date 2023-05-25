@@ -255,7 +255,6 @@ class LibraryService(Service):
 			library.list(path, index)
 			for index, library in enumerate(providers)
 		], return_exceptions=True)
-
 		items = []
 		uniq = dict()
 		for ress in result:
@@ -279,14 +278,20 @@ class LibraryService(Service):
 						# Directories are joined
 						pitem.providers.extend(item.providers)
 
+					elif pitem.type == 'item':
+						for i, provider in enumerate(providers):
+							if provider in item.providers:
+								index = i
+								break
+						pitem.override = index
 					# Other item types are skipped
-					continue
+					else:
+						continue
 
 				uniq[item.name] = item
 				items.append(item)
 
 		items.sort(key=lambda x: x.name)
-
 		return items
 
 

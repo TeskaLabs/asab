@@ -118,21 +118,12 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			if any(x.startswith('.') for x in fname.split('/')):
 				continue
 
-			if index == 0:
-				items.append(LibraryItem(
-					name=fname,
-					type=ftype,
-					layer=index,
-					providers=[self],
-					override=True,
-				))
-			else:
-				items.append(LibraryItem(
-					name=fname,
-					type=ftype,
-					layer=index,
-					providers=[self],
-				))
+			items.append(LibraryItem(
+				name=fname,
+				type=ftype,
+				layer=index,
+				providers=[self],
+			))
 
 		return items
 

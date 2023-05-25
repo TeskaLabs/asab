@@ -29,4 +29,4 @@ class LibraryItem:
     layer: int
     providers: list
     disabled: bool = False
-    override: bool = False  # Default value for override is False
+    override: int = 0  # Default value for override is False
