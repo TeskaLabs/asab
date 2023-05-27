@@ -134,7 +134,7 @@ class Application(metaclass=Singleton):
 		self.HousekeepingTime, self.HousekeepingTimeLimit, self.HousekeepingId = self._initialize_housekeeping_schedule()
 		self.HousekeepingMissedEvents: list = []
 		# Every 10 minutes listen for housekeeping
-		self.PubSub.subscribe("Application.tick!", self._on_housekeeping_tick)
+		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
 
 
 	def create_argument_parser(
