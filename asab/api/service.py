@@ -200,6 +200,10 @@ class ApiService(Service):
 		if node_id is not None:
 			adv_data["node_id"] = node_id
 
+		service_id = os.getenv('SERVICE_ID', None)
+		if service_id is not None:
+			adv_data["service_id"] = service_id
+
 		if running_in_container():
 			adv_data["containerized"] = True
 
@@ -212,18 +216,6 @@ class ApiService(Service):
 
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
-
-		node_id = os.getenv('NODE_ID', None)
-		if node_id is not None:
-			adv_data["node_id"] = node_id
-
-		service_id = os.getenv('SERVICE_ID', None)
-		if service_id is not None:
-			adv_data["service_id"] = service_id
-
-		instance_id = os.getenv('INSTANCE_ID', None)
-		if instance_id is not None:
-			adv_data["instance_id"] = instance_id
 
 		self.ZkContainer.advertise(
 			data=adv_data,
