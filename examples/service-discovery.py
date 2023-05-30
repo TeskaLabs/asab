@@ -69,7 +69,7 @@ class MyApplication(asab.Application):
 				async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
 					if resp.status == 200:
 						config = await resp.json()
-			except asab.api.discovery.NotResolvedError as e:
+			except asab.api.discovery.NotDiscoveredError as e:
 				L.error(e)
 
 		if config is None:

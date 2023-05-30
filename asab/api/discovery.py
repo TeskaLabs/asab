@@ -65,8 +65,9 @@ class DiscoveryService(Service):
 					continue
 
 			web = instance.get("web")
-			servername = instance.get("servername")
-			if web is None or servername is None:
+			host = instance.get("node_id", instance.get("host"))
+
+			if web is None or host is None:
 				continue
 			for i in web:
 				try:
@@ -77,7 +78,7 @@ class DiscoveryService(Service):
 					return
 				if ip not in ("0.0.0.0", "::"):
 					continue
-				res.append((servername, port))
+				res.append((host, port))
 		return res
 
 
