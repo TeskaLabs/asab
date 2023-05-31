@@ -348,8 +348,12 @@ class AuthService(asab.Service):
 		"""
 		# Check if tenant access is authorized
 		if tenant not in request._Tenants:
-			L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
-			raise asab.exceptions.AccessDeniedError()
+			if self.DevModeEnabled:
+				L.log(asab.LOG_NOTICE, "DEV MODE: Authorizing tenant {!r}.".format(tenant))
+				request._UserInfo["resources"][tenant] = request._Resources
+			else:
+				L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
+				raise asab.exceptions.AccessDeniedError()
 
 		# Extend globally granted resources with tenant-granted resources
 		request._Resources = frozenset(request._Resources.union(request._UserInfo["resources"].get(tenant, [])))
