@@ -5,6 +5,7 @@ import functools
 import inspect
 import json
 import logging
+import os.path
 import typing
 import time
 
@@ -51,22 +52,20 @@ DEV_USERINFO_DEFAULT = {
 		# Globally granted resources
 		"*": [
 			"authz:superuser",
-			"wisdom:access"
 		],
-		# Resources granted within test-tenant
+		# Resources granted within the tenant "default"
+		"default": [
+			"authz:superuser",
+			"some-test-data:access",
+		],
+		# Resources granted within the tenant "test-tenant"
 		"test-tenant": [
 			"authz:superuser",
-			"wisdom:access",
-			"cake:admire",
-			"cake:smell",
 			"cake:eat",
 		],
 	},
 	# Subject's assigned (not authorized!) tenants
-	"tenants": [
-		"test-tenant",
-		"another-tenant",
-	]
+	"tenants": ["default", "test-tenant", "another-tenant"]
 }
 
 SUPERUSER_RESOURCE = "authz:superuser"
@@ -83,7 +82,7 @@ asab.Config.add_defaults({
 		# - no authorization server is needed,
 		# - all incoming requests are "authorized" with custom mocked user info data loaded from a JSON file,
 		"dev_mode": "no",
-		"dev_user_info_path": "",
+		"dev_user_info_path": "/conf/dev-userinfo.json",
 	}
 })
 
@@ -100,13 +99,27 @@ class AuthService(asab.Service):
 
 		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
 		if self.DevModeEnabled:
-			L.warning("AuthService is running in developer mode.")
-			dev_user_info = asab.Config.get("auth", "dev_user_info_path")
-			if dev_user_info:
-				with open(dev_user_info, "rb") as fp:
+			# Load custom user info
+			dev_user_info_path = asab.Config.get("auth", "dev_user_info_path")
+			if os.path.isfile(dev_user_info_path):
+				with open(dev_user_info_path, "rb") as fp:
 					self.DevUserInfo = json.load(fp)
 			else:
 				self.DevUserInfo = DEV_USERINFO_DEFAULT
+
+			# Validate user info
+			resources = self.DevUserInfo.get("resources", {})
+			if not isinstance(resources, dict) or not all(
+				map(lambda kv: isinstance(kv[0], str) and isinstance(kv[1], list), resources.items())
+			):
+				raise ValueError("User info 'resources' must be an object with string keys and array values.")
+
+			L.warning(
+				"AuthService is running in DEV MODE. All web requests will be authorized with mock user info, which "
+				"currently grants access to the following tenants: {}. To customize dev mode authorization (add or "
+				"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
+					list(t for t in self.DevUserInfo.get("resources", {}).keys() if t != "*"),
+					dev_user_info_path))
 		else:
 			if len(self.PublicKeysUrl) == 0:
 				raise ValueError("No 'public_keys_url' provided in [auth] config section.")

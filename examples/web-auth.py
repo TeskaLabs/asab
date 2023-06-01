@@ -15,7 +15,7 @@ asab.Config["auth"]["multitenancy"] = "yes"
 # The requests' Authorization headers are ignored and AuthService provides mock authorization with mock user info.
 # You can provide custom user info by specifying `dev_user_info_path` pointing to your JSON file.
 asab.Config["auth"]["dev_mode"] = "yes"
-asab.Config["auth"]["dev_user_info_path"] = ""
+asab.Config["auth"]["dev_user_info_path"] = "./dev-userinfo.json"
 
 # URL of the authorization server's JWK public keys, used for ID token verification.
 # This option is ignored in dev mode.
@@ -36,9 +36,10 @@ class MyApplication(asab.Application):
 		self.WebService = self.get_service("asab.WebService")
 		self.WebContainer = asab.web.WebContainer(self.WebService, "web")
 
+		self.WebContainer.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
+
 		# Initialize authorization
 		self.AuthService = asab.web.auth.AuthService(self)
-		self.WebContainer.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 		self.AuthService.install(self.WebContainer)
 
 		# Add routes
