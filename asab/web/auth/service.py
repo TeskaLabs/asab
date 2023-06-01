@@ -51,15 +51,11 @@ DEV_USERINFO_DEFAULT = {
 		# Globally granted resources
 		"*": [
 			"authz:superuser",
-			"wisdom:access"
 		],
 		# Resources granted within test-tenant
 		"test-tenant": [
 			"authz:superuser",
-			"wisdom:access",
-			"cake:admire",
-			"cake:smell",
-			"cake:eat",
+			"wisdom:access"
 		],
 	},
 	# Subject's assigned (not authorized!) tenants
