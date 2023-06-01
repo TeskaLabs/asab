@@ -304,7 +304,7 @@ class LibraryService(Service):
 				if self.History is None:
 					self.History = []
 				else:
-					# history must be a history object
+					# history must be a list object
 					assert (isinstance(self.History, list)), "The 'Disabled' attribute must be a history instance."
 			except Exception:
 				self.History = []
