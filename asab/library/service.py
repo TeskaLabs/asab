@@ -73,6 +73,7 @@ class LibraryService(Service):
 		super().__init__(app, service_name)
 		self.Libraries = list()
 		self.Disabled = {}
+		self.History = []
 
 		if paths is None:
 			try:
@@ -97,6 +98,7 @@ class LibraryService(Service):
 
 	async def on_tick(self, message_type):
 		await self._read_disabled()
+		await self._read_history()
 
 
 	def _create_library(self, path):
@@ -290,6 +292,24 @@ class LibraryService(Service):
 		return items
 
 
+	async def _read_history(self):
+		# `.history.yaml` is read from the first configured library
+		# It is applied on all libraries in the configuration.
+		history = await self.Libraries[0].read('/.history.yaml')
+		if history is None:
+			self.History = []
+		else:
+			try:
+				self.History = yaml.safe_load(history)
+				if self.History is None:
+					self.History = []
+				else:
+					# history must be a history object
+					assert (isinstance(self.History, list)), "The 'Disabled' attribute must be a history instance."
+			except Exception:
+				self.History = []
+				L.exception("Failed to parse '/.history.yaml'")
+
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
 		# It is applied on all libraries in the configuration.
@@ -307,6 +327,7 @@ class LibraryService(Service):
 			except Exception:
 				self.Disabled = {}
 				L.exception("Failed to parse '/.disabled.yaml'")
+
 
 
 	def check_disabled(self, path, tenant=None):
