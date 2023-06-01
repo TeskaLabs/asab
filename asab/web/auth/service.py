@@ -344,8 +344,8 @@ class AuthService(asab.Service):
 		"""
 		# Check if tenant access is authorized
 		if tenant not in request._Tenants:
-			if self.DevModeEnabled:
-				# Authorize the tenant explicitly when in dev mode
+			if self.DevModeEnabled and request.has_superuser_access():
+				# Authorize the tenant explicitly when in dev mode and the request has superuser access
 				self.DevUserInfo["resources"][tenant] = self.DevUserInfo["resources"].get("*", [])
 				L.warning("(DEV MODE) Authorizing additional tenant {!r} with resources {}.".format(
 					tenant, self.DevUserInfo["resources"][tenant]))
