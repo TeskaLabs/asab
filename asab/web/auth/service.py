@@ -346,8 +346,9 @@ class AuthService(asab.Service):
 		if tenant not in request._Tenants:
 			if self.DevModeEnabled:
 				# Authorize the tenant explicitly when in dev mode
-				request._UserInfo["resources"][tenant] = request._UserInfo["resources"].get("*", [])
-				L.log(asab.LOG_NOTICE, "DEV MODE: Authorizing tenant {!r}.".format(tenant))
+				self.DevUserInfo["resources"][tenant] = self.DevUserInfo["resources"].get("*", [])
+				L.log(asab.LOG_NOTICE, "(DEV MODE) Authorizing tenant {!r} with resources {}.".format(
+					tenant, self.DevUserInfo["resources"][tenant]))
 			else:
 				L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
 				raise asab.exceptions.AccessDeniedError()
