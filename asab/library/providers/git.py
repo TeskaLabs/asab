@@ -26,18 +26,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	FileSystemLibraryProvider to read the files.
 	To read from local git repository, please use FileSystemProvider.
 
-	Configuration:
-	(Use either deploytoken, publickey+privatekey for SSH option, or username and password and HTTP access.)
-
 	```
 	[library]
 	providers=git+<URL or deploy token>#<branch name>
 
 	[library:git]
-	publickey=<absolute path to file>
-	privatekey=<absolute path to file>
-	username=johnsmith
-	password=secretpassword
 	repodir=<optional location of the repository cache>
 	```
 	"""
@@ -51,8 +44,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		else:
 			self.Branch = None
 			self.URL = path[4:]
-
-		self.Callbacks = pygit2.RemoteCallbacks(get_git_credentials(self.URL))
 
 		repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
@@ -77,7 +68,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.SubscribedPaths = set()
 
 		self.App.TaskService.schedule(self.intialize_git_repo())
-		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
+		self.App.PubSub.subscribe("Application.tick/10!", self._periodic_pull)
 
 
 	async def _periodic_pull(self, event_name):
@@ -93,7 +84,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.PullLock = True
 
 		try:
-			await self.ProactorService.execute(self.pull)
+			to_publish = await self.ProactorService.execute(self.pull)
+			# Once reset of the head is finished, PubSub message about the change in the subsrcibed directory gets published.
+			for path in to_publish:
+				self.App.PubSub.publish("Library.change!", self, path)
 		except pygit2.GitError:
 			L.warning("Periodic pull from the remote repository failed.")
 		finally:
@@ -109,7 +103,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					os.makedirs(self.RepoPath, mode=0o700)
 				except FileExistsError:
 					pass
-				self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, callbacks=self.Callbacks, checkout_branch=self.Branch)
+				self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, checkout_branch=self.Branch)
 			else:
 				# For existing repository, pull the latest changes
 				self.GitRepository = pygit2.Repository(self.RepoPath)
@@ -139,7 +133,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		if self.GitRepository is None:
 			return None
 
-		self.GitRepository.remotes["origin"].fetch(callbacks=self.Callbacks)
+		self.GitRepository.remotes["origin"].fetch()
 		if self.Branch is None:
 			reference = self.GitRepository.lookup_reference("refs/remotes/origin/HEAD")
 		else:
@@ -150,9 +144,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 	def pull(self):
 		new_commit_id = self.fetch()
+		if new_commit_id == self.GitRepository.head.target:
+			return []
 
-		# Before new head is set, check the diffs. If changes in subscribed directory occured, set `publish` flag.
-
+		# Before new head is set, check the diffs. If changes in subscribed directory occured, add path to "to_publish" list.
 		to_publish = []
 		for path in self.SubscribedPaths:
 			for i in self.GitRepository.diff(self.GitRepository.head.target, new_commit_id).deltas:
@@ -161,41 +156,13 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				elif ("/" + i.old_file.path).startswith(path):
 					to_publish.append(path)
 
-		if new_commit_id == self.GitRepository.head.target:
-			return
-
 		# Reset HEAD
 		self.GitRepository.head.set_target(new_commit_id)
 		self.GitRepository.reset(new_commit_id, pygit2.GIT_RESET_HARD)
 
-		# Once reset of the head is finished, PubSub message about the change in the subsrcibed directory gets published.
-		for path in to_publish:
-			self.App.PubSub.publish("Library.change!", self, path)
+		return to_publish
 
 	async def subscribe(self, path):
 		if not os.path.isdir(self.BasePath + path):
 			return
 		self.SubscribedPaths.add(path)
-
-
-def get_git_credentials(url):
-	"""
-	Returns a pygit2.Credentials object that can be used to authenticate with the git repository
-
-	:param url: The URL of the repository you want to clone
-	:return: A pygit2.Keypair object or a pygit2.UserPass object
-	"""
-	username = Config.get("library:git", "username", fallback=None)
-	password = Config.get("library:git", "password", fallback=None)
-	publickey = Config.get("library:git", "publickey", fallback=None)
-	privatekey = Config.get("library:git", "privatekey", fallback=None)
-
-	if publickey is not None and privatekey is not None:
-		return pygit2.Keypair(username_from_url(url), publickey, privatekey, "")
-
-	elif username is not None and password is not None:
-		return pygit2.UserPass(username, password)
-
-
-def username_from_url(url):
-	return url.split("@")[0]
