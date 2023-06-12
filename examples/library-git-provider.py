@@ -13,6 +13,10 @@ class MyApplication(asab.Application):
 		# If the branch does not exist, KeyError is raised with the message: "reference 'refs/remotes/origin/...' not found"
 		asab.Config["library"]["providers"] = "git+https://github.com/TeskaLabs/asab.git"
 
+		# The repository will be cloned to a temporary directory. You can optionally specify the path like this:
+		# asab.Config["library:git"]["repodir"] = "/tmp/asab.provider.git/awesome_project"
+
+
 		self.LibraryService = asab.library.LibraryService(self, "LibraryService", )
 
 		# Specify the directory path. It must start and end with "/"!
@@ -23,6 +27,7 @@ class MyApplication(asab.Application):
 
 
 	async def on_library_ready(self, event_name, library):
+
 		items = await self.LibraryService.list(self.Path, recursive=True)
 
 		print("=" * 10)
