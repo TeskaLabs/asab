@@ -166,6 +166,9 @@ After the deploy token is created, use the URL for repository in the following f
 
     https://<username>:<deploy_token>@gitlab.example.com/john/awesome_project.git
 
+Reference
+~~~~~~~~~
+
 .. py:currentmodule:: asab.library.providers.git
 
 .. autoclass:: GitLibraryProvider
