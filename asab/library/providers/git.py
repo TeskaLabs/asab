@@ -84,7 +84,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.PullLock = True
 
 		try:
-			to_publish = await self.ProactorService.execute(self.pull)
+			to_publish = await self.ProactorService.execute(self._do_pull)
 			# Once reset of the head is finished, PubSub message about the change in the subsrcibed directory gets published.
 			for path in to_publish:
 				self.App.PubSub.publish("Library.change!", self, path)
@@ -107,7 +107,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			else:
 				# For existing repository, pull the latest changes
 				self.GitRepository = pygit2.Repository(self.RepoPath)
-				self.pull()
+				self._do_pull()
 
 		try:
 			await self.ProactorService.execute(init_task)
@@ -124,7 +124,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		await self._set_ready()
 
 
-	def fetch(self):
+	def _do_fetch(self):
 		"""
 		It fetches the remote repository and returns the commit ID of the remote branch
 
@@ -142,8 +142,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		return commit_id
 
 
-	def pull(self):
-		new_commit_id = self.fetch()
+	def _do_pull(self):
+		new_commit_id = self._do_fetch()
 		if new_commit_id == self.GitRepository.head.target:
 			return []
 
@@ -151,9 +151,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		to_publish = []
 		for path in self.SubscribedPaths:
 			for i in self.GitRepository.diff(self.GitRepository.head.target, new_commit_id).deltas:
-				if path == "/":
-					to_publish.append(path)
-				elif ("/" + i.old_file.path).startswith(path):
+				if ("/" + i.old_file.path).startswith(path):
 					to_publish.append(path)
 
 		# Reset HEAD
