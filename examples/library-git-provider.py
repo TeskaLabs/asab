@@ -9,11 +9,14 @@ class MyApplication(asab.Application):
 		super().__init__()
 
 		# Specify the location of the library
+		# The branch can be optionally specified in the URL fragment (after '#')
+		# If the branch does not exist, KeyError is raised with the message: "reference 'refs/remotes/origin/...' not found"
 		asab.Config["library"]["providers"] = "git+https://github.com/TeskaLabs/asab.git"
 
-		self.LibraryService = asab.library.LibraryService(self, "LibraryService")
+		self.LibraryService = asab.library.LibraryService(self, "LibraryService", )
 
-		self.Path = "/examples/data/"  # path to directory must start and end with "/"
+		# Specify the directory path. It must start and end with "/"!
+		self.Path = "/examples/data/"
 
 		# Continue only if the library is ready
 		self.PubSub.subscribe("Library.ready!", self.on_library_ready)
@@ -23,12 +26,12 @@ class MyApplication(asab.Application):
 		items = await self.LibraryService.list(self.Path, recursive=True)
 
 		print("=" * 10)
-		print("# Testing git provider with ASAB Library\n")
+		print("# Testing Git provider with ASAB Library\n")
 		print("The repository is cloned to a temporary directory: {}".format(self.LibraryService.Libraries[0].RepoPath))
 		print("=" * 10)
 
 		if len(items) == 0:
-			print("There are no items in directory {}!".format())
+			print("There are no items in directory {}!".format(self.Path))
 		else:
 			print("Items:")
 
