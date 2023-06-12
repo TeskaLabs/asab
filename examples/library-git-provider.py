@@ -27,8 +27,12 @@ class MyApplication(asab.Application):
 
 		print("=" * 10)
 		print("# Testing Git provider with ASAB Library\n")
-		print("The repository is cloned to a temporary directory: {}".format(self.LibraryService.Libraries[0].RepoPath))
-		print("=" * 10)
+		print("The repository is cloned to a temporary directory: {}\n".format(self.LibraryService.Libraries[0].RepoPath))
+
+		if self.LibraryService.Libraries[0].Branch is not None:
+			print("On branch: {}\n".format(self.LibraryService.Libraries[0].Branch))
+		else:
+			print("On branch: master/main\n")
 
 		if len(items) == 0:
 			print("There are no items in directory {}!".format(self.Path))
