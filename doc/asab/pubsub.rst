@@ -1,3 +1,5 @@
+.. _pubsub_page:
+
 Publish-Subscribe
 =================
 

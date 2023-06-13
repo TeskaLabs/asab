@@ -26,13 +26,13 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	FileSystemLibraryProvider to read the files.
 	To read from local git repository, please use FileSystemProvider.
 
-	```
-	[library]
-	providers=git+<URL or deploy token>#<branch name>
+	.. code::
 
-	[library:git]
-	repodir=<optional location of the repository cache>
-	```
+		[library]
+		providers=git+<URL or deploy token>#<branch name>
+
+		[library:git]
+		repodir=<optional location of the repository cache>
 	"""
 	def __init__(self, library, path):
 
