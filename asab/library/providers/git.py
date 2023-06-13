@@ -40,7 +40,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		split_path = path.split("#", 1)
 		if len(split_path) > 1:
 			self.Branch = split_path[-1]
-			self.URL = split_path[0][4:]
+			self.URL = split_path[0][4:]  # omit 'git+' part
 		else:
 			self.Branch = None
 			self.URL = path[4:]

@@ -129,6 +129,46 @@ Microsoft Azure Storage
 Git repository
 ^^^^^^^^^^^^^^
 
+Connection to git repositories requires `pygit2 <https://www.pygit2.org/>`_ library to be installed.
+
+Example of configuration:
+
+.. code:: ini
+
+    [library]
+    providers: git+https://github.com/john/awesome_project.git
+
+Functionality
+~~~~~~~~~~~~~
+
+The git provider clones the repository into a temporary directory and then uses the File System Provider to read the files from it. The default path for the cloned repository is `/tmp/asab.library.git/` and it can be changed manually:
+
+.. code:: ini
+
+    [library:git]
+    repodir=path/to/repository/cache
+
+
+Deploy tokens in GitLab
+~~~~~~~~~~~~~~~~~~~~~~~
+GitLab uses deploy tokens to enable authentication of deployment tasks, independent of a user account. A `deploy token` is an SSH key that grants access to a single repository. The public part of the key is attached directly to the repository instead of a personal account, and the private part of the key remains on the server. It is the preferred preferred way over changing local SSH settings.
+
+If you want to create a deploy token for your GitLab repository, follow these steps from the `manual <https://docs.gitlab.com/ee/user/project/deploy_tokens/#create-a-deploy-token>`_:
+
+1. Go to **Settings > Repository > Deploy tokens** section in your repository. (Note that you have to possess "Maintainer" or "Owner" role for the repository.)
+2. Expand the "Deploy tokens" section. The list of current Active Deploy Tokens will be displayed. 
+3. Complete the fields and scopes. We recommend to specify custom "username", as you will need it later for the url in configuration.
+4. Record the deploy token's values *before leaving or refreshing the page*! After that, you cannot access it again.
+
+After the deploy token is created, use the URL for repository in the following format:
+
+.. code::
+
+    https://<username>:<deploy_token>@gitlab.example.com/john/awesome_project.git
+
+Reference
+~~~~~~~~~
+
 .. py:currentmodule:: asab.library.providers.git
 
 .. autoclass:: GitLibraryProvider
