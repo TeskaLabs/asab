@@ -8,6 +8,7 @@ import asab.zookeeper
 class MyApplication(asab.Application):
 
 	def __init__(self):
+
 		super().__init__()
 		asab.Config["library"]["providers"] = "git+https://github.com/TeskaLabs/asab.git"
 
@@ -24,7 +25,7 @@ class MyApplication(asab.Application):
 
 
 	async def on_library_ready(self, event_name, library=None):
-		items = await self.LibraryService.list("", recursive=True)
+		items = await self.LibraryService.list("/", recursive=True)
 		print("# Library\n")
 		for item in items:
 			print(" *", item)
