@@ -36,13 +36,13 @@ class LibraryService(Service):
 
 	Configuration:
 
-	```
-	[library]
-	providers:
-		provider+1://
-		provider+2://
-		provider+3://
-	```
+	.. code::
+
+		[library]
+		providers:
+			provider+1://
+			provider+2://
+			provider+3://
 
 	The order of providers *IS* important, the priority (or layering) is top-down.
 
@@ -169,12 +169,13 @@ class LibraryService(Service):
 
 		Example of use:
 
-		```
-		itemio = await library.read('/path', 'tenant')
-		if itemio is not None:
-			with itemio:
-				return itemio.read()
-		```
+		.. code::
+
+			itemio = await library.read('/path', 'tenant')
+			if itemio is not None:
+				with itemio:
+					return itemio.read()
+
 
 		:param path: The path to the file, `LibraryItem.name` can be used directly
 		:param tenant: The tenant to apply. If not specified, the global access is assumed
@@ -342,7 +343,6 @@ class LibraryService(Service):
 		:param path: The path to export, defaults to / (optional)
 		:param tenant: The tenant to use for the operation
 		:param remove_path: If True, the path will be removed from the tar file, defaults to False
-		(optional)
 		:return: A file object.
 		"""
 

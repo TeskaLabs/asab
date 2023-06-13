@@ -29,71 +29,74 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	1) ZooKeeper provider is fully configured from [zookeeper] section
 
-	```
-	[zookeeper]
-	servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
-	path=/library
+	.. code::
 
-	[library]
-	providers:
-		zk://
-	```
+		[zookeeper]
+		servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+		path=/library
+
+		[library]
+		providers:
+			zk://
+
 
 
 	2) ZooKeeper provider is configured by `servers` from [zookeeper] section and path from URL
 
-	Path will be `/library'.
+	Path will be `/library`.
 
-	```
-	[zookeeper]
-	servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
-	path=/else
+	.. code::
 
-	[library]
-	providers:
-		zk:///library
-	```
+		[zookeeper]
+		servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+		path=/else
+
+		[library]
+		providers:
+			zk:///library
 
 
 	2.1) ZooKeeper provider is configured by `servers` from [zookeeper] section and path from URL
 
-	Path will be `/', this is a special case to 2)
+	Path will be `/`, this is a special case to 2)
 
-	```
-	[zookeeper]
-	servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
-	path=/else
+	.. code::
 
-	[library]
-	providers:
-		zk:///
-	```
+		[zookeeper]
+		servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+		path=/else
+
+		[library]
+		providers:
+			zk:///
 
 	3) ZooKeeper provider is fully configured from URL
 
-	```
-	[library]
-	providers:
-		zk://zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181/library
-	```
+	.. code::
+
+		[library]
+		providers:
+			zk://zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181/library
+
 
 	4) ZooKeeper provider is configured by `servers` from [zookeeper] section and  joined `path` from [zookeeper] and
 	path from URL
 
-	Path will be `/else/library'
+	Path will be `/else/library`
 
-	```
-	[zookeeper]
-	servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
-	path=/else
+	.. code::
 
-	[library]
-	providers:
-		zk://./library
-	```
+		[zookeeper]
+		servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+		path=/else
+
+		[library]
+		providers:
+			zk://./library
+
 
 	If `path` from [zookeeper] section is missing, an application class name will be used
-	Ex. `/BSQueryApp/library'
+	Ex. `/BSQueryApp/library`
 
 	"""
 
