@@ -9,12 +9,8 @@ class MyApplication(asab.Application):
 
 	def __init__(self):
 		super().__init__()
-		asab.Config.read_string(
-			"""
-[library]
-providers=git+https://github.com/TeskaLabs/asab.git
-"""
-		)
+		asab.Config["library"]["providers"] = "git+https://github.com/TeskaLabs/asab.git"
+
 		self.LibraryService = asab.library.LibraryService(
 			self,
 			"LibraryService",
@@ -24,6 +20,8 @@ providers=git+https://github.com/TeskaLabs/asab.git
 		self.PubSub.subscribe("Library.ready!", self.on_library_ready)
 		self.PubSub.subscribe("Library.change!", self.on_library_change)
 
+		# NOTE: Git Provider periodically pulls changes once per minute
+
 
 	async def on_library_ready(self, event_name, library=None):
 		items = await self.LibraryService.list("", recursive=True)
@@ -32,7 +30,8 @@ providers=git+https://github.com/TeskaLabs/asab.git
 			print(" *", item)
 		print("\n===")
 
-		self.LibraryService.subscribe(["/asab"])
+		# Add subscription for changes in paths
+		await self.LibraryService.subscribe(["/asab"])
 
 	def on_library_change(self, msg, provider, path):
 		print("\N{rabbit} New changes in the library found by provider: '{}'".format(provider))
