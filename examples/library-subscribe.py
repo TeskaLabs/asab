@@ -8,13 +8,17 @@ import asab.zookeeper
 class MyApplication(asab.Application):
 
 	def __init__(self):
-		super().__init__()
+		super().__init__(modules=[asab.zookeeper.Module])
+
+
+
 		asab.Config.read_string(
 			"""
 [library]
-providers=git+https://github.com/TeskaLabs/asab.git
+providers=zk://192.168.64.4:2181/library
 """
 		)
+
 		self.LibraryService = asab.library.LibraryService(
 			self,
 			"LibraryService",
@@ -26,13 +30,13 @@ providers=git+https://github.com/TeskaLabs/asab.git
 
 
 	async def on_library_ready(self, event_name, library=None):
-		items = await self.LibraryService.list("", recursive=True)
+		items = await self.LibraryService.list("/", recursive=True)
 		print("# Library\n")
 		for item in items:
 			print(" *", item)
 		print("\n===")
 
-		self.LibraryService.subscribe(["/asab"])
+		await self.LibraryService.subscribe(["/Site"])
 
 	def on_library_change(self, msg, provider, path):
 		print("\N{rabbit} New changes in the library found by provider: '{}'".format(provider))
