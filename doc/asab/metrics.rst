@@ -253,6 +253,7 @@ ASAB metrics are presented to Prometheus in `OpenMetrics <https://openmetrics.io
 Metrics Endpoints
 -----------------
 The **API Service** in ASAB offers several endpoints that monitor internal ASAB functionality. Some of them present the current state of metrics.
+Check for Swagger documentation of your ASAB Application REST API by visiting the `/doc` endpoint.
 
 ``/asab/v1/metrics``
 
