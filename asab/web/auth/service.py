@@ -323,12 +323,14 @@ class AuthService(asab.Service):
 		tenant_in_path = "formatter" in route_info and "{tenant}" in route_info["formatter"]
 
 		# Extract the actual handler method for signature checks
-		if hasattr(route.handler, "__wrapped__"):
-			handler_method = route.handler.__wrapped__
-		elif hasattr(route.handler, "__func__"):
-			handler_method = route.handler.__func__
-		else:
-			handler_method = route.handler
+		handler_method = route.handler
+		while hasattr(handler_method, "__wrapped__"):
+			# While loop unwraps handlers wrapped in multiple decorators.
+			# NOTE: This requires all the decorators to use @functools.wraps().
+			handler_method = handler_method.__wrapped__
+
+		if hasattr(handler_method, "__func__"):
+			handler_method = handler_method.__func__
 
 		if hasattr(handler_method, "NoAuth"):
 			return
