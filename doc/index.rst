@@ -16,11 +16,12 @@
 
    asab/web/index
    asab/web/restapidocs
-   asab/web/authn
+   asab/web/auth
    asab/web/cors
    asab/metrics
    asab/storage
    asab/alert
+   asab/library
 
 .. toctree::
    :maxdepth: 2
@@ -34,7 +35,6 @@
    asab/module
    asab/various
    asab/zookeeper
-   asab/library
 
 .. toctree::
    :maxdepth: 2

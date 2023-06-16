@@ -25,24 +25,15 @@ L = logging.getLogger(__name__)
 
 class LibraryService(Service):
 	"""
-	ASAB library (aka LibraryService) is an abstration for unified filesystem-like access to resources.
-	In the cluster/cloud microservice architectures, it is imperative that all microservices have access to unified resources.
-	There are technologies such as Apache Zookeeper that provides means for it.
-
-	ASAB library builts on top of this concept and brings that into the ASAB microservice.
-
-	ASAB library is designed to be read-only.
-	It also allows to "stack" various libraries into one view (overlayed) that merges content of each library into one united space.
-
 	Configuration:
 
-	```
-	[library]
-	providers:
-		provider+1://
-		provider+2://
-		provider+3://
-	```
+	.. code::
+
+		[library]
+		providers:
+			provider+1://
+			provider+2://
+			provider+3://
 
 	The order of providers *IS* important, the priority (or layering) is top-down.
 
@@ -51,19 +42,19 @@ class LibraryService(Service):
 	* `zk://` or `zookeeper://` for ZooKeeper provider
 	* `file://` or local path for FileSystem provider
 	* `azure+https://` for Microsoft Azure Storage provider.
+	* `git+https://` for Git provider.
 
-	The first provider is also responsible for providing `/.disabled.yaml` that controls a visibility of items.
-	If `/.disabled.yaml` is not present, then is considered empty.
+	The first provider is responsible for providing `/.disabled.yaml`.
 
-	A library is created in "not ready" state, each provider then inform library when it is ready (eg. Zookeeper provider needs to connect to Zookeeper servers).
-	Only after all providers are ready, the library itself become ready.
+	A library is created in “not ready” state, each provider then informs the library when it is ready
+	(eg. Zookeeper provider needs to connect to Zookeeper servers). Only after all providers are ready, the library itself becomes ready.
 	The library indicates that by the PubSub event `Library.ready!`.
 	"""
 
 	def __init__(self, app, service_name, paths=None):
 		"""
-		The library service is designed to "exists" in multiple instances,
-		with different `paths` setup.
+		The library service is designed to "exist" in multiple instances,
+		with different `paths` setups.
 		For that reason, you have to provide unique `service_name`
 		and there is no _default_ value for that.
 
@@ -169,12 +160,13 @@ class LibraryService(Service):
 
 		Example of use:
 
-		```
-		itemio = await library.read('/path', 'tenant')
-		if itemio is not None:
-			with itemio:
-				return itemio.read()
-		```
+		.. code::
+
+			itemio = await library.read('/path', 'tenant')
+			if itemio is not None:
+				with itemio:
+					return itemio.read()
+
 
 		:param path: The path to the file, `LibraryItem.name` can be used directly
 		:param tenant: The tenant to apply. If not specified, the global access is assumed
@@ -197,7 +189,7 @@ class LibraryService(Service):
 		return None
 
 
-	async def list(self, path="/", tenant=None, recursive=False):
+	async def list(self, path="/", tenant=None, recursive=False) -> list:
 		"""
 		List the directory of the library specified by the path.
 		It returns a list of `LibraryItem` entris.
@@ -334,7 +326,7 @@ class LibraryService(Service):
 		return False
 
 
-	async def export(self, path="/", tenant=None, remove_path=False):
+	async def export(self, path="/", tenant=None, remove_path=False) -> typing.IO:
 		"""
 		It takes a path, and returns a file-like object containing a gzipped tar archive of the library contents of
 		that path
@@ -342,7 +334,6 @@ class LibraryService(Service):
 		:param path: The path to export, defaults to / (optional)
 		:param tenant: The tenant to use for the operation
 		:param remove_path: If True, the path will be removed from the tar file, defaults to False
-		(optional)
 		:return: A file object.
 		"""
 
@@ -393,6 +384,7 @@ class LibraryService(Service):
 	async def subscribe(self, paths):
 		"""
 		It subscribes to the changes in the library
+
 		:param paths: A list of absolute paths to subscribe to
 		"""
 		for path in paths:
