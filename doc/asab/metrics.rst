@@ -65,6 +65,30 @@ However, the lifetime of values (name and value pairs) added during runtime is o
 
 .. _dynamic_tags:
 
+
+Built-in Tags
+-------------
+Tags help you to sort and group metrics in a selected target database, and analyze the data easily.
+Several "static" tags are provided directly by ASAB.
+
+.. option:: host
+This is a hostname of the server or machine where the application is running
+
+.. option:: appclass
+This is the name of the application. It is literally the name of the class that inherits from the ASAB Application object.
+
+.. option:: node_id
+Present if NODE_ID environmental variable is specified. Meant to specify a node in the cluster. Automatically set by the Remote Control.
+
+.. option:: service_id
+Present if SERVICE_ID environmental variable is specified. Meant to specify a service in the cluster. Automatically set by the Remote Control.
+
+.. option:: instance_id
+Present if INSTANCE_ID environmental variable is specified. Meant to specify an instance in the cluster. Automatically set by the Remote Control.
+
+You can use with convenience the three last tags even without Remote Control by adding the respective environmental variables to Docker containers (or any other technology you use to run ASAB microservices).
+
+
 Dynamic Tags
 ------------
 Some metric types (Counter, AggregationCounter, Histogram) allow you to use dynamic tags. All metrics in ASAB carry some tags - Hostname by default and others added by custom. 
@@ -229,6 +253,7 @@ ASAB metrics are presented to Prometheus in `OpenMetrics <https://openmetrics.io
 Metrics Endpoints
 -----------------
 The **API Service** in ASAB offers several endpoints that monitor internal ASAB functionality. Some of them present the current state of metrics.
+Check for Swagger documentation of your ASAB Application REST API by visiting the `/doc` endpoint.
 
 ``/asab/v1/metrics``
 
