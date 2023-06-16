@@ -4,7 +4,7 @@ import asab.web.auth
 import typing
 
 # Set up a web container listening at port 8080
-asab.Config["web"] = {"listen": "0.0.0.0 8080"}
+asab.Config["web"] = {"listen": "0.0.0.0 8089"}
 
 # Changes the behavior of endpoints with configurable tenant parameter.
 # With multitenancy enabled, the tenant paramerter in query is required.
@@ -19,7 +19,7 @@ asab.Config["auth"]["dev_user_info_path"] = "./dev-userinfo.json"
 
 # URL of the authorization server's JWK public keys, used for ID token verification.
 # This option is ignored in dev mode.
-asab.Config["auth"]["public_keys_url"] = "http://localhost:8081/.well-known/jwks.json"
+asab.Config["auth"]["public_keys_url"] = "http://localhost:8081/openidconnect/public_keys"
 
 # URL of the authorization server's tenant list, used for tenant verification.
 # This option is ignored in dev mode.
@@ -45,8 +45,8 @@ class MyApplication(asab.Application):
 		# Add routes
 		self.WebContainer.WebApp.router.add_get("/no_auth", self.no_auth)
 		self.WebContainer.WebApp.router.add_get("/auth", self.auth)
-		self.WebContainer.WebApp.router.add_put("/auth", self.auth_put)
 		self.WebContainer.WebApp.router.add_get("/auth/resource_check", self.auth_resource)
+		self.WebContainer.WebApp.router.add_put("/auth/resource_check", self.auth_resource_put)
 		self.WebContainer.WebApp.router.add_get("/{tenant}/required_tenant", self.tenant_in_path)
 		self.WebContainer.WebApp.router.add_get("/{tenant}/required_tenant/resource_check", self.tenant_in_path_resources)
 		self.WebContainer.WebApp.router.add_get("/configurable_tenant", self.tenant_in_query)
@@ -87,24 +87,6 @@ class MyApplication(asab.Application):
 		return asab.web.rest.json_response(request, data)
 
 
-	@asab.web.rest.json_schema_handler({
-		"type": "object"
-	})
-	async def auth_put(self, request, *, json_data: dict, user_info: dict, resources: frozenset):
-		"""
-		Intended for testing the composition of the json schema decorator with the auth middleware.
-
-		Uses the same auth as the `auth` handler above.
-		"""
-		data = {
-			"tenant": "NOT AVAILABLE",
-			"resources": list(resources),
-			"user_info": user_info,
-			"request_json_data": json_data,
-		}
-		return asab.web.rest.json_response(request, data)
-
-
 	@asab.web.auth.require("something:access", "something:edit")
 	# async def auth_resource(self, request):  # MINIMAL
 	async def auth_resource(self, request, *, user_info: dict, resources: frozenset):
@@ -122,6 +104,26 @@ class MyApplication(asab.Application):
 			"tenant": "NOT AVAILABLE",
 			"resources": list(resources),
 			"user_info": user_info,
+		}
+		return asab.web.rest.json_response(request, data)
+
+
+	@asab.web.rest.json_schema_handler({
+		"type": "object"
+	})
+	@asab.web.auth.require("something:access", "something:edit")
+	# async def auth_resource(self, request):  # MINIMAL
+	async def auth_resource_put(self, request, *, user_info: dict, resources: frozenset, json_data: dict):
+		"""
+		Intended for testing the composition of the json schema decorator with the auth middleware and decorators.
+
+		Uses the same auth as the `auth_resource` handler above.
+		"""
+		data = {
+			"tenant": "NOT AVAILABLE",
+			"resources": list(resources),
+			"user_info": user_info,
+			"json_data": json_data,
 		}
 		return asab.web.rest.json_response(request, data)
 
