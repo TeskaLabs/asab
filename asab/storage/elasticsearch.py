@@ -53,7 +53,13 @@ class StorageService(StorageServiceABC):
 		self.Refresh = Config.get(config_section_name, 'refresh')
 		self.ScrollTimeout = Config.get(config_section_name, 'scroll_timeout')
 
+		# Provide authorization
 		username = Config.get(config_section_name, 'elasticsearch_username')
+		api_key = Config.get(config_section_name, 'elasticsearch_api_key')
+
+		if username != '' and api_key != '':
+			L.warning("Both username and API key specified. ES Storage service may not function properly. Please choose one option.")
+
 		if username == '':
 			self._auth = None
 		else:
@@ -61,6 +67,11 @@ class StorageService(StorageServiceABC):
 			self._auth = aiohttp.BasicAuth(login=username, password=password)
 
 		self._ClientSession = None
+
+		# Create headers for requests
+		self.Headers = {'Content-Type': 'application/json'}
+		if api_key != '':
+			self.Headers['Authorization'] = "Authorization: API_KEY {}".format(api_key)
 
 
 	async def finalize(self, app):
@@ -174,9 +185,11 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 			url = "{}_template/{}?format=json".format(url, template_name)
 			try:
-				async with self.session().request(method="GET", url=url, headers={
-					'Content-Type': 'application/json'
-				}) as resp:
+				async with self.session().request(
+					method="GET",
+					url=url,
+					headers=self.Headers
+				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					content = await resp.json()
 					return content
@@ -198,9 +211,12 @@ class StorageService(StorageServiceABC):
 			url = "{}_template/{}?include_type_name".format(url, template_name)
 			L.warning("sending into url: {}".format(url))
 			try:
-				async with self.session().request(method="POST", url=url, data=json.dumps(template), headers={
-					'Content-Type': 'application/json'
-				}) as resp:
+				async with self.session().request(
+					method="POST",
+					url=url,
+					data=json.dumps(template),
+					headers=self.Headers
+				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					resp = await resp.json()
 					return resp
@@ -209,6 +225,7 @@ class StorageService(StorageServiceABC):
 					raise Exception("Failed to connect to '{}'".format(url))
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+					return {}
 
 
 	async def reindex(self, previous_index, new_index):
@@ -222,7 +239,7 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(
 					method="POST",
 					url=url,
-					headers={"Content-Type": "application/json"},
+					headers=self.Headers,
 					data=json.dumps({
 						"source": {
 							"index": previous_index,
@@ -283,9 +300,7 @@ class StorageService(StorageServiceABC):
 						method="POST",
 						url=url,
 						json=request_body,
-						headers={
-							"Content-Type": "application/json"
-						},
+						headers=self.Headers,
 					) as resp:
 						if resp.status != 200:
 							data = await resp.text()
@@ -351,7 +366,7 @@ class StorageService(StorageServiceABC):
 					method="GET",
 					url=url,
 					json=body,
-					headers={'Content-Type': 'application/json'}
+					headers=self.Headers
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					content = await resp.json()
@@ -498,8 +513,12 @@ class ElasicSearchUpsertor(UpsertorABC):
 			for url in self.Storage.ServerUrls:
 				try:
 					url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId, self.Storage.Refresh)
-					async with self.Storage.session().request(method="POST", url=url, data=json.dumps(upsertobj),
-																headers={'Content-Type': 'application/json'}) as resp:
+					async with self.Storage.session().request(
+						method="POST",
+						url=url,
+						data=json.dumps(upsertobj),
+						headers=self.Headers
+					) as resp:
 						assert resp.status == 200 or resp.status == 201, "Unexpected response code: {}".format(resp.status)
 						resp_json = await resp.json()
 						assert resp_json["result"] == "updated" or resp_json[
