@@ -24,6 +24,7 @@ Config.add_defaults(
 
 			'elasticsearch_username': '',
 			'elasticsearch_password': '',
+			'elasticsearch_api_key': '',
 
 			# make the operation visible to search directly, options: true, false, wait_for
 			# see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-index_.html
