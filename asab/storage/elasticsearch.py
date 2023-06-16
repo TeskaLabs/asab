@@ -72,7 +72,7 @@ class StorageService(StorageServiceABC):
 		# Create headers for requests
 		self.Headers = {'Content-Type': 'application/json'}
 		if api_key != '':
-			self.Headers['Authorization'] = "API_KEY {}".format(api_key)
+			self.Headers['Authorization'] = "ApiKey {}".format(api_key)
 
 
 	async def finalize(self, app):
