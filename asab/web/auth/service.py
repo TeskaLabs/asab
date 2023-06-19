@@ -89,7 +89,7 @@ asab.Config.add_defaults({
 
 class AuthService(asab.Service):
 	"""
-	Provides authentication and authorization of incoming requests
+	Provides authentication and authorization of incoming requests.
 	"""
 
 	def __init__(self, app, service_name="asab.AuthzService"):
@@ -142,7 +142,10 @@ class AuthService(asab.Service):
 
 	def install(self, web_container):
 		"""
-		Apply authorization to web handlers depending on their arguments and path parameters
+		Apply authorization to all web handlers in a web container, according to their arguments and path parameters.
+
+		:param web_container: Web container to be protected by authorization.
+		:type web_container: asab.web.WebContainer
 		"""
 		# TODO: Call this automatically if there is only one container
 		web_container.WebApp.on_startup.append(self._wrap_handlers)
