@@ -1,20 +1,35 @@
 .. currentmodule:: asab.web.auth
 
-================================
-Authentication and authorization
-================================
+==============================
+Authorization and multitenancy
+==============================
 
-:class:`AuthService` handles the authentication and authorization of incoming requests and extracts useful auth data in your handler methods.
+The :module:`asab.web.auth` module provides `authentication <https://en.wikipedia.org/wiki/Authentication>`__
+and `authorization <https://en.wikipedia.org/wiki/Authorization>`__ of incoming requests.
+This enables your application to differentiate between users, grant or deny them API access depending
+on their permissions and work with other relevant user data.
 
-Provides communication with authorization server and authenticates and authorizes requests.
+The module also implements
+`multitenancy <https://en.wikipedia.org/wiki/Multitenancy>`__, meaning that your app can be used by a number of
+independent subjects (tenants, for example companies) without interfering with each other.
 
-Usage:
+The ``auth`` module requires an authorization server to function. It works best
+with `Seacat Auth <https://github.com/TeskaLabs/seacat-auth>`__ authorization server
+(See `its documentation <https://docs.teskalabs.com/seacat-auth/getting-started/quick-start>`__ for setup instructions).
+
+
+Getting started
+===============
+
+To get started, initialize :class:`AuthService` and install it in your :class:`asab.web.WebContainer`:
 
 .. code:: python
 
     class MyApplication(asab.Application):
         def __init__(self):
             super().__init__()
+
+            # Initialize web container
             self.add_module(asab.web.Module)
             self.WebService = self.get_service("asab.WebService")
             self.WebContainer = asab.web.WebContainer(self.WebService, "web")
@@ -23,23 +38,62 @@ Usage:
             self.AuthService = asab.web.auth.AuthService(self)
             self.AuthService.install(self.WebContainer)
 
-Installing the service allows you to use special keyword args in your handlers (``tenant``, ``user_info`` and ``resources``) that will be automatically filled in by the service, based on the request and its authorization.
+>:bulb:
+You may also need to specify your authorization server's
+``public_keys_url`` (also known as ``jwks_uri`` in `OAuth 2.0 <https://www.rfc-editor.org/rfc/rfc8414#section-2>`__).
+In case you don't have any authorization server at hand, you can run the auth module in ``dev_mode``.
+See the :ref:`configuration` section for details.
 
-Usage:
+Every handler in ``WebContainer`` now accepts only requests with a valid authentication.
+Unauthenticated requests are automatically answered with
+`HTTP 401 Unauthorized <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401>`__.
+Authenticated requests will be inspected for user info, authorized user tenant and resources.
+These attributes are passed to the handler method, if the method in question has the corresponding keyword arguments
+(``user_info``, ``tenant``  and ``resources``).
+In the following example, the method will receive ``user_info`` and ``resources`` from the request:
 
 .. code:: python
 
-    async def order_breakfast(self, request, *, tenant: str, user_info: dict, resources: frozenset):
-        who = user_info["sub"]
-        if "full-english:eat" in resources or "pancakes:eat" in resources:
+    async def borrow_book(self, request, *, user_info: dict, resources: frozenset):
+        user_id = user_info["sub"]
+        if "bookworm-club:access" in resources:
             ...
-        return asab.web.rest.json_response(request, {"result": "OK"})
+        return asab.web.rest.json_response(request, {"result": "Breakfast ordered!"})
 
-`See full example here. <https://github.com/TeskaLabs/asab/blob/master/examples/web-auth.py>`__
+See `examples/web-auth.py <https://github.com/TeskaLabs/asab/blob/master/examples/web-auth.py>`__
+for a full demo ASAB application with auth module.
 
 
-Service configuration
-=====================
+.. _configuration:
+
+Configuration
+=============
+
+The :module:`asab.web.auth` module is configured in the ``[auth]`` section with the following options:
+
+.. option:: public_keys_url
+
+    ``(URL, default: http://localhost:8081/openidconnect/public_keys)`` The URL of the authorization server's public
+    keys (also known as ``jwks_uri`` in `OAuth 2.0 <https://www.rfc-editor.org/rfc/rfc8414#section-2>`__).
+
+.. option:: multitenancy
+
+    ``(boolean, default: yes)`` Toggles the behavior of endpoints with configurable tenant parameter.
+    When enabled, the tenant query paramerter is required.
+    When disabled, the tenant query paramerter is ignored and set to ``None``.
+
+.. option:: dev_mode
+
+    ``(boolean, default: no)`` In dev mode, all incoming requests are authenticated and authorized with mock user info.
+    There is no communication with authorization server (so it is not necessary to configure ``public_keys_url`` in
+    dev mode).
+
+.. option:: dev_user_info_path
+
+    ``(path, default: /conf/dev-userinfo.json)`` Path to JSON file that contains mock user info used in dev mode.
+    The structure of user info should follow the
+    `OpenID Connect userinfo definition <https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse>`__
+    and also contain the ``resources`` object.
 
 In minimum **production** config, you need to specify at least the authorization server's ``public_keys_url``, for example:
 
@@ -63,7 +117,10 @@ Multitenancy
 Strictly multitenant endpoints
 ------------------------------
 
-Strictly multitenant endpoints always operate within a tenant, hence they need the `tenant` parameter to be always provided. Such endpoints must define the `tenant` parameter in their **URL path** and include `tenant` argument in the handler method. Auth service extracts the tenant from the URL path, validates the tenant existence, checks if the request is authorized for the tenant and finally passes the tenant name to the handler method.
+Strictly multitenant endpoints always operate within a tenant, hence they need the `tenant` parameter to be always
+provided. Such endpoints must define the `tenant` parameter in their **URL path** and include `tenant` argument in
+the handler method. Auth service extracts the tenant from the URL path, validates the tenant existence, checks if
+the request is authorized for the tenant and finally passes the tenant name to the handler method.
 
 Example handler:
 
@@ -91,10 +148,16 @@ Example request:
 Configurably multitenant endpoints
 ----------------------------------
 
-Configurably multitenant endpoints usually operate within a tenant, but they can also operate in tenantless mode if the application is configured so. When you create an endpoint *without* ``tenant`` parameter in the URL path and *with* ``tenant`` argument in the handler method, the Auth service will either expect the ``tenant`` parameter to be provided in the **URL query** if mutlitenancy is enabled, or to not be provided at all if multitenancy is disabled. Use the ``multitenancy`` boolean switch in the ``[auth]`` config section to control the multitenancy setting.
+Configurably multitenant endpoints usually operate within a tenant, but they can also operate in tenantless mode if
+the application is configured so. When you create an endpoint *without* ``tenant`` parameter in the URL path and
+*with* ``tenant`` argument in the handler method, the Auth service will either expect the ``tenant`` parameter to be
+provided in the **URL query** if mutlitenancy is enabled, or to not be provided at all if multitenancy is disabled.
+Use the ``multitenancy`` boolean switch in the ``[auth]`` config section to control the multitenancy setting.
 
-- If ``multitenancy`` is **enabled**, the request's **query string** must include a tenant parameter. Requests without the tenant query result in Bad request (HTTP 400).
-- If ``multitenancy`` is **disabled**, the tenant argument in the handler method is set to ``None``. Any ``tenant`` parameter in the query string is ignored.
+- If ``multitenancy`` is **enabled**, the request's **query string** must include a tenant parameter. Requests without
+    the tenant query result in Bad request (HTTP 400).
+- If ``multitenancy`` is **disabled**, the tenant argument in the handler method is set to ``None``.
+    Any ``tenant`` parameter in the query string is ignored.
 
 Example handler:
 
@@ -130,7 +193,9 @@ Example request (with multitenancy off):
 Development mode
 ================
 
-In dev mode, actual authorization is disabled and replaced with mock authorization. Useful for developing ASAB apps without authorization server. Activate by enabling ``dev_mode`` in the ``[auth]`` config section. You can also specify a path to a JSON file with your own mocked userinfo payload ``[auth] dev_user_info_path``:
+In dev mode, actual authorization is disabled and replaced with mock authorization. Useful for developing ASAB apps
+without authorization server. Activate by enabling ``dev_mode`` in the ``[auth]`` config section. You can also specify
+a path to a JSON file with your own mocked userinfo payload ``[auth] dev_user_info_path``:
 
 ```ini
 [auth]
