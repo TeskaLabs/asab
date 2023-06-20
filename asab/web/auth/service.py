@@ -91,6 +91,7 @@ class AuthService(asab.Service):
 	"""
 	Provides authentication and authorization of incoming requests.
 	"""
+	_PUBLIC_KEYS_URL_DEFAULT = "http://localhost:8081/openidconnect/public_keys"
 
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
@@ -122,7 +123,10 @@ class AuthService(asab.Service):
 					dev_user_info_path))
 		else:
 			if len(self.PublicKeysUrl) == 0:
-				raise ValueError("No 'public_keys_url' provided in [auth] config section.")
+				self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
+				L.warning(
+					"No 'public_keys_url' provided in [auth] config section. "
+					"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT))
 			if jwcrypto is None:
 				raise ModuleNotFoundError(
 					"You are trying to use asab.web.authz without 'jwcrypto' installed. "
