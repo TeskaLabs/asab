@@ -143,9 +143,9 @@ the application is configured so. When you create an endpoint *without* ``tenant
 provided in the **URL query** if mutlitenancy is enabled, or to not be provided at all if multitenancy is disabled.
 Use the ``multitenancy`` boolean switch in the ``[auth]`` config section to control the multitenancy setting.
 
-- If ``multitenancy`` is **enabled**, the request's **query string** must include a tenant parameter. Requests without
+- If multitenancy is **enabled**, the request's **query string** must include a tenant parameter. Requests without
     the tenant query result in Bad request (HTTP 400).
-- If ``multitenancy`` is **disabled**, the tenant argument in the handler method is set to ``None``.
+- If multitenancy is **disabled**, the tenant argument in the handler method is set to ``None``.
     Any ``tenant`` parameter in the query string is ignored.
 
 Example handler:
