@@ -4,7 +4,7 @@
 Authorization and multitenancy
 ==============================
 
-The :module:`asab.web.auth` module provides `authentication <https://en.wikipedia.org/wiki/Authentication>`__
+The :mod:`asab.web.auth` module provides `authentication <https://en.wikipedia.org/wiki/Authentication>`__
 and `authorization <https://en.wikipedia.org/wiki/Authorization>`__ of incoming requests.
 This enables your application to differentiate between users, grant or deny them API access depending
 on their permissions and work with other relevant user data.
@@ -38,11 +38,12 @@ To get started, initialize :class:`AuthService` and install it in your :class:`a
             self.AuthService = asab.web.auth.AuthService(self)
             self.AuthService.install(self.WebContainer)
 
->:bulb:
-You may also need to specify your authorization server's
-``public_keys_url`` (also known as ``jwks_uri`` in `OAuth 2.0 <https://www.rfc-editor.org/rfc/rfc8414#section-2>`__).
-In case you don't have any authorization server at hand, you can run the auth module in ``dev_mode``.
-See the :ref:`configuration` section for details.
+.. note::
+
+    You may also need to specify your authorization server's
+    ``public_keys_url`` (also known as ``jwks_uri`` in `OAuth 2.0 <https://www.rfc-editor.org/rfc/rfc8414#section-2>`__).
+    In case you don't have any authorization server at hand, you can run the auth module in ``dev_mode``.
+    See the :ref:`configuration` section for details.
 
 Every handler in ``WebContainer`` now accepts only requests with a valid authentication.
 Unauthenticated requests are automatically answered with
@@ -54,11 +55,12 @@ In the following example, the method will receive ``user_info`` and ``resources`
 
 .. code:: python
 
-    async def borrow_book(self, request, *, user_info: dict, resources: frozenset):
+    async def order_breakfast(self, request, *, tenant, user_info, resources):
         user_id = user_info["sub"]
-        if "bookworm-club:access" in resources:
+        user_name = user_info["preferred_username"]
+        if "pancakes:eat" in resources:
             ...
-        return asab.web.rest.json_response(request, {"result": "Breakfast ordered!"})
+        return asab.web.rest.json_response(request, {"result": "Your breakfast is being prepared!"})
 
 See `examples/web-auth.py <https://github.com/TeskaLabs/asab/blob/master/examples/web-auth.py>`__
 for a full demo ASAB application with auth module.
@@ -69,7 +71,7 @@ for a full demo ASAB application with auth module.
 Configuration
 =============
 
-The :module:`asab.web.auth` module is configured in the ``[auth]`` section with the following options:
+The :mod:`asab.web.auth` module is configured in the ``[auth]`` section with the following options:
 
 .. option:: public_keys_url
 
@@ -81,6 +83,8 @@ The :module:`asab.web.auth` module is configured in the ``[auth]`` section with 
     ``(boolean, default: yes)`` Toggles the behavior of endpoints with configurable tenant parameter.
     When enabled, the tenant query paramerter is required.
     When disabled, the tenant query paramerter is ignored and set to ``None``.
+    In dev mode, the multitenancy switch is ignored and the tenant parameter is taken into account only when it is
+    present in query, otherwise it is set to ``None``.
 
 .. option:: dev_mode
 
@@ -94,21 +98,6 @@ The :module:`asab.web.auth` module is configured in the ``[auth]`` section with 
     The structure of user info should follow the
     `OpenID Connect userinfo definition <https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse>`__
     and also contain the ``resources`` object.
-
-In minimum **production** config, you need to specify at least the authorization server's ``public_keys_url``, for example:
-
-.. code:: ini
-
-    [auth]
-    public_keys_url=http://localhost:8081/openidconnect/public_keys
-
-
-In minimum **development** config, you can just activate the **dev mode**, in which the service does not need the above URLs configured:
-
-.. code:: ini
-
-    [auth]
-    dev_mode=yes
 
 
 Multitenancy
@@ -197,14 +186,13 @@ In dev mode, actual authorization is disabled and replaced with mock authorizati
 without authorization server. Activate by enabling ``dev_mode`` in the ``[auth]`` config section. You can also specify
 a path to a JSON file with your own mocked userinfo payload ``[auth] dev_user_info_path``:
 
-```ini
-[auth]
-dev_mode=yes
-dev_user_info_path=${THIS_DIR}/mock_userinfo.json
-```
+.. code:: ini
 
-When dev mode is enabled, you don't have to provide `public_keys_url` as these options are ignored.
+    [auth]
+    dev_mode=yes
+    dev_user_info_path=${THIS_DIR}/mock_userinfo.json
 
+When dev mode is enabled, you don't have to provide `public_keys_url` as this option is ignored.
 
 
 Reference
@@ -216,36 +204,9 @@ AuthService
 
     .. automethod:: install
 
-        Applies authorization and
-
 Handler decorators
 ------------------
 
-Require
-~~~~~~~
 .. autofunction:: require
 
-Sets resources that are required to access the endpoint. Requests that do not have these resources result in a ``HTTP 403 Forbidden`` response.
-
-Usage:
-
-.. code:: python
-
-    @asab.web.auth.require("cake:access", "cake:eat")
-    async def eat_cake(self, request, *, user_info):
-        await CafeService.eat("cake", user=user_info["sub"])
-        return asab.web.rest.json_response(request, {"result": "OK"})
-
-
 .. autofunction:: noauth
-
-Exempts the endpoint from authentication and authorization. No user info/tenants/resources are available in the handler method.
-
-Usage:
-
-.. code:: python
-
-    @asab.web.auth.noauth
-    async def drink_soda(self, request):
-        await CafeService.drink("soda")
-        return asab.web.rest.json_response(request, {"result": "OK"})
