@@ -382,7 +382,7 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 	empty_sd = "-"
 
 	def __init__(self, fmt=None, datefmt=None, style='%', sd_id='sd'):
-		fmt = '<%(priority)s>1 %(asctime)sZ {hostname} {app_name} {proc_id} %(name)s - [log l="%(levelname)s"]%(struct_data)s%(message)s'.format(
+		fmt = '<%(priority)s>1 %(asctime)sZ {hostname} {app_name} {proc_id} %(name)s [log l="%(levelname)s"]%(struct_data)s%(message)s'.format(
 			app_name=Config["logging"]["app_name"],
 			hostname=socket.gethostname(),
 			proc_id=os.getpid(),
