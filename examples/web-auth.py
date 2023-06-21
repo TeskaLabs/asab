@@ -38,6 +38,10 @@ class MyApplication(asab.Application):
 
 		self.WebContainer.WebApp.middlewares.append(asab.web.rest.JsonExceptionMiddleware)
 
+		from asab.api import ApiService
+		self.ApiService = ApiService(self)
+		self.ApiService.initialize_web(self.WebContainer)
+
 		# Initialize authorization
 		self.AuthService = asab.web.auth.AuthService(self)
 		self.AuthService.install(self.WebContainer)
@@ -69,7 +73,6 @@ class MyApplication(asab.Application):
 		return asab.web.rest.json_response(request, data)
 
 
-	# async def auth(self, request):  # MINIMAL
 	async def auth(self, request, *, user_info: dict, resources: frozenset):
 		"""
 		TENANT-AGNOSTIC
@@ -88,7 +91,6 @@ class MyApplication(asab.Application):
 
 
 	@asab.web.auth.require("something:access", "something:edit")
-	# async def auth_resource(self, request):  # MINIMAL
 	async def auth_resource(self, request, *, user_info: dict, resources: frozenset):
 		"""
 		TENANT-AGNOSTIC + RESOURCE CHECK
@@ -112,12 +114,9 @@ class MyApplication(asab.Application):
 		"type": "object"
 	})
 	@asab.web.auth.require("something:access", "something:edit")
-	# async def auth_resource(self, request):  # MINIMAL
 	async def auth_resource_put(self, request, *, user_info: dict, resources: frozenset, json_data: dict):
 		"""
-		Intended for testing the composition of the json schema decorator with the auth middleware and decorators.
-
-		Uses the same auth as the `auth_resource` handler above.
+		Decorator asab.web.auth.require can be used together with other decorators.
 		"""
 		data = {
 			"tenant": "NOT AVAILABLE",
@@ -128,7 +127,6 @@ class MyApplication(asab.Application):
 		return asab.web.rest.json_response(request, data)
 
 
-	# async def auth(self, request, *, tenant):  # MINIMAL
 	async def tenant_in_path(self, request, *, tenant: str, user_info: dict, resources: frozenset):
 		"""
 		TENANT-AWARE
@@ -148,7 +146,6 @@ class MyApplication(asab.Application):
 		return asab.web.rest.json_response(request, data)
 
 
-	# async def auth(self, request, *, tenant):  # MINIMAL
 	async def tenant_in_query(self, request, *, tenant: typing.Union[str|None], user_info: dict, resources: frozenset):
 		"""
 		CONFIGURABLY TENANT-AWARE
@@ -175,7 +172,6 @@ class MyApplication(asab.Application):
 
 
 	@asab.web.auth.require("something:access", "something:edit")
-	# async def auth(self, request, *, tenant):  # MINIMAL
 	async def tenant_in_path_resources(self, request, *, tenant: typing.Union[str|None], user_info: dict, resources: frozenset):
 		"""
 		TENANT-AWARE + RESOURCE CHECK
@@ -198,7 +194,6 @@ class MyApplication(asab.Application):
 
 
 	@asab.web.auth.require("something:access", "something:edit")
-	# async def auth(self, request, *, tenant):  # MINIMAL
 	async def tenant_in_query_resources(self, request, *, tenant: typing.Union[str|None], user_info: dict, resources: frozenset):
 		"""
 		CONFIGURABLY TENANT-AWARE + RESOURCE CHECK
