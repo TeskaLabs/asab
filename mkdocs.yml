@@ -19,12 +19,22 @@ theme:
     - pymdownx.mark
     - pymdownx.tilde
     - def_list
-    # - pymdownx.tasklist:
-    #     custom_checkbox: true
-    # - pymdownx.emoji:
-    #     emoji_index: !!python/name:materialx.emoji.twemoji
-    #     emoji_generator: !!python/name:materialx.emoji.to_svg
 
+  icon:
+    admonition:
+      # https://squidfunk.github.io/mkdocs-material/reference/admonitions/#fontawesome
+      note: fontawesome/solid/note-sticky
+      abstract: fontawesome/solid/book
+      info: fontawesome/solid/circle-info
+      tip: fontawesome/solid/bullhorn
+      success: fontawesome/solid/check
+      question: fontawesome/solid/circle-question
+      warning: fontawesome/solid/triangle-exclamation
+      failure: fontawesome/solid/bomb
+      danger: fontawesome/solid/skull
+      bug: fontawesome/solid/robot
+      example: fontawesome/solid/flask
+      quote: fontawesome/solid/quote-left
 
   font:
     text: Verdana
@@ -70,6 +80,12 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.superfences
+
+  # Extensions for notes, warnings, ...
+  # https://squidfunk.github.io/mkdocs-material/reference/admonitions/#fontawesome
+  - admonition
+  - pymdownx.details
   - pymdownx.superfences
 
 nav:

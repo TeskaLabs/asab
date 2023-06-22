@@ -57,23 +57,21 @@ When the requested object is not found in the collection, the method
 raises `KeyError`. Remember to handle this exception properly when using
 databases in your services and prevent them from crashing!
 
-!!! quote "Made with ❤️ by TeskaLabs"
 
 !!! note
-```
+
     MongoDB storage service in addition provides a coroutine method
-    `get_by()`{.interpreted-text role="func"} which is used for accessing an
+    `get_by()` which is used for accessing an
     object by finding its key-value pair.
 
     ``` python
     obj = await storage.get_by(database="test-collection", key="key", value="value")
     ```
-```
 
 ### Updating an object
 
 For updating an object, first obtain the upsertor specifying its
-[obj_id]{.title-ref} and [version]{.title-ref}.
+`obj_id` and `version`.
 
 ``` python
 u = storage.upsertor(
