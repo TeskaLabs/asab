@@ -1,10 +1,61 @@
-site_name: My Docs
+site_name: ASAB
 
 theme:
   name: "material"
+  features:
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate #
+    - navigation.tabs
+    - navigation.footer
+    - navigation.indexes
+    - attr_list
+    - admonition
+    - pymdownx.details
+    - pymdownx.superfences
+    - pymdownx.critic
+    - pymdownx.caret
+    - pymdownx.keys
+    - pymdownx.mark
+    - pymdownx.tilde
+    - def_list
+    # - pymdownx.tasklist:
+    #     custom_checkbox: true
+    # - pymdownx.emoji:
+    #     emoji_index: !!python/name:materialx.emoji.twemoji
+    #     emoji_generator: !!python/name:materialx.emoji.to_svg
+
+
+  font:
+    text: Verdana
+
+  palette:
+    - scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: yellow
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+
 
 plugins:
-  - mkdocstrings
+  - mkdocstrings:
+      markdown_extensions:
+        - pymdownx.superfences:
+            custom_fences:
+              - name: code
+                class: code
+      config:
+        default_handler: python
+        python:
+          use_indentation: '\t'
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -18,35 +69,49 @@ markdown_extensions:
 nav:
   - Introduction: index.md
 
-  - Get Started: 
-    - get-started.md
-    - tutorial/chapter1.md
-    - tutorial/chapter2.md
+  - Installation: explanation/admin/install.md
 
-  - Services:
-    - asab/web/index.md
-    - asab/web/auth.md
-    - asab/web/cors.md
-    - asab/web/restapidocs.md
-    - asab/library.md
+
+  - Tutorials:
+    - tutorials/get-started.md
+    - tutorials/chapter1.md
+    - tutorials/chapter2.md
+
+  - Explanation:
+
+    - Services:
+      - explanation/asab/web/index.md
+      - explanation/asab/web/auth.md
+      - explanation/asab/web/cors.md
+      - explanation/asab/web/restapidocs.md
+      - explanation/asab/library.md
+
+    - Reference:
+      - explanation/asab/application.md
+      - explanation/asab/config.md
+      - explanation/asab/log.md
+      - explanation/asab/metrics.md
+      - explanation/asab/module.md
+      - explanation/asab/pubsub.md
+      - explanation/asab/service.md
+      - explanation/asab/storage.md
+      - explanation/asab/various.md
+      - explanation/asab/zookeeper.md
 
   - Reference:
-    - asab/application.md
-    - asab/config.md
-    - asab/log.md
-    - asab/metrics.md
-    - asab/module.md
-    - asab/pubsub.md
-    - asab/service.md
-    - asab/storage.md
-    - asab/various.md
-    - asab/zookeeper.md
+    # - reference/application.md
+    # - reference/config.md
+    # - reference/library.md
+    # - reference/log.md
+    # - reference/metrics.md
+    # - reference/module.md
+    - Storage:
+        - Abstract class: reference/storage/abc.md
+        - ElasticSearch: reference/storage/elasticsearch.md
 
   - Administration:
-    - admin/command-line.md
-    - admin/containers.md
-    - admin/install.md
-    - admin/systemd.md
+    - explanation/admin/command-line.md
+    - explanation/admin/containers.md
+    - explanation/admin/systemd.md
 
-  - asab/index.md
-  - asab/alert.md
+  - explanation/asab/alert.md

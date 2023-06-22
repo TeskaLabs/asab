@@ -23,6 +23,10 @@ ENCRYPTED_PREFIX = b"$aes-cbc$"
 
 
 class StorageServiceABC(asab.Service):
+	"""
+	An abstract class for the Storage Service.
+
+	"""
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
@@ -49,7 +53,7 @@ class StorageServiceABC(asab.Service):
 
 
 	@abc.abstractmethod
-	def upsertor(self, collection: str, obj_id=None, version: int = 0):
+	def upsertor(self, collection: str, obj_id=None, version: int = 0) -> None:
 		"""
 		Create an upsertor object for the specified collection.
 
@@ -58,9 +62,11 @@ class StorageServiceABC(asab.Service):
 		If you want to insert a new object with a specific `obj_id`, specify `obj_id` and set a version to 0.
 			- If there will be a colliding object already stored in a storage, `execute()` method will fail on `DuplicateError`.
 
-		:param collection: Name of collection to work with
-		:param obj_id: Primary identification of an object in the storage (e.g. primary key)
-		:param version: Specify a current version of the object and hence prevent byzantine faults. \
+		Args:
+
+		collection (str): Name of collection to work with
+		obj_id: Primary identification of an object in the storage (e.g. primary key)
+		version (int): Specify a current version of the object and hence prevent byzantine faults. \
 		You should always read the version from the storage upfront, prior using an upsertor. \
 		That creates a soft lock on the record. It means that if the object is updated by other \
 		component in meanwhile, your upsertor will fail and you should retry the whole operation. \
@@ -74,12 +80,16 @@ class StorageServiceABC(asab.Service):
 		"""
 		Get object from collection by its ID.
 
-		:param collection: Collection to get from.
-		:type collection: str
-		:param obj_id: Object identification.
-		:param decrypt: Set of fields to decrypt.
-		:return: The object retrieved from a storage.
-		:raise KeyError: Raised if `obj_id` is not found in `collection`.
+		Args:
+			collection (str): Collection to get from.
+			obj_id: Object identification.
+			decrypt (bool): Set of fields to decrypt.
+
+		Returns:
+			(dict) The object retrieved from a storage.
+
+		Raises:
+			KeyError: Raised if `obj_id` is not found in `collection`.
 		"""
 		pass
 

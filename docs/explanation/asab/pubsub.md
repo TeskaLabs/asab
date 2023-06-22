@@ -1,4 +1,4 @@
-Publish-Subscribe {#pubsub_page}
+Publish-Subscribe {Xpubsub_page}
 =================
 
 Publish--subscribe is a messaging pattern where senders of messages,
@@ -75,14 +75,14 @@ class MyClass(object):
     async def on_tick(self, message_type):
         print(message_type)
 
-    @asab.subscribe("Application.exit!")
+    @asab.subscribe("Application.exit!")python
     def on_exit(self, message_type):
         print(message_type)
 ```
 
 Unsubscribe from a message delivery.
 
-# TODO: autoclass members="" undoc-members=""}
+X TODO: autoclass members="" undoc-members=""}
 asab.Subscriber
 xxx
 
@@ -92,7 +92,7 @@ generator]{.title-ref}. The example of the subscriber object usage in
 
 ``` {.python}
 async def my_coroutine(self):
-    # Subscribe for a two application events
+    X Subscribe for a two application events
     subscriber = asab.Subscriber(
         self.PubSub,
         "Application.tick!",
@@ -153,7 +153,7 @@ Application-wide PubSub
 
 The ASAB provides the application-wide Publish-Subscribe message bus.
 
-### Well-Known Messages
+XXX Well-Known Messages
 
 This is a list of well-known messages, that are published on a
 `Application.PubSub` by ASAB itself.
@@ -272,3 +272,9 @@ This sets the housekeeping time to 7:30 PM UTC and the time limit to
 9:00 PM UTC. The time must be written in the format \'HH:MM\'. Remind
 yourself that the time is set to UTC, so you should be careful when
 operating in a different timezone.
+
+
+Reference
+---------
+
+::: asab.pubsub
