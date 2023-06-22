@@ -1,0 +1,201 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Authn module &#8212; ASAB  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Cross-Origin Resource Sharing (CORS)" href="cors.html" />
+    <link rel="prev" title="REST API Docs" href="restapidocs.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="authn-module">
+<h1>Authn module<a class="headerlink" href="#authn-module" title="Permalink to this heading">¶</a></h1>
+<p>Module <code class="xref py py-mod docutils literal notranslate"><span class="pre">asab.web.authn</span></code> provides middlewares and classes to allow only authorized users access specified web server endpoints.
+It also allows to forward requests to the authorization server via instance of OAuthForwarder.</p>
+<p>Currently available authorization technologies include OAuth 2.0, public/private key and HTTP basic auth.</p>
+<section id="middleware">
+<h2>Middleware<a class="headerlink" href="#middleware" title="Permalink to this heading">¶</a></h2>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">authn_middleware_factory(app,</span> <span class="pre">implementation,</span> <span class="pre">*args,</span> <span class="pre">**kwargs):</span></span></dt>
+<dd></dd></dl>
+
+<p>First step is to define the authorization implementation, which can be the OAuth 2.0, public/private key or
+HTTP basic auth. Depending on the implementation, there are arguments which further specify the authorization
+servers that are going to be used.</p>
+<p>When it comes to OAuth 2.0, there are <code class="xref any docutils literal notranslate"><span class="pre">methods</span></code> for every OAuth 2.0 server, that is going to be used for authorization
+and obtainment of the user identity. The relevant method is selected based on access token prefix, that is received
+from the client in the HTTP request (<code class="xref any docutils literal notranslate"><span class="pre">Authorization</span></code> header):</p>
+<p><cite>Authorization: Bearer &lt;OAUTH-SERVER-ID&gt;-&lt;ACCESS_TOKEN&gt;</cite></p>
+<p>The following example illustrates how to register a middleware inside the web server container with OAuth 2.0
+implementation and GitHub method.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">container</span><span class="o">.</span><span class="n">WebApp</span><span class="o">.</span><span class="n">middlewares</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+    <span class="n">asab</span><span class="o">.</span><span class="n">web</span><span class="o">.</span><span class="n">authn</span><span class="o">.</span><span class="n">authn_middleware_factory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+        <span class="s2">&quot;oauth2client&quot;</span><span class="p">,</span>  <span class="c1"># other implementations include: &quot;basicauth&quot; and &quot;pubkeyauth&quot;</span>
+        <span class="n">methods</span><span class="o">=</span><span class="p">[</span>
+        <span class="c1"># Use GitHub OAuth provider</span>
+        <span class="n">asab</span><span class="o">.</span><span class="n">web</span><span class="o">.</span><span class="n">authn</span><span class="o">.</span><span class="n">oauth</span><span class="o">.</span><span class="n">GitHubOAuthMethod</span><span class="p">(),</span>
+        <span class="p">],</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="decorators">
+<h2>Decorators<a class="headerlink" href="#decorators" title="Permalink to this heading">¶</a></h2>
+<p>In order to require authorization for a specific endpoint and thus utilize the output of the registered middleware,
+it is necessary to decorate its handler method with <code class="xref any docutils literal notranslate"><span class="pre">authn_required_handler</span></code> decorator.</p>
+<p>The decorator provide the handler method with an <code class="xref any docutils literal notranslate"><span class="pre">identity</span></code> argument, which contains the user identity received
+from the authorization server. Thus the user information can be further evaluated or included as part of the response.
+To receive just the identity information but not force the authorization for the endpoint, the <code class="xref any docutils literal notranslate"><span class="pre">authn_optional_handler</span></code>
+can be used instead.</p>
+<p>The following example illustrates how to use the <code class="xref any docutils literal notranslate"><span class="pre">authn_required_handler</span></code> decorator in order to enforce the
+authorization and receive user identity in the <code class="xref any docutils literal notranslate"><span class="pre">identity</span></code> argument:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@asab</span><span class="o">.</span><span class="n">web</span><span class="o">.</span><span class="n">authn</span><span class="o">.</span><span class="n">authn_required_handler</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">identity</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">asab</span><span class="o">.</span><span class="n">web</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">json_response</span><span class="p">(</span><span class="n">request</span><span class="o">=</span><span class="n">request</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="s1">&#39;&quot;</span><span class="si">{}</span><span class="s1">&quot;, you have accessed our secured &quot;user&quot; endpoint.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">identity</span><span class="p">),</span>
+    <span class="p">})</span>
+</pre></div>
+</div>
+</section>
+<section id="example">
+<h2>Example<a class="headerlink" href="#example" title="Permalink to this heading">¶</a></h2>
+<p>To see &amp; try the full example which utilizes OAuth 2.0 middleware and decorators, please see the code
+in the following link:</p>
+<p><a class="reference external" href="https://github.com/TeskaLabs/asab/blob/master/examples/web-authn-oauth.py">https://github.com/TeskaLabs/asab/blob/master/examples/web-authn-oauth.py</a></p>
+<p>Another example serves to demonstrate the public/private key authorization via ASAB web client ssl cert authorization:</p>
+<p><a class="reference external" href="https://github.com/TeskaLabs/asab/blob/master/examples/web-authn-pubkey.py">https://github.com/TeskaLabs/asab/blob/master/examples/web-authn-pubkey.py</a></p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">ASAB</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../get-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial/web/chapter1.html">Web Server Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial/web/chapter2.html">Create microservice with REST API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Services</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">The web server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="restapidocs.html">REST API Docs</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Authn module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#middleware">Middleware</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#decorators">Decorators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cors.html">Cross-Origin Resource Sharing (CORS)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../metrics.html">Metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../storage.html">Storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../alert.html">Alert Service</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../application.html">Application</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../config.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../log.html">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pubsub.html">Publish-Subscribe</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../service.html">Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module.html">Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../various.html">Various utility classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../zookeeper.html">Zookeeper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../library.html">Library</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Administration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/command-line.html">ASAB Command-line interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/containers.html">Containerisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/systemd.html">systemd</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="restapidocs.html" title="previous chapter">REST API Docs</a></li>
+      <li>Next: <a href="cors.html" title="next chapter">Cross-Origin Resource Sharing (CORS)</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, TeskaLabs Ltd..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="../../_sources/asab/web/authn.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

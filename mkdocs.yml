@@ -1,0 +1,43 @@
+site_name: My Docs
+
+theme:
+  name: "material"
+
+plugins:
+  - mkdocstrings
+
+nav:
+  - Introduction: index.md
+
+  - Get Started: 
+    - get-started.md
+    - tutorial/chapter1.md
+    - tutorial/chapter2.md
+
+  - Services:
+    - asab/web/index.md
+    - asab/web/auth.md
+    - asab/web/cors.md
+    - asab/web/restapidocs.md
+    - asab/library.md
+
+  - Reference:
+    - asab/application.md
+    - asab/config.md
+    - asab/log.md
+    - asab/metrics.md
+    - asab/module.md
+    - asab/pubsub.md
+    - asab/service.md
+    - asab/storage.md
+    - asab/various.md
+    - asab/zookeeper.md
+
+  - Administration:
+    - admin/command-line.md
+    - admin/containers.md
+    - admin/install.md
+    - admin/systemd.md
+
+  - asab/index.md
+  - asab/alert.md

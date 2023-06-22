@@ -1,0 +1,649 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>asab.storage.elasticsearch &#8212; ASAB  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for asab.storage.elasticsearch</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">aiohttp</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">urllib.parse</span>
+<span class="kn">import</span> <span class="nn">typing</span>
+
+<span class="kn">from</span> <span class="nn">.service</span> <span class="kn">import</span> <span class="n">StorageServiceABC</span>
+<span class="kn">from</span> <span class="nn">.upsertor</span> <span class="kn">import</span> <span class="n">UpsertorABC</span>
+<span class="kn">from</span> <span class="nn">..config</span> <span class="kn">import</span> <span class="n">Config</span>
+
+<span class="c1">#</span>
+
+<span class="n">L</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="c1">#</span>
+
+<span class="n">Config</span><span class="o">.</span><span class="n">add_defaults</span><span class="p">(</span>
+	<span class="p">{</span>
+		<span class="s1">&#39;asab:storage&#39;</span><span class="p">:</span> <span class="p">{</span>
+			<span class="c1"># You may specify multiple ElasticSearch nodes by e.g. http://es01:9200,es02:9200,es03:9200/</span>
+			<span class="s1">&#39;elasticsearch_url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://localhost:9200/&#39;</span><span class="p">,</span>
+
+			<span class="s1">&#39;elasticsearch_username&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+			<span class="s1">&#39;elasticsearch_password&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+
+			<span class="c1"># make the operation visible to search directly, options: true, false, wait_for</span>
+			<span class="c1"># see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-index_.html</span>
+			<span class="s1">&#39;refresh&#39;</span><span class="p">:</span> <span class="s1">&#39;true&#39;</span><span class="p">,</span>
+			<span class="s1">&#39;scroll_timeout&#39;</span><span class="p">:</span> <span class="s1">&#39;1m&#39;</span><span class="p">,</span>
+		<span class="p">}</span>
+	<span class="p">}</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="StorageService"><a class="viewcode-back" href="../../../asab/storage.html#asab.storage.elasticsearch.StorageService">[docs]</a><span class="k">class</span> <span class="nc">StorageService</span><span class="p">(</span><span class="n">StorageServiceABC</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	StorageService for Elastic Search. Depends on `aiohttp` library.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">,</span> <span class="n">service_name</span><span class="p">,</span> <span class="n">config_section_name</span><span class="o">=</span><span class="s1">&#39;asab:storage&#39;</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">service_name</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">Loop</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">URL</span> <span class="o">=</span> <span class="n">Config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">config_section_name</span><span class="p">,</span> <span class="s1">&#39;elasticsearch_url&#39;</span><span class="p">)</span>
+		<span class="n">parsed_url</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urlparse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">URL</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">ServerUrls</span> <span class="o">=</span> <span class="p">[</span>
+			<span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urlunparse</span><span class="p">((</span><span class="n">parsed_url</span><span class="o">.</span><span class="n">scheme</span><span class="p">,</span> <span class="n">netloc</span><span class="p">,</span> <span class="n">parsed_url</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+			<span class="k">for</span> <span class="n">netloc</span> <span class="ow">in</span> <span class="n">parsed_url</span><span class="o">.</span><span class="n">netloc</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+		<span class="p">]</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">Refresh</span> <span class="o">=</span> <span class="n">Config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">config_section_name</span><span class="p">,</span> <span class="s1">&#39;refresh&#39;</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">ScrollTimeout</span> <span class="o">=</span> <span class="n">Config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">config_section_name</span><span class="p">,</span> <span class="s1">&#39;scroll_timeout&#39;</span><span class="p">)</span>
+
+		<span class="n">username</span> <span class="o">=</span> <span class="n">Config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">config_section_name</span><span class="p">,</span> <span class="s1">&#39;elasticsearch_username&#39;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">username</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_auth</span> <span class="o">=</span> <span class="kc">None</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">password</span> <span class="o">=</span> <span class="n">Config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">config_section_name</span><span class="p">,</span> <span class="s1">&#39;elasticsearch_password&#39;</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_auth</span> <span class="o">=</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">BasicAuth</span><span class="p">(</span><span class="n">login</span><span class="o">=</span><span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">_ClientSession</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="StorageService.finalize"><a class="viewcode-back" href="../../../asab/storage.html#asab.storage.elasticsearch.StorageService.finalize">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Close the current client session.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ClientSession</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ClientSession</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+			<span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ClientSession</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_ClientSession</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="StorageService.session"><a class="viewcode-back" href="../../../asab/storage.html#asab.storage.elasticsearch.StorageService.session">[docs]</a>	<span class="k">def</span> <span class="nf">session</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Get the current client session.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ClientSession</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_ClientSession</span> <span class="o">=</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientSession</span><span class="p">(</span><span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_auth</span><span class="p">)</span>
+		<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ClientSession</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_ClientSession</span> <span class="o">=</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientSession</span><span class="p">(</span><span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_auth</span><span class="p">)</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ClientSession</span></div>
+
+
+	<span class="k">async</span> <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">obj_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">decrypt</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+		<span class="sd">&quot;&quot;&quot;Get object by its index and object ID.</span>
+
+<span class="sd">		Args:</span>
+<span class="sd">			index (str): Index for the query.</span>
+<span class="sd">			obj_id (str): ID of the object.</span>
+<span class="sd">			decrypt (None): Not implemented yet. Defaults to None.</span>
+
+<span class="sd">		Raises:</span>
+<span class="sd">			NotImplementedError: Encryption and decryption has not yet been implemented for ECS.</span>
+<span class="sd">			Exception: Connection failed.</span>
+
+<span class="sd">		Returns:</span>
+<span class="sd">			dict: The query result.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">if</span> <span class="n">decrypt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;AES encryption for ElasticSearch not implemented&quot;</span><span class="p">)</span>
+
+		<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+			<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">/_doc/</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">obj_id</span><span class="p">)</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+					<span class="n">obj</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+					<span class="n">ret</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s1">&#39;_source&#39;</span><span class="p">]</span>
+					<span class="n">ret</span><span class="p">[</span><span class="s1">&#39;_v&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s1">&#39;_version&#39;</span><span class="p">]</span>
+					<span class="n">ret</span><span class="p">[</span><span class="s1">&#39;_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s1">&#39;_id&#39;</span><span class="p">]</span>
+					<span class="k">return</span> <span class="n">ret</span>
+			<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+
+	<span class="k">async</span> <span class="k">def</span> <span class="nf">get_by</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">decrypt</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;get_by&quot;</span><span class="p">)</span>
+
+	<span class="k">async</span> <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">_id</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">_id</span><span class="p">:</span>
+					<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">/_doc/</span><span class="si">{}</span><span class="s2">?refresh=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Refresh</span><span class="p">)</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+				<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;DELETE&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+					<span class="k">assert</span> <span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span><span class="p">,</span> <span class="s2">&quot;Unexpected response code: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+					<span class="n">resp</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+
+					<span class="k">if</span> <span class="n">resp</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;acknowledged&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+						<span class="k">return</span> <span class="n">resp</span>
+					<span class="k">assert</span> <span class="n">resp</span><span class="p">[</span><span class="s2">&quot;result&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;deleted&quot;</span><span class="p">,</span> <span class="s2">&quot;Document was not deleted&quot;</span>
+					<span class="k">return</span> <span class="n">resp</span>
+			<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="StorageService.mapping"><a class="viewcode-back" href="../../../asab/storage.html#asab.storage.elasticsearch.StorageService.mapping">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">mapping</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+		<span class="sd">&quot;&quot;&quot;Retrieve mapping definitions for one index.</span>
+
+<span class="sd">		:param index: Specified index.</span>
+<span class="sd">		:type index: str</span>
+<span class="sd">		:raise Exception: Connection failed.</span>
+
+<span class="sd">		Returns:</span>
+<span class="sd">			dict: Mapping definitions for the index.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+			<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">/_mapping&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+					<span class="n">obj</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+					<span class="k">return</span> <span class="n">obj</span>
+			<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="StorageService.get_index_template"><a class="viewcode-back" href="../../../asab/storage.html#asab.storage.elasticsearch.StorageService.get_index_template">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">get_index_template</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">template_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+		<span class="sd">&quot;&quot;&quot;Retrieve ECS Index template for the given template name.</span>
+
+<span class="sd">		:param template_name: The name of the ECS template to retrieve.</span>
+<span class="sd">		:type template_name: str</span>
+<span class="sd">		:raise Exception: Raised if connection to all server URLs fails.</span>
+<span class="sd">		:return: ElasticSearch Index template.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+			<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_template/</span><span class="si">{}</span><span class="s2">?format=json&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">template_name</span><span class="p">)</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="p">{</span>
+					<span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="s1">&#39;application/json&#39;</span>
+				<span class="p">})</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+					<span class="k">assert</span> <span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span><span class="p">,</span> <span class="s2">&quot;Unexpected response code: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+					<span class="n">content</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+					<span class="k">return</span> <span class="n">content</span>
+			<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="StorageService.put_index_template"><a class="viewcode-back" href="../../../asab/storage.html#asab.storage.elasticsearch.StorageService.put_index_template">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">put_index_template</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">template_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">template</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+		<span class="sd">&quot;&quot;&quot;Create a new ECS index template.</span>
+
+<span class="sd">			:param template_name: The name of ECS template.</span>
+<span class="sd">			:param template: Body for the request.</span>
+<span class="sd">			:return: JSON response.</span>
+<span class="sd">			:raise Exception: Raised if connection to all server URLs fails.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+			<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_template/</span><span class="si">{}</span><span class="s2">?include_type_name&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">template_name</span><span class="p">)</span>
+			<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;sending into url: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">template</span><span class="p">),</span> <span class="n">headers</span><span class="o">=</span><span class="p">{</span>
+					<span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="s1">&#39;application/json&#39;</span>
+				<span class="p">})</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+					<span class="k">assert</span> <span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span><span class="p">,</span> <span class="s2">&quot;Unexpected response code: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+					<span class="n">resp</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+					<span class="k">return</span> <span class="n">resp</span>
+			<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="StorageService.reindex"><a class="viewcode-back" href="../../../asab/storage.html#asab.storage.elasticsearch.StorageService.reindex">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">reindex</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">previous_index</span><span class="p">,</span> <span class="n">new_index</span><span class="p">):</span>
+		<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">url</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">):</span>
+					<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_reindex&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/_reindex&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+
+				<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
+					<span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
+					<span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+					<span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">},</span>
+					<span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+						<span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="p">{</span>
+							<span class="s2">&quot;index&quot;</span><span class="p">:</span> <span class="n">previous_index</span><span class="p">,</span>
+						<span class="p">},</span>
+						<span class="s2">&quot;dest&quot;</span><span class="p">:</span> <span class="p">{</span>
+							<span class="s2">&quot;index&quot;</span><span class="p">:</span> <span class="n">new_index</span><span class="p">,</span>
+						<span class="p">}</span>
+					<span class="p">})</span>
+				<span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+
+					<span class="k">if</span> <span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+						<span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span>
+							<span class="s2">&quot;Unexpected response code when reindexing: </span><span class="si">{}</span><span class="s2">, </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+								<span class="n">resp</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">text</span><span class="p">()</span>
+							<span class="p">)</span>
+						<span class="p">)</span>
+					<span class="n">resp</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+					<span class="k">return</span> <span class="n">resp</span>
+			<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="StorageService.scroll"><a class="viewcode-back" href="../../../asab/storage.html#asab.storage.elasticsearch.StorageService.scroll">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">scroll</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+		<span class="sd">&quot;&quot;&quot;Retrieve the next batch of results for a scrolling search.</span>
+
+<span class="sd">		:param index: The index name.</span>
+<span class="sd">		:type index: str</span>
+<span class="sd">		:param body: Custom body for the request. Defaults to None.</span>
+<span class="sd">		:type body: dict</span>
+<span class="sd">		:return: JSON response.</span>
+<span class="sd">		:raise Exception: Raised if connection to all server URLs fails.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">if</span> <span class="n">body</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">body</span> <span class="o">=</span> <span class="p">{</span>
+				<span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;bool&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;must&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;match_all&quot;</span><span class="p">:</span> <span class="p">{}}}}</span>
+			<span class="p">}</span>
+
+		<span class="n">scroll_id</span> <span class="o">=</span> <span class="kc">None</span>
+		<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+			<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">scroll_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+					<span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/_search?scroll=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+						<span class="n">index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ScrollTimeout</span>
+					<span class="p">)</span>
+					<span class="n">request_body</span> <span class="o">=</span> <span class="n">body</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;_search/scroll&quot;</span>
+					<span class="n">request_body</span> <span class="o">=</span> <span class="p">{</span>
+						<span class="s2">&quot;scroll&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ScrollTimeout</span><span class="p">,</span>
+						<span class="s2">&quot;scroll_id&quot;</span><span class="p">:</span> <span class="n">scroll_id</span><span class="p">,</span>
+					<span class="p">}</span>
+				<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+				<span class="k">try</span><span class="p">:</span>
+					<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
+						<span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
+						<span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+						<span class="n">json</span><span class="o">=</span><span class="n">request_body</span><span class="p">,</span>
+						<span class="n">headers</span><span class="o">=</span><span class="p">{</span>
+							<span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span>
+						<span class="p">},</span>
+					<span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+						<span class="k">if</span> <span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+							<span class="n">data</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">text</span><span class="p">()</span>
+							<span class="n">L</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+								<span class="s2">&quot;Failed to fetch data from ElasticSearch: </span><span class="si">{}</span><span class="s2"> from </span><span class="si">{}</span><span class="se">\n</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+									<span class="n">resp</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">data</span>
+								<span class="p">)</span>
+							<span class="p">)</span>
+							<span class="k">break</span>
+						<span class="n">response_json</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+				<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+					<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+						<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+							<span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+								<span class="n">url</span>
+							<span class="p">)</span>
+						<span class="p">)</span>
+					<span class="k">else</span><span class="p">:</span>
+						<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+							<span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+								<span class="n">url</span>
+							<span class="p">)</span>
+						<span class="p">)</span>
+
+			<span class="n">scroll_id</span> <span class="o">=</span> <span class="n">response_json</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_scroll_id&quot;</span><span class="p">)</span>
+			<span class="k">if</span> <span class="n">scroll_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="k">break</span>
+			<span class="k">return</span> <span class="n">response_json</span></div>
+
+	<span class="k">def</span> <span class="nf">upsertor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">obj_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
+		<span class="k">return</span> <span class="n">ElasicSearchUpsertor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">obj_id</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="StorageService.list"><a class="viewcode-back" href="../../../asab/storage.html#asab.storage.elasticsearch.StorageService.list">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">_from</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+		<span class="sd">&quot;&quot;&quot;List data matching the index.</span>
+
+<span class="sd">		:param index: Specified index.</span>
+<span class="sd">		:param _from:  Starting document offset. Defaults to 0.</span>
+<span class="sd">		:type _from: int</span>
+<span class="sd">		:param size: The number of hits to return. Defaults to 10000.</span>
+<span class="sd">		:type size: int</span>
+<span class="sd">		:param body: An optional request body. Defaults to None.</span>
+<span class="sd">		:type body: dict</span>
+
+<span class="sd">		:return: The query search result.</span>
+<span class="sd">		:raise Exception: Raised if connection to all server URLs fails.</span>
+
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">if</span> <span class="n">body</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">body</span> <span class="o">=</span> <span class="p">{</span>
+				<span class="s1">&#39;query&#39;</span><span class="p">:</span> <span class="p">{</span>
+					<span class="s1">&#39;bool&#39;</span><span class="p">:</span> <span class="p">{</span>
+						<span class="s1">&#39;must&#39;</span><span class="p">:</span> <span class="p">{</span>
+							<span class="s1">&#39;match_all&#39;</span><span class="p">:</span> <span class="p">{}</span>
+						<span class="p">}</span>
+					<span class="p">}</span>
+				<span class="p">}</span>
+			<span class="p">}</span>
+		<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">/_search?size=</span><span class="si">{}</span><span class="s2">&amp;from=</span><span class="si">{}</span><span class="s2">&amp;version=true&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">_from</span><span class="p">)</span>
+				<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
+					<span class="n">method</span><span class="o">=</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span>
+					<span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+					<span class="n">json</span><span class="o">=</span><span class="n">body</span><span class="p">,</span>
+					<span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="s1">&#39;application/json&#39;</span><span class="p">}</span>
+				<span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+					<span class="k">assert</span> <span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span><span class="p">,</span> <span class="s2">&quot;Unexpected response code: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+					<span class="n">content</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+					<span class="k">return</span> <span class="n">content</span>
+			<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="StorageService.count"><a class="viewcode-back" href="../../../asab/storage.html#asab.storage.elasticsearch.StorageService.count">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">count</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Get the number of matches for a given index.</span>
+
+<span class="sd">		:param index: The specified index.</span>
+<span class="sd">		:return: The number of matches for a given index.</span>
+<span class="sd">		:raise Exception: Connection failed.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">count_url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">/_count&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+				<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">count_url</span><span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+					<span class="k">assert</span> <span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span><span class="p">,</span> <span class="s2">&quot;Unexpected response code: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+					<span class="n">total_count</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+					<span class="k">return</span> <span class="n">total_count</span>
+			<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="StorageService.indices"><a class="viewcode-back" href="../../../asab/storage.html#asab.storage.elasticsearch.StorageService.indices">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">search_string</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Return high-level information about indices in a cluster, including backing indices for data streams.</span>
+
+<span class="sd">		:param search_string: A search string. Default to None.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_cat/indices/</span><span class="si">{}</span><span class="s2">?format=json&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">search_string</span> <span class="k">if</span> <span class="n">search_string</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s2">&quot;*&quot;</span><span class="p">)</span>
+				<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+					<span class="k">assert</span> <span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span><span class="p">,</span> <span class="s2">&quot;Unexpected response code: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+					<span class="k">return</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+
+			<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="StorageService.empty_index"><a class="viewcode-back" href="../../../asab/storage.html#asab.storage.elasticsearch.StorageService.empty_index">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">empty_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		Create an empty ECS index.</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+		<span class="c1"># TODO: There is an option here to specify settings (e.g. shard number, replica number etc) and mappings here</span>
+		<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+				<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;PUT&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+					<span class="k">assert</span> <span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span><span class="p">,</span> <span class="s2">&quot;Unexpected response code: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+					<span class="k">return</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+			<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">ElasicSearchUpsertor</span><span class="p">(</span><span class="n">UpsertorABC</span><span class="p">):</span>
+
+	<span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">storage</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">obj_id</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">storage</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">obj_id</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
+
+		<span class="n">now</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">ModSet</span><span class="p">[</span><span class="s1">&#39;_m&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">now</span>
+
+		<span class="k">if</span> <span class="n">version</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">ModSet</span><span class="p">[</span><span class="s1">&#39;_c&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">now</span>  <span class="c1"># Set the creation timestamp</span>
+
+
+	<span class="nd">@classmethod</span>
+	<span class="k">def</span> <span class="nf">generate_id</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+		<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;generate_id&quot;</span><span class="p">)</span>
+
+
+	<span class="k">async</span> <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">custom_data</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">event_type</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+		<span class="c1"># TODO: Implement webhook call</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ObjId</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_insert_noobjid</span><span class="p">()</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upsert</span><span class="p">()</span>
+
+
+	<span class="k">async</span> <span class="k">def</span> <span class="nf">_insert_noobjid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">setobj</span> <span class="o">=</span> <span class="p">{}</span>
+
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">Version</span> <span class="o">=</span> <span class="mi">0</span>
+
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ModSet</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ModSet</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+				<span class="n">setobj</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">serialize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ModSet</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ModInc</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="c1"># addobj[&#39;$inc&#39;] = self.ModInc</span>
+			<span class="c1"># raise NotImplementedError(&quot;yet&quot;)</span>
+			<span class="k">pass</span>
+
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ModPush</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="c1"># addobj[&#39;$push&#39;] = {k: {&#39;$each&#39;: v} for k, v in self.ModPush.items()}</span>
+			<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;yet&quot;</span><span class="p">)</span>
+
+		<span class="c1"># This is insert of the new document, the ObjId is to be generated by the ElasicSearch</span>
+		<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+			<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">/_doc?refresh=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+				<span class="n">url</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Collection</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">Refresh</span>
+			<span class="p">)</span>
+
+			<span class="k">try</span><span class="p">:</span>
+				<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">setobj</span><span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+					<span class="k">if</span> <span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="mi">201</span><span class="p">:</span>
+						<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Unexpected response code: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">status</span><span class="p">))</span>
+
+					<span class="n">resp_json</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">ObjId</span> <span class="o">=</span> <span class="n">resp_json</span><span class="p">[</span><span class="s1">&#39;_id&#39;</span><span class="p">]</span>
+					<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ObjId</span>
+
+			<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+					<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+
+
+	<span class="k">async</span> <span class="k">def</span> <span class="nf">_upsert</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">upsertobj</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;doc&quot;</span><span class="p">:</span> <span class="p">{},</span> <span class="s2">&quot;doc_as_upsert&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ModSet</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ModSet</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+				<span class="n">upsertobj</span><span class="p">[</span><span class="s2">&quot;doc&quot;</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">serialize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ModSet</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+
+			<span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">:</span>
+				<span class="k">try</span><span class="p">:</span>
+					<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">/_update/</span><span class="si">{}</span><span class="s2">?refresh=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Collection</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ObjId</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">Refresh</span><span class="p">)</span>
+					<span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">session</span><span class="p">()</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">upsertobj</span><span class="p">),</span>
+																<span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="s1">&#39;application/json&#39;</span><span class="p">})</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+						<span class="k">assert</span> <span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span> <span class="ow">or</span> <span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">201</span><span class="p">,</span> <span class="s2">&quot;Unexpected response code: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+						<span class="n">resp_json</span> <span class="o">=</span> <span class="k">await</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+						<span class="k">assert</span> <span class="n">resp_json</span><span class="p">[</span><span class="s2">&quot;result&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;updated&quot;</span> <span class="ow">or</span> <span class="n">resp_json</span><span class="p">[</span>
+							<span class="s2">&quot;result&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;created&quot;</span><span class="p">,</span> <span class="s2">&quot;Creating/updating was unsuccessful&quot;</span>
+						<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ObjId</span>
+				<span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">client_exceptions</span><span class="o">.</span><span class="n">ClientConnectorError</span><span class="p">:</span>
+					<span class="k">if</span> <span class="n">url</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Storage</span><span class="o">.</span><span class="n">ServerUrls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+						<span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+					<span class="k">else</span><span class="p">:</span>
+						<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to connect to &#39;</span><span class="si">{}</span><span class="s2">&#39;, iterating to another cluster node&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+	<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">):</span>
+		<span class="k">return</span> <span class="n">v</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">v</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">ASAB</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../get-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial/web/chapter1.html">Web Server Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial/web/chapter2.html">Create microservice with REST API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Services</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/web/index.html">The web server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/web/restapidocs.html">REST API Docs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/web/cors.html">Cross-Origin Resource Sharing (CORS)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/metrics.html">Metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/storage.html">Storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/alert.html">Alert Service</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/application.html">Application</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/config.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/log.html">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/pubsub.html">Publish-Subscribe</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/service.html">Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/module.html">Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/various.html">Various utility classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/zookeeper.html">Zookeeper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../asab/library.html">Library</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Administration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../admin/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../admin/command-line.html">ASAB Command-line interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../admin/containers.html">Containerisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../admin/systemd.html">systemd</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, TeskaLabs Ltd..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
