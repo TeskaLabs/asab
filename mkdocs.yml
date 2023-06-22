@@ -106,8 +106,12 @@ nav:
     # - reference/metrics.md
     # - reference/module.md
     - Storage:
-        - Abstract class: reference/storage/abc.md
+        - StorageService: reference/storage/service.md
+        - Upsertor: reference/storage/upsertor.md
+        - Exceptions: reference/storage/exceptions.md
         - ElasticSearch: reference/storage/elasticsearch.md
+        - MongoDB: reference/storage/mongodb.md
+        - In-Memory: reference/storage/inmemory.md
 
   - Administration:
     - explanation/admin/command-line.md

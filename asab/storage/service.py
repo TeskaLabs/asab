@@ -86,7 +86,7 @@ class StorageServiceABC(asab.Service):
 			decrypt (bool): Set of fields to decrypt.
 
 		Returns:
-			(dict) The object retrieved from a storage.
+			The object retrieved from a storage.
 
 		Raises:
 			KeyError: Raised if `obj_id` is not found in `collection`.
@@ -95,15 +95,18 @@ class StorageServiceABC(asab.Service):
 
 
 	@abc.abstractmethod
-	async def get_by(self, collection: str, key: str, value, decrypt=None):
+	async def get_by(self, collection: str, key: str, value, decrypt=None) -> dict:
 		"""
 		Get object from collection by its key and value.
 
-		:param collection: Collection to get from
-		:param key: Key to filter on
-		:param value: Value to filter on
-		:param decrypt: Set of fields to decrypt
-		:return: The object retrieved from a storage
+		Args:
+			collection: Collection to get from
+			key: Key to filter on
+			value: Value to filter on
+			decrypt: Set of fields to decrypt
+
+		Returns:
+			The object retrieved from a storage.
 
 		Raises:
 			KeyError: If object {key: value} not found in `collection`
@@ -116,13 +119,15 @@ class StorageServiceABC(asab.Service):
 		"""
 		Delete object from collection.
 
-		:param collection: Collection to get from
-		:type collection: str
-		:param obj_id: Object identification
+		Args:
+			collection: Collection to get from
+			obj_id: Object identification
 
-		:return: ID of the deleted object.
+		Returns:
+			ID of the deleted object.
 
-		:raise KeyError: Raised when obj_id cannot be found in collection.
+		Raises:
+			KeyError: Raised when obj_id cannot be found in collection.
 		"""
 		pass
 
@@ -131,13 +136,15 @@ class StorageServiceABC(asab.Service):
 		"""
 		Take an array of bytes and encrypt it using AES-CBC.
 
-		:param raw: The data to be encrypted.
-		:type raw: bytes
-		:param iv: AES-CBC initialization vector, 16 bytes long. If left empty, a random 16-byte array will be used.
-		:type iv: bytes
-		:return: The encrypted data.
+		Args:
+			raw: The data to be encrypted.
+			iv: AES-CBC initialization vector, 16 bytes long. If left empty, a random 16-byte array will be used.
 
-		:raise TypeError: The data are not in binary format.
+		Returns:
+			The encrypted data.
+
+		Raises:
+			TypeError: The data are not in binary format.
 		"""
 		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
 
@@ -173,10 +180,11 @@ class StorageServiceABC(asab.Service):
 		"""
 		Decrypt encrypted data using AES-CBC.
 
-		:param encrypted: The encrypted data to decrypt.
-			It must start with b"$aes-cbc$" prefix, followed by one-block-long initialization vector.
-		:type encrypted: bytes
-		:return: The decrypted data.
+		Args:
+			encrypted: The encrypted data to decrypt. It must start with b"$aes-cbc$" prefix, followed by one-block-long initialization vector.
+
+		Returns:
+			The decrypted data.
 		"""
 		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
 
@@ -211,5 +219,8 @@ class StorageServiceABC(asab.Service):
 	def encryption_enabled(self) -> bool:
 		"""
 		Check if AESKey is not empty.
+
+		Returns:
+			True if AESKey is not empty.
 		"""
 		return self._AESKey is not None
