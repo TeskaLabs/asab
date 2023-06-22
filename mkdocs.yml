@@ -56,6 +56,12 @@ plugins:
         default_handler: python
         python:
           use_indentation: '\t'
+  - glightbox
+  - search
+  - awesome-pages
+  # - print-site:
+  #     add_to_navigation: true
+
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -92,7 +98,13 @@ nav:
     # - topics/asab/module.md
     # - topics/asab/pubsub.md
     # - topics/asab/service.md
-    - topics/asab/storage.md
+    - Storage:
+      - Intro: topics/asab/storage/intro.md
+      - Manipulation with Databases: topics/asab/storage/manipulation_with_databases.md
+      - Encryption and Decryption: topics/asab/storage/encryption.md
+      - In-Memory Storage: topics/asab/storage/inmemory.md
+      - MongoDB Storage: topics/asab/storage/mongodb.md
+      - ElasticSearch Storage: topics/asab/storage/elasticsearch.md
     # - topics/asab/various.md
     # - topics/asab/zookeeper.md
 
