@@ -1,11 +1,7 @@
-xxx {.currentmodule}
-asab.storage
-xxx
-
 Storage
 =======
 
-The ASAB\'s Storage Service supports data storage in-memory or in
+The ASAB's Storage Service supports data storage in-memory or in
 dedicated document databases, including
 [MongoDB](https://www.mongodb.com/) and
 [ElasticSearch](https://www.elastic.co/).
@@ -16,12 +12,12 @@ Configuration
 First, specify the storage type in the configuration. The options for
 the storage type are:
 
--   \`inmemory\`: Collects data directly in memory
--   \`mongodb\`: Collects data using MongoDB database. Depends on
+-   `inmemory`: Collects data directly in memory
+-   `mongodb`: Collects data using MongoDB database. Depends on
     [pymongo](https://pymongo.readthedocs.io/en/stable/) and
     [motor](https://motor.readthedocs.io/en/stable/api-asyncio/asyncio_motor_collection.html)
     libraries.
--   \`elasticsearch\`: Collects data using ElasticSearch database.
+-   `elasticsearch`: Collects data using ElasticSearch database.
     Depends on [aiohttp](https://docs.aiohttp.org/en/latest/) library.
 
 Storage Service provides a unified interface for accessing and
@@ -33,7 +29,7 @@ type=mongodb
 ```
 
 For accessing the storage, simply add
-[asab.storage.Module]{.title-ref}\` when initializing and register the
+[asab.storage.Module]{.title-ref}` when initializing and register the
 service.
 
 ``` {.python}
@@ -63,7 +59,7 @@ u = storage.upsertor("test-collection")
 The `StorageService.upsertor()`{.interpreted-text role="func"} method
 creates an upsertor object associated with the specified collection. It
 takes [collection]{.title-ref} as an argument and can have two
-parameters [obj\_id]{.title-ref} and [version]{.title-ref}, which are
+parameters [obj_id]{.title-ref} and [version]{.title-ref}, which are
 used for getting an existing object by its ID and version.
 
 ### Inserting an object
@@ -85,7 +81,7 @@ object_id = await u.execute()
 ```
 
 The [Upsertor.execute()]{.title-ref} method has optional parameters
-[custom\_data]{.title-ref} and [event\_type]{.title-ref}, which are used
+[custom_data]{.title-ref} and [event_type]{.title-ref}, which are used
 for webhook requests.
 
 ``` {.python}
@@ -100,7 +96,7 @@ object_id = await u.execute(
 For getting a single object, use
 `StorageService.get()`{.interpreted-text role="func"} coroutine method
 that takes two arguments [collection]{.title-ref} and
-[obj\_id]{.title-ref} and finds an object by its ID in collection.
+[obj_id]{.title-ref} and finds an object by its ID in collection.
 
 ``` {.python}
 obj = await storage.get(collection="test-collection", obj_id=object_id)
@@ -128,7 +124,7 @@ xxx
 ### Updating an object
 
 For updating an object, first obtain the upsertor specifying its
-[obj\_id]{.title-ref} and [version]{.title-ref}.
+[obj_id]{.title-ref} and [version]{.title-ref}.
 
 ``` {.python}
 u = storage.upsertor(
@@ -157,7 +153,7 @@ object_id = await u.execute()
 For deleting an object from database, use the
 `StorageService.delete()`{.interpreted-text role="func"} coroutine
 method which takes arguments [collection]{.title-ref} and
-[obj\_id]{.title-ref}, deletes the object and returns its ID.
+[obj_id]{.title-ref}, deletes the object and returns its ID.
 
 ``` {.python}
 deleted_id = await u.delete("test-collection", object_id)
@@ -215,7 +211,7 @@ class provides in addition two methods,
 The method `StorageService.get_by()`{.interpreted-text role="func"} is
 used in the same way as `StorageService.get()`{.interpreted-text
 role="func"} except that it takes the arguments [key]{.title-ref} and
-[value]{.title-ref} instead of [obj\_id]{.title-ref}.
+[value]{.title-ref} instead of [obj_id]{.title-ref}.
 
 ``` {.python}
 obj = await storage.get_by(database="test-collection", key="key", value="value")
@@ -224,7 +220,7 @@ obj = await storage.get_by(database="test-collection", key="key", value="value")
 The method `collection()`{.interpreted-text role="func"} is used for
 accessing the database directly. It takes [collection]{.title-ref} as
 the argument and returns
-[motor.motor\_asyncio.AsyncIOMotorCollection]{.title-ref} object, which
+[motor.motor_asyncio.AsyncIOMotorCollection]{.title-ref} object, which
 can be used for calling MongoDB directives.
 
 ``` {.python}
@@ -294,7 +290,7 @@ recommended to keep it in [a separate configuration
 file](https://asab.readthedocs.io/en/latest/asab/config.html#including-other-configuration-files)
 that is not exposed anywhere publicly.
 
-The actual binary AES Key is obtained from the [aes\_key]{.title-ref}
+The actual binary AES Key is obtained from the [aes_key]{.title-ref}
 specified in the config file by encoding and hashing it using the
 standard [hashlib](https://docs.python.org/3/library/hashlib.html)
 algorithms, so do not worry about the length and type of the key.
@@ -322,7 +318,7 @@ object_id = await u.execute()
 
 The `StorageService.get()`{.interpreted-text role="func"} coroutine
 method has an optional parameter [decrypt]{.title-ref} which takes an
-`iterable` object (i.e. a list, tuple, set, \...) with the names of keys
+`iterable` object (i.e. a list, tuple, set, ...) with the names of keys
 whose values are to be decrypted.
 
 ``` {.python}
@@ -342,7 +338,7 @@ Note
 xxx
 
 Data that has been encrypted can be identified by the prefix
-\"\$aes-cbc\$\" and are stored in a binary format.
+"$aes-cbc$" and are stored in a binary format.
 xxx
 
 ### Under the hood
@@ -362,7 +358,7 @@ AES-CBC, the plaintext is divided into blocks of fixed size (usually 128
 bits), and each block is encrypted using the AES algorithm with a secret
 key.
 
-CBC stands for \"Cipher Block Chaining\" and it is a technique that adds
+CBC stands for "Cipher Block Chaining" and it is a technique that adds
 an extra step to the encryption process to ensure that each ciphertext
 block depends on the previous one. This means that any modification to
 the ciphertext will produce a completely different plaintext after
@@ -372,157 +368,3 @@ The algorithm is a symmetric cipher, which is suitable for encrypting
 large amounts of data. It requires much less computation power than
 asymmetric ciphers and is much more useful for bulk encrypting large
 amounts of data.
-
-Reference
----------
-
-### StorageService
-
-Here is a list of methods of the abstract StorageService class which can
-be used for all types of storages.
-
-xxx {.currentmodule}
-asab.storage.service
-xxx
-
-# TODO: autoclass%
-StorageServiceABC
-
-# TODO: automethod%
-upsertor
-xxx
-
-# TODO: automethod%
-get
-xxx
-
-# TODO: automethod%
-delete
-xxx
-
-# TODO: automethod%
-aes\_encrypt
-xxx
-
-# TODO: automethod%
-aes\_decrypt
-xxx
-xxx
-
-### Upsertor
-
-Here is a list of methods of the abstract Upsertor class which can be
-used for all types of storages.
-
-xxx {.currentmodule}
-asab.storage.upsertor
-xxx
-
-# TODO: autoclass%
-UpsertorABC
-
-# TODO: automethod%
-set
-xxx
-
-# TODO: automethod%
-unset
-xxx
-
-# TODO: automethod%
-generate\_id
-xxx
-
-# TODO: automethod%
-execute
-xxx
-xxx
-
-### In-memory storage
-
-Here is a list of methods that are specific for the in-memory storage.
-
-xxx {.currentmodule}
-asab.storage.inmemory
-xxx
-
-# TODO: autoclass show-inheritance=""}
-StorageService
-xxx
-
-### MongoDB Storage
-
-Here is a list of methods that are specific for the MongoDB storage.
-
-xxx {.currentmodule}
-asab.storage.mongodb
-xxx
-
-# TODO: autoclass show-inheritance=""}
-StorageService
-
-# TODO: automethod%
-get\_by
-xxx
-
-# TODO: automethod%
-collection
-xxx
-xxx
-
-### ElasticSearch Storage
-
-Here is a list of methods that are specific for the ElasticSearch
-storage.
-
-xxx {.currentmodule}
-asab.storage.elasticsearch
-xxx
-
-# TODO: autoclass show-inheritance=""}
-StorageService
-
-# TODO: automethod%
-session
-xxx
-
-# TODO: automethod%
-finalize
-xxx
-
-# TODO: automethod%
-mapping
-xxx
-
-# TODO: automethod%
-get\_index\_template
-xxx
-
-# TODO: automethod%
-put\_index\_template
-xxx
-
-# TODO: automethod%
-reindex
-xxx
-
-# TODO: automethod%
-scroll
-xxx
-
-# TODO: automethod%
-list
-xxx
-
-# TODO: automethod%
-count
-xxx
-
-# TODO: automethod%
-indices
-xxx
-
-# TODO: automethod%
-empty\_index
-xxx
-xxx

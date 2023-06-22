@@ -69,7 +69,7 @@ markdown_extensions:
 nav:
   - Introduction: index.md
 
-  - Installation: explanation/admin/install.md
+  - Installation: topics/admin/install.md
 
 
   - Tutorials:
@@ -77,26 +77,24 @@ nav:
     - tutorials/chapter1.md
     - tutorials/chapter2.md
 
-  - Explanation:
+    # - Services:
+    #   # - topics/asab/web/index.md
+    #   # - topics/asab/web/auth.md
+    #   # - topics/asab/web/cors.md
+    #   # - topics/asab/web/restapidocs.md
+    #   # - topics/asab/library.md
 
-    - Services:
-      - explanation/asab/web/index.md
-      - explanation/asab/web/auth.md
-      - explanation/asab/web/cors.md
-      - explanation/asab/web/restapidocs.md
-      - explanation/asab/library.md
-
-    - Reference:
-      - explanation/asab/application.md
-      - explanation/asab/config.md
-      - explanation/asab/log.md
-      - explanation/asab/metrics.md
-      - explanation/asab/module.md
-      - explanation/asab/pubsub.md
-      - explanation/asab/service.md
-      - explanation/asab/storage.md
-      - explanation/asab/various.md
-      - explanation/asab/zookeeper.md
+  - Topics:
+    # - topics/asab/application.md
+    # - topics/asab/config.md
+    # - topics/asab/log.md
+    # - topics/asab/metrics.md
+    # - topics/asab/module.md
+    # - topics/asab/pubsub.md
+    # - topics/asab/service.md
+    - topics/asab/storage.md
+    # - topics/asab/various.md
+    # - topics/asab/zookeeper.md
 
   - Reference:
     # - reference/application.md
@@ -114,8 +112,8 @@ nav:
         - In-Memory: reference/storage/inmemory.md
 
   - Administration:
-    - explanation/admin/command-line.md
-    - explanation/admin/containers.md
-    - explanation/admin/systemd.md
+    - topics/admin/command-line.md
+    - topics/admin/containers.md
+    - topics/admin/systemd.md
 
-  - explanation/asab/alert.md
+  - topics/asab/alert.md
