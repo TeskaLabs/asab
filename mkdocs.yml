@@ -66,6 +66,11 @@ plugins:
             custom_fences:
               - name: code
                 class: code
+              # TODO: Diagrams for some reason do not work https://squidfunk.github.io/mkdocs-material/reference/diagrams/
+              # - name: mermaid
+              #   class: mermaid
+              #   format: !!python/name:pymdownx.superfences.fence_code_format
+
       config:
         default_handler: python
         python:

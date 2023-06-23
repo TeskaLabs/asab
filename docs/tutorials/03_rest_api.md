@@ -56,6 +56,7 @@ Create the following file structure in your repository:
         └── config.ini
     ```
 
+
 Build a microservice
 --------------------
 
@@ -63,10 +64,10 @@ With the prepared modules, we move on to actual coding. Here is the code for eve
 
 
 ``` python title="my_rest_api.py"
-#!/usr/bin/env python3  # (1)
-from my_rest_api import TutorialApp  # (2)
+#!/usr/bin/env python3  # (1)!
+from my_rest_api import TutorialApp  # (2)!
 
-if __name__ == '__main__':  # (3)
+if __name__ == '__main__':  # (3)!
     app = TutorialApp()   
     app.run()
 ```
@@ -77,30 +78,30 @@ if __name__ == '__main__':  # (3)
 
 ```python title="my_rest_api/app.py"
 
-import asab # (1)
+import asab # (1)!
 import asab.web
 import asab.web.rest
-import asab.storage  # (2)
+import asab.storage # (2)!
 
 class TutorialApp(asab.Application):
 
     def __init__(self):
-        super().__init__()  # (3)
+        super().__init__() # (3)!
 
-        # Register modules  # (4)
-        self.add_module(asab.web.Module)
+        # Register modules
+        self.add_module(asab.web.Module) # (4)!
         self.add_module(asab.storage.Module)
 
         # Locate the web service  
-        self.WebService = self.get_service("asab.WebService") # (5)
+        self.WebService = self.get_service("asab.WebService") # (5)!
         self.WebContainer = asab.web.WebContainer(
-            self.WebService, "web"  # (6)
+            self.WebService, "web" # (6)!
         )
         self.WebContainer.WebApp.middlewares.append(
-            asab.web.rest.JsonExceptionMiddleware  # (7)
+            asab.web.rest.JsonExceptionMiddleware # (7)!
         )
 
-        # Initialize services  # (8)
+        # Initialize services # (8)!
         from .tutorial.handler import CRUDWebHandler
         from .tutorial.service import CRUDService
         self.CRUDService = CRUDService(self)
@@ -125,12 +126,6 @@ class TutorialApp(asab.Application):
 8. `asab` microservices consist of two parts: **services** and **handlers**. 
 When HTTP request is sent to the web server, **handler** will identify its type and calls the corresponding **service**. The service performs some operations and returns some data back to the handler, which sends it back to the client.
 
-``` ini title="conf/config.ini"
-[asab:storage]
-type=mongodb
-mongodb_uri='mongodb://mongouser:mongopassword@mongoipaddress:27017'
-mongodb_database=mongodatabase
-```
 
 Continue with the init file, so that the directory `my_rest_api` will work as a module.
 
@@ -138,7 +133,7 @@ Continue with the init file, so that the directory `my_rest_api` will work as a 
 from .app import TutorialApp
 
 __all__ = [
-    "TutorialApp",  # (1)
+    "TutorialApp", # (1)!
 ]
 ```
 
@@ -162,12 +157,12 @@ import asab.web.rest
 
 class CRUDWebHandler(object):
     def __init__(self, app, mongo_svc):
-        self.CRUDService = mongo_svc  # (1)
+        self.CRUDService = mongo_svc # (1)!
         web_app = app.WebContainer.WebApp
 
         # Handle PUT and GET requests
         web_app.router.add_put(
-            '/crud-myrestapi/{collection}',  # (2)
+            '/crud-myrestapi/{collection}', # (2)!
             self.create
         )
         web_app.router.add_get(
@@ -175,41 +170,42 @@ class CRUDWebHandler(object):
             self.read
         )
 
-        self.JSONSchema = {  # (3)
+        self.JSONSchema = { # (3)!
         'type': 'object',
             'properties': {
                 '_id': {'type': 'string'},
                 'name': {'type': 'string'},
-                'age': {'type': 'number'}
+                'age': {'type': 'number'},
+                'job': {'type': 'string'}
             }
         }
 
 
-    @asab.web.rest.json_schema_handler(self.JSONSchema)  # (4)
+    @asab.web.rest.json_schema_handler(self.JSONSchema) # (4)!
     async def create(self, request, *, json_data):
-        collection = request.match_info['collection']  # (5)
+        collection = request.match_info['collection'] # (5)!
 
         result = await self.CRUDService.create(
-            collection, json_data  # (6)
+            collection, json_data # (6)!
         )
         if result:  
             return asab.web.rest.json_response(
-                request, {"result": "OK"}  # (7)
+                request, {"result": "OK"} # (7)!
             )
         else:
             asab.web.rest.json_response(
-                request, {"result": "FAILED"}  # (8)
+                request, {"result": "FAILED"} # (8)!
             )
 
     async def read(self, request):
-        collection = request.match_info['collection']  # (9)
+        collection = request.match_info['collection'] # (9)!
         key = request.match_info['id']
 
         response = await self.CRUDService.read(
-            collection, key  # (10)
+            collection, key # (10)!
         )
         return asab.web.rest.json_response(
-            request, response  # (11)
+            request, response # (11)!
         )
 ```
 
@@ -242,17 +238,6 @@ The handler only accepts the incoming requests and returns appropriate
 responses. All of the "logic", be it the specifics of the database
 connection, additional validations and other operations take place in
 the CRUDService.
-
-`POST` and `PUT` requests typically come with data in their body. Providing
-your [WebContainer]{.title-ref} with
-[JsonExceptionMiddleware]{.title-ref} enables you to validate a JSON
-input using [\@asab.web.rest.json\_schema\_handler]{.title-ref}
-decorator and JSON schema (<https://json-schema.org/>).
-
-
-
-ASAB WebServer is built on top of the aiohttp library. For further
-details please visit <https://docs.aiohttp.org/en/stable/index.html>.
 
 
 Create a service
@@ -334,90 +319,130 @@ part of the [asab.storage.Module]{.title-ref} enables connection to
 MongoDB. Further on, two methods provide the handler with the desired
 functionalities.
 
+Create a configuration file
+---------------------------
+
+
+``` ini title="conf/config.ini"
+[asab:storage]
+type=mongodb
+mongodb_uri='mongodb://mongouser:mongopassword@mongoipaddress:27017'
+mongodb_database=mongodatabase
+```
+
+
 Testing the app
 ---------------
 
-The application is implicitly running on an [http://localhost:8080/](http://localhost:8080/) port. Open the
-Postman and set a new request.
+Now everything is prepared and we can test our application using Postman. Let's create a new collection named `celebrities` provided with some information.
 
-Try the PUT method:
+1. Start the application
+    ```
+    python my_rest_api.py -c conf/config.ini
+    ```
 
-``` {.}
-127.0.0.1:8080/crud-myrestapi/movie
-```
+    The application is implicitly running on an [http://localhost:8080/](http://localhost:8080/) port. 
 
-Insert into the request body:
+2. Open the Postman and set a new request.
+   First try to add some data using `PUT` method to `localhost:8080/crud-myrestapi/celebrities` endpoint. Insert this JSON document into the request body:
 
-``` {.}
-{
-"_id": "1",
-"field1": "something new",
-"field2": 5555,
-"field3": 44424
-}
-```
-
-When there\'s a record in your database, try to read it! For example
-with this GET request:
-
-``` {.}
-127.0.0.1:8080/crud-myrestapi/movie/1
-```
-
-Is your response with a 200 status code? Does it return desired data?
-
-xxx {.note}
-xxx {.title}
-Note
-xxx
-
-**TROUBLESHOOTING**
-
-**ERROR**
-
-``` {.}
-ModuleNotFoundError: No module named 'pymongo.mongo_replica_set_client'
-```
-
-Try:
-
-``` {.}
-pip install motor
-```
-
-**ERROR**
-
-``` {.}
-OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8080): address already in use
-```
-
-Try to kill process listening on 8080 or add \[web\] section into
-configuration:
-
-``` {.}
-asab.Config.add_defaults(
-{
-    'asab:storage': {
-        'type': 'mongodb',
-        'mongodb_uri': 'mongodb://mongouser:mongopassword@mongoipaddress:27017',
-        'mongodb_database': 'mongodatabase'
-    },
-    'web': {
-        'listen': '0.0.0.0 8081'
+    ``` json
+    {
+    "_id": "1",
+    "name": "Johnny Depp",
+    "age": 60,
+    "job": "actor"
     }
-})
-```
+    ```
 
-**ERROR**
+    Hopefully you received a status 200! Let's add one more.
 
-No error at all, no response either.
+    ``` json
+    {
+    "_id": "2",
+    "name": "Lady Gaga",
+    "age": 37,
+    "job": "singer"
+    }
+    ```
 
-Try to check the Mongo database credentials. Do your credentials in the
-configuration in [app.py]{.title-ref} fit the ones you entered when
-running the Mongo Docker image?
-xxx
+    Now let's test if we can request for some data. Use the `GET` method to `localhost:8080/crud-myrestapi/celebrities/1` endpoint, this time with no request body.
 
-Up and running! Congratulation on your first ASAB microservice!
+    Now, what is the response?
+
+    !!! success
+
+        Up and running! Congratulation on your first ASAB microservice!
+
+    !!! failure
+        If you see the following message:
+
+        ``` bash
+        ModuleNotFoundError: No module named 'pymongo.mongo_replica_set_client'
+        ```
+
+        that means there is a missing module, probably the [motor](https://motor.readthedocs.io/en/stable/) library, which provides an asynchronous driver for MongoDB. Try to fix it:
+
+        ``` bash
+        pip install motor
+        ```
+
+    !!! failure
+        If you see the following message:
+
+        ``` bash
+        OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8080): address already in use
+        ```
+
+        that means that the port is already used by some other application (have you exit the application from the previous tutorial?)
+        To check, what is running on your port, try:
+
+        ``` bash
+        lsof | grep LISTEN
+        ```
+
+        or
+
+        ``` bash
+        lsof | grep localhost:8000
+        ```
+
+        If you something similar to the following output:
+
+        ```
+        python3   103203    user    7u     IPv4  1059624 0t0 TCP *:bbs (LISTEN)
+        ```
+
+        that means there is a running process using the port with ID 103203. 
+        
+        The first option is simply to stop the process:
+
+        ```
+        kill -9 103203
+        ```
+        (replace the ID with the corresponding ID from the previous output).
+
+        The second option is to add these lines into the configuration file:
+
+        ``` ini title="conf/config.ini"
+        [web]
+        listen=0.0.0.0:8081
+        ```
+
+        If you run the app again, it should be running on an [http://localhost:8081/](http://localhost:8081/) port. 
+
+    !!! question
+
+        You see no error at all, no response either.
+
+        Try to check the Mongo database credentials. Do your credentials in the config file fit the ones you entered when running the Mongo Docker image?
+
+
+Conclusion
+----------
+
+TODO TODO TODO
+
 
 Exercise 0: Store JSON schema in the file
 -----------------------------------------

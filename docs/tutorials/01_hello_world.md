@@ -54,14 +54,14 @@ Let's look on the application one more time.
 
 ``` python title="main.py" linenums="1"
 
-    #!/usr/bin/env python3 # (1)
-    import asab # (2)
+    #!/usr/bin/env python3 # (1)!
+    import asab # (2)!
 
-    class MyApplication(asab.Application): # (3)
-        async def main(self): # (4)
-            print("Hello world") # (5)
+    class MyApplication(asab.Application): # (3)!
+        async def main(self): # (4)!
+            print("Hello world") # (5)!
 
-    if __name__ == '__main__': # (6)
+    if __name__ == '__main__': # (6)!
         app = MyApplication()
         app.run()
 ```
