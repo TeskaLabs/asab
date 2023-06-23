@@ -20,6 +20,9 @@ theme:
     - pymdownx.tilde
     - def_list
     - navigation.tracking
+  
+  repo_name: TeskaLabs/asab
+  repo_url: https://github.com/TeskaLabs/asab
 
   icon:
     admonition:
@@ -91,6 +94,11 @@ markdown_extensions:
   - pymdownx.superfences
   - attr_list
   - md_in_html
+
+extra:
+  social:
+  - icon: fontawesome/brands/github-alt
+    link: https://github.com/TeskaLabs/asab
 
 nav:
   - Introduction: index.md
