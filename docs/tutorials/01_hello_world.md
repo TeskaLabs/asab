@@ -1,5 +1,5 @@
-Getting started
-===============
+Creating your first asab application
+====================================
 
 Make sure you have both [pip](https://pip.pypa.io/en/stable/installing/)
 and at least version 3.7 of Python before starting. ASAB uses the new
@@ -13,7 +13,7 @@ and at least version 3.7 of Python before starting. ASAB uses the new
 
 2.  Create a file called `main.py` with the following code:
 
-    ``` python
+    ``` python title="main.py"
     #!/usr/bin/env python3
     import asab
 
@@ -49,51 +49,45 @@ and at least version 3.7 of Python before starting. ASAB uses the new
 Going into details
 ------------------
 
-``` python
-#!/usr/bin/env python3
+Let's look on the application one more time.
+
+
+``` python title="main.py" linenums="1"
+
+    #!/usr/bin/env python3 # (1)
+    import asab # (2)
+
+    class MyApplication(asab.Application): # (3)
+        async def main(self): # (4)
+            print("Hello world") # (5)
+
+    if __name__ == '__main__': # (6)
+        app = MyApplication()
+        app.run()
 ```
 
-ASAB application uses a Python 3.7+. This is specified a by hashbang
-line at the very begginig of the file, on the line number 1.
+1.  ASAB application uses a Python 3.7+. This is specified a by hashbang
+line at the very beginning of the file.
 
-``` python
-import asab
-```
-
-ASAB is included from as [asab][asab] module via an import
+2. ASAB is included from as `asab` module via an import
 statement.
 
-``` python
-class MyApplication(asab.Application):
-```
-
-Every ASAB Application needs to have an application object. It is a
+3. Every ASAB Application needs to have an application object. It is a
 singleton; it means that the application must create and operate
 precisely one instance of the application. ASAB provides the base
-[asab.Application] class that you need to
+[asab.Application][#TODO] class that you need to
 inherit from to implement your custom application class.
 
-``` python
-async def main(self):
-    print("Hello world")
-```
-
-The `Application.main()`{.interpreted-text role="any"} method is one of
+4. The `Application.main()` method is one of
 the application lifecycle methods, that you can override to implement
-desired application functionality. The [main]{.title-ref} method is a
+desired application functionality. The `main` method is a
 coroutine, so that you can await any tasks etc. in fully asynchronous
 way. This method is called when ASAB application is executed and
 initialized. The lifecycle stage is called "runtime".
 
-In this example, we just print a message to a screen.
+5. In this example, we just print a message to a screen.
 
-``` python
-if __name__ == '__main__':
-    app = MyApplication()
-    app.run()
-```
-
-This part of the code is executed when the Python program is launched.
+6. This part of the code is executed when the Python program is launched.
 It creates the application object and executes the
 `Application.run()`{.interpreted-text role="any"} method. This is a
 standard way of how ASAB application is started.

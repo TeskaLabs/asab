@@ -19,6 +19,7 @@ theme:
     - pymdownx.mark
     - pymdownx.tilde
     - def_list
+    - navigation.tracking
 
   icon:
     admonition:
@@ -69,6 +70,7 @@ plugins:
   - glightbox
   - search
   - awesome-pages
+  - git-revision-date-localized
   # - print-site:
   #     add_to_navigation: true
 
@@ -87,6 +89,8 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - attr_list
+  - md_in_html
 
 nav:
   - Introduction: index.md
@@ -95,9 +99,9 @@ nav:
 
 
   - Tutorials:
-    - tutorials/get-started.md
-    - tutorials/chapter1.md
-    - tutorials/chapter2.md
+    - Hello World: tutorials/01_hello_world.md
+    - Creating a web server: tutorials/02_web_server.md
+    - Creating a microservice with REST API: tutorials/03_rest_api.md
 
     # - Services:
     #   # - topics/asab/web/index.md
