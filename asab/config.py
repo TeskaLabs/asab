@@ -99,7 +99,8 @@ class ConfigParser(configparser.ConfigParser):
 
 		"housekeeping": {
 			"at": "03:00",
-			"limit": "05:00"
+			"limit": "05:00",
+			"run_at_startup": "no",
 		}
 
 	}
