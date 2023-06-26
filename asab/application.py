@@ -10,6 +10,8 @@ import itertools
 import platform
 import datetime
 
+import asab
+
 try:
 	import daemon
 	import daemon.pidfile
@@ -171,6 +173,7 @@ class Application(metaclass=Singleton):
 		parser.add_argument('-s', '--syslog', action='store_true', help='enable logging to a syslog')
 		parser.add_argument('-l', '--log-file', help='specify a path to a log file')
 		parser.add_argument('-w', '--web-api', help='activate Asab web API (default listening port is 0.0.0.0:8080)', const="0.0.0.0:8080", nargs="?")
+		parser.add_argument('--startup-housekeeping', help='trigger housekeeping event immediately after application startup')
 
 
 		if daemon is not None:
@@ -207,6 +210,9 @@ class Application(metaclass=Singleton):
 			if 'web' not in Config._default_values:
 				Config._default_values['web'] = {}
 			Config._default_values['web']['listen'] = args.web_api
+
+		if args.startup_housekeeping:
+			Config._default_values['housekeeping']['run_at_startup'] = True
 
 		return args
 
@@ -469,6 +475,10 @@ class Application(metaclass=Singleton):
 	async def _run_time_governor(self):
 		timeout = Config.getint('general', 'tick_period')
 		self.PubSub.publish("Application.run!")
+
+		if Config.getboolean("housekeeping", "run_at_startup", fallback=False):
+			L.log(asab.LOG_NOTICE, "Startup housekeeping...")
+			self.PubSub.publish("Application.housekeeping!")
 
 		# Wait for stop event & tick in meanwhile
 		for cycle_no in itertools.count(1):
