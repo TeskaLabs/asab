@@ -52,7 +52,7 @@ class StorageService(StorageServiceABC):
 		return ret
 
 
-	async def get_by(self, collection: str, key: str, value, decrypt=None) -> dict:
+	async def get_by(self, collection: str, key: str, value, decrypt=None, search_encrypted: bool = False) -> dict:
 		"""
 		Get object from collection by its key and value.
 
@@ -60,10 +60,15 @@ class StorageService(StorageServiceABC):
 		:param key: Key to filter on.
 		:param value: Value to filter on.
 		:param decrypt: Set of fields to decrypt.
+		:param search_encrypted: Whether to encrypt the value before searching.
 		:return: The object retrieved from a storage
 		:raise KeyError: Raised if object{key: value} cannot be found in `collection`.
 		"""
 		coll = self.Database[collection]
+
+		if search_encrypted:
+			value = self.aes_encrypt(value)
+
 		ret = await coll.find_one({key: value})
 		if ret is None:
 			raise KeyError("NOT-FOUND")

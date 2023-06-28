@@ -85,14 +85,15 @@ class StorageServiceABC(asab.Service):
 
 
 	@abc.abstractmethod
-	async def get_by(self, collection: str, key: str, value, decrypt=None):
+	async def get_by(self, collection: str, key: str, value, decrypt=None, search_encrypted: bool = False):
 		"""
 		Get object from collection by its key and value.
 
-		:param collection: Collection to get from
-		:param key: Key to filter on
-		:param value: Value to filter on
-		:param decrypt: Set of fields to decrypt
+		:param collection: Collection to get from.
+		:param key: Key to filter on.
+		:param value: Value to filter on.
+		:param decrypt: Set of fields to decrypt.
+		:param search_encrypted: Whether to encrypt the value before searching.
 		:return: The object retrieved from a storage
 
 		Raises:

@@ -119,7 +119,7 @@ class StorageService(StorageServiceABC):
 		return data
 
 
-	async def get_by(self, collection: str, key: str, value, decrypt=None) -> dict:
+	async def get_by(self, collection: str, key: str, value, decrypt=None, search_encrypted: bool = False) -> dict:
 		"""
 		Retrieve a document from an in-memory collection by key and value. Not implemented yet.
 

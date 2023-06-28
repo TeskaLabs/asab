@@ -116,7 +116,7 @@ class StorageService(StorageServiceABC):
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
-	async def get_by(self, collection: str, key: str, value, decrypt=None):
+	async def get_by(self, collection: str, key: str, value, decrypt=None, search_encrypted: bool = False):
 		raise NotImplementedError("get_by")
 
 	async def delete(self, index, _id=None):

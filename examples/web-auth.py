@@ -25,6 +25,8 @@ asab.Config["auth"]["public_keys_url"] = "http://localhost:8081/openidconnect/pu
 # This option is ignored in dev mode.
 asab.Config["auth"]["tenant_url"] = "http://localhost:8081/tenant"
 
+asab.Config["asab:doc"] = {"default_route_tag": "module_name"}
+
 
 class MyApplication(asab.Application):
 
