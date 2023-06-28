@@ -47,7 +47,7 @@ class StorageService(StorageServiceABC):
 			raise KeyError("NOT-FOUND")
 		if decrypt is not None:
 			for field in decrypt:
-				if field in ret:
+				if field in ret and ret[field] is not None:
 					ret[field] = self.aes_decrypt(ret[field])
 		return ret
 
