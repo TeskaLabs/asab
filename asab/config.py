@@ -143,7 +143,7 @@ class ConfigParser(configparser.ConfigParser):
 		if '\n' in includes:
 			sep = '\n'
 		else:
-			sep = os.pathsep
+			sep = " "
 
 		for include_glob in includes.split(sep):
 			include_glob = include_glob.strip()
@@ -195,12 +195,12 @@ class ConfigParser(configparser.ConfigParser):
 			finally:
 				self._load_dir_stack.pop()
 
+		self.add_defaults(ConfigParser._default_values)
+
 		includes = self.get('general', 'include', fallback='')
 
 		self._included = set()
 		self._traverse_includes(includes, this_dir=os.path.dirname(config_fname))
-
-		self.add_defaults(ConfigParser._default_values)
 
 		del self._load_dir_stack
 
@@ -231,15 +231,29 @@ class ConfigParser(configparser.ConfigParser):
 		try:
 			# Delayed import to minimize a hard dependecy footprint
 			import kazoo.client
-			zk = kazoo.client(url_netloc)
+			import json
+			import yaml
+			zk = kazoo.client.KazooClient(url_netloc)
 			zk.start()
-			data = zk.get(url_path)
-			# convert bytes to string
-			encode_config = str(data, 'utf-8')
-			self.read_string(encode_config)
-			# Include in the list of config file contents
-			self.config_contents_list.append(encode_config)
+			data = zk.get(url_path)[0]
+			if url_path.endswith(".json"):
+				config = json.loads(data)
+				self.read_dict(config)
+			elif url_path.endswith(".yaml"):
+				config = yaml.safe_load(data)
+				self.read_dict(config)
+			elif url_path.endswith(".conf"):
+				config = data.decode("utf-8")
+				self.read_string(config)
+			else:
+				raise NotImplementedError("Unknown configuration format '{}'".format(url_path))
+
+			zk.stop()
 			zk.close()
+
+			# Include in the list of config file contents
+			self.config_contents_list.append(config)
+
 		except Exception as e:
 			L.error("Failed to obtain configuration from Zookeeper server(s): '{}'.".format(e))
 			sys.exit(1)
