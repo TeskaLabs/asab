@@ -250,8 +250,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		else:
 			return None
 
-
-	async def list(self, path: str) -> list:
+	async def list(self, path: str, index) -> list:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
@@ -280,11 +279,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
+				layer=index,
 				providers=[self],
 			))
 
 		return items
-
 
 	def build_path(self, path):
 		"""

@@ -78,12 +78,12 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return None
 
 
-	async def list(self, path: str) -> list:
+	async def list(self, path: str, index) -> list:
 		# This list method is completely synchronous, but it should look like asynchronous to make all list methods unified among providers.
-		return self._list(path)
+		return self._list(path, index)
 
 
-	def _list(self, path: str):
+	def _list(self, path: str, index: int):
 
 		node_path = self.BasePath + path
 
@@ -121,6 +121,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
+				layer=index,
 				providers=[self],
 			))
 
