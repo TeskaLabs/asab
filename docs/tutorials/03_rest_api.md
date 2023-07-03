@@ -3,8 +3,7 @@ Creating a microservice with REST API
 
 In the [previous tutorial](./02_web_server.md), you have learned how to create a web server.
 
-With this tutorial, you will create a basic ASAB microservice that
-provides a REST HTTP API. This microservice will implement **CREATE**, **READ**, **UPDATE** and **DELETE** functionality, in another words: **CRUD**. 
+With this tutorial, you will create a basic ASAB microservice that provides a REST HTTP API. This microservice will implement **CREATE**, **READ**, **UPDATE** and **DELETE** functionality, in another words: **CRUD**. 
 We will also use [MongoDB](https://www.mongodb.com/) as a database running on [Docker](https://docs.docker.com/), and . In case you are not familiar with these technologies, take the opportunity to learn their basics concepts, as they are alpha-omega of the backend programming.
 
 Set up the project with Docker and MongoDB
@@ -438,10 +437,10 @@ Now everything is prepared and we can test our application using Postman. Let's 
         Try to check the Mongo database credentials. Do your credentials in the config file fit the ones you entered when running the Mongo Docker image?
 
 
-Conclusion
-----------
+Summary
+-------
 
-TODO TODO TODO
+In this tutorial, you learned how to create a simple **microservice** provided with **REST API**.
 
 
 Exercise 0: Store JSON schema in the file

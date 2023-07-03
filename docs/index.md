@@ -55,12 +55,3 @@ ASAB is the right choice when
 > -   building the microservice or the application server.
 > -   utilizing asynchronous I/O (aka
 >     [asyncio](https://docs.python.org/3/library/asyncio.html)).
-
-``` yaml
-theme:
-  features:
-    - content.code.annotate # (1)
-```
-
-1.  :man_raising_hand: I'm a code annotation! I can contain `code`, __formatted
-    text__, images, ... basically anything that can be written in Markdown.

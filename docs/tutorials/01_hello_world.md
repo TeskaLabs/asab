@@ -92,7 +92,10 @@ It creates the application object and executes the
 `Application.run()`{.interpreted-text role="any"} method. This is a
 standard way of how ASAB application is started.
 
-Next steps
-----------
+
+Summary
+-------
+
+In this tutorial, you learned how to install `asab` and create a basic application.
 
 Check out tutorials about how to build ASAB based [web server](./02_web_server.md).

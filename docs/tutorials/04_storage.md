@@ -1,5 +1,3 @@
-# TODO: Add tutorial on how to use storage
+ASAB Storage
+------------
 
-Concentrate more on StorageServic
-
-# Build a NOTE-taking app

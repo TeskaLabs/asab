@@ -1,10 +1,9 @@
 Creating a web server
 =====================
+Now, when you know how to create and run [a basic asab application](./01_hello_world.md), let's create your first web server.
 
-Build and run
--------------
-
-Now, when you know how to create and run [a basic asab application](./01_hello_world.md), let's create the first web server!
+Create and run the app
+----------------------
 
 Set up a new project and create a new file `app.py` with the following code:
 
@@ -37,9 +36,9 @@ if __name__ == '__main__':
 
 ```
 
-Run it with the command:
+Now you can run the application with the command:
 
-``` console
+``` bash
 python3 app.py
 ```
 
@@ -54,19 +53,19 @@ The ASAB web server is now available at [http://localhost:8080/](http://localhos
 
 Now open your web browser and open [http://localhost:8080/](http://localhost:8080/). You shouldn't see anything but an error:
 
-```
+``` bash
 404: Not Found
 ```
 
 That is correct, because the endpoint "/" is not handled by the router. But now, if you open [http://localhost:8080/hello](http://localhost:8080/hello), you should see the response:
 
-```
-    "Hello world!"
+``` json
+"Hello world!"
 ```
 
 You should get the same result from a terminal using cURL command:
 
-``` console
+``` bash
 curl --location 'localhost:8080/hello'
 ```
 
