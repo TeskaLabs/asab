@@ -8,7 +8,10 @@ asab.Config.add_defaults(
 	{
 		'asab:storage': {
 			'type': 'elasticsearch',
-			'elasticsearch_url': 'http://localhost:9200/',
+			'elasticsearch_url': 'https://localhost:9200/',
+			'elasticsearch_api_key': 'RzNDVkc0a0JJdDJTS1JpMlFrSlc6SGdncDFJdFNRRE9HVEpvRGFwU2lsdw==',
+			# 'elasticsearch_username': 'elastic',
+			# 'elasticsearch_password': 'miraelena',
 		}
 	}
 )
@@ -48,10 +51,16 @@ class MyApplication(asab.Application):
 		pprint.pprint(obj)
 
 		# Reindex the collection
+		print("Reindexing the collection")
 		await storage.reindex("test-collection", "test-collection-reindex")
 		await storage.reindex("test-collection-reindex", "test-collection")
 
+		obj = await storage.get("test-collection-reindex", objid)
+		print("Result of get by id '{}'".format(objid))
+		pprint.pprint(obj)
+
 		# Remove the reindexed collection
+		print("Deleting reindexed collection")
 		await storage.delete("test-collection-reindex")
 
 		# Delete the item
