@@ -1,3 +1,9 @@
+---
+tags: 
+    - application
+
+---
+
 Creating your first asab application
 ====================================
 
@@ -7,7 +13,7 @@ and at least version 3.7 of Python before starting. ASAB uses the new
 
 1.  Install ASAB:
 
-    ``` console
+    ``` bash
     pip3 install asab
     ```
 

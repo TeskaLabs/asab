@@ -12,14 +12,21 @@ ASAB is distributed via [pypi](https://pypi.org/project/asab/). For installing A
 
 === "Cloning from git repository"
 
-    To install ASAB from a master branch of the GIT repository, you can use the following command.
+    To install ASAB from a master branch of the git repository, you can use the following command:
 
     ``` bash
     pip install git+https://github.com/TeskaLabs/asab.git
     ```
 
+    Or you can clone the repository manually:
 
-=== "Using easy_install"
+    ``` bash
+    git clone https://github.com/TeskaLabs/asab.git
+    pip install -e .
+    ```
+
+
+=== "Using EasyInstall"
 
     You can install asab using [EasyInstall](http://peak.telecommunity.com/DevCenter/EasyInstall) package manager.
 

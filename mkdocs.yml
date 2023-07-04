@@ -69,6 +69,7 @@ plugins:
   - search
   - awesome-pages
   - git-revision-date-localized
+  - tags
 
 
 markdown_extensions:
@@ -89,6 +90,10 @@ markdown_extensions:
   - attr_list
   - md_in_html
 
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+
   # Content tabs and anchor links https://squidfunk.github.io/mkdocs-material/reference/content-tabs/
   - pymdownx.tabbed:
       alternate_style: true 
@@ -101,8 +106,7 @@ extra:
 # NAVIGATION TREE
 
 nav:
-  - Introduction: index.md
-
+  - Home: index.md
 
   - Getting started:
     - Installation: getting-started/install.md
@@ -145,10 +149,3 @@ nav:
         - ElasticSearch: reference/storage/elasticsearch.md
         - MongoDB: reference/storage/mongodb.md
         - In-Memory: reference/storage/inmemory.md
-
-  - Administration:
-    - topics/admin/command-line.md
-
-    - topics/admin/systemd.md
-
-  - topics/asab/alert.md
