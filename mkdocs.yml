@@ -1,4 +1,8 @@
 site_name: ASAB
+repo_url: https://github.com/TeskaLabs/asab
+repo_name: TeskaLabs/asab
+
+# THEME, COLORS, FONTS, ICONS
 
 theme:
   name: "material"
@@ -20,13 +24,9 @@ theme:
     - pymdownx.tilde
     - def_list
     - navigation.tracking
-  
-  repo_name: TeskaLabs/asab
-  repo_url: https://github.com/TeskaLabs/asab
 
   icon:
     admonition:
-      # https://squidfunk.github.io/mkdocs-material/reference/admonitions/#fontawesome
       note: fontawesome/solid/note-sticky
       abstract: fontawesome/solid/book
       info: fontawesome/solid/circle-info
@@ -40,48 +40,35 @@ theme:
       bug: fontawesome/solid/robot
       example: fontawesome/solid/flask
       quote: fontawesome/solid/quote-left
+    
+    repo: fontawesome/brands/github
 
   font:
     text: Verdana
 
   palette:
     - scheme: default
-      primary: blue
-      accent: blue
+      primary: teal
+      accent: teal
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
-      primary: blue
+      primary: teal
       accent: yellow
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
 
 
+# PLUGINS
 
 plugins:
-  - mkdocstrings:
-      markdown_extensions:
-        - pymdownx.superfences:
-            custom_fences:
-              - name: code
-                class: code
-              # TODO: Diagrams for some reason do not work https://squidfunk.github.io/mkdocs-material/reference/diagrams/
-              # - name: mermaid
-              #   class: mermaid
-              #   format: !!python/name:pymdownx.superfences.fence_code_format
-
-      config:
-        default_handler: python
-        python:
-          use_indentation: '\t'
+  - mkdocstrings
   - glightbox
   - search
   - awesome-pages
   - git-revision-date-localized
-  # - print-site:
-  #     add_to_navigation: true
 
 
 markdown_extensions:
@@ -89,15 +76,16 @@ markdown_extensions:
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
+
   - pymdownx.inlinehilite
   - pymdownx.snippets
-  - pymdownx.superfences
 
-  # Extensions for notes, warnings, ...
-  # https://squidfunk.github.io/mkdocs-material/reference/admonitions/#fontawesome
+  # Admonitions (call-outs) https://squidfunk.github.io/mkdocs-material/reference/admonitions/
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences  # arbitrary nesting of code and tabs
+
+  # Annotations https://squidfunk.github.io/mkdocs-material/reference/annotations/
   - attr_list
   - md_in_html
 
@@ -106,11 +94,11 @@ extra:
   - icon: fontawesome/brands/github-alt
     link: https://github.com/TeskaLabs/asab
 
+# NAVIGATION TREE
+
 nav:
   - Introduction: index.md
-
   - Installation: topics/admin/install.md
-
 
   - Tutorials:
     - Hello World: tutorials/01_hello_world.md
