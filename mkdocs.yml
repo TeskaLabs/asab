@@ -89,6 +89,10 @@ markdown_extensions:
   - attr_list
   - md_in_html
 
+  # Content tabs and anchor links https://squidfunk.github.io/mkdocs-material/reference/content-tabs/
+  - pymdownx.tabbed:
+      alternate_style: true 
+
 extra:
   social:
   - icon: fontawesome/brands/github-alt
@@ -102,7 +106,7 @@ nav:
 
   - Getting started:
     - Installation: getting-started/install.md
-    - Hello World: getting-started/01_hello_world.md
+    - Hello World! application: getting-started/01_hello_world.md
     - Creating a web server: getting-started/02_web_server.md
     - Containerization: getting-started/containers.md
 

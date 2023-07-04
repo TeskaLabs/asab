@@ -1,34 +1,29 @@
-Installation
-============
+# Installation
 
-ASAB is distributed via [pypi](https://pypi.org/project/asab/).
+ASAB is distributed via [pypi](https://pypi.org/project/asab/). For installing ASAB, there are three options you can choose from:
 
-Install ASAB using pip
-----------------------
+=== "Using pip"
 
-This is the recommended installation method.
+    This is the simplest and recommended installation method.
 
-``` bash
-pip install asab
-```
+    ``` bash
+    pip install asab
+    ```
 
-Install ASAB using easy install
--------------------------------
+=== "Cloning from git repository"
 
-``` bash
-easy_install asab
-```
+    To install ASAB from a master branch of the GIT repository, you can use the following command.
 
-Install ASAB for a GitHub
--------------------------
+    ``` bash
+    pip install git+https://github.com/TeskaLabs/asab.git
+    ```
 
-To install ASAB from a master branch of the GIT repository, use
-following command.
 
-!!! note
-    Git has to be installed in order to successfuly complete the
-    installation.
+=== "Using easy_install"
 
-``` bash
-pip install git+https://github.com/TeskaLabs/asab.git
-```
+    You can install asab using [EasyInstall](http://peak.telecommunity.com/DevCenter/EasyInstall) package manager.
+
+    ``` bash
+    easy_install asab
+    ```
+
