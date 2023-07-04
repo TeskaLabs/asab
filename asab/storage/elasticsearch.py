@@ -1,3 +1,4 @@
+import os
 import time
 import json
 import aiohttp
@@ -29,6 +30,7 @@ Config.add_defaults(
 			'elasticsearch_username': '',
 			'elasticsearch_password': '',
 			'elasticsearch_api_key': '',
+			'elasticsearch_ssl_ca_file': '',
 
 			# make the operation visible to search directly, options: true, false, wait_for
 			# see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-index_.html
@@ -62,7 +64,7 @@ class StorageService(StorageServiceABC):
 		self.Refresh = Config.get(config_section_name, 'refresh')
 		self.ScrollTimeout = Config.get(config_section_name, 'scroll_timeout')
 
-		# Provide authorization
+		# Authorization: username or API-key
 		username = Config.get(config_section_name, 'elasticsearch_username')
 		api_key = Config.get(config_section_name, 'elasticsearch_api_key')
 
@@ -70,18 +72,19 @@ class StorageService(StorageServiceABC):
 			L.warning("Both username and API key specified. ES Storage service may not function properly. Please choose one option.")
 
 		if username == '':
-			self.ssl_context = ssl.create_default_context(cafile='/home/mir/ca.crt')  # TODO: REMEMBER to change it :)
-			self.ssl_context.check_hostname = False
-			self.ssl_context.verify_mode = ssl.CERT_NONE
 			self._auth = None
 		else:
 			password = Config.get(config_section_name, 'elasticsearch_password')
-			# TODO: check what these methods do exactly
-			self.ssl_context = ssl.create_default_context(cafile='/home/mir/ca.crt')  # TODO: REMEMBER to change it :)
-			self.ssl_context.check_hostname = False
-			self.ssl_context.verify_mode = ssl.CERT_NONE
-
 			self._auth = aiohttp.BasicAuth(login=username, password=password)
+
+		# SSL Certificate
+		ssl_ca_file = Config.get(config_section_name, 'elasticsearch_ssl_ca_file')
+		self.SSLcontext = None
+		if ssl_ca_file == '':
+			assert os.path.exists(ssl_ca_file), "Path for SSL Certificate is not valid. Change the configuration variable 'elasticsearch_ssl_ca_file'."
+			self.SSLcontext = ssl.create_default_context(cafile=ssl_ca_file)
+			self.SSLcontext.check_hostname = False
+			self.SSLcontext.verify_mode = ssl.CERT_NONE
 
 		self._ClientSession = None
 
@@ -111,6 +114,30 @@ class StorageService(StorageServiceABC):
 		return self._ClientSession
 
 
+	async def is_connected(self):
+		for url in self.ServerUrls:
+			url = "{}/".format(url)
+			try:
+				async with self.session().request(
+					method="GET",
+					url=url,
+					ssl=self.SSLcontext,
+					headers=self.Headers,
+				) as resp:
+					if resp.status == 401:
+						resp = await resp.json()
+						return False
+
+			except aiohttp.client_exceptions.ClientConnectorError:
+				if url == self.Storage.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
+			except aiohttp.ServerConnectionError as err:
+					raise Exception("Failed to connect to '{}': {}".format(url, err))
+
+
 	async def get(self, index: str, obj_id: str, decrypt=None) -> dict:
 		"""Get object by its index and object ID.
 
@@ -136,7 +163,7 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(
 					method="GET",
 					url=url,
-					ssl=self.ssl_context,
+					ssl=self.SSLcontext,
 					headers=self.Headers,
 				) as resp:
 					print("Try to retrieve json")
@@ -168,7 +195,7 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(
 					method="DELETE",
 					url=url,
-					ssl=self.ssl_context
+					ssl=self.SSLcontext
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					# TODO: better 401 error handling
@@ -203,7 +230,7 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(
 					method="GET",
 					url=url,
-					ssl=self.ssl_context
+					ssl=self.SSLcontext
 				) as resp:
 					obj = await resp.json()
 					await self.Storage.session().close()
@@ -229,7 +256,7 @@ class StorageService(StorageServiceABC):
 					method="GET",
 					url=url,
 					headers=self.Headers,
-					ssl=self.ssl_context,
+					ssl=self.SSLcontext,
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					content = await resp.json()
@@ -258,7 +285,7 @@ class StorageService(StorageServiceABC):
 					url=url,
 					data=json.dumps(template),
 					headers=self.Headers,
-					ssl=self.ssl_context,
+					ssl=self.SSLcontext,
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					resp = await resp.json()
@@ -285,7 +312,7 @@ class StorageService(StorageServiceABC):
 					method="POST",
 					url=url,
 					headers=self.Headers,
-					ssl=self.ssl_context,
+					ssl=self.SSLcontext,
 					data=json.dumps({
 						"source": {
 							"index": previous_index,
@@ -348,7 +375,7 @@ class StorageService(StorageServiceABC):
 						url=url,
 						json=request_body,
 						headers=self.Headers,
-						ssl=self.ssl_context,
+						ssl=self.SSLcontext,
 					) as resp:
 						if resp.status != 200:
 							data = await resp.text()
@@ -416,7 +443,7 @@ class StorageService(StorageServiceABC):
 					url=url,
 					json=body,
 					headers=self.Headers,
-					ssl=self.ssl_context,
+					ssl=self.SSLcontext,
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					content = await resp.json()
@@ -438,7 +465,7 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 			try:
 				count_url = "{}{}/_count".format(url, index)
-				async with self.session().request(method="GET", url=count_url, ssl=self.ssl_context) as resp:
+				async with self.session().request(method="GET", url=count_url, ssl=self.SSLcontext) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					total_count = await resp.json()
 					return total_count
@@ -457,7 +484,7 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 			try:
 				url = "{}_cat/indices/{}?format=json".format(url, search_string if search_string is not None else "*")
-				async with self.session().request(method="GET", url=url, ssl=self.ssl_context) as resp:
+				async with self.session().request(method="GET", url=url, ssl=self.SSLcontext) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					return await resp.json()
 
@@ -476,7 +503,7 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 			try:
 				url = "{}{}".format(url, index)
-				async with self.session().request(method="PUT", url=url, ssl=self.ssl_context) as resp:
+				async with self.session().request(method="PUT", url=url, ssl=self.SSLcontext) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					return await resp.json()
 			except aiohttp.client_exceptions.ClientConnectorError:
