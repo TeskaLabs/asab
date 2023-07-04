@@ -77,12 +77,16 @@ class StorageService(StorageServiceABC):
 			password = Config.get(config_section_name, 'elasticsearch_password')
 			self._auth = aiohttp.BasicAuth(login=username, password=password)
 
-		# SSL Certificate
+		# SSL Certificates
 		ssl_ca_file = Config.get(config_section_name, 'elasticsearch_ssl_ca_file')
-		self.SSLcontext = None
-		if ssl_ca_file == '':
+		if ssl_ca_file != '':
 			assert os.path.exists(ssl_ca_file), "Path for SSL Certificate is not valid. Change the configuration variable 'elasticsearch_ssl_ca_file'."
+			# TODO: Check these methods in detail
 			self.SSLcontext = ssl.create_default_context(cafile=ssl_ca_file)
+			self.SSLcontext.check_hostname = False
+			self.SSLcontext.verify_mode = ssl.CERT_NONE
+		else:
+			self.SSLcontext = ssl.create_default_context()
 			self.SSLcontext.check_hostname = False
 			self.SSLcontext.verify_mode = ssl.CERT_NONE
 
@@ -116,7 +120,6 @@ class StorageService(StorageServiceABC):
 
 	async def is_connected(self):
 		for url in self.ServerUrls:
-			url = "{}/".format(url)
 			try:
 				async with self.session().request(
 					method="GET",
@@ -124,18 +127,22 @@ class StorageService(StorageServiceABC):
 					ssl=self.SSLcontext,
 					headers=self.Headers,
 				) as resp:
+					await self.session().close()
 					if resp.status == 401:
 						resp = await resp.json()
 						return False
 
 			except aiohttp.client_exceptions.ClientConnectorError:
 				if url == self.Storage.ServerUrls[-1]:
-					raise Exception("Failed to connect to '{}'".format(url))
+					raise ConnectionError("Failed to connect to '{}'".format(url))
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
-			except aiohttp.ServerConnectionError as err:
-					raise Exception("Failed to connect to '{}': {}".format(url, err))
+			except Exception as err:
+					raise Exception("Failed to connect to '{}'.".format(url, err))
+
+		L.info("Connected to ElasticSearch.", struct_data={"urls": self.ServerUrls})
+		return True
 
 
 	async def get(self, index: str, obj_id: str, decrypt=None) -> dict:
@@ -155,10 +162,8 @@ class StorageService(StorageServiceABC):
 		"""
 		if decrypt is not None:
 			raise NotImplementedError("AES encryption for ElasticSearch not implemented")
-		print("server urls", self.ServerUrls)
 		for url in self.ServerUrls:
 			url = "{}{}/_doc/{}".format(url, index, obj_id)
-			print(f"url: {url}")
 			try:
 				async with self.session().request(
 					method="GET",
@@ -166,20 +171,18 @@ class StorageService(StorageServiceABC):
 					ssl=self.SSLcontext,
 					headers=self.Headers,
 				) as resp:
-					print("Try to retrieve json")
 					obj = await resp.json()
-					print(f"obj: {obj}")
 					ret = obj['_source']
 					ret['_v'] = obj['_version']
 					ret['_id'] = obj['_id']
 					return ret
 			except aiohttp.client_exceptions.ClientConnectorError:
 				if url == self.Storage.ServerUrls[-1]:
-					raise Exception("Failed to connect to '{}'".format(url))
+					raise ConnectionError("Failed to connect to '{}'".format(url))
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 			except Exception:
-				print(traceback.format_exc())
+				raise Exception("Failed to connect to '{}'".format(url))
 
 
 	async def get_by(self, collection: str, key: str, value, decrypt=None):
@@ -334,9 +337,11 @@ class StorageService(StorageServiceABC):
 					return resp
 			except aiohttp.client_exceptions.ClientConnectorError:
 				if url == self.Storage.ServerUrls[-1]:
-					raise Exception("Failed to connect to '{}'".format(url))
+					raise ConnectionError("Failed to connect to '{}'".format(url))
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+			except Exception:
+				raise Exception("Failed to connect to '{}'".format(url))
 
 
 	async def scroll(self, index: str, body: typing.Optional[dict] = None) -> dict:
@@ -574,7 +579,6 @@ class ElasicSearchUpsertor(UpsertorABC):
 			)
 
 			try:
-				print("Trying to post some data...")
 				async with self.Storage.session().request(
 					method="POST",
 					url=url,
@@ -583,12 +587,9 @@ class ElasicSearchUpsertor(UpsertorABC):
 					ssl=self.ssl_context
 				) as resp:
 					if resp.status != 201:
-						print("unexpected response code")
 						raise RuntimeError("Unexpected response code: {}".format(resp.status))
-					print("awaitng response json")
 					resp_json = await resp.json()
 					self.ObjId = resp_json['_id']
-					print("success: {}".format(self.ObjId))
 					await self.Storage.session().close()
 					return self.ObjId
 
@@ -599,11 +600,10 @@ class ElasicSearchUpsertor(UpsertorABC):
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 			except aiohttp.client_exceptions.ServerDisconnectedError:
-				print("aiohttp.client_exceptions.ServerDisconnectedError")
+				raise Exception("Failed to connect to '{}'".format(url))
 
 			except Exception:
-				print("Another exception occured")
-				print(traceback.format_exc())
+				raise Exception("Failed to connect to '{}'".format(url))
 
 	async def _upsert(self):
 		upsertobj = {"doc": {}, "doc_as_upsert": True}
@@ -611,12 +611,9 @@ class ElasicSearchUpsertor(UpsertorABC):
 		if len(self.ModSet) > 0:
 			for k, v in self.ModSet.items():
 				upsertobj["doc"][k] = serialize(self.ModSet[k])
-			print(f"urls: {self.Storage.ServerUrls}")
 			for url in self.Storage.ServerUrls:
-				print(f"current url: {url}")
 				try:
 					url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId, self.Storage.Refresh)
-					print(url)
 					async with self.Storage.session().request(
 						method="POST",
 						url=url,
@@ -628,9 +625,7 @@ class ElasicSearchUpsertor(UpsertorABC):
 						resp_json = await resp.json()
 						assert resp_json["result"] == "updated" or resp_json[
 							"result"] == "created", "Creating/updating was unsuccessful"
-						print("closing the session")
 						await self.Storage.session().close()
-						print("session closed")
 						return self.ObjId
 				except aiohttp.client_exceptions.ClientConnectorError:
 					if url == self.Storage.ServerUrls[-1]:
@@ -639,11 +634,10 @@ class ElasicSearchUpsertor(UpsertorABC):
 						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 				except aiohttp.client_exceptions.ServerDisconnectedError:
-					print("aiohttp.client_exceptions.ServerDisconnectedError")
+					raise Exception("Failed to connect to '{}'".format(url))
 
 				except Exception:
-					print("Another exception occured")
-					print(traceback.format_exc())
+					raise Exception("Failed to connect to '{}'".format(url))
 
 
 def serialize(v):

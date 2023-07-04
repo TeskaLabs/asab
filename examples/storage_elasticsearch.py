@@ -9,9 +9,10 @@ asab.Config.add_defaults(
 		'asab:storage': {
 			'type': 'elasticsearch',
 			'elasticsearch_url': 'https://localhost:9200/',
-			'elasticsearch_api_key': 'RzNDVkc0a0JJdDJTS1JpMlFrSlc6SGdncDFJdFNRRE9HVEpvRGFwU2lsdw==',
-			# 'elasticsearch_username': 'elastic',
-			# 'elasticsearch_password': 'miraelena',
+			# 'elasticsearch_api_key': 'RzNDVkc0a0JJdDJTS1JpMlFrSlc6SGdncDFJdFNRRE9HVEpvRGFwU2lsdw==',
+			# 'elasticsearch_ssl_ca_file': '/home/mir/ca.crt',
+			'elasticsearch_username': 'elastic',
+			'elasticsearch_password': 'miraelena',
 		}
 	}
 )
@@ -27,6 +28,13 @@ class MyApplication(asab.Application):
 
 	async def main(self):
 		storage = self.get_service("asab.StorageService")
+
+
+		connected = await storage.is_connected()
+		if connected:
+			print("Connected to ElasticSearch.")
+		else:
+			print("Connection failed.")
 
 		# Obtain upsertor object which is associated with given "test-collection"
 		# To create new object we keep default `version` to zero
@@ -54,6 +62,7 @@ class MyApplication(asab.Application):
 		print("Reindexing the collection")
 		await storage.reindex("test-collection", "test-collection-reindex")
 		await storage.reindex("test-collection-reindex", "test-collection")
+
 
 		obj = await storage.get("test-collection-reindex", objid)
 		print("Result of get by id '{}'".format(objid))
