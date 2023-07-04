@@ -77,22 +77,22 @@ Let's go line by line in the code to understand how the asab server is construct
 ``` python title="app.py" linenums="1"
 
 #!/usr/bin/env python3
-import asab.web.rest # (1)
+import asab.web.rest # (1)!
 
 class MyWebApplication(asab.Application):
 
     def __init__(self):
-        super().__init__() # (2)
+        super().__init__() # (2)!
 
         # Create the Web server
-        web = asab.web.create_web_server(self) # (3)
+        web = asab.web.create_web_server(self) # (3)!
 
         # Add a route to the handler method
-        web.add_get('/hello', self.hello) # (4)
+        web.add_get('/hello', self.hello) # (4)!
 
     # This is the web request handler
-    async def hello(self, request): # (5)
-        return asab.web.rest.json_response( # (6)
+    async def hello(self, request): # (5)!
+        return asab.web.rest.json_response( # (6)!
             request,
             data="Hello, world!"
         )

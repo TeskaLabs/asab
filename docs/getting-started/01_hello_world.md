@@ -28,7 +28,7 @@ and at least version 3.7 of Python before starting. ASAB uses the new
 
 3.  Run the server:
 
-    ``` console
+    ``` shell
     python3 main.py
     ```
     
@@ -54,7 +54,8 @@ Let's look on the application one more time.
 
 ``` python title="main.py" linenums="1"
 
-    #!/usr/bin/env python3 # (1)!
+    #!/usr/bin/env python3 
+    # (1)!
     import asab # (2)!
 
     class MyApplication(asab.Application): # (3)!
@@ -73,21 +74,21 @@ line at the very beginning of the file.
 statement.
 
 3. Every ASAB Application needs to have an application object. It is a
-singleton; it means that the application must create and operate
+**singleton**: the application must create and operate
 precisely one instance of the application. ASAB provides the base
 [asab.Application][#TODO] class that you need to
 inherit from to implement your custom application class.
 
-4. The `Application.main()` method is one of
+1. The `#!python Application.main()` method is one of
 the application lifecycle methods, that you can override to implement
 desired application functionality. The `main` method is a
 coroutine, so that you can await any tasks etc. in fully asynchronous
 way. This method is called when ASAB application is executed and
 initialized. The lifecycle stage is called "runtime".
 
-5. In this example, we just print a message to a screen.
+1. In this example, we just print a message to a screen.
 
-6. This part of the code is executed when the Python program is launched.
+2. This part of the code is executed when the Python program is launched.
 It creates the application object and executes the
 `Application.run()`{.interpreted-text role="any"} method. This is a
 standard way of how ASAB application is started.

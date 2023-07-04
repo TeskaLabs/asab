@@ -72,11 +72,11 @@ plugins:
 
 
 markdown_extensions:
+  # Syntax highlighting
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
-
   - pymdownx.inlinehilite
   - pymdownx.snippets
 
@@ -98,19 +98,16 @@ extra:
 
 nav:
   - Introduction: index.md
-  - Installation: topics/admin/install.md
 
-  - Tutorials:
-    - Hello World: tutorials/01_hello_world.md
-    - Creating a web server: tutorials/02_web_server.md
-    - Creating a microservice with REST API: tutorials/03_rest_api.md
 
-    # - Services:
-    #   # - topics/asab/web/index.md
-    #   # - topics/asab/web/auth.md
-    #   # - topics/asab/web/cors.md
-    #   # - topics/asab/web/restapidocs.md
-    #   # - topics/asab/library.md
+  - Getting started:
+    - Installation: getting-started/install.md
+    - Hello World: getting-started/01_hello_world.md
+    - Creating a web server: getting-started/02_web_server.md
+    - Containerization: getting-started/containers.md
+
+  - How-To Guides:
+    - Creating a microservice with REST API: how-tos/03_rest_api.md
 
   - Topics:
     # - topics/asab/application.md
@@ -147,7 +144,7 @@ nav:
 
   - Administration:
     - topics/admin/command-line.md
-    - topics/admin/containers.md
+
     - topics/admin/systemd.md
 
   - topics/asab/alert.md
