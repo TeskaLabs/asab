@@ -1,9 +1,9 @@
-Creating a web server
-=====================
-Now, when you know how to create and run [a basic asab application](./01_hello_world.md), let's create your first web server.
+# Creating a web server
 
-Create and run the app
-----------------------
+
+Now, when you know how to create and run [a basic asab application](./installation_first_app.md), let's create your first web server.
+
+## Creating and running a web server
 
 Set up a new project and create a new file `app.py` with the following code:
 
@@ -69,8 +69,8 @@ You should get the same result from a terminal using cURL command:
 curl --location 'localhost:8080/hello'
 ```
 
-Deeper look
------------
+## Taking a closer look
+
 
 Let's go line by line in the code to understand how the asab server is constructed.
 
@@ -122,8 +122,8 @@ As you can see, it is easy to create a fully functioning web server using asab, 
 `asab` is built on the top of the [asyncio](https://docs.python.org/3/library/asyncio.html) and [aiohttp](https://docs.aiohttp.org/en/stable/) libraries which are designed to make the most out of [non-blocking network operations](https://docs.aiohttp.org/en/stable/http_request_lifecycle.html#aiohttp-request-lifecycle).
 
 
-Logging
--------
+## Logging
+
 
 At this point, let us also mention the basics of asab logging.
 
@@ -159,10 +159,9 @@ Note that there may be processes that take a long time to terminate, so terminat
 - log rotation
 - logging to syslog
 
-Configuration
--------------
+## Configuration
 
-In order to start your `asab` application with certain configuration, create a config file in `ini` format. There are specific options 
+In order to start your `asab` application with certain configuration, create a config file in `ini` format.
 
 ``` ini title="config.ini"
 [web]

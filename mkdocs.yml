@@ -109,9 +109,8 @@ nav:
   - Home: index.md
 
   - Getting started:
-    - Installation: getting-started/install.md
-    - Hello World! application: getting-started/01_hello_world.md
-    - Creating a web server: getting-started/02_web_server.md
+    - Installation and first application: getting-started/installation_first_app.md
+    - Creating a web server: getting-started/web_server.md
     - Containerization: getting-started/containers.md
 
   - How-To Guides:
@@ -149,3 +148,5 @@ nav:
         - ElasticSearch: reference/storage/elasticsearch.md
         - MongoDB: reference/storage/mongodb.md
         - In-Memory: reference/storage/inmemory.md
+  
+  - Contributing: contributing.md

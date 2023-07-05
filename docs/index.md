@@ -19,7 +19,7 @@ A current maintainer is a [TeskaLabs Ltd](https://teskalabs.com) company.
     could voluntarily improve the design of the software.
 
     - :simple-github: ASAB is developed [on GitHub](https://github.com/TeskaLabs/asab/).
-    Contributions are welcome!
+    Contributions are most welcome! If you want to help us improve asab, check our [contribution rules](./contributing.md).
 
 ## ASAB is designed to be powerful yet simple
 
