@@ -305,9 +305,7 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 			return await func(*args, **kwargs)
 
 		# This is here for Swagger documentation
-		setattr(validator, 'json_schema', json_schema)
-		validator.__doc__ = func.__doc__
-		validator.__name__ = func.__name__
+		setattr(validator, "json_schema", json_schema)
 
 		return validator
 
