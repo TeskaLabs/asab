@@ -128,18 +128,19 @@ class StorageService(StorageServiceABC):
 					headers=self.Headers,
 				) as resp:
 					await self.session().close()
-					if resp.status == 401:
+					if resp.status not in {200, 201}:
 						resp = await resp.json()
+						L.error("Failed to connect to ElasticSearch.", struct_data={
+							"code": resp.get("status"),
+							"reason": resp.get("error", {}).get("reason")
+						})
 						return False
 
 			except aiohttp.client_exceptions.ClientConnectorError:
-				if url == self.Storage.ServerUrls[-1]:
-					raise ConnectionError("Failed to connect to '{}'".format(url))
+				if url == self.ServerUrls[-1]:
+					raise ConnectionError("Failed to connect to '{}'.".format(url))
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
-
-			except Exception as err:
-					raise Exception("Failed to connect to '{}'.".format(url, err))
 
 		L.info("Connected to ElasticSearch.", struct_data={"urls": self.ServerUrls})
 		return True
@@ -155,7 +156,8 @@ class StorageService(StorageServiceABC):
 
 		Raises:
 			NotImplementedError: Encryption and decryption has not yet been implemented for ECS.
-			Exception: Connection failed.
+			ConnectionError: Connection failed.
+			KeyError: Object with the ID does not exist.
 
 		Returns:
 			dict: The query result.
@@ -163,26 +165,35 @@ class StorageService(StorageServiceABC):
 		if decrypt is not None:
 			raise NotImplementedError("AES encryption for ElasticSearch not implemented")
 		for url in self.ServerUrls:
-			url = "{}{}/_doc/{}".format(url, index, obj_id)
+			request_url = "{}{}/_doc/{}".format(url, index, obj_id)
 			try:
 				async with self.session().request(
 					method="GET",
-					url=url,
+					url=request_url,
 					ssl=self.SSLcontext,
 					headers=self.Headers,
 				) as resp:
-					obj = await resp.json()
-					ret = obj['_source']
-					ret['_v'] = obj['_version']
-					ret['_id'] = obj['_id']
-					return ret
+					if resp.status == 401:
+						raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
+					elif resp.status not in {200, 201}:
+						resp = await resp.json()
+						raise ConnectionError("Failed to retrieve data from ElasticSearch. Got {}: {}".format(
+							resp.get("status"),
+							resp.get("error", {}).get("reason")
+						))
+					else:
+						obj = await resp.json()
+						if not obj.get("found"):
+							raise KeyError("No existing object with ID {}".format(obj_id))
+						ret = obj['_source']
+						ret['_v'] = obj['_version']
+						ret['_id'] = obj['_id']
+						return ret
 			except aiohttp.client_exceptions.ClientConnectorError:
-				if url == self.Storage.ServerUrls[-1]:
+				if url == self.ServerUrls[-1]:
 					raise ConnectionError("Failed to connect to '{}'".format(url))
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
-			except Exception:
-				raise Exception("Failed to connect to '{}'".format(url))
 
 
 	async def get_by(self, collection: str, key: str, value, decrypt=None):
@@ -200,16 +211,23 @@ class StorageService(StorageServiceABC):
 					url=url,
 					ssl=self.SSLcontext
 				) as resp:
-					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-					# TODO: better 401 error handling
+					if resp.status == 401:
+						raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
+					elif resp.status == 404:
+						raise KeyError("No existing object with ID {}".format(_id))
+					elif resp.status not in {200, 201}:
+						raise ConnectionError("Failed to retrieve data from ElasticSearch. Got {}: {}".format(
+							resp.get("status"),
+							resp.get("error", {}).get("reason")
+						))
+					else:
+						json_response = await resp.json()
 
-					resp = await resp.json()
-
-					if resp.get("acknowledged", False):
+						if json_response.get("acknowledged", False):
+							return json_response
+						assert json_response["result"] == "deleted", "Document was not deleted"
+						await self.session().close()
 						return resp
-					assert resp["result"] == "deleted", "Document was not deleted"
-					await self.Storage.session().close()
-					return resp
 			except aiohttp.client_exceptions.ClientConnectorError:
 				if url == self.Storage.ServerUrls[-1]:
 					raise Exception("Failed to connect to '{}'".format(url))
@@ -333,15 +351,13 @@ class StorageService(StorageServiceABC):
 							)
 						)
 					resp = await resp.json()
-					await self.Storage.session().close()
+					await self.session().close()
 					return resp
 			except aiohttp.client_exceptions.ClientConnectorError:
 				if url == self.Storage.ServerUrls[-1]:
 					raise ConnectionError("Failed to connect to '{}'".format(url))
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
-			except Exception:
-				raise Exception("Failed to connect to '{}'".format(url))
 
 
 	async def scroll(self, index: str, body: typing.Optional[dict] = None) -> dict:
@@ -548,20 +564,20 @@ class ElasicSearchUpsertor(UpsertorABC):
 	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
 		# TODO: Implement webhook call
 		if self.ObjId is None:
-			return await self._insert_noobjid()
+			return await self._insert_new_object()
 		else:
-			return await self._upsert()
+			return await self._update_existing_object()
 
 
-	async def _insert_noobjid(self):
-		setobj = {}
+	async def _insert_new_object(self):
+		upsert_data = {}
 
 		if self.Version is None:
 			self.Version = 0
 
 		if len(self.ModSet) > 0:
 			for k, v in self.ModSet.items():
-				setobj[k] = serialize(self.ModSet[k])
+				upsert_data[k] = serialize(self.ModSet[k])
 
 		if len(self.ModInc) > 0:
 			# addobj['$inc'] = self.ModInc
@@ -574,24 +590,27 @@ class ElasicSearchUpsertor(UpsertorABC):
 
 		# This is insert of the new document, the ObjId is to be generated by the ElasicSearch
 		for url in self.Storage.ServerUrls:
-			url = "{}{}/_doc?refresh={}".format(
+			request_url = "{}{}/_doc?refresh={}".format(
 				url, self.Collection, self.Storage.Refresh
 			)
 
 			try:
 				async with self.Storage.session().request(
 					method="POST",
-					url=url,
+					url=request_url,
 					headers=self.Headers,
-					json=setobj,
+					json=upsert_data,
 					ssl=self.ssl_context
 				) as resp:
-					if resp.status != 201:
-						raise RuntimeError("Unexpected response code: {}".format(resp.status))
-					resp_json = await resp.json()
-					self.ObjId = resp_json['_id']
-					await self.Storage.session().close()
-					return self.ObjId
+					if resp.status == 401:
+						raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
+					elif resp.status not in {200, 201}:
+						raise ConnectionError("Unexpected response code: {}".format(resp.status))
+					else:
+						resp_json = await resp.json()
+						self.ObjId = resp_json['_id']
+						await self.Storage.session().close()
+						return self.ObjId
 
 			except aiohttp.client_exceptions.ClientConnectorError:
 				if url == self.Storage.ServerUrls[-1]:
@@ -602,31 +621,38 @@ class ElasicSearchUpsertor(UpsertorABC):
 			except aiohttp.client_exceptions.ServerDisconnectedError:
 				raise Exception("Failed to connect to '{}'".format(url))
 
-			except Exception:
-				raise Exception("Failed to connect to '{}'".format(url))
+			except ValueError as err:
+				raise ConnectionError("Both username and API key specified. Please choose one option. {}".format(err))
 
-	async def _upsert(self):
-		upsertobj = {"doc": {}, "doc_as_upsert": True}
+			# except Exception:
+			# 	raise Exception("Failed to connect to '{}'".format(url))
+
+	async def _update_existing_object(self):
+		upsert_data = {"doc": {}, "doc_as_upsert": True}
 
 		if len(self.ModSet) > 0:
 			for k, v in self.ModSet.items():
-				upsertobj["doc"][k] = serialize(self.ModSet[k])
+				upsert_data["doc"][k] = serialize(self.ModSet[k])
 			for url in self.Storage.ServerUrls:
 				try:
-					url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId, self.Storage.Refresh)
+					request_url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId, self.Storage.Refresh)
 					async with self.Storage.session().request(
 						method="POST",
-						url=url,
-						data=json.dumps(upsertobj),
+						url=request_url,
+						json=upsert_data,
 						headers=self.Headers,
 						ssl=self.ssl_context,
 					) as resp:
-						assert resp.status == 200 or resp.status == 201, "Unexpected response code: {}".format(resp.status)
-						resp_json = await resp.json()
-						assert resp_json["result"] == "updated" or resp_json[
-							"result"] == "created", "Creating/updating was unsuccessful"
-						await self.Storage.session().close()
-						return self.ObjId
+						if resp.status == 401:
+							raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
+						elif resp.status not in {200, 201}:
+							raise ConnectionError("Unexpected response code: {}".format(resp.status))
+						else:
+							resp_json = await resp.json()
+							assert resp_json["result"] == "updated" or resp_json[
+								"result"] == "created", "Creating/updating was unsuccessful"
+							await self.Storage.session().close()
+							return self.ObjId
 				except aiohttp.client_exceptions.ClientConnectorError:
 					if url == self.Storage.ServerUrls[-1]:
 						raise Exception("Failed to connect to '{}'".format(url))
@@ -634,9 +660,6 @@ class ElasicSearchUpsertor(UpsertorABC):
 						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 				except aiohttp.client_exceptions.ServerDisconnectedError:
-					raise Exception("Failed to connect to '{}'".format(url))
-
-				except Exception:
 					raise Exception("Failed to connect to '{}'".format(url))
 
 
