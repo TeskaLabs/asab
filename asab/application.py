@@ -358,8 +358,8 @@ class Application(metaclass=Singleton):
 		finally:
 			if self.ExitCode == "!RESTART!":
 				os.execv(sys.executable, [os.path.basename(sys.executable)] + sys.argv)
-			else:
-				return self.ExitCode
+
+		return self.ExitCode
 
 
 	def stop(self, exit_code: int = None):
