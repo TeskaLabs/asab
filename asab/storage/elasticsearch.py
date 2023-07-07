@@ -114,7 +114,15 @@ class StorageService(StorageServiceABC):
 		return self._ClientSession
 
 
-	async def is_connected(self):
+	async def is_connected(self) -> bool:
+		"""Check if the service is connected to ElasticSearch cluster.
+
+		Raises:
+			ConnectionError: Connection failed.
+
+		Returns:
+			bool: True if the service is connected.
+		"""
 		for url in self.ServerUrls:
 			try:
 				async with self.session().request(
@@ -239,7 +247,7 @@ class StorageService(StorageServiceABC):
 							return json_response
 						assert json_response["result"] == "deleted", "Document was not deleted"
 						await self.session().close()
-						return resp
+						return json_response
 			except aiohttp.client_exceptions.ClientConnectorError:
 				if url == self.ServerUrls[-1]:
 					raise Exception("Failed to connect to '{}'".format(url))
