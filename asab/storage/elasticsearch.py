@@ -339,7 +339,6 @@ class StorageService(StorageServiceABC):
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 					return {}
 
-# TODO: remember to close sessions for the rest of the methods!!!
 
 	async def reindex(self, previous_index, new_index):
 		for url in self.ServerUrls:
@@ -534,7 +533,7 @@ class StorageService(StorageServiceABC):
 					return await resp.json()
 
 			except aiohttp.client_exceptions.ClientConnectorError:
-				if url == self.Storage.ServerUrls[-1]:
+				if url == self.ServerUrls[-1]:
 					raise Exception("Failed to connect to '{}'".format(url))
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
@@ -556,7 +555,7 @@ class StorageService(StorageServiceABC):
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					return await resp.json()
 			except aiohttp.client_exceptions.ClientConnectorError:
-				if url == self.Storage.ServerUrls[-1]:
+				if url == self.ServerUrls[-1]:
 					raise Exception("Failed to connect to '{}'".format(url))
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
@@ -574,9 +573,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 		if version == 0:
 			self.ModSet['_c'] = now  # Set the creation timestamp
 
-		self.ssl_context = ssl.create_default_context(cafile='/home/mir/ca.crt')  # TODO: REMEMBER to change it :)
-		self.ssl_context.check_hostname = False
-		self.ssl_context.verify_mode = ssl.CERT_NONE
+		self.SSLcontext = ssl.create_default_context(cafile=self.Storage.SSLcontext)
 
 		api_key = Config.get('asab:storage', 'elasticsearch_api_key')
 		self.Headers = {'Content-Type': 'application/json'}
@@ -628,7 +625,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 					url=request_url,
 					headers=self.Headers,
 					json=upsert_data,
-					ssl=self.ssl_context
+					ssl=self.SSLcontext
 				) as resp:
 					if resp.status == 401:
 						raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
@@ -669,7 +666,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 						url=request_url,
 						json=upsert_data,
 						headers=self.Headers,
-						ssl=self.ssl_context,
+						ssl=self.SSLcontext,
 					) as resp:
 						if resp.status == 401:
 							raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
