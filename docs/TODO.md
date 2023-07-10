@@ -8,9 +8,7 @@ https://diataxis.fr/
 
 https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings
 
-- plán: začni indexem a zkus prvních několik souborů převést do čitelné podoby
-- pozor na # vs ---- kazí strukturu vyhledávání
-- reference na moduly?
+Create application that consists of two microservices. One of them pulls periodically the data from RSS channel and parses them into json file
 
 # Tutorials
 

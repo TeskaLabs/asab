@@ -64,12 +64,22 @@ theme:
 # PLUGINS
 
 plugins:
-  - mkdocstrings
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            # https://mkdocstrings.github.io/python/usage/configuration/docstrings/
+            docstring_style: google  # | google | numpy | sphinx
+            docstring_section_style: table  # table | list | spacy
+            show_if_no_docstring: true
+            show_docstring_description: false
   - glightbox
   - search
   - awesome-pages
   - git-revision-date-localized
   - tags
+  - autorefs  # https://mkdocstrings.github.io/usage/#cross-references-to-any-markdown-heading
 
 
 markdown_extensions:
