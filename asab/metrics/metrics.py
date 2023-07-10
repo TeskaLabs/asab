@@ -71,7 +71,7 @@ class Counter(Metric):
 		"""
 		The `add` function adds a specified value to a counter, and if the counter does not exist, it
 		creates it and initializes it with an optional initial value.
-		
+
 		Args:
 			name (str): Value name to which the `value` will be added.
 			value: Value that needs to be added to the counter. It is the amount by which the counter will be incremented.

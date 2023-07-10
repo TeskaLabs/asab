@@ -146,7 +146,7 @@ class MetricsService(Service):
 			unit (str): The "unit" parameter is used to specify the unit of measurement for the metric. It
 				helps provide context and understanding for the metric being measured. For example, if the metric is
 				measuring the temperature, the unit could be "degrees Celsius".
-		
+
 		Returns:
 			an instance of the Gauge class.
 		"""
@@ -217,7 +217,7 @@ class MetricsService(Service):
 	def create_duty_cycle(self, metric_name: str, tags: dict = None, init_values: dict = None, help: str = None, unit: str = None):
 		"""
 		The function creates a duty cycle metric and returns the object.
-		
+
 		Args:
 			metric_name (str): The name of the metric you want to create.
 			tags (dict): Dictionary where the keys represent the tag names and the values represent the tag values. It allows you
@@ -277,7 +277,7 @@ class MetricsService(Service):
 
 		Args:
 			metric_name (str): The name of the metric you want to create.
-		 	buckets (list): The "buckets" parameter is a list that specifies the boundaries for the histogram
+			buckets (list): The "buckets" parameter is a list that specifies the boundaries for the histogram
 			buckets. Each element in the list represents the upper bound of a bucket. For example, if the list
 			is [10, 20, 30], it means that the histogram will have three buckets: one for values less than 10, second for values less than 20, third for values less than 30
 			tags (dict): Dictionary where the keys represent the tag names and the values represent the tag values. It allows you
