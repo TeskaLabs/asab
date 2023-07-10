@@ -41,6 +41,14 @@ class Gauge(Metric):
 		return field
 
 	def set(self, name: str, value):
+		"""
+		The function sets a value for a given value name and updates the 'measured_at' field with
+		the current time.
+
+		Args:
+			name (str): The name of the value to be set.
+			value: The value that you want to set for the given name in the field.
+		"""
 		self._field['values'][name] = value
 		self._field['measured_at'] = self.App.time()
 
@@ -59,14 +67,17 @@ class Counter(Metric):
 		self._field = field
 		return field
 
-	def add(self, name, value, init_value=None):
+	def add(self, name: str, value, init_value: dict = None):
 		"""
-		:param name: name of the counter
-		:param value: value to be added to the counter
-
-		Adds the `value` to the counter Values specified by `name`.
-		If `name` is not in Counter Values, it will be added.
-
+		The `add` function adds a specified value to a counter, and if the counter does not exist, it
+		creates it and initializes it with an optional initial value.
+		
+		Args:
+			name (str): Value name to which the `value` will be added.
+			value: Value that needs to be added to the counter. It is the amount by which the counter will be incremented.
+			init_value (dict): The `init_value` parameter is an optional parameter that specifies the initial value
+				of the counter if it doesn't already exist in the counter values. If `init_value` is provided, it
+				will be added to the `value` parameter and the result will be assigned as the value of the counter.
 		"""
 		try:
 			self._actuals[name] += value
@@ -78,15 +89,18 @@ class Counter(Metric):
 		if not self.Storage.get("reset"):
 			self._field['measured_at'] = self.App.time()
 
-	def sub(self, name, value, init_value=None):
+	def sub(self, name: str, value, init_value: dict = None):
 		"""
-		:param name: name of the counter
-		:param value: value to be subtracted from the counter
+		The function subtracts a value from a variable and updates the 'measured_at' field.
 
-		Subtracts the `value` from the counter Values specified by `name`.
-		If `name` is not in Counter Values, it will be added.
-
+		Args:
+			name (str): The name of the variable or field that you want to subtract the value from.
+			value: Value that needs to be added to the counter. It is the	amount by which the counter will be incremented.
+			init_value (dict): The `init_value` parameter is an optional parameter that specifies the initial value
+				of the counter if it doesn't already exist in the counter values. If `init_value` is provided, it
+				will be added to the `value` parameter and the result will be assigned as the value of the counter.
 		"""
+
 		try:
 			self._actuals[name] -= value
 		except KeyError:
@@ -154,10 +168,6 @@ class EPSCounter(Counter):
 class DutyCycle(Metric):
 	'''
 	https://en.wikipedia.org/wiki/Duty_cycle
-
-		now = self.App.time()
-		d = now - self.LastReadyStateSwitch
-		self.LastReadyStateSwitch = now
 	'''
 
 
@@ -192,7 +202,16 @@ class DutyCycle(Metric):
 		return field
 
 
-	def set(self, name, on_off: bool):
+	def set(self, name: str, on_off: bool):
+		"""
+		The function `set` updates the state of a variable, tracking the duration of on and off cycles.
+
+		Args:
+			name (str): Name of the value that you want to set.
+			on_off (bool): The `on_off` parameter is a boolean value that represents whether something is
+			turned on. It is used to set the state of a particular item or feature.
+
+		"""
 		now = self.App.time()
 		values = self._field["actuals"].get(name)
 		if values is None:
@@ -257,6 +276,14 @@ class AggregationCounter(Counter):
 		self.Aggregator = aggregator
 
 	def set(self, name, value):
+		"""
+		The function sets a value in a dictionary, updating it if the key already exists, and also updates a
+		'measured_at' field if a certain condition is met.
+
+		Args:
+			name: Name of the value being set.
+			value: Value that you want to set for the given name.
+		"""
 		if not self.Storage.get("reset"):
 			self._field['measured_at'] = self.App.time()
 		try:
@@ -329,6 +356,13 @@ class Histogram(Metric):
 				field['values'] = copy.deepcopy(field['actuals'])
 
 	def set(self, value_name, value):
+		"""
+		The function updates the values of the histogram based on the input value and value name.
+
+		Args:
+			value_name: String that represents the name of the value being set.
+			value: Value that needs to be set.
+		"""
 		if not self.Storage.get("reset"):
 			self._field['measured_at'] = self.App.time()
 		buckets = self._actuals["buckets"]
@@ -391,11 +425,16 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 
 	def add(self, name, value, tags):
 		"""
-		:param name: name of the counter
-		:param value: value to be added to the counter
+		The `add` function adds a specified value to a counter, and if the counter does not exist, it
+		creates it and initializes it with an optional initial value.
 
-		Adds the `value` to the counter Values specified by `name`.
-		If name is not in Counter Values, it will be added there.
+		Args:
+			name (str): Value name to which the `value` will be added.
+			value: Value that needs to be added to the counter. It is the amount by which the counter will be incremented.
+			init_value (dict): The `init_value` parameter is an optional parameter that specifies the initial value
+				of the counter if it doesn't already exist in the counter values. If `init_value` is provided, it
+				will be added to the `value` parameter and the result will be assigned as the value of the counter.
+			tags (dict): Dynamic tags appliying to this value.
 		"""
 
 		field = self.locate_field(tags)
@@ -412,11 +451,15 @@ class CounterWithDynamicTags(MetricWithDynamicTags):
 
 	def sub(self, name, value, tags):
 		"""
-		:param name: name of the counter
-		:param value: value to be subtracted from the counter
+		The function subtracts a value from a variable and updates the 'measured_at' field.
 
-		Subtracts the `value` from the counter Values specified by `name`.
-		If name is not in Counter Values, it will be added there.
+		Args:
+			name (str): The name of the variable or field that you want to subtract the value from.
+			value: Value that needs to be added to the counter. It is the	amount by which the counter will be incremented.
+			init_value (dict): The `init_value` parameter is an optional parameter that specifies the initial value
+				of the counter if it doesn't already exist in the counter values. If `init_value` is provided, it
+				will be added to the `value` parameter and the result will be assigned as the value of the counter.
+			tags (dict): Dynamic tags appliying to this value.
 		"""
 
 		field = self.locate_field(tags)
@@ -458,6 +501,15 @@ class AggregationCounterWithDynamicTags(CounterWithDynamicTags):
 		self.Aggregator = aggregator
 
 	def set(self, name, value, tags):
+		"""
+		The function sets a value for a given name and tags in a field, updates the measured_at and
+		expires_at timestamps, and handles resetting the field if necessary.
+
+		Args:
+			name (str): String that represents the name of the value being set.
+			value: Value that you want to set for a specific field.
+			tags (dict): Dictionary of tags that are used to locate a specific field.
+		"""
 		field = self.locate_field(tags)
 		actuals = field['actuals']
 		try:
@@ -538,7 +590,15 @@ class HistogramWithDynamicTags(MetricWithDynamicTags):
 			for field in self.Storage['fieldset']:
 				field['values'] = copy.deepcopy(field['actuals'])
 
-	def set(self, value_name, value, tags):
+	def set(self, value_name, value, tags: dict):
+		"""
+		The function updates the values of the histogram based on the input value and value name.
+
+		Args:
+			value_name (str): String that represents the name of the value being set.
+			value: Value that needs to be set.
+			tags (dict): Dynamic tags appliying to this value.
+		"""
 		field = self.locate_field(tags)
 		buckets = field.get("actuals").get("buckets")
 		summary = field.get("actuals").get("sum")
