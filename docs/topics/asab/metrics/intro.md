@@ -26,10 +26,9 @@ database. [Influx](https://www.influxdata.com/) and
 	3. Use MetricsService to intialize the counter.
 
 
-See the full example here:
-<https://github.com/TeskaLabs/asab/blob/master/examples/metrics.py>
+See the full example [here](https://github.com/TeskaLabs/asab/blob/master/examples/metrics.py).
 
-See reference here (TODO link)
+See reference [here](./../../../reference/metrics/service.md).
 
 ## Types of Metrics
 
