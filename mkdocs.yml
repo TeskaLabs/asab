@@ -90,6 +90,7 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - tables
 
   # Admonitions (call-outs) https://squidfunk.github.io/mkdocs-material/reference/admonitions/
   - admonition
@@ -106,7 +107,7 @@ markdown_extensions:
 
   # Content tabs and anchor links https://squidfunk.github.io/mkdocs-material/reference/content-tabs/
   - pymdownx.tabbed:
-      alternate_style: true 
+      alternate_style: true
 
 extra:
   social:
@@ -135,12 +136,17 @@ nav:
     # - topics/asab/pubsub.md
     # - topics/asab/service.md
     - Storage:
-      - Intro: topics/asab/storage/intro.md
+      - Introduction: topics/asab/storage/intro.md
       - Manipulation with Databases: topics/asab/storage/manipulation_with_databases.md
       - Encryption and Decryption: topics/asab/storage/encryption.md
       - In-Memory Storage: topics/asab/storage/inmemory.md
       - MongoDB Storage: topics/asab/storage/mongodb.md
       - ElasticSearch Storage: topics/asab/storage/elasticsearch.md
+    - Metrics:
+      - Introduction: topics/asab/metrics/intro.md
+      - Tags: topics/asab/metrics/tags.md
+      - Built-in metrics: topics/asab/metrics/built-ins.md
+      - Monitoring: topics/asab/metrics/targets.md
     # - topics/asab/various.md
     # - topics/asab/zookeeper.md
 
@@ -149,7 +155,17 @@ nav:
     # - reference/config.md
     # - reference/library.md
     # - reference/log.md
-    # - reference/metrics.md
+    - Metrics:
+      - MetricsService: reference/metrics/service.md
+      - Gauge: reference/metrics/gauge.md
+      - Counter: reference/metrics/counter.md
+      - EPSCounter: reference/metrics/eps_counter.md
+      - DutyCycle: reference/metrics/duty_cycle.md
+      - AggregationCounter: reference/metrics/aggregation_counter.md
+      - Histogram: reference/metrics/histogram.md
+      - CounterWithDynamicTags: reference/metrics/counter_with_dynamic_tags.md
+      - AggregationCounterWithDynamicTags: reference/metrics/aggregation_counter_with_dynamic_tags.md
+      - HistogramWithDynamicTags: reference/metrics/histogram_with_dynamic_tags.md
     # - reference/module.md
     - Storage:
         - StorageService: reference/storage/service.md
