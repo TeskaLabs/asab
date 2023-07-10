@@ -116,7 +116,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		try:
 			assert self.GitRepository.remotes["origin"] is not None
-		except (KeyError, AssertionError):
+		except (KeyError, AssertionError, AttributeError):
 			L.error("Connection to remote git repository failed.")
 			# The library will not get ready ... maybe we can retry init_test() in a while
 			return
