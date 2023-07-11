@@ -22,7 +22,7 @@ def process_examples(path_from, path_to):
 		if not md_file.exists() or git_metadata(py_file) != load_headers(md_file):
 			create_markdown(py_file, md_file)
 
-	for md_file in EXAMPLE_DIR.iterdir():
+	for md_file in sorted(DOCS_DIR.iterdir()):
 		add_to_navbar(md_file, MKDOCS_FILE)
 
 
