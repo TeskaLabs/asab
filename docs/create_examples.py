@@ -34,6 +34,7 @@ def load_headers(md_file: pathlib.Path):
 def git_metadata(py_file: pathlib.Path) -> dict:
 	git_format = "%aN|%ad|%H"
 	last_git_commit = subprocess.check_output(["git", "log", "-n", "1", "--format={}".format(git_format), "--", py_file]).decode('utf-8').strip("\n").split("|")
+	assert last_git_commit != [""], "{} is not staged by git.".format(py_file)
 	date_format = '%a %b %d %H:%M:%S %Y %z'
 	metadata = {
 		"author": last_git_commit[0],
@@ -51,7 +52,7 @@ def create_markdown(py_file: pathlib.Path, md_file: pathlib.Path):
 
 !!! example
 
-	```python title={py_file_name} linenums="1"
+	```python title='{py_file_name}' linenums="1"
 	{py_file_content}
 	```
 """.format(
@@ -64,8 +65,9 @@ def create_markdown(py_file: pathlib.Path, md_file: pathlib.Path):
 
 def add_to_navbar(md_file: pathlib.Path, mkdocs_file: pathlib.Path):
 
-	with open(mkdocs_file, "+at", encoding="utf-8") as f:
-		content = f.read()
+	content = mkdocs_file.read_text()
+
+	with open(mkdocs_file, "a", encoding="utf-8") as f:
 		if md_file.name not in content:
 			print(md_file.name, "not in", mkdocs_file.name)
 			nav_reference = "    - examples/{}\n".format(md_file.name)
