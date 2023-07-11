@@ -14,7 +14,7 @@ ASAB is distributed via [pypi](https://pypi.org/project/asab/). For installing A
 
 === "Cloning from git repository"
 
-    To install ASAB from a master branch of the git repository, you can use the following command:
+    You can clone it from master branch using pip:
 
     ``` bash
     pip install git+https://github.com/TeskaLabs/asab.git
@@ -102,9 +102,5 @@ ASAB is distributed via [pypi](https://pypi.org/project/asab/). For installing A
         loop](https://en.wikipedia.org/wiki/Event_loop). It is meant primarily
         for server architectures. For that reason, it doesn't terminate and
         continue running and serving eventual requests.
-
-## Summary
-
-In this tutorial, you learned how to install ASAB and how to create a basic application.
 
 You can continue with a step-by-step tutorial on how to build ASAB based [web server](./web_server.md).
