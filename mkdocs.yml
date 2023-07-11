@@ -165,3 +165,32 @@ nav:
 
   # Examples are rendered automatically with create_examples.py script
   - Examples:
+
+    - examples/hello_world.md
+    - examples/config_geturl.md
+    - examples/storage_mongodb.md
+    - examples/websocket-chat.md
+    - examples/metrics-web-requests.md
+    - examples/argparser.md
+    - examples/task.md
+    - examples/json_schema.md
+    - examples/config_getseconds.md
+    - examples/library-subscribe.md
+    - examples/storage_inmemory.md
+    - examples/webserver.md
+    - examples/zookeeper.md
+    - examples/application_states.md
+    - examples/library.md
+    - examples/service-discovery.md
+    - examples/executor.md
+    - examples/metrics.md
+    - examples/timer.md
+    - examples/pubsub.md
+    - examples/zookeeper-advertise.md
+    - examples/storage_elasticsearch.md
+    - examples/logging-file.md
+    - examples/web-authz-rbac.md
+    - examples/pdict.md
+    - examples/library-git-provider.md
+    - examples/web-authz-userinfo.md
+    - examples/web-auth.md

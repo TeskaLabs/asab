@@ -8,14 +8,4 @@ https://diataxis.fr/
 
 https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings
 
-Create application that consists of two microservices. One of them pulls periodically the data from RSS channel and parses them into json file
-
-# Tutorials
-
-# How to guides
-
-# Explanation
-
-# Reference
-
-copy-paste sections
+- Experiment with search boosting: https://squidfunk.github.io/mkdocs-material/setup/setting-up-site-search/#search-boosting
