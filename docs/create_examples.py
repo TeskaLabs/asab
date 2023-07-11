@@ -3,7 +3,6 @@
 import pathlib
 import yaml
 import datetime
-import re
 import subprocess
 
 EXAMPLE_DIR = pathlib.Path.cwd() / "examples"
@@ -22,7 +21,9 @@ def process_examples(path_from, path_to):
 		md_file = DOCS_DIR / py_file.with_suffix(".md").name
 		if not md_file.exists() or git_metadata(py_file) != load_headers(md_file):
 			create_markdown(py_file, md_file)
-			add_to_navbar(md_file, MKDOCS_FILE)
+
+	for md_file in EXAMPLE_DIR.iterdir():
+		add_to_navbar(md_file, MKDOCS_FILE)
 
 
 def load_headers(md_file: pathlib.Path):
@@ -68,8 +69,8 @@ def add_to_navbar(md_file: pathlib.Path, mkdocs_file: pathlib.Path):
 	content = mkdocs_file.read_text()
 
 	with open(mkdocs_file, "a", encoding="utf-8") as f:
-		if md_file.name not in content:
-			print(md_file.name, "not in", mkdocs_file.name)
+		if "examples/{}".format(md_file.name) not in content:
+			print("Adding 'examples/{}' to navbar.".format(md_file.name))
 			nav_reference = "    - examples/{}\n".format(md_file.name)
 			f.write(nav_reference)
 
