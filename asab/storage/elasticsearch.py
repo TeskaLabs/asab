@@ -29,7 +29,6 @@ Config.add_defaults(
 			'elasticsearch_username': '',
 			'elasticsearch_password': '',
 			'elasticsearch_api_key': '',
-			'elasticsearch_ssl_ca_file': '',
 
 			# make the operation visible to search directly, options: true, false, wait_for
 			# see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-index_.html
@@ -73,25 +72,14 @@ class StorageService(StorageServiceABC):
 			password = Config.get(config_section_name, 'elasticsearch_password')
 			self._auth = aiohttp.BasicAuth(login=username, password=password)
 
-		# SSL Certificates
-		ssl_ca_file = Config.get(config_section_name, 'elasticsearch_ssl_ca_file')
-		if ssl_ca_file != '':
-			assert os.path.exists(ssl_ca_file), "Path for SSL Certificate is not valid. Change the configuration variable 'elasticsearch_ssl_ca_file'."
-			# TODO: Check these methods in detail
-			self.SSLcontext = ssl.create_default_context(cafile=ssl_ca_file)
-			self.SSLcontext.check_hostname = False
-			self.SSLcontext.verify_mode = ssl.CERT_NONE
-		else:
-			self.SSLcontext = ssl.create_default_context()
-			self.SSLcontext.check_hostname = False
-			self.SSLcontext.verify_mode = ssl.CERT_NONE
-
 		self._ClientSession = None
 
 		# Create headers for requests
 		self.Headers = {'Content-Type': 'application/json'}
 		if api_key != '':
 			self.Headers['Authorization'] = "ApiKey {}".format(api_key)
+
+		self.SSLContextBuilder = SSLContextBuilder(self)
 
 
 	async def finalize(self, app):
@@ -124,11 +112,17 @@ class StorageService(StorageServiceABC):
 			bool: True if the service is connected.
 		"""
 		for url in self.ServerUrls:
+
+			if url.startwith('https://'):
+				ssl_context = self.SSLContextBuilder.build()
+			else:
+				ssl_context = None
+
 			try:
 				async with self.session().request(
 					method="GET",
 					url=url,
-					ssl=self.SSLcontext,
+					ssl=ssl_context,
 					headers=self.Headers,
 				) as resp:
 					await self.session().close()
@@ -172,10 +166,16 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 			request_url = "{}{}/_doc/{}".format(url, index, obj_id)
 			try:
+
+				if url.startwith('https://'):
+					ssl_context = self.SSLContextBuilder.build()
+				else:
+					ssl_context = None
+
 				async with self.session().request(
 					method="GET",
 					url=request_url,
-					ssl=self.SSLcontext,
+					ssl=ssl_context,
 					headers=self.Headers,
 				) as resp:
 					if resp.status == 401:
@@ -226,10 +226,16 @@ class StorageService(StorageServiceABC):
 					request_url = "{}{}/_doc/{}?refresh={}".format(url, index, _id, self.Refresh)
 				else:
 					request_url = "{}{}".format(url, index)
+
+				if url.startwith('https://'):
+					ssl_context = self.SSLContextBuilder.build()
+				else:
+					ssl_context = None
+					
 				async with self.session().request(
 					method="DELETE",
 					url=request_url,
-					ssl=self.SSLcontext
+					ssl=ssl_context
 				) as resp:
 					if resp.status == 401:
 						raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
@@ -267,11 +273,17 @@ class StorageService(StorageServiceABC):
 		"""
 		for url in self.ServerUrls:
 			request_url = "{}{}/_mapping".format(url, index)
+
+			if url.startwith('https://'):
+				ssl_context = self.SSLContextBuilder.build()
+			else:
+				ssl_context = None
+
 			try:
 				async with self.session().request(
 					method="GET",
 					url=request_url,
-					ssl=self.SSLcontext
+					ssl=ssl_context
 				) as resp:
 					obj = await resp.json()
 					await self.session().close()
@@ -292,12 +304,18 @@ class StorageService(StorageServiceABC):
 		"""
 		for url in self.ServerUrls:
 			request_url = "{}_template/{}?format=json".format(url, template_name)
+
+			if url.startwith('https://'):
+				ssl_context = self.SSLContextBuilder.build()
+			else:
+				ssl_context = None
+
 			try:
 				async with self.session().request(
 					method="GET",
 					url=request_url,
 					headers=self.Headers,
-					ssl=self.SSLcontext,
+					ssl=ssl_context,
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					content = await resp.json()
@@ -320,13 +338,19 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 			request_url = "{}_template/{}?include_type_name".format(url, template_name)
 			L.warning("Posting index template into url: {}".format(request_url))
+
+			if url.startwith('https://'):
+				ssl_context = self.SSLContextBuilder.build()
+			else:
+				ssl_context = None
+
 			try:
 				async with self.session().request(
 					method="POST",
 					url=request_url,
 					data=json.dumps(template),
 					headers=self.Headers,
-					ssl=self.SSLcontext,
+					ssl=ssl_context,
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					resp = await resp.json()
@@ -348,11 +372,16 @@ class StorageService(StorageServiceABC):
 				else:
 					request_url = "{}/_reindex".format(url)
 
+				if url.startwith('https://'):
+					ssl_context = self.SSLContextBuilder.build()
+				else:
+					ssl_context = None
+
 				async with self.session().request(
 					method="POST",
 					url=request_url,
 					headers=self.Headers,
-					ssl=self.SSLcontext,
+					ssl=ssl_context,
 					data=json.dumps({
 						"source": {
 							"index": previous_index,
@@ -397,6 +426,12 @@ class StorageService(StorageServiceABC):
 		scroll_id = None
 		while True:
 			for url in self.ServerUrls:
+
+				if url.startwith('https://'):
+					ssl_context = self.SSLContextBuilder.build()
+				else:
+					ssl_context = None
+
 				if scroll_id is None:
 					path = "{}/_search?scroll={}".format(
 						index, self.ScrollTimeout
@@ -415,7 +450,7 @@ class StorageService(StorageServiceABC):
 						url=request_url,
 						json=request_body,
 						headers=self.Headers,
-						ssl=self.SSLcontext,
+						ssl=ssl_context,
 					) as resp:
 						if resp.status != 200:
 							data = await resp.text()
@@ -476,6 +511,12 @@ class StorageService(StorageServiceABC):
 				}
 			}
 		for url in self.ServerUrls:
+
+			if url.startwith('https://'):
+				ssl_context = self.SSLContextBuilder.build()
+			else:
+				ssl_context = None
+
 			try:
 				request_url = "{}{}/_search?size={}&from={}&version=true".format(url, index, size, _from)
 				async with self.session().request(
@@ -483,7 +524,7 @@ class StorageService(StorageServiceABC):
 					url=request_url,
 					json=body,
 					headers=self.Headers,
-					ssl=self.SSLcontext,
+					ssl=ssl_context,
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					content = await resp.json()
@@ -505,7 +546,12 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 			try:
 				count_url = "{}{}/_count".format(url, index)
-				async with self.session().request(method="GET", url=count_url, ssl=self.SSLcontext) as resp:
+				if url.startwith('https://'):
+					ssl_context = self.SSLContextBuilder.build()
+				else:
+					ssl_context = None
+
+				async with self.session().request(method="GET", url=count_url, ssl=ssl_context) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					total_count = await resp.json()
 					return total_count
@@ -522,12 +568,17 @@ class StorageService(StorageServiceABC):
 		:param search_string: A search string. Default to None.
 		"""
 		for url in self.ServerUrls:
+			if url.startwith('https://'):
+				ssl_context = self.SSLContextBuilder.build()
+			else:
+				ssl_context = None
+
 			try:
 				request_url = "{}_cat/indices/{}?format=json".format(url, search_string if search_string is not None else "*")
 				async with self.session().request(
 					method="GET",
 					url=request_url,
-					ssl=self.SSLcontext
+					ssl=ssl_context
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					return await resp.json()
@@ -545,12 +596,17 @@ class StorageService(StorageServiceABC):
 		'''
 		# TODO: There is an option here to specify settings (e.g. shard number, replica number etc) and mappings here
 		for url in self.ServerUrls:
+			if url.startwith('https://'):
+				ssl_context = self.SSLContextBuilder.build()
+			else:
+				ssl_context = None
+
 			try:
 				request_url = "{}{}".format(url, index)
 				async with self.session().request(
 					method="PUT",
 					url=request_url,
-					ssl=self.SSLcontext
+					ssl=ssl_context
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					return await resp.json()
@@ -572,8 +628,6 @@ class ElasticSearchUpsertor(UpsertorABC):
 
 		if version == 0:
 			self.ModSet['_c'] = now  # Set the creation timestamp
-
-		self.SSLcontext = self.Storage.SSLcontext
 
 		api_key = Config.get('asab:storage', 'elasticsearch_api_key')
 		self.Headers = {'Content-Type': 'application/json'}
@@ -619,13 +673,18 @@ class ElasticSearchUpsertor(UpsertorABC):
 				url, self.Collection, self.Storage.Refresh
 			)
 
+			if url.startwith('https://'):
+				ssl_context = self.Storage.SSLContextBuilder.build()
+			else:
+				ssl_context = None
+
 			try:
 				async with self.Storage.session().request(
 					method="POST",
 					url=request_url,
 					headers=self.Headers,
 					json=upsert_data,
-					ssl=self.SSLcontext
+					ssl=ssl_context
 				) as resp:
 					if resp.status == 401:
 						raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
@@ -658,7 +717,13 @@ class ElasticSearchUpsertor(UpsertorABC):
 		if len(self.ModSet) > 0:
 			for k, v in self.ModSet.items():
 				upsert_data["doc"][k] = serialize(self.ModSet[k])
+
 			for url in self.Storage.ServerUrls:
+				if url.startwith('https://'):
+					ssl_context = self.Storage.SSLContextBuilder.build()
+				else:
+					ssl_context = None
+
 				try:
 					request_url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId, self.Storage.Refresh)
 					async with self.Storage.session().request(
@@ -666,7 +731,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 						url=request_url,
 						json=upsert_data,
 						headers=self.Headers,
-						ssl=self.SSLcontext,
+						ssl=ssl_context,
 					) as resp:
 						if resp.status == 401:
 							raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
