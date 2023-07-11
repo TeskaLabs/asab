@@ -34,6 +34,8 @@ Config.add_defaults(
 			# see: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-index_.html
 			'refresh': 'true',
 			'scroll_timeout': '1m',
+
+			# For SSL options such as `cafile`, please refer to tls.py
 		}
 	}
 )
