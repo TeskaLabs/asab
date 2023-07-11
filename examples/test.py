@@ -1,0 +1,3 @@
+import asab
+
+print("Hello!")
