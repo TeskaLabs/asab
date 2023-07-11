@@ -10,8 +10,7 @@ import typing
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
 from ..config import Config
-
-import ssl
+from ..tls import SSLContextBuilder
 
 
 #
@@ -113,7 +112,7 @@ class StorageService(StorageServiceABC):
 		"""
 		for url in self.ServerUrls:
 
-			if url.startwith('https://'):
+			if url.startswith('https://'):
 				ssl_context = self.SSLContextBuilder.build()
 			else:
 				ssl_context = None
@@ -167,7 +166,7 @@ class StorageService(StorageServiceABC):
 			request_url = "{}{}/_doc/{}".format(url, index, obj_id)
 			try:
 
-				if url.startwith('https://'):
+				if url.startswith('https://'):
 					ssl_context = self.SSLContextBuilder.build()
 				else:
 					ssl_context = None
@@ -227,7 +226,7 @@ class StorageService(StorageServiceABC):
 				else:
 					request_url = "{}{}".format(url, index)
 
-				if url.startwith('https://'):
+				if url.startswith('https://'):
 					ssl_context = self.SSLContextBuilder.build()
 				else:
 					ssl_context = None
@@ -274,7 +273,7 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 			request_url = "{}{}/_mapping".format(url, index)
 
-			if url.startwith('https://'):
+			if url.startswith('https://'):
 				ssl_context = self.SSLContextBuilder.build()
 			else:
 				ssl_context = None
@@ -305,7 +304,7 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 			request_url = "{}_template/{}?format=json".format(url, template_name)
 
-			if url.startwith('https://'):
+			if url.startswith('https://'):
 				ssl_context = self.SSLContextBuilder.build()
 			else:
 				ssl_context = None
@@ -339,7 +338,7 @@ class StorageService(StorageServiceABC):
 			request_url = "{}_template/{}?include_type_name".format(url, template_name)
 			L.warning("Posting index template into url: {}".format(request_url))
 
-			if url.startwith('https://'):
+			if url.startswith('https://'):
 				ssl_context = self.SSLContextBuilder.build()
 			else:
 				ssl_context = None
@@ -372,7 +371,7 @@ class StorageService(StorageServiceABC):
 				else:
 					request_url = "{}/_reindex".format(url)
 
-				if url.startwith('https://'):
+				if url.startswith('https://'):
 					ssl_context = self.SSLContextBuilder.build()
 				else:
 					ssl_context = None
@@ -427,7 +426,7 @@ class StorageService(StorageServiceABC):
 		while True:
 			for url in self.ServerUrls:
 
-				if url.startwith('https://'):
+				if url.startswith('https://'):
 					ssl_context = self.SSLContextBuilder.build()
 				else:
 					ssl_context = None
@@ -512,7 +511,7 @@ class StorageService(StorageServiceABC):
 			}
 		for url in self.ServerUrls:
 
-			if url.startwith('https://'):
+			if url.startswith('https://'):
 				ssl_context = self.SSLContextBuilder.build()
 			else:
 				ssl_context = None
@@ -546,7 +545,7 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 			try:
 				count_url = "{}{}/_count".format(url, index)
-				if url.startwith('https://'):
+				if url.startswith('https://'):
 					ssl_context = self.SSLContextBuilder.build()
 				else:
 					ssl_context = None
@@ -568,7 +567,7 @@ class StorageService(StorageServiceABC):
 		:param search_string: A search string. Default to None.
 		"""
 		for url in self.ServerUrls:
-			if url.startwith('https://'):
+			if url.startswith('https://'):
 				ssl_context = self.SSLContextBuilder.build()
 			else:
 				ssl_context = None
@@ -596,7 +595,7 @@ class StorageService(StorageServiceABC):
 		'''
 		# TODO: There is an option here to specify settings (e.g. shard number, replica number etc) and mappings here
 		for url in self.ServerUrls:
-			if url.startwith('https://'):
+			if url.startswith('https://'):
 				ssl_context = self.SSLContextBuilder.build()
 			else:
 				ssl_context = None
@@ -673,7 +672,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 				url, self.Collection, self.Storage.Refresh
 			)
 
-			if url.startwith('https://'):
+			if url.startswith('https://'):
 				ssl_context = self.Storage.SSLContextBuilder.build()
 			else:
 				ssl_context = None
@@ -719,7 +718,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 				upsert_data["doc"][k] = serialize(self.ModSet[k])
 
 			for url in self.Storage.ServerUrls:
-				if url.startwith('https://'):
+				if url.startswith('https://'):
 					ssl_context = self.Storage.SSLContextBuilder.build()
 				else:
 					ssl_context = None
