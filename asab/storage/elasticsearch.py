@@ -12,6 +12,7 @@ from .upsertor import UpsertorABC
 from ..config import Config
 from ..tls import SSLContextBuilder
 
+import ssl
 
 #
 
@@ -78,7 +79,7 @@ class StorageService(StorageServiceABC):
 		if api_key != '':
 			self.Headers['Authorization'] = "ApiKey {}".format(api_key)
 
-		self.SSLContextBuilder = SSLContextBuilder(self)
+		self.SSLContextBuilder = SSLContextBuilder(config_section_name)
 
 
 	async def finalize(self, app):
@@ -113,7 +114,7 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 
 			if url.startswith('https://'):
-				ssl_context = self.SSLContextBuilder.build()
+				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 			else:
 				ssl_context = None
 
@@ -167,7 +168,7 @@ class StorageService(StorageServiceABC):
 			try:
 
 				if url.startswith('https://'):
-					ssl_context = self.SSLContextBuilder.build()
+					ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 				else:
 					ssl_context = None
 
@@ -227,7 +228,7 @@ class StorageService(StorageServiceABC):
 					request_url = "{}{}".format(url, index)
 
 				if url.startswith('https://'):
-					ssl_context = self.SSLContextBuilder.build()
+					ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 				else:
 					ssl_context = None
 					
@@ -274,7 +275,7 @@ class StorageService(StorageServiceABC):
 			request_url = "{}{}/_mapping".format(url, index)
 
 			if url.startswith('https://'):
-				ssl_context = self.SSLContextBuilder.build()
+				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 			else:
 				ssl_context = None
 
@@ -305,7 +306,7 @@ class StorageService(StorageServiceABC):
 			request_url = "{}_template/{}?format=json".format(url, template_name)
 
 			if url.startswith('https://'):
-				ssl_context = self.SSLContextBuilder.build()
+				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 			else:
 				ssl_context = None
 
@@ -339,7 +340,7 @@ class StorageService(StorageServiceABC):
 			L.warning("Posting index template into url: {}".format(request_url))
 
 			if url.startswith('https://'):
-				ssl_context = self.SSLContextBuilder.build()
+				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 			else:
 				ssl_context = None
 
@@ -372,7 +373,7 @@ class StorageService(StorageServiceABC):
 					request_url = "{}/_reindex".format(url)
 
 				if url.startswith('https://'):
-					ssl_context = self.SSLContextBuilder.build()
+					ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 				else:
 					ssl_context = None
 
@@ -427,7 +428,7 @@ class StorageService(StorageServiceABC):
 			for url in self.ServerUrls:
 
 				if url.startswith('https://'):
-					ssl_context = self.SSLContextBuilder.build()
+					ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 				else:
 					ssl_context = None
 
@@ -512,7 +513,7 @@ class StorageService(StorageServiceABC):
 		for url in self.ServerUrls:
 
 			if url.startswith('https://'):
-				ssl_context = self.SSLContextBuilder.build()
+				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 			else:
 				ssl_context = None
 
@@ -546,7 +547,7 @@ class StorageService(StorageServiceABC):
 			try:
 				count_url = "{}{}/_count".format(url, index)
 				if url.startswith('https://'):
-					ssl_context = self.SSLContextBuilder.build()
+					ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 				else:
 					ssl_context = None
 
@@ -568,7 +569,7 @@ class StorageService(StorageServiceABC):
 		"""
 		for url in self.ServerUrls:
 			if url.startswith('https://'):
-				ssl_context = self.SSLContextBuilder.build()
+				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 			else:
 				ssl_context = None
 
@@ -596,7 +597,7 @@ class StorageService(StorageServiceABC):
 		# TODO: There is an option here to specify settings (e.g. shard number, replica number etc) and mappings here
 		for url in self.ServerUrls:
 			if url.startswith('https://'):
-				ssl_context = self.SSLContextBuilder.build()
+				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 			else:
 				ssl_context = None
 
@@ -673,7 +674,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 			)
 
 			if url.startswith('https://'):
-				ssl_context = self.Storage.SSLContextBuilder.build()
+				ssl_context = self.Storage.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 			else:
 				ssl_context = None
 
@@ -719,7 +720,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 
 			for url in self.Storage.ServerUrls:
 				if url.startswith('https://'):
-					ssl_context = self.Storage.SSLContextBuilder.build()
+					ssl_context = self.Storage.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 				else:
 					ssl_context = None
 

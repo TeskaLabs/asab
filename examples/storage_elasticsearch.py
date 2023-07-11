@@ -12,7 +12,7 @@ asab.Config.add_defaults(
 			'elasticsearch_username': '<username>',
 			'elasticsearch_password': '<password>',
 			# 'elasticsearch_api_key': '<your api key>',
-			# 'cafile': '<path to SSL certificate>',
+			# 'cafile': '<CA Certificate>',
 		}
 	}
 )
