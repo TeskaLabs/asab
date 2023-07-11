@@ -11,7 +11,30 @@ ASAB-based microservice via Docker or Kubernetes in a breeze.
 Anyone can (and is encouraged to) use ASAB in his or her projects, for free.
 A current maintainer is a [TeskaLabs Ltd](https://teskalabs.com) company.
 
-!!! info ""
+!!! success "ASAB is the right choice when:"
+
+    - :material-server: you want to build a microservice or an application server
+    - :material-language-python: you are using Python 3.7+
+    - :material-clock-fast: you want to utilize asynchronous I/O
+    - :material-file-document-edit: you want to write non-blocking, speedy and scalable code
+
+!!! example "Here is a complete example of a fully working microservice:"
+
+    ``` python title="hello_world.py"
+    import asab
+
+    class MyApplication(asab.Application):
+        async def main(self):
+            print("Hello world!")
+            self.stop()
+
+    if __name__ == "__main__":
+        app = MyApplication()
+        app.run()
+    ```
+
+
+!!! info "Development"
 
     - :simple-opensourceinitiative: ASAB is free and open-source software, available under BSD licence.
     Anyone is freely licensed to use, copy, study, and change the
@@ -21,32 +44,7 @@ A current maintainer is a [TeskaLabs Ltd](https://teskalabs.com) company.
     - :simple-github: ASAB is developed [on GitHub](https://github.com/TeskaLabs/asab/).
     Contributions are most welcome! If you want to help us improve asab, check our [contribution rules](./contributing.md).
 
-## ASAB is designed to be powerful yet simple
 
-Here is a complete example of a fully working microservice:
-
-``` python title="hello_world.py"
-import asab
-
-class MyApplication(asab.Application):
-    async def main(self):
-        print("Hello world!")
-        self.stop()
-
-if __name__ == "__main__":
-    app = MyApplication()
-    app.run()
-```
-
-##  ASAB is the right choice when
-
-<div class="grid" markdown>
-
-- :material-language-python: using Python 3.7+
-- :material-server: building the microservice or the application server
-- :material-clock-fast: utilizing asynchronous I/O
-
-</div>
 
 [Get started with ASAB](./getting-started/install.md){ .md-button .md-button--primary }
 
