@@ -8,7 +8,7 @@ title: Config getseconds
 
 !!! example
 
-	```python title=config_getseconds.py linenums="1"
+	```python title='config_getseconds.py' linenums="1"
 	#!/usr/bin/env python3
 	import logging
 	import asyncio

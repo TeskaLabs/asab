@@ -8,7 +8,7 @@ title: Web authz rbac
 
 !!! example
 
-	```python title=web-authz-rbac.py linenums="1"
+	```python title='web-authz-rbac.py' linenums="1"
 	import logging
 	
 	import asab

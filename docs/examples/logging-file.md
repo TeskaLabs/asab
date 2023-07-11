@@ -8,7 +8,7 @@ title: Logging file
 
 !!! example
 
-	```python title=logging-file.py linenums="1"
+	```python title='logging-file.py' linenums="1"
 	#!/usr/bin/env python3
 	import logging
 	import asab

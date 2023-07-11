@@ -8,7 +8,7 @@ title: Storage mongodb
 
 !!! example
 
-	```python title=storage_mongodb.py linenums="1"
+	```python title='storage_mongodb.py' linenums="1"
 	import pprint
 	import os
 	import asab

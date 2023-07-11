@@ -8,7 +8,7 @@ title: Web auth
 
 !!! example
 
-	```python title=web-auth.py linenums="1"
+	```python title='web-auth.py' linenums="1"
 	#!/usr/bin/env python3
 	import asab.web.rest
 	import asab.web.auth

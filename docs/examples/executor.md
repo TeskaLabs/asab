@@ -8,7 +8,7 @@ title: Executor
 
 !!! example
 
-	```python title=executor.py linenums="1"
+	```python title='executor.py' linenums="1"
 	#!/usr/bin/env python3
 	import concurrent.futures
 	import threading

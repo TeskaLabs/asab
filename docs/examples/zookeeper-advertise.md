@@ -8,7 +8,7 @@ title: Zookeeper advertise
 
 !!! example
 
-	```python title=zookeeper-advertise.py linenums="1"
+	```python title='zookeeper-advertise.py' linenums="1"
 	import asab
 	import asab.api
 	import asab.zookeeper

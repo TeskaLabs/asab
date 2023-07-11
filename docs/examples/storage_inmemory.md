@@ -8,7 +8,7 @@ title: Storage inmemory
 
 !!! example
 
-	```python title=storage_inmemory.py linenums="1"
+	```python title='storage_inmemory.py' linenums="1"
 	import pprint
 	
 	import asab

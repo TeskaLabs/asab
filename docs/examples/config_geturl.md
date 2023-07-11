@@ -8,7 +8,7 @@ title: Config geturl
 
 !!! example
 
-	```python title=config_geturl.py linenums="1"
+	```python title='config_geturl.py' linenums="1"
 	#!/usr/bin/env python3
 	import logging
 	

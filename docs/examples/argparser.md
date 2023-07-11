@@ -8,7 +8,7 @@ title: Argparser
 
 !!! example
 
-	```python title=argparser.py linenums="1"
+	```python title='argparser.py' linenums="1"
 	#!/usr/bin/env python3
 	import asab
 	

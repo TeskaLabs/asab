@@ -8,7 +8,7 @@ title: Timer
 
 !!! example
 
-	```python title=timer.py linenums="1"
+	```python title='timer.py' linenums="1"
 	#!/usr/bin/env python3
 	import asab
 	

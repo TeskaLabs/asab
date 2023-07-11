@@ -8,7 +8,7 @@ title: Metrics web requests
 
 !!! example
 
-	```python title=metrics-web-requests.py linenums="1"
+	```python title='metrics-web-requests.py' linenums="1"
 	import logging
 	import time
 	

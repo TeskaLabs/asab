@@ -8,7 +8,7 @@ title: Service discovery
 
 !!! example
 
-	```python title=service-discovery.py linenums="1"
+	```python title='service-discovery.py' linenums="1"
 	import logging
 	import aiohttp
 	import aiohttp.web

@@ -8,7 +8,7 @@ title: Web authz userinfo
 
 !!! example
 
-	```python title=web-authz-userinfo.py linenums="1"
+	```python title='web-authz-userinfo.py' linenums="1"
 	import logging
 	
 	import asab

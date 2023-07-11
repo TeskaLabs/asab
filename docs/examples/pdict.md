@@ -8,7 +8,7 @@ title: Pdict
 
 !!! example
 
-	```python title=pdict.py linenums="1"
+	```python title='pdict.py' linenums="1"
 	#!/usr/bin/env python3
 	import os.path
 	import asab

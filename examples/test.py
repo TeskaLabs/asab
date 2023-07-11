@@ -1,3 +1,0 @@
-import asab
-
-print("Hello!")

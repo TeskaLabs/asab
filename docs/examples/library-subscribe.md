@@ -8,7 +8,7 @@ title: Library subscribe
 
 !!! example
 
-	```python title=library-subscribe.py linenums="1"
+	```python title='library-subscribe.py' linenums="1"
 	#!/usr/bin/env python3
 	
 	import asab

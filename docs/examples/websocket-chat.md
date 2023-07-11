@@ -8,7 +8,7 @@ title: Websocket chat
 
 !!! example
 
-	```python title=websocket-chat.py linenums="1"
+	```python title='websocket-chat.py' linenums="1"
 	import os
 	
 	import aiohttp

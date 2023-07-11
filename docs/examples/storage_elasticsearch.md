@@ -8,7 +8,7 @@ title: Storage elasticsearch
 
 !!! example
 
-	```python title=storage_elasticsearch.py linenums="1"
+	```python title='storage_elasticsearch.py' linenums="1"
 	import pprint
 	
 	import asab

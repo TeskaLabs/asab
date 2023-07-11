@@ -8,7 +8,7 @@ title: Zookeeper
 
 !!! example
 
-	```python title=zookeeper.py linenums="1"
+	```python title='zookeeper.py' linenums="1"
 	#!/usr/bin/env python3
 	import asab
 	import asab.zookeeper

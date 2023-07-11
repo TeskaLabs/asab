@@ -8,7 +8,7 @@ title: Library git provider
 
 !!! example
 
-	```python title=library-git-provider.py linenums="1"
+	```python title='library-git-provider.py' linenums="1"
 	#!/usr/bin/env python3
 	import asab
 	import asab.library

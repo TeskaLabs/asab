@@ -8,7 +8,7 @@ title: Hello world
 
 !!! example
 
-	```python title=hello_world.py linenums="1"
+	```python title='hello_world.py' linenums="1"
 	#!/usr/bin/env python3
 	import logging
 	import asab

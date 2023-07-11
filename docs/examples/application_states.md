@@ -8,7 +8,7 @@ title: Application states
 
 !!! example
 
-	```python title=application_states.py linenums="1"
+	```python title='application_states.py' linenums="1"
 	#!/usr/bin/env python3
 	import asab
 	import asyncio

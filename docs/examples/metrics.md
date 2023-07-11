@@ -8,7 +8,7 @@ title: Metrics
 
 !!! example
 
-	```python title=metrics.py linenums="1"
+	```python title='metrics.py' linenums="1"
 	#!/usr/bin/env python3
 	import asab
 	import asab.web

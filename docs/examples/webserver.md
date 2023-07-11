@@ -8,7 +8,7 @@ title: Webserver
 
 !!! example
 
-	```python title=webserver.py linenums="1"
+	```python title='webserver.py' linenums="1"
 	#!/usr/bin/env python3
 	import asab.web.rest
 	
