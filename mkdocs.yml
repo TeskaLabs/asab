@@ -13,6 +13,8 @@ theme:
     - navigation.tabs
     - navigation.footer
     - navigation.indexes
+    - navigation.top  # back-to-the-top button when scrolling up
+    - navigation.tracking
     - attr_list
     - admonition
     - pymdownx.details
@@ -23,7 +25,8 @@ theme:
     - pymdownx.mark
     - pymdownx.tilde
     - def_list
-    - navigation.tracking
+    - search.suggest  # autocomplete the search query
+    - search.share  # share the queried endpoint
 
   icon:
     admonition:
@@ -32,7 +35,6 @@ theme:
       info: fontawesome/solid/circle-info
       tip: fontawesome/solid/bullhorn
       success: fontawesome/solid/check
-      # failure: fontawesome/solid/bomb
       failure: fontawesome/solid/xmark
       question: fontawesome/solid/circle-question
       warning: fontawesome/solid/triangle-exclamation
@@ -160,3 +162,6 @@ nav:
         - In-Memory: reference/storage/inmemory.md
   
   - Contributing: contributing.md
+
+  # Examples are rendered automatically with create_examples.py script
+  - Examples:
