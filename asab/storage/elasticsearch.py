@@ -573,7 +573,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 		if version == 0:
 			self.ModSet['_c'] = now  # Set the creation timestamp
 
-		self.SSLcontext = ssl.create_default_context(cafile=self.Storage.SSLcontext)
+		self.SSLcontext = self.Storage.SSLcontext
 
 		api_key = Config.get('asab:storage', 'elasticsearch_api_key')
 		self.Headers = {'Content-Type': 'application/json'}
