@@ -106,6 +106,9 @@ markdown_extensions:
   - pymdownx.emoji:
       emoji_index: !!python/name:materialx.emoji.twemoji
       emoji_generator: !!python/name:materialx.emoji.to_svg
+      options:
+        custom_icons:
+          - docs/overrides/.icons
 
   # Content tabs and anchor links https://squidfunk.github.io/mkdocs-material/reference/content-tabs/
   - pymdownx.tabbed:
