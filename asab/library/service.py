@@ -167,11 +167,9 @@ class LibraryService(Service):
 		:return: I/O stream (read) with the content of the libary item.
 		"""
 		# item path must start with '/'
-		assert path[
-			   :1] == '/', "Item path must start with a forward slash (/). For example: /library/Templates/item.json"
+		assert path[:1] == '/', "Item path must start with a forward slash (/). For example: /library/Templates/item.json"
 		# Item path must end with the extension
-		assert len(os.path.splitext(path)[
-					   1]) > 0, "Item path must end with an extension. For example: /library/Templates/item.json"
+		assert len(os.path.splitext(path)[1]) > 0, "Item path must end with an extension. For example: /library/Templates/item.json"
 
 		if self.check_disabled(path, tenant=tenant):
 			return None
