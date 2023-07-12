@@ -1,3 +1,5 @@
+"""Utility script for transferring sphinx docs into yaml files."""
+
 import pathlib
 import os
 
