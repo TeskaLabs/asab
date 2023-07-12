@@ -9,12 +9,14 @@ theme:
   features:
     - content.code.copy
     - content.code.select
-    - content.code.annotate #
+    - content.code.annotate
+
     - navigation.tabs
     - navigation.footer
     - navigation.indexes
     - navigation.top  # back-to-the-top button when scrolling up
     - navigation.tracking
+
     - attr_list
     - admonition
     - pymdownx.details
@@ -74,8 +76,11 @@ plugins:
             # https://mkdocstrings.github.io/python/usage/configuration/docstrings/
             docstring_style: google  # | google | numpy | sphinx
             docstring_section_style: table  # table | list | spacy
-            show_if_no_docstring: true
+            show_if_no_docstring: false
             show_docstring_description: false
+            show_root_heading: true
+            show_source: false
+            heading_level: 1
   - glightbox
   - search
   - awesome-pages
@@ -183,6 +188,7 @@ nav:
   - Contributing: contributing.md
 
   # Examples are rendered automatically with create_examples.py script
+  # please do not modify this part manually and leave it at the bottom of the file
   - Examples:
     - examples/application_states.md
     - examples/argparser.md

@@ -8,4 +8,6 @@ https://diataxis.fr/
 
 https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings
 
+- Create a Dockerfile
 - Experiment with search boosting: https://squidfunk.github.io/mkdocs-material/setup/setting-up-site-search/#search-boosting
+- Override the CSS for 'h2.doc-heading' so that we can use different heading level and improve the design
