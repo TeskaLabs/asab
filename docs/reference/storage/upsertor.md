@@ -1,1 +1,1 @@
-::: asab.storage.upsertor
+::: asab.storage.upsertor.UpsertorABC

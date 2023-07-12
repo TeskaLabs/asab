@@ -1,1 +1,1 @@
-::: asab.storage.elasticsearch
+::: asab.storage.elasticsearch.StorageService

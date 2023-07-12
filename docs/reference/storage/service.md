@@ -1,1 +1,1 @@
-::: asab.storage.service
+::: asab.storage.service.StorageServiceABC

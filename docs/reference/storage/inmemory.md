@@ -1,1 +1,1 @@
-::: asab.storage.inmemory
+::: asab.storage.inmemory.StorageService

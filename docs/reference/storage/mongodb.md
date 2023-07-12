@@ -1,1 +1,1 @@
-::: asab.storage.mongodb
+::: asab.storage.mongodb.StorageService
