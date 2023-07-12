@@ -121,7 +121,7 @@ markdown_extensions:
 
   # Permalinks
   - toc:
-    permalink: "¤"
+      permalink: "¤"
 
 extra:
   social:
