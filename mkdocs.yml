@@ -119,6 +119,10 @@ markdown_extensions:
   - pymdownx.tabbed:
       alternate_style: true
 
+  # Permalinks
+  - toc:
+    permalink: "¤"
+
 extra:
   social:
   - icon: fontawesome/brands/github-alt
