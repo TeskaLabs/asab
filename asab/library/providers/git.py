@@ -45,7 +45,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.URL = "".join([self.URLScheme, self.UserInfo, self.URLPath])
 		self.Branch = self.Branch if self.Branch != '' else None
 
-		print(self.URL)
 
 		repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
