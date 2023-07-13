@@ -237,7 +237,8 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(
 					method="DELETE",
 					url=request_url,
-					ssl=ssl_context
+					ssl=ssl_context,
+					headers=self.Headers
 				) as resp:
 					if resp.status == 401:
 						raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
@@ -285,7 +286,8 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(
 					method="GET",
 					url=request_url,
-					ssl=ssl_context
+					ssl=ssl_context,
+					headers=self.Headers
 				) as resp:
 					obj = await resp.json()
 					await self.session().close()
@@ -553,7 +555,12 @@ class StorageService(StorageServiceABC):
 				else:
 					ssl_context = None
 
-				async with self.session().request(method="GET", url=count_url, ssl=ssl_context) as resp:
+				async with self.session().request(
+						method="GET", 
+						url=count_url, 
+						ssl=ssl_context,
+						headers=self.Headers
+						) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					total_count = await resp.json()
 					return total_count
@@ -580,7 +587,8 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(
 					method="GET",
 					url=request_url,
-					ssl=ssl_context
+					ssl=ssl_context,
+					headers=self.Headers
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					return await resp.json()
@@ -608,7 +616,8 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(
 					method="PUT",
 					url=request_url,
-					ssl=ssl_context
+					ssl=ssl_context,
+					headers=self.Headers
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					return await resp.json()
