@@ -255,7 +255,8 @@ class LibraryService(Service):
 				item.disabled = self.check_disabled(item.name, tenant=tenant)
 
 				# If the item already exists, merge or override it
-				if item.name in uniq:
+				pitem = uniq.get(item.name)
+				if pitem is not None:
 					pitem = uniq[item.name]
 					if pitem.type == 'dir' and item.type == 'dir':
 						# Directories are joined
