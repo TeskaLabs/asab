@@ -38,7 +38,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	def __init__(self, library, path):
 
 		# format: 'git+http[s]://[<username>:<deploy token>@]<url>[#<branch>]'
-		pattern = re.compile(r"git\+(https?://)((.*):(.*)@)?(.*)#?(.*)?")
+		pattern = re.compile(r"git\+(https?://)((.*):(.*)@)?([^#]*)(?:#(.*))?$")
 		path_split = pattern.findall(path)[0]
 		L.debug(path_split)
 		self.URLScheme, self.UserInfo, self.User, self.DeployToken, self.URLPath, self.Branch = path_split
