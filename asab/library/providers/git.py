@@ -45,6 +45,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.URL = "".join([self.URLScheme, self.UserInfo, self.URLPath])
 		self.Branch = self.Branch if self.Branch != '' else None
 
+		print(self.URL)
+
 		repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
 			self.RepoPath = os.path.abspath(repodir)
@@ -115,7 +117,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		except KeyError as err:
 			pygit_message = str(err).replace('\"', '')
-			if pygit_message == "reference 'refs/remotes/origin/{}' not found".format(self.Branch):
+			if pygit_message == "'refs/remotes/origin/{}'".format(self.Branch):
 				# branch does not exist
 				L.exception(
 					"Branch does not exist.",
@@ -125,8 +127,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					}
 				)
 			else:
-				message = pygit_message
-			L.exception("Error when initializing git repository: {}".format(message))
+				L.exception("Error when initializing git repository: {}".format(pygit_message))
 			self.App.stop()  # NOTE: raising Exception doesn't exit the app
 
 		except pygit2.GitError as err:
@@ -148,6 +149,14 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 						"url": self.URLPath,
 						"username": self.User,
 						"deploy_token": self.DeployToken
+					}
+				)
+			elif 'cannot redirect from':
+				# bad URL
+				L.exception(
+					"Git repository not found.",
+					struct_data={
+						"url": self.URLPath
 					}
 				)
 			elif 'Temporary failure in name resolution' in pygit_message:
