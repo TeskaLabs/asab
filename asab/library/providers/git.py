@@ -2,6 +2,7 @@ import os
 import tempfile
 import logging
 import hashlib
+import re
 
 from .filesystem import FileSystemLibraryProvider
 from ...config import Config
@@ -36,14 +37,16 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	"""
 	def __init__(self, library, path):
 
-		# The branch can be optionally specified in the URL fragment (after '#')
-		split_path = path.split("#", 1)
-		if len(split_path) > 1:
-			self.Branch = split_path[-1]
-			self.URL = split_path[0][4:]  # omit 'git+' part
-		else:
-			self.Branch = None
-			self.URL = path[4:]
+		# format: 'git+http[s]://[<username>:<deploy token>@]<url>[#<branch>]'
+		pattern = re.compile(r"git\+(https?://)((.*):(.*)@)?(.*)#?(.*)?")
+		path_split = pattern.findall(path)[0]
+		L.debug(path_split)
+		self.URLScheme, self.UserInfo, self.User, self.DeployToken, self.URLPath, self.Branch = path_split
+		self.URL = "".join(path_split[:-1])  # normálně udělej self.URL jako předtím (bez branch)
+		self.Branch = self.Branch if self.Branch != '' else None
+
+		L.debug(self.URL)
+		L.debug(self.Branch)
 
 		repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
@@ -128,6 +131,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				message = "Got status code 404: Not found. Check if the repository specified in 'providers' exist."
 			elif pygit_message == "remote authentication required but no callback set":
 				message = "Authentication is required. Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'"
+			else:
+				message = pygit_message
 			L.exception("Error when initializing git repository: {}".format(message))
 			raise SystemExit("Application is exiting.")
 
