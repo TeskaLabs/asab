@@ -67,7 +67,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		self.SubscribedPaths = set()
 
-		self.App.TaskService.schedule(self.intialize_git_repo())
+		self.App.TaskService.schedule(self.initialize_git_repository())
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
 
@@ -85,7 +85,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		try:
 			to_publish = await self.ProactorService.execute(self._do_pull)
-			# Once reset of the head is finished, PubSub message about the change in the subsrcibed directory gets published.
+			# Once reset of the head is finished, PubSub message about the change in the subscribed directory gets published.
 			for path in to_publish:
 				self.App.PubSub.publish("Library.change!", self, path)
 		except pygit2.GitError:
@@ -94,7 +94,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.PullLock = False
 
 
-	async def intialize_git_repo(self):
+	async def initialize_git_repository(self):
 
 		def init_task():
 			if pygit2.discover_repository(self.RepoPath) is None:
@@ -103,6 +103,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					os.makedirs(self.RepoPath, mode=0o700)
 				except FileExistsError:
 					pass
+
 				self.GitRepository = pygit2.clone_repository(self.URL, self.RepoPath, checkout_branch=self.Branch)
 			else:
 				# For existing repository, pull the latest changes
@@ -111,13 +112,33 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		try:
 			await self.ProactorService.execute(init_task)
-		except Exception:
-			L.exception("Initialize git repo failed.")
+
+		except KeyError as err:
+			pygit_message = str(err).replace('\"', '')
+			if pygit_message == "reference 'refs/remotes/origin/{}' not found".format(self.Branch):
+				message = "Branch '{}' in {} does not exist.".format(self.Branch, self.URL)
+			else:
+				message = pygit_message
+			L.exception("Error when initializing git repository: {}".format(message))
+			raise SystemExit("Application is exiting.")  # NOTE: raising Exception doesn't exit the app
+
+		except pygit2.GitError as err:
+			pygit_message = str(err).replace('\"', '')
+			if pygit_message == "unexpected http status code: 404":
+				message = "Got status code 404: Not found. Check if the repository specified in 'providers' exist."
+			elif pygit_message == "remote authentication required but no callback set":
+				message = "Authentication is required. Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'"
+			L.exception("Error when initializing git repository: {}".format(message))
+			raise SystemExit("Application is exiting.")
+
+		except Exception as err:
+			L.exception(err)
+			raise SystemExit("Application is exiting.")
 
 		try:
 			assert self.GitRepository.remotes["origin"] is not None
-		except (KeyError, AssertionError, AttributeError):
-			L.error("Connection to remote git repository failed.")
+		except (KeyError, AssertionError, AttributeError) as err:
+			L.error("Connection to remote git repository failed: {}".format(err))
 			# The library will not get ready ... maybe we can retry init_test() in a while
 			return
 
