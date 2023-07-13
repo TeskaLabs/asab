@@ -127,7 +127,7 @@ class Logging(object):
 						self.SyslogHandler.setFormatter(MacOSXSyslogFormatter(sd_id=Config["logging"]["sd_id"]))
 					elif format == '5':
 						self.SyslogHandler.setFormatter(SyslogRFC5424Formatter(sd_id=Config["logging"]["sd_id"]))
-					elif format == 'micro':
+					elif format == '5micro':
 						self.SyslogHandler.setFormatter(SyslogRFC5424microFormatter(sd_id=Config["logging"]["sd_id"]))
 					else:
 						self.SyslogHandler.setFormatter(SyslogRFC3164Formatter(sd_id=Config["logging"]["sd_id"]))
@@ -446,7 +446,7 @@ It implements a queue for decoupling logging from a networking. The networking i
 		while not self._queue.empty():
 			# TODO: Handle eventual error in writing -> break the cycle and restart on write handler
 			msg = self._queue.get_nowait()
-			msg = str(msg).encode()
+			msg = msg.encode("utf-8")
 			self._socket.sendall(msg)
 
 
