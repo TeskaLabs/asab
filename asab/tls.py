@@ -27,7 +27,7 @@ class SSLContextBuilder(ConfigObject):
 		## SSL Server
 		ssl_context = self.SSLContextBuilder.build()
 
-		## SSL Client 
+		## SSL Client
 
 		ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 		'''

@@ -1,4 +1,3 @@
-import os
 import time
 import json
 import aiohttp
@@ -233,7 +232,7 @@ class StorageService(StorageServiceABC):
 					ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 				else:
 					ssl_context = None
-					
+
 				async with self.session().request(
 					method="DELETE",
 					url=request_url,
@@ -556,11 +555,11 @@ class StorageService(StorageServiceABC):
 					ssl_context = None
 
 				async with self.session().request(
-						method="GET", 
-						url=count_url, 
+						method="GET",
+						url=count_url,
 						ssl=ssl_context,
 						headers=self.Headers
-						) as resp:
+				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					total_count = await resp.json()
 					return total_count
