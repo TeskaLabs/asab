@@ -555,10 +555,10 @@ class StorageService(StorageServiceABC):
 					ssl_context = None
 
 				async with self.session().request(
-						method="GET",
-						url=count_url,
-						ssl=ssl_context,
-						headers=self.Headers
+					method="GET",
+					url=count_url,
+					ssl=ssl_context,
+					headers=self.Headers
 				) as resp:
 					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
 					total_count = await resp.json()
