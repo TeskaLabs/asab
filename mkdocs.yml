@@ -6,6 +6,8 @@ repo_name: TeskaLabs/asab
 
 theme:
   name: "material"
+  logo: images/teskalabs-logo.svg
+
   features:
     - content.code.copy
     - content.code.select
@@ -63,6 +65,9 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
 
 
 # PLUGINS
@@ -127,16 +132,26 @@ extra:
   social:
   - icon: fontawesome/brands/github-alt
     link: https://github.com/TeskaLabs/asab
+  - icon: fontawesome/brands/linkedin
+    link: https://www.linkedin.com/company/teskalabs
+  - icon: fontawesome/brands/twitter
+    link: https://twitter.com/teskalabs
+  - icon: fontawesome/solid/paper-plane
+    link: mailto:info@teskalabs.com
+    name: info@teskalabs.com
+
 
 # NAVIGATION TREE
 
 nav:
-  - Home: index.md
+  - Home: 
+    - About: index.md
+    - Getting started:
+      - Installation and first application: getting-started/installation_first_app.md
+      - Creating a web server: getting-started/web_server.md
+      - Containerization: getting-started/containers.md
 
-  - Getting started:
-    - Installation and first application: getting-started/installation_first_app.md
-    - Creating a web server: getting-started/web_server.md
-    - Containerization: getting-started/containers.md
+    - Contributing: contributing.md
 
   - How-To Guides:
     - Creating a microservice with REST API: how-tos/03_rest_api.md
@@ -188,8 +203,6 @@ nav:
         - ElasticSearch: reference/storage/elasticsearch.md
         - MongoDB: reference/storage/mongodb.md
         - In-Memory: reference/storage/inmemory.md
-  
-  - Contributing: contributing.md
 
   # Examples are rendered automatically with create_examples.py script
   # please do not modify this part manually and leave it at the bottom of the file
