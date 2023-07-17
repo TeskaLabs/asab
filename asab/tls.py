@@ -23,6 +23,14 @@ class SSLContextBuilder(ConfigObject):
 	}
 
 	def build(self, protocol=ssl.PROTOCOL_TLS):
+		'''
+		## SSL Server
+		ssl_context = self.SSLContextBuilder.build()
+
+		## SSL Client
+
+		ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
+		'''
 		ctx = ssl.SSLContext(protocol=protocol)
 
 		ctx.options |= ssl.OP_NO_SSLv2
