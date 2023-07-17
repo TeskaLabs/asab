@@ -127,6 +127,8 @@ class Logging(object):
 						self.SyslogHandler.setFormatter(MacOSXSyslogFormatter(sd_id=Config["logging"]["sd_id"]))
 					elif format == '5':
 						self.SyslogHandler.setFormatter(SyslogRFC5424Formatter(sd_id=Config["logging"]["sd_id"]))
+					elif format == '5micro':
+						self.SyslogHandler.setFormatter(SyslogRFC5424microFormatter(sd_id=Config["logging"]["sd_id"]))
 					else:
 						self.SyslogHandler.setFormatter(SyslogRFC3164Formatter(sd_id=Config["logging"]["sd_id"]))
 					self.RootLogger.addHandler(self.SyslogHandler)
@@ -372,6 +374,24 @@ class SyslogRFC5424Formatter(StructuredDataFormatter):
 		self.converter = time.gmtime
 
 
+class SyslogRFC5424microFormatter(StructuredDataFormatter):
+	"""
+	It implements Syslog formatting for syslog (aka format ``micro``) in RFC5424micro format.
+	"""
+
+	empty_sd = "-"
+
+	def __init__(self, fmt=None, datefmt=None, style='%', sd_id='sd'):
+		fmt = '<%(priority)s>1 %(asctime)sZ {hostname} {app_name} {proc_id} %(name)s [log l="%(levelname)s"]%(struct_data)s%(message)s'.format(
+			app_name=Config["logging"]["app_name"],
+			hostname=socket.gethostname(),
+			proc_id=os.getpid(),
+		)
+
+		super().__init__(fmt=fmt, datefmt='%Y-%m-%dT%H:%M:%S.%f', style=style, sd_id=sd_id)
+		self.converter = time.gmtime
+
+
 class AsyncIOHandler(logging.Handler):
 
 	'''
@@ -426,6 +446,7 @@ It implements a queue for decoupling logging from a networking. The networking i
 		while not self._queue.empty():
 			# TODO: Handle eventual error in writing -> break the cycle and restart on write handler
 			msg = self._queue.get_nowait()
+			msg = msg.encode("utf-8")
 			self._socket.sendall(msg)
 
 

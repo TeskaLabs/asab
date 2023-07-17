@@ -5,3 +5,4 @@ from .test_metrics.test_agg_counter import *
 from .test_metrics.test_histogram import *
 from .test_metrics.test_duplicates import *
 from .test_api_docs.test_build_swagger_docs import *
+from .test_crash.test_crash import *
