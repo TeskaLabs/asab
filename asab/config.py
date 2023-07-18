@@ -15,6 +15,9 @@ L = logging.getLogger(__name__)
 
 
 class ConfigParser(configparser.ConfigParser):
+	"""
+	ConfigParser enhanced with new features such as adding default configuration, URL validation, automatic reading from Zookeeper etc.
+	"""
 	_syslog_sockets = {
 		'Darwin': '/var/run/syslog'
 	}
@@ -109,8 +112,12 @@ class ConfigParser(configparser.ConfigParser):
 		# If `ASAB_ZOOKEEPER_SERVERS` are specified, use that as a default value
 		_default_values['zookeeper'] = {'servers': os.environ['ASAB_ZOOKEEPER_SERVERS']}
 
-	def add_defaults(self, dictionary):
-		""" Add defaults to a current configuration """
+	def add_defaults(self, dictionary: dict) -> None:
+		"""Add defaults to a current configuration.
+
+		Args:
+			dictionary: Arguments to be added to the default configuration.
+		"""
 
 		for section, keys in dictionary.items():
 			section = str(section)
@@ -229,7 +236,7 @@ class ConfigParser(configparser.ConfigParser):
 		self.config_name_list.append(tail)
 
 		try:
-			# Delayed import to minimize a hard dependecy footprint
+			# Delayed import to minimize a hard dependency footprint
 			import kazoo.client
 			import json
 			import yaml
@@ -263,7 +270,7 @@ class ConfigParser(configparser.ConfigParser):
 		return self.config_contents_list, self.config_name_list
 
 
-	def getseconds(self, section, option, *, raw=False, vars=None, fallback=None, **kwargs):
+	def getseconds(self, section, option, *, raw=False, vars=None, fallback=None, **kwargs) -> float:
 		if fallback is None:
 			fallback = configparser._UNSET
 
@@ -271,12 +278,18 @@ class ConfigParser(configparser.ConfigParser):
 
 
 	def geturl(self, section, option, raw=False, vars=None, fallback=None, scheme=None, **kwargs):
-		"""Gets URL from config and removes all leading and trailing
+		"""
+		Get URL from config and remove all leading and trailing
 		whitespaces and trailing slashes.
 
-		:param scheme: URL scheme(s) awaited. If None, scheme validation is bypassed.
-		:type scheme: str, tuple
-		:return: validated URL, raises ValueError when scheme requirements are not met if set.
+		Args:
+			scheme (str | tuple): URL scheme(s) awaited. If `None`, scheme validation is bypassed.
+
+		Returns:
+			Validated URL.
+
+		Raises:
+			ValueError: Scheme requirements are not met if set.
 		"""
 		return utils.validate_url(self.get(section, option, raw=False, vars=None, fallback=fallback), scheme)
 
