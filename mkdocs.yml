@@ -154,37 +154,10 @@ nav:
 
     - Contributing: contributing.md
 
-  - How-To Guides:
+  - How-To:
     - Creating a microservice with REST API: how-tos/03_rest_api.md
 
-  - Topics:
-    # - topics/asab/application.md
-    # - topics/asab/config.md
-    # - topics/asab/log.md
-    # - topics/asab/metrics.md
-    # - topics/asab/module.md
-    # - topics/asab/pubsub.md
-    # - topics/asab/service.md
-    - Storage:
-      - Introduction: topics/asab/storage/intro.md
-      - Manipulation with Databases: topics/asab/storage/manipulation_with_databases.md
-      - Encryption and Decryption: topics/asab/storage/encryption.md
-      - In-Memory Storage: topics/asab/storage/inmemory.md
-      - MongoDB Storage: topics/asab/storage/mongodb.md
-      - ElasticSearch Storage: topics/asab/storage/elasticsearch.md
-    - Metrics:
-      - Introduction: topics/asab/metrics/intro.md
-      - Tags: topics/asab/metrics/tags.md
-      - Built-in metrics: topics/asab/metrics/built-ins.md
-      - Monitoring: topics/asab/metrics/targets.md
-    # - topics/asab/various.md
-    # - topics/asab/zookeeper.md
-
   - Reference:
-    # - reference/application.md
-    # - reference/config.md
-    # - reference/library.md
-    # - reference/log.md
     - Application: reference/application/application.md
     - Metrics:
       - MetricsService: reference/metrics/service.md
@@ -197,7 +170,6 @@ nav:
       - CounterWithDynamicTags: reference/metrics/counter_with_dynamic_tags.md
       - AggregationCounterWithDynamicTags: reference/metrics/aggregation_counter_with_dynamic_tags.md
       - HistogramWithDynamicTags: reference/metrics/histogram_with_dynamic_tags.md
-    # - reference/module.md
     - Storage:
         - StorageService: reference/storage/service.md
         - Upsertor: reference/storage/upsertor.md
