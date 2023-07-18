@@ -81,11 +81,12 @@ plugins:
             # https://mkdocstrings.github.io/python/usage/configuration/docstrings/
             docstring_style: google  # | google | numpy | sphinx
             docstring_section_style: table  # table | list | spacy
-            show_if_no_docstring: false
-            show_docstring_description: false
-            show_root_heading: true
-            show_source: false
-            heading_level: 1
+            show_if_no_docstring: false  # ...we are hereby compelled to write docstrings
+            show_docstring_description: true
+            show_root_heading: true  # e.g. 'asab.storage.service.StorageService'
+            show_source: true  # show source code of method (class)
+            heading_level: 3  # class names displayed as <h3>
+            annotations_path: brief
   - glightbox
   - search
   - awesome-pages
@@ -184,6 +185,7 @@ nav:
     # - reference/config.md
     # - reference/library.md
     # - reference/log.md
+    - Application: reference/application/application.md
     - Metrics:
       - MetricsService: reference/metrics/service.md
       - Gauge: reference/metrics/gauge.md
