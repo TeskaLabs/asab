@@ -386,13 +386,15 @@ class LibraryService(Service):
 		return fileobj
 
 
-	async def subscribe(self, paths) -> None:
+	async def subscribe(self, paths: typing.Union[str, typing.List[str]]) -> None:
 		"""
-		It subscribes to the changes in the library
+		Subscribe to changes for specified paths in the library.
 
-		:param paths: A list of absolute paths to subscribe to
+		:param paths: Either single path or list of paths to be subscribed. All the paths must be absolute (start with '/').
+		:type paths: list[str] | str
 		"""
-		assert isinstance(paths, list), "The 'paths' parameter in 'LibraryService.subscribe' method must be a list."
+		if isinstance(paths, str):
+			paths = [paths]
 		for path in paths:
 			assert path[:1] == '/', "Absolute path must be used when subscribing to the library changes"
 
