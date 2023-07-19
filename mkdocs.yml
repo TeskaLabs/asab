@@ -154,7 +154,7 @@ nav:
 
     - Contributing: contributing.md
 
-  - How-To:
+  - How-Tos:
     - Creating a microservice with REST API: how-tos/03_rest_api.md
 
   - Reference:
