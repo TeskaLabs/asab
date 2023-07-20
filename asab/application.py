@@ -78,6 +78,12 @@ class Application(metaclass=Singleton):
 				exit_code = app.run()
 				sys.exit(exit_code)
 			```
+
+			| Exit code | Usage |
+			| --- | --- |
+			| 0 | success |
+			| 1 | abnormal termination of a program perhaps as a result a minor problem in the code |
+
 		"""
 
 		try:
@@ -694,7 +700,7 @@ class Application(metaclass=Singleton):
 				L.exception("Error during service initialization")
 
 
-	def set_exit_code(self, exit_code: typing.Union[str, int], force: bool = False):
+	def set_exit_code(self, exit_code: typing.Union[int, str], force: bool = False):
 		"""
 		Set the exit code of the application.
 
