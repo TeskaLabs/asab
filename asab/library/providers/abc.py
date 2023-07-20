@@ -4,10 +4,11 @@ import typing
 class LibraryProviderABC(object):
 
 
-	def __init__(self, library):
+	def __init__(self, library, layer):
 		super().__init__()
 		self.App = library.App
 		self.Library = library
+		self.Layer = layer
 		self.IsReady = False
 
 

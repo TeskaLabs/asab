@@ -34,7 +34,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		[library:git]
 		repodir=<optional location of the repository cache>
 	"""
-	def __init__(self, library, path):
+	def __init__(self, library, path, layer):
 
 		# The branch can be optionally specified in the URL fragment (after '#')
 		split_path = path.split("#", 1)
@@ -56,7 +56,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				hashlib.sha256(path.encode('utf-8')).hexdigest()
 			)
 
-		super().__init__(library, self.RepoPath, set_ready=False)
+		super().__init__(library, layer, self.RepoPath, set_ready=False)
 
 		self.GitRepository = None
 

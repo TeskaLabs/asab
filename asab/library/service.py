@@ -76,8 +76,9 @@ class LibraryService(Service):
 		if isinstance(paths, str):
 			paths = re.split(r"\s+", paths)
 
-		for path in paths:
-			self._create_library(path)
+		for layer, path in enumerate(paths):
+			# Create library for each layer of paths
+			self._create_library(path, layer)
 		app.PubSub.subscribe("Application.tick/60!", self.on_tick)
 
 	async def finalize(self, app):
@@ -88,23 +89,23 @@ class LibraryService(Service):
 	async def on_tick(self, message_type):
 		await self._read_disabled()
 
-	def _create_library(self, path):
+	def _create_library(self, path, layer):
 		library_provider = None
 		if path.startswith('zk://') or path.startswith('zookeeeper://'):
 			from .providers.zookeeper import ZooKeeperLibraryProvider
-			library_provider = ZooKeeperLibraryProvider(self, path)
+			library_provider = ZooKeeperLibraryProvider(self, path, layer)
 
 		elif path.startswith('./') or path.startswith('/') or path.startswith('file://'):
 			from .providers.filesystem import FileSystemLibraryProvider
-			library_provider = FileSystemLibraryProvider(self, path)
+			library_provider = FileSystemLibraryProvider(self, path, layer)
 
 		elif path.startswith('azure+https://'):
 			from .providers.azurestorage import AzureStorageLibraryProvider
-			library_provider = AzureStorageLibraryProvider(self, path)
+			library_provider = AzureStorageLibraryProvider(self, path, layer)
 
 		elif path.startswith('git+'):
 			from .providers.git import GitLibraryProvider
-			library_provider = GitLibraryProvider(self, path)
+			library_provider = GitLibraryProvider(self, path, layer)
 
 		elif path == '' or path.startswith("#") or path.startswith(";"):
 			# This is empty or commented line
@@ -233,11 +234,11 @@ class LibraryService(Service):
 
 	async def _list(self, path, tenant, providers):
 		# Execute the list query in all providers in-parallel
-
 		result = await asyncio.gather(*[
-			library.list(path, index)
-			for index, library in enumerate(providers)
+			library.list(path)
+			for library in providers
 		], return_exceptions=True)
+
 		items = []
 		uniq = dict()
 		for ress in result:
