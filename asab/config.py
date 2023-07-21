@@ -347,7 +347,7 @@ class Configurable(object):
 	Custom object whose attributes can be loaded from the configuration.
 
 	Example:
-		```
+		```python
 		class ConfigurableObject(asab.Configurable):
 
 			ConfigDefaults = {
