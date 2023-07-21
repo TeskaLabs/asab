@@ -64,15 +64,19 @@ class PersistentDict(dict):
 			for key, value in self.items():
 				d[key] = value
 
-	def update(self, other=(), **kwds) -> None:
+	def update(self, other={}, **kwds) -> None:
 		"""
 		Update persistent dictionary from mapping or iterable.
 
 		Examples:
 			```python
-				>>> pdict.update({'foo': 'bar'})
-				>>> pdict.update(foo='bar')
+				>>> pdict.update({'foo': 'bar', 'moo': 'buzz'})
+				>>> pdict.update(foo='bar', moo='buzz')
+				>>> pdict.update([('foo','bar'),('moo','buzz')])
 			```
+
+		Args:
+			other: Dictionary or iterable of 2-tuples of the form (key, value) to be updated.
 		"""
 
 		if isinstance(other, collections.abc.Mapping):
