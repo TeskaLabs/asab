@@ -180,6 +180,7 @@ nav:
     - Utility functions and classes: 
         - Utility functions: reference/utils/utils.md
         - Persistent dictionary: reference/utils/persistent_dictionary.md
+        - Timer: reference/utils/timer.md
 
   # Examples are rendered automatically with create_examples.py script
   # please do not modify this part manually and leave it at the bottom of the file
