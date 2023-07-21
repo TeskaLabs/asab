@@ -177,6 +177,7 @@ nav:
         - ElasticSearch: reference/storage/elasticsearch.md
         - MongoDB: reference/storage/mongodb.md
         - In-Memory: reference/storage/inmemory.md
+    - Utils: reference/utils/utils.md
 
   # Examples are rendered automatically with create_examples.py script
   # please do not modify this part manually and leave it at the bottom of the file
