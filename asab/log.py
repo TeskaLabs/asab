@@ -393,11 +393,10 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 
 
 class AsyncIOHandler(logging.Handler):
-
-	'''
-A logging handler similar to a standard ``logging.handlers.SocketHandler`` that utilizes ``asyncio``.
-It implements a queue for decoupling logging from a networking. The networking is fully event-driven via ``asyncio`` mechanisms.
-	'''
+	"""
+	A logging handler similar to a standard `logging.handlers.SocketHandler` that utilizes `asyncio`.
+	It implements a queue for decoupling logging from a networking. The networking is fully event-driven via `asyncio` mechanisms.
+	"""
 
 	def __init__(self, loop, family, sock_type, address, facility=logging.handlers.SysLogHandler.LOG_LOCAL1):
 		logging.Handler.__init__(self)
@@ -463,9 +462,9 @@ It implements a queue for decoupling logging from a networking. The networking i
 
 
 	def emit(self, record):
-		'''
+		"""
 		This is the entry point for log entries.
-		'''
+		"""
 		try:
 			msg = self.format(record).encode('utf-8')
 
