@@ -1,11 +1,21 @@
 import os
 import urllib.parse
 import configparser
+import typing
 
 
 def convert_to_seconds(value: str) -> float:
 	"""
 	Parse time duration string (e.g. "3h", "20m" or "1y") and convert it into seconds.
+
+	Args:
+		value: Time duration string.
+
+	Returns:
+		float: Number of seconds.
+
+	Raises:
+		ValueError: If the string is not in a valid format.
 	"""
 	if isinstance(value, (int, float)):
 		return float(value)
@@ -37,27 +47,30 @@ def convert_to_seconds(value: str) -> float:
 	return value
 
 
-def convert_to_bytes(size):
+def convert_to_bytes(size: str) -> int:
 	"""
 	Convert a size string to bytes. The size string should be a number
 	optionally followed by a unit (B, kB, MB, GB, or TB), e.g., "10MB".
 
-	Example of the usage:
+	Examples:
+		Configuration:
+		```ini
+		[general]
+		rotate_size=30G
+		```
+		Usage:
+		```python
+		self.RotateAtSize = asab.utils.convert_to_bytes(asab.Config.get('general', 'rotate_size'))
+		```
 
-	```
-	self.RotateAtSize = asab.utils.convert_to_bytes(asab.Config.get('general', 'rotate_size'))
-	```
+	Args:
+		size: Size string.
 
-	Example of the config:
+	Returns:
+		Size in bytes.
 
-	```
-	[general]
-	rotate_size=30G
-	```
-
-	:param size: Size string.
-	:return: Size in bytes.
-	:raise ValueError: If the size string does not have the correct format.
+	Raises:
+		ValueError: If the size string does not have the correct format.
 	"""
 	units = {
 		"B": 1,
@@ -67,7 +80,7 @@ def convert_to_bytes(size):
 		"GB": 10**9,
 		"TB": 10**12,
 
-		# These are typicall shortcuts that users take, we support them as well
+		# These are typical shortcuts that users take, we support them as well
 		"k": 10**3,
 		"K": 10**3,
 		"M": 10**6,
@@ -100,7 +113,16 @@ def convert_to_bytes(size):
 
 def string_to_boolean(value: str) -> bool:
 	"""
-	Convert common boolean string values (e.g. "yes" or "no") into boolean.
+	Convert common boolean string values (e.g. 'yes' or 'no') into boolean.
+
+	- `True`: '1', 'yes', 'true', 'on'
+	- `False`: '0', 'no', 'false', 'off'
+
+	Args:
+		value: A value to be parsed.
+
+	Returns:
+		Value converted to bool.
 	"""
 	if isinstance(value, bool):
 		return value
@@ -109,7 +131,20 @@ def string_to_boolean(value: str) -> bool:
 	return configparser.ConfigParser.BOOLEAN_STATES[value.lower()]
 
 
-def validate_url(input_url: str, scheme):
+def validate_url(input_url: str, scheme: typing.Union[str, typing.Tuple[str], None]) -> str:
+	"""Parse URL, remove leading and trailing whitespaces and a trailing slash.
+	If `scheme` is specified, check if it matches the `input_url` scheme.
+
+	Args:
+		input_url (str): URL to be parsed and validated.
+		scheme (str | tuple[str] | None): Requested URL schema.
+
+	Raises:
+		ValueError: If `scheme` is specified and is invalid.
+
+	Returns:
+		str: Parsed and validated URL.
+	"""
 	# Remove leading and trailing whitespaces before parsing
 	url = urllib.parse.urlparse(input_url.strip())
 
@@ -133,7 +168,10 @@ def validate_url(input_url: str, scheme):
 	return url.geturl()
 
 
-def running_in_container():
+def running_in_container() -> bool:
+	"""
+	Check if the application is running in Docker or LXC container.
+	"""
 
 	if os.path.exists('/.dockerenv') and os.path.isfile('/proc/self/cgroup'):
 		with open('/proc/self/cgroup', "r") as f:
