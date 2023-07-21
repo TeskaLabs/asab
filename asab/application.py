@@ -79,10 +79,11 @@ class Application(metaclass=Singleton):
 				sys.exit(exit_code)
 			```
 
-			| Exit code | Usage |
+			| Exit code | Meaning |
 			| --- | --- |
 			| 0 | success |
 			| 1 | abnormal termination of a program perhaps as a result a minor problem in the code |
+			| "!RESTART!" | hard restart of the whole application |
 
 		"""
 
