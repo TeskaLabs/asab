@@ -4,17 +4,36 @@ import shelve
 
 
 class PersistentDict(dict):
-
 	"""
 	The persistent dictionary works as the regular Python dictionary but the content of the dictionary is stored in the file.
-	You cat think of a ``PersistentDict`` as a simple `key-value store <https://en.wikipedia.org/wiki/Key-value_database>`_.
-	It is not optimized for a frequent access. This class provides common ``dict`` interface.
+	You cat think of a `PersistentDict` as a simple [key-value store](https://en.wikipedia.org/wiki/Key-value_database).
+	It is not optimized for a frequent access. This class provides common `dict` interface.
 
-	*Warning*: You must explicitly `load()` and `store()` content of the dictionary
-	*Warning*: You can only store objects in the persistent dictionary that are serializable.
+	Example:
+		```python
+		class MyApplication(asab.Application):
+			async def main(self):
+				pdict = asab.PersistentDict('./pdict.bin')
+				pdict.load()
+				counter = pdict['counter'] = pdict.setdefault('counter', 0) + 1
+				print("Executed for {} times".format(counter))
+				pdict.store()
+				self.stop()
+		```
+
+	!!! warning
+		You must explicitly `load()` and `store()` content of the dictionary!
+
+	!!! warning
+		You can only store objects in the persistent dictionary that are serializable.
 	"""
 
-	def __init__(self, path):
+	def __init__(self, path: str):
+		"""Initialize persistent dictionary.
+
+		Args:
+			path (str): Path for the dictionary file.
+		"""
 		super().__init__()
 		# Create directory, if needed
 		dirname = os.path.dirname(path)
@@ -38,7 +57,7 @@ class PersistentDict(dict):
 
 	def store(self) -> None:
 		"""
-		Explicitly store content of persistent dictionary to file
+		Store content of persistent dictionary to a file.
 		"""
 
 		with shelve.open(self._path) as d:
@@ -47,15 +66,16 @@ class PersistentDict(dict):
 
 	def update(self, other=(), **kwds) -> None:
 		"""
-		Update D from mapping/iterable E and F.
-		* If E present and has a .keys() method, does:     for k in E: D[k] = E[k]
-		* If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v
-		* In either case, this is followed by: for k, v in F.items(): D[k] = v
+		Update persistent dictionary from mapping or iterable.
 
-		Inspired by a https://github.com/python/cpython/blob/3.8/Lib/_collections_abc.py
+		Examples:
+			```python
+				>>> pdict.update({'foo': 'bar'})
+				>>> pdict.update(foo='bar')
+			```
 		"""
 
-		if isinstance(other, collections.Mapping):
+		if isinstance(other, collections.abc.Mapping):
 			for key in other:
 				self[key] = other[key]
 		elif hasattr(other, "keys"):
