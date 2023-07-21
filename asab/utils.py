@@ -115,8 +115,8 @@ def string_to_boolean(value: str) -> bool:
 	"""
 	Convert common boolean string values (e.g. 'yes' or 'no') into boolean.
 
-	- `True`: '1', 'yes', 'true', 'on'
-	- `False`: '0', 'no', 'false', 'off'
+	- `True`: `1`, `'yes'`, `'true'`, `'on'`
+	- `False`: `0`, `'no'`, `'false'`, `'off'`
 
 	Args:
 		value: A value to be parsed.
@@ -171,6 +171,9 @@ def validate_url(input_url: str, scheme: typing.Union[str, typing.Tuple[str], No
 def running_in_container() -> bool:
 	"""
 	Check if the application is running in Docker or LXC container.
+
+	Returns:
+		bool: `True` if the application is running in a container.
 	"""
 
 	if os.path.exists('/.dockerenv') and os.path.isfile('/proc/self/cgroup'):
