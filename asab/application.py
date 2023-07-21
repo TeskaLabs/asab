@@ -65,7 +65,7 @@ class Application(metaclass=Singleton):
 		```
 		"""
 
-		self.ExitCode: typing.Union[str, int]
+		self.ExitCode: typing.Union[int, str]
 		"""
 		The actual value of the exit code that can be set via `set_exit_code()` method.
 
