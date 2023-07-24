@@ -31,7 +31,7 @@ deploy production:
     entrypoint: [""]
   script:
     - apk update && apk add openssh-client rsync
-    - pip3 install mkdocs-print-site-plugin mkdocs-awesome-pages-plugin mkdocs-glightbox
+    - pip3 install mkdocs-print-site-plugin mkdocs-awesome-pages-plugin mkdocs-glightbox mkdocstrings mkdocstrings[python]
     - mkdir -p ~/.ssh
     - echo "$DEPLOY_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
