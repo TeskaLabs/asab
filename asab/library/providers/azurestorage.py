@@ -42,7 +42,6 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 	def __init__(self, library, path, layer):
 		super().__init__(library, layer)
 		assert path[:6] == "azure+"
-		self.Layer = layer
 		self.URL = urllib.parse.urlparse(path[6:])
 		self.Model = None  # Will be set by `_load_model` method
 		self.Path = path

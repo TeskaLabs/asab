@@ -109,7 +109,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.BasePath = url_pieces.path.lstrip("/")
 		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
-		self.Layer = layer
 		self.BasePath = '/' + self.BasePath
 		if self.BasePath == '/':
 			self.BasePath = ''
