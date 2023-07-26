@@ -56,7 +56,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				hashlib.sha256(path.encode('utf-8')).hexdigest()
 			)
 
-		super().__init__(library, layer, self.RepoPath, set_ready=False)
+		super().__init__(library, self.RepoPath, layer, set_ready=False)
 
 		self.GitRepository = None
 
