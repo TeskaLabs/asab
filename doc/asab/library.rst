@@ -302,6 +302,14 @@ Configuration:
 	providers: git+https://github.com/john/awesome_project.git
 
 
+Use hash `#<branch-name>` to clone a repository from a selected branch.
+
+.. code:: ini
+
+	[library]
+	providers: git+https://github.com/john/awesome_project.git#name-of-the-branch
+
+
 Deploy tokens in GitLab
 ~~~~~~~~~~~~~~~~~~~~~~~
 GitLab uses deploy tokens to enable authentication of deployment tasks, independent of a user account.
