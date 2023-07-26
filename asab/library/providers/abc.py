@@ -26,7 +26,7 @@ class LibraryProviderABC(object):
 		raise NotImplementedError("{}.read()".format(self.__class__.__name__))
 
 
-	async def list(self, path: str, index) -> list:
+	async def list(self, path: str) -> list:
 		"""
 		It lists all items in the library at the given path.
 
