@@ -104,6 +104,10 @@ You can also use a multiline configuration entry:
 		./etc/site.d/*.conf
 
 
+Including ZooKeeper node in the configuration
+---------------------------------------------
+
+
 
 Configuration default values
 ----------------------------
