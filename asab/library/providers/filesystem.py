@@ -32,6 +32,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		super().__init__(library, layer)
 		self.BasePath = os.path.abspath(path)
+		self.Layer = layer
 		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
 
