@@ -15,6 +15,9 @@ L = logging.getLogger(__name__)
 
 
 class ConfigParser(configparser.ConfigParser):
+	"""
+	ConfigParser enhanced with new features such as adding default configuration, URL validation, automatic reading from Zookeeper etc.
+	"""
 	_syslog_sockets = {
 		'Darwin': '/var/run/syslog'
 	}
@@ -109,8 +112,12 @@ class ConfigParser(configparser.ConfigParser):
 		# If `ASAB_ZOOKEEPER_SERVERS` are specified, use that as a default value
 		_default_values['zookeeper'] = {'servers': os.environ['ASAB_ZOOKEEPER_SERVERS']}
 
-	def add_defaults(self, dictionary):
-		""" Add defaults to a current configuration """
+	def add_defaults(self, dictionary: dict) -> None:
+		"""Add defaults to a current configuration.
+
+		Args:
+			dictionary: Arguments to be added to the default configuration.
+		"""
 
 		for section, keys in dictionary.items():
 			section = str(section)
@@ -138,8 +145,10 @@ class ConfigParser(configparser.ConfigParser):
 					self.set(section, key, value)
 
 
-	def _traverse_includes(self, includes, this_dir):
-		""" Reads included config files. Supports nested including. """
+	def _traverse_includes(self, includes: str, this_dir: str) -> None:
+		"""
+		Read included config files. Nested including is supported.
+		"""
 		if '\n' in includes:
 			sep = '\n'
 		else:
@@ -178,7 +187,9 @@ class ConfigParser(configparser.ConfigParser):
 
 
 	def _load(self):
-		""" This method should be called only once, any subsequent call will lead to undefined behaviour """
+		"""
+		This method should be called only once, any subsequent call will lead to undefined behaviour.
+		"""
 		self._load_dir_stack = []
 		self.config_contents_list = []
 		self.config_name_list = []
@@ -206,6 +217,26 @@ class ConfigParser(configparser.ConfigParser):
 
 
 	def _include_from_zookeeper(self, zkurl):
+		"""
+		Load the configuration from a ZooKeeper server and append it to the `self.config_contents_list` attribute.
+
+		The method establishes a connection to the ZooKeeper server specified in the configuration file mentioned above.
+		It retrieves the configuration by accessing the path specified in the `general` section, using the key `includes`.
+		The server URL is provided as a list of server names: server1, server2, server3.
+		The path to the configuration file follows this format: 'zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181/asab/etc/zk-site.conf.'
+
+		The loaded configuration is then appended to the `self.config_contents_list` attribute, allowing further processing or usage.
+		This method supports loading configuration files in various formats, such as .json, .yaml, and .conf.
+
+		Example:
+
+			```ini
+			[asab:zookeeper]
+			url=server1 server2 server3
+			[general]
+			include=zookeeper://zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181/asab/etc/zk-site.conf.
+			```
+		"""
 		# parse include value into hostname and path
 		url_pieces = urllib.parse.urlparse(zkurl)
 		url_path = url_pieces.path
@@ -229,7 +260,7 @@ class ConfigParser(configparser.ConfigParser):
 		self.config_name_list.append(tail)
 
 		try:
-			# Delayed import to minimize a hard dependecy footprint
+			# Delayed import to minimize a hard dependency footprint
 			import kazoo.client
 			import json
 			import yaml
@@ -263,7 +294,14 @@ class ConfigParser(configparser.ConfigParser):
 		return self.config_contents_list, self.config_name_list
 
 
-	def getseconds(self, section, option, *, raw=False, vars=None, fallback=None, **kwargs):
+	def getseconds(self, section, option, *, raw=False, vars=None, fallback=None, **kwargs) -> float:
+		"""
+		Get time data from config and convert time string into seconds with `convert_to_seconds()` method.
+
+		Returns:
+			float: Time in seconds.
+		"""
+
 		if fallback is None:
 			fallback = configparser._UNSET
 
@@ -271,12 +309,18 @@ class ConfigParser(configparser.ConfigParser):
 
 
 	def geturl(self, section, option, raw=False, vars=None, fallback=None, scheme=None, **kwargs):
-		"""Gets URL from config and removes all leading and trailing
+		"""
+		Get URL from config and remove all leading and trailing
 		whitespaces and trailing slashes.
 
-		:param scheme: URL scheme(s) awaited. If None, scheme validation is bypassed.
-		:type scheme: str, tuple
-		:return: validated URL, raises ValueError when scheme requirements are not met if set.
+		Args:
+			scheme (str | tuple): URL scheme(s) awaited. If `None`, scheme validation is bypassed.
+
+		Returns:
+			Validated URL.
+
+		Raises:
+			ValueError: Scheme requirements are not met if set.
 		"""
 		return utils.validate_url(self.get(section, option, raw=False, vars=None, fallback=fallback), scheme)
 
@@ -299,20 +343,23 @@ Config = ConfigParser(interpolation=_Interpolation())
 
 
 class Configurable(object):
-	'''
-	Usage:
-	class ConfigurableObject(asab.Configurable):
+	"""
+	Custom object whose attributes can be loaded from the configuration.
 
-		ConfigDefaults = {
-			'foo': 'bar',
-		}
+	Example:
+		```python
+		class ConfigurableObject(asab.Configurable):
 
-		def __init__(self, config_section_name, config=None):
-			super().__init__(config_section_name=config_section_name, config=config)
+			ConfigDefaults = {
+				'foo': 'bar',
+			}
 
-			config_foo = self.Config.get('foo')
+			def __init__(self, config_section_name, config=None):
+				super().__init__(config_section_name=config_section_name, config=config)
 
-	'''
+				config_foo = self.Config.get('foo')
+		```
+	"""
 
 	ConfigDefaults = {}
 
@@ -349,7 +396,9 @@ ConfigObject = Configurable
 
 
 class ConfigObjectDict(collections.abc.MutableMapping):
-
+	"""
+	A dictionary supplemented with custom methods for obtaining bools, seconds, urls etc.
+	"""
 
 	def __init__(self):
 		self._data = {}
@@ -375,27 +424,42 @@ class ConfigObjectDict(collections.abc.MutableMapping):
 		return len(self._data)
 
 
-	def getboolean(self, key):
+	def getboolean(self, key) -> bool:
+		"""
+		Obtain the corresponding value of the key and convert it into bool.
+		"""
 		value = self._data[key]
 		return utils.string_to_boolean(value)
 
 
-	def getseconds(self, key):
+	def getseconds(self, key) -> float:
+		"""
+		Obtain the corresponding value of the key and convert it into seconds via `convert_to_seconds()` method.
+		"""
 		value = self._data[key]
 		return utils.convert_to_seconds(value)
 
 
-	def getint(self, key):
+	def getint(self, key) -> int:
+		"""
+		Obtain the corresponding value of the key and convert it into integer.
+		"""
 		value = self._data[key]
 		return int(value)
 
 
-	def getfloat(self, key):
+	def getfloat(self, key) -> float:
+		"""
+		Obtain the corresponding value of the key and convert it into float.
+		"""
 		value = self._data[key]
 		return float(value)
 
 
 	def geturl(self, key, scheme):
+		"""
+		Obtain the corresponding value of the key and parse it via `validate_url()` method.
+		"""
 		value = self._data[key]
 		return utils.validate_url(value, scheme)
 
