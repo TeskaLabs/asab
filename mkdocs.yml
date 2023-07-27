@@ -7,6 +7,7 @@ repo_name: TeskaLabs/asab
 theme:
   name: "material"
   logo: images/teskalabs-logo.svg
+  favicon: images/teskalabs-logo.svg
 
   features:
     - content.code.copy
