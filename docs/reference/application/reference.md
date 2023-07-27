@@ -41,55 +41,56 @@ code and make it extensible.
 The application lifecycle is divided into 3 phases: init-time, run-time
 and exit-time.
 
-- **init-time:**
-    The init-time happens during `Application` constructor call. 
-    The Publish-Subscribe message `Application.init!` is published during init-time.
-    The `Config` is loaded during init-time.
+### Init-time
 
-    The application object executes asynchronous callback `Application.initialize()`, which can be overridden by an user.
+The init-time happens during `Application` constructor call. 
+The Publish-Subscribe message `Application.init!` is published during init-time.
+The `Config` is loaded during init-time.
 
-    ``` python
-    class MyApplication(asab.Application):
-        async def initialize(self):
-            # Custom initialization
-            from module_sample import Module
-            self.add_module(Module)
-    ```
+The application object executes asynchronous callback `Application.initialize()`, which can be overridden by an user.
 
-- **run-time:**
+``` python
+class MyApplication(asab.Application):
+    async def initialize(self):
+        # Custom initialization
+        from module_sample import Module
+        self.add_module(Module)
+```
 
-    The run-time starts after all the modules and services are loaded. This is where the application spends the most time typically.
-    The Publish-Subscribe message `Application.run!` is published when run-time begins.
+### Run-time
 
-    The method returns the value of `Application.ExitCode`.
+The run-time starts after all the modules and services are loaded. This is where the application spends the most time typically.
+The Publish-Subscribe message `Application.run!` is published when run-time begins.
 
-    The application object executes asynchronous callback
-    `Application.main()`, which can be overridden. If `main()` method is
-    completed without calling `stop()`, then the application server will run
-    forever (this is the default behaviour).
+The method returns the value of `Application.ExitCode`.
 
-    ``` python
-    class MyApplication(asab.Application):
-        async def main(self):
-            print("Hello world!")
-            self.stop()
-    ```
+The application object executes asynchronous callback
+`Application.main()`, which can be overridden. If `main()` method is
+completed without calling `stop()`, then the application server will run
+forever (this is the default behaviour).
 
-    The method `Application.stop()` gracefully terminates the run-time and
-    commence the exit-time. This method is automatically called by `SIGINT`
-    and `SIGTERM`. It also includes a response to `Ctrl-C` on UNIX-like
-    system. When this method is called 3x, it abruptly exits the application
-    (aka emergency abort).
+``` python
+class MyApplication(asab.Application):
+    async def main(self):
+        print("Hello world!")
+        self.stop()
+```
 
-    The parameter `exit_code` allows you to specify the application exit
-    code.
+The method `Application.stop()` gracefully terminates the run-time and
+commence the exit-time. This method is automatically called by `SIGINT`
+and `SIGTERM`. It also includes a response to `Ctrl-C` on UNIX-like
+system. When this method is called 3x, it abruptly exits the application
+(aka emergency abort).
 
-    !!! note
-        You need to install :py`win32api`
-        module to use `Ctrl-C` or an emergency abord properly with ASAB on
-        Windows. It is an optional dependency of ASAB.
+The parameter `exit_code` allows you to specify the application exit
+code.
 
-- **exit-time:**
+!!! note
+    You need to install :py`win32api`
+    module to use `Ctrl-C` or an emergency abord properly with ASAB on
+    Windows. It is an optional dependency of ASAB.
+
+### Exit-time
 
 The application object executes asynchronous callback
 `Application.finalize()`, which can be overridden by an user.
