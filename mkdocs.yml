@@ -160,6 +160,8 @@ nav:
 
   - Reference:
     - Application: reference/application/reference.md
+    - Configuration: reference/config/config.md
+    - Logging: reference/logging/reference.md
     - Metrics:
       - MetricsService: reference/metrics/service.md
       - Gauge: reference/metrics/gauge.md
