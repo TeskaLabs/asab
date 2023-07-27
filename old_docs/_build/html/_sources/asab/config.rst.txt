@@ -104,6 +104,27 @@ You can also use a multiline configuration entry:
 		./etc/site.d/*.conf
 
 
+Including ZooKeeper node in the configuration
+---------------------------------------------
+
+The separator between includes is newline or space - it means that space MUST NOT be in the names of nodes in the ZooKeeper.
+
+The ZooKeeper node can contain a configuration file in `.conf`, `.json` or `.yaml` format.
+
+You can specify servers and path of the ZooKeeper node directly in the include option:
+
+.. code:: ini
+
+	[general]
+	include=zookeeper://localhost:2181/asab/config/config-test.yaml
+
+It is also possible to name only the node path in this section and use `zookeeper`` configuration section to read the location of ZooKeeper servers. Using the environment variable `ASAB_ZOOKEEPERS_SERVERS` is also a possible option.
+
+.. code:: ini
+
+	[general]
+	include=zookeeper:///asab/config/config-test.yaml
+
 
 Configuration default values
 ----------------------------

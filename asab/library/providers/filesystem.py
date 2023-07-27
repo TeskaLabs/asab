@@ -25,12 +25,12 @@ L = logging.getLogger(__name__)
 
 class FileSystemLibraryProvider(LibraryProviderABC):
 
-	def __init__(self, library, path, *, set_ready=True):
+	def __init__(self, library, path, layer, *, set_ready=True):
 		'''
 		`set_ready` can be used to disable/defer `self._set_ready` call.
 		'''
 
-		super().__init__(library)
+		super().__init__(library, layer)
 		self.BasePath = os.path.abspath(path)
 		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
@@ -78,12 +78,12 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return None
 
 
-	async def list(self, path: str, index) -> list:
+	async def list(self, path: str) -> list:
 		# This list method is completely synchronous, but it should look like asynchronous to make all list methods unified among providers.
-		return self._list(path, index)
+		return self._list(path)
 
 
-	def _list(self, path: str, index: int):
+	def _list(self, path: str):
 
 		node_path = self.BasePath + path
 
@@ -121,7 +121,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
-				layer=index,
+				layer=self.Layer,
 				providers=[self],
 			))
 

@@ -35,7 +35,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		[library:git]
 		repodir=<optional location of the repository cache>
 	"""
-	def __init__(self, library, path):
+	def __init__(self, library, path, layer):
 
 		# format: 'git+http[s]://[<username>:<deploy token>@]<url>[#<branch>]'
 		pattern = re.compile(r"git\+(https?://)((.*):(.*)@)?([^#]*)(?:#(.*))?$")
@@ -57,7 +57,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				hashlib.sha256(path.encode('utf-8')).hexdigest()
 			)
 
-		super().__init__(library, self.RepoPath, set_ready=False)
+		super().__init__(library, self.RepoPath, layer, set_ready=False)
 
 		self.GitRepository = None
 
