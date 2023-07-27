@@ -4,10 +4,11 @@ import typing
 class LibraryProviderABC(object):
 
 
-	def __init__(self, library):
+	def __init__(self, library, layer):
 		super().__init__()
 		self.App = library.App
 		self.Library = library
+		self.Layer = layer
 		self.IsReady = False
 
 
@@ -25,7 +26,7 @@ class LibraryProviderABC(object):
 		raise NotImplementedError("{}.read()".format(self.__class__.__name__))
 
 
-	async def list(self, path: str, index) -> list:
+	async def list(self, path: str) -> list:
 		"""
 		It lists all items in the library at the given path.
 

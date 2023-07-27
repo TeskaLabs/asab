@@ -20,6 +20,7 @@ from ..log import LOG_NOTICE
 
 L = logging.getLogger(__name__)
 
+
 #
 
 
@@ -75,38 +76,36 @@ class LibraryService(Service):
 		if isinstance(paths, str):
 			paths = re.split(r"\s+", paths)
 
-		for path in paths:
-			self._create_library(path)
+		for layer, path in enumerate(paths):
+			# Create library for each layer of paths
+			self._create_library(path, layer)
 		app.PubSub.subscribe("Application.tick/60!", self.on_tick)
-
 
 	async def finalize(self, app):
 		while len(self.Libraries) > 0:
 			lib = self.Libraries.pop(-1)
 			await lib.finalize(self.App)
 
-
 	async def on_tick(self, message_type):
 		await self._read_disabled()
 
-
-	def _create_library(self, path):
+	def _create_library(self, path, layer):
 		library_provider = None
 		if path.startswith('zk://') or path.startswith('zookeeeper://'):
 			from .providers.zookeeper import ZooKeeperLibraryProvider
-			library_provider = ZooKeeperLibraryProvider(self, path)
+			library_provider = ZooKeeperLibraryProvider(self, path, layer)
 
 		elif path.startswith('./') or path.startswith('/') or path.startswith('file://'):
 			from .providers.filesystem import FileSystemLibraryProvider
-			library_provider = FileSystemLibraryProvider(self, path)
+			library_provider = FileSystemLibraryProvider(self, path, layer)
 
 		elif path.startswith('azure+https://'):
 			from .providers.azurestorage import AzureStorageLibraryProvider
-			library_provider = AzureStorageLibraryProvider(self, path)
+			library_provider = AzureStorageLibraryProvider(self, path, layer)
 
 		elif path.startswith('git+'):
 			from .providers.git import GitLibraryProvider
-			library_provider = GitLibraryProvider(self, path)
+			library_provider = GitLibraryProvider(self, path, layer)
 
 		elif path == '' or path.startswith("#") or path.startswith(";"):
 			# This is empty or commented line
@@ -117,7 +116,6 @@ class LibraryService(Service):
 			raise SystemExit("Exit due to a critical configuration error.")
 
 		self.Libraries.append(library_provider)
-
 
 	def is_ready(self):
 		"""
@@ -134,7 +132,6 @@ class LibraryService(Service):
 			True
 		)
 
-
 	async def _set_ready(self, provider):
 		if len(self.Libraries) == 0:
 			return
@@ -148,8 +145,6 @@ class LibraryService(Service):
 		elif not provider.IsReady:
 			L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("Library.not_ready!", self)
-
-
 
 	async def read(self, path: str, tenant: str = None) -> typing.IO:
 		"""
@@ -187,7 +182,6 @@ class LibraryService(Service):
 			return itemio
 
 		return None
-
 
 	async def list(self, path="/", tenant=None, recursive=False) -> list:
 		"""
@@ -236,17 +230,15 @@ class LibraryService(Service):
 				child_items = await self._list(item.name, tenant, providers=item.providers)
 				items.extend(child_items)
 				recitems.extend(child_items)
-
 		return items
-
 
 	async def _list(self, path, tenant, providers):
 		# Execute the list query in all providers in-parallel
-
 		result = await asyncio.gather(*[
-			library.list(path, index)
-			for index, library in enumerate(providers)
+			library.list(path)
+			for library in providers
 		], return_exceptions=True)
+
 		items = []
 		uniq = dict()
 		for ress in result:
@@ -260,32 +252,27 @@ class LibraryService(Service):
 				continue
 
 			for item in ress:
-
 				item.disabled = self.check_disabled(item.name, tenant=tenant)
 
-				# If the item already exists, merge it
+				# If the item already exists, merge or override it
 				pitem = uniq.get(item.name)
 				if pitem is not None:
+					pitem = uniq[item.name]
 					if pitem.type == 'dir' and item.type == 'dir':
 						# Directories are joined
 						pitem.providers.extend(item.providers)
-
 					elif pitem.type == 'item':
 						for i, provider in enumerate(providers):
 							if provider in item.providers:
 								index = i
 								break
 						pitem.override = index
-					# Other item types are skipped
-					else:
-						continue
-
-				uniq[item.name] = item
-				items.append(item)
-
+				# Other item types are skipped
+				else:
+					uniq[item.name] = item
+					items.append(item)
 		items.sort(key=lambda x: x.name)
 		return items
-
 
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
@@ -304,7 +291,6 @@ class LibraryService(Service):
 			except Exception:
 				self.Disabled = {}
 				L.exception("Failed to parse '/.disabled.yaml'")
-
 
 	def check_disabled(self, path, tenant=None):
 		"""
@@ -329,7 +315,6 @@ class LibraryService(Service):
 			return True
 
 		return False
-
 
 	async def export(self, path="/", tenant=None, remove_path=False) -> typing.IO:
 		"""
