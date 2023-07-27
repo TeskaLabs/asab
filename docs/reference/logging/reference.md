@@ -187,20 +187,16 @@ setup for eg. PyCharm.
 ASAB supports a [log rotation](https://en.wikipedia.org/wiki/Log_rotation). 
 The log rotation is triggered by a UNIX signal `SIGHUP`, which can be used e.g. to
 integrate with `logrotate` utility. It is implemented using
-`logging.handlers.RotatingFileHandler` from a Python standard library.
-Also, a time-based log rotation can be configured using `rotate_every`
-option.
+[`logging.handlers.RotatingFileHandler` from a Python standard library](https://docs.python.org/3/library/logging.handlers.html#baserotatinghandler).
+Also, a time-based log rotation can be configured using `rotate_every` option.
 
-`backup_count` specifies a number of old files to be kept prior their
-removal. The system will save old log files by appending the extensions
-'.1', '.2' etc., to the filename.
+- `backup_count` specifies a number of old files to be kept prior their removal.
+The system will save old log files by appending the extensions '.1', '.2' etc., to the filename.
 
-`rotate_every` specifies an time interval of a log rotation. Default
-value is empty string, which means that the time-based log rotation is
-disabled. The interval is specified by an integer value and an unit,
-e.g. 1d (for 1 day) or 30M (30 minutes). Known units are [H]{.title-ref}
-for hours, [M]{.title-ref} for minutes, [d]{.title-ref} for days and
-[s]{.title-ref} for seconds.
+- `rotate_every` specifies an time interval of a log rotation.
+Default value is empty string, which means that the time-based log rotation is disabled. 
+The interval is specified by an integer value and an unit, e.g. 1d (for 1 day) or 30M (30 minutes). 
+Known units are `H` for hours, `M` for minutes, `d` for days and `s` for seconds.
 
 ## Logging to syslog
 
@@ -219,22 +215,20 @@ format=5
 address=tcp://syslog.server.lan:1554/
 ```
 
-`enabled` is equivalent to command-line switch `-s` and it enables
-syslog logging target.
+- `enabled` is equivalent to command-line switch `-s` and it enables syslog logging target.
 
-`format` specifies which logging format will be used.
+- `format` specifies which logging format will be used.
 
 | Option | Format | Note | 
 | --- | --- | --- | 
 | `5` | syslog format [RFC 5424](https://tools.ietf.org/html/rfc5424) |  |
 | `5micro` | syslog format RFC 5424 with microseconds | |
-| `3` | the old BSD syslog format ([RFC 3164](https://tools.ietf.org/html/rfc3164) ) | It is typically used by `/dev/log`. |
+| `3` | the old BSD syslog format [RFC 3164](https://tools.ietf.org/html/rfc3164) | It is typically used by `/dev/log`. |
 | `m` | Mac OSX syslog flavour | It is based on BSD syslog format but it is not fully compatible. |
 
 The default value is `3` on Linux and `m` on Mac OSX.
 
-`address` specifies the location of the Syslog server. It could be a
-UNIX path such as `/dev/log` or URL. Possible URL values:
+- `address` specifies the location of the Syslog server. It could be a UNIX path such as `/dev/log` or URL. Possible URL values:
 
 -   `tcp://syslog.server.lan:1554/` for Syslog over TCP
 -   `udp://syslog.server.lan:1554/` for Syslog over UDP
@@ -244,14 +238,12 @@ UNIX path such as `/dev/log` or URL. Possible URL values:
     (datagram), equivalent to `/path/to/syslog.socket`, used by a
     `/dev/log`.
 
-The default value is a `/dev/log` on Linux or `/var/run/syslog` on Mac
-OSX.
+The default value is a `/dev/log` on Linux or `/var/run/syslog` on Mac OSX.
 
 ## Logging of obsolete features
 
 It proved to be essential to inform operators about features that are going to be obsoleted.
-ASAB offers the unified "obsolete" logger. 
-This logger can indicate that a particular feature is marked as *obsolete* thru logs.
+ASAB offers the unified `asab.LogObsolete` logger which can indicate that a particular feature is marked as *obsolete* thru logs.
 Such a log message can then be *grepped* from logs uniformly.
 
 !!! example
@@ -264,7 +256,6 @@ Such a log message can then be *grepped* from logs uniformly.
 
     ```
     21-Jul-2022 14:32:40.983884 WARNING OBSOLETE [eol="2022-31-12"] Use of the obsolete function
-    
     ```
 
     We suggest to add the `eol` attribute in the `struct_data` of the log with a `YYYY-MM-DD`
@@ -277,6 +268,14 @@ Such a log message can then be *grepped* from logs uniformly.
     the feature. The string to seek in logs is "OBSOLETE".
 
 ## Reference
+
+### Command-line arguments
+
+| Argument | Action |
+| --- | --- |
+| `-v` | Enables verbose logging so that `DEBUG` and `INFO` levels are visible. |
+| `-s`| Enables logging to syslog. |
+
 
 ::: asab.log.LOG_NOTICE
 
