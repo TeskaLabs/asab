@@ -85,7 +85,7 @@ and exit-time.
     code.
 
     !!! note
-        You need to install :py`win32api`{.interpreted-text role="mod"}
+        You need to install :py`win32api`
         module to use `Ctrl-C` or an emergency abord properly with ASAB on
         Windows. It is an optional dependency of ASAB.
 
@@ -101,8 +101,7 @@ class MyApplication(asab.Application):
         ...
 ```
 
-The Publish-Subscribe message `Application.exit!`{.interpreted-text
-role="any"} is published when exit-time begins.
+The Publish-Subscribe message `Application.exit!` is published when exit-time begins.
 
 Set the exit code of the application, see `os.exit()` in the Python
 documentation. If `force` is `False`, the exit code will be set only if
@@ -114,7 +113,7 @@ The actual value of the exit code.
 The example of the exit code handling in the `main()` function of the
 application.
 
-``` {.python}
+```python
 if __name__ == '__main__':
     app = asab.Application()
     exit_code = app.run()
@@ -124,7 +123,7 @@ if __name__ == '__main__':
 ## Registering modules and services
 
 
-For more details see :py`Module`{.interpreted-text role="class"} class.
+For more details see `Module` class.
 
 Initialize and add a new module. The `module_class` class will be
 instantiated during the method call.
@@ -140,7 +139,7 @@ A list of modules that has been added to the application.
 
 
 Each service is identified by its unique service name. For more details
-see :py`Service`{.interpreted-text role="class"} class.
+see `Service` class.
 
 Locate a service by its service name in a registry and return the
 `Service` object.
@@ -161,11 +160,11 @@ Please refer to Python standard library `argparse` for more details
 about function arguments.
 
 The application object calls this method during init-time to process a
-command-line arguments. `argparse`{.interpreted-text role="mod"} is
+command-line arguments. `argparse` is
 used to process arguments. You can overload this method to provide your
 own implementation of command-line argument parser.
 
-The :py`Description`{.interpreted-text role="data"} attribute is a text
+The `Description` attribute is a text
 that will be displayed in a help text (`--help`). It is expected that
 own value will be provided. The default value is `""` (empty string).
 
