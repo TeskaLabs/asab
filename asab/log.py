@@ -16,8 +16,12 @@ from .config import Config
 from .timer import Timer
 from .utils import running_in_container
 
-# Non-error/warning type of message that is visible without -v flag
+
 LOG_NOTICE = 25
+"""
+Info log level that is visible in non-verbose mode. It should not be used for warnings and errors.
+"""
+
 logging.addLevelName(LOG_NOTICE, "NOTICE")
 
 
