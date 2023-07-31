@@ -1,7 +1,6 @@
 # Configuration
 
-The configuration is provided by `asab.Config` object which is a singleton. 
-It means that you can access `asab.Config` from any place of your code, without need of explicit initialization.
+The configuration is provided by `asab.Config` object which you can access from any place of your code, without need of explicit initialization.
 
 ```python
 import asab
@@ -13,13 +12,13 @@ app = asab.Application() #(1)!
 my_conf_value = asab.Config['section_name']['key1'] #(2)!
 ```
 
-1. Initialize application object and hence the configuration.
-2. Access configuration values anywhere.
+1. Initializes application object and hence the configuration.
+2. You can access the configuration values anywhere.
 
 
 ## Based on ConfigParser object
 
-The `asab.Config` is inherited from [the standard `configparser.ConfigParser` class](https://docs.python.org/3/library/configparser.html#customizing-parser-behaviour)
+`asab.Config` is inherited from [`configparser.ConfigParser` class](https://docs.python.org/3/library/configparser.html#customizing-parser-behaviour)
 which implements a basic configuration language that provides a structure similar to what's found in Microsoft Windows INI files.
 
 !!! example "Basic usage:"
@@ -40,7 +39,7 @@ which implements a basic configuration language that provides a structure simila
     are you sure = true
 
     numerical values are held as: strings
-    booleans are also: strings
+    booleans are held as: strings
     use these functions: getint(), getfloat(), getboolean()
     ```
 
@@ -227,15 +226,15 @@ endpoint's output.
 It is convenient for the user to store passwords at one place, so that
 they are not repeated in many sections of the config file(s).
 
-Usage is as follows:
+!!! example
 
-``` ini
-[connection:KafkaConnection]
-password=${passwords:kafka_password}
+    ``` ini
+    [connection:KafkaConnection]
+    password=${passwords:kafka_password}
 
-[passwords]
-kafka_password=<MY_SECRET_PASSWORD>
-```
+    [passwords]
+    kafka_password=<MY_SECRET_PASSWORD>
+    ```
 
 ## Reference
 
@@ -246,6 +245,8 @@ kafka_password=<MY_SECRET_PASSWORD>
 | `ASAB_CONFIG` | Path to the custom configuration file with which ASAB app will be using. | 
 | `ASAB_ZOOKEEPERS_SERVERS`| URL for Zookeeper node. |
 | `THIS_DIR` | Directory that contains a current configuration file. |
+| `HOSTNAME` | The application hostname. |
+
 
 ::: asab.config.ConfigParser
 
