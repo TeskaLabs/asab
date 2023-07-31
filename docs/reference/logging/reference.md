@@ -59,7 +59,7 @@ Level | Numeric value | Syslog Severity level |
 
     ```ini
     [logging]
-    level=DEBUG
+    level = DEBUG
     ```
 
 !!! example "Setting levels for particular modules:"
@@ -71,8 +71,8 @@ Level | Numeric value | Syslog Severity level |
         myApp.module2 WARNING
     ```
 
-    The logger name and the corresponding logging level are separated by a
-    space, each logger is on a separate line.
+    Each logger must be on a separate line.
+    The logger name and the corresponding logging level have to be separated by a space.
 
 
 ## Verbose mode
@@ -90,13 +90,16 @@ The actual verbose mode is available at `asab.Config["logging"]["verbose"]` bool
     1.
         ```ini
         [logging]
-        verbose=true
+        verbose = true
         ```
+        The string `true` is interpreted by `ConfigParser` via [`this method`](#asab.utils.string_to_boolean).
+
     2.
         ```ini
         [logging]
-        level=DEBUG
+        level = DEBUG
         ```
+
     3.
         ```shell
         python3 myapp.py -v
@@ -156,10 +159,8 @@ configuration file enables logging to file as well.
     format="%(asctime)s %(levelname)s %(name)s %(struct_data)s%(message)s",
     datefmt="%d-%b-%Y %H:%M:%S.%f"
     backup_count=3
-    rotate_every=1d  #(1)!
+    rotate_every=1d
     ```
-
-    1. When reading this configuration, `asab.Config.getseconds()` method is used.
 
 When the deployment expects more instances of the same application to be
 logging into the same file, it is recommended, that the variable
