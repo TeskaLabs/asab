@@ -19,7 +19,9 @@ supported.
 
     ```python title="myapp/mymodule.py"
     import logging
+
     L = logging.getLogger(__name__)
+
     ...
 
     L.warning("Hello world!")
@@ -162,18 +164,20 @@ configuration file enables logging to file as well.
     rotate_every=1d
     ```
 
-When the deployment expects more instances of the same application to be
-logging into the same file, it is recommended, that the variable
-hostname is used in the file path:
+!!! tip
 
-```ini
-[logging:file]
-path=/var/log/${HOSTNAME}/asab.log
-```
+    When the deployment expects more instances of the same application to be
+    logging into the same file, it is recommended to use
+    [`${HOSTNAME}`](../../config/reference/#environment-variables) variable in the file path:
 
-In this way, the applications will log to separate log files in
-different folders, which is an intended behavior, since race conditions
-may occur when different application instances log into the same file.
+    ```ini
+    [logging:file]
+    path=/var/log/${HOSTNAME}/asab.log
+    ```
+
+    In this way, the applications will log to separate log files in
+    different folders, which is an intended behavior, since race conditions
+    may occur when different application instances log into the same file.
 
 ## Logging to console
 
