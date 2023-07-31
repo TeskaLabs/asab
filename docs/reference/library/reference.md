@@ -107,6 +107,24 @@ For that reason, you have to provide a unique `service_name` and there is no def
 
 ## Notification on changes
 
+!!! example
+
+    ```python
+    class MyApplication(asab.Application):
+
+    async def initialize(self):
+        self.PubSub.subscribe("Library.ready!", self.on_library_ready
+        self.PubSub.subscribe("Library.change!", self.on_library_change)
+
+    async def on_library_ready(self, event_name, library=None):
+        await self.LibraryService.subscribe(["/asab"]) #(1)!
+
+    def on_library_change(self, message, provider, path): #(2)!
+        print("New changes in the library found by provider: '{}'".format(provider))
+    ```
+
+    1. `self.LibraryService.subscribe()` method takes either a single path as a string or multiple paths in list and watches for changes in them.
+    2. This coroutine takes three arguments: `message` (`Library.change!` in this case), `provider` (name of the provider that has detected changes) and `path` (the path where changes were made).
 
 ## Providers
 
@@ -291,7 +309,7 @@ these steps from the
 After the deploy token is created, use the URL for the repository in the
 following format:
 
-``` {.ini}
+``` ini
 [library]
 providers: git+https://<username>:<deploy_token>@gitlab.example.com/john/awesome_project.git
 ```
@@ -306,3 +324,7 @@ default path for the cloned repository is
 [library:git]
 repodir=path/to/repository/cache
 ```
+
+## Reference
+
+::: asab.library.LibraryService
