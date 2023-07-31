@@ -298,8 +298,26 @@ class ConfigParser(configparser.ConfigParser):
 		"""
 		Get time data from config and convert time string into seconds with `convert_to_seconds()` method.
 
+		The available units are:
+
+		- `y` - years
+		- `M` - months
+		- `w` - weeks
+		- `d` - days
+		- `h` - hours
+		- `m` - minutes
+		- `s` - seconds
+		- `ms` - milliseconds
+
 		Returns:
 			float: Time in seconds.
+
+		Examples:
+
+		```python
+		self.SleepTime = asab.Config["sleep"].getseconds("sleep_time")
+		self.AnotherSleepTime = asab.Config.getseconds("sleep", "another_sleep_time")
+		```
 		"""
 
 		if fallback is None:
@@ -321,6 +339,20 @@ class ConfigParser(configparser.ConfigParser):
 
 		Raises:
 			ValueError: Scheme requirements are not met if set.
+
+		Examples:
+
+		Configuration file:
+		```ini
+		[urls]
+		teskalabs=https://www.teskalabs.com/
+		github=github.com
+		```
+		Script:
+		``` python
+		asab.Config["urls"].geturl("teskalabs", scheme="https")
+		asab.Config.geturl("urls", "github", scheme=None)
+		```
 		"""
 		return utils.validate_url(self.get(section, option, raw=False, vars=None, fallback=fallback), scheme)
 
