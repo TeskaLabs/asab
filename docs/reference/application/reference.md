@@ -183,6 +183,6 @@ provides a cheaper version of the call that returns a current wall time
 in UTC.
 
 ---
-## Documentation
+## Reference
 
 ::: asab.application.Application
