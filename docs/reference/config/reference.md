@@ -140,7 +140,7 @@ include=
     ./etc/site.d/*.conf
 ```
 
-## Including ZooKeeper node in the configuration
+### Including ZooKeeper node in the configuration
 
 The separator between includes is newline or space - it means that space MUST NOT be in the names of nodes in the ZooKeeper.
 
@@ -161,15 +161,11 @@ include=zookeeper:///asab/config/config-test.yaml
 ```
 
 
-
-
-
 ## Default values
 
 This is how you can extend configuration default values:
 
-``` python
-
+```python
 asab.Config.add_defaults(
     {
         'section_name': {
@@ -205,28 +201,26 @@ persistent_dir=${HOME}/.myapp/
 '/home/user/.myapp/'
 ```
 
-There is a special environment variable `${THIS_DIR}` that
-is expanded to a directory that contains a current configuration file.
-It is useful in complex configurations that utilizes included
-configuration files etc.
+There is a special environment variable `${THIS_DIR}` that is 
+expanded to a directory that contains a current configuration file.
+It is useful in complex configurations that utilizes included configuration files etc.
 
-``` {.ini}
+``` ini
 [section_name]
 my_file=${THIS_DIR}/my_file.txt
 ```
 
-Another environment variable [${HOSTNAME}]{.title-ref} contains the
-application hostname to be used f. e. in logging file path.
+Another environment variable `${HOSTNAME}` contains the
+application hostname to be used, e.g. in logging file path.
 
-``` {.ini}
+``` ini
 [section_name]
 my_file=${THIS_DIR}/${HOSTNAME}/my_file.txt
 ```
 
 ## Passwords
 
-
-[passwords] section in the configuration serves to securely store
+`[passwords]` section in the configuration serves to securely store
 passwords, which are then not shown publicly in the default API config
 endpoint's output.
 
@@ -235,7 +229,7 @@ they are not repeated in many sections of the config file(s).
 
 Usage is as follows:
 
-``` {.ini}
+``` ini
 [connection:KafkaConnection]
 password=${passwords:kafka_password}
 
@@ -243,75 +237,18 @@ password=${passwords:kafka_password}
 kafka_password=<MY_SECRET_PASSWORD>
 ```
 
-## Obtaining seconds
-
-The seconds can be obtained using [getseconds()]{.title-ref} method for
-values with different time units specified in the configuration:
-
-``` {.ini}
-[sleep]
-sleep_time=5.2s
-another_sleep_time=10d
-```
-
-The available units are:
-
-> -   `y` ... years
-> -   `M` ... months
-> -   `w` ... weeks
-> -   `d` ... days
-> -   `h` ... hours
-> -   `m` ... minutes
-> -   `s` ... seconds
-> -   `ms` .. miliseconds
-
-If no unit is specified, float of seconds is expected.
-
-The obtainment of the second value in the code can be achieved in two
-ways:
-
-``` {.python}
-self.SleepTime = asab.Config["sleep"].getseconds("sleep_time")
-self.AnotherSleepTime = asab.Config.getseconds("sleep", "another_sleep_time")
-```
-
-Obtaining URLs
---------------
-
-A URL can be obtained using a [geturl()]{.title-ref} method that takes
-the URL from the config and removes leading and trailing whitespaces and
-trailing backslashes.
-
-There is an optional parameter called [scheme]{.title-ref} that can have
-any URL scheme like http, https, mongodb etc. Setting it to None, scheme
-validation gets bypassed.
-
-Setting the scheme parameter to the same scheme as in the config, it
-will return the URL. If it's not the same it will raise an error.
-
-There are two ways of obtaining the URL:
-
-``` {.py}
-asab.Config["urls"].geturl("teskalabs", scheme="https")
-asab.Config.geturl("urls", "github", scheme=None)
-```
-
-Example:
-
-``` {.python}
->>> asab.Config["urls"].geturl("teskalabs", scheme="https")
-    'https://www.teskalabs.com'
-```
-
-For reference this would be the configuration file:
-
-``` {.ini}
-[urls]
-teskalabs=https://www.teskalabs.com/
-github=github.com
-```
-
 ## Reference
 
-::: asab.config
+### Environment variables
 
+| Name | Usage |
+| --- | --- |
+| `ASAB_CONFIG` | Path to the custom configuration file with which ASAB app will be using. | 
+| `ASAB_ZOOKEEPERS_SERVERS`| URL for Zookeeper node. |
+| `THIS_DIR` | Directory that contains a current configuration file. |
+
+::: asab.config.ConfigParser
+
+::: asab.config.ConfigObjectDict
+
+::: asab.config.Configurable
