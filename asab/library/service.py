@@ -166,8 +166,7 @@ class LibraryService(Service):
 			tenant (str | None): The tenant to apply. If not specified, the global access is assumed.
 
 		Returns:
-			(IO | None) Readable stream with the content of the library item.
-			`None` is returned if the item is not found or if it is disabled (either globally or for the specified tenant).
+			( IO | None ): Readable stream with the content of the library item. `None` is returned if the item is not found or if it is disabled (either globally or for the specified tenant).
 
 		Examples:
 
@@ -327,7 +326,7 @@ class LibraryService(Service):
 
 		Args:
 			path: The path to export.
-			tenant: The tenant to use for the operation.
+			tenant (str | None ): The tenant to use for the operation.
 			remove_path: If `True`, the path will be removed from the tar file.
 
 		Returns:
@@ -382,8 +381,26 @@ class LibraryService(Service):
 		"""
 		Subscribe to changes for specified paths of the library.
 
+		In order to notify on changes in the Library, this method must be used after the Library is ready.
+
 		Args:
 			paths (str | list[str]): Either single path or list of paths to be subscribed. All the paths must be absolute (start with '/').
+
+		Examples:
+		```python
+		class MyApplication(asab.Application):
+
+			async def initialize(self):
+				self.PubSub.subscribe("Library.ready!", self.on_library_ready
+				self.PubSub.subscribe("Library.change!", self.on_library_change)
+
+			async def on_library_ready(self, event_name, library=None):
+				await self.LibraryService.subscribe(["/alpha","/beta"])
+
+			def on_library_change(self, message, provider, path):
+				print("New changes in the library found by provider: '{}'".format(provider))
+
+		```
 		"""
 		if isinstance(paths, str):
 			paths = [paths]
