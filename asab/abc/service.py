@@ -50,7 +50,13 @@ class Service(abc.ABC):
 			service_name: Reference name of the Service.
 		"""
 		self.Name = service_name
+		"""
+		The reference name for the Service.
+		"""
 		self.App = app
+		"""
+		The reference to the Application object.
+		"""
 		app._register_service(self)
 
 	# Lifecycle
