@@ -1,7 +1,5 @@
 import abc
 
-from asab import Application
-
 
 class Module(abc.ABC):
 	"""
@@ -51,25 +49,25 @@ class Module(abc.ABC):
 
 	"""
 
-	def __init__(self, app: Application):
+	def __init__(self, app):
 		pass
 
 	# Lifecycle
 
-	async def initialize(self, app: Application):
+	async def initialize(self, app):
 		"""
 		This method is called when the Module is initialized. It can be overridden by an user.
 
 		Args:
-			app: Reference to ASAB application.
+			app (asab.Application): Reference to ASAB application.
 		"""
 		pass
 
-	async def finalize(self, app: Application):
+	async def finalize(self, app):
 		"""
 		This method is called when the Module is finalized, e.g., during application `exit-time`. It can be overridden by an user.
 
 		Args:
-			app: Reference to ASAB application.
+			app (asab.Application): Reference to ASAB application.
 		"""
 		pass

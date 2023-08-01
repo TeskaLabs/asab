@@ -1,5 +1,4 @@
 import abc
-from asab import Application
 
 
 class Service(abc.ABC):
@@ -41,12 +40,12 @@ class Service(abc.ABC):
 	```
 	"""
 
-	def __init__(self, app: Application, service_name: str):
+	def __init__(self, app, service_name: str):
 		"""
 		Register the service to `asab.Application.Services` dictionary with the provided `service_name`.
 
 		Args:
-			app: Reference to ASAB application.
+			app (asab.Application): Reference to ASAB application.
 			service_name: Reference name of the Service.
 		"""
 		self.Name = service_name
@@ -61,22 +60,22 @@ class Service(abc.ABC):
 
 	# Lifecycle
 
-	async def initialize(self, app: Application):
+	async def initialize(self, app):
 		"""
 		This method is called when the Service is initialized.
 		It can be overridden by an user.
 
 		Args:
-			app: Reference to ASAB application.
+			app (asab.Application): Reference to ASAB application.
 		"""
 		pass
 
-	async def finalize(self, app: Application):
+	async def finalize(self, app):
 		"""
 		This method is called when the Service is finalized, e.g., during application `exit-time`.
 		It can be overridden by an user.
 
 		Args:
-			app: Reference to ASAB application.
+			app (asab.Application): Reference to ASAB application.
 		"""
 		pass
