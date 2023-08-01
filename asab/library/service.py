@@ -202,6 +202,9 @@ class LibraryService(Service):
 			path (str): Path to the directory.
 			tenant (str | None): If specified, items that are enabled for the tenant are filtered.
 			recursive (bool): If `True`, return a list of items located at `path` and its subdirectories.
+
+		Returns:
+			List of items that are enabled for the tenant.
 		"""
 
 		# Directory path must start with '/'
@@ -299,6 +302,9 @@ class LibraryService(Service):
 		Args:
 			path (str): Path to the item to be checked.
 			tenant (str | None): The tenant to apply. If not specified, the global access is assumed.
+
+		Returns:
+			`True` if the item is enabled for the tenant.
 		"""
 
 		disabled = self.Disabled.get(path)
