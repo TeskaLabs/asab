@@ -30,7 +30,7 @@ class Module(abc.ABC):
 
 	# Extend ASAB configuration defaults
 	asab.Config.add_defaults({
-		'mymodule': {
+		'my_module': {
 			'foo': 'bar'
 		}
 	})
