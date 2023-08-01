@@ -1,5 +1,5 @@
 import abc
-from ..application import Application
+from asab import Application
 
 
 class Service(abc.ABC):

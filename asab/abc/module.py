@@ -1,6 +1,6 @@
 import abc
 
-from ..application import Application
+from asab import Application
 
 
 class Module(abc.ABC):
