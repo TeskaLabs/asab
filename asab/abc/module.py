@@ -61,7 +61,7 @@ class Module(abc.ABC):
 		This method is called when the Module is initialized. It can be overridden by an user.
 
 		Args:
-			app: ASAB application
+			app: Reference to ASAB application.
 		"""
 		pass
 
@@ -70,6 +70,6 @@ class Module(abc.ABC):
 		This method is called when the Module is finalized, e.g., during application `exit-time`. It can be overridden by an user.
 
 		Args:
-			app: ASAB application
+			app: Reference to ASAB application.
 		"""
 		pass
