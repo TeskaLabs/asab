@@ -16,6 +16,7 @@ Table of ASAB built-in Services and Modules:
 | `AlertService`| `asab.alert` | Integration of Alert Managers. |
 | `TaskService`| `asab.task`| Execution of one-off background tasks. |
 | `ProactorService` | `asab.proactor` | Running long-time activities asynchronously. |
+| `ApiService`| `asab.api` | Implementation of Swagger documentation. |
 
 
 ::: asab.Module
