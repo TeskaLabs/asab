@@ -8,6 +8,7 @@ from .accesslog import AccessLogger
 from ..config import ConfigObject
 from ..tls import SSLContextBuilder
 from .service import WebService
+from ..application import Application
 
 #
 
@@ -184,7 +185,7 @@ want to allow OPTIONS method for preflight requests.
 			self.add_preflight_handlers(preflight_paths)
 
 
-	async def _start(self, app):
+	async def _start(self, app: Application):
 		await self.WebAppRunner.setup()
 
 		for addr, port, ssl_context in self._listen:
@@ -204,7 +205,7 @@ want to allow OPTIONS method for preflight requests.
 		self.WebApp['app'].PubSub.publish("WebContainer.started!", self)
 
 
-	async def _stop(self, app):
+	async def _stop(self, app: Application):
 		self.WebApp['app'].PubSub.publish("WebContainer.stoped!", self)
 		await self.WebAppRunner.cleanup()
 

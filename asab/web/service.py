@@ -3,7 +3,6 @@ import logging
 from ..abc.service import Service
 from .. import Config
 from .. import metrics
-from .container import WebContainer
 
 from .metrics import WebRequestsMetrics
 
@@ -42,13 +41,13 @@ class WebService(Service):
 			app.add_module(metrics.Module)
 			self.MetricsService = app.get_service("asab.MetricsService")
 			self.WebRequestsMetrics = WebRequestsMetrics(self.MetricsService)
-		self.Containers: dict[str, WebContainer] = {}
+		self.Containers = {}
 
 	async def finalize(self, app):
 		for containers in self.Containers.values():
 			await containers._stop(app)
 
-	def _register_container(self, container: WebContainer, config_section_name: str):
+	def _register_container(self, container, config_section_name: str):
 		self.Containers[config_section_name] = container
 		self.App.TaskService.schedule(container._start(self.App))
 
