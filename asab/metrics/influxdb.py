@@ -13,7 +13,7 @@ L = logging.getLogger(__name__)
 #
 
 
-class InfluxDBTarget(asab.ConfigObject):
+class InfluxDBTarget(asab.Configurable):
 	"""
 InfluxDB 2.0 API parameters:
 	url - [required] url string of your influxDB

@@ -4,7 +4,7 @@ from .abc.module import Module
 from .abc.service import Service
 from .abc.singleton import Singleton
 from .application import Application
-from .config import Config, ConfigObject, Configurable
+from .config import Config, Configurable
 from .log import LOG_NOTICE
 from .pdict import PersistentDict
 from .pubsub import subscribe, PubSub, Subscriber
@@ -25,7 +25,6 @@ __all__ = (
 	'Singleton',
 	'Application',
 	'Config',
-	'ConfigObject',
 	'Configurable',
 	'LOG_NOTICE',
 	'PersistentDict',

@@ -344,10 +344,6 @@ class Configurable(object):
 			self.Config.update(config)
 
 
-# This is for backward compatibility
-ConfigObject = Configurable
-
-
 class ConfigObjectDict(collections.abc.MutableMapping):
 
 

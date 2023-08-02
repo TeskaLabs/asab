@@ -4,7 +4,7 @@ import logging
 import aiohttp
 
 from .accesslog import AccessLogger
-from ..config import ConfigObject
+from ..config import Configurable
 from ..tls import SSLContextBuilder
 
 #
@@ -14,7 +14,7 @@ L = logging.getLogger(__name__)
 #
 
 
-class WebContainer(ConfigObject):
+class WebContainer(Configurable):
 
 	'''
 # Configuration examples
