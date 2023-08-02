@@ -46,8 +46,8 @@ if __name__ == '__main__':
 
 1. In order to use `asab.WebService`, first import the corresponding `asab.web.Module`...
 2. ...and then locate the Service.
-3. Creates the Web container, which is a [`asab.Config.Configurable`](http://localhost:8000/reference/config/reference/#asab.config.Configurable)
-4. `asab.web.WebContainer.WebApp` is instance of `aiohttp.web.Application` object. To create a new endpoint, use methods for [`aiohttp.web.Application.router`](https://docs.aiohttp.org/en/stable/web_reference.html?highlight=add_get#router).
+3. Creates the Web container, which is instance of [`asab.Config.Configurable`](http://localhost:8000/reference/config/reference/#asab.config.Configurable) object that stores the configuration such as the actual web application.
+4. `asab.web.WebContainer.WebApp` is instance of `aiohttp.web.Application` object. To create a new endpoint, use methods for [`aiohttp.web.Application.router` object](https://docs.aiohttp.org/en/stable/web_reference.html?highlight=add_get#router).
 5. A request handler must be a coroutine that accepts [`aiohttp.web.Request` instance](https://docs.aiohttp.org/en/stable/web_reference.html#aiohttp.web.Request) as its only parameter and returns [`aiohttp.web.Response` instance](https://docs.aiohttp.org/en/stable/web_reference.html#response).
 
 You can test if your server is working by sending a request to the `/hello` endpoint, e.e., via the `curl` command:
@@ -60,16 +60,6 @@ and you should get the response:
 
 ```
 Hello from your ASAB server!
-```
-
-## Web Service
-
-Service location example:
-
-``` {.python}
-from asab.web import Module
-self.add_module(Module)
-svc = self.get_service("asab.WebService")
 ```
 
 ## Configuration
@@ -144,10 +134,10 @@ TLS/SSL paramereters:
 > -   [check\_hostname]{.title-ref}
 > -   [options]{.title-ref}
 
-## Sessions
+## Reference
 
-ASAB Web Service provides an implementation of the web sessions.
+::: asab.web.Module
 
-TODO: \...
+::: asab.web.service.WebService
 
-TODO: \...
+::: asab.web.WebContainer
