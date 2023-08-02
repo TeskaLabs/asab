@@ -45,7 +45,7 @@ theme:
       warning: fontawesome/solid/triangle-exclamation
       danger: fontawesome/solid/skull
       bug: fontawesome/solid/robot
-      example: fontawesome/solid/flask
+      example: fontawesome/solid/code
       quote: fontawesome/solid/quote-left
     
     repo: fontawesome/brands/github
