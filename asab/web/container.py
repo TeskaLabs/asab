@@ -234,7 +234,13 @@ want to allow OPTIONS method for preflight requests.
 			response.headers['Access-Control-Allow-Methods'] = "GET, POST, DELETE, PUT, PATCH, OPTIONS"
 
 
-	def get_ports(self):
+	def get_ports(self) -> list[str]:
+		"""
+		Return list of available ports.
+
+		Returns:
+			list[str]: List of ports.
+		"""
 		ports = []
 		for addr, port, ssl_context in self._listen:
 			ports.append(port)
