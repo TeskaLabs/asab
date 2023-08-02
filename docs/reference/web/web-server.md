@@ -26,13 +26,13 @@ class MyApplication(asab.Application):
         self.add_module(asab.web.Module)  #(1)!
         self.WebService = self.get_service("asab.WebService") #(2)!
 
-        container = asab.web.WebContainer( #(3)!
+        self.WebContainer = asab.web.WebContainer( #(3)!
             websvc=self.WebService,
             config_section_name='my:web',
             config={"listen": "0.0.0.0:8080"}
         )
 
-        container.WebApp.router.add_get('/hello', self.hello) #(4)!
+        self.WebContainer.WebApp.router.add_get('/hello', self.hello) #(4)!
 
     # This is the web request handler
     async def hello(self, request): #(5)!
