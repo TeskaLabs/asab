@@ -17,7 +17,10 @@ self.ApiService.initialize_web() #(2)!
 1. Initializes OpenAPI Service.
 2. Introduce Web to OpenAPI Service.
 
-After initializing the API Service a **/doc** endpoint will become available.
+After initializing the API Service, */doc* endpoint will become available. After you open it, you should see the following content:
+
+![Preview of Swagger documentation](/images/rest-api-docs/1-preview.png)
+
 You will notice that some or none of your endpoints have summaries, tags or descriptions.
 
 That's because you need to add a docstring to your endpoint method:
@@ -34,6 +37,7 @@ async def endpoint(self, request):
 	"""
 ```
 
+
 Also by adding a docstring to your ASAB Application, a description will
 be automatically added to the top of the Swagger docs:
 
@@ -45,14 +49,31 @@ class TutorialApp(asab.Application):
 	<marquee>The description supports HTML tags</marquee>
 	"""
 ```
+![Preview of Swagger documentation with docstrings](/images/rest-api-docs/2-preview-with-docs.png)
 
 ## Authorization in Swagger
 
 Authorization requires making an OpenIDConnect endpoint with an Authorization and Token endpoint
 (like with using [SeaCat Auth](https://github.com/TeskaLabs/seacat-auth)).
 
-After your endpoint has authorization, [here's an example](https://github.com/TeskaLabs/asab/blob/master/examples/web-authz-userinfo.py),
-add the Authorization and Token endpoints into your [configuration](#configuration).
+For authorization you will need to add a `authorizationUrl`
+and `tokenUrl` to the configuration:
+
+``` ini
+[asab:doc]
+authorizationUrl=http://localhost:8080/openidconnect/authorize
+tokenUrl=http://localhost:8080/openidconnect/token
+```
+
+If you have an endpoint that requires a scope, you can add it with the
+configuration file:
+
+``` ini
+[asab:doc]
+scopes=read,write
+```
+
+To set up endpoint authorization, you can use [this example](/examples/web-authz-userinfo).
 
 For the authorization bearer token to be added to the request, a scope is needed to be put into the security parameter in a docstring.
 It does not matter what it is called or if it exists, but it's needed to be there.
@@ -72,28 +93,10 @@ async def top_secret_endpoint(self, request):
 	"""
 ```
 
-After setting up Authorization, a green `Authorize` button should appear in the Swagger docs:
+After setting up Authorization, a green `Authorize` button should appear in the Swagger docs. After you click on it, you should see the following content:
 
-![Authorize button](/images/rest-api-docs-authorize.png)
+![Authorization of Swagger documentation](/images/rest-api-docs/3-authorization.png)
 
-## Configuration
-
-For authorization you will need to add a `authorizationUrl`
-and `tokenUrl`:
-
-``` ini
-[asab:doc]
-authorizationUrl=http://localhost:8080/openidconnect/authorize
-tokenUrl=http://localhost:8080/openidconnect/token
-```
-
-If you have an endpoint that requires a scope, you can add it with the
-configuration file:
-
-``` ini
-[asab:doc]
-scopes=read,write
-```
 
 ## Tags
 
@@ -129,7 +132,8 @@ There are two options for `default_route_tag`:
 
 === "`module_name`"
 	All tags without custom name are displayed with the name of the **module** where the handler is defined.
-	![Default tag: module name](/images/rest-api-docs-default-tag-module-name.png)
+	![Authorization of Swagger documentation](/images/rest-api-docs/4-module.png)
+
 === "`class_name`"
 	All tags without custom name are displayed with the name of the **class** where the handler is defined.
-	![Default tag: class name](/images/rest-api-docs-default-tag-class.png)
+	![Authorization of Swagger documentation](/images/rest-api-docs/5-class.png)
