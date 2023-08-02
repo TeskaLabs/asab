@@ -2,10 +2,12 @@ import re
 import logging
 
 import aiohttp
+import aiohttp.web
 
 from .accesslog import AccessLogger
 from ..config import ConfigObject
 from ..tls import SSLContextBuilder
+from .service import WebService
 
 #
 
@@ -91,10 +93,10 @@ want to allow OPTIONS method for preflight requests.
 	}
 
 
-	def __init__(self, websvc, config_section_name, config=None):
+	def __init__(self, websvc: WebService, config_section_name: str, config=None):
 		super().__init__(config_section_name=config_section_name, config=config)
 
-		self.Addresses = None  # The address is avaiable only at (and after) `WebContainer.started!` pub/sub event
+		self.Addresses = None  # The address is available only after `WebContainer.started!` PubSub message is published.
 		self.BackLog = int(self.Config.get("backlog"))
 		self.CORS = self.Config.get("cors")
 
