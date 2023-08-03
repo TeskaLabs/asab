@@ -7,6 +7,7 @@ import platform
 import configparser
 import urllib.parse
 import collections.abc
+import typing
 
 from . import utils
 
@@ -396,7 +397,7 @@ class Configurable(object):
 	ConfigDefaults = {}
 
 
-	def __init__(self, config_section_name, config=None):
+	def __init__(self, config_section_name: str, config: typing.Optional[dict] = None):
 		self.Config = ConfigObjectDict()
 
 		for base_class in inspect.getmro(self.__class__):
