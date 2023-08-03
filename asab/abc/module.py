@@ -8,7 +8,9 @@ class Module(abc.ABC):
 	Modules are registered at the module registry `asab.Application.Modules`, managed by an application object.
 	Module can be loaded by ASAB and typically provides one or more Service objects.
 
-	Every module provides asynchronous methods `initialize()` and `finalize()` that are called when the module is being initialized and finalized.
+	Every module provides asynchronous methods `initialize()` and `finalize()`.
+	`initialize()` is called in the very beginning of the run-time,
+	`finalize()` in the gentle shut-down of the application.
 
 	Examples:
 
