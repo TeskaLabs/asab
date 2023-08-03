@@ -102,6 +102,12 @@ class AuthService(asab.Service):
 		self.AuthEnabled = asab.Config.getboolean("auth", "enabled")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
+		if jwcrypto is None:
+			raise ModuleNotFoundError(
+				"You are trying to use asab.web.authz without 'jwcrypto' installed. "
+				"Please run 'pip install jwcrypto' "
+				"or install asab with 'authz' optional dependency.")
+
 		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
 		if self.DevModeEnabled:
 			# Load custom user info
@@ -125,17 +131,11 @@ class AuthService(asab.Service):
 				"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
 					list(t for t in self.DevUserInfo.get("resources", {}).keys() if t != "*"),
 					dev_user_info_path))
-		else:
-			if len(self.PublicKeysUrl) == 0:
+		elif self.AuthEnabled and len(self.PublicKeysUrl) == 0:
 				self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
 				L.warning(
 					"No 'public_keys_url' provided in [auth] config section. "
 					"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT))
-			if jwcrypto is None:
-				raise ModuleNotFoundError(
-					"You are trying to use asab.web.authz without 'jwcrypto' installed. "
-					"Please run 'pip install jwcrypto' "
-					"or install asab with 'authz' optional dependency.")
 
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
 		# Limit the frequency of auth server requests to save network traffic
@@ -144,7 +144,7 @@ class AuthService(asab.Service):
 
 
 	async def initialize(self, app):
-		if self.DevModeEnabled is False:
+		if self.AuthEnabled and not self.DevModeEnabled:
 			await self._fetch_public_keys_if_needed()
 
 
@@ -163,7 +163,9 @@ class AuthService(asab.Service):
 		"""
 		Check if the service is ready to authorize requests.
 		"""
-		if self.DevModeEnabled is True:
+		if not self.AuthEnabled:
+			return True
+		if self.DevModeEnabled:
 			return True
 		if self.AuthServerPublicKey is None:
 			return False
@@ -282,25 +284,26 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			if self.DevModeEnabled:
+			if not self.AuthEnabled:
+				user_info = None
+			elif self.DevModeEnabled:
 				user_info = self.DevUserInfo
 			else:
 				# Extract user info from the request Authorization header
 				bearer_token = _get_bearer_token(request)
 				user_info = await self.get_userinfo_from_id_token(bearer_token)
 
-			assert user_info is not None
-
 			# Add userinfo, tenants and global resources to the request
 			if self.AuthEnabled:
+				assert user_info is not None
 				request._UserInfo = user_info
 				resource_dict = request._UserInfo["resources"]
 				request._Resources = frozenset(resource_dict.get("*", []))
 				request._Tenants = frozenset(t for t in resource_dict.keys() if t != "*")
 			else:
 				request._UserInfo = None
-				request._Resources = frozenset()
-				request._Tenants = frozenset()
+				request._Resources = None
+				request._Tenants = None
 
 			# Add access control methods to the request
 			def has_resource_access(*required_resources: list) -> bool:
