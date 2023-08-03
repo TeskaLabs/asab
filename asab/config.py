@@ -394,11 +394,11 @@ class Configurable(object):
 		```
 	"""
 
-	ConfigDefaults = {}
+	ConfigDefaults: dict = {}
 
 
 	def __init__(self, config_section_name: str, config: typing.Optional[dict] = None):
-		self.Config = ConfigObjectDict()
+		self.Config = ConfigurableDict()
 
 		for base_class in inspect.getmro(self.__class__):
 			if not hasattr(base_class, 'ConfigDefaults'):
@@ -428,7 +428,7 @@ class Configurable(object):
 ConfigObject = Configurable
 
 
-class ConfigObjectDict(collections.abc.MutableMapping):
+class ConfigurableDict(collections.abc.MutableMapping):
 	"""
 	A dictionary supplemented with custom methods for obtaining bools, seconds, urls etc.
 	"""
@@ -436,22 +436,17 @@ class ConfigObjectDict(collections.abc.MutableMapping):
 	def __init__(self):
 		self._data = {}
 
-
 	def __getitem__(self, key):
 		return self._data[key]
-
 
 	def __setitem__(self, key, value):
 		self._data[key] = value
 
-
 	def __delitem__(self, key):
 		del self._data[key]
 
-
 	def __iter__(self):
 		return iter(self._data)
-
 
 	def __len__(self):
 		return len(self._data)

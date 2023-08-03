@@ -1,8 +1,8 @@
 import ssl
-from .config import ConfigObject
+from .config import Configurable
 
 
-class SSLContextBuilder(ConfigObject):
+class SSLContextBuilder(Configurable):
 
 	ConfigDefaults = {
 		'cert': '',  # The certfile string must be the path to a PEM file containing the certificate as well as any number of CA certificates needed to establish the certificate’s authenticity.
