@@ -100,48 +100,50 @@ class AuthService(asab.Service):
 		super().__init__(app, service_name)
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
 		self.AuthEnabled = asab.Config.getboolean("auth", "enabled")
+		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
-		if jwcrypto is None:
+		if not self.AuthEnabled:
+			pass
+		elif self.DevModeEnabled:
+			self.DevUserInfo = self._prepare_dev_user_info()
+		elif jwcrypto is None:
 			raise ModuleNotFoundError(
-				"You are trying to use asab.web.authz without 'jwcrypto' installed. "
+				"You are trying to use asab.web.auth module without 'jwcrypto' installed. "
 				"Please run 'pip install jwcrypto' "
 				"or install asab with 'authz' optional dependency.")
-
-		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
-		if self.DevModeEnabled:
-			# Load custom user info
-			dev_user_info_path = asab.Config.get("auth", "dev_user_info_path")
-			if os.path.isfile(dev_user_info_path):
-				with open(dev_user_info_path, "rb") as fp:
-					self.DevUserInfo = json.load(fp)
-			else:
-				self.DevUserInfo = DEV_USERINFO_DEFAULT
-
-			# Validate user info
-			resources = self.DevUserInfo.get("resources", {})
-			if not isinstance(resources, dict) or not all(
-				map(lambda kv: isinstance(kv[0], str) and isinstance(kv[1], list), resources.items())
-			):
-				raise ValueError("User info 'resources' must be an object with string keys and array values.")
-
+		elif len(self.PublicKeysUrl) == 0:
+			self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
 			L.warning(
-				"AuthService is running in DEV MODE. All web requests will be authorized with mock user info, which "
-				"currently grants access to the following tenants: {}. To customize dev mode authorization (add or "
-				"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
-					list(t for t in self.DevUserInfo.get("resources", {}).keys() if t != "*"),
-					dev_user_info_path))
-		elif self.AuthEnabled and len(self.PublicKeysUrl) == 0:
-				self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
-				L.warning(
-					"No 'public_keys_url' provided in [auth] config section. "
-					"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT))
+				"No 'public_keys_url' provided in [auth] config section. "
+				"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT))
 
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
 		# Limit the frequency of auth server requests to save network traffic
 		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
 		self.AuthServerLastSuccessfulCheck = None
 
+	def _prepare_dev_user_info(self):
+		# Load custom user info
+		dev_user_info_path = asab.Config.get("auth", "dev_user_info_path")
+		if os.path.isfile(dev_user_info_path):
+			with open(dev_user_info_path, "rb") as fp:
+				user_info = json.load(fp)
+		else:
+			user_info = DEV_USERINFO_DEFAULT
+		# Validate user info
+		resources = self.DevUserInfo.get("resources", {})
+		if not isinstance(resources, dict) or not all(
+				map(lambda kv: isinstance(kv[0], str) and isinstance(kv[1], list), resources.items())
+		):
+			raise ValueError("User info 'resources' must be an object with string keys and array values.")
+		L.warning(
+			"AuthService is running in DEV MODE. All web requests will be authorized with mock user info, which "
+			"currently grants access to the following tenants: {}. To customize dev mode authorization (add or "
+			"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
+				list(t for t in self.DevUserInfo.get("resources", {}).keys() if t != "*"),
+				dev_user_info_path))
+		return user_info
 
 	async def initialize(self, app):
 		if self.AuthEnabled and not self.DevModeEnabled:
