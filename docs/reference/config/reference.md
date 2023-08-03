@@ -250,6 +250,6 @@ they are not repeated in many sections of the config file(s).
 
 ::: asab.config.ConfigParser
 
-::: asab.config.ConfigObjectDict
-
 ::: asab.config.Configurable
+
+::: asab.config.ConfigurableDict
