@@ -1,8 +1,8 @@
 import ssl
-from .config import ConfigObject
+from .config import Configurable
 
 
-class SSLContextBuilder(ConfigObject):
+class SSLContextBuilder(Configurable):
 
 	ConfigDefaults = {
 		'cert': '',  # The certfile string must be the path to a PEM file containing the certificate as well as any number of CA certificates needed to establish the certificate’s authenticity.
@@ -23,6 +23,14 @@ class SSLContextBuilder(ConfigObject):
 	}
 
 	def build(self, protocol=ssl.PROTOCOL_TLS):
+		'''
+		## SSL Server
+		ssl_context = self.SSLContextBuilder.build()
+
+		## SSL Client
+
+		ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
+		'''
 		ctx = ssl.SSLContext(protocol=protocol)
 
 		ctx.options |= ssl.OP_NO_SSLv2

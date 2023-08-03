@@ -100,8 +100,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	"""
 
-	def __init__(self, library, path):
-		super().__init__(library)
+	def __init__(self, library, path, layer):
+		super().__init__(library, layer)
 
 		url_pieces = urllib.parse.urlparse(path)
 
@@ -109,7 +109,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.BasePath = url_pieces.path.lstrip("/")
 		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
-
 		self.BasePath = '/' + self.BasePath
 		if self.BasePath == '/':
 			self.BasePath = ''
@@ -250,7 +249,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		else:
 			return None
 
-	async def list(self, path: str, index) -> list:
+	async def list(self, path: str) -> list:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
@@ -279,7 +278,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
-				layer=index,
+				layer=self.Layer,
 				providers=[self],
 			))
 

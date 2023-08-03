@@ -11,7 +11,7 @@ L = logging.getLogger(__name__)
 #
 
 
-class HTTPTarget(asab.ConfigObject):
+class HTTPTarget(asab.Configurable):
 
 	def __init__(self, svc, config_section_name, config=None):
 		super().__init__(config_section_name, config)

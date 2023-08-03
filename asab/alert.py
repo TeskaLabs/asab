@@ -14,7 +14,7 @@ L = logging.getLogger(__name__)
 #
 
 
-class AlertProviderABC(asab.ConfigObject, abc.ABC):
+class AlertProviderABC(asab.Configurable, abc.ABC):
 
 	ConfigDefaults = {
 	}

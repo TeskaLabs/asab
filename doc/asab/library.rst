@@ -296,10 +296,28 @@ Connection to git repositories requires `pygit2 <https://www.pygit2.org/>`_ libr
 
 Configuration:
 
+Please follow this format in the configuration:
+
+.. code:: ini
+
+	[library]
+	providers: git+http(s)://<username>:<deploy-token>@<path>#<branch
+
+
+Using a public repository from github, the configuration may look like this: 
+
 .. code:: ini
 
 	[library]
 	providers: git+https://github.com/john/awesome_project.git
+
+
+Use hash `#<branch-name>` to clone a repository from a selected branch:
+
+.. code:: ini
+
+	[library]
+	providers: git+https://github.com/john/awesome_project.git#name-of-the-branch
 
 
 Deploy tokens in GitLab

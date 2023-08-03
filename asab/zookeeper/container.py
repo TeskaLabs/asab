@@ -11,7 +11,7 @@ import kazoo.recipe.watchers
 import kazoo.protocol.states
 
 from .wrapper import KazooWrapper
-from ..config import ConfigObject
+from ..config import Configurable
 
 #
 
@@ -20,7 +20,7 @@ L = logging.getLogger(__name__)
 #
 
 
-class ZooKeeperContainer(ConfigObject):
+class ZooKeeperContainer(Configurable):
 	"""
 	Create a Zookeeper container with a specifications of the connectivity.
 	"""
