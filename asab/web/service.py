@@ -15,7 +15,7 @@ class WebService(Service):
 	Service for running and easy manipulation of the web server.
 	It is used for registering and running the web container as well as initialization of web request metrics.
 
-	It should be used together with `asab.web.WebContainer` object that handles the web configuration.
+	It should be used together with [`asab.web.WebContainer`](#asab.web.WebContainer) object that handles the web configuration.
 
 	Examples:
 
