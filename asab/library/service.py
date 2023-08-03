@@ -159,7 +159,7 @@ class LibraryService(Service):
 
 	async def read(self, path: str, tenant: typing.Optional[str] = None) -> typing.Optional[typing.IO]:
 		"""
-		Read the content of the library item specified by `path`.
+		Read the content of the library item specified by `path`. This method can be used only after the Library is ready.
 
 		Args:
 			path (str): Path to the file, `LibraryItem.name` can be used directly.
@@ -195,7 +195,7 @@ class LibraryService(Service):
 
 	async def list(self, path: str = "/", tenant: typing.Optional[str] = None, recursive: bool = False) -> typing.List[LibraryItem]:
 		"""
-		List the directory of the library specified by the path that are enabled for the specified tenant.
+		List the directory of the library specified by the path that are enabled for the specified tenant. This method can be used only after the Library is ready.
 
 		Args:
 			path (str): Path to the directory.
