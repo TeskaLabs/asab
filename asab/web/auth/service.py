@@ -134,7 +134,7 @@ class AuthService(asab.Service):
 		# Validate user info
 		resources = self.DevUserInfo.get("resources", {})
 		if not isinstance(resources, dict) or not all(
-				map(lambda kv: isinstance(kv[0], str) and isinstance(kv[1], list), resources.items())
+			map(lambda kv: isinstance(kv[0], str) and isinstance(kv[1], list), resources.items())
 		):
 			raise ValueError("User info 'resources' must be an object with string keys and array values.")
 		L.warning(
