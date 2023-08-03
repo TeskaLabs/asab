@@ -4,6 +4,8 @@ import logging
 import aiohttp
 import aiohttp.web
 
+import typing
+
 from .accesslog import AccessLogger
 from ..config import ConfigObject
 from ..tls import SSLContextBuilder
@@ -94,7 +96,7 @@ want to allow OPTIONS method for preflight requests.
 	}
 
 
-	def __init__(self, websvc: WebService, config_section_name: str, config=None):
+	def __init__(self, websvc: WebService, config_section_name: str, config: typing.Optional[dict] = None):
 		super().__init__(config_section_name=config_section_name, config=config)
 
 		self.Addresses = None  # The address is available only after `WebContainer.started!` PubSub message is published.
@@ -158,7 +160,7 @@ want to allow OPTIONS method for preflight requests.
 			L.warning("Missing configuration.")
 
 		client_max_size = int(self.Config.get("body_max_size"))
-		self.WebApp = aiohttp.web.Application(client_max_size=client_max_size)
+		self.WebApp: aiohttp.web.Application = aiohttp.web.Application(client_max_size=client_max_size)
 		self.WebApp.on_response_prepare.append(self._on_prepare_response)
 		self.WebApp['app'] = websvc.App
 
@@ -206,7 +208,7 @@ want to allow OPTIONS method for preflight requests.
 
 
 	async def _stop(self, app: Application):
-		self.WebApp['app'].PubSub.publish("WebContainer.stoped!", self)
+		self.WebApp['app'].PubSub.publish("WebContainer.stopped!", self)
 		await self.WebAppRunner.cleanup()
 
 
