@@ -78,6 +78,9 @@ asab.Config.add_defaults({
 		# Whether the app is tenant-aware
 		"multitenancy": "yes",
 
+		# Whether the authentication and authorization are enabled
+		"enabled": "yes",
+
 		# In DEV MODE
 		# - no authorization server is needed,
 		# - all incoming requests are "authorized" with custom mocked user info data loaded from a JSON file,
@@ -96,6 +99,7 @@ class AuthService(asab.Service):
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
+		self.AuthEnabled = asab.Config.getboolean("auth", "enabled")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
 		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
@@ -196,6 +200,8 @@ class AuthService(asab.Service):
 		"""
 		Check if the superuser resource is present in the authorized resource list.
 		"""
+		if not self.AuthEnabled:
+			return True
 		return SUPERUSER_RESOURCE in authorized_resources
 
 
@@ -203,6 +209,8 @@ class AuthService(asab.Service):
 		"""
 		Check if the requested resources or the superuser resource are present in the authorized resource list.
 		"""
+		if not self.AuthEnabled:
+			return True
 		if self.has_superuser_access(authorized_resources):
 			return True
 		for resource in required_resources:
@@ -284,10 +292,15 @@ class AuthService(asab.Service):
 			assert user_info is not None
 
 			# Add userinfo, tenants and global resources to the request
-			request._UserInfo = user_info
-			resource_dict = request._UserInfo["resources"]
-			request._Resources = frozenset(resource_dict.get("*", []))
-			request._Tenants = frozenset(t for t in resource_dict.keys() if t != "*")
+			if self.AuthEnabled:
+				request._UserInfo = user_info
+				resource_dict = request._UserInfo["resources"]
+				request._Resources = frozenset(resource_dict.get("*", []))
+				request._Tenants = frozenset(t for t in resource_dict.keys() if t != "*")
+			else:
+				request._UserInfo = None
+				request._Resources = frozenset()
+				request._Tenants = frozenset()
 
 			# Add access control methods to the request
 			def has_resource_access(*required_resources: list) -> bool:
@@ -386,7 +399,8 @@ class AuthService(asab.Service):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 			tenant = request.match_info["tenant"]
-			self._authorize_tenant_request(request, tenant)
+			if self.AuthEnabled:
+				self._authorize_tenant_request(request, tenant)
 			return await handler(*args, tenant=tenant, **kwargs)
 
 		return wrapper
@@ -407,7 +421,8 @@ class AuthService(asab.Service):
 				tenant = None
 			else:
 				tenant = request.query["tenant"]
-				self._authorize_tenant_request(request, tenant)
+				if self.AuthEnabled:
+					self._authorize_tenant_request(request, tenant)
 			return await handler(*args, tenant=tenant, **kwargs)
 
 		return wrapper
