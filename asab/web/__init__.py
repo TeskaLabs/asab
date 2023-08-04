@@ -37,8 +37,7 @@ def create_web_server(app, section: str = "web", config: typing.Optional[dict] =
 
 	```python
 	class MyApplication(asab.Application):
-		def __init__(self):
-			super().__init__()
+		async def initialize(self):
 			web = asab.web.create_web_server(self)
 			web.add_get('/hello', self.hello)
 
