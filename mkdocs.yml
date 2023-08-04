@@ -162,11 +162,15 @@ nav:
   - Reference:
     - Application: reference/application/reference.md
     - Modules and Services: reference/modules_services/reference.md
-    - Web Server: reference/web/web-server.md
+
+    - Web Server: 
+      - Creating a web server: reference/web/web-server.md
+      - TLS/SSL: reference/web/tls.md
+      - Authorization and multitenancy: reference/web/authorization_multitenancy.md
+
     - Configuration: reference/config/reference.md
     - Logging: reference/logging/reference.md
     - Library: reference/library/reference.md
-    - TLS/SSL: reference/web/tls.md
     - Metrics:
       - MetricsService: reference/metrics/service.md
       - Gauge: reference/metrics/gauge.md
