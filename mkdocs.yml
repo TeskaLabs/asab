@@ -47,6 +47,7 @@ theme:
       bug: fontawesome/solid/robot
       example: fontawesome/solid/code
       quote: fontawesome/solid/quote-left
+      incomplete: material/excavator
     
     repo: fontawesome/brands/github
 
