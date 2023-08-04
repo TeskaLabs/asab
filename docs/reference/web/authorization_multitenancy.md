@@ -66,35 +66,21 @@ See [examples/web-auth.py](https://github.com/TeskaLabs/asab/blob/master/example
 The `asab.web.auth` module is configured
 in the `[auth]` section with the following options:
 
-- public_keys_url
+| Option | Type | Meaning |
+| --- | --- | --- |
+| `public_keys_url` | URL | The URL of the authorization server's public keys (also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)). |
+| `multitenancy` | boolean | Toggles the behavior of endpoints with configurable tenant parameter. When enabled, the tenant query paramerter is required. When disabled, the tenant query parameter is ignored and set to `None`. In dev mode, the multitenancy switch is ignored and the tenant parameter is taken into account only when it is present in query, otherwise it is set to `None`. |
+| `dev_mode` | boolean | In dev mode, all incoming requests are authenticated and authorized with mock user info. There is no communication with authorization server (so it is not necessary to configure `public_keys_url` in dev mode).
+| `dev_user_info_path` | path | Path to JSON file that contains mock user info used in dev mode. The structure of user info should follow the [OpenID Connect userinfo definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse) and also contain the `resources` object.
 
-`(URL, default: http://localhost:8081/openidconnect/public_keys)` The
-URL of the authorization server\'s public keys (also known as `jwks_uri`
-in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)).
+Default options:
 
-- multitenancy
-
-`(boolean, default: yes)` Toggles the behavior of endpoints with
-configurable tenant parameter. When enabled, the tenant query paramerter
-is required. When disabled, the tenant query paramerter is ignored and
-set to `None`. In dev mode, the multitenancy switch is ignored and the
-tenant parameter is taken into account only when it is present in query,
-otherwise it is set to `None`.
-
-- dev_mode
-
-`(boolean, default: no)` In dev mode, all incoming requests are
-authenticated and authorized with mock user info. There is no
-communication with authorization server (so it is not necessary to
-configure `public_keys_url` in dev mode).
-
-- dev_user_info_path
-
-`(path, default: /conf/dev-userinfo.json)` Path to JSON file that
-contains mock user info used in dev mode. The structure of user info
-should follow the [OpenID Connect userinfo
-definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse)
-and also contain the `resources` object.
+```ini
+public_keys_url=http://localhost:8081/openidconnect/public_keys
+multitenancy=yes
+dev_mode=no
+dev_user_info_path=/conf/dev-userinfo.json
+```
 
 ## Multitenancy
 
@@ -130,17 +116,17 @@ checks if the request is authorized for the tenant and finally passes the tenant
 
 ### Configurable multitenant endpoints
 
-Configurable multitenant endpoints usually operate within a tenant, but
-they can also operate in tenantless mode if the application is
-configured so. When you create an endpoint *without* `tenant` parameter
-in the URL path and *with* `tenant` argument in the handler method, the
-Auth service will either expect the `tenant` parameter to be provided in
-the **URL query** if mutlitenancy is enabled, or to not be provided at
-all if multitenancy is disabled. Use the `multitenancy` boolean switch
-in the `[auth]` config section to control the multitenancy setting.
+Configurable multitenant endpoints usually operate within a tenant, but they can also operate in tenantless mode if the application is configured so. 
+
+When you create an endpoint *without* `tenant` parameter in the URL path and *with* `tenant` argument in the handler method, the
+Auth service will either expect the `tenant` parameter
+to be provided in the **URL query** if mutlitenancy is enabled,
+or to not be provided at all if multitenancy is disabled. 
+
+Use the `multitenancy` boolean switch in the `[auth]` config section to control the multitenancy setting.
 
 
-If multitenancy is **enabled**, the request\'s **query string** must include a tenant parameter.
+If multitenancy is **enabled**, the request's **query string** must include a tenant parameter.
 Requests without the tenant query result in Bad request (HTTP 400).
 
 If multitenancy is **disabled**, the tenant argument in the handler method is set to `None`.
@@ -166,15 +152,15 @@ Any `tenant` parameter in the query string is ignored.
 
 	1. with multitenancy on:.
 
-	```
-	GET http://localhost:8080/todays-menu?tenant=lazy-raccoon-bistro
-	```
+		```
+		GET http://localhost:8080/todays-menu?tenant=lazy-raccoon-bistro
+		```
 
 	2. with multitenancy off:
 
-	```
-	GET http://localhost:8080/todays-menu
-	```
+		```
+		GET http://localhost:8080/todays-menu
+		```
 
 ## Development mode
 
