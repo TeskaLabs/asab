@@ -2,10 +2,15 @@ import re
 import logging
 
 import aiohttp
+import aiohttp.web
+
+import typing
 
 from .accesslog import AccessLogger
 from ..config import Configurable
 from ..tls import SSLContextBuilder
+from .service import WebService
+from ..application import Application
 
 #
 
@@ -15,70 +20,10 @@ L = logging.getLogger(__name__)
 
 
 class WebContainer(Configurable):
-
-	'''
-# Configuration examples
-
-## HTTP on TCP port 8080, IPv4 and IPv6 if applicable
-
-[web]
-listen=8080
-
-
-## Interface specified
-
-[web]
-listen=0.0.0.0 8080
-
-
-## Multiple interfaces
-
-[web]
-listen:
-	0.0.0.0 8080
-	:: 8080
-
-
-## Multiple interfaces, one with HTTPS
-
-[web]
-listen:
-	0.0.0.0 8080
-	:: 8080
-	0.0.0.0 8443 ssl:web
-	0.0.0.0:8001
-
-[ssl:web]
-cert=...
-key=...
-...
-
-
-## Multiple interfaces, one with HTTPS (inline)
-
-[web]
-listen:
-	0.0.0.0 8080
-	:: 8080
-	0.0.0.0 8443 ssl
-	0.0.0.0:8001
-
-# The SSL parameters are inside of the WebContainer section
-cert=...
-key=...
-
-...
-
-
-# Preflight paths
-Preflight requests are sent by the browser, for some cross domain request (custom header etc.).
-Browser sends preflight request first.
-It is request on same endpoint as app demanded request, but of OPTIONS method.
-Only when satisfactory response is returned, browser proceeds with sending original request.
-Use `cors_preflight_paths` to specify all paths and path prefixes (separated by comma) for which you
-want to allow OPTIONS method for preflight requests.
-	'''
-
+	"""
+	Configurable object that serves as a backend for `asab.WebService`.
+	It contains everything needed for the web server existence, namely all the configuration and the server Application object.
+	"""
 
 	ConfigDefaults = {
 		'listen': '0.0.0.0 8080',  # Can be multiline
@@ -91,10 +36,10 @@ want to allow OPTIONS method for preflight requests.
 	}
 
 
-	def __init__(self, websvc, config_section_name, config=None):
+	def __init__(self, websvc: WebService, config_section_name: str, config: typing.Optional[dict] = None):
 		super().__init__(config_section_name=config_section_name, config=config)
 
-		self.Addresses = None  # The address is avaiable only at (and after) `WebContainer.started!` pub/sub event
+		self.Addresses = None  # The address is available only after `WebContainer.started!` PubSub message is published.
 		self.BackLog = int(self.Config.get("backlog"))
 		self.CORS = self.Config.get("cors")
 
@@ -155,7 +100,17 @@ want to allow OPTIONS method for preflight requests.
 			L.warning("Missing configuration.")
 
 		client_max_size = int(self.Config.get("body_max_size"))
-		self.WebApp = aiohttp.web.Application(client_max_size=client_max_size)
+		self.WebApp: aiohttp.web.Application = aiohttp.web.Application(client_max_size=client_max_size)
+		"""
+		The Web Application object. See [aiohttp documentation](https://docs.aiohttp.org/en/stable/web_reference.html?highlight=Application#application) for the details.
+
+		It is a *dict-like* object, so you can use it for sharing data globally by storing arbitrary properties for later access from a handler.
+
+		Attributes:
+			WebApp["app"] (asab.Application): Reference to the ASAB Application.
+
+			WebApp["rootdir"] (asab.web.staticdir.StaticDirProvider): Reference to the root path specified by `rootdir` configuration.
+		"""
 		self.WebApp.on_response_prepare.append(self._on_prepare_response)
 		self.WebApp['app'] = websvc.App
 
@@ -182,7 +137,7 @@ want to allow OPTIONS method for preflight requests.
 			self.add_preflight_handlers(preflight_paths)
 
 
-	async def _start(self, app):
+	async def _start(self, app: Application):
 		await self.WebAppRunner.setup()
 
 		for addr, port, ssl_context in self._listen:
@@ -202,12 +157,12 @@ want to allow OPTIONS method for preflight requests.
 		self.WebApp['app'].PubSub.publish("WebContainer.started!", self)
 
 
-	async def _stop(self, app):
-		self.WebApp['app'].PubSub.publish("WebContainer.stoped!", self)
+	async def _stop(self, app: Application):
+		self.WebApp['app'].PubSub.publish("WebContainer.stopped!", self)
 		await self.WebAppRunner.cleanup()
 
 
-	def add_preflight_handlers(self, preflight_paths):
+	def add_preflight_handlers(self, preflight_paths: typing.List[str]):
 		for path in preflight_paths:
 			self.WebApp.router.add_route("OPTIONS", path, self._preflight_handler)
 
@@ -231,7 +186,13 @@ want to allow OPTIONS method for preflight requests.
 			response.headers['Access-Control-Allow-Methods'] = "GET, POST, DELETE, PUT, PATCH, OPTIONS"
 
 
-	def get_ports(self):
+	def get_ports(self) -> typing.List[str]:
+		"""
+		Return list of available ports.
+
+		Returns:
+			list[str]: List of ports.
+		"""
 		ports = []
 		for addr, port, ssl_context in self._listen:
 			ports.append(port)

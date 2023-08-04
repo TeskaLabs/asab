@@ -161,6 +161,7 @@ nav:
   - Reference:
     - Application: reference/application/reference.md
     - Modules and Services: reference/modules_services/reference.md
+    - Web Server: reference/web/web-server.md
     - Configuration: reference/config/reference.md
     - Logging: reference/logging/reference.md
     - Library: reference/library/reference.md
