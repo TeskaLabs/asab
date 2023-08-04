@@ -3,6 +3,17 @@ from .config import Configurable
 
 
 class SSLContextBuilder(Configurable):
+	"""
+	Class for creating SSL context from a configuration.
+
+	Examples:
+
+	```python
+	ssl_context_builder = asab.tls.SSLContextBuilder(config_section)
+	ssl_context = ssl_context_builder.build(protocol=ssl.PROTOCOL_TLS_CLIENT)
+	# ssl_context is later used as a parameter when making HTTP requests
+	```
+	"""
 
 	ConfigDefaults = {
 		'cert': '',  # The certfile string must be the path to a PEM file containing the certificate as well as any number of CA certificates needed to establish the certificate’s authenticity.
@@ -22,15 +33,19 @@ class SSLContextBuilder(Configurable):
 		'options': '',
 	}
 
-	def build(self, protocol=ssl.PROTOCOL_TLS):
-		'''
-		## SSL Server
-		ssl_context = self.SSLContextBuilder.build()
+	def build(self, protocol=ssl.PROTOCOL_TLS) -> ssl.SSLContext:
+		"""
+		Create SSL Context for the specified protocol.
 
-		## SSL Client
+		Allowed `protocol` values:
 
-		ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
-		'''
+		- ssl.PROTOCOL_TLS
+		- ssl.PROTOCOL_TLS_CLIENT: used for the client
+		- ssl.PROTOCOL_TLS_SERVER: used for the server
+
+		Args:
+			protocol: TLS protocol used for the communication.
+		"""
 		ctx = ssl.SSLContext(protocol=protocol)
 
 		ctx.options |= ssl.OP_NO_SSLv2
