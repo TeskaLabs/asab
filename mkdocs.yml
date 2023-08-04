@@ -166,6 +166,7 @@ nav:
     - Configuration: reference/config/reference.md
     - Logging: reference/logging/reference.md
     - Library: reference/library/reference.md
+    - TLS/SSL: reference/web/tls.md
     - Metrics:
       - MetricsService: reference/metrics/service.md
       - Gauge: reference/metrics/gauge.md
