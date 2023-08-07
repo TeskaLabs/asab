@@ -135,6 +135,17 @@ python3 -m pip install aiohttp
 
 Configuration is passed to the `asab.web.WebContainer` object.
 
+| Parameter | Meaning |
+| --- | --- |
+| `listen` | The socket address to which the web server will listen. |
+| `backlog` | A number of unaccepted connections that the system will allow before refusing new connections, see [`socket.socket.listen()`](https://docs.python.org/3/library/socket.html#socket.socket.listen) for details. |
+| `rootdir` | The root path for the server. In case of many web containers, each one can implement a different root. |
+| `servertokens` | Controls whether `'Server'` response header field is included (`'full'`) or faked (`'prod'`). |
+| `cors` | See [Cross-Origin Resource Sharing](/reference/web/cors) section. |
+| `body_max_size`| Client's maximum size in a request, in bytes. If a **POST** request exceeds this value, `aiohttp.HTTPRequestEntityTooLarge` exception is raised. See [the documentation](https://docs.aiohttp.org/en/stable/web_reference.html?highlight=client_max_size#aiohttp.web.Application) for more information. |
+| `cors` | Contents of the Access-Control-Allow-Origin header. See the [CORS section](./cors) |
+| `cors_preflight_paths` | Pattern for endpoints that shall return responses to pre-flight requests (**OPTIONS**). Value must start with `"/"`. See the [CORS section](./cors)|
+
 ### The default configuration
 
 ```ini
@@ -147,6 +158,7 @@ cors=
 cors_preflight_paths=/openidconnect/*, /test/*
 body_max_size=1024**2
 ```
+
 
 ### Socket addresses
 
@@ -202,31 +214,6 @@ You can also enable listening on TCP port 8080, IPv4 and IPv6 if applicable:
 [web]
 listen=8080
 ```
-
-### Preflight paths
-
-Preflight requests are sent by the browser, for some cross domain request (custom header etc.).
-Browser sends preflight request first.
-It is request on same endpoint as app demanded request, but of **OPTIONS** method.
-Only when satisfactory response is returned, browser proceeds with sending original request.
-Use `cors_preflight_paths` to specify all paths and path prefixes (separated by comma) for which you
-want to allow OPTIONS method for preflight requests.
-
-
-### Configuration of TLS/SSL connection:
-
-ASAB provides `asab.tls.SSLContextBuilder`
-
-- cert
-- key
-- password
-- cafile
-- capath
-- ciphers
-- dh_params
-- verify_mode: one of `CERT_NONE`, `CERT_OPTIONAL` or `CERT_REQUIRED`
-- check_hostname
-- options
 
 ## Reference
 
