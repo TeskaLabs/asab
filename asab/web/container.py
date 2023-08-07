@@ -163,6 +163,19 @@ class WebContainer(Configurable):
 
 
 	def add_preflight_handlers(self, preflight_paths: typing.List[str]):
+		"""
+		Add handlers with preflight resources.
+
+		Preflight requests are sent by the browser, for some cross domain request (custom header etc.).
+		Browser sends preflight request first.
+		It is request on the same endpoint as app demanded request, but of **OPTIONS** method.
+		Only when satisfactory response is returned, browser proceeds with sending original request.
+		Use `cors_preflight_paths` option to specify all paths and path prefixes (separated by comma) for which you
+		want to allow **OPTIONS** method for preflight requests.
+
+		Args:
+			preflight_paths (list[str]): List of routes that will be provided with **OPTIONS** handler.
+		"""
 		for path in preflight_paths:
 			self.WebApp.router.add_route("OPTIONS", path, self._preflight_handler)
 
