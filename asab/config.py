@@ -373,6 +373,15 @@ class _Interpolation(configparser.ExtendedInterpolation):
 
 
 Config = ConfigParser(interpolation=_Interpolation())
+"""
+Object for accessing the configuration of the ASAB application.
+
+Examples:
+
+```python
+my_conf_value = asab.Config['section_name']['key']
+```
+"""
 
 
 class Configurable(object):
