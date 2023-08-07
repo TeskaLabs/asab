@@ -79,33 +79,39 @@ Level | Numeric value | Syslog Severity level |
 
 ## Verbose mode
 
-The command-line argument `-v` enables verbose logging. It means that
-log entries with levels `DEBUG` and `INFO` will be visible. It also
-enables `asyncio` debug logging.
-
-The actual verbose mode is available at `asab.Config["logging"]["verbose"]` boolean option.
+By default, only logs with the level bigger than 20 are visible, so `DEBUG` and `INFO` levels are not displayed. For accessing these levels, the application must be started with the **verbose mode**. This is done by the command-line argument `-v`.
 
 !!! example
 
-    There are three options to display `DEBUG` and `INFO` log messages.
+    There are three ways to display `DEBUG` and `INFO` log messages.
 
-    1.
+    1. By enabling the verbose mode with command-line argument:
+
+        ```shell
+        python3 myapp.py -v
+        ```
+
+    2. By accessing the `asab.Config["logging"]["verbose"]` boolean option:
+
         ```ini
         [logging]
         verbose = true
         ```
+
         The string `true` is interpreted by `ConfigParser` via [`this method`](#asab.utils.string_to_boolean).
 
-    2.
+    3. By setting the logging level directly:
+
         ```ini
         [logging]
         level = DEBUG
         ```
 
-    3.
-        ```shell
-        python3 myapp.py -v
-        ```
+
+!!! note
+
+    The verbose mode also enables `asyncio` and Zookeeper debug logging.
+
 
 ## Structured data
 
@@ -147,13 +153,19 @@ ASAB supports a structured data to be added to a log entry. Structured data are 
     27-Jul-2023 16:54:22.311522 ERROR myapp.mymodule [sd a="24" b="0"] Division by zero.
     ```
 
+## Logging to console
+
+ASAB application will log to the console only if it detects that it is running on the terminal 
+(using [`os.isatty()`](https://www.w3schools.com/python/ref_os_isatty.asp) function) or if the
+environment variable `ASABFORCECONSOLE` is set to `1`. This is useful setup for eg. PyCharm.
+
+
 ## Logging to a file
 
-The command-line argument `-l` on command-line enables logging to file.
-Also non-empty `path` option in the section `[logging:file]` of
-configuration file enables logging to file as well.
+The command-line argument `-l` enables logging to a file.
+Also non-empty `path` option in the section `[logging:file]` of the configuration file enables logging to a file as well.
 
-!!! example "Example of the configuration file section:"
+!!! example "Example of the configuration section:"
 
     ```ini
     [logging:file]
@@ -179,29 +191,18 @@ configuration file enables logging to file as well.
     different folders, which is an intended behavior, since race conditions
     may occur when different application instances log into the same file.
 
-## Logging to console
-
-
-ASAB will log to the console only if it detects that it runs in the
-foreground respectively on the terminal using `os.isatty` or if the
-environment variable `ASABFORCECONSOLE` is set to `1`. This is useful
-setup for eg. PyCharm.
-
 ## Log rotation
 
 ASAB supports a [log rotation](https://en.wikipedia.org/wiki/Log_rotation). 
-The log rotation is triggered by a UNIX signal `SIGHUP`, which can be used e.g. to
-integrate with `logrotate` utility. It is implemented using
-[`logging.handlers.RotatingFileHandler` from a Python standard library](https://docs.python.org/3/library/logging.handlers.html#baserotatinghandler).
+The log rotation is triggered by a UNIX signal `SIGHUP`, which can be used e.g. to integrate with `logrotate` utility.
+It is implemented using [`logging.handlers.RotatingFileHandler`](https://docs.python.org/3/library/logging.handlers.html#baserotatinghandler) from the Python standard library.
 Also, a time-based log rotation can be configured using `rotate_every` option.
 
-- `backup_count` specifies a number of old files to be kept prior their removal.
-The system will save old log files by appending the extensions '.1', '.2' etc., to the filename.
+| Option | Meaning |
+| --- | --- |
+| `backup_count` | A number of old files to be kept prior their removal. The system will save old log files by appending the extensions '.1', '.2' etc., to the filename. |
+| `rotate_every` | Time interval of a log rotation. Default value is empty string, which means that the time-based log rotation is disabled.  The interval is specified by an integer value and an unit, e.g. 1d (for 1 day) or 30M (30 minutes). Known units are `H` for hours, `M` for minutes, `d` for days and `s` for seconds.|
 
-- `rotate_every` specifies an time interval of a log rotation.
-Default value is empty string, which means that the time-based log rotation is disabled. 
-The interval is specified by an integer value and an unit, e.g. 1d (for 1 day) or 30M (30 minutes). 
-Known units are `H` for hours, `M` for minutes, `d` for days and `s` for seconds.
 
 ## Logging to syslog
 
