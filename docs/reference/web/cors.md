@@ -28,3 +28,8 @@ cors_preflight_paths=/*
 | --- | --- |
 | `cors` | Contents of the Access-Control-Allow-Origin header |
 | `cors_preflight_paths` | Pattern for endpoints that shall return responses to pre-flight requests (**OPTIONS**). Value must start with `"/"`. |
+
+## Reference
+
+::: asab.web.WebContainer.add_preflight_handlers
+
