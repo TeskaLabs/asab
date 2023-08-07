@@ -163,16 +163,16 @@ nav:
     - Application: reference/application/reference.md
     - Modules and Services: reference/modules_services/reference.md
 
-    - Web Server: 
-      - Creating a web server: reference/web/web-server.md
+    - Web Service: 
+      - Web server: reference/web/web-server.md
       - TLS/SSL: reference/web/tls.md
       - Authorization and multitenancy: reference/web/authorization_multitenancy.md
       - Cross-Origin Resource Sharing: reference/web/cors.md
 
     - Configuration: reference/config/reference.md
     - Logging: reference/logging/reference.md
-    - Library: reference/library/reference.md
-    - Metrics:
+    - Library Service: reference/library/reference.md
+    - Metrics Service:
       - MetricsService: reference/metrics/service.md
       - Gauge: reference/metrics/gauge.md
       - Counter: reference/metrics/counter.md
@@ -183,7 +183,7 @@ nav:
       - CounterWithDynamicTags: reference/metrics/counter_with_dynamic_tags.md
       - AggregationCounterWithDynamicTags: reference/metrics/aggregation_counter_with_dynamic_tags.md
       - HistogramWithDynamicTags: reference/metrics/histogram_with_dynamic_tags.md
-    - Storage:
+    - Storage Service:
         - StorageService: reference/storage/service.md
         - Upsertor: reference/storage/upsertor.md
         - Exceptions: reference/storage/exceptions.md

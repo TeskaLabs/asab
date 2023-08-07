@@ -1,11 +1,16 @@
-# The web server
+# Web server
 
-ASAB provides a web server in a `asab.web` module. 
-This module offers an integration of [`aiohttp` web server](http://aiohttp.readthedocs.io/en/stable/web.html).
+For starting, accessing and manipulating of a web server, ASAB provides `asab.web` module together with `asab.WebService` and `asab.web.WebContainer`.
+This module offers an integration of [`aiohttp` web server](http://aiohttp.readthedocs.io/en/stable/web.html). It is possible to run multiple web servers from one application. The configuration for each server is stored in dedicated **web container**. **Web Service** registers these containers and runs the servers.
 
 !!! tip
 
 	For a quick start, we recommend reading the official `aiohttp` tutorial on [how to run a simple web server](https://docs.aiohttp.org/en/stable/web_quickstart.html#run-a-simple-web-server).
+
+In order to use ASAB Web Service, first make sure that you have `aiohttp` module installed:
+``` shell
+python3 -m pip install aiohttp
+```
 
 ## Handlers, routes and resources
 
@@ -31,12 +36,8 @@ This module offers an integration of [`aiohttp` web server](http://aiohttp.readt
 - **Resource** is an entry in route table which corresponds to requested URL. Resource in turn has at least one route. When you add a route, the resource object is created under the hood.
 
 
-## Creating a web server
+## Running a simple web server
 
-First make sure that you have `aiohttp` module installed:
-``` shell
-python3 -m pip install aiohttp
-```
 
 !!! example "Creating a web server 1: One method does it all!"
 
