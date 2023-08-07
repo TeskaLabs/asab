@@ -32,7 +32,7 @@ Asynchronous `callback` means that the delivery of the message will happen in a 
 	Example of a subscription to an `Application.tick!` messages:
 
 	``` python
-	class MyClass(object):
+	class MyClass:
 		def __init__(self, app):
 			app.PubSub.subscribe("Application.tick!", self.on_tick)
 
@@ -45,12 +45,13 @@ Asynchronous `callback` means that the delivery of the message will happen in a 
 	Asynchronous version of the above:
 
 	``` python
-	class MyClass(object):
+	class MyClass:
 		def __init__(self, app):
 			app.PubSub.subscribe("Application.tick!", self.on_tick)
 
 		async def on_tick(self, message_type):
-			await asyncio.sleep(5)
+			print("Wait for it...")
+			await asyncio.sleep(3.0)
 			print(message_type)
 	```
 
@@ -61,7 +62,7 @@ To simplify the process of subscription to `PubSub`, ASAB offers the decorator-b
 	In the following example, both `on_tick()` and `on_exit()` methods are subscribed to `Application.PubSub` message bus.
 
 	``` python
-	class MyClass(object):
+	class MyClass:
 		def __init__(self, app):
 			app.PubSub.subscribe_all(self)
 
@@ -218,4 +219,13 @@ Remind yourself that the time is set to UTC, so you should be careful when opera
 	If not, then housekeeping will be published. If it has exceeded it, it simply informs the user and sets the housekeeping time for the next day.
 	Note that this only limits the time when the housekeeping can start.
 	If the housekeeping event triggers a procedure that takes a long time to finish, it will not be terminated when the time limit is reached.
+
+## Reference:
+
+::: asab.pubsub.PubSub
+
+::: asab.pubsub.Subscriber
+
+::: asab.pubsub.subscribe
+
 
