@@ -143,8 +143,8 @@ Configuration is passed to the `asab.web.WebContainer` object.
 | `servertokens` | Controls whether `'Server'` response header field is included (`'full'`) or faked (`'prod'`). |
 | `cors` | See [Cross-Origin Resource Sharing](/reference/web/cors) section. |
 | `body_max_size`| Client's maximum size in a request, in bytes. If a **POST** request exceeds this value, `aiohttp.HTTPRequestEntityTooLarge` exception is raised. See [the documentation](https://docs.aiohttp.org/en/stable/web_reference.html?highlight=client_max_size#aiohttp.web.Application) for more information. |
-| `cors` | Contents of the Access-Control-Allow-Origin header. See the [CORS section](./cors) |
-| `cors_preflight_paths` | Pattern for endpoints that shall return responses to pre-flight requests (**OPTIONS**). Value must start with `"/"`. See the [CORS section](./cors)|
+| `cors` | Contents of the Access-Control-Allow-Origin header. See the [CORS section](./cors). |
+| `cors_preflight_paths` | Pattern for endpoints that shall return responses to pre-flight requests (**OPTIONS**). Value must start with `"/"`. See the [CORS section](./cors). |
 
 ### The default configuration
 
