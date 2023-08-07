@@ -204,7 +204,7 @@ class WebContainer(Configurable):
 		Return list of available ports.
 
 		Returns:
-			list[str]: List of ports.
+			(list[str]) List of ports.
 		"""
 		ports = []
 		for addr, port, ssl_context in self._listen:
