@@ -167,6 +167,7 @@ nav:
       - Creating a web server: reference/web/web-server.md
       - TLS/SSL: reference/web/tls.md
       - Authorization and multitenancy: reference/web/authorization_multitenancy.md
+      - Cross-Origin Resource Sharing: reference/web/cors.md
 
     - Configuration: reference/config/reference.md
     - Logging: reference/logging/reference.md
