@@ -63,27 +63,26 @@ class StorageServiceABC(asab.Service):
 			- If there will be a colliding object already stored in a storage, `execute()` method will fail on `DuplicateError`.
 
 		Args:
-
-		collection (str): Name of collection to work with
-		obj_id: Primary identification of an object in the storage (e.g. primary key)
-		version (int): Specify a current version of the object and hence prevent byzantine faults. \
-		You should always read the version from the storage upfront, prior using an upsertor. \
-		That creates a soft lock on the record. It means that if the object is updated by other \
-		component in meanwhile, your upsertor will fail and you should retry the whole operation. \
-		The new objects should have a `version` set to 0.
+			collection: Name of collection to work with
+			obj_id: Primary identification of an object in the storage (e.g. primary key)
+			version: Specify a current version of the object and hence prevent byzantine faults. \
+			You should always read the version from the storage upfront, prior using an upsertor. \
+			That creates a soft lock on the record. It means that if the object is updated by other \
+			component in meanwhile, your upsertor will fail and you should retry the whole operation. \
+			The new objects should have a `version` set to 0.
 		"""
 		pass
 
 
 	@abc.abstractmethod
-	async def get(self, collection: str, obj_id, decrypt=None) -> dict:
+	async def get(self, collection: str, obj_id, decrypt: bool = None) -> dict:
 		"""
 		Get object from collection by its ID.
 
 		Args:
-			collection (str): Collection to get from.
+			collection: Collection to get from.
 			obj_id: Object identification.
-			decrypt (bool): Set of fields to decrypt.
+			decrypt: Set of fields to decrypt.
 
 		Returns:
 			The object retrieved from a storage.
