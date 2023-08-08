@@ -172,17 +172,7 @@ nav:
     - Logging: reference/logging/reference.md
     - PubSub: reference/pubsub/reference.md
     - Library Service: reference/library/reference.md
-    - Metrics Service:
-      - MetricsService: reference/metrics/service.md
-      - Gauge: reference/metrics/gauge.md
-      - Counter: reference/metrics/counter.md
-      - EPSCounter: reference/metrics/eps_counter.md
-      - DutyCycle: reference/metrics/duty_cycle.md
-      - AggregationCounter: reference/metrics/aggregation_counter.md
-      - Histogram: reference/metrics/histogram.md
-      - CounterWithDynamicTags: reference/metrics/counter_with_dynamic_tags.md
-      - AggregationCounterWithDynamicTags: reference/metrics/aggregation_counter_with_dynamic_tags.md
-      - HistogramWithDynamicTags: reference/metrics/histogram_with_dynamic_tags.md
+    - Metrics Service: reference/metrics/reference.md
     - Storage Service: reference/storage/reference.md
     - Zookeeper: reference/zookeeper/reference.md
     - Utility functions and classes: 
