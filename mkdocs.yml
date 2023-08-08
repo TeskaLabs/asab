@@ -191,6 +191,7 @@ nav:
         - ElasticSearch: reference/storage/elasticsearch.md
         - MongoDB: reference/storage/mongodb.md
         - In-Memory: reference/storage/inmemory.md
+    - Alert Service: reference/alert/reference.md
     - Utility functions and classes: 
         - Utility functions: reference/utils/utils.md
         - Persistent dictionary: reference/utils/persistent_dictionary.md
