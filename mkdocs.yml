@@ -171,6 +171,7 @@ nav:
 
     - Configuration: reference/config/reference.md
     - Logging: reference/logging/reference.md
+    - PubSub: reference/pubsub/reference.md
     - Library Service: reference/library/reference.md
     - Metrics Service:
       - MetricsService: reference/metrics/service.md
