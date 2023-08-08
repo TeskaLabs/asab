@@ -184,14 +184,7 @@ nav:
       - CounterWithDynamicTags: reference/metrics/counter_with_dynamic_tags.md
       - AggregationCounterWithDynamicTags: reference/metrics/aggregation_counter_with_dynamic_tags.md
       - HistogramWithDynamicTags: reference/metrics/histogram_with_dynamic_tags.md
-    - Storage Service:
-        - StorageService: reference/storage/service.md
-        - Upsertor: reference/storage/upsertor.md
-        - Exceptions: reference/storage/exceptions.md
-        - ElasticSearch: reference/storage/elasticsearch.md
-        - MongoDB: reference/storage/mongodb.md
-        - In-Memory: reference/storage/inmemory.md
-    - Alert Service: reference/alert/reference.md
+    - Storage Service: reference/storage/reference.md
     - Utility functions and classes: 
         - Utility functions: reference/utils/utils.md
         - Persistent dictionary: reference/utils/persistent_dictionary.md

@@ -1,1 +1,0 @@
-::: asab.storage.elasticsearch.StorageService
