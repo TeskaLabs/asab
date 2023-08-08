@@ -1,18 +1,28 @@
 # Publish-Subscribe
 
-Publish-subscribe is a messaging pattern where senders of messages, called **publishers**,
-send the messages to receivers, called **subscribers**, via PubSub message bus.
+**Publish-subscribe** is a messaging pattern where senders of messages, called **publishers**,
+send the messages to receivers, called **subscribers**, via PubSub **message bus**.
+
 Publishers don't directly interact with subscribers in any way.
 Similarly, subscribers express interest in one or more message types and only receive messages that are of interest,
 without knowledge of which publishers, if any, there are.
 
-ASAB `PubSub` operates with a simple messages, defined by their *message type*, which is a string.
-We recommend to add `!` (an exclamation mark) at the end of the message type in order to distinguish this object from
-other types such as Python class names or functions. 
-Example of the message type is e.g. `Application.run!` or `Application.tick/600!`.
-
+ASAB `PubSub` module operates with a simple messages, defined by their *message type*, which is a string.
 The message can carry an optional positional and keyword arguments.
 The delivery of a message is implemented as a the standard Python function.
+
+!!! note
+	We recommend to add `!` (an exclamation mark) at the end of the message type in order to distinguish this object from
+	other types such as Python class names or functions. 
+
+	Examples:
+
+	- `Application.run!`
+
+	- `Application.tick/600!`
+
+	- `Message.received!`
+
 
 !!! note
 	There is an default, application-wide Publish-Subscribe message
@@ -99,36 +109,35 @@ async def my_coroutine(self):
 
 ## Publishing
 
-Publish a message to the PubSub message bus. It will be delivered to
-each subscriber synchronously. It means that the method returns after
-each subscribed `callback` is called.
+`PubSub.publish()` publishes a message to the PubSub message bus. It will be delivered to each subscriber synchronously. 
+It means that the method returns after each subscribed `callback` is called.
 
-The example of a message publish to the
-`Application.PubSub`{.interpreted-text role="any"} message bus:
+!!! example
 
-``` python
-def my_function(app):
-	app.PubSub.publish("mymessage!")
-```
+	The example of a message publish to the `Application.PubSub` message bus:
 
-Asynchronous publishing of a message is requested by
-`asynchronously=True` argument. The `publish()` method returns
-immediately and the delivery of the message to subscribers happens,
+	``` python
+	def my_function(app):
+		app.PubSub.publish("mymessage!")
+	```
+
+Asynchronous publishing of a message is requested by `asynchronously=True` argument.
+The `publish()` method returns immediately and the delivery of the message to subscribers happens,
 when control returns to the event loop.
 
-The example of a **asynchronous version** of a message publish to the
-`Application.PubSub`{.interpreted-text role="any"} message bus:
+!!! example
 
-``` {.python}
-def my_function(app):
-	app.PubSub.publish("mymessage!", asynchronously=True)
-```
+	The example of a **asynchronous version** of a message publish to the `Application.PubSub` message bus:
+
+	``` python
+	def my_function(app):
+		app.PubSub.publish("mymessage!", asynchronously=True)
+	```
 
 ## Synchronous vs. asynchronous messaging
 
-ASAB PubSub supports both modes of a message delivery: synchronous and
-asynchronous. Moreover, PubSub also deals with modes, when asynchronous
-code (coroutine) does publish to synchronous code and vice versa.
+ASAB PubSub supports both modes of a message delivery: synchronous and asynchronous.
+Moreover, PubSub also deals with modes, when asynchronous code (coroutine) does publish to synchronous code and vice versa.
 
 | | Synchronous publish | Asynchronous publish |
 | --- | --- | --- |
