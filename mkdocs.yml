@@ -168,7 +168,6 @@ nav:
       - TLS/SSL: reference/web/tls.md
       - Authorization and multitenancy: reference/web/authorization_multitenancy.md
       - Cross-Origin Resource Sharing: reference/web/cors.md
-
     - Configuration: reference/config/reference.md
     - Logging: reference/logging/reference.md
     - PubSub: reference/pubsub/reference.md
@@ -185,6 +184,7 @@ nav:
       - AggregationCounterWithDynamicTags: reference/metrics/aggregation_counter_with_dynamic_tags.md
       - HistogramWithDynamicTags: reference/metrics/histogram_with_dynamic_tags.md
     - Storage Service: reference/storage/reference.md
+    - Zookeeper: reference/zookeeper/reference.md
     - Utility functions and classes: 
         - Utility functions: reference/utils/utils.md
         - Persistent dictionary: reference/utils/persistent_dictionary.md
