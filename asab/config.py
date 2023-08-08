@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import glob
 import logging
 import inspect
@@ -294,13 +295,13 @@ class ConfigParser(configparser.ConfigParser):
 		visited:
 			Praha
 			Brno
-			Ústí nad Labem
+			Pardubice Plzeň
 		unvisited:
 		```
 
 		```python
 		>>> asab.Config.getmultiline("places", "visited")
-		["Praha", "Brno", "Ústí nad Labem"]
+		["Praha", "Brno", "Pardubice", "Plzeň"]
 		>>> asab.Config.getmultiline("places", "unvisited")
 		[]
 		>>> asab.Config.getmultiline("places", "nonexisting", fallback=["Gottwaldov"])
@@ -309,7 +310,7 @@ class ConfigParser(configparser.ConfigParser):
 		"""
 		values = self.get(section, option, raw=raw, vars=vars, fallback=fallback)
 		if isinstance(values, str):
-			return [item.strip() for item in values.splitlines() if len(item) > 0]
+			return [item.strip() for item in re.split(r"\s+", values) if len(item) > 0]
 		else:
 			# fallback can be anything
 			return values

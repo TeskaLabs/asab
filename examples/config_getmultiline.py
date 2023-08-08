@@ -14,7 +14,7 @@ asab.Config.read_string(
 	visited:
 			Praha
 			Brno
-			Ústí nad Labem
+			Pardubice Plzeň
 	"""
 )
 
