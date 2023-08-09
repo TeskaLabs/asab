@@ -11,7 +11,7 @@ ASAB-based microservice via Docker or Kubernetes in a breeze.
 Anyone can (and is encouraged to) use ASAB in his or her projects, for free.
 
 
-[Get started](getting-started/installation_first_app.md){ .md-button .md-button--primary } [Read more about TeskaLabs](https://docs.teskalabs.com/){ .md-button .md-button--primary } [Contribute](contributing.md){ .md-button .md-button--primary }
+[Get started](getting-started/installation_first_app.md){ .md-button .md-button--primary } [About TeskaLabs](https://docs.teskalabs.com/){ .md-button .md-button--primary } [Contribute](contributing.md){ .md-button .md-button--primary }
 
 !!! success "ASAB is the right choice when:"
 

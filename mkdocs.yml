@@ -159,7 +159,7 @@ nav:
   - How-Tos:
     - Creating a microservice with REST API: how-tos/03_rest_api.md
 
-  - Reference:
+  - Documentation:
     - Application: reference/application/reference.md
     - Modules and Services: reference/modules_services/reference.md
 
