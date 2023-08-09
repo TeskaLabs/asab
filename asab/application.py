@@ -138,6 +138,10 @@ class Application(metaclass=Singleton):
 		# Every 10 minutes listen for housekeeping
 		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
 
+		# Sentry.io
+		if asab.Config.getboolean("sentry", "enabled"):
+			self._initialize_sentry()
+
 
 	def create_argument_parser(
 		self,
@@ -691,6 +695,43 @@ class Application(metaclass=Singleton):
 					struct_data={
 						"missed_housekeeping_events": self.HousekeepingMissedEvents
 					})
+
+
+	# Sentry.io
+
+	def _initialize_sentry(self):
+
+		try:
+			import sentry_sdk
+			import sentry_sdk.integrations.aiohttp
+			import sentry_sdk.integrations.asyncio
+			import sentry_sdk.integrations.logging
+		except ModuleNotFoundError:
+			L.critical("Package for Sentry SDK not found. Install it with: pip install sentry-sdk")
+			sys.exit(1)
+
+		self.Dsn = asab.Config.get("sentry", "dsn")
+		self.Environment = asab.Config.get("sentry", "environment")
+		self.TracesSampleRate = asab.Config.getfloat("sentry", "traces_sample_rate")
+		assert 0 <= self.TracesSampleRate <= 1.0, "Traces sample rate must be between 0 and 1."
+
+		# All of this is already happening by default!
+		sentry_logging = sentry_sdk.integrations.logging.LoggingIntegration(
+			level=logging.INFO,  # Capture info and above as breadcrumbs
+			event_level=logging.WARNING,  # Send errors as events
+		)
+
+		sentry_sdk.init(
+			dsn="https://284e65c3c7c3bb8c991d71c112ed5471@o4505669681414144.ingest.sentry.io/4505669720801280",
+			integrations=[
+				sentry_sdk.integrations.aiohttp.AioHttpIntegration(),
+				sentry_sdk.integrations.asyncio.AsyncioIntegration(),
+				sentry_sdk.integrations.logging.LoggingIntegration(),
+			],
+			traces_sample_rate=1.0,
+		)
+
+		L.info("Sentry SDK initialized!")
 
 
 def housekeeping_id(dt: datetime.datetime) -> int:
