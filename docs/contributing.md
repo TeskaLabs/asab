@@ -131,5 +131,3 @@ def fetch_smalltable_rows(
 
     ``` 
 
-
-## Creating examples

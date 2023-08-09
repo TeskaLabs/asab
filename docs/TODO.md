@@ -6,17 +6,9 @@
 
 ## Missing sections
 
-- PubSub
-- AlertService
-- ProactorService
-- SSL/TLS
-- Authorization and multitenancy
-- CORS
-- Metrics (needs to be modified)
-- Zookeeper
-
-- Containerisation (needs to be modified)
 - Systemd
+
+
 
 
 ## Useful hyperlinks:
@@ -47,5 +39,8 @@ pyment path/to/file.py -o google
 patch path/to/file.py path/to/file.py.patch
 ```
 
+## Converting .rst format to .md
+
+Use pandoc.
 
 
