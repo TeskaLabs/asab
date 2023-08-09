@@ -721,7 +721,7 @@ class Application(metaclass=Singleton):
 		)
 
 		sentry_sdk.init(
-			dsn="https://284e65c3c7c3bb8c991d71c112ed5471@o4505669681414144.ingest.sentry.io/4505669720801280",
+			dsn=self.Dsn,
 			integrations=[
 				sentry_sdk.integrations.aiohttp.AioHttpIntegration(),
 				sentry_sdk.integrations.asyncio.AsyncioIntegration(),
