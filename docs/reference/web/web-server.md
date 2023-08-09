@@ -220,8 +220,6 @@ listen=8080
 
 ::: asab.web.create_web_server
 
-::: asab.web.Module
-
 ::: asab.web.service.WebService
 
 ::: asab.web.WebContainer
