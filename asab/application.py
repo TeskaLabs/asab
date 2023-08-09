@@ -715,8 +715,7 @@ class Application(metaclass=Singleton):
 		self.TracesSampleRate = asab.Config.getfloat("sentry", "traces_sample_rate")
 		assert 0 <= self.TracesSampleRate <= 1.0, "Traces sample rate must be between 0 and 1."
 
-		# All of this is already happening by default!
-		sentry_logging = sentry_sdk.integrations.logging.LoggingIntegration(
+		_ = sentry_sdk.integrations.logging.LoggingIntegration(
 			level=logging.INFO,  # Capture info and above as breadcrumbs
 			event_level=logging.WARNING,  # Send errors as events
 		)
@@ -728,7 +727,8 @@ class Application(metaclass=Singleton):
 				sentry_sdk.integrations.asyncio.AsyncioIntegration(),
 				sentry_sdk.integrations.logging.LoggingIntegration(),
 			],
-			traces_sample_rate=1.0,
+			traces_sample_rate=self.TracesSampleRate,
+			environment=self.Environment
 		)
 
 		L.info("Sentry SDK initialized!")
