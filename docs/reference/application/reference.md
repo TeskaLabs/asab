@@ -5,7 +5,7 @@ creating a subclass. There should be only one `Application` object in the proces
 
 !!! example "Creating a new ASAB application:"
 
-	To create a new ASAB application, just create a subclass of `asab.Application` object and use the `run()` method:
+	To create a new ASAB application, just create a subclass of `asab.Application` object and use the [`run()`](#asab.application.Application.run) method:
 
 	```python title='app.py'
 	import asab
@@ -32,7 +32,7 @@ creating a subclass. There should be only one `Application` object in the proces
 
 	The app will be running until you stop it by `Ctrl+C`.
 	
-	To create an application that performs some operations and then stops, use the `stop()` method.
+	To create an application that performs some operations and then stops, use the [`stop()`](#asab.application.Application.stop) method.
 
 	```python title='app_that_terminates.py'
 	import asab
@@ -141,33 +141,38 @@ class MyApplication(asab.Application):
 
 ## Command-line parser
 
-Creates an `argparse.ArgumentParser`. This method can be overloaded to
-adjust command-line argument parser.
+The method [`create_argument_parser()`](#asab.application.Application.create_argument_parser) creates an [`argparse.ArgumentParser`](https://docs.python.org/3/library/argparse.html). This method can be overloaded to adjust command-line argument parser.
 
-Please refer to Python standard library `argparse` for more details
-about function arguments.
+The application object calls this method during *init-time* to process a command-line arguments.
+You can overload this method to provide your own implementation of command-line argument parser.
 
-The application object calls this method during init-time to process a
-command-line arguments. `argparse` is
-used to process arguments. You can overload this method to provide your
-own implementation of command-line argument parser.
+The `Description` attribute is a text that will be displayed in a help text (`--help`).
+It is expected that own value will be provided. The default value is `""` (empty string).
 
-The `Description` attribute is a text
-that will be displayed in a help text (`--help`). It is expected that
-own value will be provided. The default value is `""` (empty string).
+Default ASAB arguments:
+
+| Argument | Type | Action |
+| :----- | :----- | :----- |
+| `-c`, `--config` | str | Specify a path to a configuration file. |
+| `-d`, `--daemonize` | bool | Run daemonized (in the background). |
+| `-k`, `--kill` | bool | Kill a running daemon and quit. |
+| `-l`, `--log-file` | str | Specify a path to a log file. |
+| `-s`, `--syslog`| bool | Enable logging to a syslog. |
+| `-v`, `--verbose` | bool | Print more information (enable debug output). |
+| `-w`, `--web-api` | str | Activate Asab web API (default listening port is 0.0.0.0:8080). |
+| `--startup-housekeeping` | | Trigger housekeeping event immediately after application startup. |
 
 ## UTC Time
 
-Return the current \"event loop time\" in seconds since the epoch as a
-floating point number. The specific date of the epoch and the handling
-of leap seconds is platform dependent. On Windows and most Unix systems,
-the epoch is January 1, 1970, 00:00:00 (UTC) and leap seconds are not
-counted towards the time in seconds since the epoch. This is commonly
-referred to as Unix time.
+The method [`time()`](#asab.application.Application.time) returns the current "event loop time"
+in seconds since the epoch as a floating point number.
+The specific date of the epoch and the handling of leap seconds is platform dependent.
+On Windows and most Unix systems, the epoch is January 1, 1970, 00:00:00 (UTC)
+and leap seconds are not counted towards the time in seconds since the epoch.
+This is commonly referred to as Unix time.
 
-A call of the `time.time()` function could be expensive. This method
-provides a cheaper version of the call that returns a current wall time
-in UTC.
+A call of the `time.time()` function could be expensive.
+This method provides a cheaper version of the call that returns a current wall time in UTC.
 
 ---
 ## Reference

@@ -46,16 +46,13 @@ objects, updating existing objects and deleting them.
 u = storage.upsertor("test-collection")
 ```
 
-The `StorageService.upsertor()`{.interpreted-text role="func"} method
-creates an upsertor object associated with the specified collection. It
-takes [collection]{.title-ref} as an argument and can have two
-parameters [obj\_id]{.title-ref} and [version]{.title-ref}, which are
-used for getting an existing object by its ID and version.
+The `StorageService.upsertor()` method creates an upsertor object associated with the specified collection.
+It takes `collection` as an argument and can have two
+parameters `obj_id` and `version`, which are used for getting an existing object by its ID and version.
 
 ### Inserting an object
 
-For inserting an object to the collection, use the
-`Upsertor.set()`{.interpreted-text role="func"} method.
+For inserting an object to the collection, use the `Upsertor.set()` method.
 
 ``` python
 u.set("key", "value")
@@ -143,8 +140,7 @@ a dictionary where all the collections are stored in.
 
 !!! note
 
-	You can go through all the databases directly by accessing
-	[InMemoryCollections]{.title-ref} attribute, although we do not
+	You can go through all the databases directly by accessing `InMemoryCollections` attribute, although we do not
 	recommend that.
 
 	``` python
@@ -157,8 +153,7 @@ a dictionary where all the collections are stored in.
 
 If the option `mongodb` is set, ASAB will store data in MongoDB database.
 
-ASAB uses [motor library](https://pypi.org/project/motor/) which
-provides non-blocking MongoDB driver for [asyncio]{.title-ref}.
+ASAB uses [motor library](https://pypi.org/project/motor/) which provides non-blocking MongoDB driver for asyncio.
 
 You can specify the database name and URL for MongoDB in config file
 (the following example is the default configuration):

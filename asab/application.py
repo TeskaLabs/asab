@@ -207,22 +207,7 @@ class Application(metaclass=Singleton):
 		Create an `argparse.ArgumentParser` object supplemented by default ASAB arguments.
 
 		This method can be overridden to adjust argparse configuration.
-		Refer to the Python standard library to [`argparse.ArgumentParser`](https://docs.python.org/3/library/argparse.html?highlight=argumentparser#argumentparser-objects) for details of arguments.
-
-		Default ASAB arguments:
-
-		| Argument | Type | Action |
-		| :----- | :----- | :----- |
-		| `-c`, `--config` | str | specify a path to a configuration file |
-		| `-d`, `--daemonize` | bool | run daemonized (in the background) |
-		| `-k`, `--kill` | bool | kill a running daemon and quit |
-		| `-l`, `--log-file` | str | specify a path to a log file |
-		| `-s`, `--syslog`| bool | enable logging to a syslog |
-		| `-v`, `--verbose` | bool | print more information (enable debug output) |
-		| `-w`, `--web-api` | str | activate Asab web API (default listening port is 0.0.0.0:8080) |
-		| `--startup-housekeeping` | | trigger housekeeping event immediately after application startup |
-
-
+		Refer to the Python standard library to [`argparse.ArgumentParser`](https://docs.python.org/3/library/argparse.html?highlight=argumentparser#argumentparser-objects) for the details.
 		"""
 
 		parser = argparse.ArgumentParser(
@@ -726,12 +711,12 @@ class Application(metaclass=Singleton):
 	# Time
 
 	def time(self) -> float:
-		'''
+		"""
 		Return UTC UNIX timestamp using a loop time (a fast way how to get a wall clock time).
 
 		Returns:
 			Current UTC UNIX timestamp.
-		'''
+		"""
 		return self.BaseTime + self.Loop.time()
 
 
