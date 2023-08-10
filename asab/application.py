@@ -553,19 +553,19 @@ class Application(metaclass=Singleton):
 
 	async def initialize(self):
 		"""
-		This method is called during the application _init-time_. It is intended to be overridden by the user.
+		This method is called during the application *init-time*. It is intended to be overridden by the user.
 		"""
 		pass
 
 	async def main(self):
 		"""
-		This method is called during the application _run-time_. It is intended to be overridden by the user.
+		This method is called during the application *run-time*. It is intended to be overridden by the user.
 		"""
 		pass
 
 	async def finalize(self):
 		"""
-		This method is called during the application _exit-time_. It is intended to be overridden by the user.
+		This method is called during the application *exit-time*. It is intended to be overridden by the user.
 		"""
 		pass
 
