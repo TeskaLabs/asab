@@ -78,6 +78,9 @@ asab.Config.add_defaults({
 		# Whether the app is tenant-aware
 		"multitenancy": "yes",
 
+		# Whether the authentication and authorization are enabled
+		"enabled": "yes",
+
 		# In DEV MODE
 		# - no authorization server is needed,
 		# - all incoming requests are "authorized" with custom mocked user info data loaded from a JSON file,
@@ -96,51 +99,54 @@ class AuthService(asab.Service):
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
+		self.AuthEnabled = asab.Config.getboolean("auth", "enabled")
+		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
-		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
-		if self.DevModeEnabled:
-			# Load custom user info
-			dev_user_info_path = asab.Config.get("auth", "dev_user_info_path")
-			if os.path.isfile(dev_user_info_path):
-				with open(dev_user_info_path, "rb") as fp:
-					self.DevUserInfo = json.load(fp)
-			else:
-				self.DevUserInfo = DEV_USERINFO_DEFAULT
-
-			# Validate user info
-			resources = self.DevUserInfo.get("resources", {})
-			if not isinstance(resources, dict) or not all(
-				map(lambda kv: isinstance(kv[0], str) and isinstance(kv[1], list), resources.items())
-			):
-				raise ValueError("User info 'resources' must be an object with string keys and array values.")
-
+		if not self.AuthEnabled:
+			pass
+		elif self.DevModeEnabled:
+			self.DevUserInfo = self._prepare_dev_user_info()
+		elif jwcrypto is None:
+			raise ModuleNotFoundError(
+				"You are trying to use asab.web.auth module without 'jwcrypto' installed. "
+				"Please run 'pip install jwcrypto' "
+				"or install asab with 'authz' optional dependency.")
+		elif len(self.PublicKeysUrl) == 0:
+			self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
 			L.warning(
-				"AuthService is running in DEV MODE. All web requests will be authorized with mock user info, which "
-				"currently grants access to the following tenants: {}. To customize dev mode authorization (add or "
-				"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
-					list(t for t in self.DevUserInfo.get("resources", {}).keys() if t != "*"),
-					dev_user_info_path))
-		else:
-			if len(self.PublicKeysUrl) == 0:
-				self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
-				L.warning(
-					"No 'public_keys_url' provided in [auth] config section. "
-					"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT))
-			if jwcrypto is None:
-				raise ModuleNotFoundError(
-					"You are trying to use asab.web.authz without 'jwcrypto' installed. "
-					"Please run 'pip install jwcrypto' "
-					"or install asab with 'authz' optional dependency.")
+				"No 'public_keys_url' provided in [auth] config section. "
+				"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT))
 
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
 		# Limit the frequency of auth server requests to save network traffic
 		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
 		self.AuthServerLastSuccessfulCheck = None
 
+	def _prepare_dev_user_info(self):
+		# Load custom user info
+		dev_user_info_path = asab.Config.get("auth", "dev_user_info_path")
+		if os.path.isfile(dev_user_info_path):
+			with open(dev_user_info_path, "rb") as fp:
+				user_info = json.load(fp)
+		else:
+			user_info = DEV_USERINFO_DEFAULT
+		# Validate user info
+		resources = self.DevUserInfo.get("resources", {})
+		if not isinstance(resources, dict) or not all(
+			map(lambda kv: isinstance(kv[0], str) and isinstance(kv[1], list), resources.items())
+		):
+			raise ValueError("User info 'resources' must be an object with string keys and array values.")
+		L.warning(
+			"AuthService is running in DEV MODE. All web requests will be authorized with mock user info, which "
+			"currently grants access to the following tenants: {}. To customize dev mode authorization (add or "
+			"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
+				list(t for t in self.DevUserInfo.get("resources", {}).keys() if t != "*"),
+				dev_user_info_path))
+		return user_info
 
 	async def initialize(self, app):
-		if self.DevModeEnabled is False:
+		if self.AuthEnabled and not self.DevModeEnabled:
 			await self._fetch_public_keys_if_needed()
 
 
@@ -159,7 +165,9 @@ class AuthService(asab.Service):
 		"""
 		Check if the service is ready to authorize requests.
 		"""
-		if self.DevModeEnabled is True:
+		if not self.AuthEnabled:
+			return True
+		if self.DevModeEnabled:
 			return True
 		if self.AuthServerPublicKey is None:
 			return False
@@ -196,6 +204,8 @@ class AuthService(asab.Service):
 		"""
 		Check if the superuser resource is present in the authorized resource list.
 		"""
+		if not self.AuthEnabled:
+			return True
 		return SUPERUSER_RESOURCE in authorized_resources
 
 
@@ -203,6 +213,8 @@ class AuthService(asab.Service):
 		"""
 		Check if the requested resources or the superuser resource are present in the authorized resource list.
 		"""
+		if not self.AuthEnabled:
+			return True
 		if self.has_superuser_access(authorized_resources):
 			return True
 		for resource in required_resources:
@@ -274,20 +286,26 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			if self.DevModeEnabled:
+			if not self.AuthEnabled:
+				user_info = None
+			elif self.DevModeEnabled:
 				user_info = self.DevUserInfo
 			else:
 				# Extract user info from the request Authorization header
 				bearer_token = _get_bearer_token(request)
 				user_info = await self.get_userinfo_from_id_token(bearer_token)
 
-			assert user_info is not None
-
 			# Add userinfo, tenants and global resources to the request
-			request._UserInfo = user_info
-			resource_dict = request._UserInfo["resources"]
-			request._Resources = frozenset(resource_dict.get("*", []))
-			request._Tenants = frozenset(t for t in resource_dict.keys() if t != "*")
+			if self.AuthEnabled:
+				assert user_info is not None
+				request._UserInfo = user_info
+				resource_dict = request._UserInfo["resources"]
+				request._Resources = frozenset(resource_dict.get("*", []))
+				request._Tenants = frozenset(t for t in resource_dict.keys() if t != "*")
+			else:
+				request._UserInfo = None
+				request._Resources = None
+				request._Tenants = None
 
 			# Add access control methods to the request
 			def has_resource_access(*required_resources: list) -> bool:
@@ -386,7 +404,8 @@ class AuthService(asab.Service):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 			tenant = request.match_info["tenant"]
-			self._authorize_tenant_request(request, tenant)
+			if self.AuthEnabled:
+				self._authorize_tenant_request(request, tenant)
 			return await handler(*args, tenant=tenant, **kwargs)
 
 		return wrapper
@@ -407,7 +426,8 @@ class AuthService(asab.Service):
 				tenant = None
 			else:
 				tenant = request.query["tenant"]
-				self._authorize_tenant_request(request, tenant)
+				if self.AuthEnabled:
+					self._authorize_tenant_request(request, tenant)
 			return await handler(*args, tenant=tenant, **kwargs)
 
 		return wrapper
