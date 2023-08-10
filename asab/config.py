@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import glob
 import logging
 import inspect
@@ -327,10 +328,9 @@ class ConfigParser(configparser.ConfigParser):
 		return self._get_conv(section, option, utils.convert_to_seconds, raw=raw, vars=vars, fallback=fallback, **kwargs)
 
 
-	def geturl(self, section, option, raw=False, vars=None, fallback=None, scheme=None, **kwargs):
+	def geturl(self, section, option, *, raw=False, vars=None, fallback=None, scheme=None, **kwargs):
 		"""
-		Get URL from config and remove all leading and trailing
-		whitespaces and trailing slashes.
+		Get URL from config and remove all leading and trailing whitespaces and trailing slashes.
 
 		Args:
 			scheme (str | tuple): URL scheme(s) awaited. If `None`, scheme validation is bypassed.
@@ -343,19 +343,50 @@ class ConfigParser(configparser.ConfigParser):
 
 		Examples:
 
-		Configuration file:
 		```ini
 		[urls]
 		teskalabs=https://www.teskalabs.com/
 		github=github.com
 		```
-		Script:
+
 		``` python
 		asab.Config["urls"].geturl("teskalabs", scheme="https")
 		asab.Config.geturl("urls", "github", scheme=None)
 		```
 		"""
-		return utils.validate_url(self.get(section, option, raw=False, vars=None, fallback=fallback), scheme)
+		return utils.validate_url(self.get(section, option, raw=raw, vars=vars, fallback=fallback), scheme)
+
+
+	def getmultiline(self, section, option, *, raw=False, vars=None, fallback=None, **kwargs) -> typing.List[str]:
+		"""
+		Get multiline data from config.
+
+		Examples:
+
+		```ini
+		[places]
+		visited:
+			Praha
+			Brno
+			Pardubice Plzeň
+		unvisited:
+		```
+
+		```python
+		>>> asab.Config.getmultiline("places", "visited")
+		["Praha", "Brno", "Pardubice", "Plzeň"]
+		>>> asab.Config.getmultiline("places", "unvisited")
+		[]
+		>>> asab.Config.getmultiline("places", "nonexisting", fallback=["Gottwaldov"])
+		["Gottwaldov"]
+		```
+		"""
+		values = self.get(section, option, raw=raw, vars=vars, fallback=fallback)
+		if isinstance(values, str):
+			return [item.strip() for item in re.split(r"\s+", values) if len(item) > 0]
+		else:
+			# fallback can be anything
+			return values
 
 
 class _Interpolation(configparser.ExtendedInterpolation):
