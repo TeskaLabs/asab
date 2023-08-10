@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import glob
 import logging
 import inspect
@@ -7,6 +8,8 @@ import platform
 import configparser
 import urllib.parse
 import collections.abc
+
+import typing
 
 from . import utils
 
@@ -270,7 +273,7 @@ class ConfigParser(configparser.ConfigParser):
 		return self._get_conv(section, option, utils.convert_to_seconds, raw=raw, vars=vars, fallback=fallback, **kwargs)
 
 
-	def geturl(self, section, option, raw=False, vars=None, fallback=None, scheme=None, **kwargs):
+	def geturl(self, section, option, *, raw=False, vars=None, fallback=None, scheme=None, **kwargs):
 		"""Gets URL from config and removes all leading and trailing
 		whitespaces and trailing slashes.
 
@@ -278,7 +281,39 @@ class ConfigParser(configparser.ConfigParser):
 		:type scheme: str, tuple
 		:return: validated URL, raises ValueError when scheme requirements are not met if set.
 		"""
-		return utils.validate_url(self.get(section, option, raw=False, vars=None, fallback=fallback), scheme)
+		return utils.validate_url(self.get(section, option, raw=raw, vars=vars, fallback=fallback), scheme)
+
+
+	def getmultiline(self, section, option, *, raw=False, vars=None, fallback=None, **kwargs) -> typing.List[str]:
+		"""
+		Get multiline data from config.
+
+		Examples:
+
+		```ini
+		[places]
+		visited:
+			Praha
+			Brno
+			Pardubice Plzeň
+		unvisited:
+		```
+
+		```python
+		>>> asab.Config.getmultiline("places", "visited")
+		["Praha", "Brno", "Pardubice", "Plzeň"]
+		>>> asab.Config.getmultiline("places", "unvisited")
+		[]
+		>>> asab.Config.getmultiline("places", "nonexisting", fallback=["Gottwaldov"])
+		["Gottwaldov"]
+		```
+		"""
+		values = self.get(section, option, raw=raw, vars=vars, fallback=fallback)
+		if isinstance(values, str):
+			return [item.strip() for item in re.split(r"\s+", values) if len(item) > 0]
+		else:
+			# fallback can be anything
+			return values
 
 
 class _Interpolation(configparser.ExtendedInterpolation):
