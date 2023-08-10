@@ -22,7 +22,7 @@ def custom_function():
 
 1. The method [`add_module()`](/reference/application/reference/#asab.Application.add_module) initializes and adds a new module.
 The `module_class` class will be instantiated during the method call.
-2. The method [`get_service()`](#asab.Application.get_service) locates a service by its name and returns the [`asab.Service`](#asab.Service) object.
+2. The method [`get_service()`](reference/application/reference/#asab.Application.get_service) locates a service by its name and returns the [`asab.Service`](#asab.Service) object.
 3. Modules that has been added to the application are stored in [`asab.Application.Modules`](/reference/application/reference/#asab.application.Application.Modules) list. Similarly, Services are stored in [`asab.Application.Services`](/reference/application/reference/#asab.Application.Services) dictionary.
 
 
