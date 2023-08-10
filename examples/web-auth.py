@@ -4,7 +4,7 @@ import asab.web.auth
 import typing
 
 # Set up a web container listening at port 8080
-asab.Config["web"] = {"listen": "0.0.0.0 8088"}
+asab.Config["web"] = {"listen": "0.0.0.0 8080"}
 
 # Disables or enables all authentication and authorization.
 # When disabled, the `resources` and `userinfo` handler arguments are set to `None`.
