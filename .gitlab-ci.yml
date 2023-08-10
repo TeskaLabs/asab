@@ -21,7 +21,7 @@ deploy staging:
     # - (cd ./cs && mkdocs build --site-dir /output/cs)
     - rsync -r -a -v -e ssh --delete /output/ "$RSYNC_USER"@"$TARGET_SERVER":"$STAGING_DIR"
   only:
-    - "docs/mkdocs-migration"
+    - master
 
 deploy production:
   stage: deploy
