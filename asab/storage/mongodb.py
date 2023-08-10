@@ -53,16 +53,6 @@ class StorageService(StorageServiceABC):
 
 
 	async def get_by(self, collection: str, key: str, value, decrypt=None) -> dict:
-		"""
-		Get object from collection by its key and value.
-
-		:param collection: Collection to get from.
-		:param key: Key to filter on.
-		:param value: Value to filter on.
-		:param decrypt: Set of fields to decrypt.
-		:return: The object retrieved from a storage
-		:raise KeyError: Raised if object{key: value} cannot be found in `collection`.
-		"""
 		coll = self.Database[collection]
 		ret = await coll.find_one({key: value})
 		if ret is None:
@@ -78,8 +68,11 @@ class StorageService(StorageServiceABC):
 		"""
 		Get collection. Useful for custom operations.
 
-		:param collection: Collection to get.
-		:return: AsyncIOMotorCollection object connected to the queried database.
+		Args:
+			collection: Collection to get.
+
+		Returns:
+			`AsyncIOMotorCollection` object connected to the queried database.
 
 		Examples:
 
@@ -95,15 +88,6 @@ class StorageService(StorageServiceABC):
 
 
 	async def delete(self, collection: str, obj_id):
-		"""
-		Delete object from `collection` by its `obj_id`
-
-		:param collection: Collection to delete from
-		:param obj_id: Object identification
-		:return: `obj_id` -- Object identification
-
-		:raise KeyError: Raised if `obj_id` cannot be found in `collection`.
-		"""
 		coll = self.Database[collection]
 		ret = await coll.find_one_and_delete({'_id': obj_id})
 		if ret is None:

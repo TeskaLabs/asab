@@ -1,0 +1,284 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Zookeeper &#8212; ASAB  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Library" href="library.html" />
+    <link rel="prev" title="Various utility classes" href="various.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="zookeeper">
+<span id="zookeeper-ref"></span><h1>Zookeeper<a class="headerlink" href="#zookeeper" title="Permalink to this heading">¶</a></h1>
+<p>The <cite>asab.zookeeper</cite> is a <a class="reference external" href="https://zookeeper.apache.org">Apache Zookeeper</a> asynchronous client based on <a class="reference external" href="https://github.com/python-zk/kazoo">Kazoo</a> library.</p>
+<p>Apache ZooKeeper is a distributed coordination service that provides a hierarchical key-value data store, called a znode tree, to store and manage configuration, coordination, and synchronization data. The znode tree is similar to a file system tree, where each znode is like a file or a directory.</p>
+<p>Apache ZooKeeper can be used to design microservices in a stateless manner by managing and coordinating the state information between microservices. In this design, each microservice does not store any state information, but instead relies on ZooKeeper for state management.</p>
+<section id="zookeeper-container">
+<h2>Zookeeper container<a class="headerlink" href="#zookeeper-container" title="Permalink to this heading">¶</a></h2>
+<p>A Zookeeper container represents a connectivity to Apache Zookeeper server(s).
+The application can operate multiple instances of Zookeeper container.</p>
+<p>This code illustrates the typical way how to create Zookeeper container:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">asab.zookeeper</span>
+
+<span class="k">class</span> <span class="nc">MyApplication</span><span class="p">(</span><span class="n">asab</span><span class="o">.</span><span class="n">Application</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="o">...</span>
+
+        <span class="c1"># Load the ASAB Zookeeper module</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_module</span><span class="p">(</span><span class="n">asab</span><span class="o">.</span><span class="n">zookeeper</span><span class="o">.</span><span class="n">Module</span><span class="p">)</span>
+
+        <span class="c1"># Initialize ZooKeeper Service</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ZooKeeperService</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_service</span><span class="p">(</span><span class="s2">&quot;asab.ZooKeeperService&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Create the Zookeeper container</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ZooKeeperContainer</span> <span class="o">=</span> <span class="n">asab</span><span class="o">.</span><span class="n">zookeeper</span><span class="o">.</span><span class="n">ZooKeeperContainer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ZooKeeperService</span><span class="p">)</span>
+
+        <span class="c1"># Subscribe to Zookeeper container ready event</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s2">&quot;ZooKeeperContainer.started!&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_zk_ready</span><span class="p">)</span>
+
+
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">_on_zk_ready</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event_name</span><span class="p">,</span> <span class="n">zookeeper</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">zookeeper</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ZooKeeperContainer</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Connected to Zookeeper!&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py class">
+<dt class="sig sig-object py" id="asab.zookeeper.ZooKeeperContainer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asab.zookeeper.</span></span><span class="sig-name descname"><span class="pre">ZooKeeperContainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">zookeeper_service</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_section_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zookeeper'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/zookeeper/container.html#ZooKeeperContainer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.zookeeper.ZooKeeperContainer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a Zookeeper container with a specifications of the connectivity.</p>
+</dd></dl>
+
+<p>Specifications are obtained from:</p>
+<ol class="arabic simple">
+<li><p><cite>z_path</cite> argument, which is Zookeeper URL (see below)</p></li>
+<li><p>the configuration section specified by <cite>config_section_name</cite> argument</p></li>
+<li><p><cite>ZOOKEEPER_SERVERS</cite> environment variable</p></li>
+</ol>
+<p>The <cite>z_path</cite> argument has precedence over config but the implementation will look
+at configuration if <cite>z_path</cite> URL is missing completely or partially.
+Also, if configuration section doesn’t provide information about servers, <cite>ZOOKEEPER_SERVERS</cite> environment variable is used.</p>
+<section id="example-of-configuration-section">
+<h3>Example of configuration section<a class="headerlink" href="#example-of-configuration-section" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[zookeeper]</span><span class="w"></span>
+<span class="na">servers</span><span class="o">=</span><span class="s">zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181</span><span class="w"></span>
+<span class="na">path</span><span class="o">=</span><span class="s">myfolder</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+<section id="example-of-zookeeper-server-environment-variable">
+<h3>Example of <cite>ZOOKEEPER_SERVER</cite> environment variable<a class="headerlink" href="#example-of-zookeeper-server-environment-variable" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="na">ZOOKEEPER_SERVERS</span><span class="o">=</span><span class="s">zookeeper-1:2181,zookeeper-2:2181</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+<section id="supported-types-of-z-path-urls">
+<h3>Supported types of <cite>z_path</cite> URLs<a class="headerlink" href="#supported-types-of-z-path-urls" title="Permalink to this heading">¶</a></h3>
+<ol class="arabic">
+<li><p>Absolute URL</p>
+<blockquote>
+<div><p><cite>zookeeper://zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181/etc/configs/file1</cite></p>
+<p>The URL contains all information for a connectivity.</p>
+</div></blockquote>
+</li>
+<li><p>URL without servers with absolute path</p>
+<blockquote>
+<div><p><cite>zookeepers:///etc/configs/file1</cite></p>
+<p>In this case the relative url is expanded as follows:
+<cite>zookeeper://{zookeeper_servers}/etc/configs/file1</cite></p>
+<p>Where <cite>{zookeeper_servers}</cite> is substituted with the <cite>servers</cite> entry of the [zookeeper] configuration file section.</p>
+</div></blockquote>
+</li>
+<li><p>URL without servers with relative path</p>
+<blockquote>
+<div><p><cite>zookeeper:./etc/configs/file1</cite></p>
+<p>In this case, the relative URL is expanded as follows:
+<cite>zookeper://{zookeeper_servers}/{zookeeper_path}/etc/configs/file1</cite></p>
+<p>Where {zookeeper_servers} is substituted with the <cite>servers</cite> entry of the [zookeeper] configuration file section and
+{zookeeper_path} is substituted with the “path” entry of the [zookeeper] configuration file section.</p>
+</div></blockquote>
+</li>
+</ol>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.zookeeper.ZooKeeperContainer.is_connected">
+<span class="sig-prename descclassname"><span class="pre">ZooKeeperContainer.</span></span><span class="sig-name descname"><span class="pre">is_connected</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/zookeeper/container.html#ZooKeeperContainer.is_connected"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.zookeeper.ZooKeeperContainer.is_connected" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check, if the Zookeeper is connected</p>
+</dd></dl>
+
+</section>
+</section>
+<section id="reading-from-zookeeeper">
+<h2>Reading from Zookeeeper<a class="headerlink" href="#reading-from-zookeeeper" title="Permalink to this heading">¶</a></h2>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.zookeeper.ZooKeeperContainer.get_children">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ZooKeeperContainer.</span></span><span class="sig-name descname"><span class="pre">get_children</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/zookeeper/container.html#ZooKeeperContainer.get_children"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.zookeeper.ZooKeeperContainer.get_children" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.zookeeper.ZooKeeperContainer.get_data">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ZooKeeperContainer.</span></span><span class="sig-name descname"><span class="pre">get_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'utf-8'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/zookeeper/container.html#ZooKeeperContainer.get_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.zookeeper.ZooKeeperContainer.get_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.zookeeper.ZooKeeperContainer.get_raw_data">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ZooKeeperContainer.</span></span><span class="sig-name descname"><span class="pre">get_raw_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/zookeeper/container.html#ZooKeeperContainer.get_raw_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.zookeeper.ZooKeeperContainer.get_raw_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="advertisement-into-zookeeper">
+<h2>Advertisement into Zookeeper<a class="headerlink" href="#advertisement-into-zookeeper" title="Permalink to this heading">¶</a></h2>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.zookeeper.ZooKeeperContainer.advertise">
+<span class="sig-prename descclassname"><span class="pre">ZooKeeperContainer.</span></span><span class="sig-name descname"><span class="pre">advertise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/zookeeper/container.html#ZooKeeperContainer.advertise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.zookeeper.ZooKeeperContainer.advertise" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="id1">
+<h2>Kazoo<a class="headerlink" href="#id1" title="Permalink to this heading">¶</a></h2>
+<p>Kazoo is the synchronous Python library for Apache Zookeeper.</p>
+<p>It can be used directly for a more complicated tasks.
+Kazoo <cite>client</cite> is accessible at <cite>ZooKeeperContainer.ZooKeeper.Client</cite>.
+Synchronous methods of Kazoo client must be executed using <cite>ProactorService</cite>.</p>
+<p>Here is the example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span> <span class="k">def</span> <span class="nf">write_to_zk</span><span class="p">():</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">ZooKeeperContainer</span><span class="o">.</span><span class="n">ZooKeeper</span><span class="o">.</span><span class="n">Client</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">sequence</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ephemeral</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">makepath</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">ZooKeeperContainer</span><span class="o">.</span><span class="n">ZooKeeper</span><span class="o">.</span><span class="n">ProactorService</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">write_to_zk</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">ASAB</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../get-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/web/chapter1.html">Web Server Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/web/chapter2.html">Create microservice with REST API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Services</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="web/index.html">The web server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="web/restapidocs.html">REST API Docs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="web/authn.html">Authn module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="web/cors.html">Cross-Origin Resource Sharing (CORS)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">Metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="storage.html">Storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="alert.html">Alert Service</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="application.html">Application</a></li>
+<li class="toctree-l1"><a class="reference internal" href="config.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="log.html">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pubsub.html">Publish-Subscribe</a></li>
+<li class="toctree-l1"><a class="reference internal" href="service.html">Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="module.html">Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="various.html">Various utility classes</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Zookeeper</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#zookeeper-container">Zookeeper container</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reading-from-zookeeeper">Reading from Zookeeeper</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advertisement-into-zookeeper">Advertisement into Zookeeper</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id1">Kazoo</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="library.html">Library</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Administration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../admin/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/command-line.html">ASAB Command-line interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/containers.html">Containerisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/systemd.html">systemd</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="various.html" title="previous chapter">Various utility classes</a></li>
+      <li>Next: <a href="library.html" title="next chapter">Library</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, TeskaLabs Ltd..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="../_sources/asab/zookeeper.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

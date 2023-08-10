@@ -1,0 +1,750 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>asab.application &#8212; ASAB  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for asab.application</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">signal</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">asyncio</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">platform</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+
+<span class="k">try</span><span class="p">:</span>
+	<span class="kn">import</span> <span class="nn">daemon</span>
+	<span class="kn">import</span> <span class="nn">daemon.pidfile</span>
+	<span class="kn">import</span> <span class="nn">lockfile</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+	<span class="n">daemon</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="kn">from</span> <span class="nn">.config</span> <span class="kn">import</span> <span class="n">Config</span>
+<span class="kn">from</span> <span class="nn">.abc.singleton</span> <span class="kn">import</span> <span class="n">Singleton</span>
+<span class="kn">from</span> <span class="nn">.log</span> <span class="kn">import</span> <span class="n">Logging</span><span class="p">,</span> <span class="n">_loop_exception_handler</span><span class="p">,</span> <span class="n">LOG_NOTICE</span>
+<span class="kn">from</span> <span class="nn">.task</span> <span class="kn">import</span> <span class="n">TaskService</span>
+<span class="kn">from</span> <span class="nn">.docker</span> <span class="kn">import</span> <span class="n">running_in_container</span>
+
+<span class="n">L</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Application"><a class="viewcode-back" href="../../asab/application.html#asab.Application">[docs]</a><span class="k">class</span> <span class="nc">Application</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">Singleton</span><span class="p">):</span>
+
+	<span class="n">Description</span> <span class="o">=</span> <span class="s2">&quot;This app is based on ASAB.&quot;</span>
+
+<div class="viewcode-block" id="Application.__init__"><a class="viewcode-back" href="../../asab/application.html#asab.Application.__init__">[docs]</a>	<span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">modules</span><span class="o">=</span><span class="p">[]):</span>
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		Argument `modules` allows to specify a list of ASAB modules that will be added by `app.add_module()` call.</span>
+
+<span class="sd">		Example:</span>
+
+<span class="sd">		class MyApplication(asab.Application):</span>
+<span class="sd">			def __init__(self):</span>
+<span class="sd">				super().__init__(modules=[asab.web.Module, asab.zookeeper.Module])</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+
+		<span class="k">try</span><span class="p">:</span>
+			<span class="c1"># EX_OK code is not available on Windows</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">ExitCode</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">EX_OK</span>
+		<span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">ExitCode</span> <span class="o">=</span> <span class="mi">0</span>
+
+		<span class="c1"># Queue of Services to be initialized</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">InitServicesQueue</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="c1"># Queue of Modules to be initialized</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">InitModulesQueue</span> <span class="o">=</span> <span class="p">[]</span>
+
+		<span class="c1"># Parse command line</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_arguments</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
+
+		<span class="c1"># Load configuration</span>
+
+		<span class="c1"># Obtain HostName</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">HostName</span> <span class="o">=</span> <span class="n">platform</span><span class="o">.</span><span class="n">node</span><span class="p">()</span>
+		<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;HOSTNAME&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">HostName</span>
+		<span class="n">Config</span><span class="o">.</span><span class="n">_load</span><span class="p">()</span>
+
+		<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Args</span><span class="p">,</span> <span class="s2">&quot;daemonize&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">Args</span><span class="o">.</span><span class="n">daemonize</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">daemonize</span><span class="p">()</span>
+
+		<span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Args</span><span class="p">,</span> <span class="s2">&quot;kill&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">Args</span><span class="o">.</span><span class="n">kill</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">daemon_kill</span><span class="p">()</span>
+
+		<span class="c1"># Seed the random generator</span>
+		<span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">()</span>
+
+		<span class="c1"># Obtain the event loop</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">is_closed</span><span class="p">():</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">new_event_loop</span><span class="p">()</span>
+			<span class="n">asyncio</span><span class="o">.</span><span class="n">set_event_loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">LaunchTime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">BaseTime</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">LaunchTime</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">Modules</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Services</span> <span class="o">=</span> <span class="p">{}</span>
+
+		<span class="c1"># Check if the application is running in Docker,</span>
+		<span class="c1"># if so, add Docker service</span>
+		<span class="k">if</span> <span class="n">running_in_container</span><span class="p">():</span>
+			<span class="kn">from</span> <span class="nn">.docker</span> <span class="kn">import</span> <span class="n">Module</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">add_module</span><span class="p">(</span><span class="n">Module</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">DockerService</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_service</span><span class="p">(</span><span class="s2">&quot;asab.DockerService&quot;</span><span class="p">)</span>
+
+			<span class="bp">self</span><span class="o">.</span><span class="n">HostName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">DockerService</span><span class="o">.</span><span class="n">load_hostname</span><span class="p">()</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">ServerName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">DockerService</span><span class="o">.</span><span class="n">load_servername</span><span class="p">()</span>
+			<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;HOSTNAME&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">HostName</span>
+			<span class="n">Config</span><span class="o">.</span><span class="n">_load</span><span class="p">()</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">ServerName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">HostName</span>
+
+		<span class="c1"># Setup logging</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Logging</span> <span class="o">=</span> <span class="n">Logging</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+		<span class="c1"># Configure the event loop</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">set_exception_handler</span><span class="p">(</span><span class="n">_loop_exception_handler</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">Config</span><span class="p">[</span><span class="s2">&quot;logging&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">getboolean</span><span class="p">(</span><span class="s2">&quot;verbose&quot;</span><span class="p">):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">set_debug</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+		<span class="c1"># Adding a handler to listen to the interrupt event</span>
+		<span class="k">if</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;Windows&quot;</span><span class="p">:</span>
+
+			<span class="k">try</span><span class="p">:</span>
+
+				<span class="c1"># Windows win32api import</span>
+				<span class="kn">import</span> <span class="nn">win32api</span>
+
+				<span class="k">def</span> <span class="nf">handler</span><span class="p">(</span><span class="nb">type</span><span class="p">):</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+					<span class="k">return</span> <span class="kc">True</span>
+
+				<span class="n">win32api</span><span class="o">.</span><span class="n">SetConsoleCtrlHandler</span><span class="p">(</span><span class="n">handler</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+			<span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+				<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;win32api module could not be loaded, because &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+					<span class="n">e</span>
+				<span class="p">))</span>
+
+		<span class="k">else</span><span class="p">:</span>
+
+			<span class="c1"># POSIX and other reasonable systems</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">add_signal_handler</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGINT</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">add_signal_handler</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGTERM</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">add_signal_handler</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGHUP</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hup</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Event</span><span class="p">()</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_stop_counter</span> <span class="o">=</span> <span class="mi">0</span>
+
+		<span class="kn">from</span> <span class="nn">.pubsub</span> <span class="kn">import</span> <span class="n">PubSub</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span> <span class="o">=</span> <span class="n">PubSub</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+		<span class="n">L</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing ...&quot;</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">TaskService</span> <span class="o">=</span> <span class="n">TaskService</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+		<span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">modules</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">add_module</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
+
+		<span class="c1"># Every 10 minutes listen for housekeeping</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">NextHousekeeping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_set_housekeeping_time_from_config</span><span class="p">()</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s2">&quot;Application.tick/600!&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_housekeeping_tick</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Application.create_argument_parser"><a class="viewcode-back" href="../../asab/application.html#asab.Application.create_argument_parser">[docs]</a>	<span class="k">def</span> <span class="nf">create_argument_parser</span><span class="p">(</span>
+		<span class="bp">self</span><span class="p">,</span>
+		<span class="n">prog</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+		<span class="n">usage</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+		<span class="n">description</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+		<span class="n">epilog</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+		<span class="n">prefix_chars</span><span class="o">=</span><span class="s1">&#39;-&#39;</span><span class="p">,</span>
+		<span class="n">fromfile_prefix_chars</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+		<span class="n">argument_default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+		<span class="n">conflict_handler</span><span class="o">=</span><span class="s1">&#39;error&#39;</span><span class="p">,</span>
+		<span class="n">add_help</span><span class="o">=</span><span class="kc">True</span>
+	<span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		This method can be overriden to adjust argparse configuration.</span>
+<span class="sd">		Refer to the Python standard library to `argparse.ArgumentParser` for details of arguments.</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+
+		<span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
+			<span class="n">prog</span><span class="o">=</span><span class="n">prog</span><span class="p">,</span>
+			<span class="n">usage</span><span class="o">=</span><span class="n">usage</span><span class="p">,</span>
+			<span class="n">description</span><span class="o">=</span><span class="n">description</span> <span class="k">if</span> <span class="n">description</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">Description</span><span class="p">,</span>
+			<span class="n">epilog</span><span class="o">=</span><span class="n">epilog</span><span class="p">,</span>
+			<span class="n">formatter_class</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">RawDescriptionHelpFormatter</span><span class="p">,</span>
+			<span class="n">prefix_chars</span><span class="o">=</span><span class="n">prefix_chars</span><span class="p">,</span>
+			<span class="n">fromfile_prefix_chars</span><span class="o">=</span><span class="n">fromfile_prefix_chars</span><span class="p">,</span>
+			<span class="n">argument_default</span><span class="o">=</span><span class="n">argument_default</span><span class="p">,</span>
+			<span class="n">conflict_handler</span><span class="o">=</span><span class="n">conflict_handler</span><span class="p">,</span>
+			<span class="n">add_help</span><span class="o">=</span><span class="n">add_help</span>
+		<span class="p">)</span>
+		<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-c&#39;</span><span class="p">,</span> <span class="s1">&#39;--config&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;specify a path to a configuration file&#39;</span><span class="p">)</span>
+		<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-v&#39;</span><span class="p">,</span> <span class="s1">&#39;--verbose&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;print more information (enable debug output)&#39;</span><span class="p">)</span>
+		<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-s&#39;</span><span class="p">,</span> <span class="s1">&#39;--syslog&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;enable logging to a syslog&#39;</span><span class="p">)</span>
+		<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-l&#39;</span><span class="p">,</span> <span class="s1">&#39;--log-file&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;specify a path to a log file&#39;</span><span class="p">)</span>
+		<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-w&#39;</span><span class="p">,</span> <span class="s1">&#39;--web-api&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;activate Asab web API (default listening port is 0.0.0.0:8080)&#39;</span><span class="p">,</span> <span class="n">const</span><span class="o">=</span><span class="s2">&quot;0.0.0.0:8080&quot;</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;?&quot;</span><span class="p">)</span>
+
+
+		<span class="k">if</span> <span class="n">daemon</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-d&#39;</span><span class="p">,</span> <span class="s1">&#39;--daemonize&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;run daemonized (in the background)&#39;</span><span class="p">)</span>
+			<span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-k&#39;</span><span class="p">,</span> <span class="s1">&#39;--kill&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;kill a running daemon and quit&#39;</span><span class="p">)</span>
+
+		<span class="k">return</span> <span class="n">parser</span></div>
+
+
+	<span class="k">def</span> <span class="nf">parse_arguments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		It parses the command line arguments and sets the default values for the configuration accordingly.</span>
+
+<span class="sd">		:param args: The arguments to parse. If not set, sys.argv[1:] will be used</span>
+<span class="sd">		:return: The arguments that were parsed.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="n">parser</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_argument_parser</span><span class="p">()</span>
+		<span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
+
+		<span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">Config</span><span class="o">.</span><span class="n">_default_values</span><span class="p">[</span><span class="s1">&#39;general&#39;</span><span class="p">][</span><span class="s1">&#39;config_file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">config</span>
+
+		<span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+			<span class="n">Config</span><span class="o">.</span><span class="n">_default_values</span><span class="p">[</span><span class="s1">&#39;logging&#39;</span><span class="p">][</span><span class="s1">&#39;verbose&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+		<span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">syslog</span><span class="p">:</span>
+			<span class="n">Config</span><span class="o">.</span><span class="n">_default_values</span><span class="p">[</span><span class="s1">&#39;logging:syslog&#39;</span><span class="p">][</span><span class="s1">&#39;enabled&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+		<span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">log_file</span><span class="p">:</span>
+			<span class="n">Config</span><span class="o">.</span><span class="n">_default_values</span><span class="p">[</span><span class="s1">&#39;logging:file&#39;</span><span class="p">][</span><span class="s1">&#39;path&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">log_file</span>
+
+		<span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">web_api</span><span class="p">:</span>
+			<span class="k">if</span> <span class="s1">&#39;web&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">Config</span><span class="o">.</span><span class="n">_default_values</span><span class="p">:</span>
+				<span class="n">Config</span><span class="o">.</span><span class="n">_default_values</span><span class="p">[</span><span class="s1">&#39;web&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+			<span class="n">Config</span><span class="o">.</span><span class="n">_default_values</span><span class="p">[</span><span class="s1">&#39;web&#39;</span><span class="p">][</span><span class="s1">&#39;listen&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">web_api</span>
+
+		<span class="k">return</span> <span class="n">args</span>
+
+
+	<span class="k">def</span> <span class="nf">get_pidfile_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Return the `pidfile` path from the configuration.</span>
+
+<span class="sd">		Example from the configuration:</span>
+
+<span class="sd">		```</span>
+<span class="sd">		[general]</span>
+<span class="sd">		pidfile=/tmp/my.pid</span>
+<span class="sd">		```</span>
+
+<span class="sd">		`pidfile` is a file that contains process id of the ASAB process.</span>
+<span class="sd">		It is used for interaction with OS respective it&#39;s control of running services.</span>
+
+<span class="sd">		If the `pidfile` is set to &quot;&quot;, then return None.</span>
+
+<span class="sd">		If it&#39;s set to &quot;!&quot;, then return the default pidfile path (in `/var/run/` folder).</span>
+<span class="sd">		This is the default value.</span>
+
+<span class="sd">		:return: The path to the `pidfile`.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="n">pidfilepath</span> <span class="o">=</span> <span class="n">Config</span><span class="p">[</span><span class="s1">&#39;general&#39;</span><span class="p">][</span><span class="s1">&#39;pidfile&#39;</span><span class="p">]</span>
+		<span class="k">if</span> <span class="n">pidfilepath</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+			<span class="k">return</span> <span class="kc">None</span>
+		<span class="k">elif</span> <span class="n">pidfilepath</span> <span class="o">==</span> <span class="s2">&quot;!&quot;</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;/var/run&#39;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="s1">&#39;.pid&#39;</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">pidfilepath</span>
+
+
+	<span class="k">def</span> <span class="nf">daemonize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">daemon</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Install &#39;python-daemon&#39; module to support daemonizing.&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+		<span class="n">pidfilepath</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_pidfile_path</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">pidfilepath</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">pidfile</span> <span class="o">=</span> <span class="n">daemon</span><span class="o">.</span><span class="n">pidfile</span><span class="o">.</span><span class="n">TimeoutPIDLockFile</span><span class="p">(</span><span class="n">pidfilepath</span><span class="p">)</span>
+
+		<span class="n">working_dir</span> <span class="o">=</span> <span class="n">Config</span><span class="p">[</span><span class="s1">&#39;general&#39;</span><span class="p">][</span><span class="s1">&#39;working_dir&#39;</span><span class="p">]</span>
+
+		<span class="n">uid</span> <span class="o">=</span> <span class="n">Config</span><span class="p">[</span><span class="s1">&#39;general&#39;</span><span class="p">][</span><span class="s1">&#39;uid&#39;</span><span class="p">]</span>
+		<span class="k">if</span> <span class="n">uid</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+			<span class="n">uid</span> <span class="o">=</span> <span class="kc">None</span>
+
+		<span class="n">gid</span> <span class="o">=</span> <span class="n">Config</span><span class="p">[</span><span class="s1">&#39;general&#39;</span><span class="p">][</span><span class="s1">&#39;gid&#39;</span><span class="p">]</span>
+		<span class="k">if</span> <span class="n">gid</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+			<span class="n">gid</span> <span class="o">=</span> <span class="kc">None</span>
+
+		<span class="n">signal_map</span> <span class="o">=</span> <span class="p">{</span>
+			<span class="n">signal</span><span class="o">.</span><span class="n">SIGTTIN</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+			<span class="n">signal</span><span class="o">.</span><span class="n">SIGTTOU</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+			<span class="n">signal</span><span class="o">.</span><span class="n">SIGTSTP</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+		<span class="p">}</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">DaemonContext</span> <span class="o">=</span> <span class="n">daemon</span><span class="o">.</span><span class="n">DaemonContext</span><span class="p">(</span>
+			<span class="n">working_directory</span><span class="o">=</span><span class="n">working_dir</span><span class="p">,</span>
+			<span class="n">signal_map</span><span class="o">=</span><span class="n">signal_map</span><span class="p">,</span>
+			<span class="n">pidfile</span><span class="o">=</span><span class="n">pidfile</span><span class="p">,</span>
+			<span class="n">uid</span><span class="o">=</span><span class="n">uid</span><span class="p">,</span>
+			<span class="n">gid</span><span class="o">=</span><span class="n">gid</span><span class="p">,</span>
+		<span class="p">)</span>
+
+		<span class="k">try</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">DaemonContext</span><span class="o">.</span><span class="n">open</span><span class="p">()</span>
+		<span class="k">except</span> <span class="n">lockfile</span><span class="o">.</span><span class="n">AlreadyLocked</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Cannot create a PID file &#39;</span><span class="si">{}</span><span class="s2">&#39;:&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pidfilepath</span><span class="p">),</span> <span class="n">e</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+
+	<span class="k">def</span> <span class="nf">daemon_kill</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">daemon</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Install &#39;python-daemon&#39; module to support daemonising.&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+		<span class="n">pidfilepath</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_pidfile_path</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">pidfilepath</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+		<span class="k">try</span><span class="p">:</span>
+			<span class="n">pid</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">pidfilepath</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+		<span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Pid file &#39;</span><span class="si">{}</span><span class="s2">&#39; not found.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pidfilepath</span><span class="p">),</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+		<span class="n">pid</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">pid</span><span class="p">)</span>
+
+		<span class="k">for</span> <span class="n">sno</span> <span class="ow">in</span> <span class="p">[</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGINT</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGINT</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGINT</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGINT</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIGTERM</span><span class="p">]:</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">os</span><span class="o">.</span><span class="n">kill</span><span class="p">(</span><span class="n">pid</span><span class="p">,</span> <span class="n">sno</span><span class="p">)</span>
+			<span class="k">except</span> <span class="ne">ProcessLookupError</span><span class="p">:</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Process with pid &#39;</span><span class="si">{}</span><span class="s2">&#39; not found.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pid</span><span class="p">),</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+				<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+			<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+				<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">pidfilepath</span><span class="p">):</span>
+					<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+				<span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Daemon process (pid: </span><span class="si">{}</span><span class="s2">) still running ...&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pid</span><span class="p">),</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+
+		<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Pid file &#39;</span><span class="si">{}</span><span class="s2">&#39; not found.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pidfilepath</span><span class="p">),</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+		<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+
+
+<div class="viewcode-block" id="Application.run"><a class="viewcode-back" href="../../asab/application.html#asab.Application.run">[docs]</a>	<span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="c1"># Comence init-time</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.init!&quot;</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">run_until_complete</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_init_time_governor</span><span class="p">(),</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">initialize</span><span class="p">(),</span>
+
+		<span class="p">))</span>
+
+		<span class="c1"># Comence run-time and application main() function</span>
+		<span class="n">L</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">LOG_NOTICE</span><span class="p">,</span> <span class="s2">&quot;is ready.&quot;</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">run_until_complete</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_run_time_governor</span><span class="p">(),</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">main</span><span class="p">(),</span>
+		<span class="p">))</span>
+
+		<span class="c1"># Comence exit-time</span>
+		<span class="n">L</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">LOG_NOTICE</span><span class="p">,</span> <span class="s2">&quot;is exiting ...&quot;</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">run_until_complete</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">finalize</span><span class="p">(),</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_exit_time_governor</span><span class="p">(),</span>
+		<span class="p">))</span>
+
+		<span class="c1"># Python 3.5 lacks support for shutdown_asyncgens()</span>
+		<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="p">,</span> <span class="s2">&quot;shutdown_asyncgens&quot;</span><span class="p">):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">run_until_complete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">shutdown_asyncgens</span><span class="p">())</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ExitCode</span></div>
+
+
+<div class="viewcode-block" id="Application.stop"><a class="viewcode-back" href="../../asab/application.html#asab.Application.stop">[docs]</a>	<span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exit_code</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">exit_code</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">set_exit_code</span><span class="p">(</span><span class="n">exit_code</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_stop_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.stop!&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_counter</span><span class="p">)</span>
+
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_counter</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">:</span>
+			<span class="n">L</span><span class="o">.</span><span class="n">fatal</span><span class="p">(</span><span class="s2">&quot;Emergency exit&quot;</span><span class="p">)</span>
+			<span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">all_tasks</span><span class="p">():</span>
+				<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Pending task during emergency exit: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">task</span><span class="p">))</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="c1"># EX_SOFTWARE code is not available on Windows</span>
+				<span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">_exit</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">EX_SOFTWARE</span><span class="p">)</span>
+			<span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+				<span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">_exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+		<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_counter</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+			<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> tasks still active&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">all_tasks</span><span class="p">())))</span></div>
+
+
+	<span class="k">def</span> <span class="nf">_hup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Logging</span><span class="o">.</span><span class="n">rotate</span><span class="p">()</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.hup!&quot;</span><span class="p">)</span>
+
+
+	<span class="c1"># Modules</span>
+
+<div class="viewcode-block" id="Application.add_module"><a class="viewcode-back" href="../../asab/application.html#asab.Application.add_module">[docs]</a>	<span class="k">def</span> <span class="nf">add_module</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module_class</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Load a new module.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">Modules</span><span class="p">:</span>
+			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">module_class</span><span class="p">):</span>
+				<span class="c1"># Already loaded and registered</span>
+				<span class="k">return</span>
+
+		<span class="n">module</span> <span class="o">=</span> <span class="n">module_class</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Modules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
+
+		<span class="c1"># Enqueue module for initialization (happens in run phase)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">InitModulesQueue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">module</span><span class="p">)</span></div>
+
+
+	<span class="c1"># Services</span>
+
+<div class="viewcode-block" id="Application.get_service"><a class="viewcode-back" href="../../asab/application.html#asab.Application.get_service">[docs]</a>	<span class="k">def</span> <span class="nf">get_service</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service_name</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Get a new service by its name.</span>
+
+<span class="sd">		Returns `None` if the service is not registered.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Services</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">service_name</span><span class="p">)</span></div>
+
+
+	<span class="k">def</span> <span class="nf">_register_service</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Register a new service using its name.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="k">if</span> <span class="n">service</span><span class="o">.</span><span class="n">Name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">Services</span><span class="p">:</span>
+			<span class="n">L</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Service &#39;</span><span class="si">{}</span><span class="s2">&#39; already registered (existing:</span><span class="si">{}</span><span class="s2"> new:</span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+				<span class="n">service</span><span class="o">.</span><span class="n">Name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Services</span><span class="p">[</span><span class="n">service</span><span class="o">.</span><span class="n">Name</span><span class="p">],</span> <span class="n">service</span><span class="p">))</span>
+			<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Service </span><span class="si">{}</span><span class="s2"> already registered&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">service</span><span class="o">.</span><span class="n">Name</span><span class="p">))</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">Services</span><span class="p">[</span><span class="n">service</span><span class="o">.</span><span class="n">Name</span><span class="p">]</span> <span class="o">=</span> <span class="n">service</span>
+
+		<span class="c1"># Enqueue service for initialization (happens in run phase)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">InitServicesQueue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">service</span><span class="p">)</span>
+
+
+	<span class="c1"># Lifecycle callback</span>
+
+<div class="viewcode-block" id="Application.initialize"><a class="viewcode-back" href="../../asab/application.html#asab.Application.initialize">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Application.main"><a class="viewcode-back" href="../../asab/application.html#asab.Application.main">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Application.finalize"><a class="viewcode-back" href="../../asab/application.html#asab.Application.finalize">[docs]</a>	<span class="k">async</span> <span class="k">def</span> <span class="nf">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">pass</span></div>
+
+
+	<span class="c1"># Governors</span>
+
+	<span class="k">async</span> <span class="k">def</span> <span class="nf">_init_time_governor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="c1"># Initialize all services that has been created during application construction</span>
+		<span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_initialization</span><span class="p">()</span>
+
+
+	<span class="k">async</span> <span class="k">def</span> <span class="nf">_run_time_governor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">timeout</span> <span class="o">=</span> <span class="n">Config</span><span class="o">.</span><span class="n">getint</span><span class="p">(</span><span class="s1">&#39;general&#39;</span><span class="p">,</span> <span class="s1">&#39;tick_period&#39;</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.run!&quot;</span><span class="p">)</span>
+
+		<span class="c1"># Wait for stop event &amp; tick in meanwhile</span>
+		<span class="k">for</span> <span class="n">cycle_no</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="mi">1</span><span class="p">):</span>
+
+			<span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_initialization</span><span class="p">()</span>
+
+			<span class="k">try</span><span class="p">:</span>
+				<span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_stop_event</span><span class="o">.</span><span class="n">wait</span><span class="p">(),</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+				<span class="k">break</span>
+			<span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.tick!&quot;</span><span class="p">)</span>
+				<span class="k">if</span> <span class="p">(</span><span class="n">cycle_no</span> <span class="o">%</span> <span class="mi">10</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.tick/10!&quot;</span><span class="p">)</span>
+				<span class="k">if</span> <span class="p">(</span><span class="n">cycle_no</span> <span class="o">%</span> <span class="mi">60</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+					<span class="c1"># Rebase a Loop time</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">BaseTime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.tick/60!&quot;</span><span class="p">)</span>
+				<span class="k">if</span> <span class="p">(</span><span class="n">cycle_no</span> <span class="o">%</span> <span class="mi">300</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.tick/300!&quot;</span><span class="p">)</span>
+				<span class="k">if</span> <span class="p">(</span><span class="n">cycle_no</span> <span class="o">%</span> <span class="mi">600</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.tick/600!&quot;</span><span class="p">)</span>
+				<span class="k">if</span> <span class="p">(</span><span class="n">cycle_no</span> <span class="o">%</span> <span class="mi">1800</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.tick/1800!&quot;</span><span class="p">)</span>
+				<span class="k">if</span> <span class="p">(</span><span class="n">cycle_no</span> <span class="o">%</span> <span class="mi">3600</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.tick/3600!&quot;</span><span class="p">)</span>
+				<span class="k">if</span> <span class="p">(</span><span class="n">cycle_no</span> <span class="o">%</span> <span class="mi">43200</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.tick/43200!&quot;</span><span class="p">)</span>
+				<span class="k">if</span> <span class="p">(</span><span class="n">cycle_no</span> <span class="o">%</span> <span class="mi">86400</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.tick/86400!&quot;</span><span class="p">)</span>
+				<span class="k">continue</span>
+
+
+	<span class="k">async</span> <span class="k">def</span> <span class="nf">_exit_time_governor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.exit!&quot;</span><span class="p">)</span>
+
+		<span class="c1"># Finalize services</span>
+		<span class="n">futures</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+		<span class="k">for</span> <span class="n">service</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">Services</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+			<span class="n">futures</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+				<span class="n">asyncio</span><span class="o">.</span><span class="n">ensure_future</span><span class="p">(</span><span class="n">service</span><span class="o">.</span><span class="n">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+			<span class="p">)</span>
+
+		<span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">futures</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">done</span><span class="p">,</span> <span class="n">futures</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">futures</span><span class="p">,</span> <span class="n">return_when</span><span class="o">=</span><span class="n">asyncio</span><span class="o">.</span><span class="n">FIRST_EXCEPTION</span><span class="p">)</span>
+			<span class="k">for</span> <span class="n">fut</span> <span class="ow">in</span> <span class="n">done</span><span class="p">:</span>
+				<span class="k">try</span><span class="p">:</span>
+					<span class="n">fut</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+				<span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Error during finalize call&quot;</span><span class="p">)</span>
+
+
+		<span class="c1"># Finalize modules</span>
+		<span class="n">futures</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+		<span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">Modules</span><span class="p">:</span>
+			<span class="n">futures</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+				<span class="n">asyncio</span><span class="o">.</span><span class="n">ensure_future</span><span class="p">(</span><span class="n">module</span><span class="o">.</span><span class="n">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+			<span class="p">)</span>
+
+		<span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">futures</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">done</span><span class="p">,</span> <span class="n">futures</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">futures</span><span class="p">,</span> <span class="n">return_when</span><span class="o">=</span><span class="n">asyncio</span><span class="o">.</span><span class="n">FIRST_EXCEPTION</span><span class="p">)</span>
+			<span class="k">for</span> <span class="n">fut</span> <span class="ow">in</span> <span class="n">done</span><span class="p">:</span>
+				<span class="k">try</span><span class="p">:</span>
+					<span class="n">fut</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+				<span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Error during finalize call&quot;</span><span class="p">)</span>
+
+
+		<span class="c1"># Wait for non-finalized tasks</span>
+		<span class="n">tasks_awaiting</span> <span class="o">=</span> <span class="mi">0</span>
+		<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">ts</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">all_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="p">)</span>
+			<span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+				<span class="c1"># Compatibility for Python 3.6-</span>
+				<span class="n">ts</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="o">.</span><span class="n">all_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="p">)</span>
+			<span class="n">tasks_awaiting</span> <span class="o">=</span> <span class="mi">0</span>
+			<span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">ts</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">done</span><span class="p">():</span>
+					<span class="k">continue</span>
+				<span class="n">tasks_awaiting</span> <span class="o">+=</span> <span class="mi">1</span>
+			<span class="k">if</span> <span class="n">tasks_awaiting</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+				<span class="c1"># 2 is for _exit_time_governor and wait()</span>
+				<span class="k">break</span>
+
+			<span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Exiting but </span><span class="si">{}</span><span class="s2"> async task(s) are still waiting&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tasks_awaiting</span><span class="p">))</span>
+
+
+	<span class="k">async</span> <span class="k">def</span> <span class="nf">_ensure_initialization</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		This method ensures that any newly add module or registered service is initialized.</span>
+<span class="sd">		It is called from:</span>
+<span class="sd">		(1) init-time for modules&amp;services added during application construction.</span>
+<span class="sd">		(2) run-time for modules&amp;services added during aplication lifecycle.</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+
+		<span class="c1"># Initialize modules</span>
+		<span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">InitModulesQueue</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">module</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InitModulesQueue</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="k">await</span> <span class="n">module</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+			<span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+				<span class="n">L</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Error during module initialization&quot;</span><span class="p">)</span>
+
+		<span class="c1"># Initialize services</span>
+		<span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">InitServicesQueue</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">service</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InitServicesQueue</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="k">await</span> <span class="n">service</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+			<span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+				<span class="n">L</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Error during service initialization&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Application.set_exit_code"><a class="viewcode-back" href="../../asab/application.html#asab.Application.set_exit_code">[docs]</a>	<span class="k">def</span> <span class="nf">set_exit_code</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exit_code</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+		<span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ExitCode</span> <span class="o">&lt;</span> <span class="n">exit_code</span><span class="p">)</span> <span class="ow">or</span> <span class="n">force</span><span class="p">:</span>
+			<span class="n">L</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Exit code set to </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">exit_code</span><span class="p">))</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">ExitCode</span> <span class="o">=</span> <span class="n">exit_code</span></div>
+
+
+	<span class="c1"># Time</span>
+
+<div class="viewcode-block" id="Application.time"><a class="viewcode-back" href="../../asab/application.html#asab.Application.time">[docs]</a>	<span class="k">def</span> <span class="nf">time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		Return UTC unix timestamp using a loop time (a fast way how to get a wall clock time).</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">BaseTime</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">Loop</span><span class="o">.</span><span class="n">time</span><span class="p">()</span></div>
+
+
+	<span class="c1"># Housekeeping</span>
+
+	<span class="k">def</span> <span class="nf">_set_housekeeping_time_from_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;Set the housekeeping time from `Config[&#39;general&#39;][&#39;housekeeping_time&#39;]`.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="n">config_house_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">Config</span><span class="p">[</span><span class="s1">&#39;general&#39;</span><span class="p">][</span><span class="s1">&#39;housekeeping_time&#39;</span><span class="p">],</span> <span class="s2">&quot;%H:%M&quot;</span><span class="p">)</span>  <span class="c1"># default: 03:00</span>
+		<span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+		<span class="n">next_housekeeping_time</span> <span class="o">=</span> <span class="n">now</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+			<span class="n">hour</span><span class="o">=</span><span class="n">config_house_time</span><span class="o">.</span><span class="n">hour</span><span class="p">,</span>
+			<span class="n">minute</span><span class="o">=</span><span class="n">config_house_time</span><span class="o">.</span><span class="n">minute</span><span class="p">,</span>
+			<span class="n">second</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+			<span class="n">microsecond</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+		<span class="c1"># if the app started after the housekeeping time, set it to the next day</span>
+		<span class="k">if</span> <span class="n">now</span> <span class="o">&gt;</span> <span class="n">next_housekeeping_time</span><span class="p">:</span>
+			<span class="n">next_housekeeping_time</span> <span class="o">+=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">next_housekeeping_time</span>
+
+	<span class="k">def</span> <span class="nf">_on_housekeeping_tick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_type</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;Check if it&#39;s time for &#39;Application.housekeeping!&#39;.</span>
+<span class="sd">		If so, publish the message and set housekeeping time for the next day.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">if</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">NextHousekeeping</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;Application.housekeeping!&quot;</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">NextHousekeeping</span> <span class="o">+=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+			<span class="n">L</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+				<span class="n">LOG_NOTICE</span><span class="p">,</span>
+				<span class="s2">&quot;Setting time for the next housekeeping: </span><span class="si">{}</span><span class="s2"> UTC&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">NextHousekeeping</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">)</span>
+				<span class="p">)</span>
+			<span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">ASAB</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../get-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial/web/chapter1.html">Web Server Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial/web/chapter2.html">Create microservice with REST API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Services</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/web/index.html">The web server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/web/restapidocs.html">REST API Docs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/web/authn.html">Authn module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/web/cors.html">Cross-Origin Resource Sharing (CORS)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/metrics.html">Metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/storage.html">Storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/alert.html">Alert Service</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/application.html">Application</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/config.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/log.html">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/pubsub.html">Publish-Subscribe</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/service.html">Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/module.html">Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/various.html">Various utility classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/zookeeper.html">Zookeeper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/library.html">Library</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Administration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/command-line.html">ASAB Command-line interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/containers.html">Containerisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/systemd.html">systemd</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, TeskaLabs Ltd..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

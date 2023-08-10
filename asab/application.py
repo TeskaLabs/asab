@@ -9,6 +9,7 @@ import argparse
 import itertools
 import platform
 import datetime
+import typing
 
 import asab
 
@@ -28,19 +29,63 @@ L = logging.getLogger(__name__)
 
 
 class Application(metaclass=Singleton):
+	"""The base application object that maintains the global application state.
+
+	You can provide your own implementation by creating a subclass. It is intended to be a Singleton.
+
+	Examples:
+	```python
+	class MyApplication(asab.Application):
+		async def main(self):
+			print("Hello world!")
+			self.stop()
+
+	if __name__ == "__main__":
+		app = MyApplication()
+		app.run()
+	```
+	"""
 
 	Description = "This app is based on ASAB."
 
-	def __init__(self, args=None, modules=[]):
-		'''
-		Argument `modules` allows to specify a list of ASAB modules that will be added by `app.add_module()` call.
+	def __init__(self, args: typing.Optional[list] = None, modules: list = []):
+		"""
+		Initialize the Application provided with arguments and modules.
 
-		Example:
+		Args:
+			args: sequence of arguments to be parsed by `Application.parse_arguments()` call.
+			modules: list of ASAB modules to be added by `Application.add_module()` call.
 
+		Examples:
+
+		```python
 		class MyApplication(asab.Application):
 			def __init__(self):
 				super().__init__(modules=[asab.web.Module, asab.zookeeper.Module])
-		'''
+		```
+		"""
+
+		self.ExitCode: typing.Union[int, str]
+		"""
+		The actual value of the exit code that can be set via `set_exit_code()` method.
+
+		Examples:
+			The example of the exit code handling in the `main()` function of the application:
+
+			```python
+			if __name__ == '__main__':
+				app = asab.Application()
+				exit_code = app.run()
+				sys.exit(exit_code)
+			```
+
+			| Exit code | Meaning |
+			| --- | --- |
+			| 0 | success |
+			| 1 | abnormal termination of a program perhaps as a result a minor problem in the code |
+			| "!RESTART!" | hard restart of the whole application |
+
+		"""
 
 		try:
 			# EX_OK code is not available on Windows
@@ -81,8 +126,15 @@ class Application(metaclass=Singleton):
 		self.LaunchTime = time.time()
 		self.BaseTime = self.LaunchTime - self.Loop.time()
 
-		self.Modules = []
-		self.Services = {}
+		self.Modules: list[asab.Module] = []
+		"""
+		A list of modules that has been added to the application.
+		"""
+
+		self.Services: dict[str, asab.Service] = {}
+		"""
+		A dictionary of registered services.
+		"""
 
 		# Setup logging
 		self.Logging = Logging(self)
@@ -150,11 +202,28 @@ class Application(metaclass=Singleton):
 		argument_default=None,
 		conflict_handler='error',
 		add_help=True
-	):
-		'''
-		This method can be overriden to adjust argparse configuration.
-		Refer to the Python standard library to `argparse.ArgumentParser` for details of arguments.
-		'''
+	) -> argparse.ArgumentParser:
+		"""
+		Create an `argparse.ArgumentParser` object supplemented by default ASAB arguments.
+
+		This method can be overridden to adjust argparse configuration.
+		Refer to the Python standard library to [`argparse.ArgumentParser`](https://docs.python.org/3/library/argparse.html?highlight=argumentparser#argumentparser-objects) for details of arguments.
+
+		Default ASAB arguments:
+
+		| Argument | Type | Action |
+		| :----- | :----- | :----- |
+		| `-c`, `--config` | str | specify a path to a configuration file |
+		| `-d`, `--daemonize` | bool | run daemonized (in the background) |
+		| `-k`, `--kill` | bool | kill a running daemon and quit |
+		| `-l`, `--log-file` | str | specify a path to a log file |
+		| `-s`, `--syslog`| bool | enable logging to a syslog |
+		| `-v`, `--verbose` | bool | print more information (enable debug output) |
+		| `-w`, `--web-api` | str | activate Asab web API (default listening port is 0.0.0.0:8080) |
+		| `--startup-housekeeping` | | trigger housekeeping event immediately after application startup |
+
+
+		"""
 
 		parser = argparse.ArgumentParser(
 			prog=prog,
@@ -185,10 +254,13 @@ class Application(metaclass=Singleton):
 
 	def parse_arguments(self, args=None):
 		"""
-		It parses the command line arguments and sets the default values for the configuration accordingly.
+		Parse the command line arguments and set the default values for the configuration accordingly.
 
-		:param args: The arguments to parse. If not set, sys.argv[1:] will be used
-		:return: The arguments that were parsed.
+		Args:
+			args: The arguments to parse. If not set, sys.argv[1:] will be used.
+
+		Returns:
+			The arguments that were parsed.
 		"""
 
 		parser = self.create_argument_parser()
@@ -217,26 +289,26 @@ class Application(metaclass=Singleton):
 		return args
 
 
-	def get_pidfile_path(self):
+	def get_pidfile_path(self) -> typing.Optional[str]:
 		"""
-		Return the `pidfile` path from the configuration.
+		Get the path for PID file from the configuration.
 
-		Example from the configuration:
+		PID file is a file that contains process id of the ASAB process.
+		It is used for interaction with OS respective it's control of running services.
 
-		```
+		- If the `pidfile` is set to the empty string, return None.
+		- If `pidfile` is set to "!", return the default PID file path (in `/var/run/` folder).
+		This is the default value.
+
+		Example of PID path configuration:
+
+		```ini
 		[general]
 		pidfile=/tmp/my.pid
 		```
 
-		`pidfile` is a file that contains process id of the ASAB process.
-		It is used for interaction with OS respective it's control of running services.
-
-		If the `pidfile` is set to "", then return None.
-
-		If it's set to "!", then return the default pidfile path (in `/var/run/` folder).
-		This is the default value.
-
-		:return: The path to the `pidfile`.
+		Returns:
+			The path to the `pidfile`.
 		"""
 
 		pidfilepath = Config['general']['pidfile']
@@ -323,7 +395,13 @@ class Application(metaclass=Singleton):
 
 
 	def run(self):
-		# Comence init-time
+		"""Run the application.
+
+		Returns:
+			(int): Exit code of the finalized process.
+		"""
+
+		# Commence init-time
 		self.PubSub.publish("Application.init!")
 		self.Loop.run_until_complete(asyncio.gather(
 			self._init_time_governor(),
@@ -332,7 +410,7 @@ class Application(metaclass=Singleton):
 		))
 
 		try:
-			# Comence run-time and application main() function
+			# Commence run-time and application main() function
 			L.log(LOG_NOTICE, "is ready.")
 			self._stop_event.clear()
 			self.Loop.run_until_complete(asyncio.gather(
@@ -362,7 +440,17 @@ class Application(metaclass=Singleton):
 		return self.ExitCode
 
 
-	def stop(self, exit_code: int = None):
+	def stop(self, exit_code: typing.Optional[int] = None) -> None:
+		"""
+		Gracefully terminate the _run-time_ and commence the _exit-time_.
+
+		This method is automatically called by `SIGINT` and `SIGTERM`.
+		It also includes a response to `Ctrl-C` on UNIX-like system.
+		When this method is called 3x, it abruptly exits the application (aka emergency abort).
+
+		Args:
+			exit_code (int, optional): Exit code of the finalized process.
+		"""
 		if exit_code is not None:
 			self.set_exit_code(exit_code)
 
@@ -388,17 +476,20 @@ class Application(metaclass=Singleton):
 		self.stop("!RESTART!")
 
 	def restart(self):
-		'''
-		Schedules a hard restart of the whole application.
+		"""
+		Schedule a hard restart of the whole application.
 
-		This function works by using os.execv(), which replaces the current process with a new one (without creating a new process ID).
+		This function works by using `os.execv()`, which replaces the current process with a new one (without creating a new process ID).
 		Arguments and environment variables will be retained.
 
-		IMPORTANT: Please note that this will work on Unix-based systems only, as it uses a feature specific to Unix.
+		!!! warning
+			Please note that this will work on Unix-based systems only, as it uses a feature specific to Unix.
 
-		A piece of advice: Be careful while using this function, make sure you have some control over when and how this function is being called to avoid any unexpected process restarts.
-		It is not common to use these types of function calls in Python applications.
-		'''
+		!!! hint
+			Be careful while using this function, make sure you have some control
+			over when and how this function is being called to avoid any unexpected process restarts.
+			It is not common to use these types of function calls in Python applications.
+		"""
 		self.PubSub.subscribe("Application.tick/10!", self._do_restart)
 
 
@@ -409,7 +500,7 @@ class Application(metaclass=Singleton):
 
 	# Modules
 
-	def add_module(self, module_class):
+	def add_module(self, module_class: asab.Module) -> None:
 		"""
 		Load a new module.
 		"""
@@ -428,16 +519,21 @@ class Application(metaclass=Singleton):
 
 	# Services
 
-	def get_service(self, service_name):
+	def get_service(self, service_name: str) -> typing.Optional[asab.Service]:
 		"""
 		Get a new service by its name.
 
-		Returns `None` if the service is not registered.
+		Args:
+			service_name: Name of the service to retrieve.
+
+		Returns:
+			The service object associated with the provided service_name,
+			or None if the service is not registered.
 		"""
 		return self.Services.get(service_name)
 
 
-	def _register_service(self, service):
+	def _register_service(self, service: asab.Service):
 		"""
 		Register a new service using its name.
 		"""
@@ -456,19 +552,30 @@ class Application(metaclass=Singleton):
 	# Lifecycle callback
 
 	async def initialize(self):
+		"""
+		This method is called during the application _init-time_. It is intended to be overridden by the user.
+		"""
 		pass
 
 	async def main(self):
+		"""
+		This method is called during the application _run-time_. It is intended to be overridden by the user.
+		"""
 		pass
 
 	async def finalize(self):
+		"""
+		This method is called during the application _exit-time_. It is intended to be overridden by the user.
+		"""
 		pass
 
 
 	# Governors
 
 	async def _init_time_governor(self):
-		# Initialize all services that has been created during application construction
+		"""
+		Initialize all services that has been created during application construction
+		"""
 		await self._ensure_initialization()
 
 
@@ -594,7 +701,17 @@ class Application(metaclass=Singleton):
 				L.exception("Error during service initialization")
 
 
-	def set_exit_code(self, exit_code: int, force: bool = False):
+	def set_exit_code(self, exit_code: typing.Union[int, str], force: bool = False):
+		"""
+		Set the exit code of the application.
+
+		If `force` is `False`, the exit code will be set only if the previous value is lower than the new one.
+		If `force` is `True`, the exit code value is set to `exit_code` value disregarding the previous value.
+
+		Args:
+			exit_code (str | int): The exit code value.
+			force: Force the exit code reassignment.
+		"""
 		if self.ExitCode == "!RESTART!":
 			return
 
@@ -608,9 +725,12 @@ class Application(metaclass=Singleton):
 
 	# Time
 
-	def time(self):
+	def time(self) -> float:
 		'''
-		Return UTC unix timestamp using a loop time (a fast way how to get a wall clock time).
+		Return UTC UNIX timestamp using a loop time (a fast way how to get a wall clock time).
+
+		Returns:
+			Current UTC UNIX timestamp.
 		'''
 		return self.BaseTime + self.Loop.time()
 
@@ -620,7 +740,9 @@ class Application(metaclass=Singleton):
 	def _initialize_housekeeping_schedule(self):
 		"""
 		Set the next housekeeping time and time limit from configuration.
-		Returns: (next_housekeeping_time, next_time_limit, next_housekeeping_id)
+
+		Returns:
+			(next_housekeeping_time, next_time_limit, next_housekeeping_id)
 		"""
 		config_house_time = datetime.datetime.strptime(Config['housekeeping']['at'], "%H:%M")  # default: 03:00
 		config_time_limit = datetime.datetime.strptime(Config['housekeeping']['limit'], "%H:%M")  # default: 05:00
@@ -645,7 +767,7 @@ class Application(metaclass=Singleton):
 		next_time_limit = next_housekeeping_time + time_delta_limit
 
 		# Each time has its id that prevents from accidental executing housekeeping twice.
-		next_housekeeping_id = housekeeping_id(now)
+		next_housekeeping_id = _housekeeping_id(now)
 
 
 		return (next_housekeeping_time, next_time_limit, next_housekeeping_id)
@@ -656,7 +778,7 @@ class Application(metaclass=Singleton):
 		If so, publish the message and set housekeeping time, the time limit and time id for the next day.
 		"""
 		now = datetime.datetime.now(datetime.timezone.utc)
-		today_id = housekeeping_id(now)
+		today_id = _housekeeping_id(now)
 
 		if self.HousekeepingTime < now:
 			if now < self.HousekeepingTimeLimit and self.HousekeepingId <= today_id:
@@ -674,7 +796,7 @@ class Application(metaclass=Singleton):
 
 			self.HousekeepingTime += datetime.timedelta(days=1)
 			self.HousekeepingTimeLimit += datetime.timedelta(days=1)
-			self.HousekeepingId = housekeeping_id(self.HousekeepingTime)
+			self.HousekeepingId = _housekeeping_id(self.HousekeepingTime)
 			L.log(
 				LOG_NOTICE,
 				"Setting time for the next housekeeping.",
@@ -693,7 +815,7 @@ class Application(metaclass=Singleton):
 					})
 
 
-def housekeeping_id(dt: datetime.datetime) -> int:
+def _housekeeping_id(dt: datetime.datetime) -> int:
 	"""
 	Create a unique ID for each date. Utility function for housekeeping.
 

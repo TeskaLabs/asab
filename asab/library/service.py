@@ -15,6 +15,9 @@ import yaml
 from ..abc import Service
 from ..config import Config
 from ..log import LOG_NOTICE
+from .item import LibraryItem
+from ..application import Application
+from .providers.abc import LibraryProviderABC
 
 #
 
@@ -28,15 +31,15 @@ class LibraryService(Service):
 	"""
 	Configuration:
 
-	.. code::
+	```ini
+	[library]
+	providers:
+		provider+1://
+		provider+2://
+		provider+3://
+	```
 
-		[library]
-		providers:
-			provider+1://
-			provider+2://
-			provider+3://
-
-	The order of providers *IS* important, the priority (or layering) is top-down.
+	The order of providers is important, the priority (or layering) is top-down.
 
 	Each library provider is specified by URL/URI schema:
 
@@ -52,19 +55,26 @@ class LibraryService(Service):
 	The library indicates that by the PubSub event `Library.ready!`.
 	"""
 
-	def __init__(self, app, service_name, paths=None):
+	def __init__(self, app: Application, service_name: str, paths: typing.Union[str, typing.List[str], None] = None):
 		"""
+		Initialize the LibraryService.
+
 		The library service is designed to "exist" in multiple instances,
 		with different `paths` setups.
 		For that reason, you have to provide unique `service_name`
 		and there is no _default_ value for that.
 
 		If `paths` are not provided, they are fetched from `[library]providers` configuration.
+
+		Args:
+			app: The ASAB Application.
+			service_name: A unique name of the service.
+			paths (str | list[str] | None ): Either single path or list of paths with which LibraryService is connected.
 		"""
 
 		super().__init__(app, service_name)
-		self.Libraries = list()
-		self.Disabled = {}
+		self.Libraries: list[LibraryProviderABC] = []
+		self.Disabled: dict = {}
 
 		if paths is None:
 			try:
@@ -79,14 +89,14 @@ class LibraryService(Service):
 		for layer, path in enumerate(paths):
 			# Create library for each layer of paths
 			self._create_library(path, layer)
-		app.PubSub.subscribe("Application.tick/60!", self.on_tick)
+		app.PubSub.subscribe("Application.tick/60!", self._on_tick)
 
 	async def finalize(self, app):
 		while len(self.Libraries) > 0:
 			lib = self.Libraries.pop(-1)
 			await lib.finalize(self.App)
 
-	async def on_tick(self, message_type):
+	async def _on_tick(self, message_type):
 		await self._read_disabled()
 
 	def _create_library(self, path, layer):
@@ -117,11 +127,12 @@ class LibraryService(Service):
 
 		self.Libraries.append(library_provider)
 
-	def is_ready(self):
+	def is_ready(self) -> bool:
 		"""
-		It checks if all the libraries are ready.
+		Check if all the libraries are ready.
 
-		:return: A boolean value.
+		Returns:
+			True if all libraries are ready, otherwise False.
 		"""
 		if len(self.Libraries) == 0:
 			return False
@@ -146,26 +157,25 @@ class LibraryService(Service):
 			L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("Library.not_ready!", self)
 
-	async def read(self, path: str, tenant: str = None) -> typing.IO:
+	async def read(self, path: str, tenant: typing.Optional[str] = None) -> typing.Optional[typing.IO]:
 		"""
-		Read the content of the library item specified by `path`.
-		`None` is returned if the item is not found in the library.
+		Read the content of the library item specified by `path`. This method can be used only after the Library is ready.
 
-		If the item is disabled (globally or for specified tenant) then None is returned.
+		Args:
+			path (str): Path to the file, `LibraryItem.name` can be used directly.
+			tenant (str | None): The tenant to apply. If not specified, the global access is assumed.
 
-		Example of use:
+		Returns:
+			( IO | None ): Readable stream with the content of the library item. `None` is returned if the item is not found or if it is disabled (either globally or for the specified tenant).
 
-		.. code::
+		Examples:
 
-			itemio = await library.read('/path', 'tenant')
-			if itemio is not None:
-				with itemio:
-					return itemio.read()
-
-
-		:param path: The path to the file, `LibraryItem.name` can be used directly
-		:param tenant: The tenant to apply. If not specified, the global access is assumed
-		:return: I/O stream (read) with the content of the libary item.
+		```python
+		itemio = await library.read('/path', 'tenant')
+		if itemio is not None:
+			with itemio:
+				return itemio.read()
+		```
 		"""
 		# item path must start with '/'
 		assert path[:1] == '/', "Item path must start with a forward slash (/). For example: /library/Templates/item.json"
@@ -183,25 +193,17 @@ class LibraryService(Service):
 
 		return None
 
-	async def list(self, path="/", tenant=None, recursive=False) -> list:
+	async def list(self, path: str = "/", tenant: typing.Optional[str] = None, recursive: bool = False) -> typing.List[LibraryItem]:
 		"""
-		List the directory of the library specified by the path.
-		It returns a list of `LibraryItem` entris.
+		List the directory of the library specified by the path that are enabled for the specified tenant. This method can be used only after the Library is ready.
 
-		Tenant is an optional parameter to list method for "disable" evaluation.
-			and default recursive is False.
+		Args:
+			path (str): Path to the directory.
+			tenant (str | None): If specified, items that are enabled for the tenant are filtered.
+			recursive (bool): If `True`, return a list of items located at `path` and its subdirectories.
 
-		When tenant=None
-			The method returns list of items that are enabled (not disabled).
-
-		When tenant='xxxxx'
-			The method returns list of items that are enabled (not disabled) for tenant 'xxxxx'.
-
-		When recursive=True
-			The method returns list of items that are located at `path` and in subdirectories of that location.
-
-		When recursive=False
-			The method returns list of items that are located at `path`
+		Returns:
+			List of items that are enabled for the tenant.
 		"""
 
 		# Directory path must start with '/'
@@ -292,14 +294,16 @@ class LibraryService(Service):
 				self.Disabled = {}
 				L.exception("Failed to parse '/.disabled.yaml'")
 
-	def check_disabled(self, path, tenant=None):
+	def check_disabled(self, path: str, tenant: typing.Optional[str] = None) -> bool:
 		"""
-		If the item is disabled for everybody, or if the item is disabled for the specified tenant, then
-		return True. Otherwise, return False
+		Check if the item specified in path is disabled, either globally or for the specified tenant.
 
-		:param path: The path to the item
-		:param tenant: The tenant name
-		:return: Boolean
+		Args:
+			path (str): Path to the item to be checked.
+			tenant (str | None): The tenant to apply. If not specified, the global access is assumed.
+
+		Returns:
+			`True` if the item is enabled for the tenant.
 		"""
 
 		disabled = self.Disabled.get(path)
@@ -316,15 +320,17 @@ class LibraryService(Service):
 
 		return False
 
-	async def export(self, path="/", tenant=None, remove_path=False) -> typing.IO:
+	async def export(self, path: str = "/", tenant: typing.Optional[str] = None, remove_path: bool = False) -> typing.IO:
 		"""
-		It takes a path, and returns a file-like object containing a gzipped tar archive of the library contents of
-		that path
+		Return a file-like stream containing a gzipped tar archive of the library contents of the path.
 
-		:param path: The path to export, defaults to / (optional)
-		:param tenant: The tenant to use for the operation
-		:param remove_path: If True, the path will be removed from the tar file, defaults to False
-		:return: A file object.
+		Args:
+			path: The path to export.
+			tenant (str | None ): The tenant to use for the operation.
+			remove_path: If `True`, the path will be removed from the tar file.
+
+		Returns:
+			A file object containing a gzipped tar archive.
 		"""
 
 		# Directory path must start with '/'
@@ -373,10 +379,28 @@ class LibraryService(Service):
 
 	async def subscribe(self, paths: typing.Union[str, typing.List[str]]) -> None:
 		"""
-		Subscribe to changes for specified paths in the library.
+		Subscribe to changes for specified paths of the library.
 
-		:param paths: Either single path or list of paths to be subscribed. All the paths must be absolute (start with '/').
-		:type paths: list[str] | str
+		In order to notify on changes in the Library, this method must be used after the Library is ready.
+
+		Args:
+			paths (str | list[str]): Either single path or list of paths to be subscribed. All the paths must be absolute (start with '/').
+
+		Examples:
+		```python
+		class MyApplication(asab.Application):
+
+			async def initialize(self):
+				self.PubSub.subscribe("Library.ready!", self.on_library_ready
+				self.PubSub.subscribe("Library.change!", self.on_library_change)
+
+			async def on_library_ready(self, event_name, library=None):
+				await self.LibraryService.subscribe(["/alpha","/beta"])
+
+			def on_library_change(self, message, provider, path):
+				print("New changes in the library found by provider: '{}'".format(provider))
+
+		```
 		"""
 		if isinstance(paths, str):
 			paths = [paths]

@@ -1,0 +1,454 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Logging &#8212; ASAB  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Publish-Subscribe" href="pubsub.html" />
+    <link rel="prev" title="Configuration" href="config.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="logging">
+<h1>Logging<a class="headerlink" href="#logging" title="Permalink to this heading">¶</a></h1>
+<p>ASAB logging is built on top of a standard Python <code class="docutils literal notranslate"><span class="pre">logging</span></code> module.
+It means that it logs to <code class="docutils literal notranslate"><span class="pre">stderr</span></code> when running on a console and ASAB also provides file and syslog output (both RFC5424 and RFC3164) for background mode of operations.</p>
+<p>Log timestamps are captured with sub-second precision (depending on the system capabilities) and displayed including microsecond part.</p>
+<section id="recommended-use">
+<h2>Recommended use<a class="headerlink" href="#recommended-use" title="Permalink to this heading">¶</a></h2>
+<p>We recommend to create a logger <code class="docutils literal notranslate"><span class="pre">L</span></code> in every module that captures all necessary logging output.
+Alternative logging strategies are also supported.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">L</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="o">...</span>
+
+<span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Hello world!&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Example of the output to the console:</p>
+<p><code class="docutils literal notranslate"><span class="pre">25-Mar-2018</span> <span class="pre">23:33:58.044595</span> <span class="pre">WARNING</span> <span class="pre">myapp.mymodule</span> <span class="pre">Hello</span> <span class="pre">world!</span></code></p>
+</section>
+<section id="logging-levels">
+<h2>Logging Levels<a class="headerlink" href="#logging-levels" title="Permalink to this heading">¶</a></h2>
+<p>ASAB uses Python logging levels with the addition of <code class="docutils literal notranslate"><span class="pre">LOG_NOTICE</span></code> level.
+<code class="docutils literal notranslate"><span class="pre">LOG_NOTICE</span></code> level is similar to <code class="docutils literal notranslate"><span class="pre">logging.INFO</span></code> level but it is visible in even in non-verbose mode.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">L</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">asab</span><span class="o">.</span><span class="n">LOG_NOTICE</span><span class="p">,</span> <span class="s2">&quot;This message will be visible regardless verbose configuration.&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Level</p></th>
+<th class="head"><p>Numeric value</p></th>
+<th class="head"><p>Syslog Severity level</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CRITICAL</span></code></p></td>
+<td><p>50</p></td>
+<td><p>Critical / <code class="docutils literal notranslate"><span class="pre">crit</span></code> / 2</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ERROR</span></code></p></td>
+<td><p>40</p></td>
+<td><p>Error / <code class="docutils literal notranslate"><span class="pre">err</span></code> / 3</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">WARNING</span></code></p></td>
+<td><p>30</p></td>
+<td><p>Warning / <code class="docutils literal notranslate"><span class="pre">warning</span></code> / 4</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">LOG_NOTICE</span></code></p></td>
+<td><p>25</p></td>
+<td><p>Notice / <code class="docutils literal notranslate"><span class="pre">notice</span></code> / 5</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">INFO</span></code></p></td>
+<td><p>20</p></td>
+<td><p>Informational / <code class="docutils literal notranslate"><span class="pre">info</span></code> / 6</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">DEBUG</span></code></p></td>
+<td><p>10</p></td>
+<td><p>Debug / <code class="docutils literal notranslate"><span class="pre">debug</span></code> / 7</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">NOTSET</span></code></p></td>
+<td><p>0</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Example of a custom level configuration:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[logging]</span><span class="w"></span>
+<span class="na">levels</span><span class="o">=</span><span class="w"></span>
+<span class="w">    </span><span class="na">myApp.module1 DEBUG</span><span class="w"></span>
+<span class="w">    </span><span class="na">myApp.module2 WARNING</span><span class="w"></span>
+<span class="w">    </span><span class="na">customLogger ERROR</span><span class="w"></span>
+</pre></div>
+</div>
+<p>The logger name and the corresponding logging level are separated by a space, each logger is on a separate line.</p>
+</section>
+<section id="verbose-mode">
+<h2>Verbose mode<a class="headerlink" href="#verbose-mode" title="Permalink to this heading">¶</a></h2>
+<p>The command-line argument <code class="docutils literal notranslate"><span class="pre">-v</span></code> enables verbose logging.
+It means that log entries with levels <code class="docutils literal notranslate"><span class="pre">DEBUG</span></code> and <code class="docutils literal notranslate"><span class="pre">INFO</span></code> will be visible.
+It also enables <code class="docutils literal notranslate"><span class="pre">asyncio</span></code> debug logging.</p>
+<p>The actual verbose mode is avaiable at <code class="docutils literal notranslate"><span class="pre">asab.Config[&quot;logging&quot;][&quot;verbose&quot;]</span></code> boolean option.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">L</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;This message will be visible only in verbose mode.&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="structured-data">
+<h2>Structured data<a class="headerlink" href="#structured-data" title="Permalink to this heading">¶</a></h2>
+<p>ASAB supports a structured data to be added to a log entry.
+It follows the <a class="reference external" href="https://tools.ietf.org/html/rfc5424">RFC 5424</a>, section <code class="docutils literal notranslate"><span class="pre">STRUCTURED-DATA</span></code>.
+Structured data are a dictionary, that has to be seriazable to JSON.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">L</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Hello world!&quot;</span><span class="p">,</span> <span class="n">struct_data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;key1&#39;</span><span class="p">:</span><span class="s1">&#39;value1&#39;</span><span class="p">,</span> <span class="s1">&#39;key2&#39;</span><span class="p">:</span><span class="mi">2</span><span class="p">})</span>
+</pre></div>
+</div>
+<p>Example of the output to the console:</p>
+<p><code class="docutils literal notranslate"><span class="pre">25-Mar-2018</span> <span class="pre">23:33:58.044595</span> <span class="pre">WARNING</span> <span class="pre">myapp.mymodule</span> <span class="pre">[sd</span> <span class="pre">key1=&quot;value1&quot;</span> <span class="pre">key2=&quot;2&quot;]</span> <span class="pre">Hello</span> <span class="pre">world!</span></code></p>
+</section>
+<section id="logging-to-file">
+<h2>Logging to file<a class="headerlink" href="#logging-to-file" title="Permalink to this heading">¶</a></h2>
+<p>The command-line argument <code class="docutils literal notranslate"><span class="pre">-l</span></code> on command-line enables logging to file.
+Also non-empty <code class="docutils literal notranslate"><span class="pre">path</span></code> option in the section <code class="docutils literal notranslate"><span class="pre">[logging:file]</span></code> of configuration file enables logging to file as well.</p>
+<p>Example of the configuration file section:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[logging:file]</span><span class="w"></span>
+<span class="na">path</span><span class="o">=</span><span class="s">/var/log/asab.log</span><span class="w"></span>
+<span class="na">format</span><span class="o">=</span><span class="s">&quot;%%(asctime)s %%(levelname)s %%(name)s %%(struct_data)s%%(message)s&quot;,</span><span class="w"></span>
+<span class="na">datefmt</span><span class="o">=</span><span class="s">&quot;%%d-%%b-%%Y %%H:%%M:%%S.%%f&quot;</span><span class="w"></span>
+<span class="na">backup_count</span><span class="o">=</span><span class="s">3</span><span class="w"></span>
+<span class="na">rotate_every</span><span class="o">=</span><span class="s">1d</span><span class="w"></span>
+</pre></div>
+</div>
+<p>When the deployment expects more instances of the same application to be logging into the same file,
+it is recommended, that the variable hostname is used in the file path:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[logging:file]</span><span class="w"></span>
+<span class="na">path</span><span class="o">=</span><span class="s">/var/log/${HOSTNAME}/asab.log</span><span class="w"></span>
+</pre></div>
+</div>
+<p>In this way, the applications will log to seperate log files in different folders,
+which is an intended behavior, since race conditions may occur when different application instances
+log into the same file.</p>
+</section>
+<section id="logging-to-console">
+<h2>Logging to console<a class="headerlink" href="#logging-to-console" title="Permalink to this heading">¶</a></h2>
+<p>ASAB will log to the console only if it detects that it runs in the foreground respectively on the terminal using <code class="docutils literal notranslate"><span class="pre">os.isatty</span></code>
+or if the environment variable <code class="docutils literal notranslate"><span class="pre">ASABFORCECONSOLE</span></code> is set to <code class="docutils literal notranslate"><span class="pre">1</span></code>.
+This is useful setup for eg. PyCharm.</p>
+<section id="log-rotation">
+<h3>Log rotation<a class="headerlink" href="#log-rotation" title="Permalink to this heading">¶</a></h3>
+<p>ASAB supports a <a class="reference external" href="https://en.wikipedia.org/wiki/Log_rotation">log rotation</a>.
+The log rotation is triggered by a UNIX signal <code class="docutils literal notranslate"><span class="pre">SIGHUP</span></code>, which can be used e.g. to integrate with <code class="docutils literal notranslate"><span class="pre">logrotate</span></code> utility.
+It is implemented using <code class="docutils literal notranslate"><span class="pre">logging.handlers.RotatingFileHandler</span></code> from a Python standard library.
+Also, a time-based log rotation can be configured using <code class="docutils literal notranslate"><span class="pre">rotate_every</span></code> option.</p>
+<p><code class="docutils literal notranslate"><span class="pre">backup_count</span></code> specifies a number of old files to be kept prior their removal.
+The system will save old log files by appending the extensions ‘.1’, ‘.2’ etc., to the filename.</p>
+<p><code class="docutils literal notranslate"><span class="pre">rotate_every</span></code> specifies an time interval of a log rotation.
+Default value is empty string, which means that the time-based log rotation is disabled.
+The interval is specified by an integer value and an unit, e.g. 1d (for 1 day) or 30M (30 minutes).
+Known units are <cite>H</cite> for hours, <cite>M</cite> for minutes, <cite>d</cite> for days and <cite>s</cite> for seconds.</p>
+</section>
+</section>
+<section id="logging-to-syslog">
+<h2>Logging to syslog<a class="headerlink" href="#logging-to-syslog" title="Permalink to this heading">¶</a></h2>
+<p>The command-line argument <code class="docutils literal notranslate"><span class="pre">-s</span></code> enables logging to syslog.</p>
+<p>A configuration section <code class="docutils literal notranslate"><span class="pre">[logging:syslog]</span></code> can be used to specify details about desired syslog logging.</p>
+<p>Example of the configuration file section:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[logging:syslog]</span><span class="w"></span>
+<span class="na">enabled</span><span class="o">=</span><span class="s">true</span><span class="w"></span>
+<span class="na">format</span><span class="o">=</span><span class="s">5</span><span class="w"></span>
+<span class="na">address</span><span class="o">=</span><span class="s">tcp://syslog.server.lan:1554/</span><span class="w"></span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">enabled</span></code> is equivalent to command-line switch <code class="docutils literal notranslate"><span class="pre">-s</span></code> and it enables syslog logging target.</p>
+<p><code class="docutils literal notranslate"><span class="pre">format</span></code> speficies which logging format will be used.
+Possible values are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">5</span></code> for  (new) syslog format (<a class="reference external" href="https://tools.ietf.org/html/rfc5424">RFC 5424</a> ) ,</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">3</span></code> for old BSD syslog format (<a class="reference external" href="https://tools.ietf.org/html/rfc3164">RFC 3164</a> ), typically used by <code class="docutils literal notranslate"><span class="pre">/dev/log</span></code> and</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">m</span></code> for Mac OSX syslog flavour that is based on BSD syslog format but it is not fully compatible.</p></li>
+</ul>
+<p>The default value is <code class="docutils literal notranslate"><span class="pre">3</span></code> on Linux and <code class="docutils literal notranslate"><span class="pre">m</span></code> on Mac OSX.</p>
+<p><code class="docutils literal notranslate"><span class="pre">address</span></code> specifies the location of the Syslog server. It could be a UNIX path such as <code class="docutils literal notranslate"><span class="pre">/dev/log</span></code> or URL.
+Possible URL values:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tcp://syslog.server.lan:1554/</span></code> for Syslog over TCP</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">udp://syslog.server.lan:1554/</span></code> for Syslog over UDP</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">unix-connect:///path/to/syslog.socket</span></code> for Syslog over UNIX socket (stream)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">unix-sendto:///path/to/syslog.socket</span></code> for Syslog over UNIX socket (datagram), equivalent to <code class="docutils literal notranslate"><span class="pre">/path/to/syslog.socket</span></code>, used by a <code class="docutils literal notranslate"><span class="pre">/dev/log</span></code>.</p></li>
+</ul>
+<p>The default value is a <code class="docutils literal notranslate"><span class="pre">/dev/log</span></code> on Linux or <code class="docutils literal notranslate"><span class="pre">/var/run/syslog</span></code> on Mac OSX.</p>
+</section>
+<section id="logging-of-obsolete-features">
+<h2>Logging of obsolete features<a class="headerlink" href="#logging-of-obsolete-features" title="Permalink to this heading">¶</a></h2>
+<p>It proved to be essential to inform operators about features that are going to be obsoleted.
+ASAB offers the unified “obsolete” logger.
+This logger can indicate that a particular feature is marked as “obsolete” thru logs.
+Such a log message can then be “grepped” from logs uniformly.</p>
+<p>It is recommended to include <cite>eol</cite> attribute in the <cite>struct_data</cite> of the log with a <cite>YYYY-MM-DD</cite> date/time of the planned obsoletion of the feature.</p>
+<p>Hint: We suggest automating the detection of obsolete warnings in logs so that the operations are informed well ahead of the actual removal of the feature. The string to seek in logs is “ OBSOLETE “.</p>
+<p>Example of the use:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">asab</span><span class="o">.</span><span class="n">LogObsolete</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Use of the obsolete function&quot;</span><span class="p">,</span> <span class="n">struct_data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;eol&#39;</span><span class="p">:</span><span class="s1">&#39;2022-31-12&#39;</span><span class="p">})</span>
+</pre></div>
+</div>
+<p>Log example:</p>
+<p><code class="docutils literal notranslate"><span class="pre">21-Jul-2022</span> <span class="pre">14:32:40.983884</span> <span class="pre">WARNING</span> <span class="pre">OBSOLETE</span> <span class="pre">[eol=&quot;2022-31-12&quot;]</span> <span class="pre">Use</span> <span class="pre">of</span> <span class="pre">the</span> <span class="pre">obsolete</span> <span class="pre">function</span></code></p>
+</section>
+<section id="module-asab.log">
+<span id="reference"></span><h2>Reference<a class="headerlink" href="#module-asab.log" title="Permalink to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="asab.log.AsyncIOHandler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asab.log.</span></span><span class="sig-name descname"><span class="pre">AsyncIOHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loop</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">family</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sock_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">address</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facility</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">17</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/log.html#AsyncIOHandler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.log.AsyncIOHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Handler</span></code></p>
+<p>A logging handler similar to a standard <code class="docutils literal notranslate"><span class="pre">logging.handlers.SocketHandler</span></code> that utilizes <code class="docutils literal notranslate"><span class="pre">asyncio</span></code>.
+It implements a queue for decoupling logging from a networking. The networking is fully event-driven via <code class="docutils literal notranslate"><span class="pre">asyncio</span></code> mechanisms.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.log.AsyncIOHandler.emit">
+<span class="sig-name descname"><span class="pre">emit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">record</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/log.html#AsyncIOHandler.emit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.log.AsyncIOHandler.emit" title="Permalink to this definition">¶</a></dt>
+<dd><p>This is the entry point for log entries.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="asab.log.Logging">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asab.log.</span></span><span class="sig-name descname"><span class="pre">Logging</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">app</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/log.html#Logging"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.log.Logging" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.log.Logging.rotate">
+<span class="sig-name descname"><span class="pre">rotate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/log.html#Logging.rotate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.log.Logging.rotate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="asab.log.MacOSXSyslogFormatter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asab.log.</span></span><span class="sig-name descname"><span class="pre">MacOSXSyslogFormatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datefmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">style</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sd_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sd'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/log.html#MacOSXSyslogFormatter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.log.MacOSXSyslogFormatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#asab.log.StructuredDataFormatter" title="asab.log.StructuredDataFormatter"><code class="xref py py-class docutils literal notranslate"><span class="pre">StructuredDataFormatter</span></code></a></p>
+<p>It implements Syslog formatting for Mac OSX syslog (aka format <code class="docutils literal notranslate"><span class="pre">m</span></code>).</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asab.log.</span></span><span class="sig-name descname"><span class="pre">StructuredDataFormatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">facility</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datefmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">style</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sd_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sd'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/log.html#StructuredDataFormatter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.log.StructuredDataFormatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Formatter</span></code></p>
+<p>The logging formatter that renders log messages that includes structured data.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter.BLACK">
+<span class="sig-name descname"><span class="pre">BLACK</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#asab.log.StructuredDataFormatter.BLACK" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter.BLUE">
+<span class="sig-name descname"><span class="pre">BLUE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></em><a class="headerlink" href="#asab.log.StructuredDataFormatter.BLUE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter.CYAN">
+<span class="sig-name descname"><span class="pre">CYAN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">6</span></em><a class="headerlink" href="#asab.log.StructuredDataFormatter.CYAN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter.GREEN">
+<span class="sig-name descname"><span class="pre">GREEN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#asab.log.StructuredDataFormatter.GREEN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter.MAGENTA">
+<span class="sig-name descname"><span class="pre">MAGENTA</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">5</span></em><a class="headerlink" href="#asab.log.StructuredDataFormatter.MAGENTA" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter.RED">
+<span class="sig-name descname"><span class="pre">RED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#asab.log.StructuredDataFormatter.RED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter.WHITE">
+<span class="sig-name descname"><span class="pre">WHITE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">7</span></em><a class="headerlink" href="#asab.log.StructuredDataFormatter.WHITE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter.YELLOW">
+<span class="sig-name descname"><span class="pre">YELLOW</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#asab.log.StructuredDataFormatter.YELLOW" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter.empty_sd">
+<span class="sig-name descname"><span class="pre">empty_sd</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#asab.log.StructuredDataFormatter.empty_sd" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter.format">
+<span class="sig-name descname"><span class="pre">format</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">record</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/log.html#StructuredDataFormatter.format"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.log.StructuredDataFormatter.format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format the specified record as text.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter.formatTime">
+<span class="sig-name descname"><span class="pre">formatTime</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">record</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datefmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/log.html#StructuredDataFormatter.formatTime"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.log.StructuredDataFormatter.formatTime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the creation time of the specified LogRecord as formatted text.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.log.StructuredDataFormatter.render_struct_data">
+<span class="sig-name descname"><span class="pre">render_struct_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">struct_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/log.html#StructuredDataFormatter.render_struct_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.log.StructuredDataFormatter.render_struct_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the string with structured data.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="asab.log.SyslogRFC3164Formatter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asab.log.</span></span><span class="sig-name descname"><span class="pre">SyslogRFC3164Formatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datefmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">style</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sd_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sd'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/log.html#SyslogRFC3164Formatter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.log.SyslogRFC3164Formatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#asab.log.StructuredDataFormatter" title="asab.log.StructuredDataFormatter"><code class="xref py py-class docutils literal notranslate"><span class="pre">StructuredDataFormatter</span></code></a></p>
+<p>Implementation of a legacy or BSD Syslog (RFC 3164) formatting (aka format <code class="docutils literal notranslate"><span class="pre">3</span></code>).</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="asab.log.SyslogRFC5424Formatter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asab.log.</span></span><span class="sig-name descname"><span class="pre">SyslogRFC5424Formatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datefmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">style</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sd_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sd'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/log.html#SyslogRFC5424Formatter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.log.SyslogRFC5424Formatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#asab.log.StructuredDataFormatter" title="asab.log.StructuredDataFormatter"><code class="xref py py-class docutils literal notranslate"><span class="pre">StructuredDataFormatter</span></code></a></p>
+<p>It implements Syslog formatting for Mac OSX syslog (aka format <code class="docutils literal notranslate"><span class="pre">5</span></code>).</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.log.SyslogRFC5424Formatter.empty_sd">
+<span class="sig-name descname"><span class="pre">empty_sd</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'</span> <span class="pre">'</span></em><a class="headerlink" href="#asab.log.SyslogRFC5424Formatter.empty_sd" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">ASAB</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../get-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/web/chapter1.html">Web Server Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/web/chapter2.html">Create microservice with REST API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Services</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="web/index.html">The web server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="web/restapidocs.html">REST API Docs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="web/cors.html">Cross-Origin Resource Sharing (CORS)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">Metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="storage.html">Storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="alert.html">Alert Service</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="application.html">Application</a></li>
+<li class="toctree-l1"><a class="reference internal" href="config.html">Configuration</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Logging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#recommended-use">Recommended use</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#logging-levels">Logging Levels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#verbose-mode">Verbose mode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#structured-data">Structured data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#logging-to-file">Logging to file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#logging-to-console">Logging to console</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#logging-to-syslog">Logging to syslog</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#logging-of-obsolete-features">Logging of obsolete features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-asab.log">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="pubsub.html">Publish-Subscribe</a></li>
+<li class="toctree-l1"><a class="reference internal" href="service.html">Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="module.html">Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="various.html">Various utility classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="zookeeper.html">Zookeeper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library.html">Library</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Administration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../admin/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/command-line.html">ASAB Command-line interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/containers.html">Containerisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/systemd.html">systemd</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="config.html" title="previous chapter">Configuration</a></li>
+      <li>Next: <a href="pubsub.html" title="next chapter">Publish-Subscribe</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, TeskaLabs Ltd..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="../_sources/asab/log.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

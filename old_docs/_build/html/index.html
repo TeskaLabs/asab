@@ -1,0 +1,354 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Asynchronous Server Application Boilerplate’s documentation &#8212; ASAB  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting started" href="get-started.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="asynchronous-server-application-boilerplate-s-documentation">
+<h1>Asynchronous Server Application Boilerplate’s documentation<a class="headerlink" href="#asynchronous-server-application-boilerplate-s-documentation" title="Permalink to this heading">¶</a></h1>
+<p>Asynchronous Server App Boilerplate (or ASAB for short) is a microservice platform for Python 3.7+ and <cite>asyncio</cite>.
+ASAB aims to minimize the amount of code that needs to be written when building a microservice or an application server.
+ASAB is fully asynchronous using async/await syntax from Python 3, making your code modern, non-blocking, speedy and hence scalable.
+We make every effort to build ASAB container-friendly so that you can deploy ASAB-based microservice via Docker or Kubernetes in a breeze.</p>
+<p>ASAB is free and open-source software, available under BSD licence.
+It means that anyone is freely licenced to use, copy, study, and change the software in any way, and the source code is openly shared so that people could voluntarily improve the design of the software.
+Anyone can (and is encouraged to) use ASAB in his or her projects, for free.
+A current maintainer is a <a class="reference external" href="https://teskalabs.com">TeskaLabs Ltd</a> company.</p>
+<p>ASAB is developed <a class="reference external" href="https://github.com/TeskaLabs/asab/">on GitHub</a>.
+Contributions are welcome!</p>
+<section id="asab-is-designed-to-be-powerful-yet-simple">
+<h2>ASAB is designed to be powerful yet simple<a class="headerlink" href="#asab-is-designed-to-be-powerful-yet-simple" title="Permalink to this heading">¶</a></h2>
+<p>Here is a complete example of a fully working microservice:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">asab</span>
+
+<span class="k">class</span> <span class="nc">MyApplication</span><span class="p">(</span><span class="n">asab</span><span class="o">.</span><span class="n">Application</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello world!&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">app</span> <span class="o">=</span> <span class="n">MyApplication</span><span class="p">()</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="asab-is-the-right-choice-when">
+<h2>ASAB is the right choice when<a class="headerlink" href="#asab-is-the-right-choice-when" title="Permalink to this heading">¶</a></h2>
+<blockquote>
+<div><ul class="simple">
+<li><p>using Python 3.7+.</p></li>
+<li><p>building the microservice or the application server.</p></li>
+<li><p>utilizing asynchronous I/O (aka <a class="reference external" href="https://docs.python.org/3/library/asyncio.html">asyncio</a>).</p></li>
+</ul>
+</div></blockquote>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="get-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/web/chapter1.html">Web Server Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/web/chapter2.html">Create microservice with REST API</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Services</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="asab/web/index.html">The web server</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/web/index.html#web-service">Web Service</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/web/index.html#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/web/index.html#sessions">Sessions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="asab/web/restapidocs.html">REST API Docs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/web/restapidocs.html#in-your-microservice">In your microservice</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/web/restapidocs.html#authorization-in-swagger">Authorization in Swagger</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/web/restapidocs.html#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/web/restapidocs.html#tags">Tags</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="asab/web/cors.html">Cross-Origin Resource Sharing (CORS)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/metrics.html">Metrics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#metrics-service">Metrics Service</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#types-of-metrics">Types of Metrics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#asab-metrics-interpretation">ASAB Metrics Interpretation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#initial-values">Initial Values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#dynamic-tags">Dynamic Tags</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#timestamp">Timestamp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#influxdb">InfluxDB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#id2">Prometheus</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#metrics-endpoints">Metrics Endpoints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#http-target">HTTP Target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#web-requests-metrics">Web Requests Metrics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#native-metrics">Native Metrics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/metrics.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="asab/storage.html">Storage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/storage.html#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/storage.html#manipulation-with-databases">Manipulation with databases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/storage.html#storing-data-in-memory">Storing data in memory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/storage.html#storing-data-in-mongodb">Storing data in MongoDB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/storage.html#storing-data-in-elasticsearch">Storing data in ElasticSearch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/storage.html#encryption-and-decryption">Encryption and decryption</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/storage.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="asab/alert.html">Alert Service</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/alert.html#opsgenie">Opsgenie</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/alert.html#pagerduty">PagerDuty</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/alert.html#de-duplication">De-duplication</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="asab/application.html">Application</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/application.html#asab.Application"><code class="docutils literal notranslate"><span class="pre">Application</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/application.html#event-loop">Event Loop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/application.html#application-lifecycle">Application Lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/application.html#module-registry">Module registry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/application.html#service-registry">Service registry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/application.html#command-line-parser">Command-line parser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/application.html#utc-time">UTC Time</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="asab/config.html">Configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/config.html#asab.Config"><code class="docutils literal notranslate"><span class="pre">Config</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/config.html#based-on-configparser">Based on ConfigParser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/config.html#multiline-configuration-entry">Multiline configuration entry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/config.html#automatic-load-of-configuration">Automatic load of configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/config.html#including-other-configuration-files">Including other configuration files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/config.html#configuration-default-values">Configuration default values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/config.html#environment-variables-in-configration">Environment variables in configration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/config.html#passwords-in-configration">Passwords in configration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/config.html#obtaining-seconds">Obtaining seconds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/config.html#obtaining-urls">Obtaining URLs</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="asab/log.html">Logging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/log.html#recommended-use">Recommended use</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/log.html#logging-levels">Logging Levels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/log.html#verbose-mode">Verbose mode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/log.html#structured-data">Structured data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/log.html#logging-to-file">Logging to file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/log.html#logging-to-console">Logging to console</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/log.html#logging-to-syslog">Logging to syslog</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/log.html#logging-of-obsolete-features">Logging of obsolete features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/log.html#module-asab.log">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="asab/pubsub.html">Publish-Subscribe</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/pubsub.html#asab.PubSub"><code class="docutils literal notranslate"><span class="pre">PubSub</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/pubsub.html#subscription">Subscription</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/pubsub.html#publishing">Publishing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/pubsub.html#synchronous-vs-asynchronous-messaging">Synchronous vs. asynchronous messaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/pubsub.html#application-wide-pubsub">Application-wide PubSub</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="asab/service.html">Service</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/service.html#asab.Service"><code class="docutils literal notranslate"><span class="pre">Service</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/service.html#lifecycle">Lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="asab/module.html">Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/module.html#asab.Module"><code class="docutils literal notranslate"><span class="pre">Module</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/module.html#structure">Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/module.html#lifecycle">Lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="asab/various.html">Various utility classes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/various.html#asab.abc.Module"><code class="docutils literal notranslate"><span class="pre">Module</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/various.html#asab.abc.Service"><code class="docutils literal notranslate"><span class="pre">Service</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/various.html#asab.abc.Singleton"><code class="docutils literal notranslate"><span class="pre">Singleton</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/various.html#module-asab.abc.singleton">Singleton</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/various.html#module-asab.pdict">Persistent dictionary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/various.html#module-asab.timer">Timer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/various.html#module-asab.socket">Sockets</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="asab/zookeeper.html">Zookeeper</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/zookeeper.html#zookeeper-container">Zookeeper container</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/zookeeper.html#reading-from-zookeeeper">Reading from Zookeeeper</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/zookeeper.html#advertisement-into-zookeeper">Advertisement into Zookeeper</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/zookeeper.html#pubsub-messages">PubSub messages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/zookeeper.html#id1">Kazoo</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="asab/library.html">Library</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="asab/library.html#library-structure">Library structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/library.html#library-path-rules">Library path rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/library.html#library-service">Library service</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/library.html#notification-of-changes">Notification of changes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/library.html#providers">Providers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/library.html#layers">Layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/library.html#library-configuration">Library configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="asab/library.html#pubsub-messages">PubSub messages</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Administration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="admin/install.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="admin/install.html#install-asab-using-pip">Install ASAB using pip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/install.html#install-asab-using-easy-install">Install ASAB using easy_install</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/install.html#install-asab-for-a-github">Install ASAB for a GitHub</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="admin/command-line.html">ASAB Command-line interface</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="admin/command-line.html#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/command-line.html#logging">Logging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/command-line.html#daemon">Daemon</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="admin/containers.html">Containerisation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="admin/containers.html#asab-in-a-lxc-lxd-container">ASAB in a LXC/LXD container</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/containers.html#docker-remote-api">Docker Remote API</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="admin/systemd.html">systemd</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="admin/systemd.html#start-of-asab-server">Start of ASAB Server</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/systemd.html#stop-of-asab-server">Stop of ASAB Server</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this heading">¶</a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">ASAB</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="get-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/web/chapter1.html">Web Server Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/web/chapter2.html">Create microservice with REST API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Services</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="asab/web/index.html">The web server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/web/restapidocs.html">REST API Docs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/web/cors.html">Cross-Origin Resource Sharing (CORS)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/metrics.html">Metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/storage.html">Storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/alert.html">Alert Service</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="asab/application.html">Application</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/config.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/log.html">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/pubsub.html">Publish-Subscribe</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/service.html">Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/module.html">Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/various.html">Various utility classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/zookeeper.html">Zookeeper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asab/library.html">Library</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Administration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="admin/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin/command-line.html">ASAB Command-line interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin/containers.html">Containerisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin/systemd.html">systemd</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="get-started.html" title="next chapter">Getting started</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, TeskaLabs Ltd..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
