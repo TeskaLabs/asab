@@ -2,7 +2,29 @@
 
 ASAB applications contain several **Services**. Each Service is located in a separate **Module**.
 
-## Built-in Services and Modules:
+
+## Registering Modules and Services
+
+The method [`asab.Application.add_module()`](/reference/application/reference/#asab.Application.add_module) initializes and adds a new module.
+The `module_class` class will be instantiated during the method call.
+Modules that has been added to the application are stored in [`asab.Application.Modules`](/reference/application/reference/#asab.application.Application.Modules) list.
+
+``` python
+class MyApplication(asab.Application):
+	async def initialize(self):
+		from my_module import MyModule
+		self.add_module(MyModule)
+```
+
+The method [`asab.Application.add_service()`](#asab.Application.add_service) locates a service by its service name
+in a registry [`Services`](/reference/application/reference/#asab.Application.Services) and returns the [`asab.Service`](#asab.Service) object.
+
+``` python
+svc = app.get_service("service_sample")
+svc.hello()
+```
+
+## Built-in Services
 
 Table of ASAB built-in Services and Modules:
 
