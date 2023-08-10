@@ -3,28 +3,57 @@
 The `asab.Application` class maintains the global application state. You can provide your own implementation by
 creating a subclass. There should be only one `Application` object in the process.
 
-!!! example "Creating a new asab application:"
+!!! example "Creating a new ASAB application:"
 
-    ```python
-    import asab
+	To create a new ASAB application, just create a subclass of `asab.Application` object and use the `run()` method:
 
-    class MyApplication(asab.Application):
-        pass
+	```python title='app.py'
+	import asab
 
-    if __name__ == '__main__':
-        app = MyApplication()
-        app.run()
-    ```
+	class MyApplication(asab.Application):
+		pass
 
-!!! example "Direct use of `Application` object:"
+	if __name__ == '__main__':
+		app = MyApplication()
+		app.run()
+	```
 
-    ``` python
-    import asab
+	Then run the application from your terminal
 
-    if __name__ == '__main__':
-        app = asab.Application()
-        app.run()
-    ```
+	``` shell
+	python3 app.py
+	```
+
+	and you should see the following output:
+
+	```
+	NOTICE asab.application is ready.
+	```
+
+	The app will be running until you stop it by `Ctrl+C`.
+	
+	To create an application that performs some operations and then stops, use the `stop()` method.
+
+	```python title='app_that_terminates.py'
+	import asab
+
+	class MyApplication(asab.Application):
+		async def main(self):
+			print("Hello world!")
+			self.stop()
+
+	if __name__ == '__main__':
+		app = MyApplication()
+		app.run()
+	```
+
+	with the output:
+
+	```
+	NOTICE asab.application is ready.
+	Hello world!
+	NOTICE asab.application [sd exit_code="0"] is exiting ...
+	```
 
 
 ## Application Lifecycle
@@ -43,114 +72,72 @@ and exit-time.
 
 ### Init-time
 
-The init-time happens during `Application` constructor call. 
-The Publish-Subscribe message `Application.init!` is published during init-time.
-The `Config` is loaded during init-time.
+The init-time happens during `Application` constructor call.
+At this time:
 
-The application object executes asynchronous callback `Application.initialize()`, which can be overridden by an user.
+- [Configuration](/reference/config/reference) and [command line arguments](#command-line-parser) are loaded and [`asab.Config`](/reference/config/reference/#asab.Config) object is accessed.
+- Asynchronous callback `Application.initialize()` is executed.
+- [Application housekeeping](/reference/pubsub/reference/#housekeeping) is scheduled.
+- [Publish-Subscribe](/reference/pubsub/reference/#well-known-messages) message **Application.init!** is published.
+
+
+The asynchronous callback `Application.initialize()` is intended to be overridden by an user.
+This is where you typically load Modules and register Services, see [Modules and Services](/reference/modules_services/reference) section.
 
 ``` python
 class MyApplication(asab.Application):
-    async def initialize(self):
-        # Custom initialization
-        from module_sample import Module
-        self.add_module(Module)
+	async def initialize(self):
+		# Custom initialization
+		from module_sample import Module
+		self.add_module(Module)
 ```
 
 ### Run-time
 
-The run-time starts after all the modules and services are loaded. This is where the application spends the most time typically.
-The Publish-Subscribe message `Application.run!` is published when run-time begins.
+The *run-time* starts after all the modules and services are loaded. This is where the application typically spends the most time.
+At this time:
 
-The method returns the value of `Application.ExitCode`.
+- [Publish-Subscribe](/reference/pubsub/reference/#well-known-messages) message **Application.run!** is published.
+- The asynchronous callback `Application.main()` is executed.
 
-The application object executes asynchronous callback
-`Application.main()`, which can be overridden. If `main()` method is
-completed without calling `stop()`, then the application server will run
-forever (this is the default behaviour).
+The coroutine `Application.main()` is intended to be overwritten by an user.
+If `main()` method is completed without calling `stop()`, then the application will run forever.
 
 ``` python
 class MyApplication(asab.Application):
-    async def main(self):
-        print("Hello world!")
-        self.stop()
+	async def main(self):
+		print("Hello world!")
+		self.stop()
 ```
-
-The method `Application.stop()` gracefully terminates the run-time and
-commence the exit-time. This method is automatically called by `SIGINT`
-and `SIGTERM`. It also includes a response to `Ctrl-C` on UNIX-like
-system. When this method is called 3x, it abruptly exits the application
-(aka emergency abort).
-
-The parameter `exit_code` allows you to specify the application exit
-code.
-
-!!! note
-    You need to install :py`win32api`
-    module to use `Ctrl-C` or an emergency abord properly with ASAB on
-    Windows. It is an optional dependency of ASAB.
 
 ### Exit-time
 
-The application object executes asynchronous callback
-`Application.finalize()`, which can be overridden by an user.
+The method `Application.stop()` gracefully terminates the *run-time* and commences the *exit-time*.
+This method is automatically called by `SIGINT` and `SIGTERM`.
+It also includes a response to `Ctrl-C` on UNIX-like system.
+When this method is called *exactly three times*, it abruptly exits the application (aka emergency abort).
+
+!!! note
+	You need to install `win32api` module to use `Ctrl-C` or an emergency abort properly with ASAB on Windows.
+	It is an optional dependency of ASAB.
+
+The parameter `exit_code` allows you to specify the application exit code.
+
+At *exit-time*:
+
+- [Publish-Subscribe](/reference/pubsub/reference/#well-known-messages) message **Application.exit!** is published.
+- Asynchronous callback `Application.finalize()` is executed.
+
+`Application.finalize()` is intended to be overridden by an user.
+It can be used for storing backup data for the next start of the application, custom operations when terminating services, sending signals to other applications etc.
 
 ``` python
 class MyApplication(asab.Application):
-    async def finalize(self):
-        # Custom finalization
-        ...
+	async def finalize(self):
+		# Custom finalization
+		...
 ```
 
-The Publish-Subscribe message `Application.exit!` is published when exit-time begins.
-
-Set the exit code of the application, see `os.exit()` in the Python
-documentation. If `force` is `False`, the exit code will be set only if
-the previous value is lower than the new one. If `force` is `True`, the
-exit code value is set to a `exit_code` disregarding the previous value.
-
-The actual value of the exit code.
-
-The example of the exit code handling in the `main()` function of the
-application.
-
-```python
-if __name__ == '__main__':
-    app = asab.Application()
-    exit_code = app.run()
-    sys.exit(exit_code)
-```
-
-## Registering modules and services
-
-
-For more details see `Module` class.
-
-Initialize and add a new module. The `module_class` class will be
-instantiated during the method call.
-
-``` python
-class MyApplication(asab.Application):
-    async def initialize(self):
-        from my_module import MyModule
-        self.add_module(MyModule)
-```
-
-A list of modules that has been added to the application.
-
-
-Each service is identified by its unique service name. For more details
-see `Service` class.
-
-Locate a service by its service name in a registry and return the
-`Service` object.
-
-``` python
-svc = app.get_service("service_sample")
-svc.hello()
-```
-
-A dictionary of registered services.
 
 ## Command-line parser
 
