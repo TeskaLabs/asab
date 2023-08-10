@@ -1,0 +1,5 @@
+mkdocs-print-site-plugin
+mkdocs-awesome-pages-plugin
+mkdocs-glightbox
+mkdocstrings
+mkdocstrings[python]

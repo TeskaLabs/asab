@@ -1,0 +1,214 @@
+site_name: ASAB
+repo_url: https://github.com/TeskaLabs/asab
+repo_name: TeskaLabs/asab
+
+# THEME, COLORS, FONTS, ICONS
+
+theme:
+  name: "material"
+  logo: images/teskalabs-logo.svg
+  favicon: images/teskalabs-logo.svg
+
+  features:
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+
+    - navigation.tabs
+    - navigation.footer
+    - navigation.indexes
+    - navigation.top  # back-to-the-top button when scrolling up
+    - navigation.tracking
+
+    - attr_list
+    - admonition
+    - pymdownx.details
+    - pymdownx.superfences
+    - pymdownx.critic
+    - pymdownx.caret
+    - pymdownx.keys
+    - pymdownx.mark
+    - pymdownx.tilde
+    - def_list
+    - search.suggest  # autocomplete the search query
+    - search.share  # share the queried endpoint
+
+  icon:
+    admonition:
+      note: fontawesome/solid/note-sticky
+      abstract: fontawesome/solid/book
+      info: fontawesome/solid/circle-info
+      tip: fontawesome/solid/bullhorn
+      success: fontawesome/solid/check
+      failure: fontawesome/solid/xmark
+      question: fontawesome/solid/circle-question
+      warning: fontawesome/solid/triangle-exclamation
+      danger: fontawesome/solid/skull
+      bug: fontawesome/solid/robot
+      example: fontawesome/solid/code
+      quote: fontawesome/solid/quote-left
+      incomplete: material/excavator
+    
+    repo: fontawesome/brands/github
+
+  font:
+    text: Verdana
+
+  palette:
+    - scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: yellow
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
+
+
+# PLUGINS
+
+plugins:
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            # https://mkdocstrings.github.io/python/usage/configuration/docstrings/
+            docstring_style: google  # | google | numpy | sphinx
+            docstring_section_style: table  # table | list | spacy
+            show_if_no_docstring: false  # ...we are hereby compelled to write docstrings
+            show_docstring_description: true
+            show_root_heading: true  # e.g. 'asab.storage.service.StorageService'
+            show_source: true  # show source code of method (class)
+            heading_level: 3  # class names displayed as <h3>
+            annotations_path: brief
+  - glightbox
+  - search
+  - awesome-pages
+  - git-revision-date-localized
+  - tags
+  - autorefs  # https://mkdocstrings.github.io/usage/#cross-references-to-any-markdown-heading
+
+
+markdown_extensions:
+  # Syntax highlighting
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+
+  # Admonitions (call-outs) https://squidfunk.github.io/mkdocs-material/reference/admonitions/
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences  # arbitrary nesting of code and tabs
+
+  # Annotations https://squidfunk.github.io/mkdocs-material/reference/annotations/
+  - attr_list
+  - md_in_html
+
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+      options:
+        custom_icons:
+          - docs/overrides/.icons
+
+  # Content tabs and anchor links https://squidfunk.github.io/mkdocs-material/reference/content-tabs/
+  - pymdownx.tabbed:
+      alternate_style: true
+
+  # Permalinks
+  - toc:
+      permalink: "¤"
+
+extra:
+  social:
+  - icon: fontawesome/brands/github-alt
+    link: https://github.com/TeskaLabs/asab
+  - icon: fontawesome/brands/linkedin
+    link: https://www.linkedin.com/company/teskalabs
+  - icon: fontawesome/brands/twitter
+    link: https://twitter.com/teskalabs
+  - icon: fontawesome/solid/paper-plane
+    link: mailto:info@teskalabs.com
+    name: info@teskalabs.com
+
+
+# NAVIGATION TREE
+
+nav:
+  - Home: 
+    - About: index.md
+    - Getting started:
+      - Installation and first application: getting-started/installation_first_app.md
+      - Creating a web server: getting-started/web_server.md
+      - Containerization: getting-started/containers.md
+
+    - Contributing: contributing.md
+
+  - How-Tos:
+    - Creating a microservice with REST API: how-tos/03_rest_api.md
+
+  - Documentation:
+    - Application: reference/application/reference.md
+    - Modules and Services: reference/modules_services/reference.md
+
+    - Web Service: 
+      - Web server: reference/web/web-server.md
+      - TLS/SSL: reference/web/tls.md
+      - Authorization and multitenancy: reference/web/authorization_multitenancy.md
+      - Cross-Origin Resource Sharing: reference/web/cors.md
+    - Configuration: reference/config/reference.md
+    - Logging: reference/logging/reference.md
+    - PubSub: reference/pubsub/reference.md
+    - Library Service: reference/library/reference.md
+    - Metrics Service: reference/metrics/reference.md
+    - Storage Service: reference/storage/reference.md
+    - Zookeeper: reference/zookeeper/reference.md
+    - Utility functions and classes: 
+        - Utility functions: reference/utils/utils.md
+        - Persistent dictionary: reference/utils/persistent_dictionary.md
+        - Timer: reference/utils/timer.md
+    - OpenAPI Documentation: reference/web/rest_api_docs.md
+
+  # Examples are rendered automatically with create_examples.py script
+  # please do not modify this part manually and leave it at the bottom of the file
+  - Examples:
+    - examples/application_states.md
+    - examples/argparser.md
+    - examples/config_getseconds.md
+    - examples/config_geturl.md
+    - examples/executor.md
+    - examples/hello_world.md
+    - examples/json_schema.md
+    - examples/library-git-provider.md
+    - examples/library-subscribe.md
+    - examples/library.md
+    - examples/logging-file.md
+    - examples/metrics-web-requests.md
+    - examples/metrics.md
+    - examples/pdict.md
+    - examples/pubsub.md
+    - examples/service-discovery.md
+    - examples/storage_elasticsearch.md
+    - examples/storage_inmemory.md
+    - examples/storage_mongodb.md
+    - examples/task.md
+    - examples/timer.md
+    - examples/web-auth.md
+    - examples/web-authz-rbac.md
+    - examples/web-authz-userinfo.md
+    - examples/webserver.md
+    - examples/websocket-chat.md
+    - examples/zookeeper-advertise.md
+    - examples/zookeeper.md

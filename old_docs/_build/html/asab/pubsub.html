@@ -1,0 +1,431 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Publish-Subscribe &#8212; ASAB  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Service" href="service.html" />
+    <link rel="prev" title="Logging" href="log.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="publish-subscribe">
+<h1>Publish-Subscribe<a class="headerlink" href="#publish-subscribe" title="Permalink to this heading">¶</a></h1>
+<p>Publish–subscribe is a messaging pattern where senders of messages, called publishers, send the messages to receivers, called subscribers, via PubSub message bus. Publishers don’t directly interact with subscribers in any way. Similarly, subscribers express interest in one or more message types and only receive messages that are of interest, without knowledge of which publishers, if any, there are.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="asab.PubSub">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asab.</span></span><span class="sig-name descname"><span class="pre">PubSub</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">app</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/pubsub.html#PubSub"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.PubSub" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>ASAB <code class="docutils literal notranslate"><span class="pre">PubSub</span></code> operates with a simple messages, defined by their <em>message type</em>, which is a string.
+We recommend to add <code class="docutils literal notranslate"><span class="pre">!</span></code> (explamation mark) at the end of the message type in order to distinguish this object from other types such as Python class names or functions.
+Example of the message type is e.g. <a class="reference internal" href="#cmdoption-arg-Application.run"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Application.run!</span></code></a> or <a class="reference internal" href="#cmdoption-arg-Application.tick-600"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Application.tick/600!</span></code></a>.</p>
+<p>The message can carry an optional positional and keyword arguments.
+The delivery of a message is implemented as a the standard Python function.</p>
+<p><em>Note:</em> There is an default, application-wide Publish-Subscribe message bus at <a class="reference internal" href="#asab.Application.PubSub" title="asab.Application.PubSub"><code class="xref any py py-attr docutils literal notranslate"><span class="pre">Application.PubSub</span></code></a> that can be used to send messages.
+Alternatively, you can create your own instance of <a class="reference internal" href="#asab.PubSub" title="asab.PubSub"><code class="xref py py-class docutils literal notranslate"><span class="pre">PubSub</span></code></a> and enjoy isolated PubSub delivery space.</p>
+<section id="subscription">
+<h2>Subscription<a class="headerlink" href="#subscription" title="Permalink to this heading">¶</a></h2>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.PubSub.subscribe">
+<span class="sig-prename descclassname"><span class="pre">PubSub.</span></span><span class="sig-name descname"><span class="pre">subscribe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/pubsub.html#PubSub.subscribe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.PubSub.subscribe" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Subscribe to a message type. Messages will be delivered to a <code class="docutils literal notranslate"><span class="pre">callback</span></code> callable (function or method).
+The <code class="docutils literal notranslate"><span class="pre">callback</span></code> can be a standard callable or an <code class="docutils literal notranslate"><span class="pre">async</span></code> coroutine.
+Asynchronous <code class="docutils literal notranslate"><span class="pre">callback</span></code> means that the delivery of the message will happen in a <code class="docutils literal notranslate"><span class="pre">Future</span></code>, asynchronously.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Callback</span></code> callable will be called with the first argument</p>
+<p>Example of a subscription to an <a class="reference internal" href="#cmdoption-arg-Application.tick"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Application.tick!</span></code></a> messages.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyClass</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+        <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">):</span>
+                <span class="n">app</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s2">&quot;Application.tick!&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_tick</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">on_tick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_type</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">message_type</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Asynchronous version of the above:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyClass</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+        <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">):</span>
+                <span class="n">app</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s2">&quot;Application.tick!&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_tick</span><span class="p">)</span>
+
+        <span class="k">async</span> <span class="k">def</span> <span class="nf">on_tick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_type</span><span class="p">):</span>
+                <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">message_type</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.PubSub.subscribe_all">
+<span class="sig-prename descclassname"><span class="pre">PubSub.</span></span><span class="sig-name descname"><span class="pre">subscribe_all</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/pubsub.html#PubSub.subscribe_all"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.PubSub.subscribe_all" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>To simplify the process of subscription to <a class="reference internal" href="#asab.PubSub" title="asab.PubSub"><code class="xref any py py-class docutils literal notranslate"><span class="pre">PubSub</span></code></a>, ASAB offers the decorator-based <em>“subscribe all”</em> functionality.</p>
+<p>In the followin example, both <code class="docutils literal notranslate"><span class="pre">on_tick()</span></code> and <code class="docutils literal notranslate"><span class="pre">on_exit()</span></code> methods are subscribed to <a class="reference internal" href="#asab.Application.PubSub" title="asab.Application.PubSub"><code class="xref any py py-attr docutils literal notranslate"><span class="pre">Application.PubSub</span></code></a> message bus.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyClass</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+        <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">):</span>
+                <span class="n">app</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">subscribe_all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="nd">@asab</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s2">&quot;Application.tick!&quot;</span><span class="p">)</span>
+        <span class="k">async</span> <span class="k">def</span> <span class="nf">on_tick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_type</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">message_type</span><span class="p">)</span>
+
+        <span class="nd">@asab</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s2">&quot;Application.exit!&quot;</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">on_exit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_type</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">message_type</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.PubSub.unsubscribe">
+<span class="sig-prename descclassname"><span class="pre">PubSub.</span></span><span class="sig-name descname"><span class="pre">unsubscribe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/pubsub.html#PubSub.unsubscribe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.PubSub.unsubscribe" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Unsubscribe from a message delivery.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="asab.Subscriber">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asab.</span></span><span class="sig-name descname"><span class="pre">Subscriber</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pubsub</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">message_types</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/pubsub.html#Subscriber"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Subscriber" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference internal" href="#asab.Subscriber" title="asab.Subscriber"><code class="xref any py py-class docutils literal notranslate"><span class="pre">Subscriber</span></code></a> object allows to consume PubSub messages in coroutines.
+It subscribes for various message types and consumes them.
+It works on FIFO basis (First message In, first message Out).
+If <code class="docutils literal notranslate"><span class="pre">pubsub</span></code> argument is None, the initial subscription is skipped.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">subscriber</span> <span class="o">=</span> <span class="n">asab</span><span class="o">.</span><span class="n">Subscriber</span><span class="p">(</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">PubSub</span><span class="p">,</span>
+        <span class="s2">&quot;Application.tick!&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Application.stop!&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Subscriber.message">
+<span class="sig-name descname"><span class="pre">message</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/pubsub.html#Subscriber.message"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Subscriber.message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wait for a message asynchronously.
+Returns a three-members tuple <code class="docutils literal notranslate"><span class="pre">(message_type,</span> <span class="pre">args,</span> <span class="pre">kwargs)</span></code>.</p>
+<p>Example of the <cite>await message()</cite> use:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">async</span> <span class="k">def</span> <span class="nf">my_coroutine</span><span class="p">(</span><span class="n">app</span><span class="p">):</span>
+        <span class="c1"># Subscribe for a two application events</span>
+        <span class="n">subscriber</span> <span class="o">=</span> <span class="n">asab</span><span class="o">.</span><span class="n">Subscriber</span><span class="p">(</span>
+                <span class="n">app</span><span class="o">.</span><span class="n">PubSub</span><span class="p">,</span>
+                <span class="s2">&quot;Application.tick!&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Application.exit!&quot;</span>
+        <span class="p">)</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">message_type</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="k">await</span> <span class="n">subscriber</span><span class="o">.</span><span class="n">message</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">message_type</span> <span class="o">==</span> <span class="s2">&quot;Application.exit!&quot;</span><span class="p">:</span>
+                        <span class="k">break</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Tick.&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Subscriber.subscribe">
+<span class="sig-name descname"><span class="pre">subscribe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pubsub</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message_type</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/pubsub.html#Subscriber.subscribe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Subscriber.subscribe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Subscribe for more message types. This method can be called many times with various <code class="docutils literal notranslate"><span class="pre">pubsub</span></code> objects.</p>
+</dd></dl>
+
+</dd></dl>
+
+<p>The subscriber object can be also used as <cite>an asynchonous generator</cite>.
+The example of the subscriber object usage in <cite>async for</cite> statement:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">async</span> <span class="k">def</span> <span class="nf">my_coroutine</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Subscribe for a two application events</span>
+        <span class="n">subscriber</span> <span class="o">=</span> <span class="n">asab</span><span class="o">.</span><span class="n">Subscriber</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">PubSub</span><span class="p">,</span>
+                <span class="s2">&quot;Application.tick!&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Application.exit!&quot;</span>
+        <span class="p">)</span>
+        <span class="k">async</span> <span class="k">for</span> <span class="n">message_type</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="ow">in</span> <span class="n">subscriber</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">message_type</span> <span class="o">==</span> <span class="s2">&quot;Application.exit!&quot;</span><span class="p">:</span>
+                        <span class="k">break</span><span class="p">;</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Tick.&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="publishing">
+<h2>Publishing<a class="headerlink" href="#publishing" title="Permalink to this heading">¶</a></h2>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.PubSub.publish">
+<span class="sig-prename descclassname"><span class="pre">PubSub.</span></span><span class="sig-name descname"><span class="pre">publish</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">\*args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">\**kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/pubsub.html#PubSub.publish"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.PubSub.publish" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Publish a message to the PubSub message bus.
+It will be delivered to each subscriber synchronously.
+It means that the method returns after each subscribed <code class="docutils literal notranslate"><span class="pre">callback</span></code> is called.</p>
+<p>The example of a message publish to the <a class="reference internal" href="#asab.Application.PubSub" title="asab.Application.PubSub"><code class="xref any py py-attr docutils literal notranslate"><span class="pre">Application.PubSub</span></code></a> message bus:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">my_function</span><span class="p">(</span><span class="n">app</span><span class="p">):</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;mymessage!&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Asynchronous publishing of a message is requested by <code class="docutils literal notranslate"><span class="pre">asynchronously=True</span></code> argument.
+The <code class="docutils literal notranslate"><span class="pre">publish()</span></code> method returns immediatelly and the delivery of the message to subscribers happens, when control returns to the event loop.</p>
+<p>The example of a <strong>asynchronous version</strong> of a message publish to the <a class="reference internal" href="#asab.Application.PubSub" title="asab.Application.PubSub"><code class="xref any py py-attr docutils literal notranslate"><span class="pre">Application.PubSub</span></code></a> message bus:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">my_function</span><span class="p">(</span><span class="n">app</span><span class="p">):</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">PubSub</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s2">&quot;mymessage!&quot;</span><span class="p">,</span> <span class="n">asynchronously</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="synchronous-vs-asynchronous-messaging">
+<h2>Synchronous vs. asynchronous messaging<a class="headerlink" href="#synchronous-vs-asynchronous-messaging" title="Permalink to this heading">¶</a></h2>
+<p>ASAB PubSub supports both modes of a message delivery: synchronous and asynchronous.
+Moreover, PubSub also deals with modes, when asynchronous code (coroutine) does publish to synchronous code and vice versa.</p>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td></td>
+<td><p>Sync publish</p></td>
+<td><p>Async publish</p></td>
+</tr>
+<tr class="row-even"><td><p>Sync subscribe</p></td>
+<td><p>Called immediately</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">call_soon(...)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Async subscribe</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ensure_future(...)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">call_soon(...)</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">ensure_future(...)</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="application-wide-pubsub">
+<h2>Application-wide PubSub<a class="headerlink" href="#application-wide-pubsub" title="Permalink to this heading">¶</a></h2>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.Application.PubSub">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">PubSub</span></span><a class="headerlink" href="#asab.Application.PubSub" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The ASAB provides the application-wide Publish-Subscribe message bus.</p>
+<section id="well-known-messages">
+<h3>Well-Known Messages<a class="headerlink" href="#well-known-messages" title="Permalink to this heading">¶</a></h3>
+<p>This is a list of well-known messages, that are published on a <code class="docutils literal notranslate"><span class="pre">Application.PubSub</span></code> by ASAB itself.</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.init">
+<span id="cmdoption-arg-application-init"></span><span class="sig-name descname"><span class="pre">Application.init!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>This message is published when application is in the init-time.
+It is actually one of the last things done in init-time, so the application environment is almost ready for use.
+It means that configuration is loaded, logging is setup, the event loop is constructed etc.</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.run">
+<span id="cmdoption-arg-application-run"></span><span class="sig-name descname"><span class="pre">Application.run!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>This message is emitted when application enters the run-time.</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.stop">
+<span id="cmdoption-arg-application-stop"></span><span class="sig-name descname"><span class="pre">Application.stop!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.stop" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>This message is emitted when application wants to stop the run-time.
+It can be sent multiple times because of a process of graceful run-time termination.
+The first argument of the message is a counter that increases with every <code class="docutils literal notranslate"><span class="pre">Application.stop!</span></code> event.</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.exit">
+<span id="cmdoption-arg-application-exit"></span><span class="sig-name descname"><span class="pre">Application.exit!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.exit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>This message is emitted when application enter the exit-time.</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.tick">
+<span id="cmdoption-arg-application-tick"></span><span class="sig-name descname"><span class="pre">Application.tick!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.tick" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.tick-10">
+<span id="cmdoption-arg-application-tick-10"></span><span class="sig-name descname"><span class="pre">Application.tick/10!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.tick-10" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.tick-60">
+<span id="cmdoption-arg-application-tick-60"></span><span class="sig-name descname"><span class="pre">Application.tick/60!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.tick-60" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.tick-300">
+<span id="cmdoption-arg-application-tick-300"></span><span class="sig-name descname"><span class="pre">Application.tick/300!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.tick-300" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.tick-600">
+<span id="cmdoption-arg-application-tick-600"></span><span class="sig-name descname"><span class="pre">Application.tick/600!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.tick-600" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.tick-1800">
+<span id="cmdoption-arg-application-tick-1800"></span><span class="sig-name descname"><span class="pre">Application.tick/1800!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.tick-1800" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.tick-3600">
+<span id="cmdoption-arg-application-tick-3600"></span><span class="sig-name descname"><span class="pre">Application.tick/3600!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.tick-3600" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.tick-43200">
+<span id="cmdoption-arg-application-tick-43200"></span><span class="sig-name descname"><span class="pre">Application.tick/43200!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.tick-43200" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.tick-86400">
+<span id="cmdoption-arg-application-tick-86400"></span><span class="sig-name descname"><span class="pre">Application.tick/86400!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.tick-86400" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The application publish periodically “tick” messages.
+The default tick frequency is 1 second but you can change it by configuration <code class="docutils literal notranslate"><span class="pre">[general]</span> <span class="pre">tick_period</span></code>.
+<a class="reference internal" href="#cmdoption-arg-Application.tick"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Application.tick!</span></code></a> is published every tick. <a class="reference internal" href="#cmdoption-arg-Application.tick-10"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Application.tick/10!</span></code></a> is published every 10th tick and so on.</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.hup">
+<span id="cmdoption-arg-application-hup"></span><span class="sig-name descname"><span class="pre">Application.hup!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.hup" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>This message is emitted when application receives UNIX signal <code class="docutils literal notranslate"><span class="pre">SIGHUP</span></code> or equivalent.</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-arg-Application.housekeeping">
+<span id="cmdoption-arg-application-housekeeping"></span><span class="sig-name descname"><span class="pre">Application.housekeeping!</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-arg-Application.housekeeping" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>This message is published when application is on the time for housekeeping. The time for housekeeping is set to 03:00 AM UTC by default.</p>
+<p>The app listens every ten minutes to see if it’s time for housekeeping. If the UTC time reaches the value for housekeeping, the app will publish it and set the time for the next housekeeping for the next day at the same time.
+There is also a time limit, which is set to 05:00 AM UTC by default. If the computer is in a sleep state, housekeeping will not be performed. Then, when the computer is reawakened again, it will check if it has exceeded the time limit. If not, then housekeeping will be published. If it has exceeded it, it simply informs the user and sets the housekeeping time for the next day.
+Note that this only limits the time when the housekeeping can start. If the housekeeping event triggers a procedure that takes a long time to finish, it will not be terminated when the time limit is reached.</p>
+<p>Both housekeeping time and time limit can be changed in the configuration file:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[housekeeping]</span><span class="w"></span>
+<span class="na">at</span><span class="o">=</span><span class="s">19:30</span><span class="w"></span>
+<span class="na">limit</span><span class="o">=</span><span class="s">21:00</span><span class="w"></span>
+</pre></div>
+</div>
+<p>This sets the housekeeping time to 7:30 PM UTC and the time limit to 9:00 PM UTC.
+The time must be written in the format ‘HH:MM’.
+Remind yourself that the time is set to UTC, so you should be careful when operating in a different timezone.</p>
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">ASAB</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../get-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/web/chapter1.html">Web Server Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/web/chapter2.html">Create microservice with REST API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Services</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="web/index.html">The web server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="web/restapidocs.html">REST API Docs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="web/cors.html">Cross-Origin Resource Sharing (CORS)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">Metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="storage.html">Storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="alert.html">Alert Service</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="application.html">Application</a></li>
+<li class="toctree-l1"><a class="reference internal" href="config.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="log.html">Logging</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Publish-Subscribe</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#asab.PubSub"><code class="docutils literal notranslate"><span class="pre">PubSub</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#subscription">Subscription</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#publishing">Publishing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#synchronous-vs-asynchronous-messaging">Synchronous vs. asynchronous messaging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#application-wide-pubsub">Application-wide PubSub</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="service.html">Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="module.html">Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="various.html">Various utility classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="zookeeper.html">Zookeeper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library.html">Library</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Administration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../admin/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/command-line.html">ASAB Command-line interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/containers.html">Containerisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/systemd.html">systemd</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="log.html" title="previous chapter">Logging</a></li>
+      <li>Next: <a href="service.html" title="next chapter">Service</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, TeskaLabs Ltd..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="../_sources/asab/pubsub.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

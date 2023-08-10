@@ -1,0 +1,519 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>asab.config &#8212; ASAB  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for asab.config</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">platform</span>
+<span class="kn">import</span> <span class="nn">configparser</span>
+<span class="kn">import</span> <span class="nn">urllib.parse</span>
+<span class="kn">import</span> <span class="nn">collections.abc</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">utils</span>
+
+
+<span class="n">L</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ConfigParser"><a class="viewcode-back" href="../../asab/config.html#asab.ConfigParser">[docs]</a><span class="k">class</span> <span class="nc">ConfigParser</span><span class="p">(</span><span class="n">configparser</span><span class="o">.</span><span class="n">ConfigParser</span><span class="p">):</span>
+	<span class="n">_syslog_sockets</span> <span class="o">=</span> <span class="p">{</span>
+		<span class="s1">&#39;Darwin&#39;</span><span class="p">:</span> <span class="s1">&#39;/var/run/syslog&#39;</span>
+	<span class="p">}</span>
+
+	<span class="n">_syslog_format</span> <span class="o">=</span> <span class="p">{</span>
+		<span class="s1">&#39;Darwin&#39;</span><span class="p">:</span> <span class="s1">&#39;m&#39;</span>
+	<span class="p">}</span>
+
+	<span class="n">_default_values</span> <span class="o">=</span> <span class="p">{</span>
+
+		<span class="s1">&#39;general&#39;</span><span class="p">:</span> <span class="p">{</span>
+			<span class="s1">&#39;config_file&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ASAB_CONFIG&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">),</span>
+			<span class="s1">&#39;tick_period&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># In seconds</span>
+			<span class="s1">&#39;var_dir&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~/.&#39;</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]))[</span><span class="mi">0</span><span class="p">]),</span>
+
+			<span class="s1">&#39;changelog&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+			<span class="s1">&#39;manifest&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+
+			<span class="c1"># Daemonization</span>
+			<span class="s1">&#39;pidfile&#39;</span><span class="p">:</span> <span class="s1">&#39;!&#39;</span><span class="p">,</span>  <span class="c1"># &#39;!&#39; has a special meaning =&gt; it transforms into platform specific location of pid file</span>
+			<span class="s1">&#39;working_dir&#39;</span><span class="p">:</span> <span class="s1">&#39;.&#39;</span><span class="p">,</span>
+			<span class="s1">&#39;uid&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+			<span class="s1">&#39;gid&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+
+			<span class="s1">&#39;housekeeping_time&#39;</span><span class="p">:</span> <span class="s1">&#39;03:00&#39;</span><span class="p">,</span>
+		<span class="p">},</span>
+
+		<span class="s2">&quot;asab:metrics&quot;</span><span class="p">:</span> <span class="p">{</span>
+			<span class="s2">&quot;native_metrics&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;web_requests_metrics&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>  <span class="c1"># False is a default, web_requests_metrics won&#39;t be generated.</span>
+			<span class="s2">&quot;expiration&quot;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span>
+		<span class="p">},</span>
+
+		<span class="s2">&quot;logging&quot;</span><span class="p">:</span> <span class="p">{</span>
+			<span class="s1">&#39;verbose&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ASAB_VERBOSE&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+			<span class="s2">&quot;app_name&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+			<span class="s2">&quot;sd_id&quot;</span><span class="p">:</span> <span class="s2">&quot;sd&quot;</span><span class="p">,</span>  <span class="c1"># Structured data id, see RFC5424</span>
+			<span class="s2">&quot;level&quot;</span><span class="p">:</span> <span class="s2">&quot;NOTICE&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;levels&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+		<span class="p">},</span>
+
+		<span class="s2">&quot;logging:console&quot;</span><span class="p">:</span> <span class="p">{</span>
+			<span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;</span><span class="si">%(asctime)s</span><span class="s2"> </span><span class="si">%(levelname)s</span><span class="s2"> </span><span class="si">%(name)s</span><span class="s2"> </span><span class="si">%(struct_data)s%(message)s</span><span class="s2">&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;datefmt&quot;</span><span class="p">:</span> <span class="s2">&quot;</span><span class="si">%d</span><span class="s2">-%b-%Y %H:%M:%S.</span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span>
+		<span class="p">},</span>
+
+		<span class="s2">&quot;logging:syslog&quot;</span><span class="p">:</span> <span class="p">{</span>
+			<span class="s2">&quot;enabled&quot;</span><span class="p">:</span> <span class="s2">&quot;false&quot;</span><span class="p">,</span>
+			<span class="c1"># TODO: &quot;facility&quot;: &#39;local1&#39;,</span>
+			<span class="s2">&quot;address&quot;</span><span class="p">:</span> <span class="n">_syslog_sockets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">(),</span> <span class="s2">&quot;/dev/log&quot;</span><span class="p">),</span>
+			<span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="n">_syslog_format</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">(),</span> <span class="s2">&quot;3&quot;</span><span class="p">),</span>
+		<span class="p">},</span>
+
+		<span class="s2">&quot;logging:file&quot;</span><span class="p">:</span> <span class="p">{</span>
+			<span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;</span><span class="si">%(asctime)s</span><span class="s2"> </span><span class="si">%(levelname)s</span><span class="s2"> </span><span class="si">%(name)s</span><span class="s2"> </span><span class="si">%(struct_data)s%(message)s</span><span class="s2">&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;datefmt&quot;</span><span class="p">:</span> <span class="s2">&quot;</span><span class="si">%d</span><span class="s2">-%b-%Y %H:%M:%S.</span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span>
+			<span class="s2">&quot;backup_count&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+			<span class="s2">&quot;backup_max_bytes&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+			<span class="s2">&quot;rotate_every&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+		<span class="p">},</span>
+
+		<span class="s2">&quot;authz&quot;</span><span class="p">:</span> <span class="p">{</span>
+			<span class="c1"># RBAC URL</span>
+			<span class="c1"># If !DISABLED! is specified, all authorization checks will be skipped</span>
+			<span class="s2">&quot;rbac_url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://localhost:8081/rbac&quot;</span><span class="p">,</span>
+		<span class="p">},</span>
+
+		<span class="s2">&quot;library&quot;</span><span class="p">:</span> <span class="p">{</span>
+			<span class="s2">&quot;azure_cache&quot;</span><span class="p">:</span> <span class="s2">&quot;false&quot;</span><span class="p">,</span>  <span class="c1"># true or the actual path of where the cache should be located</span>
+		<span class="p">},</span>
+
+		<span class="c1"># &quot;passwords&quot; section serves to securely store passwords</span>
+		<span class="c1"># in the configuration file; the passwords are not</span>
+		<span class="c1"># shown in the default API</span>
+		<span class="c1">#</span>
+		<span class="c1"># Usage in the configuration file:</span>
+		<span class="c1">#</span>
+		<span class="c1"># [connection:KafkaConnection]</span>
+		<span class="c1"># password=${passwords:kafka_password}</span>
+		<span class="c1">#</span>
+		<span class="c1"># [passwords]</span>
+		<span class="c1"># kafka_password=&lt;MY_SECRET_PASSWORD&gt;</span>
+		<span class="s2">&quot;passwords&quot;</span><span class="p">:</span> <span class="p">{</span>
+		<span class="p">}</span>
+	<span class="p">}</span>
+
+
+	<span class="k">def</span> <span class="nf">add_defaults</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot; Add defaults to a current configuration &quot;&quot;&quot;</span>
+
+		<span class="k">for</span> <span class="n">section</span><span class="p">,</span> <span class="n">keys</span> <span class="ow">in</span> <span class="n">dictionary</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+			<span class="n">section</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">section</span><span class="p">)</span>
+
+			<span class="k">if</span> <span class="n">section</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sections</span><span class="p">:</span>
+				<span class="k">try</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">add_section</span><span class="p">(</span><span class="n">section</span><span class="p">)</span>
+				<span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+					<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strict</span><span class="p">:</span>
+						<span class="k">raise</span>
+
+			<span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">keys</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+				<span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">optionxform</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+				<span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sections</span><span class="p">[</span><span class="n">section</span><span class="p">]:</span>
+					<span class="c1"># Value exists, no default needed</span>
+					<span class="k">continue</span>
+
+				<span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+					<span class="n">value</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+				<span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="s2">&quot;$&quot;</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expandvars</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+
+	<span class="k">def</span> <span class="nf">_traverse_includes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">includes</span><span class="p">,</span> <span class="n">this_dir</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot; Reads included config files. Supports nested including. &quot;&quot;&quot;</span>
+		<span class="k">if</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">includes</span><span class="p">:</span>
+			<span class="n">sep</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">sep</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">pathsep</span>
+
+		<span class="k">for</span> <span class="n">include_glob</span> <span class="ow">in</span> <span class="n">includes</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">sep</span><span class="p">):</span>
+			<span class="n">include_glob</span> <span class="o">=</span> <span class="n">include_glob</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+			<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">include_glob</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+				<span class="k">continue</span>
+
+			<span class="k">if</span> <span class="n">include_glob</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;zookeeper&quot;</span><span class="p">):</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">_include_from_zookeeper</span><span class="p">(</span><span class="n">include_glob</span><span class="p">)</span>
+
+			<span class="n">include_glob</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expandvars</span><span class="p">(</span><span class="n">include_glob</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+
+			<span class="k">for</span> <span class="n">include</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">include_glob</span><span class="p">):</span>
+				<span class="n">include</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">include</span><span class="p">)</span>
+
+				<span class="k">if</span> <span class="n">include</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_included</span><span class="p">:</span>
+					<span class="c1"># Preventing infinite dependency looping</span>
+					<span class="n">L</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Config file &#39;</span><span class="si">{}</span><span class="s2">&#39; can be included only once.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">include</span><span class="p">))</span>
+					<span class="k">continue</span>
+
+				<span class="bp">self</span><span class="o">.</span><span class="n">_included</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">include</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;general&#39;</span><span class="p">,</span> <span class="s1">&#39;include&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+				<span class="bp">self</span><span class="o">.</span><span class="n">_load_dir_stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">include</span><span class="p">))</span>
+				<span class="k">try</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">include</span><span class="p">)</span>
+				<span class="k">finally</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">_load_dir_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+				<span class="n">includes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;general&#39;</span><span class="p">,</span> <span class="s1">&#39;include&#39;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">_traverse_includes</span><span class="p">(</span><span class="n">includes</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">include_glob</span><span class="p">))</span>
+
+
+	<span class="k">def</span> <span class="nf">_load</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot; This method should be called only once, any subsequent call will lead to undefined behaviour &quot;&quot;&quot;</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_load_dir_stack</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">config_contents_list</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">config_name_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+		<span class="n">config_fname</span> <span class="o">=</span> <span class="n">ConfigParser</span><span class="o">.</span><span class="n">_default_values</span><span class="p">[</span><span class="s1">&#39;general&#39;</span><span class="p">][</span><span class="s1">&#39;config_file&#39;</span><span class="p">]</span>
+		<span class="k">if</span> <span class="n">config_fname</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">config_fname</span><span class="p">):</span>
+				<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Config file &#39;</span><span class="si">{}</span><span class="s2">&#39; not found&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">config_fname</span><span class="p">),</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+				<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+			<span class="bp">self</span><span class="o">.</span><span class="n">_load_dir_stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">config_fname</span><span class="p">))</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">config_fname</span><span class="p">)</span>
+			<span class="k">finally</span><span class="p">:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">_load_dir_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+		<span class="n">includes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;general&#39;</span><span class="p">,</span> <span class="s1">&#39;include&#39;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">_included</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_traverse_includes</span><span class="p">(</span><span class="n">includes</span><span class="p">,</span> <span class="n">this_dir</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">config_fname</span><span class="p">))</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">add_defaults</span><span class="p">(</span><span class="n">ConfigParser</span><span class="o">.</span><span class="n">_default_values</span><span class="p">)</span>
+
+		<span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_dir_stack</span>
+
+
+	<span class="k">def</span> <span class="nf">_include_from_zookeeper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zkurl</span><span class="p">):</span>
+		<span class="c1"># parse include value into hostname and path</span>
+		<span class="n">url_pieces</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urlparse</span><span class="p">(</span><span class="n">zkurl</span><span class="p">)</span>
+		<span class="n">url_path</span> <span class="o">=</span> <span class="n">url_pieces</span><span class="o">.</span><span class="n">path</span>
+		<span class="n">url_netloc</span> <span class="o">=</span> <span class="n">url_pieces</span><span class="o">.</span><span class="n">netloc</span>
+
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">url_netloc</span><span class="p">:</span>
+			<span class="k">if</span> <span class="s2">&quot;asab:zookeeper&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+				<span class="c1"># Backward compatibility</span>
+				<span class="n">url_netloc</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;asab:zookeeper&quot;</span><span class="p">][</span><span class="s2">&quot;servers&quot;</span><span class="p">]</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">url_netloc</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;zookeeper&quot;</span><span class="p">][</span><span class="s2">&quot;servers&quot;</span><span class="p">]</span>
+
+		<span class="k">if</span> <span class="n">url_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;./&quot;</span><span class="p">):</span>
+			<span class="k">if</span> <span class="s2">&quot;asab:zookeeper&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+				<span class="c1"># Backward compatibility</span>
+				<span class="n">url_path</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;asab:zookeeper&quot;</span><span class="p">][</span><span class="s2">&quot;path&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">url_path</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">url_path</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;zookeeper&quot;</span><span class="p">][</span><span class="s2">&quot;path&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">url_path</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+
+		<span class="n">head</span><span class="p">,</span> <span class="n">tail</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">url_path</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">config_name_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tail</span><span class="p">)</span>
+
+		<span class="k">try</span><span class="p">:</span>
+			<span class="c1"># Delayed import to minimize a hard dependecy footprint</span>
+			<span class="kn">import</span> <span class="nn">kazoo.client</span>
+			<span class="n">zk</span> <span class="o">=</span> <span class="n">kazoo</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="n">url_netloc</span><span class="p">)</span>
+			<span class="n">zk</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+			<span class="n">data</span> <span class="o">=</span> <span class="n">zk</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url_path</span><span class="p">)</span>
+			<span class="c1"># convert bytes to string</span>
+			<span class="n">encode_config</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">read_string</span><span class="p">(</span><span class="n">encode_config</span><span class="p">)</span>
+			<span class="c1"># Include in the list of config file contents</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">config_contents_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">encode_config</span><span class="p">)</span>
+			<span class="n">zk</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+		<span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+			<span class="n">L</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed to obtain configuration from Zookeeper server(s): &#39;</span><span class="si">{}</span><span class="s2">&#39;.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+
+	<span class="k">def</span> <span class="nf">get_config_contents_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_contents_list</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_name_list</span>
+
+
+	<span class="k">def</span> <span class="nf">getseconds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">section</span><span class="p">,</span> <span class="n">option</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">fallback</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">fallback</span> <span class="o">=</span> <span class="n">configparser</span><span class="o">.</span><span class="n">_UNSET</span>
+
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_conv</span><span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="n">option</span><span class="p">,</span> <span class="n">utils</span><span class="o">.</span><span class="n">convert_to_seconds</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="nb">vars</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="n">fallback</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+	<span class="k">def</span> <span class="nf">geturl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">section</span><span class="p">,</span> <span class="n">option</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scheme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;Gets URL from config and removes all leading and trailing</span>
+<span class="sd">		whitespaces and trailing slashes.</span>
+
+<span class="sd">		:param scheme: URL scheme(s) awaited. If None, scheme validation is bypassed.</span>
+<span class="sd">		:type scheme: str, tuple</span>
+<span class="sd">		:return: validated URL, raises ValueError when scheme requirements are not met if set.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">return</span> <span class="n">utils</span><span class="o">.</span><span class="n">validate_url</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="n">option</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="n">fallback</span><span class="p">),</span> <span class="n">scheme</span><span class="p">)</span></div>
+
+
+<span class="k">class</span> <span class="nc">_Interpolation</span><span class="p">(</span><span class="n">configparser</span><span class="o">.</span><span class="n">ExtendedInterpolation</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;Interpolation which expands environment variables in values.&quot;&quot;&quot;</span>
+
+
+	<span class="k">def</span> <span class="nf">before_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parser</span><span class="p">,</span> <span class="n">section</span><span class="p">,</span> <span class="n">option</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+		<span class="c1"># Expand environment variables</span>
+		<span class="k">if</span> <span class="s1">&#39;$&#39;</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+			<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;THIS_DIR&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">parser</span><span class="o">.</span><span class="n">_load_dir_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+			<span class="n">value</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expandvars</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+		<span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">before_read</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">section</span><span class="p">,</span> <span class="n">option</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+
+<span class="n">Config</span> <span class="o">=</span> <span class="n">ConfigParser</span><span class="p">(</span><span class="n">interpolation</span><span class="o">=</span><span class="n">_Interpolation</span><span class="p">())</span>
+
+
+<span class="k">class</span> <span class="nc">Configurable</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">	Usage:</span>
+<span class="sd">	class ConfigurableObject(asab.Configurable):</span>
+
+<span class="sd">		ConfigDefaults = {</span>
+<span class="sd">			&#39;foo&#39;: &#39;bar&#39;,</span>
+<span class="sd">		}</span>
+
+<span class="sd">		def __init__(self, config_section_name, config=None):</span>
+<span class="sd">			super().__init__(config_section_name=config_section_name, config=config)</span>
+
+<span class="sd">			config_foo = self.Config.get(&#39;foo&#39;)</span>
+
+<span class="sd">	&#39;&#39;&#39;</span>
+
+	<span class="n">ConfigDefaults</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+	<span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_section_name</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Config</span> <span class="o">=</span> <span class="n">ConfigObjectDict</span><span class="p">()</span>
+
+		<span class="k">for</span> <span class="n">base_class</span> <span class="ow">in</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getmro</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">base_class</span><span class="p">,</span> <span class="s1">&#39;ConfigDefaults&#39;</span><span class="p">):</span>
+				<span class="k">continue</span>
+			<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">base_class</span><span class="o">.</span><span class="n">ConfigDefaults</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+				<span class="k">continue</span>
+
+			<span class="c1"># Merge config defaults of each base class in the &#39;inheritance&#39; way</span>
+			<span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">base_class</span><span class="o">.</span><span class="n">ConfigDefaults</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+				<span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+					<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;None value not allowed in ConfigDefaults. Found in </span><span class="si">%s</span><span class="s2">:</span><span class="si">%s</span><span class="s2"> &quot;</span> <span class="o">%</span> <span class="p">(</span>
+						<span class="n">config_section_name</span><span class="p">,</span> <span class="n">key</span><span class="p">))</span>
+
+				<span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">Config</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">Config</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+		<span class="k">if</span> <span class="n">Config</span><span class="o">.</span><span class="n">has_section</span><span class="p">(</span><span class="n">config_section_name</span><span class="p">):</span>
+			<span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">Config</span><span class="o">.</span><span class="n">items</span><span class="p">(</span><span class="n">config_section_name</span><span class="p">):</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">Config</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+		<span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">Config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+
+<span class="c1"># This is for backward compatibility</span>
+<span class="n">ConfigObject</span> <span class="o">=</span> <span class="n">Configurable</span>
+
+
+<span class="k">class</span> <span class="nc">ConfigObjectDict</span><span class="p">(</span><span class="n">collections</span><span class="o">.</span><span class="n">abc</span><span class="o">.</span><span class="n">MutableMapping</span><span class="p">):</span>
+
+
+	<span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+	<span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+
+	<span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+
+	<span class="k">def</span> <span class="fm">__delitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+		<span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+
+	<span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">)</span>
+
+
+	<span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">)</span>
+
+
+	<span class="k">def</span> <span class="nf">getboolean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+		<span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+			<span class="k">return</span> <span class="n">value</span>
+		<span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">configparser</span><span class="o">.</span><span class="n">ConfigParser</span><span class="o">.</span><span class="n">BOOLEAN_STATES</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Not a boolean: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+		<span class="k">return</span> <span class="n">configparser</span><span class="o">.</span><span class="n">ConfigParser</span><span class="o">.</span><span class="n">BOOLEAN_STATES</span><span class="p">[</span><span class="n">value</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
+
+
+	<span class="k">def</span> <span class="nf">getseconds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+		<span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+		<span class="k">return</span> <span class="n">utils</span><span class="o">.</span><span class="n">convert_to_seconds</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+
+	<span class="k">def</span> <span class="nf">getint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+		<span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+		<span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+
+	<span class="k">def</span> <span class="nf">getfloat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+		<span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+		<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+
+	<span class="k">def</span> <span class="nf">geturl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">scheme</span><span class="p">):</span>
+		<span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+		<span class="k">return</span> <span class="n">utils</span><span class="o">.</span><span class="n">validate_url</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">scheme</span><span class="p">)</span>
+
+
+	<span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%r</span><span class="s2">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">ASAB</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../get-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial/web/chapter1.html">Web Server Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial/web/chapter2.html">Create microservice with REST API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Services</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/web/index.html">The web server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/web/restapidocs.html">REST API Docs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/web/authn.html">Authn module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/web/cors.html">Cross-Origin Resource Sharing (CORS)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/metrics.html">Metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/storage.html">Storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/alert.html">Alert Service</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/application.html">Application</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/config.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/log.html">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/pubsub.html">Publish-Subscribe</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/service.html">Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/module.html">Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/various.html">Various utility classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/zookeeper.html">Zookeeper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../asab/library.html">Library</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Administration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/command-line.html">ASAB Command-line interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/containers.html">Containerisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/systemd.html">systemd</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, TeskaLabs Ltd..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

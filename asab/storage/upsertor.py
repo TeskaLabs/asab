@@ -54,7 +54,8 @@ class UpsertorABC(abc.ABC):
 		"""
 		Generate a unique ID string using a combination of a random UUID and a SHA-256 hash.
 
-		:return: A string representation of the generated ID.
+		Returns:
+			A string representation of the generated ID.
 		"""
 		m = hashlib.sha256()
 		m.update(uuid.uuid4().bytes)
@@ -65,12 +66,11 @@ class UpsertorABC(abc.ABC):
 		"""
 		Add key and value to the upsertor.
 
-		:param objField: Key of the object.
-		:param value: Value of the object.
-		:param encrypt: Allow encryption. Defaults to False.
-		:type encrypt: bool
-		:param encrypt_iv: Custom initialization vector. Defaults to None.
-		:type encrypt_iv: bool
+		Args:
+			objField: Key of the object.
+			value: Value of the object.
+			encrypt: Allow encryption.
+			encrypt_iv: Custom initialization vector.
 		"""
 
 		if encrypt:
@@ -122,15 +122,19 @@ class UpsertorABC(abc.ABC):
 		"""
 		Commit upsertor data to the storage. Afterwards, send a webhook request with upsertion details.
 
-		:param custom_data: Custom execution data. Included in webhook payload.
-		:param event_type: Event type included in webhook payload.
-		:raise DuplicateError: Raised if  thre is a colliding object already stored in a storage.
+		Args:
+			custom_data: Custom execution data. Included in webhook payload.
+			event_type: Event type included in webhook payload.
+
+		Raises:
+			DuplicateError: Raised if there is a colliding object already stored in a storage.
 		"""
 
 		pass
 
 
 	async def webhook(self, data: dict):
+		# TODO: add docstring
 		assert self.Storage.WebhookURIs is not None
 		json_dump = asab.web.rest.json.JSONDumper(pretty=False)(data)
 		for uri in self.Storage.WebhookURIs:

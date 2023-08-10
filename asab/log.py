@@ -16,8 +16,12 @@ from .config import Config
 from .timer import Timer
 from .utils import running_in_container
 
-# Non-error/warning type of message that is visible without -v flag
+
 LOG_NOTICE = 25
+"""
+Info log level that is visible in non-verbose mode. It should not be used for warnings and errors.
+"""
+
 logging.addLevelName(LOG_NOTICE, "NOTICE")
 
 
@@ -393,11 +397,10 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 
 
 class AsyncIOHandler(logging.Handler):
-
-	'''
-A logging handler similar to a standard ``logging.handlers.SocketHandler`` that utilizes ``asyncio``.
-It implements a queue for decoupling logging from a networking. The networking is fully event-driven via ``asyncio`` mechanisms.
-	'''
+	"""
+	A logging handler similar to a standard `logging.handlers.SocketHandler` that utilizes `asyncio`.
+	It implements a queue for decoupling logging from a networking. The networking is fully event-driven via `asyncio` mechanisms.
+	"""
 
 	def __init__(self, loop, family, sock_type, address, facility=logging.handlers.SysLogHandler.LOG_LOCAL1):
 		logging.Handler.__init__(self)
@@ -463,9 +466,9 @@ It implements a queue for decoupling logging from a networking. The networking i
 
 
 	def emit(self, record):
-		'''
+		"""
 		This is the entry point for log entries.
-		'''
+		"""
 		try:
 			msg = self.format(record).encode('utf-8')
 

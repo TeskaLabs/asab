@@ -23,6 +23,10 @@ ENCRYPTED_PREFIX = b"$aes-cbc$"
 
 
 class StorageServiceABC(asab.Service):
+	"""
+	An abstract class for the Storage Service.
+
+	"""
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
@@ -49,7 +53,7 @@ class StorageServiceABC(asab.Service):
 
 
 	@abc.abstractmethod
-	def upsertor(self, collection: str, obj_id=None, version: int = 0):
+	def upsertor(self, collection: str, obj_id=None, version: int = 0) -> None:
 		"""
 		Create an upsertor object for the specified collection.
 
@@ -58,42 +62,50 @@ class StorageServiceABC(asab.Service):
 		If you want to insert a new object with a specific `obj_id`, specify `obj_id` and set a version to 0.
 			- If there will be a colliding object already stored in a storage, `execute()` method will fail on `DuplicateError`.
 
-		:param collection: Name of collection to work with
-		:param obj_id: Primary identification of an object in the storage (e.g. primary key)
-		:param version: Specify a current version of the object and hence prevent byzantine faults. \
-		You should always read the version from the storage upfront, prior using an upsertor. \
-		That creates a soft lock on the record. It means that if the object is updated by other \
-		component in meanwhile, your upsertor will fail and you should retry the whole operation. \
-		The new objects should have a `version` set to 0.
+		Args:
+			collection: Name of collection to work with
+			obj_id: Primary identification of an object in the storage (e.g. primary key)
+			version: Specify a current version of the object and hence prevent byzantine faults. \
+			You should always read the version from the storage upfront, prior using an upsertor. \
+			That creates a soft lock on the record. It means that if the object is updated by other \
+			component in meanwhile, your upsertor will fail and you should retry the whole operation. \
+			The new objects should have a `version` set to 0.
 		"""
 		pass
 
 
 	@abc.abstractmethod
-	async def get(self, collection: str, obj_id, decrypt=None) -> dict:
+	async def get(self, collection: str, obj_id, decrypt: bool = None) -> dict:
 		"""
 		Get object from collection by its ID.
 
-		:param collection: Collection to get from.
-		:type collection: str
-		:param obj_id: Object identification.
-		:param decrypt: Set of fields to decrypt.
-		:return: The object retrieved from a storage.
-		:raise KeyError: Raised if `obj_id` is not found in `collection`.
+		Args:
+			collection: Collection to get from.
+			obj_id: Object identification.
+			decrypt: Set of fields to decrypt.
+
+		Returns:
+			The object retrieved from a storage.
+
+		Raises:
+			KeyError: Raised if `obj_id` is not found in `collection`.
 		"""
 		pass
 
 
 	@abc.abstractmethod
-	async def get_by(self, collection: str, key: str, value, decrypt=None):
+	async def get_by(self, collection: str, key: str, value, decrypt=None) -> dict:
 		"""
 		Get object from collection by its key and value.
 
-		:param collection: Collection to get from
-		:param key: Key to filter on
-		:param value: Value to filter on
-		:param decrypt: Set of fields to decrypt
-		:return: The object retrieved from a storage
+		Args:
+			collection: Collection to get from
+			key: Key to filter on
+			value: Value to filter on
+			decrypt: Set of fields to decrypt
+
+		Returns:
+			The object retrieved from a storage.
 
 		Raises:
 			KeyError: If object {key: value} not found in `collection`
@@ -106,13 +118,15 @@ class StorageServiceABC(asab.Service):
 		"""
 		Delete object from collection.
 
-		:param collection: Collection to get from
-		:type collection: str
-		:param obj_id: Object identification
+		Args:
+			collection: Collection to get from
+			obj_id: Object identification
 
-		:return: ID of the deleted object.
+		Returns:
+			ID of the deleted object.
 
-		:raise KeyError: Raised when obj_id cannot be found in collection.
+		Raises:
+			KeyError: Raised when obj_id cannot be found in collection.
 		"""
 		pass
 
@@ -121,13 +135,15 @@ class StorageServiceABC(asab.Service):
 		"""
 		Take an array of bytes and encrypt it using AES-CBC.
 
-		:param raw: The data to be encrypted.
-		:type raw: bytes
-		:param iv: AES-CBC initialization vector, 16 bytes long. If left empty, a random 16-byte array will be used.
-		:type iv: bytes
-		:return: The encrypted data.
+		Args:
+			raw: The data to be encrypted.
+			iv: AES-CBC initialization vector, 16 bytes long. If left empty, a random 16-byte array will be used.
 
-		:raise TypeError: The data are not in binary format.
+		Returns:
+			The encrypted data.
+
+		Raises:
+			TypeError: The data are not in binary format.
 		"""
 		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
 
@@ -163,10 +179,11 @@ class StorageServiceABC(asab.Service):
 		"""
 		Decrypt encrypted data using AES-CBC.
 
-		:param encrypted: The encrypted data to decrypt.
-			It must start with b"$aes-cbc$" prefix, followed by one-block-long initialization vector.
-		:type encrypted: bytes
-		:return: The decrypted data.
+		Args:
+			encrypted: The encrypted data to decrypt. It must start with b"$aes-cbc$" prefix, followed by one-block-long initialization vector.
+
+		Returns:
+			The decrypted data.
 		"""
 		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
 
@@ -201,5 +218,8 @@ class StorageServiceABC(asab.Service):
 	def encryption_enabled(self) -> bool:
 		"""
 		Check if AESKey is not empty.
+
+		Returns:
+			True if AESKey is not empty.
 		"""
 		return self._AESKey is not None

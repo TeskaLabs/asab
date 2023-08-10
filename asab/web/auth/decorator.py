@@ -13,20 +13,20 @@ L = logging.getLogger(__name__)
 
 def require(*resources):
 	"""
-	Specifies resources required for endpoint access.
+	Specify resources required for endpoint access.
 	Requests without these resources result in HTTP 403 response.
 
-	:param resources: Resources required to access the decorated method.
-	:type resources: typing.Iterable
+	Args:
+		resources (Iterable): Resources required to access the decorated method.
 
-	Usage:
+	Examples:
 
-	.. code:: python
-
-		@asab.web.authz.require("my-app:token:generate")
-		async def generate_token(self, request):
-			data = await self.service.generate_token()
-			return asab.web.rest.json_response(request, data)
+	```python
+	@asab.web.authz.require("my-app:token:generate")
+	async def generate_token(self, request):
+		data = await self.service.generate_token()
+		return asab.web.rest.json_response(request, data)
+	```
 	"""
 	def decorator_require(handler):
 
@@ -51,17 +51,17 @@ def require(*resources):
 
 def noauth(handler):
 	"""
-	Exempts the decorated handler from authentication and authorization.
+	Exempt the decorated handler from authentication and authorization.
 	The `tenant`, `user_info` and `resources` arguments are not available in the handler.
 
-	Usage:
+	Examples:
 
-	.. code:: python
-
-		@asab.web.authz.noauth
-		async def get_public_info(self, request):
-			data = await self.service.get_public_info()
-			return asab.web.rest.json_response(request, data)
+	```python
+	@asab.web.authz.noauth
+	async def get_public_info(self, request):
+		data = await self.service.get_public_info()
+		return asab.web.rest.json_response(request, data)
+	```
 	"""
 	argspec = inspect.getfullargspec(handler)
 	args = set(argspec.kwonlyargs).union(argspec.args)

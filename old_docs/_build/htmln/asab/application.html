@@ -1,0 +1,373 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Application &#8212; ASAB  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Configuration" href="config.html" />
+    <link rel="prev" title="Alert Service" href="alert.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="application">
+<h1>Application<a class="headerlink" href="#application" title="Permalink to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="asab.Application">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">asab.</span></span><span class="sig-name descname"><span class="pre">Application</span></span><a class="reference internal" href="../_modules/asab/application.html#Application"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Application" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The <a class="reference internal" href="#asab.Application" title="asab.Application"><code class="xref py py-class docutils literal notranslate"><span class="pre">Application</span></code></a> class maintains the global application state.
+You can provide your own implementation by creating a subclass.
+There should be only one <a class="reference internal" href="#asab.Application" title="asab.Application"><code class="xref py py-class docutils literal notranslate"><span class="pre">Application</span></code></a> object in the process.</p>
+<p>Subclassing:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">asab</span>
+
+<span class="k">class</span> <span class="nc">MyApplication</span><span class="p">(</span><span class="n">asab</span><span class="o">.</span><span class="n">Application</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">app</span> <span class="o">=</span> <span class="n">MyApplication</span><span class="p">()</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Direct use of <a class="reference internal" href="#asab.Application" title="asab.Application"><code class="xref py py-class docutils literal notranslate"><span class="pre">Application</span></code></a> object:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">asab</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">app</span> <span class="o">=</span> <span class="n">asab</span><span class="o">.</span><span class="n">Application</span><span class="p">()</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+<section id="event-loop">
+<h2>Event Loop<a class="headerlink" href="#event-loop" title="Permalink to this heading">¶</a></h2>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.Application.Loop">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">Loop</span></span><a class="headerlink" href="#asab.Application.Loop" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The <code class="xref py py-mod docutils literal notranslate"><span class="pre">asyncio</span></code> event loop that is used by this application.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">asyncio</span><span class="o">.</span><span class="n">ensure_future</span><span class="p">(</span><span class="n">my_coro</span><span class="p">())</span>
+</pre></div>
+</div>
+</section>
+<section id="application-lifecycle">
+<h2>Application Lifecycle<a class="headerlink" href="#application-lifecycle" title="Permalink to this heading">¶</a></h2>
+<p>The ASAB is designed around the <a class="reference external" href="https://en.wikipedia.org/wiki/Inversion_of_control">Inversion of control</a> principle.
+It means that the ASAB is in control of the application lifecycle.
+The custom-written code receives the flow from ASAB via callbacks or handlers.
+Inversion of control is used to increase modularity of the code and make it extensible.</p>
+<p>The application lifecycle is divided into 3 phases: init-time, run-time and exit-time.</p>
+<section id="init-time">
+<h3>Init-time<a class="headerlink" href="#init-time" title="Permalink to this heading">¶</a></h3>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Application.__init__">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/application.html#Application.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Application.__init__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The init-time happens during <a class="reference internal" href="#asab.Application" title="asab.Application"><code class="xref py py-class docutils literal notranslate"><span class="pre">Application</span></code></a> constructor call.
+The Publish-Subscribe message <a class="reference internal" href="pubsub.html#cmdoption-arg-Application.init"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Application.init!</span></code></a> is published during init-time.
+The <a class="reference internal" href="config.html#asab.Config" title="asab.Config"><code class="xref py py-class docutils literal notranslate"><span class="pre">Config</span></code></a> is loaded during init-time.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Application.initialize">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/application.html#Application.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Application.initialize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The application object executes asynchronous callback <code class="docutils literal notranslate"><span class="pre">Application.initialize()</span></code>, which can be overriden by an user.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyApplication</span><span class="p">(</span><span class="n">asab</span><span class="o">.</span><span class="n">Application</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Custom initialization</span>
+        <span class="kn">from</span> <span class="nn">module_sample</span> <span class="kn">import</span> <span class="n">Module</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_module</span><span class="p">(</span><span class="n">Module</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="run-time">
+<h3>Run-time<a class="headerlink" href="#run-time" title="Permalink to this heading">¶</a></h3>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Application.run">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/application.html#Application.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Application.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Enter a run-time. This is where the application spends the most time typically.
+The Publish-Subscribe message <a class="reference internal" href="pubsub.html#cmdoption-arg-Application.run"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Application.run!</span></code></a> is published when run-time begins.</p>
+<p>The method returns the value of <a class="reference internal" href="#asab.Application.ExitCode" title="asab.Application.ExitCode"><code class="xref any py py-attr docutils literal notranslate"><span class="pre">Application.ExitCode</span></code></a>.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Application.main">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/application.html#Application.main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Application.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The application object executes asynchronous callback <code class="docutils literal notranslate"><span class="pre">Application.main()</span></code>, which can be overriden.
+If <code class="docutils literal notranslate"><span class="pre">main()</span></code> method is completed without calling <code class="docutils literal notranslate"><span class="pre">stop()</span></code>, then the application server will run forever (this is the default behaviour).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyApplication</span><span class="p">(</span><span class="n">asab</span><span class="o">.</span><span class="n">Application</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello world!&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Application.stop">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">stop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">exit_code</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/application.html#Application.stop"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Application.stop" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The method  <code class="docutils literal notranslate"><span class="pre">Application.stop()</span></code> gracefully terminates the run-time and commence the exit-time.
+This method is automatically called by <code class="docutils literal notranslate"><span class="pre">SIGINT</span></code> and <code class="docutils literal notranslate"><span class="pre">SIGTERM</span></code>. It also includes a response to <code class="docutils literal notranslate"><span class="pre">Ctrl-C</span></code> on UNIX-like system.
+When this method is called 3x, it abruptly exits the application (aka emergency abort).</p>
+<p>The parameter <code class="docutils literal notranslate"><span class="pre">exit_code</span></code> allows you to specify the application exit code (see <em>Exit-Time</em> chapter).</p>
+<p><em>Note:</em> You need to install <code class="xref py py-mod docutils literal notranslate"><span class="pre">win32api</span></code> module to use <code class="docutils literal notranslate"><span class="pre">Ctrl-C</span></code> or an emergency abord properly with ASAB on Windows. It is an optional dependency of ASAB.</p>
+</section>
+<section id="exit-time">
+<h3>Exit-time<a class="headerlink" href="#exit-time" title="Permalink to this heading">¶</a></h3>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Application.finalize">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">finalize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/application.html#Application.finalize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Application.finalize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The application object executes asynchronous callback <code class="docutils literal notranslate"><span class="pre">Application.finalize()</span></code>, which can be overriden by an user.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyApplication</span><span class="p">(</span><span class="n">asab</span><span class="o">.</span><span class="n">Application</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Custom finalization</span>
+        <span class="o">...</span>
+</pre></div>
+</div>
+<p>The Publish-Subscribe message <a class="reference internal" href="pubsub.html#cmdoption-arg-Application.exit"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Application.exit!</span></code></a> is published when exit-time begins.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Application.set_exit_code">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">set_exit_code</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">exit_code</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/application.html#Application.set_exit_code"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Application.set_exit_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Set the exit code of the application, see <code class="docutils literal notranslate"><span class="pre">os.exit()</span></code> in the Python documentation.
+If <code class="docutils literal notranslate"><span class="pre">force</span></code> is <code class="docutils literal notranslate"><span class="pre">False</span></code>, the exit code will be set only if the previous value is lower than the new one.
+If <code class="docutils literal notranslate"><span class="pre">force</span></code> is <code class="docutils literal notranslate"><span class="pre">True</span></code>, the exit code value is set to a <code class="docutils literal notranslate"><span class="pre">exit_code</span></code> disregarding the previous value.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.Application.ExitCode">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">ExitCode</span></span><a class="headerlink" href="#asab.Application.ExitCode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The actual value of the exit code.</p>
+<p>The example of the exit code handling in the <code class="docutils literal notranslate"><span class="pre">main()</span></code> function of the application.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">app</span> <span class="o">=</span> <span class="n">asab</span><span class="o">.</span><span class="n">Application</span><span class="p">()</span>
+    <span class="n">exit_code</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="n">exit_code</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="module-registry">
+<h2>Module registry<a class="headerlink" href="#module-registry" title="Permalink to this heading">¶</a></h2>
+<p>For more details see <a class="reference internal" href="module.html#asab.Module" title="asab.Module"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a> class.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Application.add_module">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">add_module</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module_class</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/application.html#Application.add_module"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Application.add_module" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Initialize and add a new module.
+The <code class="docutils literal notranslate"><span class="pre">module_class</span></code> class will be instantiated during the method call.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyApplication</span><span class="p">(</span><span class="n">asab</span><span class="o">.</span><span class="n">Application</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">my_module</span> <span class="kn">import</span> <span class="n">MyModule</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_module</span><span class="p">(</span><span class="n">MyModule</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.Application.Modules">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">Modules</span></span><a class="headerlink" href="#asab.Application.Modules" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>A list of modules that has been added to the application.</p>
+</section>
+<section id="service-registry">
+<h2>Service registry<a class="headerlink" href="#service-registry" title="Permalink to this heading">¶</a></h2>
+<p>Each service is identified by its unique service name.
+For more details see <a class="reference internal" href="service.html#asab.Service" title="asab.Service"><code class="xref py py-class docutils literal notranslate"><span class="pre">Service</span></code></a> class.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Application.get_service">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">get_service</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">service_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/asab/application.html#Application.get_service"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Application.get_service" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Locate a service by its service name in a registry and return the <code class="docutils literal notranslate"><span class="pre">Service</span></code> object.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">svc</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">get_service</span><span class="p">(</span><span class="s2">&quot;service_sample&quot;</span><span class="p">)</span>
+<span class="n">svc</span><span class="o">.</span><span class="n">hello</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="asab.Application.Services">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">Services</span></span><a class="headerlink" href="#asab.Application.Services" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>A dictionary of registered services.</p>
+</section>
+<section id="command-line-parser">
+<h2>Command-line parser<a class="headerlink" href="#command-line-parser" title="Permalink to this heading">¶</a></h2>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Application.create_argument_parser">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">create_argument_parser</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prog</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">usage</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epilog</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix_chars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'-'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fromfile_prefix_chars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">argument_default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">conflict_handler</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'error'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_help</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">argparse.ArgumentParser</span></span></span><a class="reference internal" href="../_modules/asab/application.html#Application.create_argument_parser"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Application.create_argument_parser" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Creates an <code class="docutils literal notranslate"><span class="pre">argparse.ArgumentParser</span></code>.
+This method can be overloaded to adjust command-line argument parser.</p>
+<p>Please refer to Python standard library <code class="docutils literal notranslate"><span class="pre">argparse</span></code> for more details about function arguments.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Application.parse_args">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">parse_args</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#asab.Application.parse_args" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The application object calls this method during init-time to process a command-line arguments.
+<code class="xref py py-mod docutils literal notranslate"><span class="pre">argparse</span></code> is used to process arguments.
+You can overload this method to provide your own implementation of command-line argument parser.</p>
+<dl class="py data">
+<dt class="sig sig-object py" id="asab.Application.Description">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">Description</span></span><a class="headerlink" href="#asab.Application.Description" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The <code class="xref py py-data docutils literal notranslate"><span class="pre">Description</span></code> attribute is a text that will be displayed in a help text (<code class="docutils literal notranslate"><span class="pre">--help</span></code>).
+It is expected that own value will be provided.
+The default value is <code class="docutils literal notranslate"><span class="pre">&quot;&quot;</span></code> (empty string).</p>
+</section>
+<section id="utc-time">
+<h2>UTC Time<a class="headerlink" href="#utc-time" title="Permalink to this heading">¶</a></h2>
+<dl class="py method">
+<dt class="sig sig-object py" id="asab.Application.time">
+<span class="sig-prename descclassname"><span class="pre">Application.</span></span><span class="sig-name descname"><span class="pre">time</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/asab/application.html#Application.time"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asab.Application.time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Return the current “event loop time” in seconds since the epoch as a floating point number.
+The specific date of the epoch and the handling of leap seconds is platform dependent. On Windows and most Unix systems, the epoch is January 1, 1970, 00:00:00 (UTC) and leap seconds are not counted towards the time in seconds since the epoch. This is commonly referred to as Unix time.</p>
+<p>A call of the <code class="docutils literal notranslate"><span class="pre">time.time()</span></code> function could be expensive.
+This method provides a cheaper version of the call that returns a current wall time in UTC.</p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">ASAB</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../get-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/web/chapter1.html">Web Server Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/web/chapter2.html">Create microservice with REST API</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Services</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="web/index.html">The web server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="web/restapidocs.html">REST API Docs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="web/authn.html">Authn module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="web/cors.html">Cross-Origin Resource Sharing (CORS)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">Metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="storage.html">Storage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="alert.html">Alert Service</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Application</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#asab.Application"><code class="docutils literal notranslate"><span class="pre">Application</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#event-loop">Event Loop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#application-lifecycle">Application Lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-registry">Module registry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#service-registry">Service registry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#command-line-parser">Command-line parser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#utc-time">UTC Time</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="config.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="log.html">Logging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pubsub.html">Publish-Subscribe</a></li>
+<li class="toctree-l1"><a class="reference internal" href="service.html">Service</a></li>
+<li class="toctree-l1"><a class="reference internal" href="module.html">Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="various.html">Various utility classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="zookeeper.html">Zookeeper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library.html">Library</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Administration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../admin/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/command-line.html">ASAB Command-line interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/containers.html">Containerisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/systemd.html">systemd</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="alert.html" title="previous chapter">Alert Service</a></li>
+      <li>Next: <a href="config.html" title="next chapter">Configuration</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, TeskaLabs Ltd..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="../_sources/asab/application.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
