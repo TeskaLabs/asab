@@ -106,6 +106,13 @@ class ConfigParser(configparser.ConfigParser):
 			"at": "03:00",
 			"limit": "05:00",
 			"run_at_startup": "no",
+		},
+
+		"sentry": {
+			"enabled": "false",
+			"dsn": "",
+			"traces_sample_rate": 1.0,
+			"environment": "develop",
 		}
 
 	}
