@@ -113,6 +113,11 @@ class ConfigParser(configparser.ConfigParser):
 			"dsn": "",
 			"environment": "develop",
 			"traces_sample_rate": 1.0,
+		},
+
+		"sentry:logging": {
+			"breadcrumbs": "info",
+			"events": "warning"
 		}
 
 	}

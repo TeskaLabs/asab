@@ -192,7 +192,7 @@ class Application(metaclass=Singleton):
 
 		# Sentry.io
 
-		if asab.Config.getboolean("sentry", "enabled", False):
+		if asab.Config.getboolean("sentry", "enabled", fallback=False):
 			self._initialize_sentry()
 
 	def create_argument_parser(
@@ -816,28 +816,44 @@ class Application(metaclass=Singleton):
 			L.critical("Package for Sentry SDK not found. Install it with: pip install sentry-sdk")
 			sys.exit(1)
 
-		self.Dsn = asab.Config.get("sentry", "dsn")
+		self.DataSourceName = asab.Config.get("sentry", "data_source_name")
 		self.Environment = asab.Config.get("sentry", "environment")
 		self.TracesSampleRate = asab.Config.getfloat("sentry", "traces_sample_rate")
+		self.Release = asab.Config.get("sentry", "release", fallback=None)
 		assert 0 <= self.TracesSampleRate <= 1.0, "Traces sample rate must be between 0 and 1."
 
+		levels = {
+			"debug": logging.DEBUG,
+			"info": logging.INFO,
+			"notice": asab.LOG_NOTICE,
+			"warning": logging.WARNING,
+			"error": logging.ERROR,
+			"critical": logging.CRITICAL
+		}
+
+		self.LoggingBreadCrumbsLevel = levels.get(asab.Config.get("sentry:logging", "breadcrumbs").lower())
+		self.LoggingEventsLevel = levels.get(asab.Config.get("sentry:logging", "events").lower())
+
 		_ = sentry_sdk.integrations.logging.LoggingIntegration(
-			level=logging.INFO,  # Capture info and above as breadcrumbs
-			event_level=logging.WARNING,  # Send errors as events
+			level=self.LoggingBreadCrumbsLevel,  # Capture info and above as breadcrumbs
+			event_level=self.LoggingEventsLevel,  # Send errors as events
 		)
 
 		sentry_sdk.init(
-			dsn=self.Dsn,
+			dsn=self.DataSourceName,
 			integrations=[
 				sentry_sdk.integrations.aiohttp.AioHttpIntegration(),
 				sentry_sdk.integrations.asyncio.AsyncioIntegration(),
 				sentry_sdk.integrations.logging.LoggingIntegration(),
 			],
 			traces_sample_rate=self.TracesSampleRate,
-			environment=self.Environment
+			environment=self.Environment,
+			release=self.Release,
+			auto_session_tracking=True,  # session info about interaction between user and app
 		)
 
 		L.info("Sentry SDK initialized!")
+
 
 def _housekeeping_id(dt: datetime.datetime) -> int:
 	"""
