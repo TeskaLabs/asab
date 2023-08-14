@@ -20,7 +20,7 @@ ASAB is distributed via [pypi](https://pypi.org/project/asab/). There are three 
     pip install git+https://github.com/TeskaLabs/asab.git
     ```
 
-    Or you can clone the repository manually:
+    Or clone the repository manually:
 
     ``` bash
     git clone https://github.com/TeskaLabs/asab.git
@@ -56,28 +56,28 @@ ASAB is distributed via [pypi](https://pypi.org/project/asab/). There are three 
             app.run()
     ```
 
-    1. ASAB application uses a Python 3.7+. This is specified by a hashbang
+    1. ASAB applications use Python 3.7+. This is specified by a hashbang
     line at the very beginning of the file.
 
-    1. ASAB is included from as `asab` module via an import
+    2. ASAB is included from as `asab` module via an import
     statement.
 
-    1. Every ASAB Application needs to have an application object. It is a
+    3. Every ASAB Application needs to have an application object. It is a
     **singleton**: the application must create and operate
     precisely one instance of the application. ASAB provides the base
     [asab.Application][#TODO] class that you need to
     inherit from to implement your custom application class.
 
-    1. The `#!python Application.main()` method is one of
+    4. The `#!python Application.main()` method is one of
     the application lifecycle methods, that you can override to implement
     desired application functionality. The `main` method is a
     coroutine, so that you can await any tasks etc. in a fully asynchronous
     way. This method is called when the ASAB application is executed and
     initialized. The lifecycle stage is called "runtime".
 
-    1. In this example, the app is printing a message to the screen.
+    5. In this example, the app is printing a message to the screen.
 
-    2. This part of the code is executed when you launch the Python program.
+    6. This part of the code is executed when you launch the Python program.
     It creates the application object and executes the `#!python run()` method which creates and runs an event loop. 
     This is a standard way of how ASAB application is started.
 
