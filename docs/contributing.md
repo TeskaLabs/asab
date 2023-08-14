@@ -5,8 +5,8 @@ We appreciate your effort to help us improve ASAB. In case you are interested in
 
 ## Coding conventions
 
-In TeskaLabs, we are following [PEP8 Style Guide](https://www.python.org/dev/peps/pep-0008/) that provides guidelines and
-best practices on how to write Python code to improve its readability and consistency.
+At TeskaLabs, we follow the [PEP8 Style Guide](https://www.python.org/dev/peps/pep-0008/), which provides guidelines and
+best practices on writing Python code for improved readability and consistency.
 
 To check if changes in your code are compliant with PEP8, you can use [flake8](https://flake8.pycqa.org/en/latest/):
 
@@ -30,7 +30,7 @@ flake8 .
     chmod u+x .git/hooks/pre-commit
     ```
 
-We shall provide some parts of the PEP8 Style Guide that we are focused on.
+These are the parts of the PEP8 Style Guide we care about the most:
 
 ### Tabs
 
@@ -40,15 +40,15 @@ We use tabs as an indentation method. Do not mix them with spaces!
 
 Surround top-level function and class definitions with two blank lines.
 
-Method definitions inside a class are surrounded by a single blank line.
+Surround method definitions inside a class with a single blank line.
 
-Extra blank lines may be used (sparingly) to separate groups of related functions. Blank lines may be omitted between a bunch of related one-liners (e.g. a set of dummy implementations).
+You may use extra blank lines (sparingly) to separate groups of related functions. You can omit blank lines between a bunch of related one-liners (e.g. a set of dummy implementations).
 
 Use blank lines in functions, sparingly, to indicate logical sections.
 
 ### Imports
 
-Imports shall be written one-per-line style as per the example below
+Write imports one-per-line style as per the example:
 
 ```python
 import os
@@ -56,7 +56,7 @@ import sys
 import logging
 ```
 
-Following additional rules apply for imports:
+Also:
 
 1. Use **relative imports** when you import locally from a package.
 2. Use **absolute imports** when you import from external package.
@@ -66,13 +66,13 @@ used for importing symbols that you want to expose as a given module public API.
 
 ## Documentation conventions
 
-As a documentation engine, we use [mkdocs-material](https://squidfunk.github.io/mkdocs-material/). If you want to learn about various features provided by the engine, you can [read more](https://squidfunk.github.io/mkdocs-material/reference/).
+We use [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/) as our documentation engine. To learn about features, visit the [reference page](https://squidfunk.github.io/mkdocs-material/reference/).
 
-MkDocs uses markdown for writing documentation.
+MkDocs uses Markdown for writing documentation.
 
 ### Docstrings formatting
 
-In order for the automatic documentation to be generated without errors, [Google style docstring guide](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) must be followed. Here is an example of the properly documented function:
+In order for the automatic documentation to be generated without errors, [Google style docstring guide](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) must be followed. Here is an example of a properly documented function:
 
 ```python
 def fetch_smalltable_rows(
@@ -114,7 +114,7 @@ def fetch_smalltable_rows(
 
 
 !!! tip
-    If you use code annotations, it will be automatically incorporated into the documentation. In case you for some reason do not want to use them and still would like to have type hints in documentation, you can manually add them like this:
+    Code annotations will be automatically incorporated into the documentation. If you don't want to use code annotations and would still like to have type hints in documentation, you can manually add them like this:
 
     ```python
     def sum_of_squares(a, b):
