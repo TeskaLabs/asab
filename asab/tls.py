@@ -18,7 +18,7 @@ class SSLContextBuilder(Configurable):
 	ConfigDefaults = {
 		'cert': '',  # The certfile string must be the path to a PEM file containing the certificate as well as any number of CA certificates needed to establish the certificate’s authenticity.
 		'key': '',  # The keyfile string, if present, must point to a file containing the private key in. Otherwise the private key will be taken from certfile as well.
-		'password': '',
+		'key_password': '',
 
 		# Following three options are fed into SSLContext.load_verify_locations(...)
 		'cafile': '',
@@ -55,16 +55,16 @@ class SSLContextBuilder(Configurable):
 		if len(keyfile) == 0:
 			keyfile = None
 
-		password = self.Config.get("password")
-		if len(password) == 0:
-			password = None
+		key_password = self.Config.get("key_password")
+		if len(key_password) == 0:
+			key_password = None
 
 		cert = self.Config.get("cert")
 		if len(cert) != 0:
 			ctx.load_cert_chain(
 				cert,
 				keyfile=keyfile,
-				password=password,
+				password=key_password,
 			)
 
 		cafile = self.Config.get("cafile")
