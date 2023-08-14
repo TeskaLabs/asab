@@ -1,7 +1,7 @@
 Creating a microservice with REST API
 =====================================
 
-In the [previous tutorial](./02_web_server.md), you have learned how to create a web server.
+In the [previous tutorial](../getting-started/web_server.md), you learned how to create a web server.
 
 With this tutorial, you will create a basic ASAB microservice that provides a REST HTTP API. This microservice will implement **CREATE**, **READ**, **UPDATE** and **DELETE** functionality, in another words: **CRUD**. 
 We will also use [MongoDB](https://www.mongodb.com/) as a database running on [Docker](https://docs.docker.com/), and . In case you are not familiar with these technologies, take the opportunity to learn their basics concepts, as they are alpha-omega of the backend programming.
