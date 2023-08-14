@@ -9,13 +9,13 @@ Anyone can (and is encouraged to) use ASAB in their own projects, for free.
 
 !!! success "ASAB is the right choice when:"
 
-    :material-server: you want to build a microservice or an application server
+    :material-server: You want to build a microservice or an application server
 
-    :material-language-python: you are using Python 3.7+
+    :material-language-python: You are using Python 3.7+
 
-    :material-clock-fast: you want to utilize asynchronous I/O
+    :material-clock-fast: You want to use asynchronous I/O
 
-    :material-file-document-edit: you want to write non-blocking, speedy and scalable code
+    :material-file-document-edit: You want to write non-blocking, speedy, and scalable code
 
 !!! example "Here is a complete example of a working microservice:"
 
