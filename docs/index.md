@@ -40,4 +40,4 @@ Anyone can (and is encouraged to) use ASAB in their own projects, for free.
     :simple-github: ASAB is developed [on GitHub](https://github.com/TeskaLabs/asab/).
     Contributions are most welcome! If you want to help us improve ASAB, check our [contribution rules](./contributing.md).
 
-    :simple-opensourceinitiative: ASAB is avfree and open-source software, available under the BSD licence. Anyone is freely licensed to use, copy, study, and change the software in any way, and the source code is openly shared so that people can voluntarily improve the software.
+    :simple-opensourceinitiative: ASAB is a free and open-source software, available under the BSD licence. Anyone is freely licensed to use, copy, study, and change the software in any way, and the source code is openly shared so that people can voluntarily improve the software.
