@@ -1,9 +1,6 @@
-# Containerisation
+# Containerization
 
-ASAB is designed for deployment into containers such as LXC/LXD or
-Docker. It allows to build e.g. microservices that provides REST
-interface or consume MQ messages while being deployed into a container
-for a sake of the infrastructure flexibility.
+ASAB is designed for deployment into containers such as LXC/LXD or Docker. It allows you to build microservices ** that provides REST interface or consume MQ messages while being deployed into a container for the sake of the infrastructure flexibility.
 
 ## Running ASAB in a LXC/LXD container
 
