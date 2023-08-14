@@ -35,7 +35,7 @@ Anyone can (and is encouraged to) use ASAB in their own projects, for free.
 
 !!! info "Development"
 
-    [TeskaLabs Ltd](https://teskalabs.com) maintains ASAB.
+    :tl-icon: [TeskaLabs Ltd](https://teskalabs.com) maintains ASAB.
 
     :simple-github: ASAB is developed [on GitHub](https://github.com/TeskaLabs/asab/).
     Contributions are most welcome! If you want to help us improve ASAB, check our [contribution rules](./contributing.md).
