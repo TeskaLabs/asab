@@ -447,11 +447,12 @@ class AsyncIOHandler(logging.Handler):
 		self._loop.remove_writer(self._socket)
 
 		while not self._queue.empty():
-			# TODO: Handle eventual error in writing -> break the cycle and restart on write handler
 			msg = self._queue.get_nowait()
-			msg = msg.encode("utf-8")
-			self._socket.sendall(msg)
-
+			try:
+				self._socket.sendall(msg)
+			except Exception as e:
+				print("Error when writing to syslog '{}'".format(self._address), e, file=sys.stderr)
+				self._enqueue(msg)
 
 	def _on_read(self):
 		try:
@@ -480,7 +481,7 @@ class AsyncIOHandler(logging.Handler):
 					self._enqueue(msg)
 
 			else:
-				self._enqueue(record)
+				self._enqueue(msg)
 
 
 		except Exception as e:
