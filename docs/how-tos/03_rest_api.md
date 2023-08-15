@@ -3,18 +3,18 @@ Creating a microservice with REST API
 
 In the [previous tutorial](../getting-started/web_server.md), you learned how to create a web server.
 
-With this tutorial, you will create a basic ASAB microservice that provides a REST HTTP API. This microservice will implement **CREATE**, **READ**, **UPDATE** and **DELETE** functionality, in another words: **CRUD**. 
-We will also use [MongoDB](https://www.mongodb.com/) as a database running on [Docker](https://docs.docker.com/), and . In case you are not familiar with these technologies, take the opportunity to learn their basics concepts, as they are alpha-omega of the backend programming.
+In this tutorial, you'll learn how to create a basic ASAB microservice that provides a REST HTTP API. This microservice will implement **CREATE**, **READ**, **UPDATE** and **DELETE** functionality, in another words: **CRUD**.
+
+We will also use [MongoDB](https://www.mongodb.com/) as a database running on [Docker](https://docs.docker.com/). If you're not familiar with CRUD, MongoDB, or Docker, take the time to learn the basics, because they are the foundations of the backend programming with ASAB.
 
 Set up the project with Docker and MongoDB
 ------------------------------------------
 
-Here are the steps:
 
-1. **Install Docker** if you don't have it already. Go to [the official website](https://docs.docker.com/get-docker/), choose your operating system and follow the guide.
+1. **Install Docker** if you don't have it already. Go to [the official website](https://docs.docker.com/get-docker/), choose your operating system, and follow the guide.
     
     !!! tip
-        Take it as a recommendation from the experience of the authors of this tutorial that in most cases there is no need to install a Docker desktop, but the Docker engine will suffice. In some cases, installing Docker desktop may cause problems when interacting with Docker in the terminal.
+        Based on our experience, we recommend installing just the Docker engine - there's no need to install Docker Desktop in most cases. In some cases, installing Docker Desktop might even cause problems when interacting with Docker in the terminal.
     
     You can always check if you have Docker installed successfully:
     ``` bash
@@ -33,13 +33,9 @@ docker run -d -p 27017:27017 \
     mongo
 ```
 
-3. **Install Postman** in case you do not have it. We will use it to test the webservice REST API.
-You can download it from [the official website](https://www.postman.com/downloads/).
-The Postman is fairly straightforward to use. You can create your
-collection of HTTP requests, save them, or automatically generate
-documentation.
+3. **Install Postman** in case you do not have it ([download here on the official website](https://www.postman.com/downloads/)). We will use Postman to test the webservice REST API. In Postman, you can create your collection of HTTP requests, save the collections, or automatically generate documentation.
 
-4. **Prepare the structure of the project.** Every asab microservice consists of several Python modules.
+4. **Prepare the structure of the project.** Every ASAB microservice consists of several Python modules.
 Create the following file structure in your repository:
 
     ```
@@ -59,7 +55,7 @@ Create the following file structure in your repository:
 Build a microservice
 --------------------
 
-With the prepared modules, we move on to actual coding. Here is the code for every module with explanations.
+Now that you've prepared the modules, we move on to actual coding. Here is the code for every module with explanations.
 
 
 ``` python title="my_rest_api.py"
@@ -122,8 +118,8 @@ class TutorialApp(asab.Application):
 6. TODO
 7. TODO
 
-8. `asab` microservices consist of two parts: **services** and **handlers**. 
-When HTTP request is sent to the web server, **handler** will identify its type and calls the corresponding **service**. The service performs some operations and returns some data back to the handler, which sends it back to the client.
+8. ASAB microservices consist of two parts: **services** and **handlers**. 
+When HTTP request is sent to the web server, the **handler** identifies its type and calls the corresponding **service**. The service performs some operations and returns some data back to the handler, which sends it back to the client.
 
 
 Continue with the init file, so that the directory `my_rest_api` will work as a module.
@@ -136,17 +132,15 @@ __all__ = [
 ]
 ```
 
-1. The list of strings that define what variables have to be imported to another file. If you don't know, what is going on, [this explanation](https://www.geeksforgeeks.org/python-__all__/) could help. In this case, we only want to import `TutorialApp` class.
+1. The list of strings that define what variables have to be imported to another file. If you don't know what that means, [this explanation](https://www.geeksforgeeks.org/python-__all__/) might help. In this case, we only want to import `TutorialApp` class.
 
 Create a handler
 ----------------
 
-The handler is where HTTP Rest calls are handled and transformed into
+The handler is where HTTP REST calls are handled and transformed into
 the actual (internal) service calls. From another perspective, the
 handler should contain only translation between REST calls and the
-service interface. No actual 'business logic' should be here. It is
-strongly suggested to build these CRUD methods one by one and test them
-straight away.
+service interface. No actual 'business logic' should be here. We strongly recommend building these CRUD methods one by one and testing each one immediately.
 
 ``` python title="my_rest_api/tutorial/handler.py" linenums="1"
 
@@ -212,7 +206,7 @@ class CRUDWebHandler(object):
 
 2. Methods `add_put`, `add_get` take arguments `path`, which specifies the endpoint, and `handler`, which is a coroutine that is called after the request is received from the client. In fact, these methods are performed on [aiohttp web handler](https://docs.aiohttp.org/en/stable/web_reference.html#aiohttp.web.UrlDispatcher) and are special cases of the `add_route` method. In this case, the the path is `/crud-myrestapi/{collection}`, where collection is a variable name.
 
-3. In order to prevent storing arbitrary data, we define a [JSON schema](https://json-schema.org/). Now if the request data do not satisfy the format, they cannot be posted to the database.
+3. In order to prevent storing arbitrary data, we define a [JSON schema](https://json-schema.org/). Now if the request data does not satisfy the format, the data cannot be posted to the database.
 
 4. The JSON schema handler is used as a decorator and validates JSON documents by [JSON schema](https://json-schema.org/). It takes either a dictionary with the schema itself (as in this example), or a string with the path for the JSON file to look at.
 
@@ -228,14 +222,14 @@ class CRUDWebHandler(object):
 
 10. After the `GET` request is sent, the handler calls the service to perform a method `read()`, expecting some data back.
 
-11. Simply respond with the data found in the collection. If they do not exist, the response will be empty.
+11. Simply respond with the data found in the collection. If the data does not exist, the response will be empty.
 
-Let's start with two methods - `PUT` and `GET` which allow us to write into database and check the
+Let's start with two methods - `PUT` and `GET` - which allow us to write into database and check the
 record.
 
 The handler only accepts the incoming requests and returns appropriate
 responses. All of the "logic", be it the specifics of the database
-connection, additional validations and other operations take place in
+connection, additional validations, or other operations, take place in
 the CRUDService.
 
 
@@ -289,32 +283,31 @@ class CRUDService(asab.Service):
 ```
 
 As mentioned above, this is where the inner workings of the microservice
-request processing are. Let\'s start as usual, by importing the desired
+request processing are. Let's start, as usual, by importing the desired
 modules:
 
 
 Now define the CRUDService class which inherits from the
-[asab.Service]{.title-ref} class.
+`[asab.Service]{.title-ref}` class.
 
 
 
-[asab.Service]{.title-ref} is a lightweight yet powerful abstract class
+`[asab.Service]{.title-ref}` is a lightweight yet powerful abstract class
 providing your object with 3 functionalities:
 
--   Name of the [asab.Service]{.title-ref} is registered in the app and
-    can be called from the [app]{.title-ref} object anywhere in your
+-   Name of the `[asab.Service]{.title-ref}` is registered in the app and
+    can be called from the `[app]{.title-ref}` object anywhere in your
     code.
--   [asab.Service]{.title-ref} class implements
-    [initialize()]{.title-ref} and [finalize()]{.title-ref} coroutines
+-   `[asab.Service]{.title-ref}` class implements
+    `[initialize()]{.title-ref}` and `[finalize()]{.title-ref}` coroutines
     which help you to handle asynchronous operations in init and exit
     time of your application.
--   [asab.Service]{.title-ref} registers application object as
-    [self.App]{.title-ref} for you.
-xxx
+-   `[asab.Service]{.title-ref}` registers application object as
+    `[self.App]{.title-ref}` for you.
 
 
-[asab.StorageService]{.title-ref} initialized in [app.py]{.title-ref} as
-part of the [asab.storage.Module]{.title-ref} enables connection to
+`[asab.StorageService]{.title-ref}` initialized in `[app.py]{.title-ref}` as
+part of the `[asab.storage.Module]{.title-ref}` enables connection to
 MongoDB. Further on, two methods provide the handler with the desired
 functionalities.
 
@@ -342,8 +335,8 @@ Now everything is prepared and we can test our application using Postman. Let's 
 
     The application is implicitly running on an [http://localhost:8080/](http://localhost:8080/) port. 
 
-2. Open the Postman and set a new request.
-   First try to add some data using `PUT` method to `localhost:8080/crud-myrestapi/celebrities` endpoint. Insert this JSON document into the request body:
+2. Open Postman and set a new request.
+   First, try to add some data using the `PUT` method to the `localhost:8080/crud-myrestapi/celebrities` endpoint. Insert this JSON document into the request body:
 
     ``` json
     {
@@ -365,7 +358,7 @@ Now everything is prepared and we can test our application using Postman. Let's 
     }
     ```
 
-    Now let's test if we can request for some data. Use the `GET` method to `localhost:8080/crud-myrestapi/celebrities/1` endpoint, this time with no request body.
+    Now let's test if we can request for some data. Use the `GET` method to the `localhost:8080/crud-myrestapi/celebrities/1` endpoint, this time with no request body.
 
     Now, what is the response?
 
@@ -380,7 +373,7 @@ Now everything is prepared and we can test our application using Postman. Let's 
         ModuleNotFoundError: No module named 'pymongo.mongo_replica_set_client'
         ```
 
-        that means there is a missing module, probably the [motor](https://motor.readthedocs.io/en/stable/) library, which provides an asynchronous driver for MongoDB. Try to fix it:
+        This message means that there's a missing module, probably the [motor](https://motor.readthedocs.io/en/stable/) library, which provides an asynchronous driver for MongoDB. Try to fix it:
 
         ``` bash
         pip install motor
@@ -393,8 +386,8 @@ Now everything is prepared and we can test our application using Postman. Let's 
         OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8080): address already in use
         ```
 
-        that means that the port is already used by some other application (have you exit the application from the previous tutorial?)
-        To check, what is running on your port, try:
+        This message means that the port is already used by some other application (have you exited the application from the previous tutorial?)
+        To check what's running on your port, try:
 
         ``` bash
         lsof | grep LISTEN
@@ -412,14 +405,14 @@ Now everything is prepared and we can test our application using Postman. Let's 
         python3   103203    user    7u     IPv4  1059624 0t0 TCP *:bbs (LISTEN)
         ```
 
-        that means there is a running process using the port with ID 103203. 
+        This output means there's a running process using the port with ID 103203. 
         
         The first option is simply to stop the process:
 
         ```
         kill -9 103203
         ```
-        (replace the ID with the corresponding ID from the previous output).
+        (Replace the ID with the corresponding ID from the previous output.)
 
         The second option is to add these lines into the configuration file:
 
@@ -428,11 +421,11 @@ Now everything is prepared and we can test our application using Postman. Let's 
         listen=0.0.0.0:8081
         ```
 
-        If you run the app again, it should be running on an [http://localhost:8081/](http://localhost:8081/) port. 
+        If you run the app again, it should be running on [http://localhost:8081/](http://localhost:8081/) port. 
 
     !!! question
 
-        You see no error at all, no response either.
+        What if you see no errors, but also no response at all?
 
         Try to check the Mongo database credentials. Do your credentials in the config file fit the ones you entered when running the Mongo Docker image?
 
@@ -446,20 +439,20 @@ In this tutorial, you learned how to create a simple **microservice** provided w
 Exercise 0: Store JSON schema in the file
 -----------------------------------------
 
-In order to get used to the `asab.web.rest.json_schema_handler()` decorator, store the JSON schema in a separate file. Then pass its path as an argument to the decorator.
+In order to get used to the `asab.web.rest.json_schema_handler()` decorator, store the JSON schema in a separate file. Then, pass its path as an argument to the decorator.
 
 
 Exercise 1: Implement `POST` and `DELETE` methods
 -------------------------------------------------
 
-For updating and deleting data from the database, we should implement the methods `POST` and `DELETE`.
+For updating and deleting data from the database, implement the methods `POST` and `DELETE`.
 
 1. Implement `update()` and `delete()` methods to the `CRUDService` class. Use 
 
 
 **handler.py**
 
-[./myrestapi/tutorial/handler.py]{.title-ref}
+`[./myrestapi/tutorial/handler.py]{.title-ref}`
 
 ``` {.python}
 import asab
@@ -567,7 +560,7 @@ class CRUDWebHandler(object):
 
 **service.py**
 
-[./myrestapi/tutorial/service.py]{.title-ref}
+`[./myrestapi/tutorial/service.py]{.title-ref}`
 
 ``` {.python}
 import asab
