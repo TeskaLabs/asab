@@ -107,19 +107,6 @@ class ConfigParser(configparser.ConfigParser):
 			"limit": "05:00",
 			"run_at_startup": "no",
 		},
-
-		"sentry": {
-			"enabled": "false",
-			"dsn": "",
-			"environment": "develop",
-			"traces_sample_rate": 1.0,
-		},
-
-		"sentry:logging": {
-			"breadcrumbs": "info",
-			"events": "warning"
-		}
-
 	}
 
 	if 'ASAB_ZOOKEEPER_SERVERS' in os.environ:
