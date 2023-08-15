@@ -448,8 +448,8 @@ class AsyncIOHandler(logging.Handler):
 
 		while not self._queue.empty():
 			# TODO: Handle eventual error in writing -> break the cycle and restart on write handler
-			msg = self._queue.get_nowait()
-			msg = msg.encode("utf-8")
+			log_record = self._queue.get_nowait()
+			msg = log_record.getMessage().encode("utf-8")
 			self._socket.sendall(msg)
 
 
