@@ -7,7 +7,6 @@ Config.add_defaults(
 			"data_source_name": "",
 			"environment": "develop",
 			"traces_sample_rate": 1.0,
-			"release": "",
 		},
 
 		"sentry:logging": {
