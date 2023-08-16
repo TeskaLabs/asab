@@ -287,6 +287,9 @@ class LibraryService(Service):
 				self.Disabled = yaml.safe_load(disabled)
 				if self.Disabled is None:
 					self.Disabled = {}
+				elif isinstance(self.Disabled, set):
+					# This is for a backward compatibility (Aug 2023)
+					self.Disabled = {key: '*' for key in self.Disabled}
 				else:
 					# Disabled must be a dictionary object
 					assert (isinstance(self.Disabled, dict)), "The 'Disabled' attribute must be a dictionary instance."
