@@ -93,8 +93,10 @@ class SentryService(asab.Service):
 		else:
 			manifest = None
 
-		self.Release = manifest.get("version", fallback="not specified")
-
+		if manifest:
+			self.Release = manifest.get("version", fallback="not specified")
+		else:
+			self.Release = "not specified"
 
 		# PERFORMANCE MONITORING
 		# traces sample rate: percentage of captured events
@@ -113,11 +115,11 @@ class SentryService(asab.Service):
 					event_level=self.LoggingEventsLevel,
 				),
 			],
-			traces_sample_rate=self.TracesSampleRate,
-			environment=self.Environment,
-			release=self.Release,
+			traces_sample_rate=self.TracesSampleRate,  # percentage of captured events
+			environment=self.Environment,  # e.g. "production", "develop"
+			release=self.Release,  # version of the microservice, e.g., v23.40-alpha
 			auto_session_tracking=True,  # session info about interaction between user and app
-			debug=False,
+			debug=False,  # ...sends many irrelevant messages
 		)
 		# TODO: Investigate CA certs, TLS/SSL, Security Tokens, Allowed Domains
 
