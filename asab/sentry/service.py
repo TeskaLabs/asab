@@ -224,6 +224,39 @@ class SentryService(asab.Service):
 			span_name (str): Displayed span name that can be filtered.
 
 		Returns:
-			Transaction: A context manager that measures time operation of a task.
+			Transaction: A context manager that measures time operation of the task inside.
+
+		Examples:
+		```python
+		with sentry_svc.transaction("speed test", "test sleeping"):
+			time.sleep(1.0)
+		```
 		"""
 		return sentry_sdk.start_transaction(op=span_operation, name=span_name)
+
+	def span(self, operation: str, description: str):
+		"""
+		Create a child span within custom transaction.
+
+		This method is used as a context manager.
+
+		Args:
+			operation (str): Displayed span operation name that cannot be filtered, e.g., 'task'.
+			description (str): Displayed span name that can be filtered.
+
+		Returns:
+			Span: A context manager that measures time operation of the task inside.
+
+		Examples:
+		```python
+		with sentry_svc.transaction("speed test", "multiple tasks"):
+			prepare_task1()
+			with sentry_svc.span("task", "task1"):
+				task1()
+			prepare_task2()
+			with sentry_svc.span("task", "task2"):
+				task2()
+			finalize()
+		```
+		"""
+		return sentry_sdk.start_span(op=operation, description=description)
