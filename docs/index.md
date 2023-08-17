@@ -5,7 +5,7 @@
 Anyone can (and is encouraged to) use ASAB in their own projects, for free.
 
 
-[Get started](getting-started/installation_first_app.md){ .md-button .md-button--primary } [About TeskaLabs](https://docs.teskalabs.com/){ .md-button .md-button--primary } [Contribute](contributing.md){ .md-button .md-button--primary }
+[Install ASAB](how-tos/installing-asab.md){ .md-button .md-button--primary } [Tutorials](how-tos/index.md){ .md-button .md-button--primary } [About TeskaLabs](https://docs.teskalabs.com/){ .md-button .md-button--primary } [Contribute](contributing.md){ .md-button .md-button--primary }
 
 !!! success "ASAB is the right choice when:"
 
