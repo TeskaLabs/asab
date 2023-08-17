@@ -1,6 +1,6 @@
 # Zookeeper
 
-The `asab.zookeeper` is a [ApacheZookeeper](https://zookeeper.apache.org) asynchronous client based on [Kazoo](https://github.com/python-zk/kazoo) library.
+`asab.zookeeper` is an [ApacheZookeeper](https://zookeeper.apache.org) asynchronous client based on [Kazoo](https://github.com/python-zk/kazoo) library.
 
 Apache ZooKeeper is a distributed coordination service that provides a hierarchical key-value data store, 
 called **a znode tree**, to store and manage configuration, coordination, and synchronization data.
