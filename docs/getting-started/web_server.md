@@ -127,10 +127,11 @@ As you can see, it is easy to create a fully functioning web server using ASAB, 
 
 At this point, let us also mention the basics of ASAB logging.
 
-ASAB Application provides a structured logging which is used to trace back useful information about various events during the application run-time. 
-The default configuration sends logs to the standard output, so you can see the logs directly in the terminal.
+ASAB applications provide a structured logging tool, which is used to trace back useful information about various events during the application run-time.
 
-If you now check the terminal where an ASAB application is running, you should see messages similar to these:
+The default configuration sends logs to the standard output, so you can see the logs directly in the terminal. If you want to add your a different logger or send logs to a different output, you need to change the configuration.
+
+If you check the terminal where an ASAB application is running, you should see messages similar to these:
 
 ``` python
 23-Jun-2023 08:08:44.683943 NOTICE asab.application is ready. # (1)
