@@ -1,8 +1,7 @@
 # Logging
 
-ASAB logging is built on top of [`logging` module](https://docs.python.org/3/library/logging.html).
-It provides the standard logging to `stderr` output when running on a console and also file and syslog output (both RFC5424 and RFC3164) for
-background mode of operations.
+ASAB logging is built on top of the [`logging` module](https://docs.python.org/3/library/logging.html).
+It provides standard logging to `stderr` output when running on a console, and also file and syslog output (both RFC5424 and RFC3164) for background mode of operations.
 
 Log timestamps are captured with sub-second precision (depending on the
 system capabilities) and displayed including microsecond part.
@@ -79,7 +78,7 @@ Level | Numeric value | Syslog Severity level |
 
 ## Verbose mode
 
-By default, only logs with the level bigger than 20 are visible, so `DEBUG` and `INFO` levels are not displayed. For accessing these levels, the application must be started with the **verbose mode**. This is done by the command-line argument `-v`.
+By default, only logs with a level greater than 20 are visible, so `DEBUG` and `INFO` levels are not displayed. For accessing these levels, the application must be started with the **verbose mode**. This is done by the command-line argument `-v`.
 
 !!! example
 
@@ -115,7 +114,7 @@ By default, only logs with the level bigger than 20 are visible, so `DEBUG` and 
 
 ## Structured data
 
-ASAB supports a structured data to be added to a log entry. Structured data are passed to the log message as a dictionary that has to be JSON-serializable.
+ASAB supports a structured data to be added to a log entry. Structured data is passed to the log message as a dictionary that has to be JSON-serializable.
 
 !!! example
 
@@ -155,7 +154,7 @@ ASAB supports a structured data to be added to a log entry. Structured data are 
 
 ## Logging to console
 
-ASAB application will log to the console only if it detects that it is running on the terminal 
+The ASAB application will log to the console only if it detects that it is running on the terminal 
 (using [`os.isatty()`](https://www.w3schools.com/python/ref_os_isatty.asp) function) or if the
 environment variable `ASABFORCECONSOLE` is set to `1`. This is useful setup for eg. PyCharm.
 
@@ -163,7 +162,7 @@ environment variable `ASABFORCECONSOLE` is set to `1`. This is useful setup for 
 ## Logging to a file
 
 The command-line argument `-l` enables logging to a file.
-Also non-empty `path` option in the section `[logging:file]` of the configuration file enables logging to a file as well.
+Non-empty `path` option in the section `[logging:file]` of the configuration file also enables logging to a file.
 
 !!! example "Example of the configuration section:"
 
