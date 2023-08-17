@@ -5,7 +5,7 @@ In the [previous tutorial](../getting-started/web_server.md), you learned how to
 
 In this tutorial, you'll learn how to create a basic ASAB microservice that provides a REST HTTP API. This microservice will implement **CREATE**, **READ**, **UPDATE** and **DELETE** functionality, in another words: **CRUD**.
 
-We will also use [MongoDB](https://www.mongodb.com/) as a database running on [Docker](https://docs.docker.com/). If you're not familiar with CRUD, MongoDB, or Docker, take the time to learn the basics, because they are the foundations of the backend programming with ASAB.
+We will also use [MongoDB](https://www.mongodb.com/) as a database running on [Docker](https://docs.docker.com/). If you're not familiar with CRUD, MongoDB, or Docker, take the time to learn the basics, because they are the foundations of backend programming with ASAB.
 
 Set up the project with Docker and MongoDB
 ------------------------------------------
@@ -33,7 +33,7 @@ docker run -d -p 27017:27017 \
     mongo
 ```
 
-3. **Install Postman** in case you do not have it ([download here on the official website](https://www.postman.com/downloads/)). We will use Postman to test the webservice REST API. In Postman, you can create your collection of HTTP requests, save the collections, or automatically generate documentation.
+3. **Install Postman** in case you do not have it ([download here on the official website](https://www.postman.com/downloads/)). We will use Postman to test the webservice REST API. In Postman, you can create your collection of HTTP requests, save the HTTPs requests as templates, or automatically generate documentation.
 
 4. **Prepare the structure of the project.** Every ASAB microservice consists of several Python modules.
 Create the following file structure in your repository:
@@ -107,7 +107,7 @@ class TutorialApp(asab.Application):
 
 1. As always, let's start with importing the `asab` modules.
 
-2. This module is a built-in asab service which is used for manipulation with databases.
+2. This module is a built-in ASAB service that's used for manipulating items in databases.
 
 3. Remember, if you override a `__init__()` method, don't forget to add this super-initialization line of code.
 
@@ -119,7 +119,7 @@ class TutorialApp(asab.Application):
 7. TODO
 
 8. ASAB microservices consist of two parts: **services** and **handlers**. 
-When HTTP request is sent to the web server, the **handler** identifies its type and calls the corresponding **service**. The service performs some operations and returns some data back to the handler, which sends it back to the client.
+When HTTP request is sent to the web server, the **handler** identifies the HTTP request type and calls the corresponding **service**. The service performs its specified operations and returns data back to the handler, which sends it back to the client.
 
 
 Continue with the init file, so that the directory `my_rest_api` will work as a module.
@@ -202,7 +202,7 @@ class CRUDWebHandler(object):
         )
 ```
 
-1. This is a reference on the microservice. In this app, we will create a service which uses the MongoDB Storage.
+1. This is a reference to the microservice itself. In this app, we will create a service which uses the MongoDB Storage.
 
 2. Methods `add_put`, `add_get` take arguments `path`, which specifies the endpoint, and `handler`, which is a coroutine that is called after the request is received from the client. In fact, these methods are performed on [aiohttp web handler](https://docs.aiohttp.org/en/stable/web_reference.html#aiohttp.web.UrlDispatcher) and are special cases of the `add_route` method. In this case, the the path is `/crud-myrestapi/{collection}`, where collection is a variable name.
 
@@ -212,7 +212,7 @@ class CRUDWebHandler(object):
 
 5. This method is used for matching data from the URI. They must be listed in the brackets such as `{collection}` on line 12.
 
-6. After the request is sent and the handler calls the `create` method, it calls a method with the same name on the service, expecting from it to perform some logic ("save `json_data` into `database`") and then return some data back.
+6. After the request is sent and the handler calls the `create` method, it calls a method with the same name on the service, expecting from it to perform logic operations ("save `json_data` into `database`") and then return data back.
 
 7. Now if the service has returned some data back, the handler will send a positive response to the client...
 
