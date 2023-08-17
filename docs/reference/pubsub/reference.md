@@ -1,14 +1,14 @@
 # Publish-Subscribe
 
 **Publish-subscribe** is a messaging pattern where senders of messages, called **publishers**,
-send the messages to receivers, called **subscribers**, via PubSub **message bus**.
+send the messages to receivers, called **subscribers**, via the PubSub **message bus**.
 
 Publishers don't directly interact with subscribers in any way.
 Similarly, subscribers express interest in one or more message types and only receive messages that are of interest,
 without knowledge of which publishers, if any, there are.
 
-ASAB `PubSub` module operates with a simple messages, defined by their *message type*, which is a string.
-The message can carry an optional positional and keyword arguments.
+The ASAB `PubSub` module operates with a simple messages, defined by their *message type*, which is a string.
+The message can carry optional positional and keyword arguments.
 The delivery of a message is implemented as a the standard Python function.
 
 !!! note
@@ -25,7 +25,7 @@ The delivery of a message is implemented as a the standard Python function.
 
 
 !!! note
-	There is an default, application-wide Publish-Subscribe message
+	There is a default, application-wide Publish-Subscribe message
 	bus at `Application.PubSub` that can be used to send messages.
 	Alternatively, you can create your own instance of `PubSub` and enjoy isolated PubSub delivery space.
 
@@ -147,7 +147,7 @@ Moreover, PubSub also deals with modes, when asynchronous code (coroutine) does 
 
 ## Application-wide PubSub
 
-The ASAB provides the application-wide Publish-Subscribe message bus.
+ASAB provides the application-wide Publish-Subscribe message bus.
 
 ### Well-Known Messages
 
@@ -208,7 +208,7 @@ By default, the time for housekeeping is set to 03:00 AM UTC and the limit to 05
 
 
 Housekeeping can be also configured to run during the application [init-time](/reference/application/reference/#init-time).
-Housekeeping time, time limit and housekeeping at startup can be changed in the configuration file:
+Housekeeping time, time limit, and housekeeping at startup can be changed in the configuration file:
 
 ``` ini
 [housekeeping]
@@ -219,13 +219,14 @@ run_at_startup=yes
 
 This sets the housekeeping time to 7:30 PM UTC and the time limit to 9:00 PM UTC.
 The time must be written in the format 'HH:MM'.
-Remind yourself that the time is set to UTC, so you should be careful when operating in a different timezone.
+Remember that the time is set to UTC, so be careful when operating in a different timezone.
 
 !!! note
 
 	If the computer is in a sleep state, housekeeping will not be performed.
-	Then, when the computer is reawakened again, it will check if it has exceeded the time limit.
+	Then, when the computer is reawakened, it will check if it has exceeded the time limit.
 	If not, then housekeeping will be published. If it has exceeded it, it simply informs the user and sets the housekeeping time for the next day.
+	
 	Note that this only limits the time when the housekeeping can start.
 	If the housekeeping event triggers a procedure that takes a long time to finish, it will not be terminated when the time limit is reached.
 
