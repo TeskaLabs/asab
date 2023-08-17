@@ -54,7 +54,11 @@ class SentryService(asab.Service):
 		# format: https://<public key>@o<secret key>.ingest.sentry.io/<project id>
 		# DSN is automatically generated when new project is created
 		# and can be modified: Settings > Client Keys (DSN) > Key Details
-		self.DataSourceName = asab.Config.get("sentry", "data_source_name")
+		self.DataSourceName = asab.Config.get("sentry", "data_source_name", fallback="")
+		if len(self.DataSourceName) == 0:
+			self.DataSourceName = os.getenv("SENTRY_DSN", "")
+		if len(self.DataSourceName) == 0:
+			L.error("Data source name is not set. Specify it via SENTRY_DSN env variable or in configuration: [sentry] data_source_name.")
 
 		# LOGGING LEVELS
 		levels = {
