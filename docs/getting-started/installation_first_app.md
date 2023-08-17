@@ -56,7 +56,7 @@ ASAB is distributed via [pypi](https://pypi.org/project/asab/). There are three 
             app.run()
     ```
 
-    1. ASAB applications use Python 3.7+. This is specified by a hashbang
+    1. All ASAB applications use Python 3.7+. This is specified by a hashbang
     line at the very beginning of the file.
 
     2. ASAB is included from as `asab` module via an import
@@ -79,7 +79,7 @@ ASAB is distributed via [pypi](https://pypi.org/project/asab/). There are three 
 
     6. This part of the code is executed when you launch the Python program.
     It creates the application object and executes the `#!python run()` method which creates and runs an event loop. 
-    This is a standard way of how ASAB application is started.
+    This is the standard way of starting any ASAB application.
 
 
 2.  Run the server:
@@ -99,6 +99,6 @@ ASAB is distributed via [pypi](https://pypi.org/project/asab/). There are three 
 
     !!! info
         ASAB is designed around an [event loop](https://en.wikipedia.org/wiki/Event_loop). It is meant primarily
-        for server architectures. For that reason, it doesn't terminate and continue running and serving eventual requests.
+        for server architectures. For that reason, an ASAB application keeps running and serving requests unless or until you terminate the application. See [run time](../reference/application/reference.md#run-time).
 
 You can continue with a step-by-step tutorial on how to build an ASAB-based [web server](./web_server.md).
