@@ -1,6 +1,6 @@
 # Storage Service
 
-The ASAB's Storage Service supports data storage in-memory or in dedicated document databases, including
+ASAB's Storage Service supports data storage in-memory or in dedicated document databases, including
 [MongoDB](https://www.mongodb.com/) and [ElasticSearch](https://www.elastic.co/).
 
 ## Configuration
@@ -12,7 +12,7 @@ First, specify the storage type in the configuration. The options for the storag
 	[motor](https://motor.readthedocs.io/en/stable/api-asyncio/asyncio_motor_collection.html) libraries.
 - `elasticsearch`: Collects data using ElasticSearch database. Depends on [aiohttp](https://docs.aiohttp.org/en/latest/) library.
 
-Storage Service provides a unified interface for accessing and
+The Storage Service provides a unified interface for accessing and
 manipulating collections across multiple database technologies.
 
 ``` ini
@@ -110,8 +110,8 @@ u = storage.upsertor(
 ```
 
 We strongly recommend to read the version from the object such as above.
-That creates a soft lock on the record. It means that if the object is
-updated by other component in meanwhile, your upsertor will fail and you
+That creates a soft lock on the record. This means that if the object is
+updated by other component in meanwhile, your upsertor will fail, and you
 should retry the whole operation. The new objects should have a version
 set to 0, which is done by default.
 
@@ -136,7 +136,7 @@ deleted_id = await u.delete("test-collection", object_id)
 
 If the option `inmemory` is set, ASAB will store data in its own memory.
 In particular, `asab.StorageService` is initialized with an attribute `InMemoryCollections` which is
-a dictionary where all the collections are stored in.
+a dictionary in which all the collections are stored.
 
 !!! note
 
