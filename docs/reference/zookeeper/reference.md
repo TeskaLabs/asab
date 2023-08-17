@@ -3,7 +3,7 @@
 `asab.zookeeper` is an [ApacheZookeeper](https://zookeeper.apache.org) asynchronous client based on [Kazoo](https://github.com/python-zk/kazoo) library.
 
 Apache ZooKeeper is a distributed coordination service that provides a hierarchical key-value data store, 
-called **a znode tree**, to store and manage configuration, coordination, and synchronization data.
+called a **znode tree**, to store and manage configuration, coordination, and synchronization data.
 The znode tree is similar to a file system tree, where each znode is like a file or a directory.
 
 Apache ZooKeeper can be used to design microservices in a stateless manner by managing and coordinating the state information between microservices.
@@ -14,7 +14,7 @@ In this design, each microservice does not store any state information, but inst
 A Zookeeper container represents a connectivity to Apache Zookeeper server(s).
 The application can operate multiple instances of Zookeeper container.
 
-This code illustrates the typical way how to create Zookeeper container:
+This code illustrates the typical way of creating a Zookeeper container:
 
 ``` python
 import asab.zookeeper
@@ -43,7 +43,7 @@ class MyApplication(asab.Application):
 Specifications are obtained from:
 
 1. `z_path` argument, which is Zookeeper URL (see below)
-2. the configuration section specified by `config_section_name` argument
+2. The configuration section specified by `config_section_name` argument
 3. `$ASAB_ZOOKEEPER_SERVERS` environment variable
 
 The `z_path` argument has precedence over config but the implementation will
@@ -115,23 +115,23 @@ ZooKeeperContainer.state/LOST!
 ZooKeeperContainer.state/SUSPENDED!
 
 When a Zookeeper connection is first created, it is in the LOST state.
-After a connection is established it transitions to the CONNECTED state.
-If any connection issues come up or if it needs to connect to a
+After a connection is established, it transitions to the CONNECTED state.
+If any connection issues come up, or if it needs to connect to a
 different Zookeeper cluster node, it will transition to SUSPENDED to let
 you know that commands cannot currently be run. The connection will also
 be lost if the Zookeeper node is no longer part of the quorum, resulting
 in a SUSPENDED state.
 
-Upon re-establishing a connection the client could transition to LOST if
+Upon re-establishing a connection, the client could transition to LOST if
 the session has expired, or CONNECTED if the session is still valid.
 
-For mor info, visit (https://kazoo.readthedocs.io/en/latest/basic_usage.html#understanding-kazoo-states)
+For more info, visit (https://kazoo.readthedocs.io/en/latest/basic_usage.html#understanding-kazoo-states)
 
 ## Kazoo
 
 Kazoo is the synchronous Python library for Apache Zookeeper.
 
-It can be used directly for a more complicated tasks. Kazoo `client` is accessible at `ZooKeeperContainer.ZooKeeper.Client`.
+It can be used directly for more complicated tasks. Kazoo `client` is accessible at `ZooKeeperContainer.ZooKeeper.Client`.
 Synchronous methods of Kazoo client must be executed using `ProactorService`.
 
 !!! example
