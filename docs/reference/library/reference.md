@@ -1,17 +1,16 @@
 # Library Service
 
-The ASAB Library is a concept of the shared data content across microservices in the cluster.
+The ASAB Library is the concept of shared data content across microservices in the cluster.
 In the cluster/cloud microservice architectures, all microservices must have access to unified resources.
 The Library provides a read-only interface for listing and reading this content.
 
-It is designed to be read-only. It also allows to *"stack"* various libraries into one view (overlayed)
-that merges the content of each library into one united space.
+The Library is designed to be read-only. It also allows to *"stack"* various libraries into one view (overlayed), merging the content of each library into one united space.
 
 The library can also notify the ASAB microservice about changes, e.g. for automated update/reload.
 
 ## Library structure
 
-The library content is organized in a simplified filesystem manner, with directories and files.
+The library content is organized in a simplified file system manner, with directories and files.
 
 Example of the library structure:
 
@@ -29,7 +28,7 @@ Example of the library structure:
 
 - Any path must start with "/", including the root path.
 - The folder path must end with "/".
-- The item path must end with an extension (e.g. ".json").
+- The item path must end with a file extension (e.g. ".json").
 
 ## Layers
 
@@ -102,7 +101,7 @@ For that reason, you have to provide a unique `service_name` and there is no def
 | Message | Published when... |
 | --- | --- |
 | `Library.not_ready!` | Library is created and the providers are not connected or Library is disconnected. |
-| `Library.ready!` | After all of the providers are ready. |
+| `Library.ready!` | After all of the providers are ready |
 | `Library.change!` | The content of the Library has changed. |
 
 ## Notification on changes
@@ -229,7 +228,7 @@ If a `path` from the `[zookeeper]` section is missing, an application class name
 
 ### Microsoft Azure Storage
 
-Reads from the Microsoft Azure Storage container.
+You can configure the microservice to read from the Microsoft Azure Storage container.
 
 Configuration:
 
