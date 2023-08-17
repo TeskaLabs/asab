@@ -59,7 +59,6 @@ class SentryService(asab.Service):
 			self.DataSourceName = os.getenv("SENTRY_DSN", "")
 		if len(self.DataSourceName) == 0:
 			L.error("Data source name is not set. Specify it via SENTRY_DSN env variable or in configuration: [sentry] data_source_name.")
-
 		# LOGGING LEVELS
 		levels = {
 			"debug": logging.DEBUG,
@@ -176,8 +175,8 @@ class SentryService(asab.Service):
 		Tag is set only for the current scope (function, method, class, module).
 
 		Args:
-			key (str): Tag key. Tag keys have a maximum length of 32 characters and can contain only letters (a-zA-Z), numbers (0-9), underscores (_), periods (.), colons (:), and dashes (-).
-			value: Tag value. Tag values have a maximum length of 200 characters and they cannot contain the newline (`\\n`) character.
+			key (str): Tag key. Tag keys can have a maximum length of 32 characters and can contain only letters (a-zA-Z), numbers (0-9), underscores (_), periods (.), colons (:), and dashes (-).
+			value: Tag value. Tag values can have a maximum length of 200 characters and they cannot contain the newline (`\\n`) character.
 		"""
 
 		# Check key format

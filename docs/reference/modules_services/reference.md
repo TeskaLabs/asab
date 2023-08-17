@@ -41,6 +41,7 @@ Table of ASAB built-in Services and Modules:
 | `TaskService`| `asab.task`| Execution of one-off background tasks. |
 | `ProactorService` | `asab.proactor` | Running long-time activities asynchronously. |
 | [`ApiService`](/reference/web/rest*_api_docs) | `asab.api` | Implementation of Swagger documentation. |
+| [`SentryService`](/reference/sentry/index) | `asab.sentry` | Connection to [Sentry.io](https://docs.sentry.io/). |
 
 
 ::: asab.Module
