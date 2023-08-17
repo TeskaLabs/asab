@@ -30,7 +30,7 @@ creating a subclass. There should be only one `Application` object in the proces
 	NOTICE asab.application is ready.
 	```
 
-	The app will be running until you stop it by `Ctrl+C`.
+	The app will be running until you stop it by pressing `Ctrl+C`.
 	
 	To create an application that performs some operations and then stops, use the [`stop()`](#asab.application.Application.stop) method.
 
@@ -60,14 +60,14 @@ creating a subclass. There should be only one `Application` object in the proces
 
 Runtime of the `Application` object is driven by `asyncio` [event loop](https://docs.python.org/3/library/asyncio-eventloop.html) which runs asynchronous tasks and callbacks, performs network IO operations, and runs subprocesses.
 
-The ASAB is designed around the [Inversion of
+ASAB is designed around the [inversion of
 control](https://en.wikipedia.org/wiki/Inversion_of_control) principle.
 It means that the ASAB is in control of the application lifecycle. The
 custom-written code receives the flow from ASAB via callbacks or
 handlers. Inversion of control is used to increase modularity of the
 code and make it extensible.
 
-The application lifecycle is divided into 3 phases: init-time, run-time
+The application lifecycle is divided into 3 phases: init-time, run-time,
 and exit-time.
 
 ### Init-time
@@ -81,7 +81,7 @@ At this time:
 - [Publish-Subscribe](/reference/pubsub/reference/#well-known-messages) message **Application.init!** is published.
 
 
-The asynchronous callback `Application.initialize()` is intended to be overridden by an user.
+The asynchronous callback `Application.initialize()` is intended to be overridden by a user.
 This is where you typically load Modules and register Services, see [Modules and Services](/reference/modules_services/reference) section.
 
 ``` python
@@ -100,7 +100,7 @@ At this time:
 - [Publish-Subscribe](/reference/pubsub/reference/#well-known-messages) message **Application.run!** is published.
 - The asynchronous callback `Application.main()` is executed.
 
-The coroutine `Application.main()` is intended to be overwritten by an user.
+The coroutine `Application.main()` is intended to be overwritten by a user.
 If `main()` method is completed without calling `stop()`, then the application will run forever.
 
 ``` python
@@ -114,11 +114,11 @@ class MyApplication(asab.Application):
 
 The method `Application.stop()` gracefully terminates the *run-time* and commences the *exit-time*.
 This method is automatically called by `SIGINT` and `SIGTERM`.
-It also includes a response to `Ctrl-C` on UNIX-like system.
+It also includes a response to `Ctrl-C` on UNIX-like systems.
 When this method is called *exactly three times*, it abruptly exits the application (aka emergency abort).
 
 !!! note
-	You need to install `win32api` module to use `Ctrl-C` or an emergency abort properly with ASAB on Windows.
+	You need to install the `win32api` module to use `Ctrl-C` or an emergency abort properly with ASAB on Windows.
 	It is an optional dependency of ASAB.
 
 The parameter `exit_code` allows you to specify the application exit code.
@@ -143,24 +143,24 @@ class MyApplication(asab.Application):
 
 The method [`create_argument_parser()`](#asab.application.Application.create_argument_parser) creates an [`argparse.ArgumentParser`](https://docs.python.org/3/library/argparse.html). This method can be overloaded to adjust command-line argument parser.
 
-The application object calls this method during *init-time* to process a command-line arguments.
-You can overload this method to provide your own implementation of command-line argument parser.
+The application object calls this method during *init-time* to process command-line arguments.
+You can overload this method to provide your own implementation of a command-line argument parser.
 
 The `Description` attribute is a text that will be displayed in a help text (`--help`).
-It is expected that own value will be provided. The default value is `""` (empty string).
+It is expected that your own value will be provided. The default value is `""` (empty string).
 
 Default ASAB arguments:
 
 | Argument | Type | Action |
 | :----- | :----- | :----- |
-| `-c`, `--config` | str | Specify a path to a configuration file. |
-| `-d`, `--daemonize` | bool | Run daemonized (in the background). |
-| `-k`, `--kill` | bool | Kill a running daemon and quit. |
-| `-l`, `--log-file` | str | Specify a path to a log file. |
-| `-s`, `--syslog`| bool | Enable logging to a syslog. |
-| `-v`, `--verbose` | bool | Print more information (enable debug output). |
-| `-w`, `--web-api` | str | Activate Asab web API (default listening port is 0.0.0.0:8080). |
-| `--startup-housekeeping` | | Trigger housekeeping event immediately after application startup. |
+| `-c`, `--config` | str | Specify a path to a configuration file |
+| `-d`, `--daemonize` | bool | Run daemonized (in the background) |
+| `-k`, `--kill` | bool | Kill a running daemon and quit |
+| `-l`, `--log-file` | str | Specify a path to a log file |
+| `-s`, `--syslog`| bool | Enable logging to a syslog |
+| `-v`, `--verbose` | bool | Print more information (enable debug output) |
+| `-w`, `--web-api` | str | Activate Asab web API (default listening port is 0.0.0.0:8080) |
+| `--startup-housekeeping` | | Trigger housekeeping event immediately after application startup |
 
 ## UTC Time
 

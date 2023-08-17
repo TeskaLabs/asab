@@ -7,7 +7,7 @@ repo_name: TeskaLabs/asab
 theme:
   name: "material"
   logo: images/teskalabs-logo.svg
-  favicon: images/teskalabs-logo.svg
+  favicon: images/teskalabs.png
 
   features:
     - content.code.copy
@@ -149,14 +149,14 @@ extra:
 nav:
   - Home: 
     - About: index.md
-    - Getting started:
-      - Installation and first application: getting-started/installation_first_app.md
-      - Creating a web server: getting-started/web_server.md
-      - Containerization: getting-started/containers.md
-
+    - Installing ASAB: getting-started/installation_first_app.md
     - Contributing: contributing.md
 
-  - How-Tos:
+  - Tutorials:
+    - how-tos/index.md
+    - Installation and first application: how-tos/installing-asab.md
+    - Creating a web server: getting-started/web_server.md
+    - Containerization: getting-started/containers.md
     - Creating a microservice with REST API: how-tos/03_rest_api.md
 
   - Reference:

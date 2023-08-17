@@ -3,7 +3,7 @@
 The `asab.web.auth` module provides [authentication](https://en.wikipedia.org/wiki/Authentication) and
 [authorization](https://en.wikipedia.org/wiki/Authorization) of incoming requests.
 This enables your application to differentiate between users,
-grant or deny them API access depending on their permissions and work
+grant or deny them API access depending on their permissions, and work
 with other relevant user data.
 
 The module also implements [multitenancy](https://en.wikipedia.org/wiki/Multitenancy),
@@ -11,7 +11,7 @@ meaning that your application can be used by a number of independent subjects
 (tenants, for example companies) without interfering with each other.
 
 The `auth` module requires an authorization server to function.
-It works best with [Seacat Auth](https://github.com/TeskaLabs/seacat-auth)
+It works best with TeskaLabs [Seacat Auth](https://github.com/TeskaLabs/seacat-auth)
 authorization server 
 (See [its documentation](https://docs.teskalabs.com/seacat-auth/getting-started/quick-start) for setup instructions).
 
@@ -68,9 +68,9 @@ in the `[auth]` section with the following options:
 
 | Option | Type | Meaning |
 | --- | --- | --- |
-| `public_keys_url` | URL | The URL of the authorization server's public keys (also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)). |
+| `public_keys_url` | URL | The URL of the authorization server's public keys (also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)) |
 | `multitenancy` | boolean | Toggles the behavior of endpoints with configurable tenant parameter. When enabled, the tenant query paramerter is required. When disabled, the tenant query parameter is ignored and set to `None`. In dev mode, the multitenancy switch is ignored and the tenant parameter is taken into account only when it is present in query, otherwise it is set to `None`. |
-| `dev_mode` | boolean | In dev mode, all incoming requests are authenticated and authorized with mock user info. There is no communication with authorization server (so it is not necessary to configure `public_keys_url` in dev mode).
+| `dev_mode` | boolean | In dev mode, all incoming requests are authenticated and authorized with mock user info. There is no communication with the authorization server (so it is not necessary to configure `public_keys_url` in dev mode).
 | `dev_user_info_path` | path | Path to JSON file that contains mock user info used in dev mode. The structure of user info should follow the [OpenID Connect userinfo definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse) and also contain the `resources` object.
 
 Default options:
@@ -89,7 +89,7 @@ dev_user_info_path=/conf/dev-userinfo.json
 Strictly multitenant endpoints always operate within a tenant, hence they need the `tenant` parameter to be always provided.
 Such endpoints must define the `tenant` parameter in their **URL path** and include `tenant` argument in the handler method.
 Auth service extracts the tenant from the URL path, validates the tenant existence,
-checks if the request is authorized for the tenant and finally passes the tenant name to the handler method.
+checks if the request is authorized for the tenant, and finally passes the tenant name to the handler method.
 
 !!! example "Example handler:"
 
@@ -116,7 +116,7 @@ checks if the request is authorized for the tenant and finally passes the tenant
 
 ### Configurable multitenant endpoints
 
-Configurable multitenant endpoints usually operate within a tenant, but they can also operate in tenantless mode if the application is configured so. 
+Configurable multitenant endpoints usually operate within a tenant, but they can also operate in tenantless mode if the application is configured for that. 
 
 When you create an endpoint *without* `tenant` parameter in the URL path and *with* `tenant` argument in the handler method, the
 Auth service will either expect the `tenant` parameter
@@ -165,7 +165,7 @@ Any `tenant` parameter in the query string is ignored.
 ## Development mode
 
 In dev mode, actual authorization is disabled and replaced with mock authorization.
-Useful for developing ASAB apps without authorization server. Activate by enabling `dev_mode` in the `[auth]` config section.
+Dev mode is useful for developing ASAB apps without an authorization server. Activate dev mode by enabling `dev_mode` in the `[auth]` config section.
 You can also specify a path to a JSON file with your own mocked userinfo payload `[auth] dev_user_info_path`:
 
 ``` ini

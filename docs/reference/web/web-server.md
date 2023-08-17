@@ -1,6 +1,6 @@
 # Web server
 
-For starting, accessing and manipulating of a web server, ASAB provides `asab.web` module together with `asab.WebService` and `asab.web.WebContainer`.
+For starting, accessing, and manipulating of a web server, ASAB provides `asab.web` module together with `asab.WebService` and `asab.web.WebContainer`.
 This module offers an integration of [`aiohttp` web server](http://aiohttp.readthedocs.io/en/stable/web.html). It is possible to run multiple web servers from one application. The configuration for each server is stored in dedicated **web container**. **Web Service** registers these containers and runs the servers.
 
 !!! tip
@@ -12,11 +12,11 @@ In order to use ASAB Web Service, first make sure that you have `aiohttp` module
 python3 -m pip install aiohttp
 ```
 
-## Handlers, routes and resources
+## Handlers, routes, and resources
 
-`aiohttp` servers use the concept of Handlers, Routes and Resources. Here we provide a very quick explanation that should help you to get into the terminology.
+`aiohttp` servers use the concept of handlers, routes, and resources. Here we provide a very quick explanation that should help you to get into the terminology.
 
-- **Handler**, more precisely *"a web request handler"*, is a function that does the logic when you send HTTP request to the endpoint. It is a coroutine that accepts `aiohttp.web.Request` instance as its only parameter and returns a `aiohttp.web.Response` object.
+- **Handler**, more precisely *"a web request handler"*, is a function that does the logic when you send an HTTP request to the endpoint. It is a coroutine that accepts `aiohttp.web.Request` instance as its only parameter and returns a `aiohttp.web.Response` object.
 
 	```python
 	async def handler(request):
@@ -138,14 +138,14 @@ Configuration is passed to the `asab.web.WebContainer` object.
 
 | Parameter | Meaning |
 | --- | --- |
-| `listen` | The socket address to which the web server will listen. |
-| `backlog` | A number of unaccepted connections that the system will allow before refusing new connections, see [`socket.socket.listen()`](https://docs.python.org/3/library/socket.html#socket.socket.listen) for details. |
-| `rootdir` | The root path for the server. In case of many web containers, each one can implement a different root. |
-| `servertokens` | Controls whether `'Server'` response header field is included (`'full'`) or faked (`'prod'`). |
-| `cors` | See [Cross-Origin Resource Sharing](/reference/web/cors) section. |
-| `body_max_size`| Client's maximum size in a request, in bytes. If a **POST** request exceeds this value, `aiohttp.HTTPRequestEntityTooLarge` exception is raised. See [the documentation](https://docs.aiohttp.org/en/stable/web_reference.html?highlight=client_max_size#aiohttp.web.Application) for more information. |
-| `cors` | Contents of the Access-Control-Allow-Origin header. See the [CORS section](./cors). |
-| `cors_preflight_paths` | Pattern for endpoints that shall return responses to pre-flight requests (**OPTIONS**). Value must start with `"/"`. See the [CORS section](./cors). |
+| `listen` | The socket address to which the web server will listen |
+| `backlog` | A number of unaccepted connections that the system will allow before refusing new connections, see [`socket.socket.listen()`](https://docs.python.org/3/library/socket.html#socket.socket.listen) for details |
+| `rootdir` | The root path for the server. In case of many web containers, each one can implement a different root |
+| `servertokens` | Controls whether `'Server'` response header field is included (`'full'`) or faked (`'prod'`) |
+| `cors` | See [Cross-Origin Resource Sharing](/reference/web/cors) section |
+| `body_max_size`| Client's maximum size in a request, in bytes. If a **POST** request exceeds this value, `aiohttp.HTTPRequestEntityTooLarge` exception is raised. See [the documentation](https://docs.aiohttp.org/en/stable/web_reference.html?highlight=client_max_size#aiohttp.web.Application) for more information |
+| `cors` | Contents of the Access-Control-Allow-Origin header. See the [CORS section](./cors) |
+| `cors_preflight_paths` | Pattern for endpoints that shall return responses to pre-flight requests (**OPTIONS**). Value must start with `"/"`. See the [CORS section](./cors) |
 
 ### The default configuration
 
