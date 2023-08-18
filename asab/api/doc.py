@@ -44,7 +44,7 @@ class DocWebHandler(object):
 				"Unknown default_route_tag: {}. Choose between options "
 				"'module_name' and 'class_name'.".format(self.DefaultRouteTag))
 
-		self.ServerUrl: str = asab.Config.get(config_section_name, "server_url", fallback="/")
+		self.ServerUrls: str = asab.Config.get(config_section_name, "server_urls", fallback="/").strip().split("\n")
 
 
 	def build_swagger_documentation(self) -> dict:
@@ -65,7 +65,7 @@ class DocWebHandler(object):
 				"version": "1.0.0",
 			},
 			"servers": [
-				{"url": self.ServerUrl}
+				{"url": url} for url in self.ServerUrls
 			],
 
 			# Base path relative to openapi endpoint
