@@ -47,7 +47,7 @@ class SentryService(asab.Service):
 
 	"""
 
-	def __init__(self, app, service_name: str):
+	def __init__(self, app, service_name: str = "asab.SentryService"):
 		super().__init__(app, service_name)
 
 
