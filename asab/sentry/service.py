@@ -50,16 +50,21 @@ class SentryService(asab.Service):
 	def __init__(self, app, service_name: str):
 		super().__init__(app, service_name)
 
+
 		# DATA SOURCE NAME (DSN)
 		# format: https://<public key>@o<secret key>.ingest.sentry.io/<project id>
 		# DSN is automatically generated when new project is created
 		# and can be modified: Settings > Client Keys (DSN) > Key Details
+		# Specification: either in configuration or via $SENTRY_DSN environment variable
 		self.DataSourceName = asab.Config.get("sentry", "data_source_name", fallback="")
 		if len(self.DataSourceName) == 0:
 			self.DataSourceName = os.getenv("SENTRY_DSN", "")
 		if len(self.DataSourceName) == 0:
 			L.error("Data source name is not set. Specify it via SENTRY_DSN env variable or in configuration: [sentry] data_source_name.")
+
+
 		# LOGGING LEVELS
+		# by default, LOG_NOTICE+ are sent to breadcrumbs, ERROR+ to events
 		levels = {
 			"debug": logging.DEBUG,
 			"info": logging.INFO,
@@ -77,26 +82,24 @@ class SentryService(asab.Service):
 
 		# RELEASE
 		# Release can be obtained from MANIFEST.json if exists
-		path = asab.Config.get("general", "manifest")
-		if path == "":
+		manifest = None
+		manifest_path = asab.Config.get("general", "manifest", fallback="")
+		if manifest_path == "":
 			if os.path.isfile("/app/MANIFEST.json"):
-				path = "/app/MANIFEST.json"
+				manifest_path = "/app/MANIFEST.json"
 			elif os.path.isfile("/MANIFEST.json"):
-				path = "/MANIFEST.json"
+				manifest_path = "/MANIFEST.json"
 			elif os.path.isfile("MANIFEST.json"):
-				path = "MANIFEST.json"
+				manifest_path = "MANIFEST.json"
 
-		if len(path) != 0:
+		if len(manifest_path) != 0:
 			try:
-				with open(path) as f:
+				with open(manifest_path) as f:
 					manifest = json.load(f)
 			except Exception as e:
 				L.exception("Error when reading manifest for reason {}".format(e))
 
-		else:
-			manifest = None
-
-		if manifest:
+		if manifest is not None:
 			self.Release = manifest.get("version", fallback="not specified")
 		else:
 			self.Release = "not specified"
@@ -108,6 +111,8 @@ class SentryService(asab.Service):
 		self.TracesSampleRate = asab.Config.getfloat("sentry", "traces_sample_rate")
 		assert 0 <= self.TracesSampleRate <= 1.0, "Traces sample rate must be between 0 and 1."
 
+
+		# INITIALIZATION
 		sentry_sdk.init(
 			dsn=self.DataSourceName,
 			integrations=[
@@ -125,6 +130,7 @@ class SentryService(asab.Service):
 			debug=False,  # ...sends many irrelevant messages
 		)
 		# TODO: Investigate CA certs, TLS/SSL, Security Tokens, Allowed Domains
+
 
 		# ADDITIONAL GLOBAL TAGS
 		# These tags will be set manually or automatically by Remote Control

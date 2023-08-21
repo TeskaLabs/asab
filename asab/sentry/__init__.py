@@ -5,7 +5,7 @@ Config.add_defaults(
 	{
 		"sentry": {
 			"data_source_name": "",
-			"environment": "development",
+			"environment": "not specified",
 			"traces_sample_rate": 1.0,
 		},
 
