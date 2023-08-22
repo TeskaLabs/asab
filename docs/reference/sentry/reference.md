@@ -107,3 +107,8 @@ with sentry_svc.transaction("speed test", "multiple tasks"):
 		task2()
 	finalize()
 ```
+
+
+## Reference
+
+::: asab.sentry.SentryService

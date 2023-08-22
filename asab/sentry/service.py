@@ -4,6 +4,7 @@ import os
 import re
 import logging
 import json
+import typing
 
 L = logging.getLogger(__name__)
 
@@ -172,7 +173,7 @@ class SentryService(asab.Service):
 		"""
 		return sentry_sdk.capture_message(message=message, level=level, scope=scope, **scope_args)
 
-	def set_tag(self, key: str, value) -> None:
+	def set_tag(self, key: str, value: typing.Union[str, int]) -> None:
 		"""
 		Add custom tag to the current scope.
 
