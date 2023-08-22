@@ -33,11 +33,11 @@ Table of ASAB built-in Services and Modules:
 | Service | Module | Features |
 | --- | --- | --- |
 | [`WebService`](/reference/web/web-server) | `asab.web` | Creating a web server |
-| [`StorageService`](/reference/storage/reference) | `asab.storage` | Storing the data in various databases |
-| [`LibraryService`](/reference/library/reference) | `asab.library` | Reading the data from various sources |
-| [`ZooKeeperService`](/reference/zookeeper/reference) | `asab.zookeeper` | Synchronizing data with Apache Zookeeper |
-| [`MetricService`](/reference/metrics/reference) | `asab.metric` | Analysis of the application state in a timescale manner |
-| [`AlertService`](/reference/alert/reference) | `asab.alert` | Integration of Alert Managers |
+| [`StorageService`](/reference/storage) | `asab.storage` | Storing the data in various databases |
+| [`LibraryService`](/reference/library) | `asab.library` | Reading the data from various sources |
+| [`ZooKeeperService`](/reference/zookeeper) | `asab.zookeeper` | Synchronizing data with Apache Zookeeper |
+| [`MetricService`](/reference/metrics) | `asab.metric` | Analysis of the application state in a timescale manner |
+| [`AlertService`](/reference/alert) | `asab.alert` | Integration of Alert Managers |
 | `TaskService`| `asab.task`| Execution of one-off background tasks |
 | `ProactorService` | `asab.proactor` | Running long-time activities asynchronously |
 | [`ApiService`](/reference/web/rest*_api_docs) | `asab.api` | Implementation of Swagger documentation |

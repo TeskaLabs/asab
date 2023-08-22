@@ -85,27 +85,21 @@ To simplify the process of subscription to `PubSub`, ASAB offers the decorator-b
 			print(message_type)
 	```
 
-Unsubscribe from a message delivery.
+!!! example
 
-asab.Subscriber
-
-The subscriber object can be also used as [an asynchonous
-generator]{.title-ref}. The example of the subscriber object usage in
-[async for]{.title-ref} statement:
-
-``` python
-async def my_coroutine(self):
-	# Subscribe for a two application events
-	subscriber = asab.Subscriber(
-		self.PubSub,
-		"Application.tick!",
-		"Application.exit!"
-	)
-	async for message_type, args, kwargs in subscriber:
-		if message_type == "Application.exit!":
-			break;
-		print("Tick.")
-```
+	``` python
+	async def my_coroutine(self):
+		# Subscribe for a two application events
+		subscriber = asab.Subscriber(
+			self.PubSub,
+			"Application.tick!",
+			"Application.exit!"
+		)
+		async for message_type, args, kwargs in subscriber:
+			if message_type == "Application.exit!":
+				break;
+			print("Tick.")
+	```
 
 ## Publishing
 
@@ -118,7 +112,7 @@ It means that the method returns after each subscribed `callback` is called.
 
 	``` python
 	def my_function(app):
-		app.PubSub.publish("mymessage!")
+		app.PubSub.publish("My.Message!")
 	```
 
 Asynchronous publishing of a message is requested by `asynchronously=True` argument.
@@ -131,7 +125,7 @@ when control returns to the event loop.
 
 	``` python
 	def my_function(app):
-		app.PubSub.publish("mymessage!", asynchronously=True)
+		app.PubSub.publish("My.Message!", asynchronously=True)
 	```
 
 ## Synchronous vs. asynchronous messaging
@@ -237,5 +231,3 @@ Remember that the time is set to UTC, so be careful when operating in a differen
 ::: asab.pubsub.Subscriber
 
 ::: asab.pubsub.subscribe
-
-

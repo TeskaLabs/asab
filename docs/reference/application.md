@@ -75,14 +75,14 @@ and exit-time.
 The init-time happens during `Application` constructor call.
 At this time:
 
-- [Configuration](/reference/config/reference) and [command line arguments](#command-line-parser) are loaded and [`asab.Config`](/reference/config/reference/#asab.Config) object is accessed.
+- [Configuration](/reference/config) and [command line arguments](#command-line-parser) are loaded and [`asab.Config`](/reference/config/reference/#asab.Config) object is accessed.
 - Asynchronous callback `Application.initialize()` is executed.
 - [Application housekeeping](/reference/pubsub/reference/#housekeeping) is scheduled.
 - [Publish-Subscribe](/reference/pubsub/reference/#well-known-messages) message **Application.init!** is published.
 
 
 The asynchronous callback `Application.initialize()` is intended to be overridden by a user.
-This is where you typically load Modules and register Services, see [Modules and Services](/reference/modules_services/reference) section.
+This is where you typically load Modules and register Services, see [Modules and Services](/reference/modules_services) section.
 
 ``` python
 class MyApplication(asab.Application):
