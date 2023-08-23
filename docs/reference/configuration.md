@@ -12,7 +12,7 @@ app = asab.Application() #(1)!
 my_conf_value = asab.Config['section_name']['key1'] #(2)!
 ```
 
-1. Configuration is initialized during the application [init-time](/reference/application/reference/init-time).
+1. Configuration is initialized during the application [init-time](../application/init-time).
 2. You can access the configuration values from anywhere in the code.
 
 
@@ -90,7 +90,7 @@ The class implements a basic configuration language that provides a structure si
 
 
 If a configuration file name is specified,the configuration is automatically
-loaded from a configuration file during [the Application init-time](../../application/reference/#init-time).
+loaded from a configuration file during [the Application init-time](../application/#init-time).
 There are two ways to include a configuration file:
 
 1. by using the `-c` command-line argument:

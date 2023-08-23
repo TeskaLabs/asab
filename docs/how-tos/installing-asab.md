@@ -99,6 +99,6 @@ ASAB is distributed via [pypi](https://pypi.org/project/asab/). There are three 
 
     !!! info
         ASAB is designed around an [event loop](https://en.wikipedia.org/wiki/Event_loop). It is meant primarily
-        for server architectures. For that reason, an ASAB application keeps running and serving requests unless or until you terminate the application. See [run time](../reference/application/reference.md#run-time).
+        for server architectures. For that reason, an ASAB application keeps running and serving requests unless or until you terminate the application. See [run time](../../reference/application/#run-time).
 
 You can continue with a step-by-step tutorial on how to build an ASAB-based [web server](./web_server.md).
