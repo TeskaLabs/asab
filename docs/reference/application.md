@@ -75,14 +75,14 @@ and exit-time.
 The init-time happens during `Application` constructor call.
 At this time:
 
-- [Configuration](/reference/config) and [command line arguments](#command-line-parser) are loaded and [`asab.Config`](/reference/config/reference/#asab.Config) object is accessed.
+- [Configuration](../config) and [command line arguments](#command-line-parser) are loaded and [`asab.Config`](../configuration/#asab.Config) object is accessed.
 - Asynchronous callback `Application.initialize()` is executed.
-- [Application housekeeping](/reference/pubsub/reference/#housekeeping) is scheduled.
-- [Publish-Subscribe](/reference/pubsub/reference/#well-known-messages) message **Application.init!** is published.
+- [Application housekeeping](../pubsub/#housekeeping) is scheduled.
+- [Publish-Subscribe](../pubsub/#well-known-messages) message **Application.init!** is published.
 
 
 The asynchronous callback `Application.initialize()` is intended to be overridden by a user.
-This is where you typically load Modules and register Services, see [Modules and Services](/reference/modules_services) section.
+This is where you typically load Modules and register Services, see [Modules and Services](../modules_services) section.
 
 ``` python
 class MyApplication(asab.Application):
@@ -97,7 +97,7 @@ class MyApplication(asab.Application):
 The *run-time* starts after all the modules and services are loaded. This is where the application typically spends the most time.
 At this time:
 
-- [Publish-Subscribe](/reference/pubsub/reference/#well-known-messages) message **Application.run!** is published.
+- [Publish-Subscribe](../pubsub/#well-known-messages) message **Application.run!** is published.
 - The asynchronous callback `Application.main()` is executed.
 
 The coroutine `Application.main()` is intended to be overwritten by a user.
@@ -125,7 +125,7 @@ The parameter `exit_code` allows you to specify the application exit code.
 
 At *exit-time*:
 
-- [Publish-Subscribe](/reference/pubsub/reference/#well-known-messages) message **Application.exit!** is published.
+- [Publish-Subscribe](../pubsub/#well-known-messages) message **Application.exit!** is published.
 - Asynchronous callback `Application.finalize()` is executed.
 
 `Application.finalize()` is intended to be overridden by an user.

@@ -149,10 +149,10 @@ ASAB itself publishes various well-known messages published on `Application.PubS
 
 | Message | Published when... |
 | ---: | --- |
-| **Application.init!** | ...the application is in the [init-time](/reference/application/reference/#init-time) after the configuration is loaded, logging is setup, the event loop is constructed etc. |
-| **Application.run!** | ...the application enters the [run-time](/reference/application/reference/#run-time). |
-| **Application.stop!** | ...the application wants to stop the [run-time](/reference/application/reference/#run-time). It can be sent multiple times because of a process of graceful run-time termination. The first argument of the message is a counter that increases with every **Application.stop!** event. |
-| **Application.exit!** | ...the application enters the [exit-time](/reference/application/reference/#exit-time). |
+| **Application.init!** | ...the application is in the [init-time](../application/#init-time) after the configuration is loaded, logging is setup, the event loop is constructed etc. |
+| **Application.run!** | ...the application enters the [run-time](../application/#run-time). |
+| **Application.stop!** | ...the application wants to stop the [run-time](../application/#run-time). It can be sent multiple times because of a process of graceful run-time termination. The first argument of the message is a counter that increases with every **Application.stop!** event. |
+| **Application.exit!** | ...the application enters the [exit-time](../application/#exit-time). |
 | **Application.hup!** | ...the application receives UNIX signal `SIGHUP` or equivalent.|
 | **Application.housekeeping!** | ...the application is on the time for [housekeeping](#housekeeping). |
 | Tick messages | ...periodically with the specified tick frequency. | 
@@ -201,7 +201,7 @@ There is also a time limit, which is set to 05:00 AM UTC by default.
 By default, the time for housekeeping is set to 03:00 AM UTC and the limit to 05:00 AM UTC.
 
 
-Housekeeping can be also configured to run during the application [init-time](/reference/application/reference/#init-time).
+Housekeeping can be also configured to run during the application [init-time](../application/#init-time).
 Housekeeping time, time limit, and housekeeping at startup can be changed in the configuration file:
 
 ``` ini

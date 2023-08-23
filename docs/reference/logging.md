@@ -179,7 +179,7 @@ Non-empty `path` option in the section `[logging:file]` of the configuration fil
 
     When the deployment expects more instances of the same application to be
     logging into the same file, it is recommended to use
-    [`${HOSTNAME}`](../../config/reference/#environment-variables) variable in the file path:
+    [`${HOSTNAME}`](../../configuration/#environment-variables) variable in the file path:
 
     ```ini
     [logging:file]

@@ -61,7 +61,7 @@ python3 -m pip install aiohttp
 		app.run()
 	```
 
-	1. Web server configuration should be prepared during [the init-time](/reference/application/reference/#init-time) of the application lifecycle.
+	1. Web server configuration should be prepared during [the init-time](../application/#init-time) of the application lifecycle.
 	2. `asab.web.create_web_server()` creates web server and returns instance of
 		[`aiohttp.web.UrlDispatcher` object](https://docs.aiohttp.org/en/stable/web_reference.html?highlight=router#router) (which is usually referred to as a "router"). The method takes the argument `app` which is used as the reference to the base `asab.Application` object, and optional parameters that expand configuration options.
 	3. You can easily create a new endpoint by [`aiohttp.web.UrlDispatcher.add_route()` method](https://docs.aiohttp.org/en/stable/web_reference.html?highlight=router#aiohttp.web.UrlDispatcher.add_route)
@@ -115,7 +115,7 @@ python3 -m pip install aiohttp
 
 	1. In order to use `asab.WebService`, first import the corresponding `asab.web.Module`...
 	2. ...and then locate the Service.
-	3. Creates the Web container, which is instance of [`asab.Config.Configurable`](http://localhost:8000/reference/config/reference/#asab.config.Configurable) object that stores the configuration such as the actual web application.
+	3. Creates the Web container, which is instance of [`asab.Config.Configurable`](../configuration/#asab.config.Configurable) object that stores the configuration such as the actual web application.
 	4. `asab.web.WebContainer.WebApp` is instance of `aiohttp.web.Application` object. To create a new endpoint, use methods for [`aiohttp.web.Application.router` object](https://docs.aiohttp.org/en/stable/web_reference.html?highlight=add_get#router).
 	5. A request handler must be a coroutine that accepts [`aiohttp.web.Request` instance](https://docs.aiohttp.org/en/stable/web_reference.html#aiohttp.web.Request) as its only parameter and returns [`aiohttp.web.Response` instance](https://docs.aiohttp.org/en/stable/web_reference.html#response).
 
@@ -142,7 +142,7 @@ Configuration is passed to the `asab.web.WebContainer` object.
 | `backlog` | A number of unaccepted connections that the system will allow before refusing new connections, see [`socket.socket.listen()`](https://docs.python.org/3/library/socket.html#socket.socket.listen) for details |
 | `rootdir` | The root path for the server. In case of many web containers, each one can implement a different root |
 | `servertokens` | Controls whether `'Server'` response header field is included (`'full'`) or faked (`'prod'`) |
-| `cors` | See [Cross-Origin Resource Sharing](/reference/web/cors) section |
+| `cors` | See [Cross-Origin Resource Sharing](../web/cors) section |
 | `body_max_size`| Client's maximum size in a request, in bytes. If a **POST** request exceeds this value, `aiohttp.HTTPRequestEntityTooLarge` exception is raised. See [the documentation](https://docs.aiohttp.org/en/stable/web_reference.html?highlight=client_max_size#aiohttp.web.Application) for more information |
 | `cors` | Contents of the Access-Control-Allow-Origin header. See the [CORS section](./cors) |
 | `cors_preflight_paths` | Pattern for endpoints that shall return responses to pre-flight requests (**OPTIONS**). Value must start with `"/"`. See the [CORS section](./cors) |

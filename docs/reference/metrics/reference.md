@@ -23,12 +23,12 @@ database. [Influx](https://www.influxdata.com/) and
 
 	1. Import the `asab.metrics` module and add it to the application.
 	2. Then, you can localize MetricsService.
-	3. Use MetricsService to intialize the counter.
+	3. Use MetricsService to initialize the counter.
 
 
 See the full example [here](https://github.com/TeskaLabs/asab/blob/master/examples/metrics.py).
 
-See reference [here](./../../../reference/metrics/service.md).
+See reference [here](../metrics/service.md).
 
 ## Types of Metrics
 
