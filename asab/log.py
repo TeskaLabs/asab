@@ -443,9 +443,6 @@ class AsyncIOHandler(logging.Handler):
 
 
 	def _on_write(self):
-		"""
-		Contingency dump when the socket is not ready
-		"""
 		self._write_ready = True
 		self._loop.remove_writer(self._socket)
 
@@ -454,7 +451,7 @@ class AsyncIOHandler(logging.Handler):
 			try:
 				self._socket.sendall(msg)
 			except Exception as e:
-				# Throw the msg away and print the error to stderr
+				# Contingency dump when the socket is not ready
 				print(
 					"Error when writing to syslog '{}': {}".format(self._address, e),
 					traceback.format_exc(),
