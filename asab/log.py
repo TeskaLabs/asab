@@ -452,6 +452,7 @@ class AsyncIOHandler(logging.Handler):
 				self._socket.sendall(msg)
 			except Exception as e:
 				# Contingency dump when the socket is not ready
+				print(msg.decode("utf-8"), file=sys.stderr)
 				print(
 					"Error when writing to syslog '{}': {}".format(self._address, e),
 					traceback.format_exc(),
