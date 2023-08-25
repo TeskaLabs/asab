@@ -443,26 +443,24 @@ class AsyncIOHandler(logging.Handler):
 
 
 	def _on_write(self):
+		"""
+		Contingency dump when the socket is not ready
+		"""
 		self._write_ready = True
 		self._loop.remove_writer(self._socket)
 
-		error_counter = 0
 		while not self._queue.empty():
 			msg = self._queue.get_nowait()
 			try:
 				self._socket.sendall(msg)
 			except Exception as e:
-				if error_counter > 100:
-					print("Critical error when writing to syslog. Exiting.", file=sys.stderr)
-					sys.exit(1)
+				# Throw the msg away and print the error to stderr
 				print(
 					"Error when writing to syslog '{}': {}".format(self._address, e),
 					traceback.format_exc(),
 					sep="\n",
 					file=sys.stderr
 				)
-				self._enqueue(msg)
-				error_counter += 1
 
 	def _on_read(self):
 		try:
