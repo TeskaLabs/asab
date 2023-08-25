@@ -132,7 +132,7 @@ class AuthService(asab.Service):
 		else:
 			user_info = DEV_USERINFO_DEFAULT
 		# Validate user info
-		resources = self.DevUserInfo.get("resources", {})
+		resources = user_info.get("resources", {})
 		if not isinstance(resources, dict) or not all(
 			map(lambda kv: isinstance(kv[0], str) and isinstance(kv[1], list), resources.items())
 		):
