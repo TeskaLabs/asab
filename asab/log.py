@@ -451,8 +451,14 @@ class AsyncIOHandler(logging.Handler):
 			try:
 				self._socket.sendall(msg)
 			except Exception as e:
-				print("Error when writing to syslog '{}'".format(self._address), e, file=sys.stderr)
-				self._enqueue(msg)
+				# Contingency dump when the socket is not ready
+				print(msg.decode("utf-8"), file=sys.stderr)
+				print(
+					"Error when writing to syslog '{}': {}".format(self._address, e),
+					traceback.format_exc(),
+					sep="\n",
+					file=sys.stderr
+				)
 
 	def _on_read(self):
 		try:
