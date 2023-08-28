@@ -99,7 +99,11 @@ class AuthService(asab.Service):
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
+
 		self.AuthEnabled = asab.Config.getboolean("auth", "enabled")
+		if self.App.Args.no_auth:
+			self.AuthEnabled = False
+
 		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
