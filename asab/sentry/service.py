@@ -6,6 +6,7 @@ import logging
 import json
 import typing
 
+
 L = logging.getLogger(__name__)
 
 
@@ -270,3 +271,27 @@ class SentryService(asab.Service):
 		```
 		"""
 		return sentry_sdk.start_span(op=operation, description=description)
+
+
+	def set_context(self, section_name: str, context: dict) -> None:
+		"""
+		Set custom context within the current scope.
+
+		Context data are related to the current user and the environment.
+		They are useful when you have all the data available at a single point in time,
+		not well suited to data that is collected over time.
+
+		Args:
+			section_name (str): A unique name for the context.
+			context (dict): Key-value paired context dictionary.
+
+		Examples:
+
+		```python
+		sentry_service.set_context("environment variables", {"VAR": os.getenv("VAR")})
+		```
+
+		!!! note
+			We prefer using logging messages to setting custom context.
+		"""
+		return sentry_sdk.set_context(section_name, context)
