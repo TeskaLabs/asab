@@ -1,13 +1,13 @@
 # OpenAPI Documentation
 
-ASAB's API service generates a [Swagger documentation](https://swagger.io/specification) which automatically
-shows all of your endpoints and you can add summaries, descriptions, tags and more.
+ASAB's API service generates [Swagger documentation](https://swagger.io/specification) which automatically
+shows all of your endpoints, and you can add summaries, descriptions, tags, and more.
 
-If you want Authorization in Swagger docs, you will need an OpenIDConnect endpoint.
+If you want authorization in Swagger docs, you will need an OpenIDConnect endpoint.
 
 ## Creating OpenAPI endpoint
 
-First you need to initialize the API Service:
+First, you need to initialize the API Service:
 
 ``` python
 self.ApiService = asab.api.ApiService(self) #(1)!
@@ -15,13 +15,13 @@ self.ApiService.initialize_web() #(2)!
 ```
 
 1. Initializes OpenAPI Service.
-2. Introduce Web to OpenAPI Service.
+2. Introduces Web to OpenAPI Service.
 
 After initializing the API Service, */doc* endpoint will become available. After you open it, you should see the following content:
 
 ![Preview of Swagger documentation](/images/rest-api-docs/1-preview.png)
 
-You will notice that some or none of your endpoints have summaries, tags or descriptions.
+You will notice that some or none of your endpoints have summaries, tags, or descriptions.
 
 That's because you need to add a docstring to your endpoint method:
 
@@ -54,9 +54,9 @@ class TutorialApp(asab.Application):
 ## Authorization in Swagger
 
 Authorization requires making an OpenIDConnect endpoint with an Authorization and Token endpoint
-(like with using [SeaCat Auth](https://github.com/TeskaLabs/seacat-auth)).
+(like with using TeskaLabs [SeaCat Auth](https://github.com/TeskaLabs/seacat-auth)).
 
-For authorization you will need to add a `authorizationUrl`
+For authorization, you will need to add `authorizationUrl`
 and `tokenUrl` to the configuration:
 
 ``` ini
@@ -76,8 +76,8 @@ scopes=read,write
 To set up endpoint authorization, you can use [this example](/examples/web-authz-userinfo).
 
 For the authorization bearer token to be added to the request, a scope is needed to be put into the security parameter in a docstring.
-It does not matter what it is called or if it exists, but it's needed to be there.
-But `- oAuth` always needs to be there.
+It does not matter what it is called or if it exists, but it needs to be included.
+`- oAuth` must always be included.
 
 ``` python
 @asab.web.authz.required("resource:topsecret")
@@ -115,10 +115,10 @@ tags: ['custom tag 1', 'custom tag 2', 'custom tag 3']
 ```
 
 !!! info
-	Remember to use exactly three dashes on the separate line and put tags in array with `[]` even if you want to have a single tag.
+	Remember to use exactly three dashes on the separate line and put tags in array with `[]`, even if you want to have a single tag.
 
 
-If there is no custom tag defined, the tag name is automatically set to
+If there is no custom tag defined - the tag name is automatically set to
 be `module_name`. If you do not want to use custom tags but
 still would like to sort the routes, you can configure the options in
 the config file:
@@ -131,9 +131,9 @@ default_route_tag=class_name
 There are two options for `default_route_tag`:
 
 === "`module_name`"
-	All tags without custom name are displayed with the name of the **module** where the handler is defined.
+	All tags without a custom name are displayed with the name of the **module** where the handler is defined.
 	![Authorization of Swagger documentation](/images/rest-api-docs/4-module.png)
 
 === "`class_name`"
-	All tags without custom name are displayed with the name of the **class** where the handler is defined.
+	All tags without a custom name are displayed with the name of the **class** where the handler is defined.
 	![Authorization of Swagger documentation](/images/rest-api-docs/5-class.png)

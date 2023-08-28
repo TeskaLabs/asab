@@ -21,14 +21,14 @@ database. [Influx](https://www.influxdata.com/) and
 		app.run()
 	```
 
-	1. Import asab.metrics Module and add it to the application.
+	1. Import the `asab.metrics` module and add it to the application.
 	2. Then, you can localize MetricsService.
-	3. Use MetricsService to intialize the counter.
+	3. Use MetricsService to initialize the counter.
 
 
 See the full example [here](https://github.com/TeskaLabs/asab/blob/master/examples/metrics.py).
 
-See reference [here](./../../../reference/metrics/service.md).
+See reference [here](../metrics/service.md).
 
 ## Types of Metrics
 
@@ -42,7 +42,7 @@ See reference [here](./../../../reference/metrics/service.md).
     `max` function is default.
 -   `Histogram` represents cumulative histogram with `set` method.
 
-`Counter`, `AggregationCounter` and `Histogram` come also in variants
+`Counter`, `AggregationCounter`, and `Histogram` come also in variants
 respecting dynamic tags. (See section [Dynamic Tags](./tags.md))
 
 All methods that create new metrics objects can be found in the Metrics
@@ -63,19 +63,19 @@ by their resetable nature. Even though they monotonously increase,
 resetting every minute gives them a different meaning. In a long-term
 observation (that's how you most probably monitor the metrics in
 time-series databases), these metrics count **events per minute**. Thus,
-resettable Counters are presented to Prometheus database as gauge-type
+resettable Counters are presented to the Prometheus database as gauge-type
 metrics. Set the `reset` argument to `False`
 when creating a new Counter to disable Counter resetting. This periodic
 "flush" cycle also causes 60s delay of metric propagation into
 supported time-series databases.
-Please, see the Timestamp section explaining the origin of a timestamp in each metric record.
+See the Timestamp section explaining the origin of a timestamp in each metric record.
 
 ## Initial Values
 
 You can initiate your metric instance **with or without initial values**.
 Initial values are always present and presented to databases even without a single event changing the metric values.
 You will always find a pair of value name and its value in resulting dataset.
-Values (name and value pairs) added during runtime last only 60 s.
+Values (name and value pairs) added during runtime last only 60s.
 You might spot this feature as missing values in the resulting time-series dataset.
 
 
@@ -108,8 +108,8 @@ the resettable ones are measured when we reset the data
 
 
 # Monitoring
-The Metrics module in ASAB serves to produce data - metrics. It does not store them, nor analyse. To get some overview, you must collect the metrics in a time-series database, or choose some custom way of monitoring.
-InfluxDB and Prometheus databases are supported by ASAB and several endpoints can be used for data monitoring or collecting as well.
+The Metrics module in ASAB serves to produce data - metrics. It does not store nor analyze the data. To get some overview, you must collect the metrics in a time-series database, or choose some custom way of monitoring.
+InfluxDB and Prometheus databases are supported by ASAB, and several endpoints can be used for data monitoring or collecting as well.
 
 ## InfluxDB
 
@@ -302,7 +302,7 @@ use dynamic tags.
 You can create values with a specific tag-set during runtime.
 Specific tag-sets expire after a defined period.
 This might be spotted in your time-series database like a mysterious disappearance of unused tags.
-Specify the expiration period in the configuration, default is 60 s.
+Specify the expiration period in the configuration, default is 60s.
 
 !!! example "Configuration example"
 
@@ -333,7 +333,7 @@ requests to all ASAB endpoints. They use dynamic tags to provide infromation abo
     counting requests in buckets defined by the request duration.
 
 Web Requests Metrics are switched off by default. Use configuration to allow them.
-Be aware that both Web module and Metrics module must be initialized for these metrics.
+Be aware that both the Web module and Metrics module must be initialized for these metrics.
 
 !!! example "Configuration example"
     ``` {.}

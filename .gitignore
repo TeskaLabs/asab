@@ -115,3 +115,6 @@ examples/ssl/clients/.index.bin
 # mkdocs
 doc/_build
 doc/env
+
+# macOS supplementary file
+.DS_Store

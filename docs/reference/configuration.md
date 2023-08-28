@@ -1,6 +1,6 @@
 # Configuration
 
-The configuration is provided by `asab.Config` object which you can access from any place of your code, without need of explicit initialization.
+Configuration is provided by the `asab.Config` object, which you can access from any place in your code, without need of explicit initialization.
 
 ```python
 import asab
@@ -12,18 +12,18 @@ app = asab.Application() #(1)!
 my_conf_value = asab.Config['section_name']['key1'] #(2)!
 ```
 
-1. Configuration is initialized during the application [init-time](/reference/application/reference/init-time).
+1. Configuration is initialized during the application [init-time](../application/init-time).
 2. You can access the configuration values from anywhere in the code.
 
 
 ## Based on ConfigParser object
 
-`asab.Config` is an instance of [`asab.config.ConfigParser`](#asab.config.Configparser) class,  derived from the Python standard [`configparser.ConfigParser`](https://docs.python.org/3/library/configparser.html#customizing-parser-behaviour). 
+`asab.Config` is an instance of [`asab.config.ConfigParser`](#asab.config.Configparser) class, derived from the Python standard [`configparser.ConfigParser`](https://docs.python.org/3/library/configparser.html#customizing-parser-behaviour). 
 The class implements a basic configuration language that provides a structure similar to what's found in Microsoft Windows INI files.
 
 !!! example "Basic usage:"
 
-    This is an example of the configuration file. We hope that it might help you to quickly understand what the rules are:
+    This is an example of the configuration file. We hope that it helps you quickly understand what the rules are:
 
     ``` ini title='configuration.conf'
     [section name]
@@ -90,7 +90,7 @@ The class implements a basic configuration language that provides a structure si
 
 
 If a configuration file name is specified,the configuration is automatically
-loaded from a configuration file during [the Application init-time](../../application/reference/#init-time).
+loaded from a configuration file during [the Application init-time](../application/#init-time).
 There are two ways to include a configuration file:
 
 1. by using the `-c` command-line argument:
@@ -111,7 +111,7 @@ There are two ways to include a configuration file:
 ### Including other configuration files
 
 You can specify one or more additional configuration files that are
-loaded and merged from an main configuration file:
+loaded and merged from a main configuration file:
 
 ``` ini
 [general]
@@ -136,7 +136,7 @@ include=
 
 ### Including ZooKeeper node in the configuration
 
-The separator between includes is newline or space - it means that the space character *must not* be in the names of nodes in the ZooKeeper.
+The separator between 'include' items is a newline or space. This means that names of nodes in Zookeeper *must not* have the space character in them.
 
 The ZooKeeper node can contain a configuration file in .conf, .json or .yaml format.
 
@@ -177,7 +177,7 @@ asab.Config.add_defaults(
 
     Only simple types (`string`, `int` and `float`) are allowed in the
     configuration values. Do not use complex types such as lists,
-    dictionaries or objects because these are impossible to provide via
+    dictionaries, or objects because these are impossible to provide via
     configuration files etc.
 
 
@@ -237,10 +237,10 @@ they are not repeated in many sections of the config file(s).
 
 | Name | Usage |
 | --- | --- |
-| `ASAB_CONFIG` | Path to the custom configuration file with which ASAB app will be using. | 
-| `ASAB_ZOOKEEPERS_SERVERS`| URL for Zookeeper node. |
-| `THIS_DIR` | Directory that contains a current configuration file. |
-| `HOSTNAME` | The application hostname. |
+| `ASAB_CONFIG` | Path to the custom configuration file with which ASAB app will be using | 
+| `ASAB_ZOOKEEPERS_SERVERS`| URL for Zookeeper node |
+| `THIS_DIR` | Directory that contains a current configuration file |
+| `HOSTNAME` | The application hostname |
 
 ::: asab.Config
 

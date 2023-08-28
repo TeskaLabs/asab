@@ -1,14 +1,14 @@
 # Publish-Subscribe
 
 **Publish-subscribe** is a messaging pattern where senders of messages, called **publishers**,
-send the messages to receivers, called **subscribers**, via PubSub **message bus**.
+send the messages to receivers, called **subscribers**, via the PubSub **message bus**.
 
 Publishers don't directly interact with subscribers in any way.
 Similarly, subscribers express interest in one or more message types and only receive messages that are of interest,
 without knowledge of which publishers, if any, there are.
 
-ASAB `PubSub` module operates with a simple messages, defined by their *message type*, which is a string.
-The message can carry an optional positional and keyword arguments.
+The ASAB `PubSub` module operates with a simple messages, defined by their *message type*, which is a string.
+The message can carry optional positional and keyword arguments.
 The delivery of a message is implemented as a the standard Python function.
 
 !!! note
@@ -25,7 +25,7 @@ The delivery of a message is implemented as a the standard Python function.
 
 
 !!! note
-	There is an default, application-wide Publish-Subscribe message
+	There is a default, application-wide Publish-Subscribe message
 	bus at `Application.PubSub` that can be used to send messages.
 	Alternatively, you can create your own instance of `PubSub` and enjoy isolated PubSub delivery space.
 
@@ -85,27 +85,21 @@ To simplify the process of subscription to `PubSub`, ASAB offers the decorator-b
 			print(message_type)
 	```
 
-Unsubscribe from a message delivery.
+!!! example
 
-asab.Subscriber
-
-The subscriber object can be also used as [an asynchonous
-generator]{.title-ref}. The example of the subscriber object usage in
-[async for]{.title-ref} statement:
-
-``` python
-async def my_coroutine(self):
-	# Subscribe for a two application events
-	subscriber = asab.Subscriber(
-		self.PubSub,
-		"Application.tick!",
-		"Application.exit!"
-	)
-	async for message_type, args, kwargs in subscriber:
-		if message_type == "Application.exit!":
-			break;
-		print("Tick.")
-```
+	``` python
+	async def my_coroutine(self):
+		# Subscribe for a two application events
+		subscriber = asab.Subscriber(
+			self.PubSub,
+			"Application.tick!",
+			"Application.exit!"
+		)
+		async for message_type, args, kwargs in subscriber:
+			if message_type == "Application.exit!":
+				break;
+			print("Tick.")
+	```
 
 ## Publishing
 
@@ -118,7 +112,7 @@ It means that the method returns after each subscribed `callback` is called.
 
 	``` python
 	def my_function(app):
-		app.PubSub.publish("mymessage!")
+		app.PubSub.publish("My.Message!")
 	```
 
 Asynchronous publishing of a message is requested by `asynchronously=True` argument.
@@ -131,7 +125,7 @@ when control returns to the event loop.
 
 	``` python
 	def my_function(app):
-		app.PubSub.publish("mymessage!", asynchronously=True)
+		app.PubSub.publish("My.Message!", asynchronously=True)
 	```
 
 ## Synchronous vs. asynchronous messaging
@@ -147,7 +141,7 @@ Moreover, PubSub also deals with modes, when asynchronous code (coroutine) does 
 
 ## Application-wide PubSub
 
-The ASAB provides the application-wide Publish-Subscribe message bus.
+ASAB provides the application-wide Publish-Subscribe message bus.
 
 ### Well-Known Messages
 
@@ -155,10 +149,10 @@ ASAB itself publishes various well-known messages published on `Application.PubS
 
 | Message | Published when... |
 | ---: | --- |
-| **Application.init!** | ...the application is in the [init-time](/reference/application/reference/#init-time) after the configuration is loaded, logging is setup, the event loop is constructed etc. |
-| **Application.run!** | ...the application enters the [run-time](/reference/application/reference/#run-time). |
-| **Application.stop!** | ...the application wants to stop the [run-time](/reference/application/reference/#run-time). It can be sent multiple times because of a process of graceful run-time termination. The first argument of the message is a counter that increases with every **Application.stop!** event. |
-| **Application.exit!** | ...the application enters the [exit-time](/reference/application/reference/#exit-time). |
+| **Application.init!** | ...the application is in the [init-time](../application/#init-time) after the configuration is loaded, logging is setup, the event loop is constructed etc. |
+| **Application.run!** | ...the application enters the [run-time](../application/#run-time). |
+| **Application.stop!** | ...the application wants to stop the [run-time](../application/#run-time). It can be sent multiple times because of a process of graceful run-time termination. The first argument of the message is a counter that increases with every **Application.stop!** event. |
+| **Application.exit!** | ...the application enters the [exit-time](../application/#exit-time). |
 | **Application.hup!** | ...the application receives UNIX signal `SIGHUP` or equivalent.|
 | **Application.housekeeping!** | ...the application is on the time for [housekeeping](#housekeeping). |
 | Tick messages | ...periodically with the specified tick frequency. | 
@@ -207,8 +201,8 @@ There is also a time limit, which is set to 05:00 AM UTC by default.
 By default, the time for housekeeping is set to 03:00 AM UTC and the limit to 05:00 AM UTC.
 
 
-Housekeeping can be also configured to run during the application [init-time](/reference/application/reference/#init-time).
-Housekeeping time, time limit and housekeeping at startup can be changed in the configuration file:
+Housekeeping can be also configured to run during the application [init-time](../application/#init-time).
+Housekeeping time, time limit, and housekeeping at startup can be changed in the configuration file:
 
 ``` ini
 [housekeeping]
@@ -219,13 +213,14 @@ run_at_startup=yes
 
 This sets the housekeeping time to 7:30 PM UTC and the time limit to 9:00 PM UTC.
 The time must be written in the format 'HH:MM'.
-Remind yourself that the time is set to UTC, so you should be careful when operating in a different timezone.
+Remember that the time is set to UTC, so be careful when operating in a different timezone.
 
 !!! note
 
 	If the computer is in a sleep state, housekeeping will not be performed.
-	Then, when the computer is reawakened again, it will check if it has exceeded the time limit.
+	Then, when the computer is reawakened, it will check if it has exceeded the time limit.
 	If not, then housekeeping will be published. If it has exceeded it, it simply informs the user and sets the housekeeping time for the next day.
+	
 	Note that this only limits the time when the housekeeping can start.
 	If the housekeeping event triggers a procedure that takes a long time to finish, it will not be terminated when the time limit is reached.
 
@@ -236,5 +231,3 @@ Remind yourself that the time is set to UTC, so you should be careful when opera
 ::: asab.pubsub.Subscriber
 
 ::: asab.pubsub.subscribe
-
-

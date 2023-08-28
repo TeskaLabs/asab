@@ -7,7 +7,7 @@ repo_name: TeskaLabs/asab
 theme:
   name: "material"
   logo: images/teskalabs-logo.svg
-  favicon: images/teskalabs-logo.svg
+  favicon: images/teskalabs.png
 
   features:
     - content.code.copy
@@ -149,32 +149,32 @@ extra:
 nav:
   - Home: 
     - About: index.md
-    - Getting started:
-      - Installation and first application: getting-started/installation_first_app.md
-      - Creating a web server: getting-started/web_server.md
-      - Containerization: getting-started/containers.md
-
+    - Installing ASAB: getting-started/installation_first_app.md
     - Contributing: contributing.md
 
-  - How-Tos:
+  - Tutorials:
+    - how-tos/index.md
+    - Installation and first application: how-tos/installing-asab.md
+    - Creating a web server: getting-started/web_server.md
+    - Containerization: getting-started/containers.md
     - Creating a microservice with REST API: how-tos/03_rest_api.md
 
   - Reference:
-    - Application: reference/application/reference.md
-    - Modules and Services: reference/modules_services/reference.md
+    - Application: reference/application.md
+    - Modules and Services: reference/modules_services.md
 
     - Web Service: 
       - Web server: reference/web/web-server.md
       - TLS/SSL: reference/web/tls.md
       - Authorization and Multi-tenancy: reference/web/authorization_multitenancy.md
       - Cross-Origin Resource Sharing: reference/web/cors.md
-    - Configuration: reference/config/reference.md
-    - Logging: reference/logging/reference.md
-    - PubSub: reference/pubsub/reference.md
-    - Library Service: reference/library/reference.md
+    - Configuration: reference/configuration.md
+    - Logging: reference/logging.md
+    - PubSub: reference/pubsub.md
+    - Library Service: reference/library.md
     - Metrics Service: reference/metrics/reference.md
-    - Storage Service: reference/storage/reference.md
-    - Zookeeper: reference/zookeeper/reference.md
+    - Storage Service: reference/storage.md
+    - Zookeeper: reference/zookeeper.md
     - Utility functions and classes: 
         - Utility functions: reference/utils/utils.md
         - Persistent dictionary: reference/utils/persistent_dictionary.md

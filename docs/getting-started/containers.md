@@ -1,9 +1,6 @@
-# Containerisation
+# Containerization
 
-ASAB is designed for deployment into containers such as LXC/LXD or
-Docker. It allows to build e.g. microservices that provides REST
-interface or consume MQ messages while being deployed into a container
-for a sake of the infrastructure flexibility.
+ASAB is designed for deployment into containers such as LXC/LXD or Docker. ASAB allows you to build microservices that provide REST APIs or consume MQ messages while being deployed into a container for the sake of the infrastructure flexibility.
 
 ## Running ASAB in a LXC/LXD container
 
@@ -58,7 +55,7 @@ for a sake of the infrastructure flexibility.
     ```
 
     !!! note
-        If you need to install python packages that require compilation
+        If you need to install Python packages that require compilation
         using C compiler, you have to add following dependencies:
 
         ``` bash
@@ -77,9 +74,9 @@ for a sake of the infrastructure flexibility.
 
 In order for ASAB applications to read the Docker container name as well
 as other information related to the container to be used in logs,
-metrics and other analysis, the Docker Remote API must be enabled. To do so:
+metrics, and other analysis, the Docker Remote API must be enabled. To enable the Docker Remote API:
 
-1.  Open the docker service file:
+1.  Open the Docker service file:
 
     ``` bash
     vi /lib/systemd/system/docker.service
@@ -87,7 +84,7 @@ metrics and other analysis, the Docker Remote API must be enabled. To do so:
 
 2.  Find the line which starts with `ExecStart` and add `-H=tcp://0.0.0.0:2375`.
 3.  Save the file.
-4.  Reload the docker daemon and restart the Docker service:
+4.  Reload the Docker daemon and restart the Docker service:
 
     ``` bash
     sudo systemctl daemon-reload && sudo service docker restart
@@ -103,5 +100,5 @@ metrics and other analysis, the Docker Remote API must be enabled. To do so:
 
 Thus, the metric service as well as log manager can use the container
 name as hostname instead of container ID, which provides better
-readability when analyzing the logs and metrics, typically using
+readability when analyzing the logs and metrics, typically when using
 InfluxDB and Grafana.
