@@ -91,7 +91,7 @@ asab.Config.add_defaults({
 		# In MOCK MODE
 		# - no authorization server is needed,
 		# - all incoming requests are mock-authorized with pre-defined user info,
-		# - mock user info can be customized with a JSON file.
+		# - custom mock user info can supplied in a JSON file.
 		"enabled": "yes",
 		"mock_user_info_path": "/conf/mock-userinfo.json",
 	}
