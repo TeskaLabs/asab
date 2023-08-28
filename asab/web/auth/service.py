@@ -110,10 +110,7 @@ class AuthService(asab.Service):
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
-		if self.App.Args.no_auth:
-			enabled = "no"
-		else:
-			enabled = asab.Config.get("auth", "enabled")
+		enabled = asab.Config.get("auth", "enabled")
 		if enabled == "mock":
 			self.Mode = AuthMode.MOCK
 		elif asab.utils.string_to_boolean(enabled):
