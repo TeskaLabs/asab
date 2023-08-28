@@ -15,6 +15,7 @@ import aiohttp.client_exceptions
 
 import asab
 import asab.exceptions
+import asab.utils
 
 try:
 	import jwcrypto.jwk
@@ -29,8 +30,8 @@ L = logging.getLogger(__name__)
 
 #
 
-# Mock user info used in dev mode
-DEV_USERINFO_DEFAULT = {
+# Used for mock authorization
+MOCK_USERINFO_DEFAULT = {
 	# Token issuer
 	"iss": "auth.test.loc",
 	# Token issued at (timestamp)
@@ -70,6 +71,13 @@ DEV_USERINFO_DEFAULT = {
 
 SUPERUSER_RESOURCE = "authz:superuser"
 
+
+class AuthMode(enum.Enum):
+	ENABLED = enum.auto()
+	DISABLED = enum.auto()
+	MOCK = enum.auto()
+
+
 asab.Config.add_defaults({
 	"auth": {
 		# URL location containing the authorization server's public JWK keys
@@ -79,13 +87,13 @@ asab.Config.add_defaults({
 		"multitenancy": "yes",
 
 		# Whether the authentication and authorization are enabled
-		"enabled": "yes",
-
-		# In DEV MODE
+		# Expected values: either boolean or "mock"
+		# In MOCK MODE
 		# - no authorization server is needed,
-		# - all incoming requests are "authorized" with custom mocked user info data loaded from a JSON file,
-		"dev_mode": "no",
-		"dev_user_info_path": "/conf/dev-userinfo.json",
+		# - all incoming requests are mock-authorized with pre-defined user info,
+		# - mock user info can be customized with a JSON file.
+		"enabled": "yes",
+		"mock_user_info_path": "/conf/mock-userinfo.json",
 	}
 })
 
@@ -99,14 +107,20 @@ class AuthService(asab.Service):
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
-		self.AuthEnabled = asab.Config.getboolean("auth", "enabled")
-		self.DevModeEnabled = asab.Config.getboolean("auth", "dev_mode")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
-		if not self.AuthEnabled:
+		enabled = asab.Config.get("auth", "enabled")
+		if enabled == "mock":
+			self.Mode = AuthMode.MOCK
+		elif asab.utils.string_to_boolean(enabled):
+			self.Mode = AuthMode.ENABLED
+		else:
+			self.Mode = AuthMode.DISABLED
+
+		if self.Mode == AuthMode.DISABLED:
 			pass
-		elif self.DevModeEnabled:
-			self.DevUserInfo = self._prepare_dev_user_info()
+		elif self.Mode == AuthMode.MOCK:
+			self.MockUserInfo = self._prepare_mock_user_info()
 		elif jwcrypto is None:
 			raise ModuleNotFoundError(
 				"You are trying to use asab.web.auth module without 'jwcrypto' installed. "
@@ -123,14 +137,14 @@ class AuthService(asab.Service):
 		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
 		self.AuthServerLastSuccessfulCheck = None
 
-	def _prepare_dev_user_info(self):
+	def _prepare_mock_user_info(self):
 		# Load custom user info
-		dev_user_info_path = asab.Config.get("auth", "dev_user_info_path")
-		if os.path.isfile(dev_user_info_path):
-			with open(dev_user_info_path, "rb") as fp:
+		mock_user_info_path = asab.Config.get("auth", "mock_user_info_path")
+		if os.path.isfile(mock_user_info_path):
+			with open(mock_user_info_path, "rb") as fp:
 				user_info = json.load(fp)
 		else:
-			user_info = DEV_USERINFO_DEFAULT
+			user_info = MOCK_USERINFO_DEFAULT
 		# Validate user info
 		resources = user_info.get("resources", {})
 		if not isinstance(resources, dict) or not all(
@@ -138,15 +152,16 @@ class AuthService(asab.Service):
 		):
 			raise ValueError("User info 'resources' must be an object with string keys and array values.")
 		L.warning(
-			"AuthService is running in DEV MODE. All web requests will be authorized with mock user info, which "
-			"currently grants access to the following tenants: {}. To customize dev mode authorization (add or "
+			"AuthService is running in MOCK MODE. All web requests will be authorized with mock user info, which "
+			"currently grants access to the following tenants: {}. To customize mock mode authorization (add or "
 			"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
-				list(t for t in self.DevUserInfo.get("resources", {}).keys() if t != "*"),
-				dev_user_info_path))
+				list(t for t in self.MockUserInfo.get("resources", {}).keys() if t != "*"),
+				mock_user_info_path))
 		return user_info
 
+
 	async def initialize(self, app):
-		if self.AuthEnabled and not self.DevModeEnabled:
+		if self.Mode == AuthMode.ENABLED:
 			await self._fetch_public_keys_if_needed()
 
 
@@ -165,9 +180,9 @@ class AuthService(asab.Service):
 		"""
 		Check if the service is ready to authorize requests.
 		"""
-		if not self.AuthEnabled:
+		if self.Mode == AuthMode.DISABLED:
 			return True
-		if self.DevModeEnabled:
+		if self.Mode == AuthMode.MOCK:
 			return True
 		if self.AuthServerPublicKey is None:
 			return False
@@ -204,7 +219,7 @@ class AuthService(asab.Service):
 		"""
 		Check if the superuser resource is present in the authorized resource list.
 		"""
-		if not self.AuthEnabled:
+		if self.Mode == AuthMode.DISABLED:
 			return True
 		return SUPERUSER_RESOURCE in authorized_resources
 
@@ -213,7 +228,7 @@ class AuthService(asab.Service):
 		"""
 		Check if the requested resources or the superuser resource are present in the authorized resource list.
 		"""
-		if not self.AuthEnabled:
+		if self.Mode == AuthMode.DISABLED:
 			return True
 		if self.has_superuser_access(authorized_resources):
 			return True
@@ -286,17 +301,17 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			if not self.AuthEnabled:
+			if self.Mode == AuthMode.DISABLED:
 				user_info = None
-			elif self.DevModeEnabled:
-				user_info = self.DevUserInfo
+			elif self.Mode == AuthMode.MOCK:
+				user_info = self.MockUserInfo
 			else:
 				# Extract user info from the request Authorization header
 				bearer_token = _get_bearer_token(request)
 				user_info = await self.get_userinfo_from_id_token(bearer_token)
 
 			# Add userinfo, tenants and global resources to the request
-			if self.AuthEnabled:
+			if self.Mode != AuthMode.DISABLED:
 				assert user_info is not None
 				request._UserInfo = user_info
 				resource_dict = request._UserInfo["resources"]
@@ -373,7 +388,7 @@ class AuthService(asab.Service):
 		if "tenant" in args:
 			if tenant_in_path:
 				handler = self._add_tenant_from_path(handler)
-			elif self.MultitenancyEnabled or self.DevModeEnabled:
+			elif self.MultitenancyEnabled or self.Mode == AuthMode.MOCK:
 				handler = self._add_tenant_from_query(handler)
 			else:
 				handler = self._add_tenant_none(handler)
@@ -404,7 +419,7 @@ class AuthService(asab.Service):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 			tenant = request.match_info["tenant"]
-			if self.AuthEnabled:
+			if self.Mode != AuthMode.DISABLED:
 				self._authorize_tenant_request(request, tenant)
 			return await handler(*args, tenant=tenant, **kwargs)
 
@@ -420,13 +435,13 @@ class AuthService(asab.Service):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 			if "tenant" not in request.query:
-				if not self.DevModeEnabled:
+				if self.Mode != AuthMode.MOCK:
 					L.error("Request is missing 'tenant' query parameter.")
 					raise aiohttp.web.HTTPBadRequest()
 				tenant = None
 			else:
 				tenant = request.query["tenant"]
-				if self.AuthEnabled:
+				if self.Mode != AuthMode.DISABLED:
 					self._authorize_tenant_request(request, tenant)
 			return await handler(*args, tenant=tenant, **kwargs)
 
