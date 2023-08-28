@@ -228,6 +228,7 @@ class Application(metaclass=Singleton):
 		parser.add_argument('-l', '--log-file', help='specify a path to a log file')
 		parser.add_argument('-w', '--web-api', help='activate Asab web API (default listening port is 0.0.0.0:8080)', const="0.0.0.0:8080", nargs="?")
 		parser.add_argument('--startup-housekeeping', help='trigger housekeeping event immediately after application startup')
+		parser.add_argument('--no-auth', action='store_true', help='disable all authentication and authorization')
 
 
 		if daemon is not None:

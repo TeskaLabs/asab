@@ -220,6 +220,8 @@ def escape_tags(tags: dict):
 	"""
 	clean: dict = {}
 	for k, v in tags.items():
+		if v is None:
+			v = "unknown"
 		clean[k.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")] = v.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
 	return clean
 
