@@ -40,12 +40,17 @@ class DocWebHandler(object):
 
 		self.DefaultRouteTag: str = asab.Config["asab:doc"].get("default_route_tag")
 		if self.DefaultRouteTag not in ["module_name", "class_name"]:
-			raise ValueError("Unknown default_route_tag: {}. Choose between options 'module_name' and 'class_name'.".format(self.DefaultRouteTag))
+			raise ValueError(
+				"Unknown default_route_tag: {}. Choose between options "
+				"'module_name' and 'class_name'.".format(self.DefaultRouteTag))
 
+		self.ServerUrls: str = asab.Config.get(config_section_name, "server_urls", fallback="/").strip().split("\n")
 
 
 	def build_swagger_documentation(self) -> dict:
-		"""Take a docstring of the class and a docstring of methods and merge them into Swagger data."""
+		"""
+		Take a docstring of the class and a docstring of methods and merge them into Swagger data.
+		"""
 		app_doc_string: str = self.App.__doc__
 		app_description: str = get_description(app_doc_string)
 		specification: dict = {
@@ -60,7 +65,7 @@ class DocWebHandler(object):
 				"version": "1.0.0",
 			},
 			"servers": [
-				{"url": "/", "description": "Here"}
+				{"url": url} for url in self.ServerUrls
 			],
 
 			# Base path relative to openapi endpoint
