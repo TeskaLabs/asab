@@ -9,8 +9,8 @@ asab.Config["web"] = {"listen": "0.0.0.0 8080"}
 # Disables or enables all authentication and authorization, or switches it into MOCK mode.
 # When disabled, the `resources` and `userinfo` handler arguments are set to `None`.
 asab.Config["auth"]["enabled"] = "mock"  # Mock authorization, useful for debugging.
-asab.Config["auth"]["enabled"] = "yes"   # Normal
-asab.Config["auth"]["enabled"] = "no"    # Authorization is switched off
+# asab.Config["auth"]["enabled"] = "yes"   # Authorization is enabled.
+# asab.Config["auth"]["enabled"] = "no"    # Authorization is disabled.
 
 # Changes the behavior of endpoints with configurable tenant parameter.
 # With multitenancy enabled, the `tenant` paramerter in query is required.

@@ -82,18 +82,19 @@ class AuthMode(enum.Enum):
 asab.Config.add_defaults({
 	"auth": {
 		# URL location containing the authorization server's public JWK keys
+		# (often found at "/.well-known/jwks.json")
 		"public_keys_url": "",
 
 		# Whether the app is tenant-aware
 		"multitenancy": "yes",
 
-		# Whether the authentication and authorization are enabled
-		# Expected values: either boolean or "mock"
+		# The "enabled" option switches authentication and authorization
+		# on, off or activates mock mode. The default value is True (on).
 		# In MOCK MODE
 		# - no authorization server is needed,
 		# - all incoming requests are mock-authorized with pre-defined user info,
 		# - custom mock user info can supplied in a JSON file.
-		"enabled": "yes",
+		# "enabled": "yes",
 		"mock_user_info_path": "/conf/mock-userinfo.json",
 	}
 })
@@ -110,7 +111,7 @@ class AuthService(asab.Service):
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
-		enabled = asab.Config.get("auth", "enabled")
+		enabled = asab.Config.get("auth", "enabled", fallback=True)
 		if enabled == "mock":
 			self.Mode = AuthMode.MOCK
 		elif asab.utils.string_to_boolean(enabled):
@@ -156,7 +157,7 @@ class AuthService(asab.Service):
 			"AuthService is running in MOCK MODE. All web requests will be authorized with mock user info, which "
 			"currently grants access to the following tenants: {}. To customize mock mode authorization (add or "
 			"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
-				list(t for t in self.MockUserInfo.get("resources", {}).keys() if t != "*"),
+				list(t for t in user_info.get("resources", {}).keys() if t != "*"),
 				mock_user_info_path))
 		return user_info
 
