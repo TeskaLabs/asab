@@ -104,7 +104,7 @@ class AuthService(asab.Service):
 	"""
 	Provides authentication and authorization of incoming requests.
 	"""
-	_PUBLIC_KEYS_URL_DEFAULT = "http://localhost:8081/openidconnect/public_keys"
+	_PUBLIC_KEYS_URL_DEFAULT = "http://localhost:3081/.well-known/jwks.json"
 
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
@@ -130,7 +130,8 @@ class AuthService(asab.Service):
 				"or install asab with 'authz' optional dependency.")
 		elif len(self.PublicKeysUrl) == 0:
 			self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
-			L.warning(
+			L.log(
+				asab.LOG_NOTICE,
 				"No 'public_keys_url' provided in [auth] config section. "
 				"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT))
 
