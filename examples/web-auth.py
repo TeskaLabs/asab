@@ -8,7 +8,7 @@ asab.Config["web"] = {"listen": "0.0.0.0 8080"}
 
 # Disables or enables all authentication and authorization, or switches it into MOCK mode.
 # When disabled, the `resources` and `userinfo` handler arguments are set to `None`.
-# asab.Config["auth"]["enabled"] = "mock"  # Mock authorization, useful for debugging.
+asab.Config["auth"]["enabled"] = "mock"  # Mock authorization, useful for debugging.
 # asab.Config["auth"]["enabled"] = "yes"   # Authorization is enabled.
 # asab.Config["auth"]["enabled"] = "no"    # Authorization is disabled.
 
@@ -24,7 +24,7 @@ asab.Config["auth"]["mock_user_info_path"] = "./mock-userinfo.json"
 
 # URL of the authorization server's JWK public keys, used for ID token verification.
 # This option is ignored in mock mode or when authorization is disabled.
-# asab.Config["auth"]["public_keys_url"] = "http://localhost:3081/.well-known/jwks.json"
+asab.Config["auth"]["public_keys_url"] = "http://localhost:3081/.well-known/jwks.json"
 
 
 class MyApplication(asab.Application):
