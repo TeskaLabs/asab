@@ -6,28 +6,25 @@ import typing
 # Set up a web container listening at port 8080
 asab.Config["web"] = {"listen": "0.0.0.0 8080"}
 
-# Disables or enables all authentication and authorization.
+# Disables or enables all authentication and authorization, or switches it into MOCK mode.
 # When disabled, the `resources` and `userinfo` handler arguments are set to `None`.
-asab.Config["auth"]["enabled"] = "yes"
+asab.Config["auth"]["enabled"] = "mock"  # Mock authorization, useful for debugging.
+# asab.Config["auth"]["enabled"] = "yes"   # Authorization is enabled.
+# asab.Config["auth"]["enabled"] = "no"    # Authorization is disabled.
 
 # Changes the behavior of endpoints with configurable tenant parameter.
 # With multitenancy enabled, the `tenant` paramerter in query is required.
 # With multitenancy disabled, the `tenant` paramerter in query is ignored.
 asab.Config["auth"]["multitenancy"] = "yes"
 
-# Activating the dev mode disables communication with the authorization server.
+# Activating the mock mode disables communication with the authorization server.
 # The requests' Authorization headers are ignored and AuthService provides mock authorization with mock user info.
-# You can provide custom user info by specifying `dev_user_info_path` pointing to your JSON file.
-asab.Config["auth"]["dev_mode"] = "yes"
-asab.Config["auth"]["dev_user_info_path"] = "./dev-userinfo.json"
+# You can provide custom user info by specifying the path pointing to your JSON file.
+asab.Config["auth"]["mock_user_info_path"] = "./mock-userinfo.json"
 
 # URL of the authorization server's JWK public keys, used for ID token verification.
-# This option is ignored in dev mode.
-asab.Config["auth"]["public_keys_url"] = "http://localhost:8081/openidconnect/public_keys"
-
-# URL of the authorization server's tenant list, used for tenant verification.
-# This option is ignored in dev mode.
-asab.Config["auth"]["tenant_url"] = "http://localhost:8081/tenant"
+# This option is ignored in mock mode or when authorization is disabled.
+asab.Config["auth"]["public_keys_url"] = "http://localhost:3081/.well-known/jwks.json"
 
 
 class MyApplication(asab.Application):

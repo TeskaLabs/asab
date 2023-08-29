@@ -269,6 +269,11 @@ class Application(metaclass=Singleton):
 				Config._default_values['web'] = {}
 			Config._default_values['web']['listen'] = args.web_api
 
+		if args.no_auth:
+			if 'auth' not in Config._default_values:
+				Config._default_values['auth'] = {}
+			Config._default_values['auth']['enabled'] = False
+
 		if args.startup_housekeeping:
 			Config._default_values['housekeeping']['run_at_startup'] = True
 

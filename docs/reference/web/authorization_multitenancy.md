@@ -39,7 +39,7 @@ class MyApplication(asab.Application):
 	You may also need to specify your authorization server's `public_keys_url`
 	(also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)).
 	In case you don't have any authorization server at hand,
-	you can run the auth module in `dev_mode`. See the `configuration` section for details.
+	you can run the auth module in "mock mode". See the `configuration` section for details.
 
 
 Every handler in `WebContainer` now accepts only requests with a valid authentication.
@@ -56,7 +56,9 @@ async def order_breakfast(self, request, *, tenant, user_info, resources):
 	user_name = user_info["preferred_username"]
 	if "pancakes:eat" in resources:
 		...
-	return asab.web.rest.json_response(request, {"result": "Your breakfast is being prepared!"})
+	return asab.web.rest.json_response(request, {
+		"result": "Good morning {}, your breakfast will be ready in a minute!".format(user_name)
+	})
 ```
 
 See [examples/web-auth.py](https://github.com/TeskaLabs/asab/blob/master/examples/web-auth.py) for a full demo ASAB application with auth module.
@@ -66,20 +68,20 @@ See [examples/web-auth.py](https://github.com/TeskaLabs/asab/blob/master/example
 The `asab.web.auth` module is configured
 in the `[auth]` section with the following options:
 
-| Option | Type | Meaning |
-| --- | --- | --- |
-| `public_keys_url` | URL | The URL of the authorization server's public keys (also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)) |
-| `multitenancy` | boolean | Toggles the behavior of endpoints with configurable tenant parameter. When enabled, the tenant query paramerter is required. When disabled, the tenant query parameter is ignored and set to `None`. In dev mode, the multitenancy switch is ignored and the tenant parameter is taken into account only when it is present in query, otherwise it is set to `None`. |
-| `dev_mode` | boolean | In dev mode, all incoming requests are authenticated and authorized with mock user info. There is no communication with the authorization server (so it is not necessary to configure `public_keys_url` in dev mode).
-| `dev_user_info_path` | path | Path to JSON file that contains mock user info used in dev mode. The structure of user info should follow the [OpenID Connect userinfo definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse) and also contain the `resources` object.
+| Option                | Type             | Meaning |
+|-----------------------|------------------| --- |
+| `public_keys_url`     | URL              | The URL of the authorization server's public keys (also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)) |
+| `multitenancy`        | boolean          | Toggles the behavior of endpoints with configurable tenant parameter. When enabled, the tenant query paramerter is required. When disabled, the tenant query parameter is ignored and set to `None`. In dev mode, the multitenancy switch is ignored and the tenant parameter is taken into account only when it is present in query, otherwise it is set to `None`. |
+| `enabled`             | boolean or `"mock"` | Enables or disables authentication and authorization or switches to mock authorization. In mock mode, all incoming requests are authorized with mock user info. There is no communication with the authorization server (so it is not necessary to configure `public_keys_url` in dev mode).
+| `mock_user_info_path` | path             | Path to JSON file that contains user info claims used in mock mode. The structure of user info should follow the [OpenID Connect userinfo definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse) and also contain the `resources` object.
 
 Default options:
 
 ```ini
-public_keys_url=http://localhost:8081/openidconnect/public_keys
+public_keys_url=http://localhost:3081/.well-known/jwks.json
 multitenancy=yes
-dev_mode=no
-dev_user_info_path=/conf/dev-userinfo.json
+enabled=yes
+mock_user_info_path=/conf/mock-userinfo.json
 ```
 
 ## Multitenancy
@@ -162,20 +164,20 @@ Any `tenant` parameter in the query string is ignored.
 		GET http://localhost:8080/todays-menu
 		```
 
-## Development mode
+## Mock mode
 
-In dev mode, actual authorization is disabled and replaced with mock authorization.
-Dev mode is useful for developing ASAB apps without an authorization server. Activate dev mode by enabling `dev_mode` in the `[auth]` config section.
-You can also specify a path to a JSON file with your own mocked userinfo payload `[auth] dev_user_info_path`:
+In mock mode, actual authorization is disabled and replaced with mock authorization, which is useful when you want 
+to develop your ASAB application, but don't have any authorization server at hand. 
+Activate mock mode by setting `enabled=mock` in the `[auth]` config section.
+You can also specify a path to a JSON file with your own mock userinfo payload `[auth] mock_user_info_path`:
 
 ``` ini
 [auth]
-dev_mode=yes
-dev_user_info_path=${THIS_DIR}/mock_userinfo.json
+enabled=mock
+mock_user_info_path=${THIS_DIR}/mock_userinfo.json
 ```
 
-When dev mode is enabled, you don't have to provide
-`[public_keys_url]` as this option is ignored.
+When dev mode is enabled, you don't have to provide `[public_keys_url]` since this option is ignored.
 
 ## Reference
 
