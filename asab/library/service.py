@@ -89,14 +89,14 @@ class LibraryService(Service):
 		for layer, path in enumerate(paths):
 			# Create library for each layer of paths
 			self._create_library(path, layer)
-		app.PubSub.subscribe("Application.tick/60!", self._on_tick)
+		app.PubSub.subscribe("Application.tick/60!", self._on_tick60)
 
 	async def finalize(self, app):
 		while len(self.Libraries) > 0:
 			lib = self.Libraries.pop(-1)
 			await lib.finalize(self.App)
 
-	async def _on_tick(self, message_type):
+	async def _on_tick60(self, message_type):
 		await self._read_disabled()
 
 	def _create_library(self, path, layer):
@@ -287,6 +287,9 @@ class LibraryService(Service):
 				self.Disabled = yaml.safe_load(disabled)
 				if self.Disabled is None:
 					self.Disabled = {}
+				elif isinstance(self.Disabled, set):
+					# This is for a backward compatibility (Aug 2023)
+					self.Disabled = {key: '*' for key in self.Disabled}
 				else:
 					# Disabled must be a dictionary object
 					assert (isinstance(self.Disabled, dict)), "The 'Disabled' attribute must be a dictionary instance."
