@@ -84,7 +84,7 @@ class SentryService(asab.Service):
 
 		# RELEASE
 		# Release can be obtained from MANIFEST.json if exists
-		manifest = None
+		manifest = {}
 		manifest_path = asab.Config.get("general", "manifest", fallback="")
 		if manifest_path == "":
 			if os.path.isfile("/app/MANIFEST.json"):
@@ -101,10 +101,7 @@ class SentryService(asab.Service):
 			except Exception as e:
 				L.exception("Error when reading manifest for reason {}".format(e))
 
-		if manifest is not None:
-			self.Release = manifest.get("version", fallback="not specified")
-		else:
-			self.Release = "not specified"
+		self.Release = manifest.get("version", "not specified")
 
 		# PERFORMANCE MONITORING
 		# traces sample rate: percentage of captured events
