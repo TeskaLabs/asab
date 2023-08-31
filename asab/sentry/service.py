@@ -145,6 +145,11 @@ class SentryService(asab.Service):
 			sentry_sdk.set_tag("instance_id", self.InstanceId)
 
 
+		# IMPORTANT: This is because the default settings truncates long stack traces
+		# https://stackoverflow.com/questions/53699110/how-do-i-increase-the-max-length-of-captured-python-parameters-in-sentry
+		sentry_sdk.utils.MAX_STRING_LENGTH = 8192
+
+
 	def capture_exception(self, error=None, scope=None, **scope_args):
 		"""
 		Capture caught exception and send it to Sentry.
