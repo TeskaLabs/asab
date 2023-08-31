@@ -15,9 +15,17 @@ try:
 	import sentry_sdk.integrations.aiohttp
 	import sentry_sdk.integrations.asyncio
 	import sentry_sdk.integrations.logging
+
+	# IMPORTANT: This is because the default settings truncates long stack traces
+	# https://stackoverflow.com/questions/53699110/how-do-i-increase-the-max-length-of-captured-python-parameters-in-sentry
+	sentry_sdk.utils.MAX_STRING_LENGTH = 8192
+
 except ModuleNotFoundError:
 	L.critical("Package for Sentry SDK not found. Install it with: pip install sentry-sdk")
 	sys.exit(1)
+
+
+
 
 
 class SentryService(asab.Service):
@@ -143,12 +151,6 @@ class SentryService(asab.Service):
 			sentry_sdk.set_tag("service_id", self.ServiceId)
 		if self.InstanceId:
 			sentry_sdk.set_tag("instance_id", self.InstanceId)
-
-
-		# IMPORTANT: This is because the default settings truncates long stack traces
-		# https://stackoverflow.com/questions/53699110/how-do-i-increase-the-max-length-of-captured-python-parameters-in-sentry
-		sentry_sdk.utils.MAX_STRING_LENGTH = 8192
-
 
 	def capture_exception(self, error=None, scope=None, **scope_args):
 		"""
