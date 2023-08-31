@@ -118,7 +118,7 @@ def watch_table(metric_records: list, filter, tags):
 		separator = "-" * (m_name_len + v_name_len + timestamp_len + 30 + 2)
 
 	lines.append(separator)
-	lines.append(build_line("Metric name", "Value name", "Value", "Timestamp", m_name_len, v_name_len, tags, timestamp_len, t_string="Tags", t_name_len=t_name_len))
+	lines.append(build_line("Metric name", "Value name", "Value", "Timestamp", m_name_len, v_name_len, tags, timestamp_len, "Actuals", t_string="Tags", t_name_len=t_name_len))
 	lines.append(separator)
 
 	for metric_record in metric_records:
@@ -147,13 +147,13 @@ def watch_table(metric_records: list, filter, tags):
 
 			else:
 				for key, value in field.get("values").items():
-					lines.append(build_line(str(name), str(key), str(value), str(timestamp), m_name_len, v_name_len, tags, timestamp_len, t_string=str(field["tags"]), t_name_len=t_name_len))
+					lines.append(build_line(str(name), str(key), str(value), str(timestamp), m_name_len, v_name_len, tags, timestamp_len, str(field.get("actuals", {}).get(key)), t_string=str(field["tags"]), t_name_len=t_name_len))
 
 	text = "\n".join(lines)
 	return text
 
 
-def build_line(name, value_name, value, timestamp, m_name_len, v_name_len, tags, timestamp_len, upperbound=None, t_string=None, t_name_len=None):
+def build_line(name, value_name, value, timestamp, m_name_len, v_name_len, tags, timestamp_len, actuals="", upperbound=None, t_string=None, t_name_len=None):
 	if upperbound is not None:
 		if tags:
 			line = (
@@ -186,12 +186,13 @@ def build_line(name, value_name, value, timestamp, m_name_len, v_name_len, tags,
 	else:
 		if tags:
 			line = (
-				"{:<{m_name_len}} | {:<{t_name_len}} | {:<{v_name_len}} | {:<25} | {:<{timestamp_len}}".format(
+				"{:<{m_name_len}} | {:<{t_name_len}} | {:<{v_name_len}} | {:<25} | {:<{timestamp_len}} | {:<25}".format(
 					name,
 					t_string,
 					value_name,
 					value,
 					timestamp,
+					actuals,
 					v_name_len=v_name_len,
 					m_name_len=m_name_len,
 					t_name_len=t_name_len,
@@ -200,11 +201,12 @@ def build_line(name, value_name, value, timestamp, m_name_len, v_name_len, tags,
 			)
 		else:
 			line = (
-				"{:<{m_name_len}} | {:<{v_name_len}} | {:<25} | {:<{timestamp_len}}".format(
+				"{:<{m_name_len}} | {:<{v_name_len}} | {:<25} | {:<{timestamp_len}} | {:<25}".format(
 					name,
 					value_name,
 					value,
 					timestamp,
+					actuals,
 					v_name_len=v_name_len,
 					m_name_len=m_name_len,
 					timestamp_len=timestamp_len
