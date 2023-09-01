@@ -106,8 +106,7 @@ class ConfigParser(configparser.ConfigParser):
 			"at": "03:00",
 			"limit": "05:00",
 			"run_at_startup": "no",
-		}
-
+		},
 	}
 
 	if 'ASAB_ZOOKEEPER_SERVERS' in os.environ:
