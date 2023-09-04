@@ -213,3 +213,4 @@ nav:
     - examples/websocket-chat.md
     - examples/zookeeper-advertise.md
     - examples/zookeeper.md
+    - examples/config_getmultiline.md
