@@ -156,6 +156,8 @@ class SentryService(asab.Service):
 		sentry_sdk.set_tag("app.hostname", app.HostName)  # e.g. 'lmio-box-1'
 		sentry_sdk.set_tag("app.class", app.__class__.__name__)  # e.g. 'LMIOParsecApplication'
 
+		L.info("Sentry service initialized.")
+
 
 	def capture_exception(self, error=None, scope=None, **scope_args):
 		"""
