@@ -155,7 +155,7 @@ class SentryService(asab.Service):
 
 		sentry_sdk.set_tag("appclass", app.__class__.__name__)  # e.g. 'LMIOParsecApplication'
 
-		L.info("is ready.")
+		L.info("is ready.")  # for debugging, visible only if argument '-v' is set
 
 
 	def capture_exception(self, error=None, scope=None, **scope_args):
