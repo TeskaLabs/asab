@@ -57,7 +57,7 @@ class SentryService(asab.Service):
 
 	"""
 
-	def __init__(self, app, service_name: str = "asab.SentryService"):
+	def __init__(self, app: asab.Application, service_name: str = "asab.SentryService"):
 		super().__init__(app, service_name)
 
 
@@ -88,7 +88,7 @@ class SentryService(asab.Service):
 		self.LoggingEventsLevel = levels.get(asab.Config.get("sentry:logging", "events").lower(), "error")
 
 		# ENVIRONMENT (e.g. "production", "testing", ...)
-		self.Environment = asab.Config.get("sentry", "environment")  # default: "develop"
+		self.Environment = asab.Config.get("sentry", "environment")  # default: "development"
 
 		# RELEASE
 		# Release can be obtained from MANIFEST.json if exists
@@ -126,8 +126,8 @@ class SentryService(asab.Service):
 				sentry_sdk.integrations.aiohttp.AioHttpIntegration(),
 				sentry_sdk.integrations.asyncio.AsyncioIntegration(),
 				sentry_sdk.integrations.logging.LoggingIntegration(
-					level=self.LoggingBreadCrumbsLevel,
-					event_level=self.LoggingEventsLevel,
+					level=self.LoggingBreadCrumbsLevel,  # logging level sent to breadcrumbs
+					event_level=self.LoggingEventsLevel,  # logging level sent to events
 				),
 			],
 			traces_sample_rate=self.TracesSampleRate,  # percentage of captured events
@@ -135,6 +135,7 @@ class SentryService(asab.Service):
 			release=self.Release,  # version of the microservice, e.g., v23.40-alpha
 			auto_session_tracking=True,  # session info about interaction between user and app
 			debug=False,  # ...sends many irrelevant messages
+			max_value_length=8192,  # longer messages are truncated, the default value (1024) is too short
 		)
 		# TODO: Investigate CA certs, TLS/SSL, Security Tokens, Allowed Domains
 
@@ -151,6 +152,11 @@ class SentryService(asab.Service):
 			sentry_sdk.set_tag("service_id", self.ServiceId)
 		if self.InstanceId:
 			sentry_sdk.set_tag("instance_id", self.InstanceId)
+
+		sentry_sdk.set_tag("appclass", app.__class__.__name__)  # e.g. 'LMIOParsecApplication'
+
+		L.info("is ready.")  # for debugging, visible only if argument '-v' is set
+
 
 	def capture_exception(self, error=None, scope=None, **scope_args):
 		"""
