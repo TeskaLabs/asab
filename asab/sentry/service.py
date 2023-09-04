@@ -60,6 +60,7 @@ class SentryService(asab.Service):
 	def __init__(self, app: asab.Application, service_name: str = "asab.SentryService"):
 		super().__init__(app, service_name)
 
+		L.info("Initializing...")
 
 		# DATA SOURCE NAME (DSN)
 		# format: https://<public key>@o<secret key>.ingest.sentry.io/<project id>
@@ -135,7 +136,7 @@ class SentryService(asab.Service):
 			release=self.Release,  # version of the microservice, e.g., v23.40-alpha
 			auto_session_tracking=True,  # session info about interaction between user and app
 			debug=False,  # ...sends many irrelevant messages
-			max_value_length=8192,  # longer messages are truncated, the default value (1024) is too short
+			# max_value_length=8192,  # longer messages are truncated, the default value (1024) is too short
 		)
 		# TODO: Investigate CA certs, TLS/SSL, Security Tokens, Allowed Domains
 
@@ -156,7 +157,7 @@ class SentryService(asab.Service):
 		sentry_sdk.set_tag("app.hostname", app.HostName)  # e.g. 'lmio-box-1'
 		sentry_sdk.set_tag("app.class", app.__class__.__name__)  # e.g. 'LMIOParsecApplication'
 
-		L.info("Sentry service initialized.")
+		L.log(asab.LOG_NOTICE, "is ready.")
 
 
 	def capture_exception(self, error=None, scope=None, **scope_args):
