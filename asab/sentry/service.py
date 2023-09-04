@@ -135,7 +135,7 @@ class SentryService(asab.Service):
 			release=self.Release,  # version of the microservice, e.g., v23.40-alpha
 			auto_session_tracking=True,  # session info about interaction between user and app
 			debug=False,  # ...sends many irrelevant messages
-			# max_value_length=8192,  # longer messages are truncated, the default value (1024) is too short
+			max_value_length=8192,  # longer messages are truncated, the default value (1024) is too short
 		)
 		# TODO: Investigate CA certs, TLS/SSL, Security Tokens, Allowed Domains
 
