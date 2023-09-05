@@ -168,7 +168,10 @@ class Logging(object):
 			self.RootLogger.setLevel(logging.DEBUG)
 		else:
 			level_name = Config["logging"]["level"].upper()
-			self.RootLogger.setLevel(_NAME_TO_LEVEL.get(level_name, level_name))
+			try:
+				self.RootLogger.setLevel(_NAME_TO_LEVEL.get(level_name, level_name))
+			except ValueError:
+				L.error("Cannot detect logging level '{}'".format(level_name))
 
 		# Fine-grained log level configurations
 		levels = Config["logging"].get('levels')
@@ -183,7 +186,10 @@ class Logging(object):
 				L.error("Cannot read line '{}' in '[logging] levels' section, expected format: 'logger_name level_name'.".format(level_line))
 				continue
 			level = _NAME_TO_LEVEL.get(level_name.upper(), level_name.upper())
-			logging.getLogger(logger_name).setLevel(level)
+			try:
+				logging.getLogger(logger_name).setLevel(level)
+			except ValueError:
+				L.error("Cannot detect logging level '{}' for {} logger".format(level_name, logger_name))
 
 	def rotate(self):
 		if self.FileHandler is not None:
