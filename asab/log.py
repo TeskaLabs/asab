@@ -24,6 +24,24 @@ Info log level that is visible in non-verbose mode. It should not be used for wa
 
 logging.addLevelName(LOG_NOTICE, "NOTICE")
 
+L = logging.getLogger(__name__)
+
+_NAME_TO_LEVEL = {
+	"NOTSET": logging.NOTSET,
+	"NOT SET": logging.NOTSET,
+	"NOT_SET": logging.NOTSET,
+	"DEBUG": logging.DEBUG,
+	"INFO": logging.INFO,
+	"NOTICE": LOG_NOTICE,
+	"LOG_NOTICE": LOG_NOTICE,
+	"LOG NOTICE": LOG_NOTICE,
+	"WARNING": logging.WARNING,
+	"WARN": logging.WARNING,
+	"ERROR": logging.ERROR,
+	"FATAL": logging.CRITICAL,
+	"CRITICAL": logging.CRITICAL,
+}
+
 
 class Logging(object):
 
@@ -149,18 +167,23 @@ class Logging(object):
 		if Config["logging"].getboolean("verbose"):
 			self.RootLogger.setLevel(logging.DEBUG)
 		else:
-			self.RootLogger.setLevel(Config["logging"]["level"])
+			level_name = Config["logging"]["level"].upper()
+			self.RootLogger.setLevel(_NAME_TO_LEVEL.get(level_name, level_name))
 
 		# Fine-grained log level configurations
 		levels = Config["logging"].get('levels')
-		for levelconf in levels.split('\n'):
-			levelconf = levelconf.strip()
-			if len(levelconf) == 0 or levelconf.startswith('#') or levelconf.startswith(';'):
+		for level_line in levels.split('\n'):
+			level_line = level_line.strip()
+			if len(level_line) == 0 or level_line.startswith('#') or level_line.startswith(';'):
+				# line starts with a comment
 				continue
-			loggername, levelname = levelconf.split(' ', 1)
-			level = logging.getLevelName(levelname.upper())
-			logging.getLogger(loggername).setLevel(level)
-
+			try:
+				logger_name, level_name = level_line.split(' ', 1)
+			except ValueError:
+				L.error("Cannot read line '{}' in '[logging] levels' section, expected format: 'logger_name level_name'.".format(level_line))
+				continue
+			level = _NAME_TO_LEVEL.get(level_name.upper(), level_name.upper())
+			logging.getLogger(logger_name).setLevel(level)
 
 	def rotate(self):
 		if self.FileHandler is not None:
