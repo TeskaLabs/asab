@@ -12,15 +12,13 @@ L = logging.getLogger(__name__)
 
 
 class TaskService(asab.Service):
-
-	'''
+	"""
 	Task service is for managed execution of fire-and-forget, one-off, background tasks.
-	The task is a coroutine, future (asyncio.ensure_future) or task (asyncio.create_task).
-	The task is executed in the main event loop.
+	Task can be a coroutine, `asyncio.Future` or `asyncio.Task` and it is executed in the main event loop.
 
-	The result of the task is collected (and discarted) automatically
-	and if there was an exception, it will be printed to the log.
-	'''
+	The result of the task is collected (and discarded) automatically.
+	When the task raises Exception, it will be printed to the log, but only after all the scheduled tasks are finished.
+	"""
 
 	def __init__(self, app, service_name="asab.TaskService"):
 		super().__init__(app, service_name)
@@ -67,7 +65,7 @@ class TaskService(asab.Service):
 
 		total_tasks = len(self.PendingTasks) + self.NewTasks.qsize()
 		if total_tasks > 0:
-			L.warning("{}+{} pending and incompleted tasks".format(len(self.PendingTasks), self.NewTasks.qsize()))
+			L.warning("{}+{} pending and incomplete tasks".format(len(self.PendingTasks), self.NewTasks.qsize()))
 
 
 	def _main_task_exited(self, ctx):
@@ -86,41 +84,40 @@ class TaskService(asab.Service):
 
 
 	def schedule(self, *tasks):
-		'''
-		Schedule a task (or tasks) for immediate fire-and-forget execution.
+		"""
+		Schedule a task (or tasks) for immediate fire-and-forget execution (e.g. compressing files).
 
 		Task can be a simple coroutine, future or task.
 
 		Example of use:
-
+		```python
 		app.TaskService.schedule(self._start())
-
-		'''
+		```
+		"""
 		for task in tasks:
 			self.NewTasks.put_nowait(task)
 
 
 	def run_forever(self, *async_functions):
-		'''
+		"""
 		Schedule an async function (or functions) for immediate fire-and-forget execution.
 		The function is expected to run forever.
 		If function exits, the error is logged and the function is restarted.
 		Function is called without any argument.
 
-		Example of use:
+		Examples:
 
+		```python
 		class MyClass(object):
-
 			def __init__(self, app):
 				...
 				app.TaskService.run_forever(self.my_forever_method)
 
-
 			async def my_forever_method(self):
 				while True:
 					await ...
-
-		'''
+		```
+		"""
 		for async_fn in async_functions:
 			self.NewTasks.put_nowait(
 				forever(async_fn)

@@ -17,7 +17,8 @@ class ProactorService(asab.Service):
 			max_workers = None
 
 		self.Executor = concurrent.futures.ThreadPoolExecutor(
-			max_workers=max_workers,
+			max_workers=max_workers,  # The maximum number of threads that can be used to execute the given calls.
+			# If None, ThreadPoolExecutor will determine the number itself based on number of CPU's.
 			thread_name_prefix="AsabProactorThread"
 		)
 
@@ -27,18 +28,18 @@ class ProactorService(asab.Service):
 
 	# There was the method run, which is obsolete
 	def execute(self, func, *args):
-		'''
-		The `execute` method executes func(*args) in the thread from the Proactor Service pool.
+		"""
+		Execute `func(*args)` in the thread from the Proactor Service pool.
 		The method returns the future/task that MUST BE awaited and it provides the result of the func() call.
-		'''
+		"""
 		return self.Loop.run_in_executor(self.Executor, func, *args)
 
 
 	def schedule(self, func, *args):
-		'''
-		The `schedule` method executes func(*args) in the thread from the Proactor Service pool.
-		The result of the future is discarted (using Task Service)
-		'''
+		"""
+		Execute `func(*args)` in the thread from the Proactor Service pool.
+		The result of the future is discarded (using Task Service).
+		"""
 
 		future = self.execute(func, *args)
 		self.App.TaskService.schedule(future)
