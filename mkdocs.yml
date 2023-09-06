@@ -172,7 +172,16 @@ nav:
     - Logging: reference/logging.md
     - PubSub: reference/pubsub.md
     - Library Service: reference/library.md
-    - Metrics Service: reference/metrics/reference.md
+
+    - Metrics:
+      - reference/metrics/index.md
+      - Monitoring: reference/metrics/monitoring.md
+      - Interpretation: reference/metrics/interpretation.md
+      - Create metrics: reference/metrics/create_metrics.md
+      - Types of metrics: reference/metrics/metrics_types.md
+      - Built-in metrics: reference/metrics/built_ins.md
+      - Tags: reference/metrics/tags.md
+
     - Storage Service: reference/storage.md
     - Zookeeper: reference/zookeeper.md
     - Utility functions and classes: 
