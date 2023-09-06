@@ -101,7 +101,7 @@ class LibraryService(Service):
 
 	def _create_library(self, path, layer):
 		library_provider = None
-		if path.startswith('zk://') or path.startswith('zookeeeper://'):
+		if path.startswith('zk://') or path.startswith('zookeeper://'):
 			from .providers.zookeeper import ZooKeeperLibraryProvider
 			library_provider = ZooKeeperLibraryProvider(self, path, layer)
 
