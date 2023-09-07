@@ -170,18 +170,24 @@ def validate_url(input_url: str, scheme: typing.Union[str, typing.Tuple[str], No
 
 def running_in_container() -> bool:
 	"""
-	Check if the application is running in Docker or LXC container.
+	Check if the application is running in Docker or Podman container.
 
 	Returns:
 		bool: `True` if the application is running in a container.
 	"""
 
+	# The process ID is 1 only in the docker/podman container
+	if os.getpid() == 1:
+		return True
+
+	# This works for older versions of Ubuntu with cgroups v1 and Docker
 	if os.path.exists('/.dockerenv') and os.path.isfile('/proc/self/cgroup'):
 		with open('/proc/self/cgroup', "r") as f:
 			if any('docker' in line for line in f.readlines()):
 				return True
 
-	# since Ubuntu 22.04 linux kernel uses cgroups v2 which do not operate with /proc/self/cgroup file
+	# Since Ubuntu 22.04 linux kernel uses cgroups v2 which do not operate with /proc/self/cgroup file
+	# Works only for "overlay" filesystem.
 	if os.path.isfile('/proc/self/mountinfo'):
 		with open('/proc/self/mountinfo', "r") as f:
 			for line in f.readlines():
@@ -189,7 +195,7 @@ def running_in_container() -> bool:
 				if ' / / ' not in line:
 					continue
 
-				# Is the root filesystem runs on overlay?
+				# Is the root filesystem overlay?
 				if ' overlay ' not in line:
 					continue
 
