@@ -37,17 +37,17 @@ After you create a new project in Sentry.io, [DSN (data source name)](https://do
 Then you can initialize the Sentry Service:
 
 ```python title='my_app.py'
-import asab.sentry
-
 class MyApplication(asab.Application):
 	async def initialize(self):
-		self.SentryService = asab.sentry.SentryService()
+		if "sentry" in asab.Config.sections():
+			import asab.sentry
+			self.SentryService = asab.sentry.SentryService(self)
 ```
 
 After the service is initialized:
 
 - all uncaught exceptions are sent as events
-- all logging messages with priority `ERROR` or higher are sent as events, messages with priority `LOG_NOTICE` or higher are sent as breadcrumbs
+- all logging messages with priority `ERROR` or higher are sent as events, messages with priority `INFO` or higher are sent as breadcrumbs
 
 ## Capturing errors
 

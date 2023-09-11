@@ -26,8 +26,6 @@ except ModuleNotFoundError:
 
 
 
-
-
 class SentryService(asab.Service):
 	"""
 	Service for Sentry SDK integration.
@@ -40,21 +38,19 @@ class SentryService(asab.Service):
 	Configuration:
 	```ini
 	[sentry]
-	data_source_name=
+	data_source_name=... ; DSN of the project
+	environment=... ; default: 'not specified'
 	```
 
 	Examples:
+
 	```python
-	sentry_svc = app.get_service("SentryService")
-
-	try:
-		call_collapsing_function()
-	except Exception as e:
-		sentry_svc.capture_exception(e)
-
-	sentry_svc.capture_message("User was deleted from database.")
+	class MyApp(asab.Application):
+		async def initialize(self):
+			if "sentry" in asab.Config.sections():
+				import asab.sentry
+				self.SentryService = asab.sentry.SentryService(self)
 	```
-
 	"""
 
 	def __init__(self, app: asab.Application, service_name: str = "asab.SentryService"):
@@ -65,13 +61,13 @@ class SentryService(asab.Service):
 		# format: https://<public key>@o<secret key>.ingest.sentry.io/<project id>
 		# DSN is automatically generated when new project is created
 		# and can be modified: Settings > Client Keys (DSN) > Key Details
-		# Specification: either in configuration or via $SENTRY_DSN environment variable
+		# Specification: either in configuration '[sentry] data_source_name', $SENTRY_DSN environment variable as a fallback
 		self.DataSourceName = asab.Config.get("sentry", "data_source_name", fallback="")
 		if len(self.DataSourceName) == 0:
 			self.DataSourceName = os.getenv("SENTRY_DSN", "")
 		if len(self.DataSourceName) == 0:
 			# We do not need Sentry enabled in development - if DSN is empty, do not initialize the service
-			L.info("Data source name is not set. Specify it via SENTRY_DSN env variable or in configuration: [sentry] data_source_name.")
+			L.error("Data source name is not set. Specify it via SENTRY_DSN env variable or in configuration: '[sentry] data_source_name'.")
 			return
 
 
@@ -86,8 +82,8 @@ class SentryService(asab.Service):
 			"critical": logging.CRITICAL
 		}
 
-		self.LoggingBreadCrumbsLevel = levels.get(asab.Config.get("sentry:logging", "breadcrumbs").lower(), "notice")
-		self.LoggingEventsLevel = levels.get(asab.Config.get("sentry:logging", "events").lower(), "error")
+		self.LoggingBreadCrumbsLevel = levels.get(asab.Config.get("sentry:logging", "breadcrumbs").lower())
+		self.LoggingEventsLevel = levels.get(asab.Config.get("sentry:logging", "events").lower())
 
 		# ENVIRONMENT (e.g. "production", "testing", ...)
 		self.Environment = asab.Config.get("sentry", "environment")  # default: "development"

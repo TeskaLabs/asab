@@ -11,7 +11,7 @@ Config.add_defaults(
 
 		"sentry:logging": {
 			"breadcrumbs": "info",
-			"events": "warning"
+			"events": "error"
 		}
 	}
 )
