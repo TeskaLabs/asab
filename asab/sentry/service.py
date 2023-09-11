@@ -66,9 +66,9 @@ class SentryService(asab.Service):
 		if len(self.DataSourceName) == 0:
 			self.DataSourceName = os.getenv("SENTRY_DSN", "")
 		if len(self.DataSourceName) == 0:
-			# We do not need Sentry enabled in development - if DSN is empty, do not initialize the service
-			L.error("Data source name is not set. Specify it via SENTRY_DSN env variable or in configuration: '[sentry] data_source_name'.")
-			return
+			# We do not need Sentry enabled in development - empty DSN leads to failure
+			L.critical("Data source name is not set. Specify it in configuration: '[sentry] data_source_name'.")
+			raise SystemExit("Exit due to a critical configuration error.")
 
 
 		# LOGGING LEVELS
