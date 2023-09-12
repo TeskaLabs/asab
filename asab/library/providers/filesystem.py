@@ -66,7 +66,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		# File path must end with the extension
 		assert len(os.path.splitext(node_path)[1]) > 0, "File path must end with an extension. For example: /library/Templates/item.json"
 		# File cannot contain '//'
-		assert '//' not in node_path
+		assert '//' not in node_path, "File path cannot contain double slashes (//). Example format: /library/Templates/item.json"
 
 		try:
 			return io.FileIO(node_path, 'rb')
@@ -92,7 +92,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		# Directory path must end with '/'
 		assert node_path[-1:] == '/', "Directory path must end with a forward slash (/). For example: /library/Templates/"
 		# Directory cannot contain '//'
-		assert '//' not in node_path
+		assert '//' not in node_path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
 
 		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
 		if not exists:
