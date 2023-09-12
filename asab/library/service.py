@@ -77,12 +77,14 @@ class LibraryService(Service):
 		self.Disabled: dict = {}
 
 		if paths is None:
+			# load them from configuration
 			try:
-				paths = Config.get("library", "providers")
+				paths = Config.getmultiline("library", "providers")
 			except configparser.NoOptionError:
 				L.critical("'providers' option is not present in configuration section 'library'.")
 				raise SystemExit("Exit due to a critical configuration error.")
 
+		# paths can be string if specified as argument
 		if isinstance(paths, str):
 			paths = re.split(r"\s+", paths)
 
