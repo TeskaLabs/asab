@@ -149,10 +149,7 @@ class WebContainer(Configurable):
 			try:
 				await site.start()
 			except OSError as err:
-				if "address already in use" in str(err):
-					L.error("Cannot start web server: address ({}, {}) is already in use.".format(addr, port))
-				else:
-					L.error("Cannot start web server on address ({}, {}): {}".format(addr, port, err))
+				L.error("Cannot start web server: {}".format(err), struct_data={'address': addr, 'port': port})
 
 			if isinstance(site, aiohttp.web_runner.TCPSite):
 				for address in site._runner.addresses:
