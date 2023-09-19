@@ -17,7 +17,7 @@ class TaskService(asab.Service):
 	Task can be a coroutine, `asyncio.Future` or `asyncio.Task` and it is executed in the main event loop.
 
 	The result of the task is collected (and discarded) automatically.
-	When the task raises Exception, it will be printed to the log, but only after all the scheduled tasks are finished.
+	When the task raises Exception, it will be printed to the log.
 	"""
 
 	def __init__(self, app, service_name="asab.TaskService"):
