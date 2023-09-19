@@ -38,8 +38,8 @@ Table of ASAB built-in Services and Modules:
 | [`ZooKeeperService`](../zookeeper) | `asab.zookeeper` | Synchronizing data with Apache Zookeeper |
 | [`MetricService`](../metrics/reference) | `asab.metric` | Analysis of the application state in a timescale manner |
 | [`AlertService`](../alert) | `asab.alert` | Integration of Alert Managers |
-| `TaskService`| `asab.task`| Execution of one-off background tasks |
-| `ProactorService` | `asab.proactor` | Running long-time activities asynchronously |
+| [`TaskService`](../task) | `asab.task`| Execution of one-off background tasks |
+| [`ProactorService`](../proactor) | `asab.proactor` | Running CPU bound operations asynchronously |
 | [`ApiService`](../web/rest*_api_docs) | `asab.api` | Implementation of Swagger documentation |
 
 
