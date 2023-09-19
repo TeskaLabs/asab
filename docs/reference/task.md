@@ -7,9 +7,11 @@ Task service is for managed execution of fire-and-forget, one-off, background ta
 The result of the task is collected (and discarded) automatically.
 When the task raises Exception, it will be printed to the log.
 
+`TaskService` is handy for dealing with so called "I/O bound operations", especially for calling asynchronous operations from the synchronous part of code. 
+
 !!! info "I/O bound operations"
 
-	`TaskService` is handy for dealing with so called "I/O bound operations". These operations refer to tasks that spend more time waiting for input/output operations to complete than they do performing actual computations, e.g., reading or writing large files from/to a disk, making API calls, fetching data from a remote database. The speed of these operations is determined by the speed of the I/O subsystems, such as disk drivers, network interfaces, etc.
+	I/O bound operations refer to tasks that spend more time waiting for input/output operations to complete than they do performing actual computations, e.g., reading or writing large files from/to a disk, making API calls, fetching data from a remote database. The speed of these operations is determined by the speed of the I/O subsystems, such as disk drivers, network interfaces, etc.
 
 !!! example "Usage of Task Service"
 
