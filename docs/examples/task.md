@@ -1,7 +1,7 @@
 ---
-author: eliska
-commit: d83dcedb619098678100883d1faa15ad2b08e878
-date: 2022-02-09 10:16:42+01:00
+author: mejroslav
+commit: b14beb6f77c41c9efef5c1a365b31057f8b29cb4
+date: 2023-09-19 11:52:35+02:00
 title: Task
 
 ---
@@ -11,30 +11,32 @@ title: Task
 	```python title='task.py' linenums="1"
 	#!/usr/bin/env python3
 	import asab
+	import asyncio
 	
 	
 	class MyApplication(asab.Application):
-	
 		async def main(self):
-			task_service = app.get_service("asab.TaskService")
-	
-			# Schedule tasks to be executed
-			# They will be executed in ~ 5 seconds
-			task_service.schedule(
+			print("Your tasks are scheduled. Meanwhile, take a deep breath and make yourself comfortable.")
+			self.TaskService.schedule(
 				self.task1(),
 				self.task2(),
-				self.task3(),
+				self.task3(),  # throws Exception
 			)
 	
-	
 		async def task1(self):
-			print("Task1")
+			print("Task 1 started.")
+			await asyncio.sleep(5.0)
+			print("Task 1 is complete.")
 	
 		async def task2(self):
-			print("Task2")
+			print("Task 2 started.")
+			await asyncio.sleep(5.0)
+			print("Task 2 is complete.")
 	
 		async def task3(self):
-			print("Task3")
+			print("Task 3 started.")
+			await asyncio.sleep(5.0)
+			raise Exception("An exception occurred during Task 3.")
 	
 	
 	if __name__ == '__main__':
