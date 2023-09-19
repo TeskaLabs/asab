@@ -183,6 +183,8 @@ nav:
       - Tags: reference/metrics/tags.md
 
     - Storage Service: reference/storage.md
+    - Task Service: reference/task.md
+    - Proactor Service: reference/proactor.md
     - Zookeeper: reference/zookeeper.md
     - Utility functions and classes: 
         - Utility functions: reference/utils/utils.md
@@ -222,3 +224,4 @@ nav:
     - examples/websocket-chat.md
     - examples/zookeeper-advertise.md
     - examples/zookeeper.md
+    - examples/config_getmultiline.md

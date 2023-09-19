@@ -1,7 +1,7 @@
 ---
 author: robin.hruska@teskalabs.com
-commit: 1e4b1e42a8ad586fe46396e92371307466ad8d37
-date: 2023-06-21 14:40:45+02:00
+commit: 51987887e6518ac14936b9202011d327685e7a1a
+date: 2023-08-29 11:02:23+02:00
 title: Web auth
 
 ---
@@ -15,26 +15,27 @@ title: Web auth
 	import typing
 	
 	# Set up a web container listening at port 8080
-	asab.Config["web"] = {"listen": "0.0.0.0 8089"}
+	asab.Config["web"] = {"listen": "0.0.0.0 8080"}
+	
+	# Disables or enables all authentication and authorization, or switches it into MOCK mode.
+	# When disabled, the `resources` and `userinfo` handler arguments are set to `None`.
+	asab.Config["auth"]["enabled"] = "mock"  # Mock authorization, useful for debugging.
+	# asab.Config["auth"]["enabled"] = "yes"   # Authorization is enabled.
+	# asab.Config["auth"]["enabled"] = "no"    # Authorization is disabled.
 	
 	# Changes the behavior of endpoints with configurable tenant parameter.
-	# With multitenancy enabled, the tenant paramerter in query is required.
-	# With multitenancy disabled, the tenant paramerter in query is ignored.
+	# With multitenancy enabled, the `tenant` paramerter in query is required.
+	# With multitenancy disabled, the `tenant` paramerter in query is ignored.
 	asab.Config["auth"]["multitenancy"] = "yes"
 	
-	# Activating the dev mode disables communication with the authorization server.
+	# Activating the mock mode disables communication with the authorization server.
 	# The requests' Authorization headers are ignored and AuthService provides mock authorization with mock user info.
-	# You can provide custom user info by specifying `dev_user_info_path` pointing to your JSON file.
-	asab.Config["auth"]["dev_mode"] = "yes"
-	asab.Config["auth"]["dev_user_info_path"] = "./dev-userinfo.json"
+	# You can provide custom user info by specifying the path pointing to your JSON file.
+	asab.Config["auth"]["mock_user_info_path"] = "./mock-userinfo.json"
 	
 	# URL of the authorization server's JWK public keys, used for ID token verification.
-	# This option is ignored in dev mode.
-	asab.Config["auth"]["public_keys_url"] = "http://localhost:8081/openidconnect/public_keys"
-	
-	# URL of the authorization server's tenant list, used for tenant verification.
-	# This option is ignored in dev mode.
-	asab.Config["auth"]["tenant_url"] = "http://localhost:8081/tenant"
+	# This option is ignored in mock mode or when authorization is disabled.
+	asab.Config["auth"]["public_keys_url"] = "http://localhost:3081/.well-known/jwks.json"
 	
 	
 	class MyApplication(asab.Application):
@@ -84,7 +85,7 @@ title: Web auth
 			return asab.web.rest.json_response(request, data)
 	
 	
-		async def auth(self, request, *, user_info: dict, resources: frozenset):
+		async def auth(self, request, *, user_info: typing.Optional[dict], resources: typing.Optional[frozenset]):
 			"""
 			TENANT-AGNOSTIC
 			- returns 401 if authentication not successful
@@ -95,14 +96,14 @@ title: Web auth
 			"""
 			data = {
 				"tenant": "NOT AVAILABLE",
-				"resources": list(resources),
+				"resources": list(resources) if resources else None,
 				"user_info": user_info,
 			}
 			return asab.web.rest.json_response(request, data)
 	
 	
 		@asab.web.auth.require("something:access", "something:edit")
-		async def auth_resource(self, request, *, user_info: dict, resources: frozenset):
+		async def auth_resource(self, request, *, user_info: typing.Optional[dict], resources: typing.Optional[frozenset]):
 			"""
 			TENANT-AGNOSTIC + RESOURCE CHECK
 			- returns 401 if authentication not successful
@@ -115,7 +116,7 @@ title: Web auth
 			"""
 			data = {
 				"tenant": "NOT AVAILABLE",
-				"resources": list(resources),
+				"resources": list(resources) if resources else None,
 				"user_info": user_info,
 			}
 			return asab.web.rest.json_response(request, data)
@@ -125,20 +126,30 @@ title: Web auth
 			"type": "object"
 		})
 		@asab.web.auth.require("something:access", "something:edit")
-		async def auth_resource_put(self, request, *, user_info: dict, resources: frozenset, json_data: dict):
+		async def auth_resource_put(
+			self, request, *,
+			user_info: typing.Optional[dict],
+			resources: typing.Optional[frozenset],
+			json_data: dict
+		):
 			"""
 			Decorator asab.web.auth.require can be used together with other decorators.
 			"""
 			data = {
 				"tenant": "NOT AVAILABLE",
-				"resources": list(resources),
+				"resources": list(resources) if resources else None,
 				"user_info": user_info,
 				"json_data": json_data,
 			}
 			return asab.web.rest.json_response(request, data)
 	
 	
-		async def tenant_in_path(self, request, *, tenant: str, user_info: dict, resources: frozenset):
+		async def tenant_in_path(
+			self, request, *,
+			tenant: typing.Optional[str],
+			user_info: typing.Optional[dict],
+			resources: typing.Optional[frozenset]
+		):
 			"""
 			TENANT-AWARE
 			- returns 401 if authentication not successful
@@ -151,13 +162,18 @@ title: Web auth
 			"""
 			data = {
 				"tenant": tenant,
-				"resources": list(resources),
+				"resources": list(resources) if resources else None,
 				"user_info": user_info,
 			}
 			return asab.web.rest.json_response(request, data)
 	
 	
-		async def tenant_in_query(self, request, *, tenant: typing.Union[str|None], user_info: dict, resources: frozenset):
+		async def tenant_in_query(
+			self, request, *,
+			tenant: typing.Optional[str],
+			user_info: typing.Optional[dict],
+			resources: typing.Optional[frozenset]
+		):
 			"""
 			CONFIGURABLY TENANT-AWARE
 			- returns 401 if authentication not successful
@@ -176,14 +192,19 @@ title: Web auth
 			"""
 			data = {
 				"tenant": tenant,
-				"resources": list(resources),
+				"resources": list(resources) if resources else None,
 				"user_info": user_info,
 			}
 			return asab.web.rest.json_response(request, data)
 	
 	
 		@asab.web.auth.require("something:access", "something:edit")
-		async def tenant_in_path_resources(self, request, *, tenant: typing.Union[str|None], user_info: dict, resources: frozenset):
+		async def tenant_in_path_resources(
+			self, request, *,
+			tenant: typing.Optional[str],
+			user_info: typing.Optional[dict],
+			resources: typing.Optional[frozenset]
+		):
 			"""
 			TENANT-AWARE + RESOURCE CHECK
 			- returns 401 if authentication not successful
@@ -198,14 +219,19 @@ title: Web auth
 			"""
 			data = {
 				"tenant": tenant,
-				"resources": list(resources),
+				"resources": list(resources) if resources else None,
 				"user_info": user_info,
 			}
 			return asab.web.rest.json_response(request, data)
 	
 	
 		@asab.web.auth.require("something:access", "something:edit")
-		async def tenant_in_query_resources(self, request, *, tenant: typing.Union[str|None], user_info: dict, resources: frozenset):
+		async def tenant_in_query_resources(
+			self, request, *,
+			tenant: typing.Optional[str],
+			user_info: typing.Optional[dict],
+			resources: typing.Optional[frozenset]
+		):
 			"""
 			CONFIGURABLY TENANT-AWARE + RESOURCE CHECK
 			- returns 401 if authentication not successful
@@ -226,7 +252,7 @@ title: Web auth
 			"""
 			data = {
 				"tenant": tenant,
-				"resources": list(resources),
+				"resources": list(resources) if resources else None,
 				"user_info": user_info,
 			}
 			return asab.web.rest.json_response(request, data)
