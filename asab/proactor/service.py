@@ -3,6 +3,10 @@ import concurrent.futures
 
 
 class ProactorService(asab.Service):
+	"""
+	Proactor service is useful for running CPU bound operations from asynchronous part of the code that would potentially block the main thread.
+	It allows to run these processes from different threads.
+	"""
 
 	def __init__(self, app, service_name):
 		super().__init__(app, service_name)
@@ -30,7 +34,7 @@ class ProactorService(asab.Service):
 	def execute(self, func, *args):
 		"""
 		Execute `func(*args)` in the thread from the Proactor Service pool.
-		The method returns the future/task that MUST BE awaited and it provides the result of the func() call.
+		Return Future or Task that must be awaited and it provides the result of the `func()` call.
 		"""
 		return self.Loop.run_in_executor(self.Executor, func, *args)
 
