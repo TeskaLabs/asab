@@ -87,9 +87,8 @@ class TaskService(asab.Service):
 		"""
 		Schedule a task (or tasks) for immediate fire-and-forget execution (e.g. compressing files).
 
-		Task can be a simple coroutine, future or task.
+		Examples:
 
-		Example of use:
 		```python
 		app.TaskService.schedule(self._start())
 		```
