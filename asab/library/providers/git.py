@@ -89,8 +89,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			# Once reset of the head is finished, PubSub message about the change in the subscribed directory gets published.
 			for path in to_publish:
 				self.App.PubSub.publish("Library.change!", self, path)
-		except pygit2.GitError:
-			L.warning("Periodic pull from the remote repository failed.")
+		except pygit2.GitError as err:
+			L.warning(
+				"Periodic pull from the remote repository failed: {}".format(err),
+				struct_data={"url": self.URLPath}
+			)
 		finally:
 			self.PullLock = False
 
