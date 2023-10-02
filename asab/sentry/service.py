@@ -107,7 +107,10 @@ class SentryService(asab.Service):
 			except Exception as e:
 				L.exception("Error when reading manifest for reason {}".format(e))
 
-		self.Release = manifest.get("version", "not specified")
+		self.Release = "{appname}:{version}".format(  # e.g. 'LMIOParsecApplication:v23.40-alpha'
+			appname=app.__class__.__name__,
+			version=manifest.get("version", "<none>")
+		)
 
 		# PERFORMANCE MONITORING
 		# traces sample rate: percentage of captured events
