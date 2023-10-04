@@ -37,22 +37,14 @@ After you create a new project in Sentry.io, [DSN (data source name)](https://do
 Then you can initialize the Sentry Service:
 
 ```python title='my_app.py'
-class MyApplication(asab.Application):
-	async def initialize(self):
-		if "sentry" in asab.Config.sections():
-			import asab.sentry
-			self.SentryService = asab.sentry.SentryService(self)
-```
+import asab
 
-To avoid overshadowing the parent `asab` module in the local scope of the `__init__`, use the following approach when importing the `sentry` module. This way the `sentry` submodule will be recognized as a sepate local entity and won't affect global `asab`:
-
-```python
 class MyApplication(asab.Application):
 	def __init__(self):
 		super().__init__()
 		if "sentry" in asab.Config.sections():
-			from asab import sentry
-			self.SentryService = sentry.SentryService(self)
+			import asab.sentry as asab_sentry
+			self.SentryService = asab_sentry.SentryService(self)
 ```
 
 After the service is initialized:
