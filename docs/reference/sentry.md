@@ -37,11 +37,14 @@ After you create a new project in Sentry.io, [DSN (data source name)](https://do
 Then you can initialize the Sentry Service:
 
 ```python title='my_app.py'
+import asab
+
 class MyApplication(asab.Application):
-	async def initialize(self):
+	def __init__(self):
+		super().__init__()
 		if "sentry" in asab.Config.sections():
-			import asab.sentry
-			self.SentryService = asab.sentry.SentryService(self)
+			import asab.sentry as asab_sentry
+			self.SentryService = asab_sentry.SentryService(self)
 ```
 
 After the service is initialized:
