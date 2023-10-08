@@ -10,6 +10,7 @@ import urllib.parse
 import aiohttp
 
 from .filesystem import FileSystemLibraryProvider
+from ..dirsync import synchronize_dirs
 
 #
 
@@ -118,11 +119,9 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 						os.unlink(fname)
 
-						# This will likely not work nicely with inotify detection of the change
-						# TODO: Replace this by some kind of rsync mechanism
-						if os.path.exists(os.path.join(self.RepoPath, "cur")):
-							shutil.rmtree(os.path.join(self.RepoPath, "cur"))
-						os.rename(os.path.join(self.RepoPath, "new"), os.path.join(self.RepoPath, "cur"))
+						# Move the new content in place
+						synchronize_dirs(os.path.join(self.RepoPath, "cur"), os.path.join(self.RepoPath, "new"))
+						shutil.rmtree(os.path.join(self.RepoPath, "new"))
 
 						if etag_incoming is not None:
 							with open(etag_fname, 'w') as f:
