@@ -66,7 +66,6 @@ setup(
 		'Programming Language :: Python :: 3.9',
 		'Programming Language :: Python :: 3.10',
 		'Programming Language :: Python :: 3.11',
-		'Programming Language :: Python :: 3.12',
 	],
 	keywords='asyncio',
 	packages=find_packages(exclude=['module_sample']),
