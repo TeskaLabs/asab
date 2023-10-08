@@ -30,7 +30,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 	[library]
 	providers=
 	...
-  	libsreg+https://libsreg.z6.web.core.windows.net,libsreg-secondary.z6.web.core.windows.net/lmio-common-library
+	libsreg+https://libsreg.z6.web.core.windows.net,libsreg-secondary.z6.web.core.windows.net/lmio-common-library
 	...
 	```
 
