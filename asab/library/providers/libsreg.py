@@ -114,6 +114,9 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 									break
 								ftmp.write(chunk)
 
+						# TODO: Following code is potentionally blocking and should be done in a proactor
+						# ⬇️⬇️⬇️ ---------- START OF THE BLOCKING CODE
+
 						with tarfile.open(fname, mode='r:xz') as tar:
 							tar.extractall(os.path.join(self.RepoPath, "new"))
 
@@ -126,6 +129,8 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 						if etag_incoming is not None:
 							with open(etag_fname, 'w') as f:
 								f.write(etag_incoming)
+
+						# ⬆️⬆️⬆️ --------- END OF THE BLOCKING CODE
 
 					elif response.status == 304:
 						# The repository has not changed ...
