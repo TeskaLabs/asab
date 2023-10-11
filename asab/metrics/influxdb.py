@@ -158,7 +158,7 @@ def combine_tags_and_field(tags, values, timestamp):
 	tags = escape_tags(tags)
 	values = escape_values(values)
 	# Then combine the tags and then values
-	tags_string = ",".join(["{}={}".format(tk, tv) for tk, tv in tags.items()])
+	tags_string = ",".join(["{}={}".format(tk, tv) for tk, tv in tags.items() if tk not in ("help", "unit")])  # remove "help" and "unit" tags -> utilized in openmetric target
 	field_set = ",".join([get_field(value_name, value) for value_name, value in values.items()])
 	return tags_string + " " + field_set + " " + str(int(timestamp * 1e9))
 
