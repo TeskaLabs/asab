@@ -339,7 +339,7 @@ class StorageService(StorageServiceABC):
 			:raise Exception: Raised if connection to all server URLs fails.
 		"""
 		for url in self.ServerUrls:
-			request_url = "{}_template/{}?include_type_name".format(url, template_name)
+			request_url = "{}_template/{}".format(url, template_name)
 			L.warning("Posting index template into url: {}".format(request_url))
 
 			if url.startswith('https://'):
