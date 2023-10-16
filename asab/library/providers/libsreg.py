@@ -117,14 +117,17 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 						# TODO: Following code is potentionally blocking and should be done in a proactor
 						# ⬇️⬇️⬇️ ---------- START OF THE BLOCKING CODE
 
+						breakpoint()
 						with tarfile.open(fname, mode='r:xz') as tar:
 							tar.extractall(os.path.join(self.RepoPath, "new"))
 
 						os.unlink(fname)
 
 						# Move the new content in place
-						synchronize_dirs(self.RepoPath, os.path.join(self.RepoPath, "new"))
-						shutil.rmtree(os.path.join(self.RepoPath, "new"))
+						synchronize_dirs(os.path.join(self.RepoPath), os.path.join(self.RepoPath, "new"))
+
+						if os.path.exists(os.path.join(self.RepoPath, "new")):
+							shutil.rmtree(os.path.join(self.RepoPath, "new"))
 
 						if etag_incoming is not None:
 							with open(etag_fname, 'w') as f:
