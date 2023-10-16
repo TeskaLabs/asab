@@ -32,28 +32,6 @@ def synchronize_dirs(target, source):
 		for filename in filenames:
 			source_file = os.path.join(dirpath, filename)
 			target_file = os.path.join(target_dir, filename)
-
 			# Copy if the file doesn't exist in target or if it's modified
 			if not os.path.exists(target_file) or not filecmp.cmp(source_file, target_file, shallow=False):
 				shutil.copy2(source_file, target_file)
-
-	# Step 2: Recursively delete files/folders in target that don't exist in source
-	for dirpath, dirnames, filenames in os.walk(target, topdown=False):  # topdown=False for depth-first
-		relpath = os.path.relpath(dirpath, target)
-		source_dir = os.path.join(source, relpath)
-
-		# Check and remove files not in source
-		for filename in filenames:
-			target_file = os.path.join(dirpath, filename)
-			source_file = os.path.join(source_dir, filename)
-
-			if not os.path.exists(source_file):
-				os.remove(target_file)
-
-		# Check and remove directories not in source
-		for dirname in dirnames:
-			target_subdir = os.path.join(dirpath, dirname)
-			source_subdir = os.path.join(source_dir, dirname)
-
-			if not os.path.exists(source_subdir):
-				shutil.rmtree(target_subdir)
