@@ -123,8 +123,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 					if response.status == 200:  # The request indicates a new version that we don't have yet
 
 						etag_incoming = response.headers.get('ETag')
-
-						fname = os.path.join(self.RepoPath, "new.tar.xz")
+						fname = os.path.join(self.FinalPath, "new.tar.xz")
 						with open(fname, 'wb') as ftmp:
 							while True:
 								chunk = await response.content.read(16 * 1024)
@@ -136,13 +135,15 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 						# ⬇️⬇️⬇️ ---------- START OF THE BLOCKING CODE
 
 						with tarfile.open(fname, mode='r:xz') as tar:
-							tar.extractall(os.path.join(self.RepoPath, "new"))
+							tar.extractall(os.path.join(self.FinalPath, "new"))
 
 						os.unlink(fname)
 
 						# Move the new content in place
 						synchronize_dirs(self.FinalPath, os.path.join(self.RepoPath, "new"))
-						shutil.rmtree(os.path.join(self.RepoPath, "new"))
+						path_to_remove = os.path.join(self.RepoPath, "new")
+						if os.path.exists(path_to_remove):
+							shutil.rmtree(path_to_remove)
 
 						if etag_incoming is not None:
 							with open(etag_fname, 'w') as f:
