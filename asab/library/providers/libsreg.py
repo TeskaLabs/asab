@@ -9,6 +9,7 @@ import urllib.parse
 
 import aiohttp
 
+from ...config import Config
 from .filesystem import FileSystemLibraryProvider
 from ..dirsync import synchronize_dirs
 
@@ -17,6 +18,14 @@ from ..dirsync import synchronize_dirs
 L = logging.getLogger(__name__)
 
 #
+Config.add_defaults(
+	{
+		'library': {
+			# You may specify multiple ElasticSearch nodes by e.g. http://es01:9200,es02:9200,es03:9200/
+			'repo_sub_path': '/'
+		}
+	}
+)
 
 
 class LibsRegLibraryProvider(FileSystemLibraryProvider):
@@ -57,19 +66,26 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		assert len(self.URLs) > 0
 
 		tempdir = tempfile.gettempdir()
+		self.RepoSubPath = Config.get('library', 'repo_sub_path')
 		self.RepoPath = os.path.join(
 			tempdir,
 			"asab.library.libsreg",
 			hashlib.sha256(self.URLs[0].encode('utf-8')).hexdigest()
 		)
 
-		os.makedirs(os.path.join(self.RepoPath, "cur"), exist_ok=True)
+		if self.RepoSubPath == "/":
+			# No additional subdirectory, use the base directory as is.
+			self.FinalPath = self.RepoPath
+		else:
+			# Append the subdirectory to the base path and create it.
+			self.FinalPath = os.path.join(self.RepoPath, self.RepoSubPath)
+			os.makedirs(self.FinalPath, exist_ok=True)
 
 		super().__init__(library, self.RepoPath, layer, set_ready=False)
 
 		self.PullLock = False
 
-		# TODO: Subscribption to changes in the library
+		# TODO: Subscription to changes in the library
 		self.SubscribedPaths = set()
 
 		self.App.TaskService.schedule(self._periodic_pull(None))
@@ -123,7 +139,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 						os.unlink(fname)
 
 						# Move the new content in place
-						synchronize_dirs(os.path.join(self.RepoPath, "cur"), os.path.join(self.RepoPath, "new"))
+						synchronize_dirs(self.FinalPath, os.path.join(self.RepoPath, "new"))
 						shutil.rmtree(os.path.join(self.RepoPath, "new"))
 
 						if etag_incoming is not None:
