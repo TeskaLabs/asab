@@ -79,7 +79,9 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		else:
 			# Append the subdirectory to the base path and create it.
 			self.FinalPath = os.path.join(self.RepoPath, self.RepoSubPath)
-			os.makedirs(self.FinalPath, exist_ok=True)
+
+		# Ensure the directory exists
+		os.makedirs(self.FinalPath, exist_ok=True)
 
 		super().__init__(library, self.RepoPath, layer, set_ready=False)
 
