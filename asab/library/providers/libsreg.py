@@ -87,7 +87,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 				pass
 
 			url = random.choice(self.URLs)
-
+			etag_incoming = None
 			async with aiohttp.ClientSession() as session:
 				async with session.get(url, headers=headers) as response:
 
