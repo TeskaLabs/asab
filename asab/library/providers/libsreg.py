@@ -9,7 +9,6 @@ import urllib.parse
 
 import aiohttp
 
-from ...config import Config
 from .filesystem import FileSystemLibraryProvider
 from ..dirsync import synchronize_dirs
 
@@ -18,23 +17,35 @@ from ..dirsync import synchronize_dirs
 L = logging.getLogger(__name__)
 
 #
-Config.add_defaults(
-	{
-		'library': {
-			'repo_sub_path': '/'
-		}
-	}
-)
 
 
 class LibsRegLibraryProvider(FileSystemLibraryProvider):
+	"""
+	Read-only provider to read from remote "library repository".
+
+	It provides an option to specify more servers for more reliable content delivery.
+
+	Example of the configuration:
+
+	```ini
+	[library]
+	providers=
+	...
+	libsreg+https://libsreg.z6.web.core.windows.net,libsreg-secondary.z6.web.core.windows.net/lmio-common-library
+	...
+	```
+
+	"""
 
 	def __init__(self, library, path, layer):
 
 		url = urllib.parse.urlparse(path)
 		assert url.scheme.startswith('libsreg+')
 
-		version = url.fragment if url.fragment else 'master'
+		version = url.fragment
+		if version == '':
+			version = 'master'
+
 		archname = url.path[1:]
 
 		self.URLs = ["{scheme}://{netloc}/{archname}/{archname}-{version}.tar.xz".format(
@@ -52,25 +63,23 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 			hashlib.sha256(self.URLs[0].encode('utf-8')).hexdigest()
 		)
 
-		# Ensure the base repository path exists
-		os.makedirs(self.RepoPath, exist_ok=True)
-
-		# Determine the final path based on the configuration
-		repo_sub_path = Config.get('library', 'repo_sub_path')
-		self.FinalPath = os.path.join(self.RepoPath, repo_sub_path.strip("/")) if repo_sub_path != "/" else self.RepoPath
-
-		# Ensure the final path exists
-		os.makedirs(self.FinalPath, exist_ok=True)
+		os.makedirs(os.path.join(self.RepoPath), exist_ok=True)
 
 		super().__init__(library, self.RepoPath, layer, set_ready=False)
 
 		self.PullLock = False
+
+		# TODO: Subscribption to changes in the library
 		self.SubscribedPaths = set()
 
 		self.App.TaskService.schedule(self._periodic_pull(None))
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
+
 	async def _periodic_pull(self, event_name):
+		"""
+		Changes in remote repository are being pulled every minute. `PullLock` flag ensures that only if previous "pull" has finished, new one can start.
+		"""
 		if self.PullLock:
 			return
 
@@ -78,6 +87,8 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 		try:
 			headers = {}
+
+			# Check for existing E-Tag
 			etag_fname = os.path.join(self.RepoPath, "etag")
 			try:
 				with open(etag_fname, 'r') as f:
@@ -87,18 +98,15 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 				pass
 
 			url = random.choice(self.URLs)
-			etag_incoming = None
+
 			async with aiohttp.ClientSession() as session:
 				async with session.get(url, headers=headers) as response:
 
-					if response.status == 200:
+					if response.status == 200:  # The request indicates a new version that we don't have yet
+
 						etag_incoming = response.headers.get('ETag')
 
-						# Ensure the new directory exists before writing the file
-						new_dir = os.path.join(self.RepoPath, "new")
-						os.makedirs(new_dir, exist_ok=True)
-
-						fname = os.path.join(new_dir, "new.tar.xz")
+						fname = os.path.join(self.RepoPath, "new.tar.xz")
 						with open(fname, 'wb') as ftmp:
 							while True:
 								chunk = await response.content.read(16 * 1024)
@@ -106,31 +114,34 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 									break
 								ftmp.write(chunk)
 
+						# TODO: Following code is potentionally blocking and should be done in a proactor
+						# ⬇️⬇️⬇️ ---------- START OF THE BLOCKING CODE
+
 						with tarfile.open(fname, mode='r:xz') as tar:
-							tar.extractall(new_dir)
+							tar.extractall(os.path.join(self.RepoPath, "new"))
 
 						os.unlink(fname)
 
-						# Synchronize the directories
-						synchronize_dirs(self.FinalPath, new_dir)
-						# Safely remove the new directory if it exists
-						if os.path.exists(new_dir):
-							shutil.rmtree(new_dir)
-						else:
-							L.warning("Directory not found for removal: {}".format(new_dir))
+						# Move the new content in place
+						synchronize_dirs(self.RepoPath, os.path.join(self.RepoPath, "new"))
+						shutil.rmtree(os.path.join(self.RepoPath, "new"))
 
-					if etag_incoming is not None:
+						if etag_incoming is not None:
 							with open(etag_fname, 'w') as f:
 								f.write(etag_incoming)
 
+						# ⬆️⬆️⬆️ --------- END OF THE BLOCKING CODE
+
 					elif response.status == 304:
-						pass  # No changes
+						# The repository has not changed ...
+						pass
 
 					else:
 						L.exception("Failed to download the library.", struct_data={"url": url, 'status': response.status})
 
 		finally:
 			self.PullLock = False
+
 
 	async def subscribe(self, path):
 		self.SubscribedPaths.add(path)
