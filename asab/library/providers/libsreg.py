@@ -1,7 +1,6 @@
 import os
 import logging
 import hashlib
-import shutil
 import random
 import tarfile
 import tempfile
