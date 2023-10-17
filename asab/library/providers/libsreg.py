@@ -75,7 +75,6 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		self.App.TaskService.schedule(self._periodic_pull(None))
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
-
 	async def _periodic_pull(self, event_name):
 		"""
 		Changes in remote repository are being pulled every minute. `PullLock` flag ensures that only if previous "pull" has finished, new one can start.
@@ -106,34 +105,25 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 						etag_incoming = response.headers.get('ETag')
 
-						fname = os.path.join(self.RepoPath, "new.tar.xz")
-						with open(fname, 'wb') as ftmp:
-							while True:
-								chunk = await response.content.read(16 * 1024)
-								if not chunk:
-									break
-								ftmp.write(chunk)
+						# Create a separate temporary directory for extraction
+						with tempfile.TemporaryDirectory() as temp_extract_dir:
+							fname = os.path.join(temp_extract_dir, "new.tar.xz")
+							with open(fname, 'wb') as ftmp:
+								while True:
+									chunk = await response.content.read(16 * 1024)
+									if not chunk:
+										break
+									ftmp.write(chunk)
 
-						# TODO: Following code is potentionally blocking and should be done in a proactor
-						# ⬇️⬇️⬇️ ---------- START OF THE BLOCKING CODE
+							# Extract the contents to the temporary directory
+							with tarfile.open(fname, mode='r:xz') as tar:
+								tar.extractall(temp_extract_dir)
 
-
-						with tarfile.open(fname, mode='r:xz') as tar:
-							tar.extractall(os.path.join(self.RepoPath, "new"))
-
-						os.unlink(fname)
-
-						# Move the new content in place
-						synchronize_dirs(self.RepoPath, os.path.join(self.RepoPath, "new"))
-
-						if os.path.exists(os.path.join(self.RepoPath, "new")):
-							shutil.rmtree(os.path.join(self.RepoPath, "new"))
-
-						if etag_incoming is not None:
-							with open(etag_fname, 'w') as f:
-								f.write(etag_incoming)
-
-						# ⬆️⬆️⬆️ --------- END OF THE BLOCKING CODE
+							# Synchronize the directories
+							synchronize_dirs(self.RepoPath, temp_extract_dir)
+							if etag_incoming is not None:
+								with open(etag_fname, 'w') as f:
+									f.write(etag_incoming)
 
 					elif response.status == 304:
 						# The repository has not changed ...
