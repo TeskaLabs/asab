@@ -56,9 +56,13 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		assert len(self.URLs) > 0
 
 		tempdir = tempfile.gettempdir()
-		self.RepoPath = os.path.join(
+		self.RootPath = os.path.join(
 			tempdir,
 			"asab.library.libsreg",
+		)
+
+		self.RepoPath = os.path.join(
+			self.RootPath,
 			hashlib.sha256(self.URLs[0].encode('utf-8')).hexdigest()
 		)
 
@@ -104,25 +108,32 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 						etag_incoming = response.headers.get('ETag')
 
-						# Create a separate temporary directory for extraction
-						with tempfile.TemporaryDirectory() as temp_extract_dir:
-							fname = os.path.join(temp_extract_dir, "new.tar.xz")
-							with open(fname, 'wb') as ftmp:
-								while True:
-									chunk = await response.content.read(16 * 1024)
-									if not chunk:
-										break
-									ftmp.write(chunk)
+						# Download new version
+						newtarfname = os.path.join(self.RootPath, "new.tar.xz")
+						with open(fname, 'wb') as ftmp:
+							while True:
+								chunk = await response.content.read(16 * 1024)
+								if not chunk:
+									break
+								ftmp.write(chunk)
 
-							# Extract the contents to the temporary directory
-							with tarfile.open(fname, mode='r:xz') as tar:
-								tar.extractall(temp_extract_dir)
+						# Extract the contents to the temporary directory
+						temp_extract_dir = os.path.join(
+							self.RootPath,
+							"new"
+						)
+						# TODO: Remove temp_extract_dir if exists (from last, failed run)
+						with tarfile.open(newtarfname, mode='r:xz') as tar:
+							tar.extractall(temp_extract_dir)
 
-							# Synchronize the directories
-							synchronize_dirs(self.RepoPath, temp_extract_dir)
-							if etag_incoming is not None:
-								with open(etag_fname, 'w') as f:
-									f.write(etag_incoming)
+						# Synchronize the directories
+						synchronize_dirs(self.RepoPath, temp_extract_dir)
+						if etag_incoming is not None:
+							with open(etag_fname, 'w') as f:
+								f.write(etag_incoming)
+
+						# TODO: Remove temp_extract_dir
+						# TODO: Remove newtarfname
 
 					elif response.status == 304:
 						# The repository has not changed ...
