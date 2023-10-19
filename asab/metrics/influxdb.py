@@ -121,6 +121,8 @@ class InfluxDBTarget(asab.Configurable):
 							L.warning("Error when sending metrics to Influx: {}\n{}".format(resp.status, response))
 			except aiohttp.client_exceptions.ClientConnectorError:
 				L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
+			except Exception as err:
+				L.exception("Failed to send metrics to InfluxDB at {}: {}".format(self.BaseURL, err))
 
 
 	def _worker_upload(self, m_tree, rb):
@@ -131,9 +133,11 @@ class InfluxDBTarget(asab.Configurable):
 
 		try:
 			conn.request("POST", self.WriteRequest, rb, self.Headers)
-		except ConnectionRefusedError:
+		except ConnectionError:
 			L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
 			return
+		except Exception as err:
+			L.exception("Failed to send metrics to InfluxDB at {}: {}".format(self.BaseURL, err))
 
 		response = conn.getresponse()
 		if response.status != 204:
