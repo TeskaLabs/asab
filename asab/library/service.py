@@ -91,7 +91,9 @@ class LibraryService(Service):
 		for layer, path in enumerate(paths):
 			# Create library for each layer of paths
 			self._create_library(path, layer)
+
 		app.PubSub.subscribe("Application.tick/60!", self._on_tick60)
+
 
 	async def finalize(self, app):
 		while len(self.Libraries) > 0:
@@ -118,6 +120,10 @@ class LibraryService(Service):
 		elif path.startswith('git+'):
 			from .providers.git import GitLibraryProvider
 			library_provider = GitLibraryProvider(self, path, layer)
+
+		elif path.startswith('libsreg+'):
+			from .providers.libsreg import LibsRegLibraryProvider
+			library_provider = LibsRegLibraryProvider(self, path, layer)
 
 		elif path == '' or path.startswith("#") or path.startswith(";"):
 			# This is empty or commented line
