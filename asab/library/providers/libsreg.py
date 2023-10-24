@@ -5,6 +5,7 @@ import random
 import tarfile
 import tempfile
 import urllib.parse
+import shutil
 
 import aiohttp
 
@@ -110,7 +111,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 						# Download new version
 						newtarfname = os.path.join(self.RootPath, "new.tar.xz")
-						with open(fname, 'wb') as ftmp:
+						with open(newtarfname, 'wb') as ftmp:
 							while True:
 								chunk = await response.content.read(16 * 1024)
 								if not chunk:
@@ -122,6 +123,11 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 							self.RootPath,
 							"new"
 						)
+
+						# Remove temp_extract_dir if it exists (from the last, failed run)
+						if os.path.exists(temp_extract_dir):
+							shutil.rmtree(temp_extract_dir)
+
 						# TODO: Remove temp_extract_dir if exists (from last, failed run)
 						with tarfile.open(newtarfname, mode='r:xz') as tar:
 							tar.extractall(temp_extract_dir)
@@ -132,8 +138,13 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 							with open(etag_fname, 'w') as f:
 								f.write(etag_incoming)
 
-						# TODO: Remove temp_extract_dir
-						# TODO: Remove newtarfname
+						# Remove temp_extract_dir
+						if os.path.exists(temp_extract_dir):
+							shutil.rmtree(temp_extract_dir)
+
+						# Remove newtarfname
+						if os.path.exists(newtarfname):
+							os.remove(newtarfname)
 
 					elif response.status == 304:
 						# The repository has not changed ...
