@@ -1,10 +1,12 @@
 import time
 import json
 import aiohttp
+import aiohttp.client_exceptions
 import logging
 import datetime
 import urllib.parse
 import typing
+import asyncio
 
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
@@ -728,39 +730,45 @@ class ElasticSearchUpsertor(UpsertorABC):
 			for k, v in self.ModSet.items():
 				upsert_data["doc"][k] = serialize(self.ModSet[k])
 
-			for url in self.Storage.ServerUrls:
-				if url.startswith('https://'):
-					ssl_context = self.Storage.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
-				else:
-					ssl_context = None
+		for url in self.Storage.ServerUrls:
+			if url.startswith('https://'):
+				ssl_context = self.Storage.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
+			else:
+				ssl_context = None
 
-				try:
-					request_url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId, self.Storage.Refresh)
-					async with self.Storage.session().request(
+			try:
+				request_url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId,
+																  self.Storage.Refresh)
+				async with self.Storage.session().request(
 						method="POST",
 						url=request_url,
 						json=upsert_data,
 						headers=self.Headers,
 						ssl=ssl_context,
-					) as resp:
-						if resp.status == 401:
-							raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
-						elif resp.status not in {200, 201}:
-							raise ConnectionError("Unexpected response code: {}".format(resp.status))
-						else:
-							resp_json = await resp.json()
-							assert resp_json["result"] == "updated" or resp_json[
-								"result"] == "created", "Creating/updating was unsuccessful"
-							await self.Storage.session().close()
-							return self.ObjId
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.Storage.ServerUrls[-1]:
-						raise Exception("Failed to connect to '{}'".format(url))
+						timeout=30  # Set the timeout to 30 seconds
+				) as resp:
+					if resp.status == 401:
+						raise ConnectionRefusedError(
+							"Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
+					elif resp.status not in {200, 201}:
+						raise ConnectionError("Unexpected response code: {}".format(resp.status))
 					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
-
-				except aiohttp.client_exceptions.ServerDisconnectedError:
+						resp_json = await resp.json()
+						assert resp_json["result"] == "updated" or resp_json[
+							"result"] == "created", "Creating/updating was unsuccessful"
+						await self.Storage.session().close()
+						return self.ObjId
+			except aiohttp.client_exceptions.ClientConnectorError:
+				if url == self.Storage.ServerUrls[-1]:
 					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
+			except aiohttp.client_exceptions.ServerDisconnectedError:
+				raise Exception("Failed to connect to '{}'".format(url))
+
+			except asyncio.TimeoutError:
+				raise Exception("Request to '{}' timed out.".format(url))
 
 
 def serialize(v):
