@@ -737,15 +737,14 @@ class ElasticSearchUpsertor(UpsertorABC):
 				ssl_context = None
 
 			try:
-				request_url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId,
-																  self.Storage.Refresh)
+				request_url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId, self.Storage.Refresh)
 				async with self.Storage.session().request(
-						method="POST",
-						url=request_url,
-						json=upsert_data,
-						headers=self.Headers,
-						ssl=ssl_context,
-						timeout=30  # Set the timeout to 30 seconds
+					method="POST",
+					url=request_url,
+					json=upsert_data,
+					headers=self.Headers,
+					ssl=ssl_context,
+					timeout=30  # Set the timeout to 30 seconds
 				) as resp:
 					if resp.status == 401:
 						raise ConnectionRefusedError(
