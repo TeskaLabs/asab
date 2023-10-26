@@ -764,10 +764,10 @@ class ElasticSearchUpsertor(UpsertorABC):
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 			except aiohttp.client_exceptions.ServerDisconnectedError:
-				raise Exception("Failed to connect to '{}'".format(url))
+				raise Exception("Connection lost: Unable to connect to '{}'.".format(url))
 
 			except asyncio.TimeoutError:
-				raise Exception("Request to '{}' timed out.".format(url))
+				raise Exception("Connection to '{}' timed out.".format(url))
 
 
 def serialize(v):
