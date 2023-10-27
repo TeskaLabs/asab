@@ -168,6 +168,13 @@ class AuthService(asab.Service):
 			await self._fetch_public_keys_if_needed()
 
 
+	def is_enabled(self) -> bool:
+		"""
+		Check if the AuthService is enabled. Mock mode counts as enabled too.
+		"""
+		return self.Mode in {AuthMode.ENABLED, AuthMode.MOCK}
+
+
 	def install(self, web_container):
 		"""
 		Apply authorization to all web handlers in a web container, according to their arguments and path parameters.
