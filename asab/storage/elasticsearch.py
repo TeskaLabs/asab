@@ -306,7 +306,7 @@ class StorageService(StorageServiceABC):
 		:return: ElasticSearch Index template.
 		"""
 		for url in self.ServerUrls:
-			request_url = "{}_template/{}?format=json".format(url, template_name)
+			request_url = "{}_index_template/{}?format=json".format(url, template_name)
 
 			if url.startswith('https://'):
 				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
@@ -339,7 +339,7 @@ class StorageService(StorageServiceABC):
 			:raise Exception: Raised if connection to all server URLs fails.
 		"""
 		for url in self.ServerUrls:
-			request_url = "{}_template/{}".format(url, template_name)
+			request_url = "{}_index_template/{}".format(url, template_name)
 			L.warning("Posting index template into url: {}".format(request_url))
 
 			if url.startswith('https://'):
@@ -349,7 +349,7 @@ class StorageService(StorageServiceABC):
 
 			try:
 				async with self.session().request(
-					method="POST",
+					method="PUT",
 					url=request_url,
 					data=json.dumps(template),
 					headers=self.Headers,
