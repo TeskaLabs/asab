@@ -306,7 +306,7 @@ class StorageService(StorageServiceABC):
 		:return: ElasticSearch Index template.
 		"""
 		for url in self.ServerUrls:
-			request_url = "{}_template/{}?format=json".format(url, template_name)
+			request_url = "{}_index_template/{}?format=json".format(url, template_name)
 
 			if url.startswith('https://'):
 				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
@@ -330,6 +330,7 @@ class StorageService(StorageServiceABC):
 				else:
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
+
 	async def put_index_template(self, template_name: str, template: dict) -> dict:
 		"""Create a new ECS index template.
 
@@ -339,8 +340,8 @@ class StorageService(StorageServiceABC):
 			:raise Exception: Raised if connection to all server URLs fails.
 		"""
 		for url in self.ServerUrls:
-			request_url = "{}_template/{}".format(url, template_name)
-			L.warning("Posting index template into url: {}".format(request_url))
+			request_url = "{}_index_template/{}".format(url, template_name)
+			# L.warning("Posting index template into url: {}".format(request_url))
 
 			if url.startswith('https://'):
 				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
@@ -349,16 +350,20 @@ class StorageService(StorageServiceABC):
 
 			try:
 				async with self.session().request(
-					method="POST",
+					method="PUT",
 					url=request_url,
 					data=json.dumps(template),
 					headers=self.Headers,
 					ssl=ssl_context,
 				) as resp:
-					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+
+					if resp.status != 200:
+						raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
+
 					resp = await resp.json()
 					await self.session().close()
 					return resp
+
 			except aiohttp.client_exceptions.ClientConnectorError:
 				if url == self.ServerUrls[-1]:
 					raise Exception("Failed to connect to '{}'".format(url))
@@ -599,11 +604,15 @@ class StorageService(StorageServiceABC):
 					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
 
 
-	async def empty_index(self, index):
+	async def empty_index(self, index, settings=None):
 		'''
 		Create an empty ECS index.
 		'''
 		# TODO: There is an option here to specify settings (e.g. shard number, replica number etc) and mappings here
+
+		if settings is None:
+			settings = {}
+
 		for url in self.ServerUrls:
 			if url.startswith('https://'):
 				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
@@ -615,11 +624,85 @@ class StorageService(StorageServiceABC):
 				async with self.session().request(
 					method="PUT",
 					url=request_url,
+					json=settings,
 					ssl=ssl_context,
 					headers=self.Headers
 				) as resp:
-					assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
+
+					if resp.status != 200:
+						raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
+
 					return await resp.json()
+
+			except aiohttp.client_exceptions.ClientConnectorError:
+				if url == self.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
+
+	async def put_policy(self, policy_name, settings=None):
+		'''
+		Create a lifecycle policy.
+		'''
+
+		if settings is None:
+			settings = {}
+
+		for url in self.ServerUrls:
+			if url.startswith('https://'):
+				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
+			else:
+				ssl_context = None
+
+			try:
+				request_url = "{}_ilm/policy/{}".format(url, policy_name)
+				async with self.session().request(
+					method="PUT",
+					url=request_url,
+					json=settings,
+					ssl=ssl_context,
+					headers=self.Headers
+				) as resp:
+
+					if resp.status != 200:
+						raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
+
+					return await resp.json()
+
+			except aiohttp.client_exceptions.ClientConnectorError:
+				if url == self.ServerUrls[-1]:
+					raise Exception("Failed to connect to '{}'".format(url))
+				else:
+					L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+
+
+	async def policies(self):
+		"""
+		Return high-level information about ILM policies in a cluster, including backing indices for data streams.
+
+		:param search_string: A search string. Default to None.
+		"""
+		for url in self.ServerUrls:
+			if url.startswith('https://'):
+				ssl_context = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
+			else:
+				ssl_context = None
+
+			try:
+				request_url = "{}_ilm/policy".format(url)
+				async with self.session().request(
+					method="GET",
+					url=request_url,
+					ssl=ssl_context,
+					headers=self.Headers
+				) as resp:
+
+					if resp.status != 200:
+						raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
+
+					return await resp.json()
+
 			except aiohttp.client_exceptions.ClientConnectorError:
 				if url == self.ServerUrls[-1]:
 					raise Exception("Failed to connect to '{}'".format(url))

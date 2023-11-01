@@ -217,6 +217,4 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		return to_publish
 
 	async def subscribe(self, path):
-		if not os.path.isdir(self.BasePath + path):
-			return
 		self.SubscribedPaths.add(path)
