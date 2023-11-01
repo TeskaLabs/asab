@@ -118,11 +118,14 @@ class InfluxDBTarget(asab.Configurable):
 					async with session.post(self.WriteURL, data=rb) as resp:
 						response = await resp.text()
 						if resp.status != 204:
-							L.warning("Error when sending metrics to Influx: {}\n{}".format(resp.status, response))
+							L.warning(
+								"Error when sending metrics to Influx: {}\n{}".format(resp.status, response),
+								struct_data={"url": self.BaseURL}
+							)
 			except aiohttp.client_exceptions.ClientConnectorError:
-				L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
+				L.error("Failed to connect to InfluxDB.", struct_data={"url": self.BaseURL})
 			except Exception as err:
-				L.exception("Failed to send metrics to InfluxDB at {}: {}".format(self.BaseURL, err))
+				L.exception("Failed to send metrics to InfluxDB: {}".format(err), struct_data={"url": self.BaseURL})
 
 
 	def _worker_upload(self, m_tree, rb):
@@ -134,15 +137,18 @@ class InfluxDBTarget(asab.Configurable):
 		try:
 			conn.request("POST", self.WriteRequest, rb, self.Headers)
 		except ConnectionError:
-			L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
+			L.error("Failed to connect to InfluxDB.", struct_data={"url": self.BaseURL})
 			return
 		except Exception as err:
-			L.exception("Failed to send metrics to InfluxDB at {}: {}".format(self.BaseURL, err))
+			L.exception("Failed to send metrics to InfluxDB: {}".format(err), struct_data={"url": self.BaseURL})
 
 		response = conn.getresponse()
 		if response.status != 204:
-			L.warning("Error when sending metrics to Influx: {}\n{}".format(
-				response.status, response.read().decode("utf-8"))
+			L.warning(
+				"Error when sending metrics to Influx: {}\n{}".format(
+					response.status, response.read().decode("utf-8")
+				),
+				struct_data={"url": self.BaseURL}
 			)
 
 
