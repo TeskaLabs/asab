@@ -15,31 +15,40 @@ L = logging.getLogger(__name__)
 
 class InfluxDBTarget(asab.Configurable):
 	"""
-InfluxDB 2.0 API parameters:
-	url - [required] url string of your influxDB
-	bucket - [required] the destination bucket for writes
-	org - [required] the parameter value specifies the destination organization for writes
-	orgid - [optional] the parameter value specifies the ID of the destination organization for writes
+	InfluxDB 2.0 API parameters:
+
+	- url - [required] url string of your influxDB
+	- bucket - [required] the destination bucket for writes
+	- org - [required] the parameter value specifies the destination organization for writes
+	- orgid - [optional] the parameter value specifies the ID of the destination organization for writes
+	- token - [required] API token to authenticate to the InfluxDB
+
 	NOTE: If both orgID and org are specified, org takes precedence
-	token - [required] API token to authenticate to the InfluxDB
+
 	Example:
+	```ini
 	[asab:metrics:influxdb]
 	url=http://localhost:8086
 	bucket=test
 	org=test
 	orgid=test
 	token=your_token
+	```
 
-InfluxDB <1.8 API parameters:
-	url - [required] url string of your influxDB
-	username - [required] name of influxDB user
-	password - [required] password of influxDB user
+	InfluxDB <1.8 API parameters:
+	- url - [required] url string of your influxDB
+	- username - [required] name of influxDB user
+	- password - [required] password of influxDB user
+
 	Example:
+
+	```ini
 	[asab:metrics:influxdb]
 	url=http://localhost:8086
 	username=test
 	password=testtest
 	db=test
+	```
 	"""
 
 	ConfigDefaults = {
@@ -86,15 +95,11 @@ InfluxDB <1.8 API parameters:
 
 		# Proactor service is used for alternative delivery of the metrics into the InfluxDB
 		# It is handly when a main loop can become very busy
-
 		if self.Config.getboolean('proactor'):
 			try:
 				from ..proactor import Module
-
 				svc.App.add_module(Module)
-
 				self.ProactorService = svc.App.get_service('asab.ProactorService')
-
 			except KeyError:
 				self.ProactorService = None
 		else:
@@ -113,9 +118,14 @@ InfluxDB <1.8 API parameters:
 					async with session.post(self.WriteURL, data=rb) as resp:
 						response = await resp.text()
 						if resp.status != 204:
-							L.warning("Error when sending metrics to Influx: {}\n{}".format(resp.status, response))
+							L.warning(
+								"Error when sending metrics to Influx: {}\n{}".format(resp.status, response),
+								struct_data={"url": self.BaseURL}
+							)
 			except aiohttp.client_exceptions.ClientConnectorError:
-				L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
+				L.error("Failed to connect to InfluxDB.", struct_data={"url": self.BaseURL})
+			except Exception as err:
+				L.exception("Failed to send metrics to InfluxDB: {}".format(err), struct_data={"url": self.BaseURL})
 
 
 	def _worker_upload(self, m_tree, rb):
@@ -126,14 +136,21 @@ InfluxDB <1.8 API parameters:
 
 		try:
 			conn.request("POST", self.WriteRequest, rb, self.Headers)
-		except ConnectionRefusedError:
-			L.error("Failed to connect to InfluxDB at {}".format(self.BaseURL))
+		except ConnectionError:
+			L.error("Failed to connect to InfluxDB.", struct_data={"url": self.BaseURL})
 			return
+		except Exception as err:
+			L.exception("Failed to send metrics to InfluxDB: {}".format(err), struct_data={"url": self.BaseURL})
 
 		response = conn.getresponse()
 		if response.status != 204:
-			L.warning("Error when sending metrics to Influx: {}\n{}".format(
-				response.status, response.read().decode("utf-8"))
+			L.warning(
+				"Sending metrics to InfluxDB failed.",
+				struct_data={
+					"url": self.BaseURL,
+					"response.status": response.status,
+					"response": response.read().decode("utf-8")
+				}
 			)
 
 
@@ -158,8 +175,13 @@ def combine_tags_and_field(tags, values, timestamp):
 	tags = escape_tags(tags)
 	values = escape_values(values)
 	# Then combine the tags and then values
-	tags_string = ",".join(["{}={}".format(tk, tv) for tk, tv in tags.items() if tk not in ("help", "unit")])  # remove "help" and "unit" tags -> utilized in openmetric target
-	field_set = ",".join([get_field(value_name, value) for value_name, value in values.items()])
+	# remove "help" and "unit" tags -> utilized in openmetric target
+	tags_string = ",".join(
+		["{}={}".format(tk, tv) for tk, tv in tags.items() if tk not in ("help", "unit")]
+	)
+	field_set = ",".join(
+		[get_field(value_name, value) for value_name, value in values.items()]
+	)
 	return tags_string + " " + field_set + " " + str(int(timestamp * 1e9))
 
 
