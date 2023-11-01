@@ -145,10 +145,12 @@ class InfluxDBTarget(asab.Configurable):
 		response = conn.getresponse()
 		if response.status != 204:
 			L.warning(
-				"Error when sending metrics to Influx: {}\n{}".format(
-					response.status, response.read().decode("utf-8")
-				),
-				struct_data={"url": self.BaseURL}
+				"Sending metrics to InfluxDB failed.",
+				struct_data={
+					"url": self.BaseURL,
+					"response.status": response.status,
+					"response": response.read().decode("utf-8")
+				}
 			)
 
 
