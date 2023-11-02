@@ -19,7 +19,7 @@ class Module(Module):
 		self.service = WebService(app, "asab.WebService")
 
 
-def create_web_server(app, section: str = "web", config: typing.Optional[dict] = None) -> aiohttp.web.UrlDispatcher:
+def create_web_server(app, section: str = "web", config: typing.Optional[dict] = None, api = False) -> aiohttp.web.UrlDispatcher:
 	"""
 Build the web server with the specified configuration.
 
@@ -49,6 +49,13 @@ class MyApplication(asab.Application):
 	app.add_module(Module)
 	websvc = app.get_service("asab.WebService")
 	container = WebContainer(websvc, section, config=config)
+
+	if api:
+		# The DiscoverySession is functional only with ApiService initialized.
+		from ..api import ApiService
+		apisvc = ApiService(app)
+		apisvc.initialize_web(container)
+
 	return container.WebApp.router
 
 
