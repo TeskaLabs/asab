@@ -284,7 +284,8 @@ class StorageService(StorageServiceABC):
 
 
 	async def put_index_template(self, template_name: str, template: dict) -> dict:
-		"""Create a new ECS index template.
+		"""
+		Create a new ECS index template.
 
 			:param template_name: The name of ECS template.
 			:param template: Body for the request.
@@ -389,7 +390,7 @@ class StorageService(StorageServiceABC):
 							"scroll_id": scroll_id,
 						}
 					request_url = "{}{}".format(url, path)
-					
+
 					try:
 						async with session.post(
 							url=request_url,
@@ -774,7 +775,7 @@ def build_headers(username, password, api_key):
 	if username != '' and username is not None:
 		auth = aiohttp.BasicAuth(username, password)
 		headers['Authorization'] = auth.encode()
-		
+
 	elif api_key != '' and api_key is not None:
 		headers['Authorization'] = 'ApiKey {}'.format(api_key)
 
