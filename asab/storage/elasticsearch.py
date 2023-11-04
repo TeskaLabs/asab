@@ -240,7 +240,7 @@ class StorageService(StorageServiceABC):
 				try:
 					async with session.get(
 						url=request_url,
-						ssl=ssl_context,
+						ssl=self.SSLContext,
 						headers=self.Headers
 					) as resp:
 						obj = await resp.json()
