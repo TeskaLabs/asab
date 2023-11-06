@@ -586,7 +586,7 @@ class StorageService(StorageServiceABC):
 					async with session.put(
 						url=request_url,
 						json=settings,
-						ssl=ssl.SSLContext,
+						ssl=self.SSLContext,
 						headers=self.Headers
 					) as resp:
 
