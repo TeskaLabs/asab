@@ -83,6 +83,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		"""
 		Changes in remote repository are being pulled every minute. `PullLock` flag ensures that only if previous "pull" has finished, new one can start.
 		"""
+
 		if self.PullLock:
 			return
 
@@ -155,6 +156,9 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 		finally:
 			self.PullLock = False
+
+			# TODO: Hotfix
+			await self._set_ready()
 
 
 	async def subscribe(self, path):
