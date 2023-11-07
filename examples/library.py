@@ -28,7 +28,8 @@ class MyApplication(asab.Application):
 			os.path.join(os.path.dirname(__file__), "library"),
 			# "zk:///library",
 			# "git+https://github.com/TeskaLabs/asab.git"
-			"azure+https://lmio.blob.core.windows.net/library"
+			# "azure+https://lmio.blob.core.windows.net/library"
+			"libsreg+https://libsreg.z6.web.core.windows.net,libsreg-secondary.z6.web.core.windows.net/lmio-common-library"
 		])
 
 		self.LibraryService = asab.library.LibraryService(
@@ -42,7 +43,7 @@ class MyApplication(asab.Application):
 
 
 	async def on_library_ready(self, event_name, library):
-		items = await self.LibraryService.list("", recursive=True)
+		items = await self.LibraryService.list("/", recursive=True)
 		print("# Library\n")
 		for item in items:
 			print(" *", item)
