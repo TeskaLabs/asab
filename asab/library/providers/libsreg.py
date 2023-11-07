@@ -101,8 +101,6 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 			except FileNotFoundError:
 				pass
 
-			print(">>", etag_fname)
-
 			url = random.choice(self.URLs)
 
 			async with aiohttp.ClientSession() as session:
