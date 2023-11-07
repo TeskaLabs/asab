@@ -27,9 +27,7 @@ class MyApplication(asab.Application):
 		asab.Config["library"]["providers"] = '\n'.join([
 			os.path.join(os.path.dirname(__file__), "library"),
 			# "zk:///library",
-			# "git+https://github.com/TeskaLabs/asab.git"
-			# "azure+https://lmio.blob.core.windows.net/library"
-			"libsreg+https://libsreg.z6.web.core.windows.net,libsreg-secondary.z6.web.core.windows.net/lmio-common-library"
+			"git+https://github.com/TeskaLabs/asab.git"
 		])
 
 		self.LibraryService = asab.library.LibraryService(
