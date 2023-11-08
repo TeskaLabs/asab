@@ -3,9 +3,10 @@ import logging
 import hashlib
 import random
 import tarfile
+import asyncio
+import shutil
 import tempfile
 import urllib.parse
-import shutil
 
 import aiohttp
 
@@ -71,7 +72,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 		super().__init__(library, self.RepoPath, layer, set_ready=False)
 
-		self.PullLock = False
+		self.PullLock = asyncio.Lock()
 
 		# TODO: Subscribption to changes in the library
 		self.SubscribedPaths = set()
@@ -81,19 +82,18 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 	async def _periodic_pull(self, event_name):
 		"""
-		Changes in remote repository are being pulled every minute. `PullLock` flag ensures that only if previous "pull" has finished, new one can start.
+		Changes in remote repository are being pulled every minute.
+		`PullLock` ensures that only if previous "pull" has finished, new one can start.
 		"""
 
-		if self.PullLock:
+		if self.PullLock.locked():
 			return
 
-		self.PullLock = True
-
-		try:
+		async with self.PullLock:
 			headers = {}
 
 			# Check for existing E-Tag
-			etag_fname = os.path.join(self.RepoPath, "etag")
+			etag_fname = os.path.join(self.RootPath, "etag")
 			try:
 				with open(etag_fname, 'r') as f:
 					etag = f.read().strip()
@@ -129,12 +129,14 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 						if os.path.exists(temp_extract_dir):
 							shutil.rmtree(temp_extract_dir)
 
-						# TODO: Remove temp_extract_dir if exists (from last, failed run)
+						# Extract the archive into the temp_extract_dir
 						with tarfile.open(newtarfname, mode='r:xz') as tar:
 							tar.extractall(temp_extract_dir)
 
-						# Synchronize the directories
+						# Synchronize the temp_extract_dir into the library
 						synchronize_dirs(self.RepoPath, temp_extract_dir)
+						await self._set_ready()
+
 						if etag_incoming is not None:
 							with open(etag_fname, 'w') as f:
 								f.write(etag_incoming)
@@ -149,16 +151,10 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 					elif response.status == 304:
 						# The repository has not changed ...
-						pass
+						await self._set_ready()
 
 					else:
 						L.exception("Failed to download the library.", struct_data={"url": url, 'status': response.status})
-
-		finally:
-			self.PullLock = False
-
-			# TODO: Hotfix
-			await self._set_ready()
 
 
 	async def subscribe(self, path):
