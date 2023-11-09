@@ -80,6 +80,13 @@ class StorageService(StorageServiceABC):
 
 	@contextlib.asynccontextmanager
 	async def request(self, method, path, data=None, json=None):
+		'''
+		This method can be used to do a custom call to ElasticSearch like so:
+
+		async with self.request("GET", "cluster/_health") as resp:
+			...
+
+		'''
 		async with aiohttp.ClientSession() as session:
 			for n, url in enumerate(self.ServerUrls, 1):
 				try:
