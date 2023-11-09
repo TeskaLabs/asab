@@ -5,6 +5,7 @@ import logging
 import datetime
 import urllib.parse
 import typing
+import contextlib
 
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
@@ -23,7 +24,8 @@ Config.add_defaults(
 	{
 		'asab:storage': {
 			# You may specify multiple ElasticSearch nodes by e.g. http://es01:9200,es02:9200,es03:9200/
-			'elasticsearch_url': 'http://localhost:9200/',
+			# or simply by multiline entry.
+			'elasticsearch_url': 'http://elasticsearch:9200/',
 
 			'elasticsearch_username': '',
 			'elasticsearch_password': '',
@@ -49,12 +51,14 @@ class StorageService(StorageServiceABC):
 	def __init__(self, app, service_name, config_section_name='asab:storage'):
 		super().__init__(app, service_name)
 
-		self.URL = Config.get(config_section_name, 'elasticsearch_url')
-		parsed_url = urllib.parse.urlparse(self.URL)
-		self.ServerUrls = [
-			urllib.parse.urlunparse((parsed_url.scheme, netloc, parsed_url.path, None, None, None))
-			for netloc in parsed_url.netloc.split(',')
-		]
+		self.ServerUrls = []
+		urls = Config.getmultiline(config_section_name, 'elasticsearch_url')
+		for url in urls:			
+			parsed_url = urllib.parse.urlparse(url)
+			self.ServerUrls += [
+				urllib.parse.urlunparse((parsed_url.scheme, netloc, parsed_url.path, None, None, None))
+				for netloc in parsed_url.netloc.split(',')
+			]
 
 		self.Refresh = Config.get(config_section_name, 'refresh')
 		self.ScrollTimeout = Config.get(config_section_name, 'scroll_timeout')
@@ -75,6 +79,33 @@ class StorageService(StorageServiceABC):
 			self.SSLContext = None
 
 
+	@contextlib.asynccontextmanager
+	async def request(self, method, path, data=None, json=None):
+		async with aiohttp.ClientSession() as session:
+			for n, url in enumerate(self.ServerUrls, 1):
+				try:
+					async with session.request(
+						method=method,
+						url=url + path,
+						ssl=self.SSLContext,
+						headers=self.Headers,
+						data=data,
+						json=json,
+					) as resp:
+
+						if resp.status == 401:
+							raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
+
+						yield resp
+						return
+
+				except aiohttp.client_exceptions.ClientConnectorError:
+					if n == len(self.ServerUrls):
+						raise ConnectionError("Failed to connect to '{}'.".format(url))
+					else:
+						L.warning("Failed to connect to '{}', iterating to another node".format(url))
+
+
 	async def is_connected(self) -> bool:
 		"""
 		Check if the service is connected to ElasticSearch cluster.
@@ -85,31 +116,18 @@ class StorageService(StorageServiceABC):
 		Returns:
 			bool: True if the service is connected.
 		"""
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
-				try:
-					async with session.request(
-						method="GET",
-						url=url,
-						ssl=self.SSLContext,
-						headers=self.Headers,
-					) as resp:
-						if resp.status not in {200, 201}:
-							resp = await resp.json()
-							L.error("Failed to connect to ElasticSearch.", struct_data={
-								"code": resp.get("status"),
-								"reason": resp.get("error", {}).get("reason")
-							})
-							return False
-
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise ConnectionError("Failed to connect to '{}'.".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
-
-		L.info("Connected to ElasticSearch.", struct_data={"urls": self.ServerUrls})
-		return True
+		async with self.request("GET", "") as resp:
+			if resp.status not in {200, 201}:
+				resp = await resp.json()
+				L.error("Failed to connect to ElasticSearch.", struct_data={
+					"code": resp.get("status"),
+					"reason": resp.get("error", {}).get("reason")
+				})
+				return False
+			
+			else:
+				L.info("Connected to ElasticSearch.", struct_data={"urls": self.ServerUrls})
+				return True
 
 
 	async def get(self, index: str, obj_id: str, decrypt=None) -> dict:
@@ -133,36 +151,23 @@ class StorageService(StorageServiceABC):
 		if decrypt is not None:
 			raise NotImplementedError("AES encryption for ElasticSearch not implemented")
 
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
-				request_url = "{}{}/_doc/{}".format(url, index, obj_id)
-				try:
-					async with session.get(
-						url=request_url,
-						ssl=self.SSLContext,
-						headers=self.Headers,
-					) as resp:
-						if resp.status == 401:
-							raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
-						elif resp.status not in {200, 201}:
-							resp = await resp.json()
-							raise ConnectionError("Failed to retrieve data from ElasticSearch. Got {}: {}".format(
-								resp.get("status"),
-								resp.get("error", {}).get("reason")
-							))
-						else:
-							obj = await resp.json()
-							if not obj.get("found"):
-								raise KeyError("No existing object with ID {}".format(obj_id))
-							ret = obj['_source']
-							ret['_v'] = obj['_version']
-							ret['_id'] = obj['_id']
-							return ret
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise ConnectionError("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+		async with self.request("GET", "{}/_doc/{}".format(index, obj_id)) as resp:
+			
+			if resp.status not in {200, 201}:
+				resp = await resp.json()
+				raise ConnectionError("Failed to retrieve data from ElasticSearch. Got {}: {}".format(
+					resp.get("status"),
+					resp.get("error", {}).get("reason")
+				))
+			
+			else:
+				obj = await resp.json()
+				if not obj.get("found"):
+					raise KeyError("No existing object with ID {}".format(obj_id))
+				ret = obj['_source']
+				ret['_v'] = obj['_version']
+				ret['_id'] = obj['_id']
+				return ret
 
 
 	async def get_by(self, collection: str, key: str, value, decrypt=None):
@@ -185,41 +190,29 @@ class StorageService(StorageServiceABC):
 		Returns:
 			The deleted document or message that the entire index was deleted.
 		"""
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
-				try:
-					if _id:
-						request_url = "{}{}/_doc/{}?refresh={}".format(url, index, _id, self.Refresh)
-					else:
-						request_url = "{}{}".format(url, index)
 
-					async with session.delete(
-						url=request_url,
-						ssl=self.SSLContext,
-						headers=self.Headers
-					) as resp:
-						if resp.status == 401:
-							raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
-						elif resp.status == 404:
-							raise KeyError("No existing object with ID {}".format(_id))
-						elif resp.status not in {200, 201}:
-							raise ConnectionError("Failed to retrieve data from ElasticSearch. Got {}: {}".format(
-								resp.get("status"),
-								resp.get("error", {}).get("reason")
-							))
-						else:
-							json_response = await resp.json()
+		if _id:
+			path = "{}/_doc/{}?refresh={}".format(index, _id, self.Refresh)
+		else:
+			path = "{}".format(index)
 
-							if json_response.get("acknowledged", False):
-								return json_response
-							assert json_response["result"] == "deleted", "Document was not deleted"
-							return json_response
+		async with self.request("DELETE", path) as resp:			
+			if resp.status == 404:
+				raise KeyError("No existing object with ID {}".format(_id))
+			
+			elif resp.status not in {200, 201}:
+				raise ConnectionError("Failed to retrieve data from ElasticSearch. Got {}: {}".format(
+					resp.get("status"),
+					resp.get("error", {}).get("reason")
+				))
+			
+			else:
+				json_response = await resp.json()
 
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise Exception("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+				if json_response.get("acknowledged", False):
+					return json_response
+				assert json_response["result"] == "deleted", "Document was not deleted"
+				return json_response
 
 
 	async def mapping(self, index: str) -> dict:
@@ -233,24 +226,10 @@ class StorageService(StorageServiceABC):
 		Returns:
 			dict: Mapping definitions for the index.
 		"""
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
-				request_url = "{}{}/_mapping".format(url, index)
-
-				try:
-					async with session.get(
-						url=request_url,
-						ssl=self.SSLContext,
-						headers=self.Headers
-					) as resp:
-						obj = await resp.json()
-						return obj
-
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise ConnectionError("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+		async with self.request("GET", "{}/_mapping".format(index)) as resp:
+			if resp.status != 200:
+				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
+			return await resp.json()
 
 
 	async def get_index_template(self, template_name: str) -> dict:
@@ -262,25 +241,10 @@ class StorageService(StorageServiceABC):
 		:raise Exception: Raised if connection to all server URLs fails.
 		:return: ElasticSearch Index template.
 		"""
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
-				request_url = "{}_index_template/{}?format=json".format(url, template_name)
-
-				try:
-					async with session.get(
-						url=request_url,
-						headers=self.Headers,
-						ssl=self.SSLContext,
-					) as resp:
-						assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-						content = await resp.json()
-						return content
-
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise Exception("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+		async with self.request("GET", "_index_template/{}?format=json".format(template_name)) as resp:	
+			if resp.status != 200:
+				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
+			return await resp.json()
 
 
 	async def put_index_template(self, template_name: str, template: dict) -> dict:
@@ -292,69 +256,33 @@ class StorageService(StorageServiceABC):
 			:return: JSON response.
 			:raise Exception: Raised if connection to all server URLs fails.
 		"""
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
-				request_url = "{}_index_template/{}".format(url, template_name)
+		async with self.request("PUT", "_index_template/{}".format(template_name), json=template) as resp:
+			if resp.status != 200:
+				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
-				try:
-					async with session.put(
-						url=request_url,
-						data=json.dumps(template),
-						headers=self.Headers,
-						ssl=self.SSLContext,
-					) as resp:
-
-						if resp.status != 200:
-							raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
-
-						resp = await resp.json()
-						return resp
-
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise Exception("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
-						return {}
+			return await resp.json()
 
 
 	async def reindex(self, previous_index, new_index):
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
-				try:
-					if url.endswith('/'):
-						request_url = "{}_reindex".format(url)
-					else:
-						request_url = "{}/_reindex".format(url)
 
-					async with session.post(
-						url=request_url,
-						headers=self.Headers,
-						ssl=self.SSLContext,
-						data=json.dumps({
-							"source": {
-								"index": previous_index,
-							},
-							"dest": {
-								"index": new_index,
-							}
-						})
-					) as resp:
+		data={
+			"source": {
+				"index": previous_index,
+			},
+			"dest": {
+				"index": new_index,
+			}
+		}
+		async with self.request("POST", "_reindex", json=data) as resp:
+			if resp.status != 200:
+				raise AssertionError(
+					"Unexpected response code when reindexing: {}, {}".format(
+						resp.status, await resp.text()
+					)
+				)
 
-						if resp.status != 200:
-							raise AssertionError(
-								"Unexpected response code when reindexing: {}, {}".format(
-									resp.status, await resp.text()
-								)
-							)
-						resp = await resp.json()
-						return resp
-
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise ConnectionError("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+			print('------> REINDEX ;=)')
+			return await resp.json()
 
 
 	async def scroll(self, index: str, body: typing.Optional[dict] = None) -> dict:
@@ -459,27 +387,11 @@ class StorageService(StorageServiceABC):
 				}
 			}
 
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
+		async with self.request("GET", "{}/_search?size={}&from={}&version=true".format(index, size, _from)) as resp:
+			if resp.status != 200:
+				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
-				try:
-					request_url = "{}{}/_search?size={}&from={}&version=true".format(url, index, size, _from)
-
-					async with session.get(
-						url=request_url,
-						json=body,
-						headers=self.Headers,
-						ssl=self.SSLContext,
-					) as resp:
-						assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-						content = await resp.json()
-						return content
-
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise Exception("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+			return await resp.json()
 
 
 	async def count(self, index) -> int:
@@ -491,25 +403,11 @@ class StorageService(StorageServiceABC):
 		:raise Exception: Connection failed.
 		"""
 
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
-				try:
-					count_url = "{}{}/_count".format(url, index)
+		async with self.request("GET", "{}/_count".format(index)) as resp:
+			if resp.status != 200:
+				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
-					async with session.get(
-						url=count_url,
-						headers=self.Headers,
-						ssl=self.SSLContext,
-					) as resp:
-						assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-						total_count = await resp.json()
-						return total_count
-
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise Exception("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+			return await resp.json()
 
 
 	async def indices(self, search_string=None):
@@ -518,23 +416,11 @@ class StorageService(StorageServiceABC):
 
 		:param search_string: A search string. Default to None.
 		"""
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
-				try:
-					request_url = "{}_cat/indices/{}?format=json".format(url, search_string if search_string is not None else "*")
-					async with session.get(
-						url=request_url,
-						ssl=self.SSLContext,
-						headers=self.Headers
-					) as resp:
-						assert resp.status == 200, "Unexpected response code: {}".format(resp.status)
-						return await resp.json()
 
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise Exception("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+		async with self.request("GET", "_cat/indices/{}?format=json".format(search_string if search_string is not None else "*")) as resp:
+			if resp.status != 200:
+				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
+			return await resp.json()
 
 
 	async def empty_index(self, index, settings=None):
@@ -546,28 +432,10 @@ class StorageService(StorageServiceABC):
 		if settings is None:
 			settings = {}
 
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
-
-				try:
-					request_url = "{}{}".format(url, index)
-					async with session.put(
-						url=request_url,
-						json=settings,
-						ssl=self.SSLContext,
-						headers=self.Headers
-					) as resp:
-
-						if resp.status != 200:
-							raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
-
-						return await resp.json()
-
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise Exception("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+		async with self.request("PUT", index, json=settings) as resp:
+			if resp.status != 200:
+				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
+			return await resp.json()
 
 
 	async def put_policy(self, policy_name, settings=None):
@@ -578,28 +446,11 @@ class StorageService(StorageServiceABC):
 		if settings is None:
 			settings = {}
 
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
+		async with self.request("PUT", "_ilm/policy/{}".format(policy_name), json=settings) as resp:
+			if resp.status != 200:
+				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
-				try:
-					request_url = "{}_ilm/policy/{}".format(url, policy_name)
-					async with session.put(
-						url=request_url,
-						json=settings,
-						ssl=self.SSLContext,
-						headers=self.Headers
-					) as resp:
-
-						if resp.status != 200:
-							raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
-
-						return await resp.json()
-
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise Exception("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+			return await resp.json()
 
 
 	async def policies(self):
@@ -608,27 +459,11 @@ class StorageService(StorageServiceABC):
 
 		:param search_string: A search string. Default to None.
 		"""
-		async with aiohttp.ClientSession() as session:
-			for url in self.ServerUrls:
+		async with self.request("GET", "_ilm/policy") as resp:
+			if resp.status != 200:
+				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
-				try:
-					request_url = "{}_ilm/policy".format(url)
-					async with session.get(
-						url=request_url,
-						ssl=self.SSLContext,
-						headers=self.Headers
-					) as resp:
-
-						if resp.status != 200:
-							raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
-
-						return await resp.json()
-
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.ServerUrls[-1]:
-						raise Exception("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
+			return await resp.json()
 
 
 class ElasticSearchUpsertor(UpsertorABC):
@@ -677,81 +512,40 @@ class ElasticSearchUpsertor(UpsertorABC):
 			raise NotImplementedError("yet")
 
 		# This is insert of the new document, the ObjId is to be generated by the ElasicSearch
-
-		async with aiohttp.ClientSession() as session:
-			for url in self.Storage.ServerUrls:
-				request_url = "{}{}/_doc?refresh={}".format(
-					url, self.Collection, self.Storage.Refresh
-				)
-
-				try:
-					async with session.post(
-						url=request_url,
-						headers=self.Storage.Headers,
-						json=upsert_data,
-						ssl=self.Storage.SSLContext,
-					) as resp:
-						if resp.status == 401:
-							raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
-						elif resp.status not in {200, 201}:
-							raise ConnectionError("Unexpected response code: {}".format(resp.status))
-						else:
-							resp_json = await resp.json()
-							self.ObjId = resp_json['_id']
-							return self.ObjId
-
-				except aiohttp.client_exceptions.ClientConnectorError:
-					if url == self.Storage.ServerUrls[-1]:
-						raise Exception("Failed to connect to '{}'".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
-
-				except aiohttp.client_exceptions.ServerDisconnectedError:
-					raise Exception("Failed to connect to '{}'".format(url))
-
-				except ValueError as err:
-					raise ConnectionError("Both username and API key specified. Please choose one option. {}".format(err))
-
-				# except Exception:
-				# 	raise Exception("Failed to connect to '{}'".format(url))
+		async with self.Storage.request(
+			"POST",
+			"{}/_doc?refresh={}".format(self.Collection, self.Storage.Refresh),
+			json=upsert_data,
+		) as resp:
+			if resp.status not in {200, 201}:
+				raise ConnectionError("Unexpected response code: {}".format(resp.status))
+			else:
+				resp_json = await resp.json()
+				self.ObjId = resp_json['_id']
+				return self.ObjId
 
 
 	async def _update_existing_object(self):
 		upsert_data = {"doc": {}, "doc_as_upsert": True}
 
-		if len(self.ModSet) > 0:
-			for k, v in self.ModSet.items():
-				upsert_data["doc"][k] = serialize(self.ModSet[k])
+		if len(self.ModSet) == 0:
+			return
 
-			async with aiohttp.ClientSession() as session:
-				for url in self.Storage.ServerUrls:
+		for k, v in self.ModSet.items():
+			upsert_data["doc"][k] = serialize(self.ModSet[k])
 
-					try:
-						request_url = "{}{}/_update/{}?refresh={}".format(url, self.Collection, self.ObjId, self.Storage.Refresh)
-						async with session.post(
-							url=request_url,
-							json=upsert_data,
-							headers=self.Storage.Headers,
-							ssl=self.Storage.SSLContext,
-						) as resp:
-							if resp.status == 401:
-								raise ConnectionRefusedError("Response code 401: Unauthorized. Provide authorization by specifying either user name and password or api key.")
-							elif resp.status not in {200, 201}:
-								raise ConnectionError("Unexpected response code: {}".format(resp.status))
-							else:
-								resp_json = await resp.json()
-								assert resp_json["result"] == "updated" or resp_json[
-									"result"] == "created", "Creating/updating was unsuccessful"
-								return self.ObjId
-
-					except aiohttp.client_exceptions.ClientConnectorError:
-						if url == self.Storage.ServerUrls[-1]:
-							raise Exception("Failed to connect to '{}'".format(url))
-						else:
-							L.warning("Failed to connect to '{}', iterating to another cluster node".format(url))
-
-					except aiohttp.client_exceptions.ServerDisconnectedError:
-						raise Exception("Failed to connect to '{}'".format(url))
+		async with self.Storage.request(
+			"POST",
+			"{}/_update/{}?refresh={}".format(self.Collection, self.ObjId, self.Storage.Refresh),
+			json=upsert_data,
+		) as resp:
+			if resp.status not in {200, 201}:
+				raise ConnectionError("Unexpected response code: {}".format(resp.status))
+			else:
+				resp_json = await resp.json()
+				assert resp_json["result"] == "updated" or resp_json[
+					"result"] == "created", "Creating/updating was unsuccessful"
+				return self.ObjId
 
 
 def serialize(v):
