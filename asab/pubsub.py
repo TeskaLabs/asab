@@ -135,9 +135,6 @@ class PubSub(object):
 
 	def _callback_iter(self, message_type):
 
-		def _deliver_async(loop, callback, message_type, *args, **kwargs):
-			asyncio.ensure_future(callback(message_type, *args, **kwargs))
-
 		callback_list = self.Subscribers.get(message_type)
 		if callback_list is None:
 			return
@@ -274,6 +271,21 @@ class subscribe(object):
 		else:
 			f.asab_pubsub_subscribe_to_message_types.append(self.message_type)
 		return f
+
+
+def _deliver_async_exited(task):
+	try:
+		task.result()
+	except asyncio.CancelledError:
+		pass
+	except Exception as e:
+		L.exception("Error during pubsub delivery", struct_data={'task': task.get_name()})
+
+
+def _deliver_async(loop, callback, message_type, *args, **kwargs):
+	task = asyncio.create_task(callback(message_type, *args, **kwargs))
+	task.set_name("asab.PubSub.{}".format(message_type))
+	task.add_done_callback(_deliver_async_exited)
 
 
 class Subscriber(object):
