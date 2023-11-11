@@ -278,7 +278,7 @@ def _deliver_async_exited(task):
 		task.result()
 	except asyncio.CancelledError:
 		pass
-	except Exception as e:
+	except Exception:
 		L.exception("Error during pubsub delivery", struct_data={'task': task.get_name()})
 
 
