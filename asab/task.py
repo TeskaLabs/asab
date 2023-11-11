@@ -133,6 +133,7 @@ class TaskService(asab.Service):
 				self.PendingTasks.add(task)
 
 			if len(self.PendingTasks) == 0:
+				# Block until a new task is scheduled
 				task = await self.NewTasks.get()
 				if isinstance(task, typing.Coroutine):
 					task = asyncio.create_task(task)
@@ -145,6 +146,7 @@ class TaskService(asab.Service):
 						await task
 					except Exception as e:
 						L.exception("Error '{}' during task:".format(e))
+					self.App.PubSub.publish("TaskService.task_done!", task)
 
 
 async def forever(async_fn):
