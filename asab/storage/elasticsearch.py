@@ -52,8 +52,10 @@ class StorageService(StorageServiceABC):
 
 		self.URL = Config.get(config_section_name, 'elasticsearch_url')
 		parsed_url = urllib.parse.urlparse(self.URL)
+		url_path = parsed_url.path if parsed_url.path != "" else "/"
+
 		self.ServerUrls = [
-			urllib.parse.urlunparse((parsed_url.scheme, netloc, parsed_url.path, None, None, None))
+			urllib.parse.urlunparse((parsed_url.scheme, netloc, url_path, None, None, None))
 			for netloc in parsed_url.netloc.split(',')
 		]
 
