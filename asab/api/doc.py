@@ -31,14 +31,30 @@ class DocWebHandler(object):
 		self.WebContainer.WebApp.router.add_get("/asab/v1/openapi", self.openapi)
 
 		self.AuthorizationUrl = asab.Config.get(
-			config_section_name, "authorizationUrl", fallback=None
+			config_section_name, "authorization_url", fallback=None
 		)
-		self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl", fallback=None)
+		self.TokenUrl = asab.Config.get(config_section_name, "token_url", fallback=None)
 		self.Scopes = asab.Config.get(config_section_name, "scopes", fallback=None)
+
+		# Deprecated options
+		# TODO: Remove them
+		if asab.Config.has_option(config_section_name, "authorizationUrl"):
+			asab.LogObsolete.warning(
+				"The option 'authorizationUrl' in configuration is deprecated. Please use 'authorization_url' option.",
+				struct_data={"eof": "2024-02-01"}
+			)
+			self.AuthorizationUrl = asab.Config.get(config_section_name, "authorizationUrl", fallback=None)
+		if asab.Config.has_option(config_section_name, "tokenUrl"):
+			asab.LogObsolete.warning(
+				"The option 'tokenUrl' in configuration is deprecated. Please use 'token_url' option.",
+				struct_data={"eof": "2024-02-01"}
+			)
+			self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl", fallback=None)
+
 
 		self.Manifest = api_service.Manifest
 
-		self.DefaultRouteTag: str = asab.Config["asab:doc"].get("default_route_tag")
+		self.DefaultRouteTag: str = asab.Config["asab:doc"].get("default_route_tag")  # default: 'module_name'
 		if self.DefaultRouteTag not in ["module_name", "class_name"]:
 			raise ValueError(
 				"Unknown default_route_tag: {}. Choose between options "
@@ -52,38 +68,35 @@ class DocWebHandler(object):
 		Take a docstring of the class and a docstring of methods and merge them into Swagger data.
 		"""
 		app_doc_string: str = self.App.__doc__
-		app_description: str = get_description(app_doc_string)
+		app_description: str = get_docstring_description(app_doc_string)
 		specification: dict = {
 			"openapi": "3.0.1",
 			"info": {
 				"title": "{}".format(self.App.__class__.__name__),
 				"description": app_description,
 				"contact": {
-					"name": "ASAB microservice",
+					"name": "ASAB-based microservice",
 					"url": "https://www.github.com/teskalabs/asab",
 				},
-				"version": "1.0.0",
+				"version": self.get_version_from_manifest(),
 			},
 			"servers": [
 				{"url": url} for url in self.ServerUrls
 			],
+			"components": self.create_security_schemes(),
 
 			# Base path relative to openapi endpoint
 			"paths": {},
 			# Authorization
 			# TODO: Authorization must not be always of OAuth type
-			"components": {},
 		}
 
-		additional_info_dict: dict = self.get_additional_info(app_doc_string)
+		# Application specification
+		additional_info_dict: dict = self.get_docstring_yaml_dict(app_doc_string)
 		if additional_info_dict is not None:
 			specification.update(additional_info_dict)
 
-		specification["components"]["securitySchemes"] = self.create_security_schemes()
-		specification["info"]["version"] = self.get_manifest()
-		specification["info"]["description"] = app_description
-
-		# Extract asab and microservice routers, sort them alphabetically
+		# Extract asab and microservice routers, sort them alphabetically by the first tag
 		asab_routes = []
 		microservice_routes = []
 
@@ -93,14 +106,14 @@ class DocWebHandler(object):
 				# TODO: once/if there is graphql, its method name is probably `*`
 				continue
 
+			# Determine which routes are asab-based
 			path: str = self.get_path_from_route_info(route)
-
 			if re.search("asab", path) or re.search("/doc", path) or re.search("/oauth2-redirect.html", path):
 				asab_routes.append(self.parse_route_data(route))
 			else:
 				microservice_routes.append(self.parse_route_data(route))
 
-		microservice_routes.sort(key=get_tag)
+		microservice_routes.sort(key=get_first_tag)
 
 		for endpoint in microservice_routes:
 			endpoint_name = list(endpoint.keys())[0]
@@ -122,77 +135,67 @@ class DocWebHandler(object):
 		return specification
 
 	def parse_route_data(self, route) -> dict:
-		"""Take a route (a single endpoint with one method) and return its description data.
+		"""
+		Take a route (a single method of an endpoint) and return its description data.
+		"""
+		path_parameters: list = extract_path_parameters(route)
 
----
-Example:
----
-
-```python
->>> self.parse_route(myTestRoute)
-{
-	'/my/endpoint': {
-		'get': {
-			'summary': 'This is a test route.',
-			'description': 'This is a test route.\\n\\n\\nHandler: `MyBeautifulHandler.myTestRoute()`',
-			'tags': ['myTag'],
-			'responses': {'200': {'description': 'Success'}}
-		}
-	}
-}
-```
-"""
-		route_dict: dict = {}
-		method_name: str = route.method.lower()
-		route_path: str = self.get_path_from_route_info(route)
-
-		parameters: list = extract_parameters(route)
-		doc_string: str = extract_docstring(route)
-		add_dict: dict = self.get_additional_info(doc_string)
 		handler_name: str = extract_handler_name(route)
-		method_dict: dict = extract_method_dict(route)
 
-		description: str = get_description(doc_string)
-		description += "\n\nHandler: `{}`".format(handler_name)
+		# Parse docstring description and yaml data
+		docstring: str = route.handler.__doc__
+		docstring_description: str = get_docstring_description(docstring)
+		docstring_description += "\n\n**Handler:** `{}`".format(handler_name)
+		docstring_yaml_dict: dict = self.get_docstring_yaml_dict(docstring)
 
-		new_methods: dict = {
-			"summary": description.split("\n")[0],
-			"description": description,
+		# Create route info dictionary
+		route_info_data: dict = {
+			"summary": docstring_description.split("\n")[0],
+			"description": docstring_description,
 			"responses": {"200": {"description": "Success"}},
+			"parameters": [],
+			"tags": []
 		}
 
-		if self.DefaultRouteTag == "class_name":
-			new_methods["tags"] = [extract_class_name(route)]
-		elif self.DefaultRouteTag == "module_name":
-			new_methods["tags"] = [extract_module_name(route)]
+		# Update it with parsed YAML and add query parameters
+		if docstring_yaml_dict is not None:
+			route_info_data.update(docstring_yaml_dict)
+			if docstring_yaml_dict.get("parameters"):
+				for query_parameter in docstring_yaml_dict["parameters"]:
+					if query_parameter.get("parameters"):
+						route_info_data["parameters"].append(query_parameter["parameters"])
 
-		if len(parameters) > 0:
-			new_methods["parameters"] = parameters
+		for path_parameter in path_parameters:
+			route_info_data["parameters"].append(path_parameter)
 
-		if add_dict is not None:
-			new_methods.update(add_dict)
+		# Add default tag if not specified in docstring yaml
+		if len(route_info_data["tags"]) == 0:
+			# Use the default one
+			if self.DefaultRouteTag == "class_name":
+				route_info_data["tags"] = [extract_class_name(route)]
+			elif self.DefaultRouteTag == "module_name":
+				route_info_data["tags"] = [extract_module_name(route)]
 
-		path_object = route_dict.get(route_path)
-		if path_object is None:
-			route_dict[route_path] = path_object = {}
-		path_object[method_name] = method_dict
+		# Create the route dictionary
+		route_path: str = self.get_path_from_route_info(route)
+		method_name: str = route.method.lower()
+		method_dict: dict = extract_json_schema(route)
+		method_dict.update(route_info_data)
 
-		method_dict.update(new_methods)
-
-		return route_dict
+		return {route_path: {method_name: method_dict}}
 
 
-	def get_additional_info(self, docstring: typing.Optional[str]) -> typing.Optional[dict]:
+	def get_docstring_yaml_dict(self, docstring: typing.Optional[str]) -> typing.Optional[dict]:
 		"""Take the docstring of a function and return additional data if they exist."""
 
-		additional_info_dict: typing.Optional[dict] = None
+		parsed_yaml_docstring_dict: typing.Optional[dict] = None
 
 		if docstring is not None:
 			docstring = inspect.cleandoc(docstring)
 			dashes_index = docstring.find("\n---\n")
 			if dashes_index >= 0:
 				try:
-					additional_info_dict = yaml.load(
+					parsed_yaml_docstring_dict = yaml.load(
 						docstring[dashes_index:], Loader=yaml.SafeLoader
 					)  # everything after --- goes to add_dict
 				except yaml.YAMLError as e:
@@ -200,10 +203,10 @@ Example:
 						"Failed to parse '{}' doc string {}".format(
 							self.App.__class__.__name__, e
 						))
-		return additional_info_dict
+		return parsed_yaml_docstring_dict
 
 	def create_security_schemes(self) -> dict:
-		"""Create security schemes if self.tokenUrl, self.authorizationUrl and self.Scopes exist."""
+		"""Create security schemes."""
 		security_schemes_dict = {}
 		if self.AuthorizationUrl and self.TokenUrl:
 			security_schemes_dict = {
@@ -230,11 +233,12 @@ Example:
 					)
 		return security_schemes_dict
 
-	def get_manifest(self) -> dict:
+	def get_version_from_manifest(self) -> dict:
 		"""Get version from MANIFEST.json if exists."""
-		version = {}
 		if self.Manifest:
 			version = self.Manifest["version"]
+		else:
+			version = "unknown"
 		return version
 
 	def get_path_from_route_info(self, route) -> str:
@@ -299,7 +303,7 @@ Example:
 		)
 
 
-def get_description(docstring: typing.Optional[str]) -> str:
+def get_docstring_description(docstring: typing.Optional[str]) -> str:
 		"""Take the docstring of a function and parse it into description. Omit everything that comes after '---'."""
 		if docstring is not None:
 			docstring = inspect.cleandoc(docstring)
@@ -317,17 +321,8 @@ def get_description(docstring: typing.Optional[str]) -> str:
 		return description
 
 
-def extract_parameters(route) -> list:
+def extract_path_parameters(route) -> list:
 	"""Take a single route and return its parameters.
-
-	---
-	Example:
-
-	>>> extract_parameters(myTestRoute)
-	[
-			{'in': 'path', 'name': 'parameter1', 'required': True},
-			{'in': 'path', 'name': 'parameter2', 'required': True}
-	]
 	"""
 	parameters: list = []
 	route_info = route.get_info()
@@ -362,11 +357,7 @@ def extract_module_name(route) -> str:
 	return str(route.handler.__module__)
 
 
-def extract_docstring(route) -> str:
-	return route.handler.__doc__
-
-
-def extract_method_dict(route) -> dict:
+def extract_json_schema(route) -> dict:
 		method_dict = {}
 		try:
 			json_schema = route.handler.__getattribute__("json_schema")
@@ -378,7 +369,7 @@ def extract_method_dict(route) -> dict:
 		return method_dict
 
 
-def get_tag(route_data: dict) -> str:
+def get_first_tag(route_data: dict) -> str:
 	"""Get tag from route data. Used for sorting tags alphabetically."""
 	for endpoint in route_data.values():
 		for method in endpoint.values():
