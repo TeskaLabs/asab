@@ -52,7 +52,7 @@ class StorageService(StorageServiceABC):
 
 		self.URL = Config.get(config_section_name, 'elasticsearch_url')
 		parsed_url = urllib.parse.urlparse(self.URL)
-		url_path = parsed_url.path if parsed_url.path != "" else "/"
+		url_path = parsed_url.path
 		if not url_path.endswith("/"):
 			url_path += "/"
 
