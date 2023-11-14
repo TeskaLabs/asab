@@ -276,7 +276,7 @@ class DocWebHandler(object):
 
 
 	@noauth
-	def oauth2_redirect(self, request):
+	async def oauth2_redirect(self, request):
 		"""
 		Required for the authorization to work.
 		---
