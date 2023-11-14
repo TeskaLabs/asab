@@ -143,10 +143,9 @@ class DocWebHandler(object):
 		# Update it with parsed YAML and add query parameters
 		if docstring_yaml_dict is not None:
 			route_info_data.update(docstring_yaml_dict)
-			if docstring_yaml_dict.get("parameters"):
-				for query_parameter in docstring_yaml_dict["parameters"]:
-					if query_parameter.get("parameters"):
-						route_info_data["parameters"].append(query_parameter["parameters"])
+			for query_parameter in docstring_yaml_dict.get("parameters"):
+				if query_parameter.get("parameters"):
+					route_info_data["parameters"].append(query_parameter["parameters"])
 
 		for path_parameter in path_parameters:
 			route_info_data["parameters"].append(path_parameter)
