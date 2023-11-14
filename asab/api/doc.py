@@ -92,11 +92,11 @@ class DocWebHandler(object):
 		}
 
 		# Application specification
-		additional_info_dict: dict = self.get_docstring_yaml_dict(app_doc_string)
-		if additional_info_dict is not None:
-			specification.update(additional_info_dict)
+		app_info: dict = self.get_docstring_yaml_dict(app_doc_string)
+		if app_info is not None:
+			specification.update(app_info)
 
-		# Extract asab and microservice routers, sort them alphabetically by the first tag
+		# Find asab and microservice routes, sort them alphabetically by the first tag
 		asab_routes = []
 		microservice_routes = []
 
@@ -107,7 +107,7 @@ class DocWebHandler(object):
 				continue
 
 			# Determine which routes are asab-based
-			path: str = self.get_path_from_route_info(route)
+			path: str = self.get_route_path(route)
 			if re.search("asab", path) or re.search("/doc", path) or re.search("/oauth2-redirect.html", path):
 				asab_routes.append(self.parse_route_data(route))
 			else:
@@ -139,8 +139,7 @@ class DocWebHandler(object):
 		Take a route (a single method of an endpoint) and return its description data.
 		"""
 		path_parameters: list = extract_path_parameters(route)
-
-		handler_name: str = extract_handler_name(route)
+		handler_name: str = get_handler_name(route)
 
 		# Parse docstring description and yaml data
 		docstring: str = route.handler.__doc__
@@ -172,14 +171,14 @@ class DocWebHandler(object):
 		if len(route_info_data["tags"]) == 0:
 			# Use the default one
 			if self.DefaultRouteTag == "class_name":
-				route_info_data["tags"] = [extract_class_name(route)]
+				route_info_data["tags"] = [get_class_name(route)]
 			elif self.DefaultRouteTag == "module_name":
-				route_info_data["tags"] = [extract_module_name(route)]
+				route_info_data["tags"] = [get_module_name(route)]
 
 		# Create the route dictionary
-		route_path: str = self.get_path_from_route_info(route)
+		route_path: str = self.get_route_path(route)
 		method_name: str = route.method.lower()
-		method_dict: dict = extract_json_schema(route)
+		method_dict: dict = get_json_schema(route)
 		method_dict.update(route_info_data)
 
 		return {route_path: {method_name: method_dict}}
@@ -241,7 +240,7 @@ class DocWebHandler(object):
 			version = "unknown"
 		return version
 
-	def get_path_from_route_info(self, route) -> str:
+	def get_route_path(self, route) -> str:
 		"""Take a route and return its path."""
 		route_info = route.get_info()
 		if "path" in route_info:
@@ -337,7 +336,7 @@ def extract_path_parameters(route) -> list:
 	return parameters
 
 
-def extract_handler_name(route) -> str:
+def get_handler_name(route) -> str:
 	if inspect.ismethod(route.handler):
 		handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
 	else:
@@ -345,7 +344,7 @@ def extract_handler_name(route) -> str:
 	return handler_name
 
 
-def extract_class_name(route) -> str:
+def get_class_name(route) -> str:
 	if inspect.ismethod(route.handler):
 		class_name = str(route.handler.__self__.__class__.__name__)
 	else:
@@ -353,11 +352,11 @@ def extract_class_name(route) -> str:
 	return class_name
 
 
-def extract_module_name(route) -> str:
+def get_module_name(route) -> str:
 	return str(route.handler.__module__)
 
 
-def extract_json_schema(route) -> dict:
+def get_json_schema(route) -> dict:
 		method_dict = {}
 		try:
 			json_schema = route.handler.__getattribute__("json_schema")
