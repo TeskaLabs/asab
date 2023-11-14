@@ -45,7 +45,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 		version = url.fragment
 		if version == '':
-			version = 'master'
+			version = 'production'
 
 		archname = url.path[1:]
 
