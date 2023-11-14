@@ -100,9 +100,11 @@ For that reason, you have to provide a unique `service_name` and there is no def
 
 | Message | Published when... |
 | --- | --- |
-| `Library.not_ready!` | Library is created and the providers are not connected or Library is disconnected. |
-| `Library.ready!` | After all of the providers are ready |
-| `Library.change!` | The content of the Library has changed. |
+| `Library.not_ready!` | providers are not ready. |
+| `Library.ready!` | all of the providers are ready. |
+| `Library.change!` | the content of the Library has changed. |
+
+
 
 ## Notification on changes
 
@@ -323,6 +325,58 @@ default path for the cloned repository is
 [library:git]
 repodir=path/to/repository/cache
 ```
+
+### Libraries repository
+
+The `libsreg` provider downloads the content from the _distribution URL_.
+The distribution URL points to HTTP(S) server where _content archives_ are published.
+
+!!! example "Configuration examples:"
+
+    ```ini
+    [library]
+    providers: libsreg+https://libsreg.example.com/my-library
+    ```
+
+!!! example "More than one distribution server can be specified:"
+
+    ```ini
+    [library]
+    providers: libsreg+https://libsreg1.example.com,libsreg2.example.com/my-library
+    ```
+
+    This variant provides more resiliency against a distribution server unavailability.
+
+A structure of the distribution server filesystem:
+
+```
+/my-library/
+  + my-library-master.tar.xz
+  + my-library-master.tar.xz.sha256
+  + my-library-production.tar.xz
+  + my-library-production.tar.xz.sha256
+  + my-library-v43.41.tar.xz
+  + my-library-v43.41.tar.xz.sha256
+  ...
+```
+
+* `*.tar.xz`: This is the TAR/XZ archive of the actual content
+* `*.tar.xz.sha256`: SHA256 checksum of the archive
+
+The structure of the distribution is as follows:
+
+`/{archname}/{archname}-{version}.tar.xz`
+
+* `archname`: A name of the distribution archive, `my-library` in the example above
+* `version`: A version of the distribution archive, `master`, `production` are typically GIT branches, `v43.41` is a GIT tag.
+
+
+!!! tip
+
+    This provider is designed to use Microsoft Azure Storage as a distribution point.
+    Is is assumed that the content archives are uploaded to the distribution point using CI/CD.
+
+
 
 ## Reference
 
