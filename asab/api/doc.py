@@ -83,7 +83,8 @@ class DocWebHandler(object):
 			"servers": [
 				{"url": url} for url in self.ServerUrls
 			],
-			"components": self.create_security_schemes(),
+			"components": {
+				"securitySchemes": self.create_security_schemes()},
 
 			# Base path relative to openapi endpoint
 			"paths": {},
