@@ -33,9 +33,9 @@ class MyApplication(asab.Application):
 		# Check the connection
 		connected = await storage.is_connected()
 		if connected:
-			print("Connected to ElasticSearch on {}".format(storage.URL))
+			print("Connected to ElasticSearch on {}".format(storage.ServerUrls))
 		else:
-			print("Connection to {} failed".format(storage.URL))
+			print("Connection to {} failed".format(storage.ServerUrls))
 
 		# Obtain upsertor object which is associated with given "test-collection"
 		# To create new object we keep default `version` to zero

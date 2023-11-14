@@ -5,6 +5,7 @@ import logging
 import datetime
 import urllib.parse
 import typing
+import re
 
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
@@ -16,6 +17,7 @@ import ssl
 #
 
 L = logging.getLogger(__name__)
+LogObsolete = logging.getLogger('OBSOLETE')
 
 #
 
@@ -50,19 +52,25 @@ class StorageService(StorageServiceABC):
 		super().__init__(app, service_name)
 		self.Loop = app.Loop
 
-		self.URL = Config.get(config_section_name, 'elasticsearch_url')
-		parsed_url = urllib.parse.urlparse(self.URL)
-		self.ServerUrls = [
-			urllib.parse.urlunparse((parsed_url.scheme, netloc, parsed_url.path, None, None, None))
-			for netloc in parsed_url.netloc.split(',')
-		]
+		# new configuration format [elasticsearch]
+		url, username, password, api_key = 'url', 'username', 'password', 'api_key'
 
-		self.Refresh = Config.get(config_section_name, 'refresh')
-		self.ScrollTimeout = Config.get(config_section_name, 'scroll_timeout')
+		# old configuration format [asab:storage]
+		if config_section_name == 'asab:storage':
+			LogObsolete.warning(
+				"The configuration format [asab:stirage] is outdated. Please use an updated version [elasticsearch] with url, username and passowrd parameters."
+			)
+			url, username, password, api_key = 'elasticsearch_url', 'elasticsearch_username', 'elasticsearch_password', 'elasticsearch_api_key'
+
+		url = Config.get(config_section_name, url)
+		self.ServerUrls = parse_url_config(url)
+
+		self.Refresh = Config.get(config_section_name, 'refresh', fallback='true')
+		self.ScrollTimeout = Config.get(config_section_name, 'scroll_timeout', fallback=None)
 
 		# Authorization: username or API-key
-		username = Config.get(config_section_name, 'elasticsearch_username')
-		api_key = Config.get(config_section_name, 'elasticsearch_api_key')
+		username = Config.get(config_section_name, username, fallback='')
+		api_key = Config.get(config_section_name, api_key, fallback='')
 
 		if username != '' and api_key != '':
 			L.warning("Both username and API key specified. ES Storage service may not function properly. Please choose one option.")
@@ -70,7 +78,7 @@ class StorageService(StorageServiceABC):
 		if username == '':
 			self._auth = None
 		else:
-			password = Config.get(config_section_name, 'elasticsearch_password')
+			password = Config.get(config_section_name, password, fallback='')
 			self._auth = aiohttp.BasicAuth(login=username, password=password)
 
 		self._ClientSession = None
@@ -722,10 +730,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 		if version == 0:
 			self.ModSet['_c'] = now  # Set the creation timestamp
 
-		api_key = Config.get('asab:storage', 'elasticsearch_api_key')
-		self.Headers = {'Content-Type': 'application/json'}
-		if api_key != '':
-			self.Headers['Authorization'] = "ApiKey {}".format(api_key)
+		self.Headers = self.Storage.Headers
 
 
 	@classmethod
@@ -851,3 +856,21 @@ def serialize(v):
 		return v.timestamp()
 	else:
 		return v
+
+
+def parse_url_config(url):
+	scheme = urllib.parse.urlparse(url).scheme
+	pattern = r'(https?://)([^:/]+):(\d+)/?'
+	node_urls = []
+	for url in re.split(r'[\s,;]+', url):
+		url = url.strip()
+		if len(url) == 0:
+			continue
+		if url[-1] != '/':
+			url += '/'
+		if re.match(pattern, url) is None:
+			# for old specification e.g. http://es01:9200,es02:9200,es03:9200/
+			url = scheme + '://' + url
+		node_urls.append(url)
+
+	return node_urls
