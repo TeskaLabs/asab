@@ -36,22 +36,6 @@ class DocWebHandler(object):
 		self.TokenUrl = asab.Config.get(config_section_name, "token_url", fallback=None)
 		self.Scopes = asab.Config.get(config_section_name, "scopes", fallback=None)
 
-		# Deprecated options
-		# TODO: Remove them
-		if asab.Config.has_option(config_section_name, "authorizationUrl"):
-			asab.LogObsolete.warning(
-				"The option 'authorizationUrl' in configuration is deprecated. Please use 'authorization_url' option.",
-				struct_data={"eof": "2024-02-01"}
-			)
-			self.AuthorizationUrl = asab.Config.get(config_section_name, "authorizationUrl", fallback=None)
-		if asab.Config.has_option(config_section_name, "tokenUrl"):
-			asab.LogObsolete.warning(
-				"The option 'tokenUrl' in configuration is deprecated. Please use 'token_url' option.",
-				struct_data={"eof": "2024-02-01"}
-			)
-			self.TokenUrl = asab.Config.get(config_section_name, "tokenUrl", fallback=None)
-
-
 		self.Manifest = api_service.Manifest
 
 		self.DefaultRouteTag: str = asab.Config["asab:doc"].get("default_route_tag")  # default: 'module_name'
