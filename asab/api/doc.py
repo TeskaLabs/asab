@@ -67,7 +67,8 @@ class DocWebHandler(object):
 			"servers": [
 				{"url": url} for url in self.ServerUrls
 			],
-			"components": self.create_security_schemes(),
+			"components": {
+				"securitySchemes": self.create_security_schemes()},
 
 			# Base path relative to openapi endpoint
 			"paths": {},
@@ -258,7 +259,7 @@ class DocWebHandler(object):
 
 
 	@noauth
-	def oauth2_redirect(self, request):
+	async def oauth2_redirect(self, request):
 		"""
 		Required for the authorization to work.
 		---
