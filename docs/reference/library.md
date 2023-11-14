@@ -350,13 +350,13 @@ The distribution URL points to HTTP(S) server where _content archives_ are publi
 A structure of the distribution server filesystem:
 
 ```
-/my-library/
-  + my-library-master.tar.xz
-  + my-library-master.tar.xz.sha256
-  + my-library-production.tar.xz
-  + my-library-production.tar.xz.sha256
-  + my-library-v43.41.tar.xz
-  + my-library-v43.41.tar.xz.sha256
++ /my-library/
+  - my-library-master.tar.xz
+  - my-library-master.tar.xz.sha256
+  - my-library-production.tar.xz
+  - my-library-production.tar.xz.sha256
+  - my-library-v43.41.tar.xz
+  - my-library-v43.41.tar.xz.sha256
   ...
 ```
 
