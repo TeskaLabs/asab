@@ -103,6 +103,15 @@ window.onload = () => {{
 			SwaggerUIBundle.SwaggerUIStandalonePreset
 		]
 	}})
+	ui.initOAuth({{
+		clientId: "my-asab-app-swagger",
+		clientSecret: "",
+		realm: "asab-auth",
+		appName: "My ASAB app",
+		scopeSeparator: " ",
+		scopes: "openid profile",
+		usePkceWithAuthorizationCodeGrant: false
+	}})
 }}
 </script>
 </body>
