@@ -32,7 +32,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 	[library]
 	providers=
 	...
-	libsreg+https://libsreg.z6.web.core.windows.net,libsreg-secondary.z6.web.core.windows.net/lmio-common-library
+	libsreg+https://libsreg1.example.com,libsreg2.example.com/my-library
 	...
 	```
 
@@ -45,7 +45,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 		version = url.fragment
 		if version == '':
-			version = 'master'
+			version = 'production'
 
 		archname = url.path[1:]
 
