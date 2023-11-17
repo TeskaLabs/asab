@@ -130,10 +130,10 @@ class AuthService(asab.Service):
 				"or install asab with 'authz' optional dependency.")
 		elif len(self.PublicKeysUrl) == 0:
 			self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
-			L.log(
-				asab.LOG_NOTICE,
+			L.warning(
 				"No 'public_keys_url' provided in [auth] config section. "
-				"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT))
+				"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT)
+			)
 
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
 		# Limit the frequency of auth server requests to save network traffic
