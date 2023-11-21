@@ -35,7 +35,7 @@ class MyApplication(asab.Application):
 		if connected:
 			print("Connected to ElasticSearch")
 		else:
-			print("Failed to connect to ElasticSearch")
+			print("Connection to ElasticSearch failed")
 
 		# Obtain upsertor object which is associated with given "test-collection"
 		# To create new object we keep default `version` to zero
