@@ -5,19 +5,19 @@ import logging
 import datetime
 import urllib.parse
 import typing
-import re
+import ssl
+
+import asab
 
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
 from ..config import Config
 from ..tls import SSLContextBuilder
 
-import ssl
 
 #
 
 L = logging.getLogger(__name__)
-LogObsolete = logging.getLogger('OBSOLETE')
 
 #
 
@@ -25,7 +25,7 @@ Config.add_defaults(
 	{
 		'asab:storage': {
 			# You may specify multiple ElasticSearch nodes by e.g. http://es01:9200,es02:9200,es03:9200/
-			'elasticsearch_url': 'http://localhost:9200/',
+			'elasticsearch_url': '',
 
 			'elasticsearch_username': '',
 			'elasticsearch_password': '',
@@ -52,25 +52,32 @@ class StorageService(StorageServiceABC):
 		super().__init__(app, service_name)
 		self.Loop = app.Loop
 
-		# new configuration format [elasticsearch]
-		url, username, password, api_key = 'url', 'username', 'password', 'api_key'
-
-		# old configuration format [asab:storage]
-		if config_section_name == 'asab:storage':
-			LogObsolete.warning(
-				"The configuration format [asab:stirage] is outdated. Please use an updated version [elasticsearch] with url, username and passowrd parameters."
-			)
-			url, username, password, api_key = 'elasticsearch_url', 'elasticsearch_username', 'elasticsearch_password', 'elasticsearch_api_key'
-
-		url = Config.get(config_section_name, url)
-		self.ServerUrls = parse_url_config(url)
-
 		self.Refresh = Config.get(config_section_name, 'refresh', fallback='true')
-		self.ScrollTimeout = Config.get(config_section_name, 'scroll_timeout', fallback=None)
+		self.ScrollTimeout = Config.get(config_section_name, 'scroll_timeout', fallback='1m')
 
-		# Authorization: username or API-key
-		username = Config.get(config_section_name, username, fallback='')
-		api_key = Config.get(config_section_name, api_key, fallback='')
+		url = Config.getmultiline(config_section_name, 'elasticsearch_url', fallback='')
+		if len(url) > 0:
+			asab.LogObsolete.warning(
+				"Do not configure elasticsearch connection in [asab:storage]. Please use [elasticsearch] section with url, username and password parameters."
+			)
+			self.ServerUrls = get_url_list(url)
+
+			# Authorization: username or API-key
+			username = Config.get(config_section_name, 'elasticsearch_username', fallback='')
+			api_key = Config.get(config_section_name, 'elasticsearch_api_key', fallback='')
+			password = Config.get(config_section_name, 'elasticsearch_password', fallback='')
+
+		# new configuration format
+		if Config.has_section('elasticsearch'):
+			config_section_name = 'elasticsearch'
+			url = Config.getmultiline(config_section_name, 'url')
+			self.ServerUrls = get_url_list(url)
+
+			# Authorization: username or API-key
+			username = Config.get(config_section_name, 'username', fallback='')
+			api_key = Config.get(config_section_name, 'api_key', fallback='')
+			password = Config.get(config_section_name, 'password', fallback='')
+
 
 		if username != '' and api_key != '':
 			L.warning("Both username and API key specified. ES Storage service may not function properly. Please choose one option.")
@@ -78,7 +85,6 @@ class StorageService(StorageServiceABC):
 		if username == '':
 			self._auth = None
 		else:
-			password = Config.get(config_section_name, password, fallback='')
 			self._auth = aiohttp.BasicAuth(login=username, password=password)
 
 		self._ClientSession = None
@@ -858,19 +864,23 @@ def serialize(v):
 		return v
 
 
-def parse_url_config(url):
-	scheme = urllib.parse.urlparse(url).scheme
-	pattern = r'(https?://)([^:/]+):(\d+)/?'
-	node_urls = []
-	for url in re.split(r'[\s,;]+', url):
-		url = url.strip()
-		if len(url) == 0:
-			continue
-		if url[-1] != '/':
-			url += '/'
-		if re.match(pattern, url) is None:
-			# for old specification e.g. http://es01:9200,es02:9200,es03:9200/
-			url = scheme + '://' + url
-		node_urls.append(url)
+def get_url_list(urls):
+	server_urls = []
+	for url in urls:
+		scheme, netloc, path = parse_url(url)
 
-	return node_urls
+		server_urls += [
+			urllib.parse.urlunparse((scheme, netloc, path, None, None, None))
+			for netloc in netloc.split(',')
+		]
+
+	return server_urls
+
+
+def parse_url(url):
+	parsed_url = urllib.parse.urlparse(url)
+	url_path = parsed_url.path
+	if not url_path.endswith("/"):
+		url_path += "/"
+
+	return parsed_url.scheme, parsed_url.netloc, url_path
