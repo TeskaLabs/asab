@@ -119,7 +119,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		except KeyError as err:
 			pygit_message = str(err).replace('\"', '')
-			if pygit_message == "'refs/remotes/origin/{}'".format(self.Branch):
+			if "'refs/remotes/origin/{}'".format(self.Branch) in pygit_message:
 				# branch does not exist
 				L.exception(
 					"Branch does not exist.",
@@ -134,7 +134,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		except pygit2.GitError as err:
 			pygit_message = str(err).replace('\"', '')
-			if pygit_message == "unexpected http status code: 404":
+			if "unexpected http status code: 404" in pygit_message:
 				# repository not found
 				L.exception(
 					"Git repository not found.",
@@ -142,7 +142,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 						"url": self.URLPath
 					}
 				)
-			elif pygit_message == "remote authentication required but no callback set":
+			elif "remote authentication required but no callback set" in pygit_message:
 				# either repository not found or authentication failed
 				L.exception(
 					"Authentication failed when initializing git repository.\n"
@@ -153,7 +153,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 						"deploy_token": self.DeployToken
 					}
 				)
-			elif 'cannot redirect from':
+			elif 'cannot redirect from' in pygit_message:
 				# bad URL
 				L.exception(
 					"Git repository not found.",
@@ -176,6 +176,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		except Exception as err:
 			L.exception(err)
 
+		assert hasattr(self.GitRepository, "remotes"), "Git repository not initialized."
 		assert self.GitRepository.remotes["origin"] is not None, "Git repository not initialized."
 		await self._set_ready()
 
