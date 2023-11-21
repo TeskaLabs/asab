@@ -7,16 +7,12 @@ import typing
 import contextlib
 
 import aiohttp
-import ssl
-
 import asab
 
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
 from ..config import Config
 from ..tls import SSLContextBuilder
-
-import ssl
 
 #
 
