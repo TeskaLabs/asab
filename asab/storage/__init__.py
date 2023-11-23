@@ -27,7 +27,9 @@ class Module(asab.Module):
 			self.Service = StorageService(app, "asab.StorageService")
 
 		elif sttype is None:
-			L.warning("Storage type is not specified in the configuration.")
+			L.critical("Missing configuration for [asab:storage] type.")
+			raise SystemExit("Exit due to a critical configuration error.")
 
 		else:
-			L.error("Unknown asab:storage type '{}'".format(sttype))
+			L.critical("Unknown configuration type '{}' in [asab:storage].".format(sttype))
+			raise SystemExit("Exit due to a critical configuration error.")
