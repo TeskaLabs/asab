@@ -7,6 +7,7 @@ import typing
 import contextlib
 
 import aiohttp
+import asab
 
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
@@ -23,8 +24,7 @@ Config.add_defaults(
 	{
 		'asab:storage': {
 			# You may specify multiple ElasticSearch nodes by e.g. http://es01:9200,es02:9200,es03:9200/
-			# or simply by multiline entry.
-			'elasticsearch_url': 'http://elasticsearch:9200/',
+			'elasticsearch_url': '',
 
 			'elasticsearch_username': '',
 			'elasticsearch_password': '',
@@ -50,22 +50,31 @@ class StorageService(StorageServiceABC):
 	def __init__(self, app, service_name, config_section_name='asab:storage'):
 		super().__init__(app, service_name)
 
-		self.ServerUrls = []
-		urls = Config.getmultiline(config_section_name, 'elasticsearch_url')
-		for url in urls:
-			parsed_url = urllib.parse.urlparse(url)
-			self.ServerUrls += [
-				urllib.parse.urlunparse((parsed_url.scheme, netloc, parsed_url.path, None, None, None))
-				for netloc in parsed_url.netloc.split(',')
-			]
+		self.Refresh = Config.get(config_section_name, 'refresh', fallback='true')
+		self.ScrollTimeout = Config.get(config_section_name, 'scroll_timeout', fallback='1m')
 
-		self.Refresh = Config.get(config_section_name, 'refresh')
-		self.ScrollTimeout = Config.get(config_section_name, 'scroll_timeout')
+		url = Config.getmultiline(config_section_name, 'elasticsearch_url', fallback='')
+		if len(url) > 0:
+			asab.LogObsolete.warning(
+				"Do not configure elasticsearch connection in [asab:storage]. Please use [elasticsearch] section with url, username and password parameters."
+			)
+			self.ServerUrls = get_url_list(url)
 
-		# Authorization: username or API-key
-		username = Config.get(config_section_name, 'elasticsearch_username')
-		password = Config.get(config_section_name, 'elasticsearch_password')
-		api_key = Config.get(config_section_name, 'elasticsearch_api_key')
+			# Authorization: username or API-key
+			username = Config.get(config_section_name, 'elasticsearch_username', fallback='')
+			api_key = Config.get(config_section_name, 'elasticsearch_api_key', fallback='')
+			password = Config.get(config_section_name, 'elasticsearch_password', fallback='')
+
+		# new configuration format
+		if Config.has_section('elasticsearch'):
+			config_section_name = 'elasticsearch'
+			url = Config.getmultiline(config_section_name, 'url')
+			self.ServerUrls = get_url_list(url)
+
+			# Authorization: username or API-key
+			username = Config.get(config_section_name, 'username', fallback='')
+			api_key = Config.get(config_section_name, 'api_key', fallback='')
+			password = Config.get(config_section_name, 'password', fallback='')
 
 		# Create headers for requests
 		self.Headers = build_headers(username, password, api_key)
@@ -487,6 +496,28 @@ def serialize(v):
 		return v.timestamp()
 	else:
 		return v
+
+
+def get_url_list(urls):
+	server_urls = []
+	for url in urls:
+		scheme, netloc, path = parse_url(url)
+
+		server_urls += [
+			urllib.parse.urlunparse((scheme, netloc, path, None, None, None))
+			for netloc in netloc.split(',')
+		]
+
+	return server_urls
+
+
+def parse_url(url):
+	parsed_url = urllib.parse.urlparse(url)
+	url_path = parsed_url.path
+	if not url_path.endswith("/"):
+		url_path += "/"
+
+	return parsed_url.scheme, parsed_url.netloc, url_path
 
 
 def build_headers(username, password, api_key):
