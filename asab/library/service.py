@@ -314,14 +314,17 @@ class LibraryService(Service):
 			tenant (str | None): The tenant to apply. If not specified, the global access is assumed.
 
 		Returns:
-			`True` if the item is enabled for the tenant.
+			`True` if the item is disabled for the tenant.
 		"""
+		if not isinstance(path, str) or not path:
+			raise ValueError("The 'path' must be a non-empty string.")
 
 		disabled = self.Disabled.get(path)
+
 		if disabled is None:
 			return False
 
-		if disabled == '*':
+		if '*' in disabled:
 			# Item is disabled for everybody
 			return True
 
