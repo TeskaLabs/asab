@@ -120,7 +120,35 @@ class MetricsService(Service):
 
 		# Add local static tags
 		if tags is not None:
-			metric.StaticTags.update(tags)
+			tags_to_update = {}
+			for key, value in tags.items():
+				# Check if every key and value is of type string. If not, try to convert it.
+				if not isinstance(key, str):
+					L.warning(
+						"Warning when creating tag: key '{}' is not of type string.".format(key),
+						struct_data={"metric": metric_name}
+					)
+					try:
+						key = str(key)
+					except ValueError:
+						L.error(
+							"Error when creating tags: key '{}' cannot be converted to a string.".format(key),
+							struct_data={"metric": metric_name}
+						)
+				if not isinstance(value, str):
+					L.warning(
+						"Warning when creating tag '{}': value '{}' is not of type string.".format(key, value),
+						struct_data={"metric": metric_name}
+					)
+					try:
+						value = str(value)
+					except ValueError:
+						L.error(
+							"Error when creating tag '{}': value '{}' cannot be converted to a string.".format(key, value),
+							struct_data={"metric": metric_name}
+						)
+				tags_to_update[key] = value
+			metric.StaticTags.update(tags_to_update)
 
 
 		metric._initialize_storage(
