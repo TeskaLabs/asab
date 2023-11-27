@@ -12,6 +12,7 @@ import kazoo.protocol.states
 
 from .wrapper import KazooWrapper
 from ..config import Configurable
+from ..log import LOG_NOTICE
 
 #
 
@@ -138,9 +139,11 @@ class ZooKeeperContainer(Configurable):
 		'''
 		if state == kazoo.protocol.states.KazooState.CONNECTED:
 			self.App.Loop.call_soon_threadsafe(self.ZooKeeper.Client.ensure_path, self.Path)
+			L.log(LOG_NOTICE, "Connected to ZooKeeper")
+		else:
+			L.warning("ZooKeeper connection state changed", struct_data={"state": str(state)})
 
 		self.App.PubSub.publish_threadsafe("ZooKeeperContainer.state/{}!".format(state), self)
-
 
 
 	def is_connected(self):
@@ -222,10 +225,15 @@ class ZooKeeperAdvertisement(object):
 		async with self.Lock:
 
 			def check_at_zk():
-				if zoocontainer.ZooKeeper.Client.exists(self.RealPath):
-					return
+				try:
+					if zoocontainer.ZooKeeper.Client.exists(self.RealPath):
+						return
 
-				# If the advertisement node is not present in the Zookeeper, force the recreation
-				self.RealPath = zoocontainer.ZooKeeper.Client.create(self.Path, self.Data, sequence=True, ephemeral=True)
+					# If the advertisement node is not present in the Zookeeper, force the recreation
+					self.RealPath = zoocontainer.ZooKeeper.Client.create(self.Path, self.Data, sequence=True, ephemeral=True)
+				
+				except kazoo.exceptions.SessionExpiredError:
+					# The connection to Zookeeper is likely down, this will be retried later
+					pass
 
 			await zoocontainer.ZooKeeper.ProactorService.execute(check_at_zk)
