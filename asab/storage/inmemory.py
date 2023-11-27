@@ -107,7 +107,8 @@ class StorageService(StorageServiceABC):
 		:decrypt (_type_, optional): A list of field names to decrypt. Defaults to None.
 
 		Returns:
-			:dict: A dictionary representing the retrieved document.bIf `decrypt` is not None, the specified fields in the document are decrypted using AES decryption algorithm.
+			:dict: A dictionary representing the retrieved document.
+			If `decrypt` is not None, the specified fields in the document are decrypted using AES decryption algorithm.
 
 		"""
 		coll = self.InMemoryCollections[collection]
