@@ -135,6 +135,7 @@ class MetricsService(Service):
 							"Error when creating tags: key '{}' cannot be converted to a string.".format(key),
 							struct_data={"metric": metric_name}
 						)
+						continue
 				if not isinstance(value, str):
 					L.warning(
 						"Warning when creating tag '{}': value '{}' is not of type string.".format(key, value),
@@ -147,6 +148,7 @@ class MetricsService(Service):
 							"Error when creating tag '{}': value '{}' cannot be converted to a string.".format(key, value),
 							struct_data={"metric": metric_name}
 						)
+						continue
 				tags_to_update[key] = value
 			metric.StaticTags.update(tags_to_update)
 
