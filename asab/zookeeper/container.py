@@ -231,7 +231,7 @@ class ZooKeeperAdvertisement(object):
 
 					# If the advertisement node is not present in the Zookeeper, force the recreation
 					self.RealPath = zoocontainer.ZooKeeper.Client.create(self.Path, self.Data, sequence=True, ephemeral=True)
-				
+
 				except kazoo.exceptions.SessionExpiredError:
 					# The connection to Zookeeper is likely down, this will be retried later
 					pass
