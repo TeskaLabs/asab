@@ -297,7 +297,6 @@ class LibraryService(Service):
 
 		try:
 			disabled = yaml.safe_load(disabled)
-		
 		except Exception:
 			self.Disabled = {}
 			self.DisabledPaths = []
@@ -324,8 +323,7 @@ class LibraryService(Service):
 				self.Disabled[k] = v
 
 		# Sort self.DisabledPaths from the shortest to longest
-		self.DisabledPaths.sort(lambda x: len(x[0]))
-
+		self.DisabledPaths.sort(key=lambda x: len(x[0]))
 
 	def check_disabled(self, path: str, tenant: typing.Optional[str] = None) -> bool:
 		"""
