@@ -74,7 +74,6 @@ class LibraryService(Service):
 
 		super().__init__(app, service_name)
 		self.Libraries: list[LibraryProviderABC] = []
-		
 		self.Disabled: dict = {}
 		self.DisabledPaths: list = []
 
