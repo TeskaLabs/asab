@@ -318,11 +318,13 @@ class LibraryService(Service):
 		for k, v in disabled.items():
 			if k.endswith('/'):
 				self.DisabledPaths.append((k, v))
+				self.Disabled[k] = v
 			else:
 				self.Disabled[k] = v
 
 		# Sort self.DisabledPaths from the shortest to longest
 		self.DisabledPaths.sort(key=lambda x: len(x[0]))
+
 
 	def check_disabled(self, path: str, tenant: typing.Optional[str] = None) -> bool:
 		"""
