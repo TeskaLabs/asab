@@ -318,7 +318,6 @@ class LibraryService(Service):
 		for k, v in disabled.items():
 			if k.endswith('/'):
 				self.DisabledPaths.append((k, v))
-				self.Disabled[k] = v
 			else:
 				self.Disabled[k] = v
 
