@@ -135,7 +135,7 @@ class MetricsService(Service):
 
 		self.Metrics.append(metric)
 
-	def create_gauge(self, metric_name: str, tags: dict[str, str] = None, init_values: dict = None, help: str = None, unit: str = None):
+	def create_gauge(self, metric_name: str, tags: dict = None, init_values: dict = None, help: str = None, unit: str = None):
 		"""
 		The `create_gauge` function creates and returns a Gauge metric with specified parameters.
 
