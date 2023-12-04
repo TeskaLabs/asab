@@ -75,6 +75,7 @@ class LibraryService(Service):
 		super().__init__(app, service_name)
 		self.Libraries: list[LibraryProviderABC] = []
 		self.Disabled: dict = {}
+		self.DisabledPaths: list = []
 
 		if paths is None:
 			# load them from configuration
@@ -288,22 +289,41 @@ class LibraryService(Service):
 		# `.disabled.yaml` is read from the first configured library
 		# It is applied on all libraries in the configuration.
 		disabled = await self.Libraries[0].read('/.disabled.yaml')
+
 		if disabled is None:
 			self.Disabled = {}
-		else:
-			try:
-				self.Disabled = yaml.safe_load(disabled)
-				if self.Disabled is None:
-					self.Disabled = {}
-				elif isinstance(self.Disabled, set):
-					# This is for a backward compatibility (Aug 2023)
-					self.Disabled = {key: '*' for key in self.Disabled}
-				else:
-					# Disabled must be a dictionary object
-					assert (isinstance(self.Disabled, dict)), "The 'Disabled' attribute must be a dictionary instance."
-			except Exception:
-				self.Disabled = {}
-				L.exception("Failed to parse '/.disabled.yaml'")
+			self.DisabledPaths = []
+
+		try:
+			disabled = yaml.safe_load(disabled)
+		except Exception:
+			self.Disabled = {}
+			self.DisabledPaths = []
+			L.exception("Failed to parse '/.disabled.yaml'")
+			return
+
+		if disabled is None:
+			self.Disabled = {}
+			self.DisabledPaths = []
+			return
+
+		if isinstance(disabled, set):
+			# This is for a backward compatibility (Aug 2023)
+			self.Disabled = {key: '*' for key in self.Disabled}
+			self.DisabledPaths = []
+			return
+
+		self.Disabled = {}
+		self.DisabledPaths = []
+		for k, v in disabled.items():
+			if k.endswith('/'):
+				self.DisabledPaths.append((k, v))
+			else:
+				self.Disabled[k] = v
+
+		# Sort self.DisabledPaths from the shortest to longest
+		self.DisabledPaths.sort(key=lambda x: len(x[0]))
+
 
 	def check_disabled(self, path: str, tenant: typing.Optional[str] = None) -> bool:
 		"""
@@ -314,14 +334,30 @@ class LibraryService(Service):
 			tenant (str | None): The tenant to apply. If not specified, the global access is assumed.
 
 		Returns:
-			`True` if the item is enabled for the tenant.
+			`True` if the item is disabled for the tenant.
 		"""
+		if not isinstance(path, str) or not path:
+			raise ValueError("The 'path' must be a non-empty string.")
+
+		# First check disabled by path
+		for dp, disabled in self.DisabledPaths:
+			if path.startswith(dp):
+				if '*' in disabled:
+					# Path is disabled for everybody
+					return True
+
+				if tenant is not None and tenant in disabled:
+					# Path is disabled for a specified tenant
+					return True
+
+		# Then check for a specific item entries
 
 		disabled = self.Disabled.get(path)
+
 		if disabled is None:
 			return False
 
-		if disabled == '*':
+		if '*' in disabled:
 			# Item is disabled for everybody
 			return True
 
