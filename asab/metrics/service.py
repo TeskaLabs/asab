@@ -120,13 +120,11 @@ class MetricsService(Service):
 
 		# Add local static tags
 		if tags is not None:
-			tags_to_update = {}
 			for key, value in tags.items():
 				# Check if every key and value is of type string. If not, try to convert it.
 				assert isinstance(key, str), "Cannot add metrics tag: key '{}' is not a string.".format(key)
 				assert isinstance(value, str), "Cannot add metrics tag for key '{}': value '{}' is not a string.".format(key, value)
-				tags_to_update[key] = value
-			metric.StaticTags.update(tags_to_update)
+			metric.StaticTags.update(tags)
 
 
 		metric._initialize_storage(
