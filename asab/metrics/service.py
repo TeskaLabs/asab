@@ -123,32 +123,8 @@ class MetricsService(Service):
 			tags_to_update = {}
 			for key, value in tags.items():
 				# Check if every key and value is of type string. If not, try to convert it.
-				if not isinstance(key, str):
-					L.warning(
-						"Warning when creating tag: key '{}' is not of type string.".format(key),
-						struct_data={"metric": metric_name}
-					)
-					try:
-						key = str(key)
-					except ValueError:
-						L.error(
-							"Error when creating tags: key '{}' cannot be converted to a string.".format(key),
-							struct_data={"metric": metric_name}
-						)
-						continue
-				if not isinstance(value, str):
-					L.warning(
-						"Warning when creating tag '{}': value '{}' is not of type string.".format(key, value),
-						struct_data={"metric": metric_name}
-					)
-					try:
-						value = str(value)
-					except ValueError:
-						L.error(
-							"Error when creating tag '{}': value '{}' cannot be converted to a string.".format(key, value),
-							struct_data={"metric": metric_name}
-						)
-						continue
+				assert isinstance(key, str), "Cannot add metrics tag: key '{}' is not a string.".format(key)
+				assert isinstance(value, str), "Cannot add metrics tag for key '{}': value '{}' is not a string.".format(key, value)
 				tags_to_update[key] = value
 			metric.StaticTags.update(tags_to_update)
 
@@ -159,7 +135,7 @@ class MetricsService(Service):
 
 		self.Metrics.append(metric)
 
-	def create_gauge(self, metric_name: str, tags: dict = None, init_values: dict = None, help: str = None, unit: str = None):
+	def create_gauge(self, metric_name: str, tags: dict[str, str] = None, init_values: dict = None, help: str = None, unit: str = None):
 		"""
 		The `create_gauge` function creates and returns a Gauge metric with specified parameters.
 
@@ -179,6 +155,9 @@ class MetricsService(Service):
 
 		Returns:
 			an instance of the Gauge class.
+
+		Raises:
+			AssertionError: `tags` dictionary has to be of type 'str': 'str'.
 		"""
 
 		m = Gauge(init_values=init_values)
@@ -209,6 +188,9 @@ class MetricsService(Service):
 
 		Returns:
 			the created counter object.
+
+		Raises:
+			AssertionError: `tags` dictionary has to be of type 'str': 'str'.
 		"""
 		if dynamic_tags:
 			m = CounterWithDynamicTags(init_values=init_values)
@@ -239,6 +221,9 @@ class MetricsService(Service):
 
 		Returns:
 			an instance of the `EPSCounter` class.
+
+		Raises:
+			AssertionError: `tags` dictionary has to be of type 'str': 'str'.
 		"""
 		m = EPSCounter(init_values=init_values)
 		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
@@ -264,6 +249,9 @@ class MetricsService(Service):
 
 		Returns:
 			an instance of the DutyCycle class.
+
+		Raises:
+			AssertionError: `tags` dictionary has to be of type 'str': 'str'.
 		"""
 		m = DutyCycle(self.App, init_values=init_values)
 		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
@@ -293,6 +281,9 @@ class MetricsService(Service):
 
 		Returns:
 			the created counter object.
+
+		Raises:
+			AssertionError: `tags` dictionary has to be of type 'str': 'str'.
 		"""
 		if dynamic_tags:
 			m = AggregationCounterWithDynamicTags(init_values=init_values, aggregator=aggregator)
@@ -328,6 +319,9 @@ class MetricsService(Service):
 
 		Returns:
 			a histogram object
+
+		Raises:
+			AssertionError: `tags` dictionary has to be of type 'str': 'str'.
 		"""
 		if dynamic_tags:
 			m = HistogramWithDynamicTags(buckets=buckets, init_values=init_values)
