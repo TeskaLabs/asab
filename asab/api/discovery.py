@@ -135,15 +135,22 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 
 		The hostname to resolve must be in the format of "<value>.<key>.asab",
 		where key is "service_id" or "instance_id" and value is the particular identificator of the service to be resolved.
-		The "asab" domain is required
+		The "asab" domain is required for resolution, otherwise it is treated like normal URL.
 		"""
-		value, key, domain = hostname.rsplit(".", 3)
-		if domain != "asab":
-			raise RuntimeError("'asab' domain required. Example url: http://<service>.service_id.asab/asab/v1/config")
+		url_split = hostname.rsplit(".", 2)
+
+		# If there is no asab domain, it is normal URL and resolve it normally
+		if url_split[-1] != "asab":
+			return await super().resolve(hostname, port, family)
+
+		# Make sure the format of the hostname is right
+		if len(url_split) != 3:
+			raise NotDiscoveredError("Invalid format of the hostname '{}'. Use e.g. `asab-config.service_id.asab` instead.".format(hostname))
+
 		hosts = []
-		located_instances = await self.DiscoveryService._locate(**{key: value})
+		located_instances = await self.DiscoveryService._locate(**{url_split[1]: url_split[0]})
 		if located_instances is None or len(located_instances) == 0:
-			raise NotDiscoveredError("Failed to discover service '{}'.".format(value))
+			raise NotDiscoveredError("Failed to discover '{}'.".format(hostname))
 		for i in located_instances:
 			hosts.append(*await super().resolve(i[0], i[1], family))
 
