@@ -354,7 +354,6 @@ class LibraryService(Service):
 		# Then check for a specific item entries
 
 		disabled = self.Disabled.get(path)
-		print("tenant:", tenant, "path:", path, "disabled:", disabled, tenant in disabled if disabled is not None else False, sep="\t")
 
 		if disabled is None:
 			return False
