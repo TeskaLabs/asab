@@ -293,6 +293,7 @@ class LibraryService(Service):
 		if disabled is None:
 			self.Disabled = {}
 			self.DisabledPaths = []
+			return
 
 		try:
 			disabled = yaml.safe_load(disabled)
