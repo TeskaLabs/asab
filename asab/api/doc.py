@@ -65,8 +65,7 @@ class DocWebHandler(object):
 				"version": "1.0.0",
 			},
 			"servers": [
-				# {"url": url} for url in self.ServerUrls
-				{ "url": "http://{}".format(host)}
+				{"url": "http://{}".format(host)}
 			],
 
 			# Base path relative to openapi endpoint

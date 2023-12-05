@@ -80,23 +80,21 @@ SWAGGER_OAUTH_PAGE = """<!doctype html>
 
 SWAGGER_DOC_PAGE = """<!DOCTYPE html>
 <html>
-  <head>
-    <title>API Reference {openapi_url}</title>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1" />
-    <style>
-      body {{
-        margin: 0;
-      }}
-    </style>
-  </head>
-  <body>
-    <script
-      id="api-reference"
-      data-url="{openapi_url}"></script>
-    <script src="https://www.unpkg.com/@scalar/api-reference"></script>
-  </body>
+	<head>
+		<title>API Reference {openapi_url}</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<style>
+			body {{
+				margin: 0;
+			}}
+		</style>
+	</head>
+	<body>
+		<script
+			id="api-reference"
+			data-url="{openapi_url}"></script>
+		<script src="https://www.unpkg.com/@scalar/api-reference"></script>
+	</body>
 </html>
 """
