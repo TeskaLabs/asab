@@ -120,6 +120,10 @@ class MetricsService(Service):
 
 		# Add local static tags
 		if tags is not None:
+			for key, value in tags.items():
+				# Check if every key and value is of type string. If not, try to convert it.
+				assert isinstance(key, str), "Cannot add metrics tag: key '{}' is not a string.".format(key)
+				assert isinstance(value, str), "Cannot add metrics tag for key '{}': value '{}' is not a string.".format(key, value)
 			metric.StaticTags.update(tags)
 
 
@@ -149,6 +153,9 @@ class MetricsService(Service):
 
 		Returns:
 			an instance of the Gauge class.
+
+		Raises:
+			AssertionError: `tags` dictionary has to be of type 'str': 'str'.
 		"""
 
 		m = Gauge(init_values=init_values)
@@ -179,6 +186,9 @@ class MetricsService(Service):
 
 		Returns:
 			the created counter object.
+
+		Raises:
+			AssertionError: `tags` dictionary has to be of type 'str': 'str'.
 		"""
 		if dynamic_tags:
 			m = CounterWithDynamicTags(init_values=init_values)
@@ -209,6 +219,9 @@ class MetricsService(Service):
 
 		Returns:
 			an instance of the `EPSCounter` class.
+
+		Raises:
+			AssertionError: `tags` dictionary has to be of type 'str': 'str'.
 		"""
 		m = EPSCounter(init_values=init_values)
 		self._add_metric(m, metric_name, tags=tags, reset=reset, help=help, unit=unit)
@@ -234,6 +247,9 @@ class MetricsService(Service):
 
 		Returns:
 			an instance of the DutyCycle class.
+
+		Raises:
+			AssertionError: `tags` dictionary has to be of type 'str': 'str'.
 		"""
 		m = DutyCycle(self.App, init_values=init_values)
 		self._add_metric(m, metric_name, tags=tags, help=help, unit=unit)
@@ -263,6 +279,9 @@ class MetricsService(Service):
 
 		Returns:
 			the created counter object.
+
+		Raises:
+			AssertionError: `tags` dictionary has to be of type 'str': 'str'.
 		"""
 		if dynamic_tags:
 			m = AggregationCounterWithDynamicTags(init_values=init_values, aggregator=aggregator)
@@ -298,6 +317,9 @@ class MetricsService(Service):
 
 		Returns:
 			a histogram object
+
+		Raises:
+			AssertionError: `tags` dictionary has to be of type 'str': 'str'.
 		"""
 		if dynamic_tags:
 			m = HistogramWithDynamicTags(buckets=buckets, init_values=init_values)
