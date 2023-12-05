@@ -47,6 +47,7 @@ class LibraryService(Service):
 	* `file://` or local path for FileSystem provider
 	* `azure+https://` for Microsoft Azure Storage provider.
 	* `git+https://` for Git provider.
+	* `libsreg+https://` for Libraries provider.
 
 	The first provider is responsible for providing `/.disabled.yaml`.
 
@@ -353,6 +354,7 @@ class LibraryService(Service):
 		# Then check for a specific item entries
 
 		disabled = self.Disabled.get(path)
+		print("tenant:", tenant, "path:", path, "disabled:", disabled, tenant in disabled if disabled is not None else False, sep="\t")
 
 		if disabled is None:
 			return False
