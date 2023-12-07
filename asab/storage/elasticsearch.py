@@ -53,35 +53,43 @@ class StorageService(StorageServiceABC):
 		self.Refresh = Config.get(config_section_name, 'refresh', fallback='true')
 		self.ScrollTimeout = Config.get(config_section_name, 'scroll_timeout', fallback='1m')
 
+		# always check if there is a url in the old config section first
 		url = Config.getmultiline(config_section_name, 'elasticsearch_url', fallback='')
 		if len(url) > 0:
 			asab.LogObsolete.warning(
 				"Do not configure elasticsearch connection in [asab:storage]. Please use [elasticsearch] section with url, username and password parameters."
 			)
-			self.ServerUrls = get_url_list(url)
+		elif len(url) == 0:
+			url = asab.Config.getmultiline('elasticsearch', 'url', fallback='')
 
-			# Authorization: username or API-key
-			username = Config.get(config_section_name, 'elasticsearch_username', fallback='')
-			api_key = Config.get(config_section_name, 'elasticsearch_api_key', fallback='')
-			password = Config.get(config_section_name, 'elasticsearch_password', fallback='')
+		self.ServerUrls = get_url_list(url)
 
-		# new configuration format
-		if Config.has_section('elasticsearch'):
-			config_section_name = 'elasticsearch'
-			url = Config.getmultiline(config_section_name, 'url')
-			self.ServerUrls = get_url_list(url)
+		if len(self.ServerUrls) == 0:
+			raise RuntimeError("No ElasticSearch URL has been provided.")
 
-			# Authorization: username or API-key
-			username = Config.get(config_section_name, 'username', fallback='')
-			api_key = Config.get(config_section_name, 'api_key', fallback='')
-			password = Config.get(config_section_name, 'password', fallback='')
+		# Authorization: username or API-key
+		username = Config.get(config_section_name, 'elasticsearch_username')
+		if len(username) == 0:
+			username = asab.Config.get('elasticsearch', 'username', fallback='')
+
+		password = Config.get(config_section_name, 'elasticsearch_password')
+		if len(password) == 0:
+			password = asab.Config.get('elasticsearch', 'password', fallback='')
+
+		api_key = Config.get(config_section_name, 'elasticsearch_api_key')
+		if len(api_key) == 0:
+			api_key = asab.Config.get('elasticsearch', 'api_key', fallback='')
 
 		# Create headers for requests
 		self.Headers = build_headers(username, password, api_key)
 
 		# Build ssl context
-		self.SSLContextBuilder = SSLContextBuilder(config_section_name)
-		if len(self.ServerUrls) > 0 and self.ServerUrls[0].startswith('https://'):
+		if self.ServerUrls[0].startswith('https://'):
+			# check if [asab:storage] section has data for SSL or default to the [elasticsearch] section
+			if section_has_ssl_option(config_section_name):
+				self.SSLContextBuilder = SSLContextBuilder(config_section_name=config_section_name)
+			else:
+				self.SSLContextBuilder = SSLContextBuilder(config_section_name='elasticsearch')
 			self.SSLContext = self.SSLContextBuilder.build(ssl.PROTOCOL_TLS_CLIENT)
 		else:
 			self.SSLContext = None
@@ -539,3 +547,13 @@ def build_headers(username, password, api_key):
 		headers['Authorization'] = 'ApiKey {}'.format(api_key)
 
 	return headers
+
+
+def section_has_ssl_option(config_section_name):
+	"""
+	Checks if cert, key, cafile, capath, cadata etc. appears in section's items
+	"""
+	for item in asab.Config.options(config_section_name):
+		if item in SSLContextBuilder.ConfigDefaults:
+			return True
+	return False
