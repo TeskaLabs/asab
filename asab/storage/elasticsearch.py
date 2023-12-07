@@ -70,15 +70,15 @@ class StorageService(StorageServiceABC):
 		# Authorization: username or API-key
 		username = Config.get(config_section_name, 'elasticsearch_username')
 		if len(username) == 0:
-			username = asab.Config.get('elasticsearch', 'username', fallback='')
+			username = Config.get('elasticsearch', 'username', fallback='')
 
 		password = Config.get(config_section_name, 'elasticsearch_password')
 		if len(password) == 0:
-			password = asab.Config.get('elasticsearch', 'password', fallback='')
+			password = Config.get('elasticsearch', 'password', fallback='')
 
 		api_key = Config.get(config_section_name, 'elasticsearch_api_key')
 		if len(api_key) == 0:
-			api_key = asab.Config.get('elasticsearch', 'api_key', fallback='')
+			api_key = Config.get('elasticsearch', 'api_key', fallback='')
 
 		# Create headers for requests
 		self.Headers = build_headers(username, password, api_key)
