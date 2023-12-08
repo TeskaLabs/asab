@@ -104,7 +104,7 @@ Also, if configuration section doesn't provide information about servers,
 
 ## Reading from Zookeeeper
 
-## Advertisement into Zookeeper
+TODO
 
 ## PubSub messages
 

@@ -12,6 +12,9 @@ L = logging.getLogger(__name__)
 
 
 class DiscoveryService(Service):
+	"""
+	Service for discovering ASAB microservices in a server cluster. It is based on searching in ZooKeeper `/run` path.
+	"""
 
 	def __init__(self, app, zkc, service_name="asab.DiscoveryService") -> None:
 		super().__init__(app, service_name)
@@ -19,16 +22,14 @@ class DiscoveryService(Service):
 
 	async def locate(self, instance_id: str = None, service_id: str = None) -> list:
 		"""
-		Returns a list of URLs for a given instance or service ID.
+		Return a list of URLs for a given instance or service ID.
 
-		:param instance_id: The ID of a specific instance of a service that the client wants to locate.
-		:type instance_id: str
-		:param service_id: The `service_id` parameter represents identifier of a
-		service to locate. It is used to query a service registry to find the
-		instances of the service that are currently available.
-		:type service_id: str
-		:return: A list of URLs in the format "http://servername:port" for the specified instance or
-		service.
+		Args:
+			instance_id (str): The ID of a specific instance of a service that the client wants to locate.
+			service_id (str): The `service_id` parameter represents identifier of a service to locate.
+				It is used to query a service registry to find the instances of the service that are currently available.
+
+		Returns: A list of URLs in the format "http://servername:port" for the specified instance or service.
 		"""
 		return [
 			"http://{}:{}".format(servername, port)
@@ -38,13 +39,13 @@ class DiscoveryService(Service):
 
 	async def _locate(self, instance_id: str = None, service_id: str = None) -> typing.List[typing.Tuple]:
 		"""
-		Locates service instances based on their instance ID or service ID.
+		Locate service instances based on their instance ID or service ID.
 
-		:param instance_id: The unique identifier for a specific instance of a service
-		:type instance_id: str
-		:param service_id: The ID of the service to locate
-		:type service_id: str
-		:return: a list of tuples containing the server name and port number of the located service(s).
+		Args:
+			instance_id (str): The unique identifier for a specific instance of a service
+			service_id (str): The ID of the service to locate
+
+		Returns: a list of tuples containing the server name and port number of the located service(s).
 		"""
 		if instance_id is None and service_id is None:
 			L.warning("Please provide instance_id, service_id, or appclass to locate the service(s).")
@@ -109,19 +110,25 @@ class DiscoveryService(Service):
 
 
 	def session(self):
-		'''
+		"""
 		Usage:
 
+		```python
 		async with self.DiscoveryService.session() as session:
-			# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective serivce identificator
+			# use URL in format: <protocol>://<value>.<key>.asab/<endpoint>
+			# where key is "service_id" or "instance_id"
+			# and value the respective service identificator
 			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
 				...
-		'''
+		```
+		"""
 		return aiohttp.ClientSession(connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)))
 
 
 class DiscoveryResolver(aiohttp.DefaultResolver):
-	"""Custom aiohttp Resolver for Discovery Session based on default aiohttp resolver."""
+	"""
+	Custom resolver for Discovery Session based on default `aiohttp` resolver.
+	"""
 
 	def __init__(self, svc) -> None:
 		super().__init__()
@@ -130,8 +137,8 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 
 	async def resolve(self, hostname: str, port: int = 0, family: int = socket.AF_INET) -> typing.List[typing.Dict[str, typing.Any]]:
 		"""
-		Resolves a hostname only with '.asab' domain. and returns a list of dictionaries
-		containing information about the resolved hosts further used by aiohttp.TCPConnector
+		Resolve a hostname only with '.asab' domain. and return a list of dictionaries
+		containing information about the resolved hosts further used by `aiohttp.TCPConnector`.
 
 		The hostname to resolve must be in the format of "<value>.<key>.asab",
 		where key is "service_id" or "instance_id" and value is the particular identificator of the service to be resolved.
@@ -158,4 +165,7 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 
 
 class NotDiscoveredError(RuntimeError):
+	"""
+	Raised when given service is not discovered.
+	"""
 	pass
