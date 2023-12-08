@@ -110,7 +110,7 @@ class InfluxDBTarget(asab.Configurable):
 		rb = influxdb_format(m_tree, now)
 
 		if self.ProactorService is not None:
-			await self.ProactorService.execute(self._worker_upload, m_tree, rb)
+			self.ProactorService.schedule(self._worker_upload, m_tree, rb)
 
 		else:
 			try:
