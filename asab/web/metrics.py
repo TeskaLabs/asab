@@ -1,5 +1,6 @@
 from ..config import Config
 
+
 class WebRequestsMetrics(object):
 
 	def __init__(self, metrics_svc):
