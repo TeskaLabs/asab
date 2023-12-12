@@ -32,7 +32,7 @@ class WebRequestsMetrics(object):
 		)
 		self.DurationHistogram = self.MetricsService.create_histogram(
 			"web_requests_duration_hist",
-			buckets=[0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1, 1, 5, 10, 50],
+			buckets=[0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10, 50],
 			unit="seconds",
 			help="Categorizes requests based on their duration.",
 			dynamic_tags=True,
