@@ -300,7 +300,7 @@ class AuthService(asab.Service):
 
 		self.AuthServerPublicKey = public_key
 		self.AuthServerLastSuccessfulCheck = datetime.datetime.now(datetime.timezone.utc)
-		L.log(asab.LOG_NOTICE, "Public key loaded.", struct_data={"url": self.PublicKeysUrl})
+		L.debug("Public key loaded.", struct_data={"url": self.PublicKeysUrl})
 
 
 	def _authenticate_request(self, handler):
