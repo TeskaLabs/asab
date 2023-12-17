@@ -342,16 +342,15 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			except Exception as e:
 				L.error("Failed to process library change for path: '{}'. Reason: '{}'".format(path, e))
 
-	async def find(self, path: str, filename: str) -> list:
+	async def find(self, filename: str) -> list:
 		"""
-		Recursively search for files with a specific name in ZooKeeper nodes.
+		Recursively search for files with a specific name in ZooKeeper nodes, starting from the base path.
 
-		:param path: The path to start the search from
 		:param filename: The filename to search for
 		:return: A list of paths to files with the specified name
 		"""
 		results = []
-		await self._recursive_find(self.build_path(path), filename, results)
+		await self._recursive_find(self.BasePath, filename, results)  # Assuming self.BasePath is defined
 		return results
 
 	async def _recursive_find(self, path, filename, results):

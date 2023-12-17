@@ -127,19 +127,18 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		return items
 
-	def find(self, path: str, filename: str) -> list:
+	async def find(self, filename: str) -> list:
 		"""
-		Recursively search for files with a specific name in the file system.
+		Recursively search for files with a specific name in the file system, starting from the base path.
 
-		:param path: The path to start the search from
 		:param filename: The filename to search for
 		:return: A list of paths to files with the specified name
 		"""
 		results = []
-		self._recursive_find(self.BasePath + path, filename, results)
+		await self._recursive_find(self.BasePath, filename, results)
 		return results
 
-	def _recursive_find(self, path, filename, results):
+	async def _recursive_find(self, path, filename, results):
 		"""
 		The recursive part of the find method.
 
@@ -157,7 +156,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		if os.path.isdir(path):
 			for entry in os.listdir(path):
 				full_path = os.path.join(path, entry)
-				self._recursive_find(full_path, filename, results)
+				await self._recursive_find(full_path, filename, results)
 
 
 	def _on_inotify_read(self):
