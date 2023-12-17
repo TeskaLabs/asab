@@ -341,3 +341,38 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					self.App.PubSub.publish("Library.change!", self, path)
 			except Exception as e:
 				L.error("Failed to process library change for path: '{}'. Reason: '{}'".format(path, e))
+
+	async def find(self, path: str, filename: str) -> list:
+		"""
+		Recursively search for files with a specific name in ZooKeeper nodes.
+
+		:param path: The path to start the search from
+		:param filename: The filename to search for
+		:return: A list of paths to files with the specified name
+		"""
+		results = []
+		await self._recursive_find(self.build_path(path), filename, results)
+		return results
+
+	async def _recursive_find(self, path, filename, results):
+		"""
+		The recursive part of the find method.
+
+		:param path: The current path to search
+		:param filename: The filename to search for
+		:param results: The list where results are accumulated
+		"""
+		try:
+			children = await self.Zookeeper.get_children(path)
+			for child in children:
+				full_path = "{}/{}".format(path, child).rstrip('/')
+				if child == filename:
+					results.append(full_path)
+				else:
+					# Continue searching if it's not the file we're looking for
+					if '.' not in child and not child.endswith('.io'):  # Assuming directories don't have dots in their names
+						await self._recursive_find(full_path, filename, results)
+		except kazoo.exceptions.NoNodeError:
+			pass  # Node does not exist, skip
+		except Exception as e:
+			L.error("Error accessing {}: {}".format(path, e))
