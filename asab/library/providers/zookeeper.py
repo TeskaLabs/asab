@@ -344,13 +344,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def find(self, filename: str) -> list:
 		"""
-		Recursively search for files with a specific name in ZooKeeper nodes, starting from the base path.
+		Recursively search for files ending with a specific name in ZooKeeper nodes, starting from the base path.
 
-		:param filename: The filename to search for
-		:return: A list of paths to files with the specified name
+		:param filename: The filename to search for (e.g., '.setup.yaml')
+		:return: A list of paths to files ending with the specified name
 		"""
 		results = []
-		await self._recursive_find(self.BasePath, filename, results)  # Assuming self.BasePath is defined
+		await self._recursive_find(self.BasePath, filename, results)
 		return results
 
 	async def _recursive_find(self, path, filename, results):
@@ -365,7 +365,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			children = await self.Zookeeper.get_children(path)
 			for child in children:
 				full_path = "{}/{}".format(path, child).rstrip('/')
-				if child == filename:
+				if full_path.endswith(filename):
 					results.append(full_path)
 				else:
 					# Continue searching if it's not the file we're looking for
