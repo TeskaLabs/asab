@@ -186,8 +186,7 @@ class LibraryService(Service):
 		```
 		"""
 		# File path must start with '/'
-		assert path[
-			   :1] == '/', "File path must start with a forward slash (/). For example: /library/Templates/.setup.yaml"
+		assert path[:1] == '/', "File path must start with a forward slash (/). For example: /library/Templates/.setup.yaml"
 		# File path must end with the filename
 		assert len(os.path.basename(
 			path)) > 0, "File path must end with a filename. For example: /library/Templates/.setup.yaml"
