@@ -370,7 +370,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					results.append(full_path)
 				else:
 					# Continue searching if it's not the file we're looking for
-					if '.' not in child and not child.endswith('.io'):  # Assuming directories don't have dots in their names
+					if '.' not in child:  # Assuming directories don't have dots in their names
 						await self._recursive_find(full_path, filename, results)
 		except kazoo.exceptions.NoNodeError:
 			pass  # Node does not exist, skip
