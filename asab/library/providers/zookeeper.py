@@ -347,7 +347,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		Recursively search for files ending with a specific name in ZooKeeper nodes, starting from the base path.
 
 		:param filename: The filename to search for (e.g., '.setup.yaml')
-		:return: A list of paths to files ending with the specified name
+		:return: A list of LibraryItem objects for files ending with the specified name
 		"""
 		results = []
 		await self._recursive_find(self.BasePath, filename, results)
@@ -366,7 +366,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			for child in children:
 				full_path = "{}/{}".format(path, child).rstrip('/')
 				if full_path.endswith(filename):
-					results.append(full_path)
+					item = LibraryItem(
+						name=full_path,
+						type="item",  # or "dir" if applicable
+						layer=self.Layer,
+						providers=[self],
+					)
+					results.append(item)
 				else:
 					# Continue searching if it's not the file we're looking for
 					if '.' not in child:  # Assuming directories don't have dots in their names
