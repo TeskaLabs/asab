@@ -47,6 +47,7 @@ class LibraryService(Service):
 	* `file://` or local path for FileSystem provider
 	* `azure+https://` for Microsoft Azure Storage provider.
 	* `git+https://` for Git provider.
+	* `libsreg+https://` for Libraries provider.
 
 	The first provider is responsible for providing `/.disabled.yaml`.
 
