@@ -15,20 +15,22 @@ The library content is organized in a simplified file system manner, with direct
 !!! example "Example of the library structure"
 
 	```
-	+ /folder1/
-		- /folder1/item1.yaml
-		- /folder1/item2.json
-	+ /folder2/
-		- /folder2/item3.yaml
-		+ /folder2/folder2.3/
-			- /folder2/folder2.3/item4.json
+	+ /MyDirectory/
+		- /MyDirectory/item1.yaml
+		- /MyDirectory/item2.json
+	+ /AnotherDirectory/
+		- /AnotherDirectory/item3.yaml
+		+ /AnotherDirectory/Folder/
+			- /folder2/Folder/item4.json
 	```
 
 !!! warning "Library path rules"
 
 	- Any path must start with "/", including the root path.
-	- The folder path must end with "/".
-	- The item path must end with a file extension (e.g. ".json").
+	- The directory path must end with "/".
+	- The directory name cannot contain ".".
+	- The item path must end with a file extension (e.g. ".txt", ".json", ...).
+
 
 ## Layers
 
