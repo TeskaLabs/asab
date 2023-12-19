@@ -168,22 +168,19 @@ class LibraryService(Service):
 
 	async def find(self, path: str) -> typing.Optional[typing.List[str]]:
 		"""
-		Find files with a specific name in the library specified by the path. This method can be used only after the Library is ready.
+		Searches for files with a specific name within a library, using the provided path.
+
+		The method traverses the library directories, looking for files that match the given filename.
+		It returns a list of paths leading to these files, or `None` if no such files are found.
 
 		Args:
-			path (str): Path to the file, including the filename. For example: /library/Templates/.setup.yaml
+			path (str): The path specifying the filename and its location within the library.
+						The path should start with a forward slash and include the filename.
+						Example: '/library/Templates/.setup.yaml'
 
 		Returns:
-			typing.Optional[typing.List[str]]: A list of paths to files with the specified name. `None` is returned if no matching files are found.
-
-		Examples:
-
-		```python
-		file_paths = await library.find('/path/.setup.yaml')
-		if file_paths is not None:
-			for file_path in file_paths:
-				print(file_path)
-		```
+			typing.Optional[typing.List[str]]: A list containing the paths to the found files,
+											`or `None` if no files are found that match the filename.
 		"""
 		# File path must start with '/'
 		assert path[:1] == '/', "File path must start with a forward slash (/). For example: /library/Templates/.setup.yaml"
