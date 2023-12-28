@@ -105,6 +105,8 @@ class DiscoveryService(Service):
 
 		for item in items:
 			item_data = await self.ZooKeeperContainer.ZooKeeper.get_data(base_path + '/' + item)
+			if item_data is None:
+				continue
 			yield item, item_data
 
 
