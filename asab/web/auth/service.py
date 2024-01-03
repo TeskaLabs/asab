@@ -25,6 +25,8 @@ try:
 except ModuleNotFoundError:
 	jwcrypto = None
 
+from ...api.discovery import NotDiscoveredError
+
 #
 
 L = logging.getLogger(__name__)
@@ -111,6 +113,9 @@ class AuthService(asab.Service):
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
+		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
+		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
+
 		enabled = asab.Config.get("auth", "enabled", fallback=True)
 		if enabled == "mock":
 			self.Mode = AuthMode.MOCK
@@ -128,12 +133,16 @@ class AuthService(asab.Service):
 				"You are trying to use asab.web.auth module without 'jwcrypto' installed. "
 				"Please run 'pip install jwcrypto' "
 				"or install asab with 'authz' optional dependency.")
-		elif len(self.PublicKeysUrl) == 0:
+		elif len(self.PublicKeysUrl) == 0 and self.DiscoveryService is None:
 			self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
 			L.warning(
-				"No 'public_keys_url' provided in [auth] config section. "
-				"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT)
+				"""No 'public_keys_url' provided in [auth] config section. 
+				Defaulting to {!r}. 
+				To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization""".format(self._PUBLIC_KEYS_URL_DEFAULT) 
 			)
+		elif len(self.PublicKeysUrl) == 0 and self.DiscoveryService is not None:
+			self.PublicKeysUrl = "http://seacat-auth.service_id.asab/openidconnect/public_keys"
+			L.info("`public_keys_url` not configured, defaulting to discovery of SeaCat Auth with URL: {}".format(self.PublicKeysUrl))
 
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
 		# Limit the frequency of auth server requests to save network traffic
@@ -257,8 +266,8 @@ class AuthService(asab.Service):
 			and now < self.AuthServerLastSuccessfulCheck + self.AuthServerCheckCooldown:
 			# Public keys have been fetched recently
 			return
-
-		async with aiohttp.ClientSession() as session:
+		
+		async def fetch_keys(session):
 			try:
 				async with session.get(self.PublicKeysUrl) as response:
 					if response.status != 200:
@@ -297,6 +306,24 @@ class AuthService(asab.Service):
 					"url": self.PublicKeysUrl,
 				})
 				return
+			return public_key
+		
+		if self.DiscoveryService is None:
+			async with aiohttp.ClientSession() as session:
+				public_key = await fetch_keys(session)
+
+		else:
+			async with self.DiscoveryService.session() as session:
+				try:
+					public_key = await fetch_keys(session)
+				except NotDiscoveredError as e:
+					L.error("Service Discovery error while loading public keys: {}".format(e), struct_data={
+						"url": self.PublicKeysUrl,
+					})
+					return
+
+		if public_key is None:
+			return
 
 		self.AuthServerPublicKey = public_key
 		self.AuthServerLastSuccessfulCheck = datetime.datetime.now(datetime.timezone.utc)
