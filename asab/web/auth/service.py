@@ -133,16 +133,12 @@ class AuthService(asab.Service):
 				"You are trying to use asab.web.auth module without 'jwcrypto' installed. "
 				"Please run 'pip install jwcrypto' "
 				"or install asab with 'authz' optional dependency.")
-		elif len(self.PublicKeysUrl) == 0 and self.DiscoveryService is None:
+		elif len(self.PublicKeysUrl) == 0:
 			self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
 			L.warning(
-				"""No 'public_keys_url' provided in [auth] config section. 
-				Defaulting to {!r}. 
-				To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization""".format(self._PUBLIC_KEYS_URL_DEFAULT) 
+				"No 'public_keys_url' provided in [auth] config section. "
+				"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT)
 			)
-		elif len(self.PublicKeysUrl) == 0 and self.DiscoveryService is not None:
-			self.PublicKeysUrl = "http://seacat-auth.service_id.asab/openidconnect/public_keys"
-			L.info("`public_keys_url` not configured, defaulting to discovery of SeaCat Auth with URL: {}".format(self.PublicKeysUrl))
 
 		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
 		# Limit the frequency of auth server requests to save network traffic
