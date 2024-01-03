@@ -110,7 +110,7 @@ class AuthService(asab.Service):
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
-		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url", fallback="")
+		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
