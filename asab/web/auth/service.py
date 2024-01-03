@@ -81,37 +81,36 @@ class AuthMode(enum.Enum):
 	MOCK = enum.auto()
 
 
-asab.Config.add_defaults({
-	"auth": {
-		# URL location containing the authorization server's public JWK keys
-		# (often found at "/.well-known/jwks.json")
-		"public_keys_url": "",
-
-		# Whether the app is tenant-aware
-		"multitenancy": "yes",
-
-		# The "enabled" option switches authentication and authorization
-		# on, off or activates mock mode. The default value is True (on).
-		# In MOCK MODE
-		# - no authorization server is needed,
-		# - all incoming requests are mock-authorized with pre-defined user info,
-		# - custom mock user info can supplied in a JSON file.
-		# "enabled": "yes",
-		"mock_user_info_path": "/conf/mock-userinfo.json",
-	}
-})
-
-
 class AuthService(asab.Service):
 	"""
 	Provides authentication and authorization of incoming requests.
+
+	Configuration: 
+	- Configuration section: auth
+	- Configuration options:
+	  - public_keys_url:
+	    - default: ""
+		- URL location containing the authorization server's public JWK keys (often found at "/.well-known/jwks.json")
+	  - multitenancy:
+	    - default: "yes"
+		- Whether the app is tenant-aware
+	  - enabled:
+	    - default: "yes"
+		- The "enabled" option switches authentication and authorization on, off or activates mock mode. The default value is True (on).
+		- In MOCK MODE
+		  - no authorization server is needed,
+		  - all incoming requests are mock-authorized with pre-defined user info,
+		  - custom mock user info can supplied in a JSON file.
+	  -mock_user_info_path:
+	    - default: "/conf/mock-userinfo.json"
 	"""
+
 	_PUBLIC_KEYS_URL_DEFAULT = "http://localhost:3081/.well-known/jwks.json"
 
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
 		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
-		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
+		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url", fallback="")
 
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
