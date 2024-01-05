@@ -180,13 +180,12 @@ class LibraryService(Service):
 
 		Returns:
 			typing.Optional[typing.List[str]]: A list containing the paths to the found files,
-											`or `None` if no files are found that match the filename.
+											`or an `empty list` if no files are found that match the filename.
 		"""
 		# File path must start with '/'
-		assert path[:1] == '/', "File path must start with a forward slash (/). For example: /library/Templates/.setup.yaml"
+		assert path[:1] == '/', "Item path '{}' must start with a forward slash (/). For example: /library/Templates/.setup.yaml".format(path)
 		# File path must end with the filename
-		assert len(os.path.basename(
-			path)) > 0, "File path must end with a filename. For example: /library/Templates/.setup.yaml"
+		assert len(os.path.splitext(path)[1]) > 0, "Item path '{}' must end with an extension. For example: /library/Templates/item.json".format(path)
 
 		results = []
 		for library in self.Libraries:
@@ -194,7 +193,7 @@ class LibraryService(Service):
 			if found_files:
 				results.extend(found_files)
 
-		return results if results else None
+		return results
 
 	async def read(self, path: str, tenant: typing.Optional[str] = None) -> typing.Optional[typing.IO]:
 		"""

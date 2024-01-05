@@ -132,7 +132,8 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		Recursively search for files ending with a specific name in the file system, starting from the base path.
 
 		:param filename: The filename to search for (e.g., '.setup.yaml')
-		:return: A list of LibraryItem objects for files ending with the specified name
+		:return: A list of LibraryItem objects for files ending with the specified name,
+				or an empty list if no matching files were found.
 		"""
 		results = []
 		self._recursive_find(self.BasePath, filename, results)
