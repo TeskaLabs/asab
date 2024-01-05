@@ -127,6 +127,44 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		return items
 
+	async def find(self, filename: str) -> list:
+		"""
+		Recursively search for files ending with a specific name in the file system, starting from the base path.
+
+		:param filename: The filename to search for (e.g., '.setup.yaml')
+		:return: A list of LibraryItem objects for files ending with the specified name,
+				or an empty list if no matching files were found.
+		"""
+		results = []
+		self._recursive_find(self.BasePath, filename, results)
+		return results
+
+	def _recursive_find(self, path, filename, results):
+		"""
+		The recursive part of the find method.
+
+		:param path: The current path to search
+		:param filename: The filename to search for
+		:param results: The list where results are accumulated
+		"""
+		if not os.path.exists(path):
+			return
+
+		if os.path.isfile(path) and path.endswith(filename):
+			item = LibraryItem(
+				name=path[len(self.BasePath):],  # Store relative path
+				type="item",  # or "dir" if applicable
+				layer=self.Layer,
+				providers=[self],
+			)
+			results.append(item)
+			return
+
+		if os.path.isdir(path):
+			for entry in os.listdir(path):
+				full_path = os.path.join(path, entry)
+				self._recursive_find(full_path, filename, results)
+
 
 	def _on_inotify_read(self):
 		data = os.read(self.FD, 64 * 1024)

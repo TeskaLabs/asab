@@ -167,6 +167,35 @@ class LibraryService(Service):
 			L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("Library.not_ready!", self)
 
+	async def find(self, path: str) -> typing.Optional[typing.List[str]]:
+		"""
+		Searches for files with a specific name within a library, using the provided path.
+
+		The method traverses the library directories, looking for files that match the given filename.
+		It returns a list of paths leading to these files, or `None` if no such files are found.
+
+		Args:
+			path (str): The path specifying the filename and its location within the library.
+						The path should start with a forward slash and include the filename.
+						Example: '/library/Templates/.setup.yaml'
+
+		Returns:
+			typing.Optional[typing.List[str]]: A list containing the paths to the found files,
+											`or an `empty list` if no files are found that match the filename.
+		"""
+		# File path must start with '/'
+		assert path[:1] == '/', "Item path '{}' must start with a forward slash (/). For example: /library/Templates/.setup.yaml".format(path)
+		# File path must end with the filename
+		assert len(os.path.splitext(path)[1]) > 0, "Item path '{}' must end with an extension. For example: /library/Templates/item.json".format(path)
+
+		results = []
+		for library in self.Libraries:
+			found_files = await library.find(path)
+			if found_files:
+				results.extend(found_files)
+
+		return results
+
 	async def read(self, path: str, tenant: typing.Optional[str] = None) -> typing.Optional[typing.IO]:
 		"""
 		Read the content of the library item specified by `path`. This method can be used only after the Library is ready.
