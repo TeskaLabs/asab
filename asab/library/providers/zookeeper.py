@@ -368,7 +368,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				full_path = "{}/{}".format(path, child).rstrip('/')
 				if full_path.endswith(filename):
 					item = LibraryItem(
-						name=full_path,
+						name=full_path[len(self.BasePath):],
 						type="item",  # or "dir" if applicable
 						layer=self.Layer,
 						providers=[self],
