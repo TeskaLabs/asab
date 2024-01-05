@@ -161,37 +161,38 @@ nav:
 
   - Reference:
     - Application: reference/application.md
-    - Modules and Services: reference/modules_services.md
-
-    - Web Service: 
-      - Web server: reference/web/web-server.md
-      - TLS/SSL: reference/web/tls.md
-      - Authorization and Multi-tenancy: reference/web/authorization_multitenancy.md
-      - Cross-Origin Resource Sharing: reference/web/cors.md
     - Configuration: reference/configuration.md
     - Logging: reference/logging.md
     - PubSub: reference/pubsub.md
-    - Library Service: reference/library.md
 
-    - Metrics:
-      - reference/metrics/index.md
-      - Monitoring: reference/metrics/monitoring.md
-      - Interpretation: reference/metrics/interpretation.md
-      - Create metrics: reference/metrics/create_metrics.md
-      - Types of metrics: reference/metrics/metrics_types.md
-      - Built-in metrics: reference/metrics/built_ins.md
-      - Tags: reference/metrics/tags.md
+    - Modules and Services: 
+        - reference/services/index.md
+        - Web: 
+          - Web server: reference/services/web/web-server.md
+          - TLS/SSL: reference/services/web/tls.md
+          - Authorization and Multi-tenancy: reference/services/web/authorization_multitenancy.md
+          - Cross-Origin Resource Sharing: reference/services/web/cors.md
+        - Library: reference/services/library.md
+        - OpenAPI Documentation: reference/services/web/rest_api_docs.md
+        - Sentry Integration: reference/services/sentry.md
+        - Metrics:
+          - reference/services/metrics/index.md
+          - Monitoring: reference/services/metrics/monitoring.md
+          - Interpretation: reference/services/metrics/interpretation.md
+          - Create metrics: reference/services/metrics/create_metrics.md
+          - Types of metrics: reference/services/metrics/metrics_types.md
+          - Built-in metrics: reference/services/metrics/built_ins.md
+          - Tags: reference/services/metrics/tags.md
+        - Storage: reference/services/storage.md
+        - Task: reference/services/task.md
+        - Proactor: reference/services/proactor.md
+        - Zookeeper: reference/services/zookeeper.md
 
-    - Storage Service: reference/storage.md
-    - Task Service: reference/task.md
-    - Proactor Service: reference/proactor.md
-    - Zookeeper: reference/zookeeper.md
     - Utility functions and classes: 
         - Utility functions: reference/utils/utils.md
         - Persistent dictionary: reference/utils/persistent_dictionary.md
         - Timer: reference/utils/timer.md
-    - OpenAPI Documentation: reference/web/rest_api_docs.md
-    - Sentry Integration: reference/sentry.md
+
 
   # Examples are rendered automatically with create_examples.py script
   # please do not modify this part manually and leave it at the bottom of the file

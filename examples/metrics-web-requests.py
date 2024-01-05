@@ -37,6 +37,7 @@ listen=0.0.0.0 8089
 
 [asab:metrics]
 target=influxdb
+web_requests_metrics=true
 
 [asab:metrics:influxdb]
 url=http://localhost:8086
