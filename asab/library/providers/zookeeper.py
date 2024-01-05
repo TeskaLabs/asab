@@ -268,7 +268,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			if startswithdot:
 				continue
 
-			if '.' in node:  # We detect files in zookeeper by presence of the dot in the filename,
+			if '.' in node:
+				# We detect files in Zookeeper by the presence of a dot in the filename,
+				# but exclude filenames ending with '.io' (e.g., 'logman.io') from being considered as files.
+				# If a dot is present in the filename and it doesn't end with '.io', it's a file.
 				fname = path + node
 				ftype = "item"
 			else:
@@ -381,4 +384,4 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		except kazoo.exceptions.NoNodeError:
 			pass  # Node does not exist, skip
 		except Exception as e:
-			L.error("Error accessing {}: {}".format(path, e))
+			L.warning("Error accessing {}: {}".format(path, e))
