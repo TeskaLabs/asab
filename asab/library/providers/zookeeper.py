@@ -271,7 +271,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			if '.' in node:
 				# We detect files in Zookeeper by the presence of a dot in the filename,
 				# but exclude filenames ending with '.io' (e.g., 'logman.io') from being considered as files.
-				# If a dot is present in the filename and it doesn't end with '.io', it's a file.
+				# If a dot is present in the filename, and it doesn't end with '.io', it's a file.
 				fname = path + node
 				ftype = "item"
 			else:
