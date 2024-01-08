@@ -85,24 +85,24 @@ class AuthService(asab.Service):
 	"""
 	Provides authentication and authorization of incoming requests.
 
-	Configuration: 
+	Configuration:
 	- Configuration section: auth
 	- Configuration options:
-	  - public_keys_url:
-	    - default: ""
+	- public_keys_url:
+		- default: ""
 		- URL location containing the authorization server's public JWK keys (often found at "/.well-known/jwks.json")
-	  - multitenancy:
-	    - default: "yes"
+	- multitenancy:
+		- default: "yes"
 		- Whether the app is tenant-aware
-	  - enabled:
-	    - default: "yes"
+	- enabled:
+		- default: "yes"
 		- The "enabled" option switches authentication and authorization on, off or activates mock mode. The default value is True (on).
 		- In MOCK MODE
-		  - no authorization server is needed,
-		  - all incoming requests are mock-authorized with pre-defined user info,
-		  - custom mock user info can supplied in a JSON file.
-	  -mock_user_info_path:
-	    - default: "/conf/mock-userinfo.json"
+		- no authorization server is needed,
+		- all incoming requests are mock-authorized with pre-defined user info,
+		- custom mock user info can supplied in a JSON file.
+	-mock_user_info_path:
+		- default: "/conf/mock-userinfo.json"
 	"""
 
 	_PUBLIC_KEYS_URL_DEFAULT = "http://localhost:3081/.well-known/jwks.json"
@@ -261,7 +261,7 @@ class AuthService(asab.Service):
 			and now < self.AuthServerLastSuccessfulCheck + self.AuthServerCheckCooldown:
 			# Public keys have been fetched recently
 			return
-		
+
 		async def fetch_keys(session):
 			try:
 				async with session.get(self.PublicKeysUrl) as response:
@@ -302,7 +302,7 @@ class AuthService(asab.Service):
 				})
 				return
 			return public_key
-		
+
 		if self.DiscoveryService is None:
 			async with aiohttp.ClientSession() as session:
 				public_key = await fetch_keys(session)
