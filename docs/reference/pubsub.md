@@ -149,18 +149,18 @@ ASAB itself publishes various well-known messages published on `Application.PubS
 
 | Message | Published when... |
 | ---: | --- |
-| **Application.init!** | ...the application is in the [init-time](../application/#init-time) after the configuration is loaded, logging is setup, the event loop is constructed etc. |
-| **Application.run!** | ...the application enters the [run-time](../application/#run-time). |
-| **Application.stop!** | ...the application wants to stop the [run-time](../application/#run-time). It can be sent multiple times because of a process of graceful run-time termination. The first argument of the message is a counter that increases with every **Application.stop!** event. |
-| **Application.exit!** | ...the application enters the [exit-time](../application/#exit-time). |
-| **Application.hup!** | ...the application receives UNIX signal `SIGHUP` or equivalent.|
-| **Application.housekeeping!** | ...the application is on the time for [housekeeping](#housekeeping). |
+| `Application.init!` | ...the application is in the [init-time](../application/#init-time) after the configuration is loaded, logging is setup, the event loop is constructed etc. |
+| `Application.run!` | ...the application enters the [run-time](../application/#run-time). |
+| `Application.stop!` | ...the application wants to stop the [run-time](../application/#run-time). It can be sent multiple times because of a process of graceful run-time termination. The first argument of the message is a counter that increases with every `Application.stop!` event. |
+| `Application.exit!` | ...the application enters the [exit-time](../application/#exit-time). |
+| `Application.hup!` | ...the application receives UNIX signal [SIGHUP](https://en.wikipedia.org/wiki/SIGHUP) or equivalent.|
+| `Application.housekeeping!` | ...the application is on the time for [housekeeping](#housekeeping). |
 | Tick messages | ...periodically with the specified tick frequency. | 
 
 ### Tick messages
 
 Tick messages are published by the application periodically. 
-For example, **Application.tick!** is published every tick, **Application.tick/10!** is published every 10th tick etc.
+For example, `Application.tick!` is published every tick, `Application.tick/10!` is published every 10th tick etc.
 The tick frequency is configurable to whole seconds, the default is *1 second*.
 
 ```ini
@@ -171,15 +171,15 @@ tick_period = 3
 
 | Message | Default period |
 | ---: | --- |
-| **Application.tick!** | Every second. |
-| **Application.tick/10!** | Every 10 seconds. |
-| **Application.tick/60!** | Every minute. |
-| **Application.tick/300!** | Every 5 minutes. |
-| **Application.tick/600!** | Every 10 minutes. |
-| **Application.tick/1800!** | Every 30 minutes. |
-| **Application.tick/3600!** | Every hour. |
-| **Application.tick/43200!** | Every 12 hours. |
-| **Application.tick/86400!** | Every 24 hours. |
+| `Application.tick!` | Every second. |
+| `Application.tick/10!` | Every 10 seconds. |
+| `Application.tick/60!` | Every minute. |
+| `Application.tick/300!` | Every 5 minutes. |
+| `Application.tick/600!` | Every 10 minutes. |
+| `Application.tick/1800!` | Every 30 minutes. |
+| `Application.tick/3600!` | Every hour. |
+| `Application.tick/43200!` | Every 12 hours. |
+| `Application.tick/86400!` | Every 24 hours. |
 
 
 ### Housekeeping
