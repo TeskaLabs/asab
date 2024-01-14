@@ -182,6 +182,11 @@ tick_period = 3
 | `Application.tick/86400!` | Every 24 hours. |
 
 
+!!! warning
+
+	Don't use arbitrary tick period number (ie. `.../15!`). It will not work.
+ 
+
 ### Housekeeping
 
 Housekeeping is intended for scheduled processes that run once a day, e.g. for cleaning server databases. 
