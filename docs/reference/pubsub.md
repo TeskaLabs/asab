@@ -141,11 +141,11 @@ Moreover, PubSub also deals with modes, when asynchronous code (coroutine) does 
 
 ## Application-wide PubSub
 
-ASAB provides the application-wide Publish-Subscribe message bus.
+ASAB provides the application-wide Publish-Subscribe message bus as `Application.PubSub`
 
 ### Well-Known Messages
 
-ASAB itself publishes various well-known messages published on `Application.PubSub`:
+ASAB itself automatically publishes various well-known messages on `Application.PubSub`:
 
 | Message | Published when... |
 | ---: | --- |
