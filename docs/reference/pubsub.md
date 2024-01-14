@@ -149,9 +149,9 @@ ASAB itself automatically publishes various well-known messages on `Application.
 
 | Message | Published when... |
 | ---: | --- |
-| `Application.init!` | ...the application is in the [init-time](../application/#init-time) after the configuration is loaded, logging is setup, the event loop is constructed etc. |
+| `Application.init!` | ...the application is in the [init-time](../application/#init-time)<br/> after the configuration is loaded, logging is setup, the event loop is constructed etc. |
 | `Application.run!` | ...the application enters the [run-time](../application/#run-time). |
-| `Application.stop!` | ...the application wants to stop the [run-time](../application/#run-time). It can be sent multiple times because of a process of graceful run-time termination. The first argument of the message is a counter that increases with every `Application.stop!` event. |
+| `Application.stop!` | ...the application wants to stop the [run-time](../application/#run-time).<br/> It can be sent multiple times because of a process of graceful run-time termination. The first argument of the message is a counter that increases with every `Application.stop!` event. |
 | `Application.exit!` | ...the application enters the [exit-time](../application/#exit-time). |
 | `Application.hup!` | ...the application receives UNIX signal [SIGHUP](https://en.wikipedia.org/wiki/SIGHUP) or equivalent.|
 | `Application.housekeeping!` | ...the application is on the time for [housekeeping](#housekeeping). |
