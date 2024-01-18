@@ -110,7 +110,7 @@ class DiscoveryService(Service):
 			yield item, item_data
 
 
-	def session(self):
+	def session(self, base_url=None, **kwargs) -> aiohttp.ClientSession:
 		'''
 		Usage:
 
@@ -119,7 +119,7 @@ class DiscoveryService(Service):
 			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
 				...
 		'''
-		return aiohttp.ClientSession(connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)))
+		return aiohttp.ClientSession(base_url, connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)), **kwargs)
 
 
 class DiscoveryResolver(aiohttp.DefaultResolver):
