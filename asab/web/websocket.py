@@ -35,7 +35,6 @@ class WebSocketFactory(object):
 		self.App = app
 		self.Counter = 0
 		self.WebSockets = {}
-		self.WebSocketParams = {}  # dict of wsids and query parameters
 
 		self.Timeout = timeout
 		self.Protocols = protocols
@@ -115,7 +114,7 @@ class WebSocketFactory(object):
 
 		try:
 			self.WebSockets[wsid] = ws
-			self.WebSocketParams[wsid] = request.query
+			ws.query = request.query
 			await self.on_connect(ws, wsid)
 
 			async for msg in ws:
@@ -129,7 +128,6 @@ class WebSocketFactory(object):
 
 		finally:
 			del self.WebSockets[wsid]
-			del self.WebSocketParams[wsid]
 			L.log(LOG_NOTICE, "Websocket connection closed")
 			await self.on_close(ws, wsid)
 
