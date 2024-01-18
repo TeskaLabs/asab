@@ -114,6 +114,8 @@ class WebSocketFactory(object):
 
 		try:
 			self.WebSockets[wsid] = ws
+			# Each request can contain specific set of query parameters (pagination, filters, sorting) that affect the messages being sent from BE to the websocket.
+			# It is the property of each ws, thus stored inside ws object.
 			ws.query = request.query
 			await self.on_connect(ws, wsid)
 
