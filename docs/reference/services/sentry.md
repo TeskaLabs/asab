@@ -64,7 +64,7 @@ events=notice  # logging level for capturing events
 
 ## Integration
 
-Then you can initialize the Sentry Service:
+Sentry service is dependent on Python `sentry_sdk` library.
 
 ```python title='my_app.py'
 import asab
