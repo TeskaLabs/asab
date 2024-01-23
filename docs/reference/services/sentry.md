@@ -9,32 +9,62 @@ Sentry sends **events** (errors or transactions) to sentry.io together with addi
 
 **Transactions** are used for performance monitoring. A transaction represents the operation you want to measure or track, like a page load, page navigation, or asynchronous task. Transaction events are grouped by the transaction name. Moreover, you can monitor child tasks within a single transaction by creating child **spans**.
 
+## Configuration 
 
-## Setup
-
-First, install the Python Sentry SDK:
-
-```
-pip install sentry-sdk
-```
+When the [Sentry Service](#integration) is integrated to the ASAB microservice, it can be configured to send events to Sentry.io workspace.  
 
 After you create a new project in Sentry.io, [DSN (data source name)](https://docs.sentry.io/product/sentry-basics/dsn-explainer/?original_referrer=https%3A%2F%2Fduckduckgo.com%2F) is generated. You can either set the environment variable or fulfill DSN in the configuration.
 
 
-=== "Configuration"
+=== "DSN in Configuration"
+	You can set DSN in the configuration directly:
 
 	```ini title='configuration file'
 	[sentry]
-	data_source_name=https://<public key>@o<secret key>.ingest.sentry.io/<project id>
+	data_source_name=https://<public key>@<secret key>.ingest.sentry.io/<project id>
 	```
 
-=== "Environment variable"
+=== "DSN as environment variable"
+	You can provide DSN as environment variable (which is safer, in general) in a `.env` file.
 
-	``` shell title='shell'
-	export SENTRY_SDK=https://<public key>@o<secret key>.ingest.sentry.io/<project id>
+	``` shell title='.env'
+	export SENTRY_DSN=https://<public key>@<secret key>.ingest.sentry.io/<project id>
 	```
 
-Then you can initialize the Sentry Service:
+	Then use this variable in `docker-compose.yaml` file.
+
+	```yaml title="docker-compose.yaml"
+	my-asab-service:
+		image: my.asab.based.microservice
+		...
+		environment:
+		- SENTRY_DSN=${SENTRY_DSN}
+	```
+
+	In the configuration file, `[sentry]` section may be empty, but it has to be there.
+
+	```ini title='configuration file'
+	[sentry]
+	```
+
+Other options available for sentry:
+
+```ini
+[sentry]
+environment=production_hogwarts  # will be visible as a tag 'environment'
+
+[sentry:logging]
+breadcrumbs=info  # logging level for capturing breadcrumbs
+events=notice  # logging level for capturing events
+```
+
+!!! tip
+	If the application is properly containerized, other tags for Sentry.io are created automatically (using Manifest), such as:
+	`appclass`, `release`, `server_name`, `service_id`, `instance_id`, `node_id`.
+
+## Integration
+
+Sentry service is dependent on Python `sentry_sdk` library.
 
 ```python title='my_app.py'
 import asab
