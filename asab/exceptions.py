@@ -1,6 +1,30 @@
 import aiohttp.web
 
 
+class ASABError(Exception):
+	"""
+	Base class for ASAB errors that can be communicated to the client (in HTTP response or other)
+	"""
+
+	self.Prefix = "ASABError"
+
+	def __init__(
+		self,
+		error_code: str,
+		tech_message: str,
+		error_i18n_key: str | None = None,
+		error_dict: dict | None = None,
+	):
+		super().__init__(tech_message)
+		self.ErrorCode = error_code
+		self.TechMessage = tech_message
+		self.ErrorDict = error_dict
+		if error_i18n_key is not None:
+			self.ErrorI18nKey = "{}|{}".format(self.Prefix, error_i18n_key)
+		else:
+			self.ErrorI18nKey = "{}|".format(self.Prefix)
+
+
 class ValidationError(Exception):
 	"""
 	Request cannot be processed because it does not match expected schema
