@@ -47,7 +47,7 @@ class DocWebHandler(object):
 		self.ServerUrls: str = asab.Config.get(config_section_name, "server_urls", fallback="/").strip().split("\n")
 
 
-	def build_swagger_documentation(self) -> dict:
+	def build_swagger_documentation(self, host) -> dict:
 		"""
 		Take a docstring of the class and a docstring of methods and merge them into Swagger data.
 		"""
@@ -65,7 +65,7 @@ class DocWebHandler(object):
 				"version": self.get_version_from_manifest(),
 			},
 			"servers": [
-				{"url": url} for url in self.ServerUrls
+				{"url": "http://{}".format(host)}
 			],
 			"components": {
 				"securitySchemes": self.create_security_schemes()},
@@ -248,11 +248,13 @@ class DocWebHandler(object):
 		swagger_js_url: str = "https://unpkg.com/swagger-ui-dist@4/swagger-ui-bundle.js"
 		swagger_css_url: str = "https://unpkg.com/swagger-ui-dist@4/swagger-ui.css"
 
+		base_url = request.headers.get('Host')
+
 		doc_page = SWAGGER_DOC_PAGE.format(
 			title=self.App.__class__.__name__,
 			swagger_css_url=swagger_css_url,
 			swagger_js_url=swagger_js_url,
-			openapi_url="./asab/v1/openapi",
+			openapi_url="http://{}/asab/v1/openapi".format(base_url),
 		)
 
 		return aiohttp.web.Response(text=doc_page, content_type="text/html")
@@ -280,8 +282,11 @@ class DocWebHandler(object):
 		url: https://swagger.io/specification/
 
 		"""
+
+		host = request.headers.get('Host')
+
 		return aiohttp.web.Response(
-			text=(yaml.dump(self.build_swagger_documentation(), sort_keys=False)),
+			text=(yaml.dump(self.build_swagger_documentation(host=host), sort_keys=False)),
 			content_type="text/yaml",
 		)
 
