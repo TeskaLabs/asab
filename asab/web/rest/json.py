@@ -86,6 +86,31 @@ def json_response(request, data, pretty=None, dumps=JSONDumper, **kwargs):
 	)
 
 
+def json_error_response(
+	request: aiohttp.web.Request,
+	error: exceptions.ASABError,
+	status: int = 400,
+	pretty: bool | None = None,
+	dumps: JSONDumper = JSONDumper,
+	**kwargs
+):
+	"""
+	Prepare HTTP JSON response from ASAB error.
+	"""
+	assert issubclass(dumps, JSONDumper)
+	pretty = request.query.get("pretty", "no").lower() in frozenset(["true", "1", "t", "y", "yes", ""]) or pretty
+
+	payload = {
+		"result": "ERROR",
+		"error": e.ErrorI18nKey,
+		"tech_err": e.TechMessage,
+	}
+	if e.ErrorDict is not None:
+		payload["error_dict"] = e.ErrorDict
+
+	return aiohttp.web.json_response(request, payload, status=status, pretty=pretty, dumps=dumps, **kwargs)
+
+
 @aiohttp.web.middleware
 async def JsonExceptionMiddleware(request, handler):
 	'''
@@ -285,6 +310,8 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 			if request.content_type == 'application/json':
 				try:
 					data = await request.json()
+				except UnicodeDecodeError:
+					raise aiohttp.web.HTTPBadRequest(reason="Failed to decode unicode")
 				except json.decoder.JSONDecodeError:
 					raise aiohttp.web.HTTPBadRequest(reason="Failed to parse JSON request")
 			elif request.content_type in form_content_types:
