@@ -102,11 +102,11 @@ def json_error_response(
 
 	payload = {
 		"result": "ERROR",
-		"error": e.ErrorI18nKey,
-		"tech_err": e.TechMessage,
+		"error": error.ErrorI18nKey,
+		"tech_err": error.TechMessage,
 	}
-	if e.ErrorDict is not None:
-		payload["error_dict"] = e.ErrorDict
+	if error.ErrorDict is not None:
+		payload["error_dict"] = error.ErrorDict
 
 	return aiohttp.web.json_response(request, payload, status=status, pretty=pretty, dumps=dumps, **kwargs)
 

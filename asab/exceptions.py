@@ -6,7 +6,7 @@ class ASABError(Exception):
 	Base class for ASAB errors that can be communicated to the client (in HTTP response or other)
 	"""
 
-	self.Prefix = "ASABError"
+	Prefix = "ASABError"
 
 	def __init__(
 		self,
