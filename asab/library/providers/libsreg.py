@@ -161,10 +161,10 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 							L.error("Failed to download the library.", struct_data={"url": url, 'status': response.status})
 
 			except aiohttp.ClientError as e:
-				L.error("Failed to download the library.", struct_data={"url": url, 'exception': e})
+				L.error("Failed to download the library (ClientError).", struct_data={"url": url, 'error': e, 'exception': e.__class__.__name__})
 
 			except asyncio.TimeoutError as e:
-				L.error("Failed to download the library.", struct_data={"url": url, 'exception': e})
+				L.error("Failed to download the library (TimeoutError).", struct_data={"url": url, 'error': e, 'exception': e.__class__.__name__})
 
 
 	async def subscribe(self, path):
