@@ -57,6 +57,9 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		) for netloc in url.netloc.split(',')]
 		assert len(self.URLs) > 0
 
+		# TODO: Read this for `[general]` config
+		self.TrustEnv = True
+
 		tempdir = tempfile.gettempdir()
 		self.RootPath = os.path.join(
 			tempdir,
@@ -105,7 +108,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 			url = random.choice(self.URLs)
 
 			try:
-				async with aiohttp.ClientSession() as session:
+				async with aiohttp.ClientSession(trust_env=self.TrustEnv) as session:
 					async with session.get(url, headers=headers) as response:
 
 						if response.status == 200:  # The request indicates a new version that we don't have yet
