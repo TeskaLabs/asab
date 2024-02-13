@@ -61,6 +61,10 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		node_path = self.BasePath + path
 
+		# Handling tenant
+		if tenant not in [None, ""]:
+			node_path = self.BasePath + "/.tenants/" + tenant + path
+
 		# File path must start with '/'
 		assert node_path[:1] == '/', "File path must start with a forward slash (/). For example: /library/Templates/file.json"
 		# File path must end with the extension
@@ -83,9 +87,12 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		return self._list(path)
 
 
-	def _list(self, path: str):
+	def _list(self, path: str, tenant: str):
 
 		node_path = self.BasePath + path
+		# Handling tenant
+		if tenant not in [None, ""]:
+			node_path = self.BasePath + "/.tenants/" + tenant + path
 
 		# Directory path must start with '/'
 		assert node_path[:1] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
@@ -232,6 +239,26 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			if item.type == "dir":
 				self._subscribe_recursive(subscribed_path, item.name)
 
+	def build_path(self, path, tenant=None):
+		node_path = self.BasePath + path
+
+		# Handling tenant
+		if tenant not in [None, ""]:
+			node_path += "/.tenants/" + tenant
+
+		# Ensure the path starts with '/'
+		assert node_path[:1] == '/', "Path must start with a forward slash (/)."
+
+		# Remove trailing slash for files, ensure for directories
+		if os.path.splitext(node_path)[1]:  # It's a file
+			node_path = node_path.rstrip("/")
+		else:  # It's a directory
+			node_path = node_path if node_path.endswith("/") else node_path + "/"
+
+		# Ensure no double slashes
+		assert '//' not in node_path, "Path cannot contain double slashes (//)."
+
+		return node_path
 
 	async def finalize(self, app):
 		if self.FD is not None:
