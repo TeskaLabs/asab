@@ -57,7 +57,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		self.WDs = {}
 
 
-	async def read(self, path: str) -> typing.IO:
+	async def read(self, path: str, tenant: str) -> typing.IO:
 
 		node_path = self.BasePath + path
 
@@ -78,7 +78,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return None
 
 
-	async def list(self, path: str) -> list:
+	async def list(self, path: str, tenat: str) -> list:
 		# This list method is completely synchronous, but it should look like asynchronous to make all list methods unified among providers.
 		return self._list(path)
 

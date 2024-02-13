@@ -16,7 +16,7 @@ class LibraryProviderABC(object):
 		pass
 
 
-	async def read(self, path: str) -> typing.IO:
+	async def read(self, path: str, tenant: str) -> typing.IO:
 		"""
 		Reads a library item on the given path.
 
@@ -26,7 +26,7 @@ class LibraryProviderABC(object):
 		raise NotImplementedError("{}.read()".format(self.__class__.__name__))
 
 
-	async def list(self, path: str) -> list:
+	async def list(self, path: str, tenant: str) -> list:
 		"""
 		It lists all items in the library at the given path.
 
