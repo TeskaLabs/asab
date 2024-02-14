@@ -260,6 +260,13 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		return node_path
 
+	def tenant_exists(self, tenant: str) -> bool:
+		if tenant in [None, ""]:
+			return False
+
+		tenant_path = os.path.join(self.BasePath, ".tenants", tenant)
+		return os.path.exists(tenant_path)
+
 	async def finalize(self, app):
 		if self.FD is not None:
 			self.App.Loop.remove_reader(self.FD)
