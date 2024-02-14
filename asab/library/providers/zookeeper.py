@@ -390,13 +390,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Error accessing {}: {}".format(path, e))
 
 
-	async def tenant_exists(self, tenant: str) -> bool:
+	def tenant_exists(self, tenant: str) -> bool:
 		if tenant in [None, ""]:
 			return False
 
 		tenant_path = self.build_path("/.tenants/" + tenant)
 		try:
-			return await self.Zookeeper.Client.exists(tenant_path) is not None
+			return self.Zookeeper.Client.exists(tenant_path) is not None
 		except (kazoo.exceptions.NoNodeError, Exception) as e:
 			L.warning("Error checking tenant existence: {}".format(e))
 			return False
