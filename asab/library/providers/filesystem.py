@@ -239,32 +239,12 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			if item.type == "dir":
 				self._subscribe_recursive(subscribed_path, item.name)
 
-	def build_path(self, path, tenant=None):
-		node_path = self.BasePath + path
-
-		# Handling tenant
-		if tenant not in [None, ""]:
-			node_path += "/.tenants/" + tenant
-
-		# Ensure the path starts with '/'
-		assert node_path[:1] == '/', "Path must start with a forward slash (/)."
-
-		# Remove trailing slash for files, ensure for directories
-		if os.path.splitext(node_path)[1]:  # It's a file
-			node_path = node_path.rstrip("/")
-		else:  # It's a directory
-			node_path = node_path if node_path.endswith("/") else node_path + "/"
-
-		# Ensure no double slashes
-		assert '//' not in node_path, "Path cannot contain double slashes (//)."
-
-		return node_path
 
 	def tenant_exists(self, tenant: str) -> bool:
 		if tenant in [None, ""]:
 			return False
 
-		tenant_path = os.path.join(self.BasePath, ".tenants", tenant)
+		tenant_path = self.BasePath + "/.tenants/" + tenant
 		return os.path.exists(tenant_path)
 
 	async def finalize(self, app):
