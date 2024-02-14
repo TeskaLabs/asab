@@ -397,6 +397,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		tenant_path = self.build_path("/.tenants/" + tenant)
 		try:
 			return await self.Zookeeper.Client.exists(tenant_path) is not None
-		except Exception as e:
-			L.error("Error checking tenant existence: {}".format(e))
+		except (kazoo.exceptions.NoNodeError, Exception) as e:
+			L.warning("Error checking tenant existence: {}".format(e))
 			return False
