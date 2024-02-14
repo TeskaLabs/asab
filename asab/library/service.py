@@ -491,4 +491,4 @@ class LibraryService(Service):
 	async def tenant_exists(self, tenant: typing.Optional[str] = None) -> bool:
 
 		for library in self.Libraries:
-			return await library.tenant_exists(tenant)
+			return library.tenant_exists(tenant)
