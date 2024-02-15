@@ -241,6 +241,18 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	def tenant_exists(self, tenant: str) -> bool:
+		"""
+		Check if a tenant exists in the Zookeeper data store.
+
+		This method verifies the existence of a tenant by checking its presence in the Zookeeper data store.
+		It constructs the path to the tenant's data and queries Zookeeper to determine if the node exists.
+
+		Parameters:
+		tenant (str): The identifier of the tenant to check.
+
+		Returns:
+		bool: True if the tenant exists in the Zookeeper data store, False otherwise.
+		"""
 		if tenant in [None, ""]:
 			return False
 
