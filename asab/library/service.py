@@ -492,10 +492,3 @@ class LibraryService(Service):
 
 		for library in self.Libraries:
 			return library.tenant_exists(tenant)
-
-	async def get_tenants(self) -> list:
-		tenants_list = []
-		for library in self.Libraries:
-			tenants = library.get_tenants()
-			tenants_list.append(tenants)
-		return tenants_list

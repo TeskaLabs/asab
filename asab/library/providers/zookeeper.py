@@ -412,25 +412,3 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		except (kazoo.exceptions.NoNodeError, Exception) as e:
 			L.warning("Error checking tenant existence: {}".format(e))
 			return False
-
-	def get_tenants(self) -> list:
-		"""
-		Check if a tenant exists in the Zookeeper data store.
-
-		This method verifies the existence of a tenant by checking its presence in the Zookeeper data store.
-		It constructs the path to the tenant's data and queries Zookeeper to determine if the node exists.
-
-		Parameters:
-		tenant (str): The identifier of the tenant to check.
-
-		Returns:
-		bool: True if the tenant exists in the Zookeeper data store, False otherwise.
-		"""
-		tenant_path = self.BasePath + ".tenants"
-		breakpoint()
-		print(tenant_path)
-		try:
-			return self.Zookeeper.Client.get_children(tenant_path) is not None
-		except (kazoo.exceptions.NoNodeError, Exception) as e:
-			L.warning("Error checking tenant existence: {}".format(e))
-			return []
