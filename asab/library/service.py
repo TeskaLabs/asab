@@ -487,8 +487,3 @@ class LibraryService(Service):
 
 			for provider in self.Libraries:
 				await provider.subscribe(path)
-
-	async def tenant_exists(self, tenant: typing.Optional[str] = None) -> bool:
-
-		for library in self.Libraries:
-			return library.tenant_exists(tenant)
