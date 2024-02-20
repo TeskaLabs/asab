@@ -227,12 +227,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 
-	async def read(self, path: str, tenant: str) -> typing.IO:
+	async def read(self, path: str) -> typing.IO:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
-		node_path = self.build_path(path, tenant)
+		node_path = self.build_path(path)
 
 		try:
 			node_data = await self.Zookeeper.get_data(node_path)
@@ -249,12 +249,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		else:
 			return None
 
-	async def list(self, path: str, tenant) -> list:
+	async def list(self, path: str) -> list:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
-		node_path = self.build_path(path, tenant)
+		node_path = self.build_path(path)
 
 		nodes = await self.Zookeeper.get_children(node_path)
 		if nodes is None:
@@ -287,10 +287,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		return items
 
-	def build_path(self, path, tenant=None):
+	def build_path(self, path):
 		"""
-		It takes a path in the library and transforms it into a path within Zookeeper.
-		It does also a series of sanity checks (asserts).
+		It takes a path in the library and transforms in into a path within Zookeeper.
+		It does also series of sanity checks (asserts).
 
 		IMPORTANT: If you encounter asserting failure, don't remove assert.
 		It means that your code is incorrect.
@@ -301,17 +301,14 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		else:
 			node_path = self.BasePath
 
-		# Handling tenant
-		if tenant not in [None, ""]:
-			node_path = self.BasePath + "/.tenants/" + tenant + path
-
-		# Zookeeper path should not have forwarded slash at the end of path
+		# Zookeeper path should not have forward slash at the end of path
 		node_path = node_path.rstrip("/")
 
 		assert '//' not in node_path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
 		assert node_path[0] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
 
 		return node_path
+
 
 	async def subscribe(self, path):
 		path = self.BasePath + path
@@ -388,27 +385,3 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			pass  # Node does not exist, skip
 		except Exception as e:
 			L.warning("Error accessing {}: {}".format(path, e))
-
-
-	def tenant_exists(self, tenant: str) -> bool:
-		"""
-		Check if a tenant exists in the Zookeeper data store.
-
-		This method verifies the existence of a tenant by checking its presence in the Zookeeper data store.
-		It constructs the path to the tenant's data and queries Zookeeper to determine if the node exists.
-
-		Parameters:
-		tenant (str): The identifier of the tenant to check.
-
-		Returns:
-		bool: True if the tenant exists in the Zookeeper data store, False otherwise.
-		"""
-		if tenant in [None, ""]:
-			return False
-
-		tenant_path = self.build_path("/.tenants/" + tenant)
-		try:
-			return self.Zookeeper.Client.exists(tenant_path) is not None
-		except (kazoo.exceptions.NoNodeError, Exception) as e:
-			L.warning("Error checking tenant existence: {}".format(e))
-			return False
