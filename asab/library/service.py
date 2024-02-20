@@ -225,7 +225,7 @@ class LibraryService(Service):
 			return None
 
 		for library in self.Libraries:
-			itemio = await library.read(path, tenant)
+			itemio = await library.read(path)
 			if itemio is None:
 				continue
 			return itemio
@@ -276,7 +276,7 @@ class LibraryService(Service):
 	async def _list(self, path, tenant, providers):
 		# Execute the list query in all providers in-parallel
 		result = await asyncio.gather(*[
-			library.list(path, tenant)
+			library.list(path)
 			for library in providers
 		], return_exceptions=True)
 
@@ -318,7 +318,7 @@ class LibraryService(Service):
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
 		# It is applied on all libraries in the configuration.
-		disabled = await self.Libraries[0].read('/.disabled.yaml', None)
+		disabled = await self.Libraries[0].read('/.disabled.yaml')
 
 		if disabled is None:
 			self.Disabled = {}
@@ -487,8 +487,3 @@ class LibraryService(Service):
 
 			for provider in self.Libraries:
 				await provider.subscribe(path)
-
-	async def tenant_exists(self, tenant: typing.Optional[str] = None) -> bool:
-
-		for library in self.Libraries:
-			return library.tenant_exists(tenant)
