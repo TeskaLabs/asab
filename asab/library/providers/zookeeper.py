@@ -241,6 +241,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
 		node_path = self.build_path(path, tenant_specific=True)
+		print(node_path)
 
 		try:
 			node_data = await self.Zookeeper.get_data(node_path)
@@ -250,6 +251,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		except kazoo.exceptions.NoNodeError:
 			# If not found, try the normal path
 			node_path = self.build_path(path, tenant_specific=False)
+			print(node_path)
 			try:
 				node_data = await self.Zookeeper.get_data(node_path)
 			except kazoo.exceptions.NoNodeError:
@@ -315,9 +317,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		tenant = TenantContextVar.get() if tenant_specific else None
 
 		if tenant:
-			node_path = '/.tenants/' + tenant + node_path
+			node_path = self.BasePath + '/.tenants/' + tenant + path
 
 		node_path = node_path.rstrip("/")
+
 		assert '//' not in node_path, "Directory path cannot contain double slashes (//)."
 		assert node_path[0] == '/', "Directory path must start with a forward slash (/)."
 
