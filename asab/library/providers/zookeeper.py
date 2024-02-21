@@ -240,7 +240,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
-		node_path = self.build_path(path)
+		node_path = self.build_path(path, tenant_specific=True)
 
 		try:
 			node_data = await self.Zookeeper.get_data(node_path)
@@ -248,7 +248,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper library provider is not ready")
 			raise RuntimeError("Zookeeper library provider is not ready")
 		except kazoo.exceptions.NoNodeError:
-			return None
+			# If not found, try the normal path
+			node_path = self.build_path(path, tenant_specific=False)
+			try:
+				node_data = await self.Zookeeper.get_data(node_path)
+			except kazoo.exceptions.NoNodeError:
+				return None
 
 		# Consider adding other exceptions from Kazoo to indicate common non-critical errors
 
@@ -262,11 +267,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
-		node_path = self.build_path(path)
-
+		# First try with tenant-specific path
+		node_path = self.build_path(path, tenant_specific=True)
 		nodes = await self.Zookeeper.get_children(node_path)
+
+		# If tenant-specific path doesn't yield results, try the normal path
 		if nodes is None:
-			raise KeyError("Not '{}' found".format(node_path))
+			node_path = self.build_path(path, tenant_specific=False)
+			nodes = await self.Zookeeper.get_children(node_path)
+			if nodes is None:
+				raise KeyError("No '{}' found".format(node_path))
 
 		items = []
 		for node in nodes:
@@ -295,33 +305,23 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		return items
 
-	def build_path(self, path):
-		"""
-		It takes a path in the library and transforms in into a path within Zookeeper.
-		It does also series of sanity checks (asserts).
-
-		IMPORTANT: If you encounter asserting failure, don't remove assert.
-		It means that your code is incorrect.
-		"""
+	def build_path(self, path, tenant_specific=False):
 		assert path[:1] == '/'
 		if path != '/':
 			node_path = self.BasePath + path
 		else:
 			node_path = self.BasePath
 
-		tenant = TenantContextVar.get()
+		tenant = TenantContextVar.get() if tenant_specific else None
 
-		if tenant not in [None, ""]:
-			node_path = self.BasePath + "/.tenants/" + tenant + path
+		if tenant:
+			node_path = '/.tenants/' + tenant + node_path
 
-		# Zookeeper path should not have forward slash at the end of path
 		node_path = node_path.rstrip("/")
-
-		assert '//' not in node_path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
-		assert node_path[0] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
+		assert '//' not in node_path, "Directory path cannot contain double slashes (//)."
+		assert node_path[0] == '/', "Directory path must start with a forward slash (/)."
 
 		return node_path
-
 
 	async def subscribe(self, path):
 		path = self.BasePath + path
