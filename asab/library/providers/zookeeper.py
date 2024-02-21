@@ -1,9 +1,3 @@
-# contextvars.py
-from contextvars import ContextVar
-
-# Define a context variable for tenant
-TenantContextVar = ContextVar('tenant', default=None)
-
 
 import io
 import asyncio
@@ -18,8 +12,14 @@ import kazoo.exceptions
 
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
-from ..contextvars import TenantContextVar
 from ...zookeeper import ZooKeeperContainer
+
+# contextvars.py
+from contextvars import ContextVar
+
+# Define a context variable for tenant
+TenantContextVar = ContextVar('tenant', default=None)
+
 
 #
 
@@ -398,4 +398,3 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			pass  # Node does not exist, skip
 		except Exception as e:
 			L.warning("Error accessing {}: {}".format(path, e))
-
