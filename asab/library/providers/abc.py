@@ -53,33 +53,3 @@ class LibraryProviderABC(object):
 
 		"""
 		raise NotImplementedError("{}.subscribe()".format(self.__class__.__name__))
-
-	async def tenant_exists(self):
-		"""
-		Checks if a specified tenant exists in the storage system.
-
-		This method should be implemented by subclasses to provide a mechanism for verifying the existence of a tenant.
-		It is expected to be an asynchronous method due to potential IO operations involved.
-
-		Parameters:
-		tenant (str): The identifier of the tenant whose existence needs to be verified.
-
-		Returns:
-		bool: True if the tenant exists, False otherwise.
-		"""
-		raise NotImplementedError("{}.subscribe()".format(self.__class__.__name__))
-
-	async def get_tenants(self):
-		"""
-		Checks if a specified tenant exists in the storage system.
-
-		This method should be implemented by subclasses to provide a mechanism for verifying the existence of a tenant.
-		It is expected to be an asynchronous method due to potential IO operations involved.
-
-		Parameters:
-		tenant (str): The identifier of the tenant whose existence needs to be verified.
-
-		Returns:
-		bool: True if the tenant exists, False otherwise.
-		"""
-		raise NotImplementedError("{}.subscribe()".format(self.__class__.__name__))

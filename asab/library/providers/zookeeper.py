@@ -1,3 +1,10 @@
+# contextvars.py
+from contextvars import ContextVar
+
+# Define a context variable for tenant
+TenantContextVar = ContextVar('tenant', default=None)
+
+
 import io
 import asyncio
 import hashlib
@@ -11,7 +18,7 @@ import kazoo.exceptions
 
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
-from ..contextvars import tenant_var
+from ..contextvars import TenantContextVar
 from ...zookeeper import ZooKeeperContainer
 
 #
@@ -302,7 +309,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		else:
 			node_path = self.BasePath
 
-		tenant = tenant_var.get()
+		tenant = TenantContextVar.get()
 
 		if tenant not in [None, ""]:
 			node_path = self.BasePath + "/.tenants/" + tenant + path
@@ -392,27 +399,3 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		except Exception as e:
 			L.warning("Error accessing {}: {}".format(path, e))
 
-
-	def tenant_exists(self, tenant: str) -> bool:
-		"""
-		Check if a tenant exists in the Zookeeper data store.
-
-		This method verifies the existence of a tenant by checking its presence in the Zookeeper data store.
-		It constructs the path to the tenant's data and queries Zookeeper to determine if the node exists.
-
-		Parameters:
-		tenant (str): The identifier of the tenant to check.
-
-		Returns:
-		bool: True if the tenant exists in the Zookeeper data store, False otherwise.
-		"""
-		if tenant in [None, ""]:
-			return False
-		tenant = tenant_var.get()
-
-		tenant_path = self.BasePath + "/.tenants/" + tenant
-		try:
-			return self.Zookeeper.Client.exists(tenant_path) is not None
-		except (kazoo.exceptions.NoNodeError, Exception) as e:
-			L.warning("Error checking tenant existence: {}".format(e))
-			return False
