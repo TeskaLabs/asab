@@ -19,7 +19,6 @@ from contextvars import ContextVar
 # Define a context variable for tenant
 TenantContextVar = ContextVar('tenant', default=None)
 
-
 #
 
 L = logging.getLogger(__name__)
@@ -104,6 +103,20 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	If `path` from [zookeeper] section is missing, an application class name will be used
 	Ex. `/BSQueryApp/library`
+
+	Usage of TenantContextVar:
+		The 'TenantContextVar' context variable is used to specify the current tenant context.
+		It can be set at the beginning of an operation (e.g., a web request) to ensure that all
+		subsequent operations within that context are executed under the specified tenant.
+		The context variable is reset to its default value (None) at the end of the operation.
+
+	Example:
+	```
+	tenant_token = TenantContextVar.set('tenant123')
+	# Perform operations under tenant123 context
+	...
+	TenantContextVar.reset(tenant_token)  # Reset to default context
+	```
 
 	"""
 
