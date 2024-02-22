@@ -233,36 +233,30 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		asyncio.create_task(self._on_library_changed())
 
-
-
 	async def read(self, path: str) -> typing.IO:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
-		node_path = self.build_path(path, tenant_specific=True)
-		print(node_path)
-
 		try:
+			# Try tenant-specific path first
+			node_path = self.build_path(path, tenant_specific=True)
 			node_data = await self.Zookeeper.get_data(node_path)
+
+			# If not found, try the normal path
+			if node_data is None:
+				node_path = self.build_path(path, tenant_specific=False)
+				node_data = await self.Zookeeper.get_data(node_path)
+
+			if node_data is not None:
+				return io.BytesIO(initial_bytes=node_data)
+			else:
+				return None
+
 		except kazoo.exceptions.ConnectionClosedError:
 			L.warning("Zookeeper library provider is not ready")
 			raise RuntimeError("Zookeeper library provider is not ready")
-		except kazoo.exceptions.NoNodeError:
-			# If not found, try the normal path
-			node_path = self.build_path(path, tenant_specific=False)
-			print(node_path)
-			try:
-				node_data = await self.Zookeeper.get_data(node_path)
-			except kazoo.exceptions.NoNodeError:
-				return None
 
-		# Consider adding other exceptions from Kazoo to indicate common non-critical errors
-
-		if node_data is not None:
-			return io.BytesIO(initial_bytes=node_data)
-		else:
-			return None
 
 	async def list(self, path: str) -> list:
 		if self.Zookeeper is None:
