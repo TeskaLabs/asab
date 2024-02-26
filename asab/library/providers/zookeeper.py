@@ -269,43 +269,44 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper library provider is not ready")
 			raise RuntimeError("Zookeeper library provider is not ready")
 
-
 	async def list(self, path: str) -> list:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
-		# First try with tenant-specific path
-		node_path = self.build_path(path, tenant_specific=True)
-		nodes = await self.Zookeeper.get_children(node_path)
+		# Helper function to retrieve children nodes
+		async def get_children_nodes(node_path):
+			try:
+				return await self.Zookeeper.get_children(node_path)
+			except kazoo.exceptions.NoNodeError:
+				return None
 
-		# If tenant-specific path doesn't yield results, try the normal path
-		if nodes is None:
-			node_path = self.build_path(path, tenant_specific=False)
-			nodes = await self.Zookeeper.get_children(node_path)
-			if nodes is None:
-				raise KeyError("No '{}' found".format(node_path))
+		# Retrieve nodes from tenant-specific and general paths
+		tenant_specific_path = self.build_path(path, tenant_specific=True)
+		general_path = self.build_path(path, tenant_specific=False)
+
+		tenant_nodes = await get_children_nodes(tenant_specific_path)
+		general_nodes = await get_children_nodes(general_path)
+
+		# Combine nodes from both paths, ensuring uniqueness
+		nodes = set(tenant_nodes or []) | set(general_nodes or [])
+		if not nodes:
+			raise KeyError("No '{}' found".format(general_path))
 
 		items = []
 		for node in nodes:
+			if any(part.startswith('.') for part in node.split(os.path.sep)):
+				continue  # Skip nodes starting with '.'
 
-			# Remove any component that starts with '.'
-			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), node.split(os.path.sep), False)
-			if startswithdot:
-				continue
-
+			full_node_path = os.path.join(path, node)
 			if '.' in node and not node.endswith(('.io', '.d')):
-				# We detect files in Zookeeper by the presence of a dot in the filename,
-				# but exclude filenames ending with '.io' or '.d' (e.g., 'logman.io', server_https.d)
-				# from being considered as files.
-				fname = path + node
 				ftype = "item"
 			else:
-				fname = path + node + '/'
 				ftype = "dir"
+				full_node_path += '/'
 
 			items.append(LibraryItem(
-				name=fname,
+				name=full_node_path,
 				type=ftype,
 				layer=self.Layer,
 				providers=[self],
