@@ -281,8 +281,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		# Process tenant-specific nodes
 		tenant_node_path = self.build_path(path, tenant_specific=True)
-		tenant_nodes = await self.Zookeeper.get_children(tenant_node_path) or []
-		tenant_items = await self.process_nodes(tenant_nodes, path)
+		if tenant_node_path != tenant_node_path:
+			tenant_nodes = await self.Zookeeper.get_children(tenant_node_path) or []
+			tenant_items = await self.process_nodes(tenant_nodes, path)
+		else:
+			tenant_items = []
 
 		# Combine items, with tenant items taking precedence over global ones
 		combined_items = {item.name: item for item in global_items}
