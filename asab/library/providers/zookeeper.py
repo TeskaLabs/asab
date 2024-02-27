@@ -112,7 +112,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	Example:
 	```
-	tenant_token = TenantContextVar.set('tenant123')
+	tenant_token = TenantContextVar.set('default')
 	# Perform operations under tenant123 context
 	...
 	TenantContextVar.reset(tenant_token)  # Reset to default context
