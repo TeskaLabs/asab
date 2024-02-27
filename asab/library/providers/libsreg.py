@@ -1,4 +1,5 @@
 import os
+import lzma
 import logging
 import hashlib
 import random
@@ -77,7 +78,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 		self.PullLock = asyncio.Lock()
 
-		# TODO: Subscribption to changes in the library
+		# TODO: Subscription to changes in the library
 		self.SubscribedPaths = set()
 
 		self.App.TaskService.schedule(self._periodic_pull(None))
@@ -116,6 +117,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 							etag_incoming = response.headers.get('ETag')
 
 							# Download new version
+							dwnld_size = 0
 							newtarfname = os.path.join(self.RootPath, "new.tar.xz")
 							with open(newtarfname, 'wb') as ftmp:
 								while True:
@@ -123,6 +125,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 									if not chunk:
 										break
 									ftmp.write(chunk)
+									dwnld_size += len(chunk)
 
 							# Extract the contents to the temporary directory
 							temp_extract_dir = os.path.join(
@@ -135,8 +138,11 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 								shutil.rmtree(temp_extract_dir)
 
 							# Extract the archive into the temp_extract_dir
-							with tarfile.open(newtarfname, mode='r:xz') as tar:
-								tar.extractall(temp_extract_dir)
+							try:
+								with tarfile.open(newtarfname, mode='r:xz') as tar:
+									tar.extractall(temp_extract_dir)
+							except lzma.LZMAError:
+								L.exception("LZMAError", struct_data={'size': dwnld_size})
 
 							# Synchronize the temp_extract_dir into the library
 							synchronize_dirs(self.RepoPath, temp_extract_dir)
