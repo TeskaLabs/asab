@@ -64,12 +64,14 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		self.RootPath = os.path.join(
 			tempdir,
 			"asab.library.libsreg",
+			hashlib.sha256(path.encode('utf-8')).hexdigest()
 		)
 
 		self.RepoPath = os.path.join(
 			self.RootPath,
-			hashlib.sha256(self.URLs[0].encode('utf-8')).hexdigest()
+			"content"
 		)
+
 
 		os.makedirs(os.path.join(self.RepoPath), exist_ok=True)
 
@@ -98,12 +100,10 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 			# Check for existing E-Tag
 			etag_fname = os.path.join(self.RootPath, "etag")
-			try:
+			if os.path.exists(etag_fname):
 				with open(etag_fname, 'r') as f:
 					etag = f.read().strip()
 					headers['If-None-Match'] = etag
-			except FileNotFoundError:
-				pass
 
 			url = random.choice(self.URLs)
 
