@@ -174,6 +174,9 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 			except asyncio.TimeoutError as e:
 				L.error("Failed to download the library (TimeoutError).", struct_data={"url": url, 'error': e, 'exception': e.__class__.__name__})
+			
+			excep Exception:
+				L.exception("Error when fetching the library content from a registry")
 
 
 	async def subscribe(self, path):
