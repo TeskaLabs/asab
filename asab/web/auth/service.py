@@ -471,18 +471,6 @@ class AuthService(asab.Service):
 		return wrapper
 
 
-	def _add_tenant_none(self, handler):
-		"""
-		Add tenant=None to the handler arguments
-		"""
-
-		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
-			return await handler(*args, tenant=None, **kwargs)
-
-		return wrapper
-
-
 def _get_id_token_claims(bearer_token: str, auth_server_public_key):
 	"""
 	Parse and validate JWT ID token and extract the claims (user info)
