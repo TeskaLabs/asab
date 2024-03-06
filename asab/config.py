@@ -113,9 +113,6 @@ class ConfigParser(configparser.ConfigParser):
 			# (often found at "/.well-known/jwks.json")
 			"public_keys_url": "",
 
-			# Whether the app is tenant-aware
-			"multitenancy": "yes",
-
 			# The "enabled" option switches authentication and authorization
 			# on, off or activates mock mode. The default value is True (on).
 			# In MOCK MODE

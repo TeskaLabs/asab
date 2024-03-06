@@ -91,9 +91,6 @@ class AuthService(asab.Service):
 	- public_keys_url:
 		- default: ""
 		- URL location containing the authorization server's public JWK keys (often found at "/.well-known/jwks.json")
-	- multitenancy:
-		- default: "yes"
-		- Whether the app is tenant-aware
 	- enabled:
 		- default: "yes"
 		- The "enabled" option switches authentication and authorization on, off or activates mock mode. The default value is True (on).
@@ -109,7 +106,6 @@ class AuthService(asab.Service):
 
 	def __init__(self, app, service_name="asab.AuthzService"):
 		super().__init__(app, service_name)
-		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
@@ -420,10 +416,8 @@ class AuthService(asab.Service):
 		if "tenant" in args:
 			if tenant_in_path:
 				handler = self._add_tenant_from_path(handler)
-			elif self.MultitenancyEnabled or self.Mode == AuthMode.MOCK:
-				handler = self._add_tenant_from_query(handler)
 			else:
-				handler = self._add_tenant_none(handler)
+				handler = self._add_tenant_from_query(handler)
 
 		handler = self._authenticate_request(handler)
 		route._handler = handler
@@ -467,10 +461,7 @@ class AuthService(asab.Service):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 			if "tenant" not in request.query:
-				if self.Mode != AuthMode.MOCK:
-					L.error("Request is missing 'tenant' query parameter.")
-					raise aiohttp.web.HTTPBadRequest()
-				tenant = None
+				return await handler(*args, tenant=None, **kwargs)
 			else:
 				tenant = request.query["tenant"]
 				if self.Mode != AuthMode.DISABLED:
