@@ -12,8 +12,8 @@ from .upsertor import UpsertorABC
 asab.Config.add_defaults(
 	{
 		'asab:storage': {
-			'mongodb_uri': 'mongodb://localhost:27017',
-			'mongodb_database': 'asabdb',
+			'mongodb_uri': '',
+			'mongodb_database': '',
 		}
 	}
 )
@@ -27,12 +27,31 @@ class StorageService(StorageServiceABC):
 
 	def __init__(self, app, service_name, config_section_name='asab:storage'):
 		super().__init__(app, service_name)
-		self.Client = motor.motor_asyncio.AsyncIOMotorClient(asab.Config.get(config_section_name, 'mongodb_uri'))
+
+		# Check the old section and then the new section for url
+		url = asab.Config.get(config_section_name, 'mongodb_uri', fallback='')
+		if len(url) > 0:
+			asab.LogObsolete.warning(
+				"Do not configure mongodb connection in {}. Please use [mongodb] section with url and database parameters.".format(config_section_name)
+			)
+		else:
+			url = asab.Config.get("mongodb", 'uri', fallback='')
+
+		if len(url) == 0:
+			raise RuntimeError("No MongoDB URL has been provided.")
+
+		self.Client = motor.motor_asyncio.AsyncIOMotorClient(url)
+
+		# Check the old section and then the new section for database name
+		db_name = asab.Config.get(config_section_name, 'mongodb_database', fallback='')
+		if len(db_name) == 0:
+			db_name = asab.Config.get('mongodb', 'database', fallback='')
 
 		self.Database = self.Client.get_database(
-			asab.Config.get(config_section_name, 'mongodb_database'),
+			db_name,
 			codec_options=bson.codec_options.CodecOptions(tz_aware=True, tzinfo=datetime.timezone.utc),
 		)
+
 		assert self.Database is not None
 
 
