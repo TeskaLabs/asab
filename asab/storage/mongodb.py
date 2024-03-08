@@ -35,7 +35,7 @@ class StorageService(StorageServiceABC):
 				"Do not configure mongodb connection in {}. Please use [mongodb] section with url and database parameters.".format(config_section_name)
 			)
 		else:
-			url = asab.Config.get("mongodb", 'uri', fallback='')
+			url = asab.Config.get("mongo", 'url', fallback='')
 
 		if len(url) == 0:
 			raise RuntimeError("No MongoDB URL has been provided.")
@@ -45,7 +45,7 @@ class StorageService(StorageServiceABC):
 		# Check the old section and then the new section for database name
 		db_name = asab.Config.get(config_section_name, 'mongodb_database', fallback='')
 		if len(db_name) == 0:
-			db_name = asab.Config.get('mongodb', 'database', fallback='')
+			db_name = asab.Config.get('mongo', 'database', fallback='')
 
 		self.Database = self.Client.get_database(
 			db_name,
