@@ -146,6 +146,7 @@ class SentryService(asab.Service):
 		self.NodeId = os.getenv("NODE_ID", None)  # e.g. "lmio-box-testing-1"
 		self.ServiceId = os.getenv("SERVICE_ID", None)  # e.g. "lmio-service"
 		self.InstanceId = os.getenv("INSTANCE_ID", None)  # e.g. "lmio-service-01"
+		self.SiteId = os.getenv("SITE_ID", None)
 
 		if self.NodeId:
 			sentry_sdk.set_tag("node_id", self.NodeId)
@@ -153,6 +154,8 @@ class SentryService(asab.Service):
 			sentry_sdk.set_tag("service_id", self.ServiceId)
 		if self.InstanceId:
 			sentry_sdk.set_tag("instance_id", self.InstanceId)
+		if self.SiteId:
+			sentry_sdk.set_tag("site_id", self.SiteId)
 
 		sentry_sdk.set_tag("appclass", app.__class__.__name__)  # e.g. 'LMIOParsecApplication'
 
