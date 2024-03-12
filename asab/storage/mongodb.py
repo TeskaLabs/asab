@@ -28,19 +28,19 @@ class StorageService(StorageServiceABC):
 	def __init__(self, app, service_name, config_section_name='asab:storage'):
 		super().__init__(app, service_name)
 
-		# Check the old section and then the new section for url
-		url = asab.Config.get(config_section_name, 'mongodb_uri', fallback='')
-		if len(url) > 0:
+		# Check the old section and then the new section for uri
+		uri = asab.Config.get(config_section_name, 'mongodb_uri', fallback='')
+		if len(uri) > 0:
 			asab.LogObsolete.warning(
-				"Do not configure mongodb connection in {}. Please use [mongodb] section with url and database parameters.".format(config_section_name)
+				"Do not configure mongodb connection in {}. Please use [mongodb] section with uri and database parameters.".format(config_section_name)
 			)
 		else:
-			url = asab.Config.get("mongo", 'url', fallback='')
+			uri = asab.Config.get("mongo", 'uri', fallback='')
 
-		if len(url) == 0:
-			raise RuntimeError("No MongoDB URL has been provided.")
+		if len(uri) == 0:
+			raise RuntimeError("No MongoDB URI has been provided.")
 
-		self.Client = motor.motor_asyncio.AsyncIOMotorClient(url)
+		self.Client = motor.motor_asyncio.AsyncIOMotorClient(uri)
 
 		# Check the old section and then the new section for database name
 		db_name = asab.Config.get(config_section_name, 'mongodb_database', fallback='')
