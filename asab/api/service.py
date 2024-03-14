@@ -195,7 +195,7 @@ class ApiService(Service):
 		if instance_id is not None:
 			adv_data["instance_id"] = instance_id
 
-		# A identified of the host machine (node); added if available at environment variables
+		# An identifier of the host machine (node); added if available at environment variables
 		node_id = os.getenv('NODE_ID', None)
 		if node_id is not None:
 			adv_data["node_id"] = node_id
@@ -203,6 +203,11 @@ class ApiService(Service):
 		service_id = os.getenv('SERVICE_ID', None)
 		if service_id is not None:
 			adv_data["service_id"] = service_id
+
+		# An identifier of a site, of a specific deployment
+		site_id = os.getenv('SITE_ID', None)
+		if site_id is not None:
+			adv_data["site_id"] = site_id
 
 		if running_in_container():
 			adv_data["containerized"] = True

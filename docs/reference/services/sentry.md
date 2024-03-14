@@ -60,7 +60,7 @@ events=notice  # logging level for capturing events
 
 !!! tip
 	If the application is properly containerized, other tags for Sentry.io are created automatically (using Manifest), such as:
-	`appclass`, `release`, `server_name`, `service_id`, `instance_id`, `node_id`.
+	`appclass`, `release`, `server_name`, `service_id`, `instance_id`, `node_id`, `site_id`.
 
 ## Integration
 
