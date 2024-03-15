@@ -71,7 +71,6 @@ in the `[auth]` section with the following options:
 | Option                | Type             | Meaning |
 |-----------------------|------------------| --- |
 | `public_keys_url`     | URL              | The URL of the authorization server's public keys (also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)) |
-| `multitenancy`        | boolean          | Toggles the behavior of endpoints with configurable tenant parameter. When enabled, the tenant query paramerter is required. When disabled, the tenant query parameter is ignored and set to `None`. In dev mode, the multitenancy switch is ignored and the tenant parameter is taken into account only when it is present in query, otherwise it is set to `None`. |
 | `enabled`             | boolean or `"mock"` | Enables or disables authentication and authorization or switches to mock authorization. In mock mode, all incoming requests are authorized with mock user info. There is no communication with the authorization server (so it is not necessary to configure `public_keys_url` in dev mode).
 | `mock_user_info_path` | path             | Path to JSON file that contains user info claims used in mock mode. The structure of user info should follow the [OpenID Connect userinfo definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse) and also contain the `resources` object.
 
@@ -79,7 +78,6 @@ Default options:
 
 ```ini
 public_keys_url=http://localhost:3081/.well-known/jwks.json
-multitenancy=yes
 enabled=yes
 mock_user_info_path=/conf/mock-userinfo.json
 ```
@@ -118,21 +116,12 @@ checks if the request is authorized for the tenant, and finally passes the tenan
 
 ### Configurable multitenant endpoints
 
-Configurable multitenant endpoints usually operate within a tenant, but they can also operate in tenantless mode if the application is configured for that. 
+Configurable multitenant endpoints usually operate within a tenant, 
+but they can also operate in tenantless mode if the application is designed for that. 
 
-When you create an endpoint *without* `tenant` parameter in the URL path and *with* `tenant` argument in the handler method, the
-Auth service will either expect the `tenant` parameter
-to be provided in the **URL query** if mutlitenancy is enabled,
-or to not be provided at all if multitenancy is disabled. 
-
-Use the `multitenancy` boolean switch in the `[auth]` config section to control the multitenancy setting.
-
-
-If multitenancy is **enabled**, the request's **query string** must include a tenant parameter.
-Requests without the tenant query result in Bad request (HTTP 400).
-
-If multitenancy is **disabled**, the tenant argument in the handler method is set to `None`.
-Any `tenant` parameter in the query string is ignored.
+When you create an endpoint *without* `tenant` parameter in the URL path and *with* `tenant` argument in the 
+handler method, the Auth service will either expect the `tenant` parameter to be provided in the **URL query**. 
+If it is not in the query, the tenant variable is set to `None`.
 
 !!! example "Example handler:"
 
@@ -152,17 +141,9 @@ Any `tenant` parameter in the query string is ignored.
 
 !!! example "Example requests:"
 
-	1. with multitenancy on:.
-
-		```
-		GET http://localhost:8080/todays-menu?tenant=lazy-raccoon-bistro
-		```
-
-	2. with multitenancy off:
-
-		```
-		GET http://localhost:8080/todays-menu
-		```
+    ```
+    GET http://localhost:8080/todays-menu?tenant=lazy-raccoon-bistro
+    ```
 
 ## Mock mode
 
