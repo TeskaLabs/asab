@@ -426,6 +426,7 @@ class Application(metaclass=Singleton):
 
 		finally:
 			if self.ExitCode == "!RESTART!":
+				# TODO: Allow configuration to specify restart thru external mechanism such as Docker restart policy -> sys.exit(0) then should be called here
 				os.execv(sys.executable, [os.path.basename(sys.executable)] + sys.argv)
 
 		return self.ExitCode
