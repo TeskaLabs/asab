@@ -268,7 +268,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			if startswithdot:
 				continue
 
-			if '.' in node and not node.endswith(('.io', '.d')):
+			# Extract the last 5 characters of the node name
+			last_five_chars = node[-5:]
+
+			# Check if there is a period in the last five characters,
+			# and the node does not end with specific extensions
+			if '.' in last_five_chars and not node.endswith(('.io', '.d')):
 				# We detect files in Zookeeper by the presence of a dot in the filename,
 				# but exclude filenames ending with '.io' or '.d' (e.g., 'logman.io', server_https.d)
 				# from being considered as files.
