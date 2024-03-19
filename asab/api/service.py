@@ -3,6 +3,7 @@ import uuid
 import json
 import datetime
 import logging
+import typing
 
 from .. import Service, Config
 from ..utils import running_in_container
@@ -86,13 +87,23 @@ class ApiService(Service):
 		self._do_zookeeper_adv_data()
 		return att_id
 
-	def update_discovery(self, discovery_dict: dict):
+	def update_discovery(self, discovery_dict: typing.Dict[str, set]):
+		"""
+		Updates the `discovery` attribute of the data advertised to ZooKeeper.
+		When updating already existing record, list all identifiers of each type. Previous set of identifiers is overwritten by the new one.
 
-		res = self.Discovery.update(discovery_dict)
+		Args:
+			discovery_dict (typing.Dict[str, set]): The `discovery_dict` parameter is a dictionary where the
+		keys are strings specifying type of an identifier (e.g. baseline_id) and the values are sets of the identifiers.
+		"""
 
-		# add to microservice json/dict section attention_required
+		for k, v in discovery_dict.items():
+			assert isinstance(k, str)
+			assert isinstance(v, set)
+
+		self.Discovery.update(discovery_dict)
+
 		self._do_zookeeper_adv_data()
-		return res
 
 
 	def remove_attention(self, att_id):
