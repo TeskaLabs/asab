@@ -87,6 +87,20 @@ class ApiService(Service):
 		self._do_zookeeper_adv_data()
 		return att_id
 
+	def remove_attention(self, att_id):
+		try:
+			# find the attention id value and remove it.
+			for error_key, error_value in self.AttentionRequired.items():
+				if error_key == att_id:
+					del self.AttentionRequired[att_id]
+					break
+		except KeyError:
+			L.warning("Key None does not exist.")
+			raise Exception("Key None does not exist.")
+
+		self._do_zookeeper_adv_data()
+
+
 	def update_discovery(self, discovery_dict: typing.Dict[str, set]):
 		"""
 		Updates the `discovery` attribute of the data advertised to ZooKeeper.
@@ -102,20 +116,6 @@ class ApiService(Service):
 			assert isinstance(v, set)
 
 		self.Discovery.update(discovery_dict)
-
-		self._do_zookeeper_adv_data()
-
-
-	def remove_attention(self, att_id):
-		try:
-			# find the attention id value and remove it.
-			for error_key, error_value in self.AttentionRequired.items():
-				if error_key == att_id:
-					del self.AttentionRequired[att_id]
-					break
-		except KeyError:
-			L.warning("Key None does not exist.")
-			raise Exception("Key None does not exist.")
 
 		self._do_zookeeper_adv_data()
 
