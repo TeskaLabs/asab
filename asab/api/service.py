@@ -29,6 +29,7 @@ class ApiService(Service):
 		self.MetricWebHandler = None
 
 		self.AttentionRequired = {}  # dict of errors found.
+		self.Discovery = {}
 
 		# Manifest
 		path = Config.get("general", "manifest")
@@ -84,6 +85,14 @@ class ApiService(Service):
 		# add to microservice json/dict section attention_required
 		self._do_zookeeper_adv_data()
 		return att_id
+
+	def update_discovery(self, discovery_dict: dict):
+
+		res = self.Discovery.update(discovery_dict)
+
+		# add to microservice json/dict section attention_required
+		self._do_zookeeper_adv_data()
+		return res
 
 
 	def remove_attention(self, att_id):
@@ -218,6 +227,9 @@ class ApiService(Service):
 		if len(self.AttentionRequired) > 0:
 			# add attention required status
 			adv_data.update({"attention_required": self.AttentionRequired})
+
+		if len(self.Discovery) > 0:
+			adv_data.update({"discovery": self.Discovery})
 
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
