@@ -46,6 +46,10 @@ class MetricsService(Service):
 		if instance_id is not None:
 			self.Tags["instance_id"] = instance_id
 
+		site_id = os.getenv('SITE_ID', None)
+		if site_id is not None:
+			self.Tags["site_id"] = site_id
+
 		self.Storage = Storage()
 
 		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
