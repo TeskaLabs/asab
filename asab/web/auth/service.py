@@ -222,7 +222,10 @@ class AuthService(asab.Service):
 			raise asab.exceptions.NotAuthenticatedError()
 
 
-	def get_authorized_tenant(self, request):
+	def get_authorized_tenant(self, request) -> typing.Optional[str]:
+		"""
+		Get the request's authorized tenant.
+		"""
 		if hasattr(request, "_AuthorizedTenants"):
 			for tenant in request._AuthorizedTenants:
 				# Return the first authorized tenant
