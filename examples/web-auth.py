@@ -3,23 +3,29 @@ import asab.web.rest
 import asab.web.auth
 import typing
 
-# Set up a web container listening at port 8080
-asab.Config["web"] = {"listen": "8080"}
+if "web" not in asab.Config:
+	asab.Config["web"] = {
+		# Set up a web container listening at port 8080
+		"listen": "8080"
+	}
 
-# Disables or enables all authentication and authorization, or switches it into MOCK mode.
-# When disabled, the `resources` and `userinfo` handler arguments are set to `None`.
-asab.Config["auth"]["enabled"] = "mock"  # Mock authorization, useful for debugging.
-# asab.Config["auth"]["enabled"] = "yes"   # Authorization is enabled.
-# asab.Config["auth"]["enabled"] = "no"    # Authorization is disabled.
+if "auth" not in asab.Config:
+	asab.Config["auth"] = {
+		# Disable or enable all authentication and authorization, or switch into MOCK mode.
+		# When disabled, the `resources` and `userinfo` handler arguments are set to `None`.
+		"enabled": "mock",  # Mock authorization, useful for debugging.
+		# "enabled": "yes",   # Authorization is enabled.
+		# "enabled": "no",   # Authorization is disabled.
 
-# Activating the mock mode disables communication with the authorization server.
-# The requests' Authorization headers are ignored and AuthService provides mock authorization with mock user info.
-# You can provide custom user info by specifying the path pointing to your JSON file.
-asab.Config["auth"]["mock_user_info_path"] = "./mock-userinfo.json"
+		# Activating the mock mode disables communication with the authorization server.
+		# The requests' Authorization headers are ignored and AuthService provides mock authorization with mock user info.
+		# You can provide custom user info by specifying the path pointing to your JSON file.
+		"mock_user_info_path": "./mock-userinfo.json",
 
-# URL of the authorization server's JWK public keys, used for ID token verification.
-# This option is ignored in mock mode or when authorization is disabled.
-asab.Config["auth"]["public_keys_url"] = "http://localhost:3081/.well-known/jwks.json"
+		# URL of the authorization server's JWK public keys, used for ID token verification.
+		# This option is ignored in mock mode or when authorization is disabled.
+		"public_keys_url": "http://localhost:3081/.well-known/jwks.json",
+	}
 
 
 class MyApplication(asab.Application):
