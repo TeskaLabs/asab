@@ -101,7 +101,7 @@ class AuthService(asab.Service):
 
 	_PUBLIC_KEYS_URL_DEFAULT = "http://localhost:3081/.well-known/jwks.json"
 
-	def __init__(self, app, service_name="asab.AuthzService"):
+	def __init__(self, app, service_name="asab.AuthService"):
 		super().__init__(app, service_name)
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
