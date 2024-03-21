@@ -225,6 +225,14 @@ class AuthService(asab.Service):
 			raise asab.exceptions.NotAuthenticatedError()
 
 
+	def get_authorized_tenant(self, request):
+		if hasattr(request, "_AuthorizedTenants"):
+			for tenant in request._AuthorizedTenants:
+				# Return the first authorized tenant
+				return tenant
+		return None
+
+
 	def has_superuser_access(self, authorized_resources: typing.Iterable) -> bool:
 		"""
 		Check if the superuser resource is present in the authorized resource list.
