@@ -53,22 +53,18 @@ MOCK_USERINFO_DEFAULT = {
 	"email": "capybara1999@example.com",
 	# Authorized tenants and resources
 	"resources": {
-		# Globally granted resources
+		# Globally authorized resources
 		"*": [
 			"authz:superuser",
 		],
-		# Resources granted within the tenant "default"
+		# Resources authorized within the tenant "default"
 		"default": [
 			"authz:superuser",
 			"some-test-data:access",
 		],
-		# Resources granted within the tenant "test-tenant"
-		"test-tenant": [
-			"authz:superuser",
-			"cake:eat",
-		],
 	},
-	# Subject's assigned (not authorized!) tenants
+	# List of tenants that the user is a member of.
+	# These tenants are NOT AUTHORIZED!
 	"tenants": ["default", "test-tenant", "another-tenant"]
 }
 
@@ -347,20 +343,20 @@ class AuthService(asab.Service):
 				assert user_info is not None
 				request._UserInfo = user_info
 				resource_dict = request._UserInfo["resources"]
-				request._Resources = frozenset(resource_dict.get("*", []))
-				request._Tenants = frozenset(t for t in resource_dict.keys() if t != "*")
+				request._AuthorizedResources = frozenset(resource_dict.get("*", []))
+				request._AuthorizedTenants = frozenset(t for t in resource_dict.keys() if t != "*")
 			else:
 				request._UserInfo = None
-				request._Resources = None
-				request._Tenants = None
+				request._AuthorizedResources = None
+				request._AuthorizedTenants = None
 
 			# Add access control methods to the request
 			def has_resource_access(*required_resources: list) -> bool:
-				return self.has_resource_access(request._Resources, required_resources)
+				return self.has_resource_access(request._AuthorizedResources, required_resources)
 			request.has_resource_access = has_resource_access
 
 			def has_superuser_access() -> bool:
-				return self.has_superuser_access(request._Resources)
+				return self.has_superuser_access(request._AuthorizedResources)
 			request.has_superuser_access = has_superuser_access
 
 			return await handler(*args, **kwargs)
@@ -434,12 +430,13 @@ class AuthService(asab.Service):
 		Check access to requested tenant and add tenant resources to the request
 		"""
 		# Check if tenant access is authorized
-		if tenant not in request._Tenants:
+		if tenant not in request._AuthorizedTenants:
 			L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
 			raise asab.exceptions.AccessDeniedError()
 
 		# Extend globally granted resources with tenant-granted resources
-		request._Resources = frozenset(request._Resources.union(request._UserInfo["resources"].get(tenant, [])))
+		request._AuthorizedResources = set(request._AuthorizedResources.union(
+			request._UserInfo["resources"].get(tenant, [])))
 
 
 	def _add_tenant_from_path(self, handler):
@@ -580,5 +577,5 @@ def _add_resources(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
-		return await handler(*args, resources=request._Resources, **kwargs)
+		return await handler(*args, resources=request._AuthorizedResources, **kwargs)
 	return wrapper
