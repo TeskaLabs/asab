@@ -102,19 +102,19 @@ class ApiService(Service):
 		self._do_zookeeper_adv_data()
 
 
-	def update_discovery(self, discovery_dict: typing.Dict[str, set]):
+	def update_discovery(self, discovery_dict: typing.Dict[str, list]):
 		"""
 		Updates the `discovery` attribute of the data advertised to ZooKeeper.
-		When updating already existing record, list all identifiers of each type. Previous set of identifiers is overwritten by the new one.
+		When updating already existing record, list all identifiers of each type. Previous list of identifiers is overwritten by the new one.
 
 		Args:
-			discovery_dict (typing.Dict[str, set]): The `discovery_dict` parameter is a dictionary where the
+			discovery_dict (typing.Dict[str, list]): The `discovery_dict` parameter is a dictionary where the
 		keys are strings specifying type of an identifier (e.g. baseline_id) and the values are sets of the identifiers.
 		"""
 
 		for k, v in discovery_dict.items():
 			assert isinstance(k, str)
-			assert isinstance(v, set)
+			assert isinstance(v, list)  # set is not JSON serializable
 
 		self.Discovery.update(discovery_dict)
 
