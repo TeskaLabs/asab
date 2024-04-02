@@ -3,6 +3,7 @@ import uuid
 import json
 import datetime
 import logging
+import typing
 
 from .. import Service, Config
 from ..utils import running_in_container
@@ -29,6 +30,7 @@ class ApiService(Service):
 		self.MetricWebHandler = None
 
 		self.AttentionRequired = {}  # dict of errors found.
+		self.Discovery = {}
 
 		# Manifest
 		path = Config.get("general", "manifest")
@@ -96,6 +98,25 @@ class ApiService(Service):
 		except KeyError:
 			L.warning("Key None does not exist.")
 			raise Exception("Key None does not exist.")
+
+		self._do_zookeeper_adv_data()
+
+
+	def update_discovery(self, discovery_dict: typing.Dict[str, set]):
+		"""
+		Updates the `discovery` attribute of the data advertised to ZooKeeper.
+		When updating already existing record, list all identifiers of each type. Previous set of identifiers is overwritten by the new one.
+
+		Args:
+			discovery_dict (typing.Dict[str, set]): The `discovery_dict` parameter is a dictionary where the
+		keys are strings specifying type of an identifier (e.g. baseline_id) and the values are sets of the identifiers.
+		"""
+
+		for k, v in discovery_dict.items():
+			assert isinstance(k, str)
+			assert isinstance(v, set)
+
+		self.Discovery.update(discovery_dict)
 
 		self._do_zookeeper_adv_data()
 
@@ -218,6 +239,9 @@ class ApiService(Service):
 		if len(self.AttentionRequired) > 0:
 			# add attention required status
 			adv_data.update({"attention_required": self.AttentionRequired})
+
+		if len(self.Discovery) > 0:
+			adv_data.update({"discovery": self.Discovery})
 
 		if self.WebContainer is not None:
 			adv_data['web'] = self.WebContainer.Addresses
