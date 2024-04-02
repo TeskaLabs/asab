@@ -120,26 +120,6 @@ class ApiService(Service):
 		self._do_zookeeper_adv_data()
 
 
-	def add_discovery(self, discovery_dict: typing.Dict[str, set]):
-
-		for k, v in discovery_dict.items():
-			assert isinstance(k, str)
-			assert isinstance(v, set)
-
-			res = self.Discovery.copy()
-
-			for k, v in discovery_dict.items():
-				if k in res:
-					res[k].update(v)
-				else:
-					res[k] = v
-
-			self.Discovery = res
-
-		self._do_zookeeper_adv_data()
-
-
-
 	def initialize_web(self, webcontainer=None):
 		'''
 		Example:
