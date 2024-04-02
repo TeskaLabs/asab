@@ -87,6 +87,7 @@ class ApiService(Service):
 		self._do_zookeeper_adv_data()
 		return att_id
 
+
 	def remove_attention(self, att_id):
 		try:
 			# find the attention id value and remove it.
