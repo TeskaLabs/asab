@@ -17,7 +17,7 @@ class DiscoveryService(Service):
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
 
-	async def locate(self, instance_id: str = None, service_id: str = None) -> list:
+	async def locate(self, instance_id: str = None, **kwargs) -> list:
 		"""
 		Returns a list of URLs for a given instance or service ID.
 
@@ -33,22 +33,25 @@ class DiscoveryService(Service):
 		return [
 			"http://{}:{}".format(servername, port)
 			for servername, port
-			in await self._locate(instance_id, service_id)
+			in await self._locate(instance_id, **kwargs)
 		]
 
-	async def _locate(self, instance_id: str = None, service_id: str = None) -> typing.List[typing.Tuple]:
+	async def _locate(self, instance_id: str = None, **kwargs) -> typing.Set[typing.Tuple]:
 		"""
-		Locates service instances based on their instance ID or service ID.
+		Locates service instances based on their identifiers.
 
 		:param instance_id: The unique identifier for a specific instance of a service
 		:type instance_id: str
-		:param service_id: The ID of the service to locate
-		:type service_id: str
 		:return: a list of tuples containing the server name and port number of the located service(s).
 		"""
 		res = set()
-		if instance_id is None and service_id is None:
-			L.warning("Please provide instance_id, service_id, or appclass to locate the service(s).")
+
+		if instance_id is not None:
+			locate_params = {"instance_id": instance_id}
+		elif len(kwargs) > 0:
+			locate_params = kwargs
+		else:
+			L.warning("Please provide instance_id, service_id, or other custom id to locate the service(s).")
 			return res
 
 		advertised = await self.get_advertised_instances()
@@ -57,13 +60,10 @@ class DiscoveryService(Service):
 			return res
 
 		for id_type, ids in advertised.items():
-			if id_type == "instance_id" and instance_id is not None:
-				if instance_id in ids:
-					res = res | ids[instance_id]
+			if id_type in locate_params:
+				if locate_params[id_type] in ids:
+					res = res | ids[locate_params[id_type]]
 
-			if id_type == "service_id" and service_id is not None:
-				if service_id in ids:
-					res = res | ids[service_id]
 		return res
 
 
