@@ -46,26 +46,64 @@ class DiscoveryService(Service):
 		:type service_id: str
 		:return: a list of tuples containing the server name and port number of the located service(s).
 		"""
+		res = set()
 		if instance_id is None and service_id is None:
 			L.warning("Please provide instance_id, service_id, or appclass to locate the service(s).")
-			return
+			return res
 
-		instances = await self.get_advertised_instances()
-		if len(instances) == 0:
+		advertised = await self.get_advertised_instances()
+		if len(advertised) == 0:
 			L.warning("No instances available.")
-			return
-		res = []
-		for instance in instances:
-			if service_id is not None:
-				if service_id != instance.get("service_id", "").lower():
-					continue
+			return res
 
-			if instance_id is not None:
-				if instance_id != instance.get("instance_id", "").lower():
-					continue
+		for id_type, ids in advertised.items():
+			if id_type == "instance_id" and instance_id is not None:
+				if instance_id in ids:
+					res = res | ids[instance_id]
 
-			web = instance.get("web")
-			host = instance.get("node_id", instance.get("host"))
+			if id_type == "service_id" and service_id is not None:
+				if service_id in ids:
+					res = res | ids[service_id]
+		return res
+
+
+	async def get_advertised_instances(self) -> typing.List[typing.Dict]:
+		"""
+		Returns structured dataset of identifier types, identifiers of instances and hosts and ports where they can be found.
+		It is a dict of identifier types as keys and dict as values. The second-layer dict has identifiers as keys an a set of tuples as a value. Each tuple contains host and port.
+
+		Example of the data structure:
+			{
+				"instance_id": {
+					"lmio-receiver-1": {("node1", 1234)},
+					"asab-remote-control-1": {("node2", 1234)}
+					...
+				},
+				"service_id": {
+					"lmio-receiver": {("node1", 1234), ("node2", 1234), ("node3", 1234)},
+					...
+				},
+				"custom1_id": {
+					"myid123": {("node1", 5678), ("node2", 5678)},
+					...
+				},
+				"custom2_id": {
+					"myid123": {("node1", 5678), ("node2", 5678)},
+					...
+				},
+				...
+			}
+		"""
+		advertised = {
+			"instance_id": {},
+			"service_id": {},
+		}
+		async for item, item_data in self._iter_zk_items("/run"):
+			instance_id = item_data.get("instance_id")
+			service_id = item_data.get("service_id")
+
+			web = item_data.get("web")
+			host = item_data.get("node_id", item_data.get("host"))
 
 			if web is None or host is None:
 				continue
@@ -78,20 +116,18 @@ class DiscoveryService(Service):
 					return
 				if ip not in ("0.0.0.0", "::"):
 					continue
-				res.append((host, port))
-		return res
 
+				if instance_id is not None:
+					if advertised["instance_id"].get(instance_id) is None:
+						advertised["instance_id"][instance_id] = {(host, port)}
+					else:
+						advertised["instance_id"][instance_id].add((host, port))
 
-	async def get_advertised_instances(self) -> typing.List[typing.Dict]:
-		"""
-		Returns a list of dictionaries. Each dictionary represents an advertised instance
-		obtained by iterating over the items in the `/run` path in ZooKeeper.
-		"""
-		advertised = []
-		async for item, item_data in self._iter_zk_items("/run"):
-			data_dict = json.loads(item_data)
-			data_dict['zookeeper_id'] = item
-			advertised.append(data_dict)
+				if service_id is not None:
+					if advertised["service_id"].get(service_id) is None:
+						advertised["service_id"][service_id] = {(host, port)}
+					else:
+						advertised["service_id"][service_id].add((host, port))
 
 		return advertised
 
@@ -107,7 +143,7 @@ class DiscoveryService(Service):
 			item_data = await self.ZooKeeperContainer.ZooKeeper.get_data(base_path + '/' + item)
 			if item_data is None:
 				continue
-			yield item, item_data
+			yield item, json.loads(item_data)
 
 
 	def session(self, base_url=None, **kwargs) -> aiohttp.ClientSession:
