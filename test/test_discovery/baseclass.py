@@ -54,6 +54,3 @@ class MockZooKeeper():
 		steps = path.strip("/").split("/")
 		children = await self.get_children("/".join(steps[:-1]))
 		return children.get(steps[-1], {}).get("data")
-
-
-
