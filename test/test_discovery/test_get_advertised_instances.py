@@ -1,5 +1,5 @@
 from .baseclass import DiscoveryTestCase, MockZooKeeperContainer
-from asab.api.discovery import DiscoveryService, DiscoveryResolver
+from asab.api.discovery import DiscoveryService
 
 
 class TestLocate(DiscoveryTestCase):
@@ -79,40 +79,20 @@ class TestLocate(DiscoveryTestCase):
 		super().setUp()
 		self.MockedZKC = MockZooKeeperContainer(mock_data=self.MOCK_DATA)
 		self.DiscoveryService = DiscoveryService(self.App, zkc=self.MockedZKC)
-		self.DiscoveryResolver = DiscoveryResolver(self.DiscoveryService)
 		self.App.Loop.run_until_complete(self.DiscoveryService._get_advertised_instances())
 
-	def test_resolver_01(self):
-		"""
-		Resolve service by its instance_id
-		"""
-		res = self.App.Loop.run_until_complete(self.DiscoveryResolver.resolve("asab-config-1.instance_id.asab"))
-		self.assertEqual(len(res), 1)
+
+	def test_get_advertised_instances(self):
+		res = self.DiscoveryService.get_advertised_instances()
 		self.assertEqual(
-			res[0]["hostname"],
-			"lmio-eliska-1"
-		)
-		self.assertEqual(
-			res[0]["port"],
-			8894
-		)
-
-	def test_resolver_02(self):
-		"""
-		Resolve service by its service_id
-		"""
-		res = self.App.Loop.run_until_complete(self.DiscoveryResolver.resolve("asab-config.service_id.asab"))
-		self.assertEqual(len(res), 2)
-
-		self.assertEqual(
-			res[0]["port"],
-			8894
-		)
-
-		self.assertIn(
-			res[0]["hostname"], ["lmio-eliska-1", "lmio-eliska-2"]
-		)
-
-		self.assertIn(
-			res[1]["hostname"], ["lmio-eliska-1", "lmio-eliska-2"]
+			res,
+			{
+				"instance_id": {
+					"asab-config-1": {("lmio-eliska-1", 8894)},
+					"asab-config-2": {("lmio-eliska-2", 8894)}
+				},
+				"service_id": {
+					"asab-config": {("lmio-eliska-1", 8894), ("lmio-eliska-2", 8894)},
+				},
+			}
 		)

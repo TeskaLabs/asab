@@ -2,8 +2,10 @@ import logging
 import json
 import socket
 import typing
+import asyncio
 
 import aiohttp
+import kazoo.exceptions
 
 from .. import Service
 
@@ -16,6 +18,18 @@ class DiscoveryService(Service):
 	def __init__(self, app, zkc, service_name="asab.DiscoveryService") -> None:
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
+		self.ProactorService = zkc.ProactorService
+		self.AdvertisedCache = None
+		self.CacheLock = asyncio.Lock()
+		self.App.PubSub.subscribe("Application.tick/60!", self._on_tick)
+		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
+
+	def _on_tick(self, msg):
+		self._update_cache(msg)
+
+	def _on_zk_ready(self, msg, zkc):
+		if zkc == self.ZooKeeperContainer:
+			self._update_cache(msg)
 
 	async def locate(self, instance_id: str = None, **kwargs) -> list:
 		"""
@@ -54,7 +68,7 @@ class DiscoveryService(Service):
 			L.warning("Please provide instance_id, service_id, or other custom id to locate the service(s).")
 			return res
 
-		advertised = await self.get_advertised_instances()
+		advertised = self.AdvertisedCache
 		if len(advertised) == 0:
 			L.warning("No instances available.")
 			return res
@@ -66,8 +80,10 @@ class DiscoveryService(Service):
 
 		return res
 
+	def get_advertised_instances(self):
+		return self.AdvertisedCache
 
-	async def get_advertised_instances(self) -> typing.List[typing.Dict]:
+	async def _get_advertised_instances(self) -> typing.List[typing.Dict]:
 		"""
 		Returns structured dataset of identifier types, identifiers of instances and hosts and ports where they can be found.
 		It is a dict of identifier types as keys and dict as values. The second-layer dict has identifiers as keys an a set of tuples as a value. Each tuple contains host and port.
@@ -94,60 +110,81 @@ class DiscoveryService(Service):
 				...
 			}
 		"""
-		advertised = {
-			"instance_id": {},
-			"service_id": {},
-		}
-		async for item, item_data in self._iter_zk_items("/run"):
-			instance_id = item_data.get("instance_id")
-			service_id = item_data.get("service_id")
-			discovery: typing.Dict[str, list] = item_data.get("discovery", {})
+		if self.CacheLock.locked():
+			# Only one cache update at a time
+			return
 
-			if instance_id is not None:
-				discovery["instance_id"] = [instance_id]
+		async with self.CacheLock:
 
-			if instance_id is not None:
-				discovery["service_id"] = [service_id]
+			advertised = {
+				"instance_id": {},
+				"service_id": {},
+			}
+			async for item, item_data in self._iter_zk_items("/run"):
+				instance_id = item_data.get("instance_id")
+				service_id = item_data.get("service_id")
+				discovery: typing.Dict[str, list] = item_data.get("discovery", {})
 
-			web = item_data.get("web")
-			host = item_data.get("node_id", item_data.get("host"))
+				if instance_id is not None:
+					discovery["instance_id"] = [instance_id]
 
-			if web is None or host is None:
-				continue
-			for i in web:
-				try:
-					ip = i[0]
-					port = i[1]
-				except KeyError:
-					L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
-					return
-				if ip not in ("0.0.0.0", "::"):
+				if instance_id is not None:
+					discovery["service_id"] = [service_id]
+
+				web = item_data.get("web")
+				host = item_data.get("node_id", item_data.get("host"))
+
+				if web is None or host is None:
 					continue
+				for i in web:
+					try:
+						ip = i[0]
+						port = i[1]
+					except KeyError:
+						L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
+						return
+					if ip not in ("0.0.0.0", "::"):
+						continue
 
-				if discovery is not None:
-					for id_type, ids in discovery.items():
-						if advertised.get(id_type) is None:
-							advertised[id_type] = {}
-						for identifier in ids:
-							if identifier is not None:
-								if advertised[id_type].get(identifier) is None:
-									advertised[id_type][identifier] = {(host, port)}
-								else:
-									advertised[id_type][identifier].add((host, port))
+					if discovery is not None:
+						for id_type, ids in discovery.items():
+							if advertised.get(id_type) is None:
+								advertised[id_type] = {}
+							for identifier in ids:
+								if identifier is not None:
+									if advertised[id_type].get(identifier) is None:
+										advertised[id_type][identifier] = {(host, port)}
+									else:
+										advertised[id_type][identifier].add((host, port))
 
-
-		return advertised
+			self.AdvertisedCache = advertised
 
 
 	async def _iter_zk_items(self, path):
 		base_path = self.ZooKeeperContainer.Path + path
-		items = await self.ZooKeeperContainer.ZooKeeper.get_children(base_path)
+
+		def get_items():
+			try:
+				return self.ZooKeeperContainer.ZooKeeper.Client.get_children(base_path, watch=self._update_cache)
+			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
+				# TODO: this is silent error
+				return None
+
+		def get_data(item):
+			try:
+				data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get((base_path + '/' + item), watch=self._update_cache)
+				return data
+			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
+				# TODO: this is silent error
+				return None
+
+		items = await self.ProactorService.execute(get_items)
 		if items is None:
 			L.error("Missing '{}/run' folder in ZooKeeper.".format(self.ZooKeeperContainer.Path))
 			return
 
 		for item in items:
-			item_data = await self.ZooKeeperContainer.ZooKeeper.get_data(base_path + '/' + item)
+			item_data = await self.ProactorService.execute(get_data, item)
 			if item_data is None:
 				continue
 			yield item, json.loads(item_data)
@@ -163,6 +200,11 @@ class DiscoveryService(Service):
 				...
 		'''
 		return aiohttp.ClientSession(base_url, connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)), **kwargs)
+
+
+	def _update_cache(self, watched_event):
+		# TODO: update just parts of the cache based on the watched_event parameter to be more efficient
+		self.App.TaskService.schedule(self._get_advertised_instances())
 
 
 class DiscoveryResolver(aiohttp.DefaultResolver):

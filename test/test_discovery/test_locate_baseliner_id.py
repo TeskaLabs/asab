@@ -70,6 +70,7 @@ class TestLocate(DiscoveryTestCase):
 		self.MockedZKC = MockZooKeeperContainer(mock_data=self.MOCK_DATA)
 		self.DiscoveryService = DiscoveryService(self.App, zkc=self.MockedZKC)
 		self.DiscoveryResolver = DiscoveryResolver(self.DiscoveryService)
+		self.App.Loop.run_until_complete(self.DiscoveryService._get_advertised_instances())
 
 
 	def test_locate_service_id(self):
