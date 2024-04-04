@@ -11,6 +11,7 @@ from .. import Service
 
 
 L = logging.getLogger(__name__)
+LogObsolete = logging.getLogger('OBSOLETE')
 
 
 class DiscoveryService(Service):
@@ -80,8 +81,22 @@ class DiscoveryService(Service):
 
 		return res
 
-	def get_advertised_instances(self):
+	def discover(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple[str, int]]]]:
 		return self.AdvertisedCache
+
+	async def get_advertised_instances(self) -> typing.List[typing.Dict]:
+		"""
+		This method is here for backward compatibility. Use `discover()` method instead.
+		Returns a list of dictionaries. Each dictionary represents an advertised instance
+		obtained by iterating over the items in the `/run` path in ZooKeeper.
+		"""
+		LogObsolete.warning("This method is obsolete. Use `discover()` method instead.")
+		advertised = []
+		async for item, item_data in self._iter_zk_items("/run"):
+			item_data['zookeeper_id'] = item
+			advertised.append(item_data)
+
+		return advertised
 
 	async def _get_advertised_instances(self) -> typing.List[typing.Dict]:
 		"""
