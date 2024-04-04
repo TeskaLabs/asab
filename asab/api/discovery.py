@@ -98,7 +98,7 @@ class DiscoveryService(Service):
 
 		return advertised
 
-	async def _get_advertised_instances(self) -> typing.List[typing.Dict]:
+	async def _get_advertised_instances(self):
 		"""
 		Returns structured dataset of identifier types, identifiers of instances and hosts and ports where they can be found.
 		It is a dict of identifier types as keys and dict as values. The second-layer dict has identifiers as keys an a set of tuples as a value. Each tuple contains host and port.
