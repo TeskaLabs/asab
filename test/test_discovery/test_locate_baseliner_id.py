@@ -1,5 +1,5 @@
 from .baseclass import DiscoveryTestCase, MockZooKeeperContainer
-from asab.api.discovery import DiscoveryService
+from asab.api.discovery import DiscoveryService, DiscoveryResolver
 
 
 class TestLocate(DiscoveryTestCase):
@@ -69,6 +69,7 @@ class TestLocate(DiscoveryTestCase):
 		super().setUp()
 		self.MockedZKC = MockZooKeeperContainer(mock_data=self.MOCK_DATA)
 		self.DiscoveryService = DiscoveryService(self.App, zkc=self.MockedZKC)
+		self.DiscoveryResolver = DiscoveryResolver(self.DiscoveryService)
 
 
 	def test_locate_service_id(self):
@@ -91,7 +92,6 @@ class TestLocate(DiscoveryTestCase):
 		Compares whether the result is a list with all items in it. However, even though it is a list, the order can be different because sets are being used in the code.
 		"""
 		res = self.App.Loop.run_until_complete(self.DiscoveryService.locate(baselines="Dataset:default"))
-		print("!!!!", res)
 		required = ["http://lmio-box-testing-3:8989"]
 
 		self.assertEqual(
@@ -101,3 +101,48 @@ class TestLocate(DiscoveryTestCase):
 
 		self.assertTrue(isinstance(res, list))
 		self.assertEqual(len(res), len(required))
+
+	def test_locate_dataset(self):
+		"""
+		Compares whether the result is a list with all items in it. However, even though it is a list, the order can be different because sets are being used in the code.
+		"""
+		res = self.App.Loop.run_until_complete(self.DiscoveryService.locate(**{"Dataset:default": "Dataset"}))
+		required = ["http://lmio-box-testing-3:8989"]
+
+		self.assertEqual(
+			set(res),
+			set(required)
+		)
+
+		self.assertTrue(isinstance(res, list))
+		self.assertEqual(len(res), len(required))
+
+	def test_resolver_01(self):
+		"""
+		Resolve service by its baseline id
+		"""
+		res = self.App.Loop.run_until_complete(self.DiscoveryResolver.resolve("Host:default.baselines.asab"))
+		self.assertEqual(len(res), 1)
+		self.assertEqual(
+			res[0]["hostname"],
+			"lmio-box-testing-3"
+		)
+		self.assertEqual(
+			res[0]["port"],
+			8989
+		)
+
+	def test_resolver_02(self):
+		"""
+		Resolve service by "Dataset:default" id
+		"""
+		res = self.App.Loop.run_until_complete(self.DiscoveryResolver.resolve("Dataset.Dataset:default.asab"))
+		self.assertEqual(len(res), 1)
+		self.assertEqual(
+			res[0]["hostname"],
+			"lmio-box-testing-3"
+		)
+		self.assertEqual(
+			res[0]["port"],
+			8989
+		)
