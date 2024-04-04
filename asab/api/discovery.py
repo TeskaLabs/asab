@@ -101,7 +101,13 @@ class DiscoveryService(Service):
 		async for item, item_data in self._iter_zk_items("/run"):
 			instance_id = item_data.get("instance_id")
 			service_id = item_data.get("service_id")
-			discovery: typing.Dict[str, list] = item_data.get("discovery")
+			discovery: typing.Dict[str, list] = item_data.get("discovery", {})
+
+			if instance_id is not None:
+				discovery["instance_id"] = [instance_id]
+
+			if instance_id is not None:
+				discovery["service_id"] = [service_id]
 
 			web = item_data.get("web")
 			host = item_data.get("node_id", item_data.get("host"))
@@ -117,18 +123,6 @@ class DiscoveryService(Service):
 					return
 				if ip not in ("0.0.0.0", "::"):
 					continue
-
-				if instance_id is not None:
-					if advertised["instance_id"].get(instance_id) is None:
-						advertised["instance_id"][instance_id] = {(host, port)}
-					else:
-						advertised["instance_id"][instance_id].add((host, port))
-
-				if service_id is not None:
-					if advertised["service_id"].get(service_id) is None:
-						advertised["service_id"][service_id] = {(host, port)}
-					else:
-						advertised["service_id"][service_id].add((host, port))
 
 				if discovery is not None:
 					for id_type, ids in discovery.items():
