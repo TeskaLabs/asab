@@ -15,6 +15,11 @@ LogObsolete = logging.getLogger('OBSOLETE')
 
 
 class DiscoveryService(Service):
+	"""
+	Use DiscoveryReady asyncio.Event to meet your async process with DiscoveryService for rendezvous.
+	Await DiscoveryReady to wait for DiscoveryService to download and process data from ZooKeeper if you need DiscoveryService during initialization of other service.
+	For timeout use: `await asyncio.wait_for(self.DiscoveryService.DiscoveryReady.wait(), 10)`
+	"""
 
 	def __init__(self, app, zkc, service_name="asab.DiscoveryService") -> None:
 		super().__init__(app, service_name)
@@ -22,6 +27,7 @@ class DiscoveryService(Service):
 		self.ProactorService = zkc.ProactorService
 		self.AdvertisedCache = None
 		self.CacheLock = asyncio.Lock()
+		self.DiscoveryReady = asyncio.Event()
 		self.App.PubSub.subscribe("Application.tick/60!", self._on_tick)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 
@@ -179,7 +185,7 @@ class DiscoveryService(Service):
 				# When application starts, Auth Service needs to load public keys. Cache is not ready during `initialize` to discover auth server.
 				# This signal makes auth service to repeat the call to auth server when discovery session is ready and load public keys.
 				self.AdvertisedCache = advertised
-				self.App.PubSub.publish("DisoveryService.Ready!")
+				self.DiscoveryReady.set()
 			else:
 				self.AdvertisedCache = advertised
 

@@ -9,6 +9,7 @@ import os.path
 import typing
 import time
 import enum
+import asyncio
 
 import aiohttp
 import aiohttp.web
@@ -107,8 +108,6 @@ class AuthService(asab.Service):
 
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
-		if self.DiscoveryService is not None:
-			self.App.PubSub.subscribe("DisoveryService.Ready!", self._on_discovery_cache_ready)
 
 		enabled = asab.Config.get("auth", "enabled", fallback=True)
 		if enabled == "mock":
@@ -139,6 +138,9 @@ class AuthService(asab.Service):
 		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
 		self.AuthServerLastSuccessfulCheck = None
 
+		if self.Mode == AuthMode.ENABLED:
+			self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
+
 	def _prepare_mock_user_info(self):
 		# Load custom user info
 		mock_user_info_path = asab.Config.get("auth", "mock_user_info_path")
@@ -160,16 +162,6 @@ class AuthService(asab.Service):
 				list(t for t in user_info.get("resources", {}).keys() if t != "*"),
 				mock_user_info_path))
 		return user_info
-
-
-	async def initialize(self, app):
-		if self.Mode == AuthMode.ENABLED and self.DiscoveryService is None:
-			# if self.DiscoveryService is not None, wait for the Cache to get ready
-			await self._fetch_public_keys_if_needed()
-
-	async def _on_discovery_cache_ready(self, _):
-		if self.Mode == AuthMode.ENABLED:
-			await self._fetch_public_keys_if_needed()
 
 
 	def is_enabled(self) -> bool:
@@ -319,6 +311,7 @@ class AuthService(asab.Service):
 				public_key = await fetch_keys(session)
 
 		else:
+			await asyncio.wait_for(self.DiscoveryService.DiscoveryReady.wait(), 10)  # Wait for the DiscoveryService to get ready (on app start) or timeout (10 seconds)
 			async with self.DiscoveryService.session() as session:
 				try:
 					public_key = await fetch_keys(session)
