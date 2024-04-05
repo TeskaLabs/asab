@@ -2,7 +2,7 @@ from .baseclass import DiscoveryTestCase, MockZooKeeperContainer
 from asab.api.discovery import DiscoveryService
 
 
-class TestLocate(DiscoveryTestCase):
+class TestDiscover(DiscoveryTestCase):
 
 	MOCK_DATA = {
 		"asab": {

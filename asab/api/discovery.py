@@ -69,12 +69,15 @@ class DiscoveryService(Service):
 			L.warning("Please provide instance_id, service_id, or other custom id to locate the service(s).")
 			return res
 
-		advertised = self.AdvertisedCache
-		if len(advertised) == 0:
-			L.warning("No instances available.")
+		if self.AdvertisedCache is None:
+			L.warning("Discovery service is not yet ready to locate services.")
 			return res
 
-		for id_type, ids in advertised.items():
+		if len(self.AdvertisedCache) == 0:
+			L.warning("No instances to discover.")
+			return res
+
+		for id_type, ids in self.AdvertisedCache.items():
 			if id_type in locate_params:
 				if locate_params[id_type] in ids:
 					res = res | ids[locate_params[id_type]]
@@ -172,7 +175,13 @@ class DiscoveryService(Service):
 									else:
 										advertised[id_type][identifier].add((host, port))
 
-			self.AdvertisedCache = advertised
+			if self.AdvertisedCache is None:
+				# When application starts, Auth Service needs to load public keys. Cache is not ready during `initialize` to discover auth server.
+				# This signal makes auth service to repeat the call to auth server when discovery session is ready and load public keys.
+				self.AdvertisedCache = advertised
+				self.App.PubSub.publish("DisoveryCacheReady!")
+			else:
+				self.AdvertisedCache = advertised
 
 
 	async def _iter_zk_items(self, path):
