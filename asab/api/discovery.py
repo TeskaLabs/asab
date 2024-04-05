@@ -179,7 +179,7 @@ class DiscoveryService(Service):
 				# When application starts, Auth Service needs to load public keys. Cache is not ready during `initialize` to discover auth server.
 				# This signal makes auth service to repeat the call to auth server when discovery session is ready and load public keys.
 				self.AdvertisedCache = advertised
-				self.App.PubSub.publish("DisoveryCacheReady!")
+				self.App.PubSub.publish("DisoveryService.Ready!")
 			else:
 				self.AdvertisedCache = advertised
 
