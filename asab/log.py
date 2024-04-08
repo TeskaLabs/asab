@@ -56,7 +56,7 @@ class Logging(object):
 		if not self.RootLogger.hasHandlers():
 
 			# Add console logger if needed
-			if os.isatty(sys.stdout.fileno()) or os.environ.get('ASABFORCECONSOLE', '0') != '0':
+			if os.isatty(sys.stdout.fileno()) or os.environ.get('ASABFORCECONSOLE', '0') != '0' or Config.getboolean("logging:console", "enabled"):
 				self._configure_console_logging()
 
 			# Initialize file handler
