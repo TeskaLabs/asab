@@ -155,14 +155,15 @@ If the option `mongodb` is set, ASAB will store data in MongoDB database.
 
 ASAB uses [motor library](https://pypi.org/project/motor/) which provides non-blocking MongoDB driver for asyncio.
 
-You can specify the database name and URL for MongoDB in config file
-(the following example is the default configuration):
+You can specify the database name and URL for MongoDB in the config file:
 
 ``` ini
 [asab:storage]
 type=mongodb
-mongodb_uri=mongodb://localhost:27017
-mongodb_database=asabdb
+
+[mongo]
+uri=mongodb://localhost:27017
+database=asabdb
 ```
 
 You can use all the methods from the abstract class. MongoDB Storage class provides in addition two methods,
@@ -191,14 +192,16 @@ The full list of methods suitable for this object is described in the
 ## Storing data in ElasticSearch
 
 When using ElasticSearch, add configurations for URL, username and
-password.
+password (also supports api key with `api_key` parameter):
 
 ``` ini
 [asab:storage]
 type=elasticsearch
-elasticsearch_url=http://localhost:9200/
-elasticsearch_username=JohnDoe
-elasticsearch_password=lorem_ipsum_dolor?sit_amet!2023
+
+[elasticsearch]
+url=http://localhost:9200/
+username=JohnDoe
+password=lorem_ipsum_dolor?sit_amet!2023
 ```
 
 You can also specify the [refreshing parameter](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html#docs-refresh)
