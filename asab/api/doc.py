@@ -278,8 +278,8 @@ class DocWebHandler(object):
 		---
 		tags: ['asab.doc']
 		externalDocs:
-		description: OpenAPI Specification
-		url: https://swagger.io/specification/
+			description: OpenAPI Specification
+			url: https://swagger.io/specification/
 
 		"""
 
@@ -321,6 +321,7 @@ def extract_path_parameters(route) -> list:
 					'in': 'path',
 					'name': params[1:-1],
 					'required': True,
+					'schema': {'type': 'string'},
 				})
 	return parameters
 
