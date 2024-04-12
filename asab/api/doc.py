@@ -77,11 +77,8 @@ class DocWebHandler(object):
 		}
 
 		# Application specification
-		try:
-			app_info: dict = get_docstring_yaml_dict(self.App)
-			specification.update(app_info)
-		except yaml.YAMLError as e:
-			L.error("Failed to parse YAML data in {!r} docstring: {}".format(self.App.__class__.__name__, e))
+		app_info: dict = get_docstring_yaml_dict(self.App)
+		specification.update(app_info)
 
 		# Find asab and microservice routes, sort them alphabetically by the first tag
 		asab_routes = []
@@ -132,10 +129,7 @@ class DocWebHandler(object):
 		docstring: str = route.handler.__doc__
 		docstring_description: str = get_docstring_description(docstring)
 		docstring_description += "\n\n**Handler:** `{}`".format(handler_name)
-		try:
-			docstring_yaml_dict: dict = get_docstring_yaml_dict(route.handler)
-		except yaml.YAMLError as e:
-			L.error("Failed to parse YAML data in {!r} docstring: {}".format(route.__class__.__name__, e))
+		docstring_yaml_dict: dict = get_docstring_yaml_dict(route.handler)
 
 		# Create route info dictionary
 		route_info_data: dict = {
@@ -374,12 +368,12 @@ def get_first_tag(route_data: dict) -> str:
 				return method.get("tags")[0].lower()
 
 
-def get_docstring_yaml_dict(component) -> typing.Optional[dict]:
+def get_docstring_yaml_dict(component) -> dict:
 	"""
 	Inspect the docstring of a component for YAML data and parse it if there is any.
 	"""
 	docstring = component.__doc__
-	parsed_yaml_docstring_dict: typing.Optional[dict] = {}
+	parsed_yaml_docstring_dict = {}
 
 	if docstring is not None:
 		docstring = inspect.cleandoc(docstring)
