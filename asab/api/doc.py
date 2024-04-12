@@ -77,9 +77,11 @@ class DocWebHandler(object):
 		}
 
 		# Application specification
-		app_info: dict = self.get_docstring_yaml_dict(app_doc_string)
-		if app_info is not None:
+		try:
+			app_info: dict = get_docstring_yaml_dict(self.App)
 			specification.update(app_info)
+		except yaml.YAMLError as e:
+			L.error("Failed to parse YAML data in {!r} docstring: {}".format(self.App.__class__.__name__, e))
 
 		# Find asab and microservice routes, sort them alphabetically by the first tag
 		asab_routes = []
@@ -130,7 +132,10 @@ class DocWebHandler(object):
 		docstring: str = route.handler.__doc__
 		docstring_description: str = get_docstring_description(docstring)
 		docstring_description += "\n\n**Handler:** `{}`".format(handler_name)
-		docstring_yaml_dict: dict = self.get_docstring_yaml_dict(docstring)
+		try:
+			docstring_yaml_dict: dict = get_docstring_yaml_dict(route.handler)
+		except yaml.YAMLError as e:
+			L.error("Failed to parse YAML data in {!r} docstring: {}".format(route.__class__.__name__, e))
 
 		# Create route info dictionary
 		route_info_data: dict = {
@@ -153,8 +158,12 @@ class DocWebHandler(object):
 
 		# Add default tag if not specified in docstring yaml
 		if len(route_info_data["tags"]) == 0:
-			# Use the default one
-			if self.DefaultRouteTag == "class_name":
+			# Try to get the tags from class docstring
+			class_tags = get_class_tags(route)
+			if class_tags:
+				route_info_data["tags"] = class_tags[:1]
+			# Or generate tag from component name
+			elif self.DefaultRouteTag == "class_name":
 				route_info_data["tags"] = [get_class_name(route)]
 			elif self.DefaultRouteTag == "module_name":
 				route_info_data["tags"] = [get_module_name(route)]
@@ -168,28 +177,10 @@ class DocWebHandler(object):
 		return {route_path: {method_name: method_dict}}
 
 
-	def get_docstring_yaml_dict(self, docstring: typing.Optional[str]) -> typing.Optional[dict]:
-		"""Take the docstring of a function and return additional data if they exist."""
-
-		parsed_yaml_docstring_dict: typing.Optional[dict] = None
-
-		if docstring is not None:
-			docstring = inspect.cleandoc(docstring)
-			dashes_index = docstring.find("\n---\n")
-			if dashes_index >= 0:
-				try:
-					parsed_yaml_docstring_dict = yaml.load(
-						docstring[dashes_index:], Loader=yaml.SafeLoader
-					)  # everything after --- goes to add_dict
-				except yaml.YAMLError as e:
-					L.error(
-						"Failed to parse '{}' doc string {}".format(
-							self.App.__class__.__name__, e
-						))
-		return parsed_yaml_docstring_dict
-
 	def create_security_schemes(self) -> dict:
-		"""Create security schemes."""
+		"""
+		Create security schemes.
+		"""
 		security_schemes_dict = {}
 		if self.AuthorizationUrl and self.TokenUrl:
 			security_schemes_dict = {
@@ -217,7 +208,9 @@ class DocWebHandler(object):
 		return security_schemes_dict
 
 	def get_version_from_manifest(self) -> dict:
-		"""Get version from MANIFEST.json if exists."""
+		"""
+		Get version from MANIFEST.json if exists.
+		"""
 		if self.Manifest:
 			version = self.Manifest["version"]
 		else:
@@ -225,7 +218,9 @@ class DocWebHandler(object):
 		return version
 
 	def get_route_path(self, route) -> str:
-		"""Take a route and return its path."""
+		"""
+		Take a route and return its path.
+		"""
 		route_info = route.get_info()
 		if "path" in route_info:
 			path = route_info["path"]
@@ -254,7 +249,7 @@ class DocWebHandler(object):
 			title=self.App.__class__.__name__,
 			swagger_css_url=swagger_css_url,
 			swagger_js_url=swagger_js_url,
-			openapi_url="http://{}/asab/v1/openapi".format(base_url),
+			openapi_url="https://{}/asab/v1/openapi".format(base_url),
 		)
 
 		return aiohttp.web.Response(text=doc_page, content_type="text/html")
@@ -292,25 +287,28 @@ class DocWebHandler(object):
 
 
 def get_docstring_description(docstring: typing.Optional[str]) -> str:
-		"""Take the docstring of a function and parse it into description. Omit everything that comes after '---'."""
-		if docstring is not None:
-			docstring = inspect.cleandoc(docstring)
-			dashes_index = docstring.find(
-				"\n---\n"
-			)  # find the index of the first three dashes
+	"""
+	Take the docstring of a function and parse it into description. Omit everything that comes after '---'.
+	"""
+	if docstring is not None:
+		docstring = inspect.cleandoc(docstring)
+		dashes_index = docstring.find(
+			"\n---\n"
+		)  # find the index of the first three dashes
 
-			# everything before --- goes to description
-			if dashes_index >= 0:
-				description = docstring[:dashes_index]
-			else:
-				description = docstring
+		# everything before --- goes to description
+		if dashes_index >= 0:
+			description = docstring[:dashes_index]
 		else:
-			description = ""
-		return description
+			description = docstring
+	else:
+		description = ""
+	return description
 
 
 def extract_path_parameters(route) -> list:
-	"""Take a single route and return its parameters.
+	"""
+	Take a single route and return its parameters.
 	"""
 	parameters: list = []
 	route_info = route.get_info()
@@ -342,6 +340,14 @@ def get_class_name(route) -> str:
 	return class_name
 
 
+def get_class_tags(route) -> typing.Optional[list]:
+	if not inspect.ismethod(route.handler):
+		return None
+	handler_class = route.handler.__self__.__class__
+	yaml_dict = get_docstring_yaml_dict(handler_class)
+	return yaml_dict.get("tags")
+
+
 def get_module_name(route) -> str:
 	return str(route.handler.__module__)
 
@@ -359,8 +365,33 @@ def get_json_schema(route) -> dict:
 
 
 def get_first_tag(route_data: dict) -> str:
-	"""Get tag from route data. Used for sorting tags alphabetically."""
+	"""
+	Get tag from route data. Used for sorting tags alphabetically.
+	"""
 	for endpoint in route_data.values():
 		for method in endpoint.values():
 			if method.get("tags"):
 				return method.get("tags")[0].lower()
+
+
+def get_docstring_yaml_dict(component) -> typing.Optional[dict]:
+	"""
+	Inspect the docstring of a component for YAML data and parse it if there is any.
+	"""
+	docstring = component.__doc__
+	parsed_yaml_docstring_dict: typing.Optional[dict] = {}
+
+	if docstring is not None:
+		docstring = inspect.cleandoc(docstring)
+		dashes_index = docstring.find("\n---\n")
+		if dashes_index >= 0:
+			try:
+				parsed_yaml_docstring_dict = yaml.load(
+					docstring[dashes_index:], Loader=yaml.SafeLoader
+				)  # everything after --- goes to add_dict
+			except yaml.YAMLError as e:
+				L.error(
+					"Failed to parse '{}' doc string {}".format(
+						component.__qualname__, e
+					))
+	return parsed_yaml_docstring_dict
