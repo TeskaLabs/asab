@@ -243,7 +243,7 @@ class DocWebHandler(object):
 			title=self.App.__class__.__name__,
 			swagger_css_url=swagger_css_url,
 			swagger_js_url=swagger_js_url,
-			openapi_url="https://{}/asab/v1/openapi".format(base_url),
+			openapi_url="http://{}/asab/v1/openapi".format(base_url),
 		)
 
 		return aiohttp.web.Response(text=doc_page, content_type="text/html")
