@@ -199,6 +199,8 @@ class LibraryService(Service):
 
 	async def read(self, path: str, tenant: typing.Optional[str] = None) -> typing.Optional[typing.IO]:
 		"""
+		THIS IS OBSOLETED METHOD, USE `open(...)` !!!
+
 		Read the content of the library item specified by `path`. This method can be used only after the Library is ready.
 
 		Args:
