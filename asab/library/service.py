@@ -9,6 +9,7 @@ import logging
 import tempfile
 import functools
 import configparser
+import contextlib
 
 import yaml
 
@@ -207,7 +208,7 @@ class LibraryService(Service):
 		Returns:
 			( IO | None ): Readable stream with the content of the library item. `None` is returned if the item is not found or if it is disabled (either globally or for the specified tenant).
 
-		Examples:
+		Example:
 
 		```python
 		itemio = await library.read('/path', 'tenant')
@@ -231,6 +232,34 @@ class LibraryService(Service):
 			return itemio
 
 		return None
+
+
+	@contextlib.asynccontextmanager
+	async def open(self, path: str, tenant: typing.Optional[str] = None):
+		"""
+		Read the content of the library item specified by `path` in a SAFE way, protected by a context manager/with statement.
+		This method can be used only after the Library is ready.
+
+		Example:
+
+		```python
+		async with self.App.LibraryService.open(path) as b:
+			if b is None:
+				return None
+
+			text = b.read().decode("utf-8")
+		```
+		"""
+
+		itemio = await self.read(path, tenant)
+		if itemio is None:
+			yield itemio
+		else:
+			try:
+				yield itemio
+			finally:
+				itemio.close()
+
 
 	async def list(self, path: str = "/", tenant: typing.Optional[str] = None, recursive: bool = False) -> typing.List[LibraryItem]:
 		"""
