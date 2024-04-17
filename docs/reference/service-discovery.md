@@ -1,7 +1,14 @@
-# Service Discovery Service
+# Discovery Service
 
 Service Discovery Service is used for the communication between multiple ASAB microservices in a server cluster.
 
+In order to work, the following requirements must be fulfilled:
+
+- Zookeeper connection and configuration must be the same for all services in the cluster.
+- Zookeeper container must be initialized in the service.
+- `asab.WebService` and `asab.WebContainer` must be initialized.
+- `asab.APIService` must be initialized.
+- Environment variables `NODE_ID`, `SERVICE_ID` and `INSTANCE_ID` must be set.
 
 
 ## Advertising services into Zookeeper
@@ -19,7 +26,7 @@ servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
 path=example
 ```
 
-### Service ID and Instance ID
+### Environment variables setup
 
 Every microservice should run in environment where the following variables are set:
 
@@ -27,6 +34,7 @@ Every microservice should run in environment where the following variables are s
 | --- | --- | --- |
 | `SERVICE_ID` | Identifier of the ASAB microservice. | my-app |
 | `INSTANCE_ID` | Identifier of a specific instance of the ASAB microservice. | my-app-1, my-app-2, ... |
+| `NODE_ID` | Identifier of a cluster node. | node-1, node-2, ... |
 
 ### Initializing API Service
 
@@ -52,9 +60,7 @@ class MyApp(asab.Application):
 		self.ASABApiService.initialize_zookeeper(self.ZooKeeperContainer) #(2)!
 ```
 
-1. Initialize `/doc` endpoint with Swagger documentation on the URL specified in `web` configuration.
-
-2. Propagate the information about microservice to Zookeeper.
+Propagate the information about microservice to Zookeeper.
 
 ### Information advertised
 
@@ -64,7 +70,7 @@ class MyApp(asab.Application):
 	{
 		"host": "server-name-1",
 		"appclass": "MyApp",
-		"node_id": "...",
+		"node_id": "node-1",
 		"service_id": "my-app",
 		"instance_id": "my-app-1",
 		"launch_time": "2023-12-01T10:52:29.656397Z",
