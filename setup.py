@@ -82,6 +82,7 @@ setup(
 		'git': 'pygit2>=1.9,<1.10',  # The upper version bound is needed for Alpine 3.16 / Python 3.10
 		'encryption': 'cryptography',
 		'authz': 'jwcrypto',
+		'monitoring': "sentry-sdk==1.45.0"
 	},
 	cmdclass={
 		'build_py': custom_build_py,
