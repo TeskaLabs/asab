@@ -88,7 +88,7 @@ class TestDiscover(DiscoveryTestCase):
 			res,
 			[
 				{
-					"zookeeper_id": "ASABConfigApplication.01",
+					"ephemeral_id": "ASABConfigApplication.01",
 					"host": "asab-config-1",
 					"appclass": "ASABConfigApplication",
 					"launch_time": "2024-04-03T13:13:39.359729Z",
@@ -115,7 +115,7 @@ class TestDiscover(DiscoveryTestCase):
 					]
 				},
 				{
-					"zookeeper_id": "ASABConfigApplication.02",
+					"ephemeral_id": "ASABConfigApplication.02",
 					"host": "asab-config-2",
 					"appclass": "ASABConfigApplication",
 					"launch_time": "2024-04-03T13:13:39.359729Z",
@@ -150,11 +150,11 @@ class TestDiscover(DiscoveryTestCase):
 			res,
 			{
 				"instance_id": {
-					"asab-config-1": {("lmio-eliska-1", 8894)},
-					"asab-config-2": {("lmio-eliska-2", 8894)}
+					"asab-config-1": {("asab-config-1", 8894)},
+					"asab-config-2": {("asab-config-2", 8894)}
 				},
 				"service_id": {
-					"asab-config": {("lmio-eliska-1", 8894), ("lmio-eliska-2", 8894)},
+					"asab-config": {("asab-config-1", 8894), ("asab-config-2", 8894)},
 				},
 			}
 		)

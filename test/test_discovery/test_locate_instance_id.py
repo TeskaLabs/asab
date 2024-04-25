@@ -60,7 +60,7 @@ class TestLocate(DiscoveryTestCase):
 		res = self.App.Loop.run_until_complete(self.DiscoveryService.locate("asab-config-1"))
 		self.assertEqual(
 			res,
-			["http://lmio-eliska-1:8894"]
+			["http://asab-config-1:8894"]
 		)
 
 	def test_locate_instance_id_02(self):
@@ -70,5 +70,5 @@ class TestLocate(DiscoveryTestCase):
 		res = self.App.Loop.run_until_complete(self.DiscoveryService.locate(instance_id="asab-config-1"))
 		self.assertEqual(
 			res,
-			["http://lmio-eliska-1:8894"]
+			["http://asab-config-1:8894"]
 		)

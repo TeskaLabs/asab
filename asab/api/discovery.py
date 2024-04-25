@@ -25,9 +25,9 @@ class DiscoveryService(Service):
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
 		self.ProactorService = zkc.ProactorService
-		self.AdvertisedCache = None
-		self.CacheLock = asyncio.Lock()
-		self.DiscoveryReady = asyncio.Event()
+		self._advertised_cache = dict()
+		self._cache_lock = asyncio.Lock()
+		self._ready_event = asyncio.Event()
 		self.App.PubSub.subscribe("Application.tick/60!", self._on_tick)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 
@@ -75,15 +75,13 @@ class DiscoveryService(Service):
 			L.warning("Please provide instance_id, service_id, or other custom id to locate the service(s).")
 			return res
 
-		if self.AdvertisedCache is None:
-			L.warning("Discovery service is not yet ready to locate services.")
+		await asyncio.wait_for(self._ready_event.wait(), 10)
+
+		if len(self._advertised_cache) == 0:
+			L.warning("No instances to discover. Make sure [zookeeper] configuration is identical for all the ASAB services in the cluster.")
 			return res
 
-		if len(self.AdvertisedCache) == 0:
-			L.warning("No instances to discover.")
-			return res
-
-		for id_type, ids in self.AdvertisedCache.items():
+		for id_type, ids in self._advertised_cache.items():
 			if id_type in locate_params:
 				if locate_params[id_type] in ids:
 					res = res | ids[locate_params[id_type]]
@@ -91,7 +89,7 @@ class DiscoveryService(Service):
 		return res
 
 	def discover(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple[str, int]]]]:
-		return self.AdvertisedCache
+		return self._advertised_cache
 
 	async def get_advertised_instances(self) -> typing.List[typing.Dict]:
 		"""
@@ -102,7 +100,7 @@ class DiscoveryService(Service):
 		LogObsolete.warning("This method is obsolete. Use `discover()` method instead.")
 		advertised = []
 		async for item, item_data in self._iter_zk_items("/run"):
-			item_data['zookeeper_id'] = item
+			item_data['ephemeral_id'] = item
 			advertised.append(item_data)
 
 		return advertised
@@ -134,17 +132,22 @@ class DiscoveryService(Service):
 				...
 			}
 		"""
-		if self.CacheLock.locked():
+		if self._cache_lock.locked():
 			# Only one cache update at a time
 			return
 
-		async with self.CacheLock:
+		async with self._cache_lock:
 
 			advertised = {
 				"instance_id": {},
 				"service_id": {},
 			}
-			async for item, item_data in self._iter_zk_items("/run"):
+
+			iterator = self._iter_zk_items("/run")
+			if iterator is None:
+				return  # reason logged from the _iter_zk_items method
+
+			async for item, item_data in iterator:
 				instance_id = item_data.get("instance_id")
 				service_id = item_data.get("service_id")
 				discovery: typing.Dict[str, list] = item_data.get("discovery", {})
@@ -156,7 +159,10 @@ class DiscoveryService(Service):
 					discovery["service_id"] = [service_id]
 
 				web = item_data.get("web")
-				host = item_data.get("node_id", item_data.get("host"))
+				# Resolve it by instance_id or host.
+				# Thus, instance_id MUST be resolvable within the cluster.
+				# In other than "network mode host" network setup, node_id does not necessarily resolve to the same IP as instance_id.
+				host = item_data.get("instance_id", item_data.get("host"))
 
 				if web is None or host is None:
 					continue
@@ -181,14 +187,8 @@ class DiscoveryService(Service):
 									else:
 										advertised[id_type][identifier].add((host, port))
 
-			if self.AdvertisedCache is None:
-				# When application starts, Auth Service needs to load public keys. Cache is not ready during `initialize` to discover auth server.
-				# This signal makes auth service to repeat the call to auth server when discovery session is ready and load public keys.
-				self.AdvertisedCache = advertised
-				self.DiscoveryReady.set()
-			else:
-				self.AdvertisedCache = advertised
-
+			self._advertised_cache = advertised
+			self._ready_event.set()  # TODO: Can I set the event multiple times?
 
 	async def _iter_zk_items(self, path):
 		base_path = self.ZooKeeperContainer.Path + path
@@ -197,7 +197,7 @@ class DiscoveryService(Service):
 			try:
 				return self.ZooKeeperContainer.ZooKeeper.Client.get_children(base_path, watch=self._update_cache)
 			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
-				# TODO: this is silent error
+				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
 				return None
 
 		def get_data(item):
@@ -205,7 +205,7 @@ class DiscoveryService(Service):
 				data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get((base_path + '/' + item), watch=self._update_cache)
 				return data
 			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
-				# TODO: this is silent error
+				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
 				return None
 
 		items = await self.ProactorService.execute(get_items)

@@ -87,7 +87,7 @@ class TestLocate(DiscoveryTestCase):
 		Compares whether the result is a list with all items in it. However, even though it is a list, the order can be different because sets are being used in the code.
 		"""
 		res = self.App.Loop.run_until_complete(self.DiscoveryService.locate(service_id="asab-config"))
-		required = ["http://lmio-eliska-1:8894", "http://lmio-eliska-2:8894"]
+		required = ["http://asab-config-1:8894", "http://asab-config-2:8894"]
 
 		self.assertEqual(
 			set(res),

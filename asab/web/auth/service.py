@@ -9,7 +9,6 @@ import os.path
 import typing
 import time
 import enum
-import asyncio
 
 import aiohttp
 import aiohttp.web
@@ -311,7 +310,6 @@ class AuthService(asab.Service):
 				public_key = await fetch_keys(session)
 
 		else:
-			await asyncio.wait_for(self.DiscoveryService.DiscoveryReady.wait(), 10)  # Wait for the DiscoveryService to get ready (on app start) or timeout (10 seconds)
 			async with self.DiscoveryService.session() as session:
 				try:
 					public_key = await fetch_keys(session)
