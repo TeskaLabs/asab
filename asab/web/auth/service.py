@@ -256,7 +256,7 @@ class AuthService(asab.Service):
 		return True
 
 
-	def has_tenant_access(self, authorized_tenants: typing.Iterable, tenant: str) -> bool:
+	def has_tenant_access(self, authorized_resources: typing.Iterable, authorized_tenants: typing.Iterable, tenant: str) -> bool:
 		"""
 		Check if the request is authorized to access a tenant.
 		"""
@@ -376,7 +376,7 @@ class AuthService(asab.Service):
 			request.has_resource_access = has_resource_access
 
 			def has_tenant_access(tenant: str) -> bool:
-				return self.has_tenant_access(request._AuthorizedTenants, tenant)
+				return self.has_tenant_access(request._AuthorizedResources, request._AuthorizedTenants, tenant)
 			request.has_tenant_access = has_tenant_access
 
 			def has_superuser_access() -> bool:
