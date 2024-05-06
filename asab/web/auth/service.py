@@ -256,9 +256,12 @@ class AuthService(asab.Service):
 		return True
 
 
-	def has_tenant_access(self, authorized_resources: typing.Iterable, authorized_tenants: typing.Iterable, tenant: str) -> bool:
+	def has_tenant_access(
+		self, authorized_resources: typing.Iterable, authorized_tenants: typing.Iterable, tenant: str
+	) -> bool:
 		"""
 		Check if the request is authorized to access a tenant.
+		If the request has superuser access, tenant access is always implicitly granted.
 		"""
 		if self.Mode == AuthMode.DISABLED:
 			return True
