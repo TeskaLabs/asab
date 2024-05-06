@@ -256,6 +256,21 @@ class AuthService(asab.Service):
 		return True
 
 
+	def has_tenant_access(
+		self, authorized_resources: typing.Iterable, authorized_tenants: typing.Iterable, tenant: str
+	) -> bool:
+		"""
+		Check if the request is authorized to access a tenant.
+		If the request has superuser access, tenant access is always implicitly granted.
+		"""
+		if self.Mode == AuthMode.DISABLED:
+			return True
+		if self.has_superuser_access(authorized_resources):
+			return True
+		if tenant in authorized_tenants:
+			return True
+		return False
+
 	async def _fetch_public_keys_if_needed(self, *args, **kwargs):
 		"""
 		Check if public keys have been fetched from the authorization server and fetch them if not yet.
@@ -362,6 +377,10 @@ class AuthService(asab.Service):
 			def has_resource_access(*required_resources: list) -> bool:
 				return self.has_resource_access(request._AuthorizedResources, required_resources)
 			request.has_resource_access = has_resource_access
+
+			def has_tenant_access(tenant: str) -> bool:
+				return self.has_tenant_access(request._AuthorizedResources, request._AuthorizedTenants, tenant)
+			request.has_tenant_access = has_tenant_access
 
 			def has_superuser_access() -> bool:
 				return self.has_superuser_access(request._AuthorizedResources)
