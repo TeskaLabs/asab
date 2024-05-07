@@ -773,7 +773,7 @@ class Application(metaclass=Singleton):
 
 		if self.HousekeepingTime < now:
 			if now < self.HousekeepingTimeLimit and self.HousekeepingId <= today_id:
-				L.log(asab.LOG_NOTICE, "is performing housekeeping.")
+				L.log(asab.LOG_NOTICE, "Housekeeping started.")
 				self.PubSub.publish("Application.housekeeping!")
 			else:
 				L.error(
