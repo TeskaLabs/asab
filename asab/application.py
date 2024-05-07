@@ -776,7 +776,7 @@ class Application(metaclass=Singleton):
 				L.log(asab.LOG_NOTICE, "is performing housekeeping.")
 				self.PubSub.publish("Application.housekeeping!")
 			else:
-				L.warning(
+				L.error(
 					"Housekeeping has not been executed: It is past the time limit.",
 					struct_data={
 						"housekeeping_time": self.HousekeepingTime.strftime("%Y-%m-%d %H:%M:%S"),
@@ -791,7 +791,7 @@ class Application(metaclass=Singleton):
 			self.HousekeepingId = _housekeeping_id(self.HousekeepingTime)
 
 			if len(self.HousekeepingMissedEvents) > 0:
-				L.warning(
+				L.error(
 					"One or more Housekeeping events have not been executed.",
 					struct_data={
 						"missed_housekeeping_events": self.HousekeepingMissedEvents
