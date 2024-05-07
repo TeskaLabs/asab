@@ -773,6 +773,7 @@ class Application(metaclass=Singleton):
 
 		if self.HousekeepingTime < now:
 			if now < self.HousekeepingTimeLimit and self.HousekeepingId <= today_id:
+				L.log(asab.LOG_NOTICE, "is performing housekeeping.")
 				self.PubSub.publish("Application.housekeeping!")
 			else:
 				L.warning(
@@ -788,15 +789,6 @@ class Application(metaclass=Singleton):
 			self.HousekeepingTime += datetime.timedelta(days=1)
 			self.HousekeepingTimeLimit += datetime.timedelta(days=1)
 			self.HousekeepingId = _housekeeping_id(self.HousekeepingTime)
-			L.log(
-				LOG_NOTICE,
-				"Setting time for the next housekeeping.",
-				struct_data={
-					"next_housekeeping_time": self.HousekeepingTime.strftime("%Y-%m-%d %H:%M:%S"),
-					"next_time_limit": self.HousekeepingTimeLimit.strftime("%Y-%m-%d %H:%M:%S"),
-					"next_housekeeping_id": self.HousekeepingId,
-				}
-			)
 
 			if len(self.HousekeepingMissedEvents) > 0:
 				L.warning(
