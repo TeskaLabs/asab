@@ -30,11 +30,7 @@ class StorageService(StorageServiceABC):
 
 		# Check the old section and then the new section for uri
 		uri = asab.Config.get(config_section_name, 'mongodb_uri', fallback='')
-		if len(uri) > 0:
-			asab.LogObsolete.warning(
-				"Do not configure mongodb connection in {}. Please use [mongo] section with uri and database parameters.".format(config_section_name)
-			)
-		else:
+		if len(uri) == 0:
 			uri = asab.Config.get("mongo", 'uri', fallback='')
 
 		if len(uri) == 0:
