@@ -15,12 +15,6 @@ LogObsolete = logging.getLogger('OBSOLETE')
 
 
 class DiscoveryService(Service):
-	"""
-	Use DiscoveryReady asyncio.Event to meet your async process with DiscoveryService for rendezvous.
-	Await DiscoveryReady to wait for DiscoveryService to download and process data from ZooKeeper if you need DiscoveryService during initialization of other service.
-	For timeout use: `await asyncio.wait_for(self.DiscoveryService.DiscoveryReady.wait(), 10)`
-	"""
-
 	def __init__(self, app, zkc, service_name="asab.DiscoveryService") -> None:
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
