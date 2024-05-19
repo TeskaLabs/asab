@@ -51,13 +51,13 @@ class DiscoveryService(Service):
 		:return: A list of URLs in the format "http://servername:port" for the specified instance or
 		service.
 		"""
-		
+
 		if instance_id is not None:
 			locate_params = {"instance_id": instance_id}
-		
+
 		elif len(kwargs) > 0:
 			locate_params = kwargs
-		
+
 		else:
 			L.warning("Please provide instance_id, service_id, or other custom id to locate the service(s).")
 			return None
