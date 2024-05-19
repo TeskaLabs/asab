@@ -79,9 +79,10 @@ setup(
 		'PyYAML>=6.0,<7'
 	],
 	extras_require={
-		'git': 'pygit2>=1.9,<1.10',  # The upper version bound is needed for Alpine 3.16 / Python 3.10
+		'git': 'pygit2<1.12',  # For Alpine 3.16 / Python 3.10, use pygit2>=1.9,<1.10
 		'encryption': 'cryptography',
-		'authz': 'jwcrypto',
+		'authz': 'jwcrypto==1.5.6',
+		'monitoring': "sentry-sdk==1.45.0"
 	},
 	cmdclass={
 		'build_py': custom_build_py,
