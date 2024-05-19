@@ -1,8 +1,9 @@
-import logging
 import json
+import copy
 import socket
 import typing
 import asyncio
+import logging
 
 import aiohttp
 import kazoo.exceptions
@@ -19,18 +20,23 @@ class DiscoveryService(Service):
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
 		self.ProactorService = zkc.ProactorService
+
 		self._advertised_cache = dict()
 		self._cache_lock = asyncio.Lock()
 		self._ready_event = asyncio.Event()
-		self.App.PubSub.subscribe("Application.tick/60!", self._on_tick)
+
+		self.App.PubSub.subscribe("Application.tick/300!", self._on_tick)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
+
 
 	def _on_tick(self, msg):
 		self._update_cache(msg)
 
+
 	def _on_zk_ready(self, msg, zkc):
 		if zkc == self.ZooKeeperContainer:
 			self._update_cache(msg)
+
 
 	async def locate(self, instance_id: str = None, **kwargs) -> list:
 		"""
@@ -45,13 +51,24 @@ class DiscoveryService(Service):
 		:return: A list of URLs in the format "http://servername:port" for the specified instance or
 		service.
 		"""
+		
+		if instance_id is not None:
+			locate_params = {"instance_id": instance_id}
+		
+		elif len(kwargs) > 0:
+			locate_params = kwargs
+		
+		else:
+			L.warning("Please provide instance_id, service_id, or other custom id to locate the service(s).")
+			return None
+
 		return [
 			"http://{}:{}".format(servername, port)
 			for servername, port
-			in await self._locate(instance_id, **kwargs)
+			in await self._locate(**locate_params)
 		]
 
-	async def _locate(self, instance_id: str = None, **kwargs) -> typing.Set[typing.Tuple]:
+	async def _locate(self, locate_params) -> typing.Set[typing.Tuple]:
 		"""
 		Locates service instances based on their identifiers.
 
@@ -61,15 +78,7 @@ class DiscoveryService(Service):
 		"""
 		res = set()
 
-		if instance_id is not None:
-			locate_params = {"instance_id": instance_id}
-		elif len(kwargs) > 0:
-			locate_params = kwargs
-		else:
-			L.warning("Please provide instance_id, service_id, or other custom id to locate the service(s).")
-			return res
-
-		await asyncio.wait_for(self._ready_event.wait(), 10)
+		await asyncio.wait_for(self._ready_event.wait(), 600)
 
 		if len(self._advertised_cache) == 0:
 			L.warning("No instances to discover. Make sure [zookeeper] configuration is identical for all the ASAB services in the cluster.")
@@ -82,8 +91,12 @@ class DiscoveryService(Service):
 
 		return res
 
-	def discover(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple[str, int]]]]:
-		return self._advertised_cache
+
+	async def discover(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple[str, int]]]]:
+		# We need to make a copy of the cache so that the caller can't modify our cache.
+		await asyncio.wait_for(self._ready_event.wait(), 600)
+		return copy.deepcopy(self._advertised_cache)
+
 
 	async def get_advertised_instances(self) -> typing.List[typing.Dict]:
 		"""
@@ -93,13 +106,14 @@ class DiscoveryService(Service):
 		"""
 		LogObsolete.warning("This method is obsolete. Use `discover()` method instead.")
 		advertised = []
-		async for item, item_data in self._iter_zk_items("/run"):
+		async for item, item_data in self._iter_zk_items():
 			item_data['ephemeral_id'] = item
 			advertised.append(item_data)
 
 		return advertised
 
-	async def _get_advertised_instances(self):
+
+	async def _rescan_advertised_instances(self):
 		"""
 		Returns structured dataset of identifier types, identifiers of instances and hosts and ports where they can be found.
 		It is a dict of identifier types as keys and dict as values. The second-layer dict has identifiers as keys an a set of tuples as a value. Each tuple contains host and port.
@@ -107,27 +121,27 @@ class DiscoveryService(Service):
 		Example of the data structure:
 			{
 				"instance_id": {
-					"lmio-receiver-1": {("node1", 1234)},
-					"asab-remote-control-1": {("node2", 1234)}
+					"lmio-receiver-1": {("node1", 1234, socket.AF_INET)},
+					"asab-remote-control-1": {("node2", 1234, socket.AF_INET6)}
 					...
 				},
 				"service_id": {
-					"lmio-receiver": {("node1", 1234), ("node2", 1234), ("node3", 1234)},
+					"lmio-receiver": {("node1", 1234, socket.AF_INET), ("node2", 1234, socket.AF_INET), ("node3", 1234, socket.AF_INET)},
 					...
 				},
 				"custom1_id": {
-					"myid123": {("node1", 5678), ("node2", 5678)},
+					"myid123": {("node1", 5678, socket.AF_INET), ("node2", 5678, socket.AF_INET6)},
 					...
 				},
 				"custom2_id": {
-					"myid123": {("node1", 5678), ("node2", 5678)},
+					"myid123": {("node1", 5678, socket.AF_INET), ("node2", 5678, socket.AF_INET)},
 					...
 				},
 				...
 			}
 		"""
 		if self._cache_lock.locked():
-			# Only one cache update at a time
+			# Only one rescan / cache update at a time
 			return
 
 		async with self._cache_lock:
@@ -137,7 +151,7 @@ class DiscoveryService(Service):
 				"service_id": {},
 			}
 
-			iterator = self._iter_zk_items("/run")
+			iterator = self._iter_zk_items()
 			if iterator is None:
 				return  # reason logged from the _iter_zk_items method
 
@@ -152,43 +166,55 @@ class DiscoveryService(Service):
 				if instance_id is not None:
 					discovery["service_id"] = [service_id]
 
-				web = item_data.get("web")
-				# Resolve it by instance_id or host.
-				# Thus, instance_id MUST be resolvable within the cluster.
-				# In other than "network mode host" network setup, node_id does not necessarily resolve to the same IP as instance_id.
-				host = item_data.get("instance_id", item_data.get("host"))
-
-				if web is None or host is None:
+				host = item_data.get("host")
+				if host is None:
 					continue
+
+				web = item_data.get("web")
+				if web is None:
+					continue
+
 				for i in web:
+
 					try:
 						ip = i[0]
 						port = i[1]
 					except KeyError:
 						L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
 						return
-					if ip not in ("0.0.0.0", "::"):
+
+					if ip == "0.0.0.0":
+						family = socket.AF_INET
+					elif ip == "::":
+						family = socket.AF_INET6
+					else:
 						continue
 
 					if discovery is not None:
 						for id_type, ids in discovery.items():
 							if advertised.get(id_type) is None:
 								advertised[id_type] = {}
+
 							for identifier in ids:
 								if identifier is not None:
 									if advertised[id_type].get(identifier) is None:
-										advertised[id_type][identifier] = {(host, port)}
+										advertised[id_type][identifier] = {(host, port, family)}
 									else:
-										advertised[id_type][identifier].add((host, port))
+										advertised[id_type][identifier].add((host, port, family))
 
 			self._advertised_cache = advertised
-			self._ready_event.set()  # TODO: Can I set the event multiple times?
+			self._ready_event.set()
 
-	async def _iter_zk_items(self, path):
-		base_path = self.ZooKeeperContainer.Path + path
+
+	async def _iter_zk_items(self):
+		base_path = self.ZooKeeperContainer.Path + "/run"
 
 		def get_items():
 			try:
+				# Create the base path if it does not exist
+				if not self.ZooKeeperContainer.ZooKeeper.Client.exists(base_path):
+					self.ZooKeeperContainer.ZooKeeper.Client.create(base_path, b'', makepath=True)
+
 				return self.ZooKeeperContainer.ZooKeeper.Client.get_children(base_path, watch=self._update_cache)
 			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
 				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
@@ -204,7 +230,6 @@ class DiscoveryService(Service):
 
 		items = await self.ProactorService.execute(get_items)
 		if items is None:
-			L.error("Missing '{}/run' folder in ZooKeeper.".format(self.ZooKeeperContainer.Path))
 			return
 
 		for item in items:
@@ -228,7 +253,7 @@ class DiscoveryService(Service):
 
 	def _update_cache(self, watched_event):
 		# TODO: update just parts of the cache based on the watched_event parameter to be more efficient
-		self.App.TaskService.schedule(self._get_advertised_instances())
+		self.App.TaskService.schedule(self._rescan_advertised_instances())
 
 
 class DiscoveryResolver(aiohttp.DefaultResolver):
@@ -259,11 +284,20 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 			raise NotDiscoveredError("Invalid format of the hostname '{}'. Use e.g. `asab-config.service_id.asab` instead.".format(hostname))
 
 		hosts = []
-		located_instances = await self.DiscoveryService._locate(**{url_split[1]: url_split[0]})
+		located_instances = await self.DiscoveryService._locate({url_split[1]: url_split[0]})
 		if located_instances is None or len(located_instances) == 0:
 			raise NotDiscoveredError("Failed to discover '{}'.".format(hostname))
-		for i in located_instances:
-			hosts.append(*await super().resolve(i[0], i[1], family))
+
+		for phostname, pport, pfamily in located_instances:
+			try:
+				resolved = await super().resolve(phostname, pport, pfamily)
+			except socket.gaierror:
+				# Skip unresolved hosts
+				continue
+			hosts.extend(resolved)
+
+		if len(hosts) == 0:
+			raise NotDiscoveredError("Failed to resolve any of the hosts for '{}'.".format(hostname))
 
 		return hosts
 
