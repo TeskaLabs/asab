@@ -85,9 +85,6 @@ class SentryService(asab.Service):
 		self.LoggingBreadCrumbsLevel = levels.get(asab.Config.get("sentry:logging", "breadcrumbs").lower())
 		self.LoggingEventsLevel = levels.get(asab.Config.get("sentry:logging", "events").lower())
 
-		# ENVIRONMENT (e.g. "production", "testing", ...)
-		self.Environment = asab.Config.get("sentry", "environment")  # default: "development"
-
 		# RELEASE
 		# Release can be obtained from MANIFEST.json if exists
 		manifest = {}
@@ -112,6 +109,11 @@ class SentryService(asab.Service):
 			version=manifest.get("version", "<none>")
 		)
 
+		self.NodeId = os.getenv("NODE_ID", None)  # e.g. "lmio-box-testing-1"
+		self.ServiceId = os.getenv("SERVICE_ID", None)  # e.g. "lmio-service"
+		self.InstanceId = os.getenv("INSTANCE_ID", None)  # e.g. "lmio-service-01"
+		self.SiteId = os.getenv("SITE_ID", None)
+
 		# PERFORMANCE MONITORING
 		# traces sample rate: percentage of captured events
 		# prevents overcrowding when deployed to production
@@ -132,27 +134,24 @@ class SentryService(asab.Service):
 				),
 			],
 			traces_sample_rate=self.TracesSampleRate,  # percentage of captured events
-			environment=self.Environment,  # e.g. "production", "develop"
+			environment=self.SiteId if self.SiteId is not None else "not specified",
 			release=self.Release,  # version of the microservice, e.g., v23.40-alpha
 			auto_session_tracking=True,  # session info about interaction between user and app
 			debug=False,  # ...sends many irrelevant messages
 			max_value_length=8192,  # longer messages are truncated, the default value (1024) is too short
 		)
-		# TODO: Investigate CA certs, TLS/SSL, Security Tokens, Allowed Domains
-
 
 		# ADDITIONAL GLOBAL TAGS
 		# These tags will be set manually or automatically by Remote Control
-		self.NodeId = os.getenv("NODE_ID", None)  # e.g. "lmio-box-testing-1"
-		self.ServiceId = os.getenv("SERVICE_ID", None)  # e.g. "lmio-service"
-		self.InstanceId = os.getenv("INSTANCE_ID", None)  # e.g. "lmio-service-01"
-
 		if self.NodeId:
 			sentry_sdk.set_tag("node_id", self.NodeId)
 		if self.ServiceId:
 			sentry_sdk.set_tag("service_id", self.ServiceId)
 		if self.InstanceId:
 			sentry_sdk.set_tag("instance_id", self.InstanceId)
+		if self.SiteId:
+			sentry_sdk.set_tag("site_id", self.SiteId)
+			sentry_sdk.set_tag("environment", self.SiteId)
 
 		sentry_sdk.set_tag("appclass", app.__class__.__name__)  # e.g. 'LMIOParsecApplication'
 

@@ -53,22 +53,18 @@ MOCK_USERINFO_DEFAULT = {
 	"email": "capybara1999@example.com",
 	# Authorized tenants and resources
 	"resources": {
-		# Globally granted resources
+		# Globally authorized resources
 		"*": [
 			"authz:superuser",
 		],
-		# Resources granted within the tenant "default"
+		# Resources authorized within the tenant "default"
 		"default": [
 			"authz:superuser",
 			"some-test-data:access",
 		],
-		# Resources granted within the tenant "test-tenant"
-		"test-tenant": [
-			"authz:superuser",
-			"cake:eat",
-		],
 	},
-	# Subject's assigned (not authorized!) tenants
+	# List of tenants that the user is a member of.
+	# These tenants are NOT AUTHORIZED!
 	"tenants": ["default", "test-tenant", "another-tenant"]
 }
 
@@ -86,30 +82,27 @@ class AuthService(asab.Service):
 	Provides authentication and authorization of incoming requests.
 
 	Configuration:
-	- Configuration section: auth
-	- Configuration options:
-	- public_keys_url:
-		- default: ""
-		- URL location containing the authorization server's public JWK keys (often found at "/.well-known/jwks.json")
-	- multitenancy:
-		- default: "yes"
-		- Whether the app is tenant-aware
-	- enabled:
-		- default: "yes"
-		- The "enabled" option switches authentication and authorization on, off or activates mock mode. The default value is True (on).
-		- In MOCK MODE
-		- no authorization server is needed,
-		- all incoming requests are mock-authorized with pre-defined user info,
-		- custom mock user info can supplied in a JSON file.
-	-mock_user_info_path:
-		- default: "/conf/mock-userinfo.json"
+		Configuration section: auth
+		Configuration options:
+			public_keys_url:
+				- default: ""
+				- URL containing the authorization server's public JWKey set (usually found at "/.well-known/jwks.json")
+			enabled:
+				- default: "yes"
+				- options: "yes", "no", "mocked"
+				- Switch authentication and authorization on, off or activate mock mode.
+				- In MOCK MODE
+					- no authorization server is needed,
+					- all incoming requests are mock-authorized with pre-defined user info,
+					- custom mock user info can supplied in a JSON file.
+			mock_user_info_path:
+				- default: "/conf/mock-userinfo.json"
 	"""
 
 	_PUBLIC_KEYS_URL_DEFAULT = "http://localhost:3081/.well-known/jwks.json"
 
-	def __init__(self, app, service_name="asab.AuthzService"):
+	def __init__(self, app, service_name="asab.AuthService"):
 		super().__init__(app, service_name)
-		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
 
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
@@ -229,6 +222,17 @@ class AuthService(asab.Service):
 			raise asab.exceptions.NotAuthenticatedError()
 
 
+	def get_authorized_tenant(self, request) -> typing.Optional[str]:
+		"""
+		Get the request's authorized tenant.
+		"""
+		if hasattr(request, "_AuthorizedTenants"):
+			for tenant in request._AuthorizedTenants:
+				# Return the first authorized tenant
+				return tenant
+		return None
+
+
 	def has_superuser_access(self, authorized_resources: typing.Iterable) -> bool:
 		"""
 		Check if the superuser resource is present in the authorized resource list.
@@ -251,6 +255,21 @@ class AuthService(asab.Service):
 				return False
 		return True
 
+
+	def has_tenant_access(
+		self, authorized_resources: typing.Iterable, authorized_tenants: typing.Iterable, tenant: str
+	) -> bool:
+		"""
+		Check if the request is authorized to access a tenant.
+		If the request has superuser access, tenant access is always implicitly granted.
+		"""
+		if self.Mode == AuthMode.DISABLED:
+			return True
+		if self.has_superuser_access(authorized_resources):
+			return True
+		if tenant in authorized_tenants:
+			return True
+		return False
 
 	async def _fetch_public_keys_if_needed(self, *args, **kwargs):
 		"""
@@ -347,20 +366,24 @@ class AuthService(asab.Service):
 				assert user_info is not None
 				request._UserInfo = user_info
 				resource_dict = request._UserInfo["resources"]
-				request._Resources = frozenset(resource_dict.get("*", []))
-				request._Tenants = frozenset(t for t in resource_dict.keys() if t != "*")
+				request._AuthorizedResources = frozenset(resource_dict.get("*", []))
+				request._AuthorizedTenants = frozenset(t for t in resource_dict.keys() if t != "*")
 			else:
 				request._UserInfo = None
-				request._Resources = None
-				request._Tenants = None
+				request._AuthorizedResources = None
+				request._AuthorizedTenants = None
 
 			# Add access control methods to the request
 			def has_resource_access(*required_resources: list) -> bool:
-				return self.has_resource_access(request._Resources, required_resources)
+				return self.has_resource_access(request._AuthorizedResources, required_resources)
 			request.has_resource_access = has_resource_access
 
+			def has_tenant_access(tenant: str) -> bool:
+				return self.has_tenant_access(request._AuthorizedResources, request._AuthorizedTenants, tenant)
+			request.has_tenant_access = has_tenant_access
+
 			def has_superuser_access() -> bool:
-				return self.has_superuser_access(request._Resources)
+				return self.has_superuser_access(request._AuthorizedResources)
 			request.has_superuser_access = has_superuser_access
 
 			return await handler(*args, **kwargs)
@@ -420,10 +443,8 @@ class AuthService(asab.Service):
 		if "tenant" in args:
 			if tenant_in_path:
 				handler = self._add_tenant_from_path(handler)
-			elif self.MultitenancyEnabled or self.Mode == AuthMode.MOCK:
-				handler = self._add_tenant_from_query(handler)
 			else:
-				handler = self._add_tenant_none(handler)
+				handler = self._add_tenant_from_query(handler)
 
 		handler = self._authenticate_request(handler)
 		route._handler = handler
@@ -434,12 +455,13 @@ class AuthService(asab.Service):
 		Check access to requested tenant and add tenant resources to the request
 		"""
 		# Check if tenant access is authorized
-		if tenant not in request._Tenants:
+		if tenant not in request._AuthorizedTenants:
 			L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
 			raise asab.exceptions.AccessDeniedError()
 
 		# Extend globally granted resources with tenant-granted resources
-		request._Resources = frozenset(request._Resources.union(request._UserInfo["resources"].get(tenant, [])))
+		request._AuthorizedResources = set(request._AuthorizedResources.union(
+			request._UserInfo["resources"].get(tenant, [])))
 
 
 	def _add_tenant_from_path(self, handler):
@@ -467,27 +489,12 @@ class AuthService(asab.Service):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 			if "tenant" not in request.query:
-				if self.Mode != AuthMode.MOCK:
-					L.error("Request is missing 'tenant' query parameter.")
-					raise aiohttp.web.HTTPBadRequest()
-				tenant = None
+				return await handler(*args, tenant=None, **kwargs)
 			else:
 				tenant = request.query["tenant"]
 				if self.Mode != AuthMode.DISABLED:
 					self._authorize_tenant_request(request, tenant)
 			return await handler(*args, tenant=tenant, **kwargs)
-
-		return wrapper
-
-
-	def _add_tenant_none(self, handler):
-		"""
-		Add tenant=None to the handler arguments
-		"""
-
-		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
-			return await handler(*args, tenant=None, **kwargs)
 
 		return wrapper
 
@@ -580,5 +587,5 @@ def _add_resources(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
-		return await handler(*args, resources=request._Resources, **kwargs)
+		return await handler(*args, resources=request._AuthorizedResources, **kwargs)
 	return wrapper

@@ -42,7 +42,7 @@ Only if there is a hole in the top layer can you see the layer that shows throug
 It means that files of the upper layer overwrite files with the same path in the lower layers.
 
 <figure markdown>
-  ![Illustration of Library layers](../images/library/asab-library.drawio.png)
+  ![Illustration of Library layers](/asab/images/library/asab-library.drawio.png)
   <figcaption>Illustration of ASAB Library layers. Green items are visible, grey items are hidden. Moreover, Layer 1 contains .disabled.yaml file containing the list of disabled files.</figcaption>
 </figure>
 

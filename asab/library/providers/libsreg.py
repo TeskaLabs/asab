@@ -1,4 +1,5 @@
 import os
+import lzma
 import logging
 import hashlib
 import random
@@ -64,12 +65,14 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		self.RootPath = os.path.join(
 			tempdir,
 			"asab.library.libsreg",
+			hashlib.sha256(path.encode('utf-8')).hexdigest()
 		)
 
 		self.RepoPath = os.path.join(
 			self.RootPath,
-			hashlib.sha256(self.URLs[0].encode('utf-8')).hexdigest()
+			"content"
 		)
+
 
 		os.makedirs(os.path.join(self.RepoPath), exist_ok=True)
 
@@ -77,7 +80,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 		self.PullLock = asyncio.Lock()
 
-		# TODO: Subscribption to changes in the library
+		# TODO: Subscription to changes in the library
 		self.SubscribedPaths = set()
 
 		self.App.TaskService.schedule(self._periodic_pull(None))
@@ -98,12 +101,10 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 			# Check for existing E-Tag
 			etag_fname = os.path.join(self.RootPath, "etag")
-			try:
+			if os.path.exists(etag_fname):
 				with open(etag_fname, 'r') as f:
 					etag = f.read().strip()
 					headers['If-None-Match'] = etag
-			except FileNotFoundError:
-				pass
 
 			url = random.choice(self.URLs)
 
@@ -116,6 +117,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 							etag_incoming = response.headers.get('ETag')
 
 							# Download new version
+							dwnld_size = 0
 							newtarfname = os.path.join(self.RootPath, "new.tar.xz")
 							with open(newtarfname, 'wb') as ftmp:
 								while True:
@@ -123,6 +125,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 									if not chunk:
 										break
 									ftmp.write(chunk)
+									dwnld_size += len(chunk)
 
 							# Extract the contents to the temporary directory
 							temp_extract_dir = os.path.join(
@@ -135,8 +138,11 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 								shutil.rmtree(temp_extract_dir)
 
 							# Extract the archive into the temp_extract_dir
-							with tarfile.open(newtarfname, mode='r:xz') as tar:
-								tar.extractall(temp_extract_dir)
+							try:
+								with tarfile.open(newtarfname, mode='r:xz') as tar:
+									tar.extractall(temp_extract_dir)
+							except lzma.LZMAError:
+								L.exception("LZMAError", struct_data={'size': dwnld_size})
 
 							# Synchronize the temp_extract_dir into the library
 							synchronize_dirs(self.RepoPath, temp_extract_dir)
@@ -168,6 +174,9 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 			except asyncio.TimeoutError as e:
 				L.error("Failed to download the library (TimeoutError).", struct_data={"url": url, 'error': e, 'exception': e.__class__.__name__})
+
+			except Exception:
+				L.exception("Error when fetching the library content from a registry")
 
 
 	async def subscribe(self, path):
