@@ -1,6 +1,8 @@
 from .baseclass import DiscoveryTestCase, MockZooKeeperContainer
 from asab.api.discovery import DiscoveryService
 
+import socket
+
 
 class TestDiscover(DiscoveryTestCase):
 
@@ -79,7 +81,7 @@ class TestDiscover(DiscoveryTestCase):
 		super().setUp()
 		self.MockedZKC = MockZooKeeperContainer(mock_data=self.MOCK_DATA)
 		self.DiscoveryService = DiscoveryService(self.App, zkc=self.MockedZKC)
-		self.App.Loop.run_until_complete(self.DiscoveryService._get_advertised_instances())
+		self.App.Loop.run_until_complete(self.DiscoveryService._rescan_advertised_instances())
 
 
 	def test_get_advertised_instances(self):
@@ -145,16 +147,16 @@ class TestDiscover(DiscoveryTestCase):
 		)
 
 	def test_discover(self):
-		res = self.DiscoveryService.discover()
+		res = self.App.Loop.run_until_complete(self.DiscoveryService.discover())
 		self.assertEqual(
 			res,
 			{
 				"instance_id": {
-					"asab-config-1": {("asab-config-1", 8894)},
-					"asab-config-2": {("asab-config-2", 8894)}
+					"asab-config-1": {("asab-config-1", 8894, socket.AF_INET)},
+					"asab-config-2": {("asab-config-2", 8894, socket.AF_INET)}
 				},
 				"service_id": {
-					"asab-config": {("asab-config-1", 8894), ("asab-config-2", 8894)},
+					"asab-config": {("asab-config-1", 8894, socket.AF_INET), ("asab-config-2", 8894, socket.AF_INET)},
 				},
 			}
 		)

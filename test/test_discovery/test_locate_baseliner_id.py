@@ -70,22 +70,19 @@ class TestLocate(DiscoveryTestCase):
 		self.MockedZKC = MockZooKeeperContainer(mock_data=self.MOCK_DATA)
 		self.DiscoveryService = DiscoveryService(self.App, zkc=self.MockedZKC)
 		self.DiscoveryResolver = DiscoveryResolver(self.DiscoveryService)
-		self.App.Loop.run_until_complete(self.DiscoveryService._get_advertised_instances())
+		self.App.Loop.run_until_complete(self.DiscoveryService._rescan_advertised_instances())
 
 
 	def test_locate_service_id(self):
-		"""
-		Compares whether the result is a list with all items in it. However, even though it is a list, the order can be different because sets are being used in the code.
-		"""
 		res = self.App.Loop.run_until_complete(self.DiscoveryService.locate(service_id="lmio-baseliner"))
-		required = ["http://lmio-baseliner-1:8989"]
+		print(res)
+		required = {"http://lmio-box-testing-3:8989"}
 
 		self.assertEqual(
-			set(res),
-			set(required)
+			res,
+			required
 		)
 
-		self.assertTrue(isinstance(res, list))
 		self.assertEqual(len(res), len(required))
 
 	def test_locate_baseline_id(self):
@@ -93,14 +90,13 @@ class TestLocate(DiscoveryTestCase):
 		Compares whether the result is a list with all items in it. However, even though it is a list, the order can be different because sets are being used in the code.
 		"""
 		res = self.App.Loop.run_until_complete(self.DiscoveryService.locate(baselines="Dataset:default"))
-		required = ["http://lmio-baseliner-1:8989"]
+		required = {"http://lmio-box-testing-3:8989"}
 
 		self.assertEqual(
-			set(res),
-			set(required)
+			res,
+			required
 		)
 
-		self.assertTrue(isinstance(res, list))
 		self.assertEqual(len(res), len(required))
 
 	def test_locate_dataset(self):
@@ -108,12 +104,11 @@ class TestLocate(DiscoveryTestCase):
 		Compares whether the result is a list with all items in it. However, even though it is a list, the order can be different because sets are being used in the code.
 		"""
 		res = self.App.Loop.run_until_complete(self.DiscoveryService.locate(**{"Dataset:default": "Dataset"}))
-		required = ["http://lmio-baseliner-1:8989"]
+		required = {"http://lmio-box-testing-3:8989"}
 
 		self.assertEqual(
-			set(res),
-			set(required)
+			res,
+			required
 		)
 
-		self.assertTrue(isinstance(res, list))
 		self.assertEqual(len(res), len(required))

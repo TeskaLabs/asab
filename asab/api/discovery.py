@@ -62,13 +62,14 @@ class DiscoveryService(Service):
 			L.warning("Please provide instance_id, service_id, or other custom id to locate the service(s).")
 			return None
 
-		return [
+		# Each taget can have two records - one for ipv4 and second for ipv6. This information is redundant in the URL format.
+		return set([
 			"http://{}:{}".format(servername, port)
-			for servername, port
+			for servername, port, family
 			in await self._locate(**locate_params)
-		]
+		])
 
-	async def _locate(self, locate_params) -> typing.Set[typing.Tuple]:
+	async def _locate(self, **locate_params) -> typing.Set[typing.Tuple]:
 		"""
 		Locates service instances based on their identifiers.
 
