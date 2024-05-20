@@ -80,7 +80,7 @@ class MockClient():
 		steps = path.strip("/").split("/")
 		children = self.get_children("/".join(steps[:-1]))
 		return (children.get(steps[-1], {}).get("data"), "this_is_mock")
-	
+
 	def exists(self, path):
 		return True
 
