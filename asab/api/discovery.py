@@ -285,7 +285,7 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 			raise NotDiscoveredError("Invalid format of the hostname '{}'. Use e.g. `asab-config.service_id.asab` instead.".format(hostname))
 
 		hosts = []
-		located_instances = await self.DiscoveryService._locate({url_split[1]: url_split[0]})
+		located_instances = await self.DiscoveryService._locate(**{url_split[1]: url_split[0]})
 		if located_instances is None or len(located_instances) == 0:
 			raise NotDiscoveredError("Failed to discover '{}'.".format(hostname))
 
