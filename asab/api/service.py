@@ -223,6 +223,8 @@ class ApiService(Service):
 
 		service_id = os.getenv('SERVICE_ID', None)
 		if service_id is not None:
+			if service_id != service_id.lower():
+				L.warning("Service ID should be lowercase.")
 			adv_data["service_id"] = service_id
 
 		# An identifier of a site, of a specific deployment
