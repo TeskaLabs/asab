@@ -222,11 +222,16 @@ class DiscoveryService(Service):
 				return None
 
 		def get_data(item):
+
 			try:
 				data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get((base_path + '/' + item), watch=self._update_cache)
 				return data
 			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
 				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
+				return None
+
+			except kazoo.exceptions.NoNodeError:
+				# 27/5/2024 Hotfix: This error sould be fixed properly
 				return None
 
 		items = await self.ProactorService.execute(get_items)
