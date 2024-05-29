@@ -392,7 +392,10 @@ class LibraryService(Service):
 			`True` if the item is disabled for the tenant.
 		"""
 		if not isinstance(path, str) or not path:
-			raise LibraryInvalidPathError("Argument 'path' must be a non-empty string.")
+			raise LibraryInvalidPathError(
+				message="Argument 'path' must be a non-empty string.",
+				path=path,
+			)
 
 		# First check disabled by path
 		for dp, disabled in self.DisabledPaths:
