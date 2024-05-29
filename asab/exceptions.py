@@ -48,3 +48,21 @@ class Conflict(Exception):
 			super().__init__(*args)
 		else:
 			super().__init__(message, *args)
+
+
+class LibraryError(Exception):
+	"""
+	Base exception for `asab.LibraryService`.
+	"""
+	def __init__(self, *args) -> None:
+		super().__init__(*args)
+
+
+class LibraryInvalidPathError(LibraryError):
+	"""
+	Path in `asab.LibraryService` is invalid.
+	"""
+	def __init__(self, message="", path="", *args):
+		self.Path = path
+		message = "Invalid Library path '{}': {}".format(path, message)
+		super().__init__(message, *args)
