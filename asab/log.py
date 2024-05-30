@@ -470,6 +470,9 @@ class AsyncIOHandler(logging.Handler):
 		self._loop.add_writer(self._socket, self._on_write)
 		self._loop.add_reader(self._socket, self._on_read)
 
+	def _reconnect(self):
+		self._loop.call_later(1, self._connect, self._loop)
+
 
 	def _on_write(self):
 		self._write_ready = True
@@ -488,6 +491,7 @@ class AsyncIOHandler(logging.Handler):
 					sep="\n",
 					file=sys.stderr
 				)
+				self._reconnect()
 
 	def _on_read(self):
 		try:
@@ -497,8 +501,7 @@ class AsyncIOHandler(logging.Handler):
 		except Exception as e:
 			print("Error on the syslog socket '{}'".format(self._address), e, file=sys.stderr)
 
-		# Close a socket - there is no reason for reading or socket is actually closed
-		self._reset()
+		self._reconnect()
 
 
 	def emit(self, record):
@@ -514,6 +517,7 @@ class AsyncIOHandler(logging.Handler):
 				except Exception as e:
 					print("Error when writing to syslog '{}'".format(self._address), e, file=sys.stderr)
 					self._enqueue(msg)
+					self._reconnect()
 
 			else:
 				self._enqueue(msg)
