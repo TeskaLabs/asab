@@ -530,6 +530,18 @@ def _validate_path_item(path: str) -> None:
 			path=path,
 		)
 
+	if ".." in path:
+		raise LibraryInvalidPathError(
+			message="Item path cannot contain '..'",
+			path=path,
+		)
+
+	if "~" in path:
+		raise LibraryInvalidPathError(
+			message="Item path cannot contain '~'",
+			path=path,
+		)
+
 
 def _validate_path_directory(path: str) -> None:
 	# Directory path must start with '/'
@@ -550,5 +562,17 @@ def _validate_path_directory(path: str) -> None:
 	if "//" in path:
 		raise LibraryInvalidPathError(
 			message="Directory path cannot contain '//' (e.g. '/Templates/Email/')",
+			path=path,
+		)
+
+	if ".." in path:
+		raise LibraryInvalidPathError(
+			message="Directory path cannot contain '..'",
+			path=path,
+		)
+
+	if "~" in path:
+		raise LibraryInvalidPathError(
+			message="Directory path cannot contain '~'",
 			path=path,
 		)
