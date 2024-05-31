@@ -221,8 +221,10 @@ class DiscoveryService(Service):
 				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
 				return None
 
-		def get_data(item):
+			except kazoo.exceptions.KazooException:
+				return None
 
+		def get_data(item):
 			try:
 				data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get((base_path + '/' + item), watch=self._update_cache)
 				return data
@@ -230,8 +232,8 @@ class DiscoveryService(Service):
 				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
 				return None
 
-			except kazoo.exceptions.NoNodeError:
-				# 27/5/2024 Hotfix: This error sould be fixed properly
+			except kazoo.exceptions.KazooException:
+				# There's a race condition -> if ZK node is deleted between get_items and get_data calls, NoNodeError is raised. Let's just ignore it. The ZK node is already deleted.
 				return None
 
 		items = await self.ProactorService.execute(get_items)
