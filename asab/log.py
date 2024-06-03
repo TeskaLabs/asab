@@ -127,10 +127,10 @@ class Logging(object):
 						))
 
 					elif url.scheme == 'udp':
-						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_DGRAM, (
+						self.SyslogHandler = FormatingDatagramHandler(
 							url.hostname if url.hostname is not None else 'localhost',
 							url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
-						))
+						)
 
 					elif url.scheme == 'unix-connect':
 						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_STREAM, url.path)
@@ -423,6 +423,22 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 
 		super().__init__(fmt=fmt, datefmt='%Y-%m-%dT%H:%M:%S.%f', style=style, sd_id=sd_id)
 		self.converter = time.gmtime
+
+
+class FormatingDatagramHandler(logging.handlers.DatagramHandler):
+
+	def __init__(self, host, port):
+		super().__init__(host, port)
+
+	def emit(self, record):
+		"""
+		Add formatting to DatagramHandler. See https://docs.python.org/3/library/logging.handlers.html
+		"""
+		try:
+			msg = self.format(record).encode('utf-8')
+			self.send(msg)
+		except Exception:
+			self.handleError(record)
 
 
 class AsyncIOHandler(logging.Handler):
