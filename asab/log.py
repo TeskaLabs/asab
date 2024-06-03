@@ -431,38 +431,6 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 class JSONFormatter(StructuredDataFormatter):
 
 	def format(self, record):
-		record.struct_data = self.render_struct_data(record.__dict__.get("_struct_data"))
-
-		# The Priority value is calculated by first multiplying the Facility number by 8 and then adding the numerical value of the Severity.
-		if record.levelno <= logging.DEBUG:
-			severity = 7  # Debug
-			color = self.BLUE
-		elif record.levelno <= logging.INFO:
-			severity = 6  # Informational
-			color = self.GREEN
-		elif record.levelno <= LOG_NOTICE:
-			severity = 5  # Notice
-			color = self.CYAN
-		elif record.levelno <= logging.WARNING:
-			severity = 4  # Warning
-			color = self.YELLOW
-		elif record.levelno <= logging.ERROR:
-			severity = 3  # Error
-			color = self.RED
-		elif record.levelno <= logging.CRITICAL:
-			severity = 2  # Critical
-			color = self.MAGENTA
-		else:
-			severity = 1  # Alert
-			color = self.WHITE
-
-		if self.UseColor:
-			levelname = record.levelname
-			levelname_color = _COLOR_SEQ % (30 + color) + levelname + _RESET_SEQ
-			record.levelname = levelname_color
-
-		record.priority = (self.Facility << 3) + severity
-
 		return json.dumps(record.__dict__)
 
 
