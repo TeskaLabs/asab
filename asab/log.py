@@ -430,8 +430,6 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 class JSONFormatter(StructuredDataFormatter):
 
 	def format(self, record):
-		record.struct_data = self.render_struct_data(record.__dict__.get("_struct_data"))
-
 		return json.dumps(record.__dict__)
 
 
