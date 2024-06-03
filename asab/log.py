@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 import logging.handlers
+import json
 import os
 import pprint
 import queue
@@ -151,6 +152,8 @@ class Logging(object):
 						self.SyslogHandler.setFormatter(SyslogRFC5424Formatter(sd_id=Config["logging"]["sd_id"]))
 					elif format == '5micro':
 						self.SyslogHandler.setFormatter(SyslogRFC5424microFormatter(sd_id=Config["logging"]["sd_id"]))
+					elif format == 'json':
+						self.SyslogHandler.setFormatter(JSONFormatter(sd_id=Config["logging"]["sd_id"]))
 					else:
 						self.SyslogHandler.setFormatter(SyslogRFC3164Formatter(sd_id=Config["logging"]["sd_id"]))
 					self.RootLogger.addHandler(self.SyslogHandler)
@@ -423,6 +426,44 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 
 		super().__init__(fmt=fmt, datefmt='%Y-%m-%dT%H:%M:%S.%f', style=style, sd_id=sd_id)
 		self.converter = time.gmtime
+
+
+class JSONFormatter(StructuredDataFormatter):
+
+	def format(self, record):
+		record.struct_data = self.render_struct_data(record.__dict__.get("_struct_data"))
+
+		# The Priority value is calculated by first multiplying the Facility number by 8 and then adding the numerical value of the Severity.
+		if record.levelno <= logging.DEBUG:
+			severity = 7  # Debug
+			color = self.BLUE
+		elif record.levelno <= logging.INFO:
+			severity = 6  # Informational
+			color = self.GREEN
+		elif record.levelno <= LOG_NOTICE:
+			severity = 5  # Notice
+			color = self.CYAN
+		elif record.levelno <= logging.WARNING:
+			severity = 4  # Warning
+			color = self.YELLOW
+		elif record.levelno <= logging.ERROR:
+			severity = 3  # Error
+			color = self.RED
+		elif record.levelno <= logging.CRITICAL:
+			severity = 2  # Critical
+			color = self.MAGENTA
+		else:
+			severity = 1  # Alert
+			color = self.WHITE
+
+		if self.UseColor:
+			levelname = record.levelname
+			levelname_color = _COLOR_SEQ % (30 + color) + levelname + _RESET_SEQ
+			record.levelname = levelname_color
+
+		record.priority = (self.Facility << 3) + severity
+
+		return json.dumps(record.__dict__)
 
 
 class FormatingDatagramHandler(logging.handlers.DatagramHandler):
