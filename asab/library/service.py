@@ -251,7 +251,16 @@ class LibraryService(Service):
 		"""
 
 		_validate_path_item(path)
-		itemio = await self.read(path, tenant)
+
+		# Same functionality as in read() method
+		itemio = None
+		disabled = self.check_disabled(path, tenant=tenant)
+		if not disabled:
+			for library in self.Libraries:
+				itemio = await library.read(path)
+				if itemio is not None:
+					break
+
 		if itemio is None:
 			yield itemio
 		else:
