@@ -258,8 +258,8 @@ class LibraryService(Service):
 		if not disabled:
 			for library in self.Libraries:
 				itemio = await library.read(path)
-				if itemio is None:
-					continue
+				if itemio is not None:
+					break
 
 		if itemio is None:
 			yield itemio
