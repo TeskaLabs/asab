@@ -59,7 +59,7 @@ envvars = [
 
 def create_manifest(args):
 	manifest = {
-		'created_at': datetime.datetime.utcnow().isoformat() + 'Z',  # This is OK, no tzinfo needed
+		'created_at': datetime.datetime.now(datetime.UTC).isoformat() + 'Z',  # This is OK, no tzinfo needed
 	}
 
 	try:
