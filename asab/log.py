@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 import logging.handlers
+import json
 import os
 import pprint
 import queue
@@ -127,10 +128,10 @@ class Logging(object):
 						))
 
 					elif url.scheme == 'udp':
-						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_DGRAM, (
+						self.SyslogHandler = FormatingDatagramHandler(
 							url.hostname if url.hostname is not None else 'localhost',
 							url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
-						))
+						)
 
 					elif url.scheme == 'unix-connect':
 						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_STREAM, url.path)
@@ -151,6 +152,8 @@ class Logging(object):
 						self.SyslogHandler.setFormatter(SyslogRFC5424Formatter(sd_id=Config["logging"]["sd_id"]))
 					elif format == '5micro':
 						self.SyslogHandler.setFormatter(SyslogRFC5424microFormatter(sd_id=Config["logging"]["sd_id"]))
+					elif format == 'json':
+						self.SyslogHandler.setFormatter(JSONFormatter(sd_id=Config["logging"]["sd_id"]))
 					else:
 						self.SyslogHandler.setFormatter(SyslogRFC3164Formatter(sd_id=Config["logging"]["sd_id"]))
 					self.RootLogger.addHandler(self.SyslogHandler)
@@ -425,6 +428,28 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 		self.converter = time.gmtime
 
 
+class JSONFormatter(StructuredDataFormatter):
+
+	def format(self, record):
+		return json.dumps(record.__dict__)
+
+
+class FormatingDatagramHandler(logging.handlers.DatagramHandler):
+
+	def __init__(self, host, port):
+		super().__init__(host, port)
+
+	def emit(self, record):
+		"""
+		Add formatting to DatagramHandler. See https://docs.python.org/3/library/logging.handlers.html
+		"""
+		try:
+			msg = self.format(record).encode('utf-8')
+			self.send(msg)
+		except Exception:
+			self.handleError(record)
+
+
 class AsyncIOHandler(logging.Handler):
 	"""
 	A logging handler similar to a standard `logging.handlers.SocketHandler` that utilizes `asyncio`.
@@ -470,7 +495,6 @@ class AsyncIOHandler(logging.Handler):
 		self._loop.add_writer(self._socket, self._on_write)
 		self._loop.add_reader(self._socket, self._on_read)
 
-
 	def _on_write(self):
 		self._write_ready = True
 		self._loop.remove_writer(self._socket)
@@ -496,9 +520,6 @@ class AsyncIOHandler(logging.Handler):
 			return
 		except Exception as e:
 			print("Error on the syslog socket '{}'".format(self._address), e, file=sys.stderr)
-
-		# Close a socket - there is no reason for reading or socket is actually closed
-		self._reset()
 
 
 	def emit(self, record):
