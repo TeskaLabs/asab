@@ -93,7 +93,7 @@ class DiscoveryService(Service):
 		return res
 
 
-	async def discover(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple[str, int, type[socket.AddressFamily.AF_INET6 | socket.AddressFamily.AF_INET]]]]]:
+	async def discover(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple]]]:
 		# We need to make a copy of the cache so that the caller can't modify our cache.
 		await asyncio.wait_for(self._ready_event.wait(), 600)
 		return copy.deepcopy(self._advertised_cache)
