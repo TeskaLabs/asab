@@ -101,11 +101,15 @@ class Application(metaclass=Singleton):
 		# Parse command line
 		self.Args = self.parse_arguments(args=args)
 
-		# Load configuration
-
 		# Obtain HostName
-		self.HostName = platform.node()
+		# The user can provide the actual hostname of the application in ASAB_HOSTNAME environment variable.
+		# This can be used to specify the hostname that is discoverable by other services in a cluster, if a local hostname is not suitable.
+		self.HostName = os.environ.get('ASAB_HOSTNAME', None)
+		if self.HostName is None:
+			self.HostName = platform.node()
 		os.environ['HOSTNAME'] = self.HostName
+
+		# Load configuration
 		Config._load()
 
 		if hasattr(self.Args, "daemonize") and self.Args.daemonize:

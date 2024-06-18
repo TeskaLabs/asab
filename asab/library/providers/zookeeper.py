@@ -299,11 +299,14 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), node.split(os.path.sep), False)
 			if startswithdot:
 				continue
+			# Extract the last 5 characters of the node name
+			last_five_chars = node[-5:]
 
-			if '.' in node and not node.endswith(('.io', '.d')):
-				# We detect files in Zookeeper by the presence of a dot in the filename,
-				# but exclude filenames ending with '.io' or '.d' (e.g., 'logman.io', server_https.d)
-				# from being considered as files.
+			# Check if there is a period in the last five characters,
+			# We detect files in Zookeeper by the presence of a dot in the filename,
+			# but exclude filenames ending with '.io' or '.d' (e.g., 'logman.io', server_https.d)
+			# from being considered as files.
+			if '.' in last_five_chars and not node.endswith(('.io', '.d')):
 				fname = base_path + node
 				ftype = "item"
 			else:

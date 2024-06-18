@@ -1,3 +1,5 @@
+import os
+import pprint
 import logging
 import aiohttp
 import aiohttp.web
@@ -8,11 +10,11 @@ import asab.api
 import asab.api.discovery
 import asab.zookeeper
 
-import os
-
 # `instance_id`` and `service_id` are identificators set as environemnt variables.
 # ASAB miroservices are meant to run in separate (Docker) containers.
-os.environ["INSTANCE_ID"] = "my_application_1"
+instance_id = "my_application_{}".format(os.getpid())
+os.environ["INSTANCE_ID"] = instance_id
+os.environ["SERVICE_ID"] = "service-discovery-demo"
 
 #
 
@@ -23,18 +25,18 @@ L = logging.getLogger(__name__)
 asab.Config.add_defaults(
 	{
 		"web": {
-			"listen": "0.0.0.0 8089",
+			"listen": "0",
 		},
 
 		"zookeeper": {
-			"path": "example",
-			"servers": "localhost:2181"
+			"path": "example2",
+			"servers": "zookeeper-1:2181"
 		},
 	}
 )
 
 
-class MyApplication(asab.Application):
+class ServiceDiscoveryDemoApplication(asab.Application):
 
 	async def initialize(self):
 		# Initialize web server
@@ -55,6 +57,14 @@ class MyApplication(asab.Application):
 		self.DiscoveryService = self.get_service("asab.DiscoveryService")
 
 		self.WebContainer.WebApp.router.add_get('/locate', self.locate_self)
+		self.PubSub.subscribe("Application.tick/10!", self._on_tick10)
+
+
+	async def _on_tick10(self, event_name):
+		discover = await self.DiscoveryService.discover()
+		print("Discovered services:")
+		pprint.pprint(discover)
+
 
 	async def locate_self(self, request):
 		# This method seeks for this application in the ZooKeeper. Thus, it calls itself, being a tiny Oroboros.
@@ -65,8 +75,8 @@ class MyApplication(asab.Application):
 		config = None
 		async with self.DiscoveryService.session() as session:
 			try:
-				# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective serivce identificator
-				async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
+				# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective service identificator
+				async with session.get("http://service-discovery-demo.service_id.asab/asab/v1/config") as resp:
 					if resp.status == 200:
 						config = await resp.json()
 			except asab.api.discovery.NotDiscoveredError as e:
@@ -79,5 +89,5 @@ class MyApplication(asab.Application):
 
 
 if __name__ == '__main__':
-	app = MyApplication()
+	app = ServiceDiscoveryDemoApplication()
 	app.run()

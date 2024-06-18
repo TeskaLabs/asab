@@ -81,7 +81,7 @@ class ApiService(Service):
 
 		# if creation time for att_id is not present then add
 		if "_c" not in att:
-			att["_c"] = datetime.datetime.utcnow().isoformat() + 'Z'  # This is OK, no tzinfo needed
+			att["_c"] = datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z'  # This is OK, no tzinfo needed
 
 		# add to microservice json/dict section attention_required
 		self._do_zookeeper_adv_data()
@@ -207,7 +207,7 @@ class ApiService(Service):
 		adv_data = {
 			'host': self.App.HostName,
 			'appclass': self.App.__class__.__name__,
-			'launch_time': datetime.datetime.utcfromtimestamp(self.App.LaunchTime).isoformat() + 'Z',
+			'launch_time': datetime.datetime.fromtimestamp(self.App.LaunchTime, datetime.timezone.utc).isoformat() + 'Z',
 			'process_id': os.getpid(),
 		}
 
@@ -223,6 +223,8 @@ class ApiService(Service):
 
 		service_id = os.getenv('SERVICE_ID', None)
 		if service_id is not None:
+			if service_id != service_id.lower():
+				L.warning("Service ID should be lowercase.")
 			adv_data["service_id"] = service_id
 
 		# An identifier of a site, of a specific deployment

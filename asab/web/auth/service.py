@@ -137,6 +137,9 @@ class AuthService(asab.Service):
 		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
 		self.AuthServerLastSuccessfulCheck = None
 
+		if self.Mode == AuthMode.ENABLED:
+			self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
+
 	def _prepare_mock_user_info(self):
 		# Load custom user info
 		mock_user_info_path = asab.Config.get("auth", "mock_user_info_path")
@@ -158,11 +161,6 @@ class AuthService(asab.Service):
 				list(t for t in user_info.get("resources", {}).keys() if t != "*"),
 				mock_user_info_path))
 		return user_info
-
-
-	async def initialize(self, app):
-		if self.Mode == AuthMode.ENABLED:
-			await self._fetch_public_keys_if_needed()
 
 
 	def is_enabled(self) -> bool:
