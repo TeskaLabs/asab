@@ -19,11 +19,12 @@ from ..log import LOG_NOTICE
 from .item import LibraryItem
 from ..application import Application
 from .providers.abc import LibraryProviderABC
+from ..exceptions import LibraryInvalidPathError
 
 #
 
 L = logging.getLogger(__name__)
-
+LogObsolete = logging.getLogger("OBSOLETE")
 
 #
 
@@ -184,10 +185,7 @@ class LibraryService(Service):
 			typing.Optional[typing.List[str]]: A list containing the paths to the found files,
 											`or an `empty list` if no files are found that match the filename.
 		"""
-		# File path must start with '/'
-		assert path[:1] == '/', "Item path '{}' must start with a forward slash (/). For example: /library/Templates/.setup.yaml".format(path)
-		# File path must end with the filename
-		assert len(os.path.splitext(path)[1]) > 0, "Item path '{}' must end with an extension. For example: /library/Templates/item.json".format(path)
+		_validate_path_item(path)
 
 		results = []
 		for library in self.Libraries:
@@ -219,10 +217,9 @@ class LibraryService(Service):
 				return itemio.read()
 		```
 		"""
-		# item path must start with '/'
-		assert path[:1] == '/', "Item path must start with a forward slash (/). For example: /library/Templates/item.json"
-		# Item path must end with the extension
-		assert len(os.path.splitext(path)[1]) > 0, "Item path must end with an extension. For example: /library/Templates/item.json"
+
+		LogObsolete.warning("Method 'LibraryService.read()' is obsolete. Use 'LibraryService.open()' method instead.")
+		_validate_path_item(path)
 
 		if self.check_disabled(path, tenant=tenant):
 			return None
@@ -253,7 +250,17 @@ class LibraryService(Service):
 		```
 		"""
 
-		itemio = await self.read(path, tenant)
+		_validate_path_item(path)
+
+		# Same functionality as in read() method
+		itemio = None
+		disabled = self.check_disabled(path, tenant=tenant)
+		if not disabled:
+			for library in self.Libraries:
+				itemio = await library.read(path)
+				if itemio is not None:
+					break
+
 		if itemio is None:
 			yield itemio
 		else:
@@ -276,12 +283,7 @@ class LibraryService(Service):
 			List of items that are enabled for the tenant.
 		"""
 
-		# Directory path must start with '/'
-		assert path[:1] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
-		# Directory path must end with '/'
-		assert path[-1:] == '/', "Directory path must end with a forward slash (/). For example: /library/Templates/"
-		# Directory path cannot contain '//'
-		assert '//' not in path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
+		_validate_path_directory(path)
 
 		# List requested level using all available providers
 		items = await self._list(path, tenant, providers=self.Libraries)
@@ -399,7 +401,10 @@ class LibraryService(Service):
 			`True` if the item is disabled for the tenant.
 		"""
 		if not isinstance(path, str) or not path:
-			raise ValueError("The 'path' must be a non-empty string.")
+			raise LibraryInvalidPathError(
+				message="Argument 'path' must be a non-empty string.",
+				path=path,
+			)
 
 		# First check disabled by path
 		for dp, disabled in self.DisabledPaths:
@@ -442,12 +447,7 @@ class LibraryService(Service):
 			A file object containing a gzipped tar archive.
 		"""
 
-		# Directory path must start with '/'
-		assert path[:1] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
-		# Directory path must end with '/'
-		assert path[-1:] == '/', "Directory path must end with a forward slash (/). For example: /library/Templates/"
-		# Directory path cannot contain '//'
-		assert '//' not in path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
+		_validate_path_directory(path)
 
 		fileobj = tempfile.TemporaryFile()
 		tarobj = tarfile.open(name=None, mode='w:gz', fileobj=fileobj)
@@ -514,7 +514,74 @@ class LibraryService(Service):
 		if isinstance(paths, str):
 			paths = [paths]
 		for path in paths:
-			assert path[:1] == '/', "Absolute path must be used when subscribing to the library changes"
+			if not path.startswith("/"):
+				raise LibraryInvalidPathError(
+					message="Directory path must start with '/' when subscribing to Library changes.",
+					path=path,
+				)
 
 			for provider in self.Libraries:
 				await provider.subscribe(path)
+
+
+def _validate_path_item(path: str) -> None:
+	# File path must start with '/'
+	if not path.startswith("/"):
+		raise LibraryInvalidPathError(
+			message="Item path must start with '/' (e.g. '/Templates/item.json')",
+			path=path,
+		)
+
+	# File path must end with extension (e.g. '.json')
+	if not len(os.path.splitext(path)[1]) > 0:
+		raise LibraryInvalidPathError(
+			message="Item path must end with an extension (e.g. '/Templates/item.json')",
+			path=path,
+		)
+
+	if ".." in path:
+		raise LibraryInvalidPathError(
+			message="Item path cannot contain '..'",
+			path=path,
+		)
+
+	if "~" in path:
+		raise LibraryInvalidPathError(
+			message="Item path cannot contain '~'",
+			path=path,
+		)
+
+
+def _validate_path_directory(path: str) -> None:
+	# Directory path must start with '/'
+	if not path.startswith("/"):
+		raise LibraryInvalidPathError(
+			message="Directory path must start with '/' (e.g. '/Templates/Email/')",
+			path=path,
+		)
+
+	# Directory path must end with '/'
+	if not path.endswith("/"):
+		raise LibraryInvalidPathError(
+			message="Directory path must end with '/' (e.g. '/Templates/Email/')",
+			path=path,
+		)
+
+	# Directory path cannot contain '//'
+	if "//" in path:
+		raise LibraryInvalidPathError(
+			message="Directory path cannot contain '//' (e.g. '/Templates/Email/')",
+			path=path,
+		)
+
+	if ".." in path:
+		raise LibraryInvalidPathError(
+			message="Directory path cannot contain '..'",
+			path=path,
+		)
+
+	if "~" in path:
+		raise LibraryInvalidPathError(
+			message="Directory path cannot contain '~'",
+			path=path,
+		)

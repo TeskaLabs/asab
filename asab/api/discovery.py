@@ -38,7 +38,7 @@ class DiscoveryService(Service):
 			self._update_cache(msg)
 
 
-	async def locate(self, instance_id: str = None, **kwargs) -> list:
+	async def locate(self, instance_id: str = None, **kwargs) -> set:
 		"""
 		Returns a list of URLs for a given instance or service ID.
 
@@ -93,7 +93,7 @@ class DiscoveryService(Service):
 		return res
 
 
-	async def discover(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple[str, int]]]]:
+	async def discover(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple]]]:
 		# We need to make a copy of the cache so that the caller can't modify our cache.
 		await asyncio.wait_for(self._ready_event.wait(), 600)
 		return copy.deepcopy(self._advertised_cache)
@@ -221,8 +221,10 @@ class DiscoveryService(Service):
 				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
 				return None
 
-		def get_data(item):
+			except kazoo.exceptions.KazooException:
+				return None
 
+		def get_data(item):
 			try:
 				data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get((base_path + '/' + item), watch=self._update_cache)
 				return data
@@ -230,8 +232,8 @@ class DiscoveryService(Service):
 				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
 				return None
 
-			except kazoo.exceptions.NoNodeError:
-				# 27/5/2024 Hotfix: This error sould be fixed properly
+			except kazoo.exceptions.KazooException:
+				# There's a race condition -> if ZK node is deleted between get_items and get_data calls, NoNodeError is raised. Let's just ignore it. The ZK node is already deleted.
 				return None
 
 		items = await self.ProactorService.execute(get_items)
