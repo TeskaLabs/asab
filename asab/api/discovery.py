@@ -339,7 +339,7 @@ class DiscoveryService(Service):
 		elif auth == "internal":
 			if headers is None:
 				headers = {}
-			headers["Authorization"] = self.InternalAuthToken
+			headers["Authorization"] = "Bearer {}".format(self.InternalAuthToken.serialize())
 		else:
 			raise ValueError("Invalid 'auth' value. Only instances of aiohttp.ClientRequest or 'internal' are allowed.")
 		return aiohttp.ClientSession(
