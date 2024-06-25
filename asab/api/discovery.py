@@ -1,3 +1,4 @@
+import datetime
 import json
 import copy
 import socket
@@ -6,6 +7,8 @@ import asyncio
 import logging
 
 import aiohttp
+import jwcrypto.jwt
+import jwcrypto.jwk
 import kazoo.exceptions
 
 from .. import Service
@@ -20,6 +23,10 @@ class DiscoveryService(Service):
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
 		self.ProactorService = zkc.ProactorService
+		self.InternalAuthKeyPath = "/vault/internal_auth.pem"
+		self.InternalAuthKey: typing.Optional[jwcrypto.jwk.JWK] = None
+		self.InternalAuthToken: typing.Optional[jwcrypto.jwt.JWT] = None
+		self.InternalAuthTokenExpiration: datetime.timedelta = datetime.timedelta(seconds=5 * 300)
 
 		self._advertised_cache = dict()
 		self._cache_lock = asyncio.Lock()
@@ -31,11 +38,69 @@ class DiscoveryService(Service):
 
 	def _on_tick(self, msg):
 		self._update_cache(msg)
+		self._ensure_internal_auth_token()
 
 
 	def _on_zk_ready(self, msg, zkc):
 		if zkc == self.ZooKeeperContainer:
 			self._update_cache(msg)
+			self.ProactorService.schedule(self._ensure_internal_auth_key, zkc)
+
+
+	def _ensure_internal_auth_key(self, zkc):
+		key = zkc.Client.get(self.InternalAuthKeyPath)
+		while not key:
+			key = self._generate_private_internal_auth_key()
+			try:
+				zkc.Client.create(self.InternalAuthKeyPath, key)
+				break
+			except kazoo.exceptions.NodeExistsError:
+				pass
+			key = zkc.Client.get(self.InternalAuthKeyPath)
+
+		self.InternalAuthKey = jwcrypto.jwk.JWK.from_pem(key)
+		self._ensure_internal_auth_token()
+
+
+	def _generate_private_internal_auth_key(self) -> bytes:
+		raise NotImplementedError("_generate_private_internal_auth_key")
+
+
+	def _ensure_internal_auth_token(self):
+		assert self.InternalAuthKey
+
+		if self.InternalAuthToken:
+			if self.InternalAuthToken.claims.get("exp") > (
+				datetime.datetime.now(datetime.UTC) - datetime.timedelta(seconds=300)
+			):
+				# Token is valid and does not expire soon
+				return
+
+		claims = {
+			# Issuer (URL of the app that created the token)
+			"iss": "http://{instance_id}.{service_id}.asab",
+			# Issued at
+			"iat": int(datetime.datetime.now(datetime.UTC).timestamp()),
+			# Expires at
+			"exp": int((datetime.datetime.now(datetime.UTC) + self.InternalAuthTokenExpiration).timestamp()),
+			# Authorized party
+			"azp": "http://{instance_id}.{service_id}.asab",
+			# Audience (who is allowed to use this token)
+			"aud": "http://asab",
+			# Tenants and resources
+			"resources": {
+				"*": ["authz:superuser"],
+			}
+		}
+		self.InternalAuthToken = jwcrypto.jwt.JWT(
+			header={
+				"alg": "ES256",
+				"typ": "JWT",
+				"kid": self.InternalAuthKey.key_id,
+			},
+			claims=json.dumps(claims)
+		)
+		self.InternalAuthToken.make_signed_token(self.InternalAuthKey)
 
 
 	async def locate(self, instance_id: str = None, **kwargs) -> set:
@@ -247,16 +312,42 @@ class DiscoveryService(Service):
 			yield item, json.loads(item_data)
 
 
-	def session(self, base_url=None, **kwargs) -> aiohttp.ClientSession:
-		'''
+	def session(self, base_url=None, auth=None, headers=None, **kwargs) -> aiohttp.ClientSession:
+		"""
 		Usage:
 
 		async with self.DiscoveryService.session() as session:
 			# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective serivce identificator
 			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
 				...
-		'''
-		return aiohttp.ClientSession(base_url, connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)), **kwargs)
+
+		# Using end-user authorization (from the UI)
+		async with self.DiscoveryService.session(auth=request) as session:
+			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
+				...
+
+		# Using internal m2m authorization
+		async with self.DiscoveryService.session(auth="internal") as session:
+			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
+				...
+		"""
+		if isinstance(auth, aiohttp.ClientRequest):
+			if headers is None:
+				headers = {}
+			assert "Authorization" in auth.headers
+			headers["Authorization"] = auth.headers.get("Authorization")
+		elif auth == "internal":
+			if headers is None:
+				headers = {}
+			headers["Authorization"] = self.InternalAuthToken
+		else:
+			raise ValueError("Invalid 'auth' value. Only instances of aiohttp.ClientRequest or 'internal' are allowed.")
+		return aiohttp.ClientSession(
+			base_url,
+			connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)),
+			headers=headers,
+			**kwargs
+		)
 
 
 	def _update_cache(self, watched_event):
