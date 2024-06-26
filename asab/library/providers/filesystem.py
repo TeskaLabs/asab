@@ -219,8 +219,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		except KeyError:
 			# subscribing to non-existing directory is silent
 			return
-		except ValueError:
-			return
 
 		for item in items:
 			if item.type == "dir":
