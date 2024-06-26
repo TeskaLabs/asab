@@ -132,7 +132,7 @@ class AuthService(asab.Service):
 				"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT)
 			)
 
-		self.TrustedPublicKeys = set()  # TODO: Support multiple public keys
+		self.TrustedPublicKeys: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
 		# Limit the frequency of auth server requests to save network traffic
 		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
 		self.AuthServerLastSuccessfulCheck = None
@@ -189,7 +189,7 @@ class AuthService(asab.Service):
 			return True
 		if self.Mode == AuthMode.MOCK:
 			return True
-		if not self.TrustedPublicKeys:
+		if not self.TrustedPublicKeys["keys"]:
 			return False
 		return True
 
@@ -200,7 +200,7 @@ class AuthService(asab.Service):
 		"""
 		if not self.is_ready():
 			# Try to load the public keys again
-			if not self.TrustedPublicKeys:
+			if not self.TrustedPublicKeys["keys"]:
 				await self._fetch_public_keys_if_needed()
 			if not self.is_ready():
 				L.error("Cannot authenticate request: Failed to load authorization server's public keys.")
@@ -276,6 +276,7 @@ class AuthService(asab.Service):
 		# Add internal shared auth key
 		if self.DiscoveryService is not None:
 			self.TrustedPublicKeys.add(self.DiscoveryService.InternalAuthorizationKey.get_public_key())
+			L.debug("Internal auth key loaded.")
 
 		now = datetime.datetime.now(datetime.timezone.utc)
 		if self.AuthServerLastSuccessfulCheck is not None \
