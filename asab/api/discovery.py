@@ -50,7 +50,7 @@ class DiscoveryService(Service):
 	def _ensure_internal_auth_key(self, zkc):
 		key = zkc.Client.get(self.InternalAuthKeyPath)
 		while not key:
-			key = self._generate_private_internal_auth_key()
+			key = _generate_private_key()
 			try:
 				zkc.Client.create(self.InternalAuthKeyPath, key)
 				break
@@ -60,10 +60,6 @@ class DiscoveryService(Service):
 
 		self.InternalAuthKey = jwcrypto.jwk.JWK.from_pem(key)
 		self._ensure_internal_auth_token()
-
-
-	def _generate_private_internal_auth_key(self) -> bytes:
-		raise NotImplementedError("_generate_private_internal_auth_key")
 
 
 	def _ensure_internal_auth_token(self):
@@ -341,7 +337,10 @@ class DiscoveryService(Service):
 				headers = {}
 			headers["Authorization"] = "Bearer {}".format(self.InternalAuthToken.serialize())
 		else:
-			raise ValueError("Invalid 'auth' value. Only instances of aiohttp.ClientRequest or 'internal' are allowed.")
+			raise ValueError(
+				"Invalid 'auth' value. "
+				"Only instances of aiohttp.ClientRequest or the literal string 'internal' are allowed."
+			)
 		return aiohttp.ClientSession(
 			base_url,
 			connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)),
@@ -403,3 +402,19 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 
 class NotDiscoveredError(RuntimeError):
 	pass
+
+
+def _generate_private_key() -> bytes:
+	import cryptography.hazmat.backends
+	import cryptography.hazmat.primitives.serialization
+	import cryptography.hazmat.primitives.asymmetric.ec
+	import cryptography.hazmat.primitives.ciphers.algorithms
+	_private_key = cryptography.hazmat.primitives.asymmetric.ec.generate_private_key(
+		cryptography.hazmat.primitives.asymmetric.ec.SECP256R1(),
+		cryptography.hazmat.backends.default_backend()
+	)
+	return _private_key.private_bytes(
+		encoding=cryptography.hazmat.primitives.serialization.Encoding.PEM,
+		format=cryptography.hazmat.primitives.serialization.PrivateFormat.PKCS8,
+		encryption_algorithm=cryptography.hazmat.primitives.serialization.NoEncryption()
+	)
