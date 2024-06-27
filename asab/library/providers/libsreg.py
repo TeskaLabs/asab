@@ -84,7 +84,12 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		self.SubscribedPaths = set()
 
 		self.App.TaskService.schedule(self._periodic_pull(None))
-		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
+
+		if version.startswith('v'):
+			# Fixed versions (ie v24.04) are much less likely to change, therefore we can check only every 12 hours
+			self.App.PubSub.subscribe("Application.tick/43200!", self._periodic_pull)
+		else:
+			self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
 
 	async def _periodic_pull(self, event_name):
