@@ -165,6 +165,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 										tar.extractall(temp_extract_dir)
 								except lzma.LZMAError:
 									L.exception("LZMAError", struct_data={'size': dwnld_size})
+									continue
 
 								# Synchronize the temp_extract_dir into the library
 								synchronize_dirs(self.RepoPath, temp_extract_dir)
