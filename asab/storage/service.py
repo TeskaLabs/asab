@@ -159,6 +159,9 @@ class StorageServiceABC(asab.Service):
 			else:
 				raise TypeError("Only 'bytes' objects can be encrypted")
 
+		# Append terminating character to separate padding from actual value
+		raw = raw + b"\xff"
+
 		# Pad the text to fit the blocks
 		pad_length = -len(raw) % block_size
 		if pad_length != 0:
@@ -212,6 +215,10 @@ class StorageServiceABC(asab.Service):
 
 		# Strip padding
 		raw = raw.rstrip(b"\x00")
+
+		# Remove terminating character
+		raw = raw[:-1]
+
 		return raw
 
 
