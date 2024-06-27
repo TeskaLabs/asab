@@ -184,7 +184,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 								# The repository has not changed ...
 								if not self.IsReady:
 									await self._set_ready()
-								
+
 								return  # We are done, leaving the loop
 
 							else:
