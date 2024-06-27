@@ -91,6 +91,8 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		"""
 		Changes in remote repository are being pulled every minute.
 		`PullLock` ensures that only if previous "pull" has finished, new one can start.
+
+		Uses E-Tags for caching and retries different URLs to fetch the latest version.
 		"""
 
 		if self.PullLock.locked():
@@ -106,77 +108,99 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 					etag = f.read().strip()
 					headers['If-None-Match'] = etag
 
-			url = random.choice(self.URLs)
+			# Prepare a list of URLs to try
+			# Randomize the order of the URLs (there might be more than one server to try)
+			# The list is trippled to increase the chance of getting the new version
+			# None is used as a separator between the URL sets - if the first URL set fails, we wait for 5 seconds before trying the next one
+			urllist = self.URLs.copy()
+			random.shuffle(urllist)
+			urllist = urllist + [None] + urllist + [None] + urllist
 
-			try:
-				async with aiohttp.ClientSession(trust_env=self.TrustEnv) as session:
-					async with session.get(url, headers=headers) as response:
+			for i in range(len(urllist)):
+				url = urllist[i]
 
-						if response.status == 200:  # The request indicates a new version that we don't have yet
+				if url is None:
+					# Sleep for 5 seconds before trying the next URL set
+					await asyncio.sleep(5)
+					continue
 
-							etag_incoming = response.headers.get('ETag')
+				last_try = i == len(urllist) - 1
+				try:
+					async with aiohttp.ClientSession(trust_env=self.TrustEnv) as session:
+						async with session.get(url, headers=headers) as response:
 
-							# Download new version
-							dwnld_size = 0
-							newtarfname = os.path.join(self.RootPath, "new.tar.xz")
-							with open(newtarfname, 'wb') as ftmp:
-								while True:
-									chunk = await response.content.read(16 * 1024)
-									if not chunk:
-										break
-									ftmp.write(chunk)
-									dwnld_size += len(chunk)
+							if response.status == 200:  # The request indicates a new version that we don't have yet
 
-							# Extract the contents to the temporary directory
-							temp_extract_dir = os.path.join(
-								self.RootPath,
-								"new"
-							)
+								etag_incoming = response.headers.get('ETag')
 
-							# Remove temp_extract_dir if it exists (from the last, failed run)
-							if os.path.exists(temp_extract_dir):
-								shutil.rmtree(temp_extract_dir)
+								# Download new version
+								dwnld_size = 0
+								newtarfname = os.path.join(self.RootPath, "new.tar.xz")
+								with open(newtarfname, 'wb') as ftmp:
+									while True:
+										chunk = await response.content.read(16 * 1024)
+										if not chunk:
+											break
+										ftmp.write(chunk)
+										dwnld_size += len(chunk)
 
-							# Extract the archive into the temp_extract_dir
-							try:
-								with tarfile.open(newtarfname, mode='r:xz') as tar:
-									tar.extractall(temp_extract_dir)
-							except lzma.LZMAError:
-								L.exception("LZMAError", struct_data={'size': dwnld_size})
+								# Extract the contents to the temporary directory
+								temp_extract_dir = os.path.join(
+									self.RootPath,
+									"new"
+								)
 
-							# Synchronize the temp_extract_dir into the library
-							synchronize_dirs(self.RepoPath, temp_extract_dir)
-							if not self.IsReady:
-								await self._set_ready()
+								# Remove temp_extract_dir if it exists (from the last, failed run)
+								if os.path.exists(temp_extract_dir):
+									shutil.rmtree(temp_extract_dir)
 
-							if etag_incoming is not None:
-								with open(etag_fname, 'w') as f:
-									f.write(etag_incoming)
+								# Extract the archive into the temp_extract_dir
+								try:
+									with tarfile.open(newtarfname, mode='r:xz') as tar:
+										tar.extractall(temp_extract_dir)
+								except lzma.LZMAError:
+									L.exception("LZMAError", struct_data={'size': dwnld_size})
 
-							# Remove temp_extract_dir
-							if os.path.exists(temp_extract_dir):
-								shutil.rmtree(temp_extract_dir)
+								# Synchronize the temp_extract_dir into the library
+								synchronize_dirs(self.RepoPath, temp_extract_dir)
+								if not self.IsReady:
+									await self._set_ready()
 
-							# Remove newtarfname
-							if os.path.exists(newtarfname):
-								os.remove(newtarfname)
+								if etag_incoming is not None:
+									with open(etag_fname, 'w') as f:
+										f.write(etag_incoming)
 
-						elif response.status == 304:
-							# The repository has not changed ...
-							if not self.IsReady:
-								await self._set_ready()
+								# Remove temp_extract_dir
+								if os.path.exists(temp_extract_dir):
+									shutil.rmtree(temp_extract_dir)
 
-						else:
-							L.error("Failed to download the library.", struct_data={"url": url, 'status': response.status})
+								# Remove newtarfname
+								if os.path.exists(newtarfname):
+									os.remove(newtarfname)
 
-			except aiohttp.ClientError as e:
-				L.error("Failed to download the library (ClientError).", struct_data={"url": url, 'error': e, 'exception': e.__class__.__name__})
+								return  # We are done, leaving the loop
 
-			except asyncio.TimeoutError as e:
-				L.error("Failed to download the library (TimeoutError).", struct_data={"url": url, 'error': e, 'exception': e.__class__.__name__})
+							elif response.status == 304:
+								# The repository has not changed ...
+								if not self.IsReady:
+									await self._set_ready()
+								
+								return  # We are done, leaving the loop
 
-			except Exception:
-				L.exception("Error when fetching the library content from a registry")
+							else:
+								if last_try:
+									L.error("Failed to download the library.", struct_data={"url": url, 'status': response.status})
+
+				except aiohttp.ClientError as e:
+					if last_try:
+						L.error("Failed to download the library (ClientError).", struct_data={"url": url, 'error': e, 'exception': e.__class__.__name__})
+
+				except asyncio.TimeoutError as e:
+					if last_try:
+						L.error("Failed to download the library (TimeoutError).", struct_data={"url": url, 'error': e, 'exception': e.__class__.__name__})
+
+				except Exception:
+					L.exception("Error when fetching the library content from a registry")
 
 
 	async def subscribe(self, path):
