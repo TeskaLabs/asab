@@ -9,6 +9,7 @@ try:
 	import cryptography.hazmat.primitives.ciphers
 	import cryptography.hazmat.primitives.ciphers.algorithms
 	import cryptography.hazmat.primitives.ciphers.modes
+	import cryptography.hazmat.primitives.padding
 except ModuleNotFoundError:
 	cryptography = None
 
@@ -145,7 +146,7 @@ class StorageServiceABC(asab.Service):
 		Raises:
 			TypeError: The data are not in binary format.
 		"""
-		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
+		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size
 
 		if self._AESKey is None:
 			raise RuntimeError(
@@ -159,22 +160,19 @@ class StorageServiceABC(asab.Service):
 			else:
 				raise TypeError("Only 'bytes' objects can be encrypted")
 
-		# Append terminating character to separate padding from actual value
-		raw = raw + b"\xff"
-
-		# Pad the text to fit the blocks
-		pad_length = -len(raw) % block_size
-		if pad_length != 0:
-			raw = raw + b"\00" * pad_length
+		# Pad the value to fit the block size
+		padder = cryptography.hazmat.primitives.padding.PKCS7(block_size).padder()
+		padded = padder.update(raw)
+		padded += padder.finalize()
 
 		if iv is None:
-			iv = secrets.token_bytes(block_size)
+			iv = secrets.token_bytes(block_size // 8)
 
 		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self._AESKey)
 		mode = cryptography.hazmat.primitives.ciphers.modes.CBC(iv)
 		cipher = cryptography.hazmat.primitives.ciphers.Cipher(algorithm, mode)
 		encryptor = cipher.encryptor()
-		encrypted = ENCRYPTED_PREFIX + iv + (encryptor.update(raw) + encryptor.finalize())
+		encrypted = ENCRYPTED_PREFIX + iv + (encryptor.update(padded) + encryptor.finalize())
 		return encrypted
 
 
@@ -188,7 +186,7 @@ class StorageServiceABC(asab.Service):
 		Returns:
 			The decrypted data.
 		"""
-		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size // 8
+		block_size = cryptography.hazmat.primitives.ciphers.algorithms.AES.block_size
 
 		if self._AESKey is None:
 			raise RuntimeError(
@@ -205,19 +203,23 @@ class StorageServiceABC(asab.Service):
 		encrypted = encrypted[len(ENCRYPTED_PREFIX):]
 
 		# Separate the initialization vector
-		iv, encrypted = encrypted[:block_size], encrypted[block_size:]
+		iv, encrypted = encrypted[:block_size // 8], encrypted[block_size // 8:]
 
 		algorithm = cryptography.hazmat.primitives.ciphers.algorithms.AES(self._AESKey)
 		mode = cryptography.hazmat.primitives.ciphers.modes.CBC(iv)
 		cipher = cryptography.hazmat.primitives.ciphers.Cipher(algorithm, mode)
 		decryptor = cipher.decryptor()
-		raw = decryptor.update(encrypted) + decryptor.finalize()
+		padded = decryptor.update(encrypted) + decryptor.finalize()
 
 		# Strip padding
-		raw = raw.rstrip(b"\x00")
-
-		# Remove terminating character
-		raw = raw[:-1]
+		unpadder = cryptography.hazmat.primitives.padding.PKCS7(block_size).unpadder()
+		raw = unpadder.update(padded)
+		try:
+			raw += unpadder.finalize()
+		except ValueError:
+			# Back-compat
+			L.warning("Incorrectly padded value.", struct_data={"value": padded[:8] + b"..."})
+			raw = padded.rstrip(b"\x00")
 
 		return raw
 
