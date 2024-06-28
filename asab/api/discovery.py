@@ -422,4 +422,3 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 
 class NotDiscoveredError(RuntimeError):
 	pass
-
