@@ -137,9 +137,9 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		for p in pathparts:
 			curmodel = curmodel.sub.get(p)
 			if curmodel is None:
-				raise KeyError("Not '{}' found".format(path))
+				raise KeyError("Path '{}' not found by AzureStorageLibraryProvider.".format(path))
 			if curmodel.type != 'dir':
-				raise KeyError("Not '{}' found".format(path))
+				raise KeyError("Path '{}' not found by AzureStorageLibraryProvider.".format(path))
 
 		items = []
 		for i in curmodel.sub.values():
