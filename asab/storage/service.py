@@ -214,12 +214,7 @@ class StorageServiceABC(asab.Service):
 		# Strip padding
 		unpadder = cryptography.hazmat.primitives.padding.PKCS7(block_size).unpadder()
 		raw = unpadder.update(padded)
-		try:
-			raw += unpadder.finalize()
-		except ValueError:
-			# Back-compat
-			L.warning("Incorrectly padded value.", struct_data={"value": padded[:8] + b"..."})
-			raw = padded.rstrip(b"\x00")
+		raw += unpadder.finalize()
 
 		return raw
 
