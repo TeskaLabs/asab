@@ -52,15 +52,18 @@ class DiscoveryService(Service):
 		# Attempt to create and write a new private key
 		# while avoiding race condition with other ASAB services
 		while not private_key:
-			private_key = _generate_private_key()
+			# Generate a new key
+			private_key = jwcrypto.jwk.JWK.generate(kty="EC", crv="P-256")
+			private_key_json = private_key.export(as_dict=True)
 			try:
-				zkc.Client.create(self.InternalAuthKeyPath, private_key)
+				zkc.Client.create(self.InternalAuthKeyPath, private_key_json)
 				break
 			except kazoo.exceptions.NodeExistsError:
 				# Another ASAB service has probably created the key in the meantime
 				pass
-			# Ensure that the key is loaded from ZK
-			private_key = zkc.Client.get(self.InternalAuthKeyPath)
+			# Ensure that the key is loaded and deserialized from ZK
+			private_key_json = zkc.Client.get(self.InternalAuthKeyPath)
+			private_key = jwcrypto.jwk.JWK.from_json(private_key_json)
 
 		self.InternalAuthKey = jwcrypto.jwk.JWK.from_pem(private_key)
 		self._ensure_internal_auth_token()
@@ -407,18 +410,3 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 class NotDiscoveredError(RuntimeError):
 	pass
 
-
-def _generate_private_key() -> bytes:
-	import cryptography.hazmat.backends
-	import cryptography.hazmat.primitives.serialization
-	import cryptography.hazmat.primitives.asymmetric.ec
-	import cryptography.hazmat.primitives.ciphers.algorithms
-	_private_key = cryptography.hazmat.primitives.asymmetric.ec.generate_private_key(
-		cryptography.hazmat.primitives.asymmetric.ec.SECP256R1(),
-		cryptography.hazmat.backends.default_backend()
-	)
-	return _private_key.private_bytes(
-		encoding=cryptography.hazmat.primitives.serialization.Encoding.PEM,
-		format=cryptography.hazmat.primitives.serialization.PrivateFormat.PKCS8,
-		encryption_algorithm=cryptography.hazmat.primitives.serialization.NoEncryption()
-	)
