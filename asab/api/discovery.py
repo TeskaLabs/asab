@@ -23,7 +23,7 @@ class DiscoveryService(Service):
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
 		self.ProactorService = zkc.ProactorService
-		self.InternalAuthKeyPath = "/vault/internal_auth.pem"
+		self.InternalAuthKeyPath = "/asab/auth/internal_auth_private_key"
 		self.InternalAuthKey: typing.Optional[jwcrypto.jwk.JWK] = None
 		self.InternalAuthToken: typing.Optional[jwcrypto.jwt.JWT] = None
 		self.InternalAuthTokenExpiration: datetime.timedelta = datetime.timedelta(seconds=5 * 300)
