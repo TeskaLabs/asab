@@ -7,9 +7,15 @@ import asyncio
 import logging
 
 import aiohttp
-import jwcrypto.jwt
-import jwcrypto.jwk
 import kazoo.exceptions
+
+try:
+	# Optional dependency for using internal authorization
+	import jwcrypto
+	import jwcrypto.jwt
+	import jwcrypto.jwk
+except ModuleNotFoundError:
+	jwcrypto = None
 
 from .. import Service
 
@@ -24,8 +30,8 @@ class DiscoveryService(Service):
 		self.ZooKeeperContainer = zkc
 		self.ProactorService = zkc.ProactorService
 		self.InternalAuthKeyPath = "/asab/auth/internal_auth_private.key"
-		self.InternalAuthKey: typing.Optional[jwcrypto.jwk.JWK] = None
-		self.InternalAuthToken: typing.Optional[jwcrypto.jwt.JWT] = None
+		self.InternalAuthKey = None
+		self.InternalAuthToken = None
 		self.InternalAuthTokenExpiration: datetime.timedelta = datetime.timedelta(seconds=5 * 300)
 
 		self._advertised_cache = dict()
@@ -38,13 +44,15 @@ class DiscoveryService(Service):
 
 	def _on_tick(self, msg):
 		self._update_cache(msg)
-		self._ensure_internal_auth_token()
+		if jwcrypto is not None:
+			self._ensure_internal_auth_token()
 
 
 	def _on_zk_ready(self, msg, zkc):
 		if zkc == self.ZooKeeperContainer:
 			self._update_cache(msg)
-			self.ProactorService.schedule(self._ensure_internal_auth_key, zkc)
+			if jwcrypto is not None:
+				self.ProactorService.schedule(self._ensure_internal_auth_key, zkc)
 
 
 	def _ensure_internal_auth_key(self, zkc):
@@ -340,6 +348,11 @@ class DiscoveryService(Service):
 			assert "Authorization" in auth.headers
 			headers["Authorization"] = auth.headers.get("Authorization")
 		elif auth == "internal":
+			if jwcrypto is None:
+				raise ModuleNotFoundError(
+					"You are trying to use internal auth without 'jwcrypto' installed. "
+					"Please run 'pip install jwcrypto' or install asab with 'authz' optional dependency."
+				)
 			if headers is None:
 				headers = {}
 			headers["Authorization"] = "Bearer {}".format(self.InternalAuthToken.serialize())
