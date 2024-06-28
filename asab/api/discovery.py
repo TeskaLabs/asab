@@ -48,17 +48,21 @@ class DiscoveryService(Service):
 
 
 	def _ensure_internal_auth_key(self, zkc):
-		key = zkc.Client.get(self.InternalAuthKeyPath)
-		while not key:
-			key = _generate_private_key()
+		private_key = zkc.Client.get(self.InternalAuthKeyPath)
+		# Attempt to create and write a new private key
+		# while avoiding race condition with other ASAB services
+		while not private_key:
+			private_key = _generate_private_key()
 			try:
-				zkc.Client.create(self.InternalAuthKeyPath, key)
+				zkc.Client.create(self.InternalAuthKeyPath, private_key)
 				break
 			except kazoo.exceptions.NodeExistsError:
+				# Another ASAB service has probably created the key in the meantime
 				pass
-			key = zkc.Client.get(self.InternalAuthKeyPath)
+			# Ensure that the key is loaded from ZK
+			private_key = zkc.Client.get(self.InternalAuthKeyPath)
 
-		self.InternalAuthKey = jwcrypto.jwk.JWK.from_pem(key)
+		self.InternalAuthKey = jwcrypto.jwk.JWK.from_pem(private_key)
 		self._ensure_internal_auth_token()
 
 
