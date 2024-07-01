@@ -257,18 +257,16 @@ class StructuredDataFormatter(logging.Formatter):
 
 
 	def __init__(self, facility=16, fmt=None, datefmt=None, style='%', sd_id='sd', use_color: bool = False):
+		# Because of custom formatting, the style is set to percent style and cannot be changed.
+		style = '%'
 		super().__init__(fmt, datefmt, style)
 		self.SD_id = sd_id
 		self.Facility = facility
 		self.UseColor = use_color
 
-
-	def format(self, record):
-		'''
-		Format the specified record as text.
-		'''
-
-		record.struct_data = self.render_struct_data(record.__dict__.get("_struct_data"))
+	def formatMessage(self, record):
+		values = record.__dict__.copy()
+		values["struct_data"] = self.render_struct_data(values.get("_struct_data"))
 
 		# The Priority value is calculated by first multiplying the Facility number by 8 and then adding the numerical value of the Severity.
 		if record.levelno <= logging.DEBUG:
@@ -296,11 +294,12 @@ class StructuredDataFormatter(logging.Formatter):
 		if self.UseColor:
 			levelname = record.levelname
 			levelname_color = _COLOR_SEQ % (30 + color) + levelname + _RESET_SEQ
-			record.levelname = levelname_color
+			values["levelname"] = levelname_color
 
-		record.priority = (self.Facility << 3) + severity
-		return super().format(record)
+		values["priority"] = (self.Facility << 3) + severity
 
+		# We use percent style formatting only
+		return self._fmt % values
 
 	def formatTime(self, record, datefmt=None):
 		'''
