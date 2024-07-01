@@ -43,21 +43,20 @@ class DiscoveryService(Service):
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 
 
-	def _on_tick(self, msg):
+	async def _on_tick(self, msg):
 		self._update_cache(msg)
 		if jwcrypto is not None:
-			self._ensure_internal_auth_token()
+			await self._ensure_internal_auth_token()
 
 
 	def _on_zk_ready(self, msg, zkc):
 		if zkc == self.ZooKeeperContainer:
 			self._update_cache(msg)
 			if jwcrypto is not None:
-				self.ProactorService.schedule(self._ensure_internal_auth_key, zkc)
+				self.App.TaskService.schedule(self._ensure_internal_auth_key(zkc))
 
 
-	def _ensure_internal_auth_key(self, zkc):
-
+	async def _ensure_internal_auth_key(self, zkc):
 		private_key_json = None
 		# Attempt to create and write a new private key
 		# while avoiding race condition with other ASAB services
@@ -80,21 +79,22 @@ class DiscoveryService(Service):
 
 		private_key = jwcrypto.jwk.JWK.from_json(private_key_json)
 		self.InternalAuthKey = private_key
-		self._ensure_internal_auth_token()
+		await self._ensure_internal_auth_token()
 
 
-	def _ensure_internal_auth_token(self):
+	async def _ensure_internal_auth_token(self):
 		assert self.InternalAuthKey
 
 		if self.InternalAuthToken:
-			if self.InternalAuthToken.claims.get("exp") > (
+			claims = json.loads(self.InternalAuthToken.claims)
+			if claims.get("exp") > (
 				datetime.datetime.now(datetime.UTC) - datetime.timedelta(seconds=300)
 			):
 				# Token is valid and does not expire soon
 				return
 
 		# Use this service's discovery URL as issuer ID and authorized party ID
-		discovery_url = self._get_own_discovery_url()
+		discovery_url = await self._get_own_discovery_url()
 		claims = {
 			# Issuer (URL of the app that created the token)
 			"iss": discovery_url,
@@ -111,6 +111,7 @@ class DiscoveryService(Service):
 				"*": ["authz:superuser"],
 			}
 		}
+		print(claims)
 		self.InternalAuthToken = jwcrypto.jwt.JWT(
 			header={
 				"alg": "ES256",
@@ -122,16 +123,17 @@ class DiscoveryService(Service):
 		self.InternalAuthToken.make_signed_token(self.InternalAuthKey)
 
 
-	def _get_own_discovery_url(self):
+	async def _get_own_discovery_url(self):
 		instance_id = os.getenv("INSTANCE_ID", None)
 		if instance_id:
-			# TODO: Can't do this because async:(
-			# urls: set = await self.locate(instance_id)
-			# return urls.pop()
-			return "http://{}.asab:someport".format(instance_id)
-		else:
-			# TODO: Build proper fallback URL using ApiService.WebContainers.Addresses
-			return "http://asab"
+			urls: set = await self.locate(instance_id)
+			try:
+				return urls.pop()
+			except KeyError:
+				pass
+
+		# TODO: Build proper fallback URL using ApiService.WebContainers.Addresses
+		return "http://asab"
 
 
 	async def locate(self, instance_id: str = None, **kwargs) -> set:

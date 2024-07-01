@@ -274,9 +274,12 @@ class AuthService(asab.Service):
 		Check if public keys have been fetched from the authorization server and fetch them if not yet.
 		"""
 		# Add internal shared auth key
-		if self.DiscoveryService is not None and self.DiscoveryService.InternalAuthKey is not None:
-			self.TrustedPublicKeys.add(self.DiscoveryService.InternalAuthKey.get_public_key())
-			L.debug("Internal auth key loaded.")
+		if self.DiscoveryService is not None:
+			if self.DiscoveryService.InternalAuthKey is not None:
+				self.TrustedPublicKeys.add(self.DiscoveryService.InternalAuthKey.public())
+			else:
+				L.debug("Internal auth key is not ready yet.")
+				self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
 
 		now = datetime.datetime.now(datetime.timezone.utc)
 		if self.AuthServerLastSuccessfulCheck is not None \
