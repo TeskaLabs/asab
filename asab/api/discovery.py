@@ -42,20 +42,20 @@ class DiscoveryService(Service):
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 
 
-	def _on_tick(self, msg):
+	async def _on_tick(self, msg):
 		self._update_cache(msg)
 		if jwcrypto is not None:
-			self._ensure_internal_auth_token()
+			await self._ensure_internal_auth_token()
 
 
-	def _on_zk_ready(self, msg, zkc):
+	async def _on_zk_ready(self, msg, zkc):
 		if zkc == self.ZooKeeperContainer:
 			self._update_cache(msg)
 			if jwcrypto is not None:
 				self.ProactorService.schedule(self._ensure_internal_auth_key, zkc)
 
 
-	def _ensure_internal_auth_key(self, zkc):
+	async def _ensure_internal_auth_key(self, zkc):
 		private_key = zkc.Client.get(self.InternalAuthKeyPath)
 		# Attempt to create and write a new private key
 		# while avoiding race condition with other ASAB services
@@ -74,10 +74,10 @@ class DiscoveryService(Service):
 			private_key = jwcrypto.jwk.JWK.from_json(private_key_json)
 
 		self.InternalAuthKey = jwcrypto.jwk.JWK.from_pem(private_key)
-		self._ensure_internal_auth_token()
+		await self._ensure_internal_auth_token()
 
 
-	def _ensure_internal_auth_token(self):
+	async def _ensure_internal_auth_token(self):
 		assert self.InternalAuthKey
 
 		if self.InternalAuthToken:
@@ -87,17 +87,19 @@ class DiscoveryService(Service):
 				# Token is valid and does not expire soon
 				return
 
+		# Use this service's discovery URL as issuer ID and authorized party ID
+		discovery_url = self._get_own_discovery_url()
 		claims = {
 			# Issuer (URL of the app that created the token)
-			"iss": "http://{instance_id}.{service_id}.asab",
+			"iss": discovery_url,
 			# Issued at
 			"iat": int(datetime.datetime.now(datetime.UTC).timestamp()),
 			# Expires at
 			"exp": int((datetime.datetime.now(datetime.UTC) + self.InternalAuthTokenExpiration).timestamp()),
 			# Authorized party
-			"azp": "http://{instance_id}.{service_id}.asab",
+			"azp": discovery_url,
 			# Audience (who is allowed to use this token)
-			"aud": "http://asab",
+			"aud": "http://asab",  # TODO: Something that signifies "anyone in this internal space"
 			# Tenants and resources
 			"resources": {
 				"*": ["authz:superuser"],
@@ -112,6 +114,16 @@ class DiscoveryService(Service):
 			claims=json.dumps(claims)
 		)
 		self.InternalAuthToken.make_signed_token(self.InternalAuthKey)
+
+
+	async def _get_own_discovery_url(self):
+		instance_id = os.getenv("INSTANCE_ID", None)
+		if instance_id:
+			urls: set = await self.locate(instance_id)
+			return urls.pop()
+		else:
+			# TODO: Build proper fallback URL using ApiService.WebContainers.Addresses
+			return "http://asab"
 
 
 	async def locate(self, instance_id: str = None, **kwargs) -> set:
