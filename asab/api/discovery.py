@@ -1,12 +1,22 @@
+import datetime
 import json
 import copy
 import socket
 import typing
 import asyncio
 import logging
+import os
 
 import aiohttp
 import kazoo.exceptions
+
+try:
+	# Optional dependency for using internal authorization
+	import jwcrypto
+	import jwcrypto.jwt
+	import jwcrypto.jwk
+except ModuleNotFoundError:
+	jwcrypto = None
 
 from .. import Service
 
@@ -20,6 +30,10 @@ class DiscoveryService(Service):
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
 		self.ProactorService = zkc.ProactorService
+		self.InternalAuthKeyPath = "/asab/auth/internal_auth_private.key"
+		self.InternalAuthKey = None
+		self.InternalAuthToken = None
+		self.InternalAuthTokenExpiration: datetime.timedelta = datetime.timedelta(seconds=5 * 300)
 
 		self._advertised_cache = dict()
 		self._cache_lock = asyncio.Lock()
@@ -29,13 +43,97 @@ class DiscoveryService(Service):
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 
 
-	def _on_tick(self, msg):
+	async def _on_tick(self, msg):
 		self._update_cache(msg)
+		if jwcrypto is not None:
+			await self._ensure_internal_auth_token()
 
 
 	def _on_zk_ready(self, msg, zkc):
 		if zkc == self.ZooKeeperContainer:
 			self._update_cache(msg)
+			if jwcrypto is not None:
+				self.App.TaskService.schedule(self._ensure_internal_auth_key(zkc))
+
+
+	async def _ensure_internal_auth_key(self, zkc):
+		private_key_json = None
+		# Attempt to create and write a new private key
+		# while avoiding race condition with other ASAB services
+		while not private_key_json:
+			# Try to get the key
+			try:
+				private_key_json, _ = zkc.ZooKeeper.Client.get(self.InternalAuthKeyPath)
+				break
+			except kazoo.exceptions.NoNodeError:
+				pass
+
+			# Generate a new key
+			private_key = jwcrypto.jwk.JWK.generate(kty="EC", crv="P-256")
+			private_key_json = json.dumps(private_key.export(as_dict=True)).encode("utf-8")
+			try:
+				zkc.ZooKeeper.Client.create(self.InternalAuthKeyPath, private_key_json, makepath=True)
+			except kazoo.exceptions.NodeExistsError:
+				# Another ASAB service has probably created the key in the meantime
+				pass
+
+		private_key = jwcrypto.jwk.JWK.from_json(private_key_json)
+		self.InternalAuthKey = private_key
+		await self._ensure_internal_auth_token()
+
+
+	async def _ensure_internal_auth_token(self):
+		assert self.InternalAuthKey
+
+		if self.InternalAuthToken:
+			claims = json.loads(self.InternalAuthToken.claims)
+			if claims.get("exp") > (
+				datetime.datetime.now(datetime.UTC) - datetime.timedelta(seconds=300)
+			):
+				# Token is valid and does not expire soon
+				return
+
+		# Use this service's discovery URL as issuer ID and authorized party ID
+		discovery_url = await self._get_own_discovery_url()
+		claims = {
+			# Issuer (URL of the app that created the token)
+			"iss": discovery_url,
+			# Issued at
+			"iat": int(datetime.datetime.now(datetime.UTC).timestamp()),
+			# Expires at
+			"exp": int((datetime.datetime.now(datetime.UTC) + self.InternalAuthTokenExpiration).timestamp()),
+			# Authorized party
+			"azp": discovery_url,
+			# Audience (who is allowed to use this token)
+			"aud": "http://asab",  # TODO: Something that signifies "anyone in this internal space"
+			# Tenants and resources
+			"resources": {
+				"*": ["authz:superuser"],
+			}
+		}
+		print(claims)
+		self.InternalAuthToken = jwcrypto.jwt.JWT(
+			header={
+				"alg": "ES256",
+				"typ": "JWT",
+				"kid": self.InternalAuthKey.key_id,
+			},
+			claims=json.dumps(claims)
+		)
+		self.InternalAuthToken.make_signed_token(self.InternalAuthKey)
+
+
+	async def _get_own_discovery_url(self):
+		instance_id = os.getenv("INSTANCE_ID", None)
+		if instance_id:
+			urls: set = await self.locate(instance_id)
+			try:
+				return urls.pop()
+			except KeyError:
+				pass
+
+		# TODO: Build proper fallback URL using ApiService.WebContainers.Addresses
+		return "http://asab"
 
 
 	async def locate(self, instance_id: str = None, **kwargs) -> set:
@@ -247,16 +345,53 @@ class DiscoveryService(Service):
 			yield item, json.loads(item_data)
 
 
-	def session(self, base_url=None, **kwargs) -> aiohttp.ClientSession:
-		'''
+	def session(self, base_url=None, auth=None, headers=None, **kwargs) -> aiohttp.ClientSession:
+		"""
 		Usage:
 
 		async with self.DiscoveryService.session() as session:
 			# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective serivce identificator
 			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
 				...
-		'''
-		return aiohttp.ClientSession(base_url, connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)), **kwargs)
+
+		# Using end-user authorization (from the UI)
+		async with self.DiscoveryService.session(auth=request) as session:
+			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
+				...
+
+		# Using internal m2m authorization
+		async with self.DiscoveryService.session(auth="internal") as session:
+			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
+				...
+		"""
+		if isinstance(auth, aiohttp.ClientRequest):
+			if headers is None:
+				headers = {}
+			assert "Authorization" in auth.headers
+			headers["Authorization"] = auth.headers.get("Authorization")
+		elif auth == "internal":
+			if jwcrypto is None:
+				raise ModuleNotFoundError(
+					"You are trying to use internal auth without 'jwcrypto' installed. "
+					"Please run 'pip install jwcrypto' or install asab with 'authz' optional dependency."
+				)
+			if headers is None:
+				headers = {}
+			headers["Authorization"] = "Bearer {}".format(self.InternalAuthToken.serialize())
+		elif auth is None:
+			pass
+		else:
+			raise ValueError(
+				"Invalid 'auth' value. "
+				"Only instances of aiohttp.ClientRequest or the literal string 'internal' are allowed. "
+				"Found {}.".format(type(auth))
+			)
+		return aiohttp.ClientSession(
+			base_url,
+			connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)),
+			headers=headers,
+			**kwargs
+		)
 
 
 	def _update_cache(self, watched_event):

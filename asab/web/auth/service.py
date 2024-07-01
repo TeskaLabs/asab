@@ -132,7 +132,7 @@ class AuthService(asab.Service):
 				"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT)
 			)
 
-		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
+		self.TrustedPublicKeys: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
 		# Limit the frequency of auth server requests to save network traffic
 		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
 		self.AuthServerLastSuccessfulCheck = None
@@ -189,7 +189,7 @@ class AuthService(asab.Service):
 			return True
 		if self.Mode == AuthMode.MOCK:
 			return True
-		if self.AuthServerPublicKey is None:
+		if not self.TrustedPublicKeys["keys"]:
 			return False
 		return True
 
@@ -200,21 +200,21 @@ class AuthService(asab.Service):
 		"""
 		if not self.is_ready():
 			# Try to load the public keys again
-			if self.AuthServerPublicKey is None:
+			if not self.TrustedPublicKeys["keys"]:
 				await self._fetch_public_keys_if_needed()
 			if not self.is_ready():
 				L.error("Cannot authenticate request: Failed to load authorization server's public keys.")
 				raise aiohttp.web.HTTPUnauthorized()
 
 		try:
-			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
+			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
 		except jwcrypto.jws.InvalidJWSSignature:
 			# Authz server keys may have changed. Try to reload them.
 			L.warning("Invalid ID token signature.")
 			await self._fetch_public_keys_if_needed()
 
 		try:
-			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
+			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
 		except jwcrypto.jws.InvalidJWSSignature:
 			L.error("Cannot authenticate request: Invalid ID token signature.")
 			raise asab.exceptions.NotAuthenticatedError()
@@ -273,6 +273,14 @@ class AuthService(asab.Service):
 		"""
 		Check if public keys have been fetched from the authorization server and fetch them if not yet.
 		"""
+		# Add internal shared auth key
+		if self.DiscoveryService is not None:
+			if self.DiscoveryService.InternalAuthKey is not None:
+				self.TrustedPublicKeys.add(self.DiscoveryService.InternalAuthKey.public())
+			else:
+				L.debug("Internal auth key is not ready yet.")
+				self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
+
 		now = datetime.datetime.now(datetime.timezone.utc)
 		if self.AuthServerLastSuccessfulCheck is not None \
 			and now < self.AuthServerLastSuccessfulCheck + self.AuthServerCheckCooldown:
@@ -337,7 +345,7 @@ class AuthService(asab.Service):
 		if public_key is None:
 			return
 
-		self.AuthServerPublicKey = public_key
+		self.TrustedPublicKeys.add(public_key)
 		self.AuthServerLastSuccessfulCheck = datetime.datetime.now(datetime.timezone.utc)
 		L.debug("Public key loaded.", struct_data={"url": self.PublicKeysUrl})
 
