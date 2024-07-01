@@ -5,6 +5,7 @@ import socket
 import typing
 import asyncio
 import logging
+import os
 
 import aiohttp
 import kazoo.exceptions
