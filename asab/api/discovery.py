@@ -43,42 +43,47 @@ class DiscoveryService(Service):
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 
 
-	async def _on_tick(self, msg):
+	def _on_tick(self, msg):
 		self._update_cache(msg)
 		if jwcrypto is not None:
-			await self._ensure_internal_auth_token()
+			self._ensure_internal_auth_token()
 
 
-	async def _on_zk_ready(self, msg, zkc):
+	def _on_zk_ready(self, msg, zkc):
 		if zkc == self.ZooKeeperContainer:
 			self._update_cache(msg)
 			if jwcrypto is not None:
 				self.ProactorService.schedule(self._ensure_internal_auth_key, zkc)
 
 
-	async def _ensure_internal_auth_key(self, zkc):
-		private_key = zkc.Client.get(self.InternalAuthKeyPath)
+	def _ensure_internal_auth_key(self, zkc):
+
+		private_key_json = None
 		# Attempt to create and write a new private key
 		# while avoiding race condition with other ASAB services
-		while not private_key:
+		while not private_key_json:
+			# Try to get the key
+			try:
+				private_key_json, _ = zkc.ZooKeeper.Client.get(self.InternalAuthKeyPath)
+				break
+			except kazoo.exceptions.NoNodeError:
+				pass
+
 			# Generate a new key
 			private_key = jwcrypto.jwk.JWK.generate(kty="EC", crv="P-256")
-			private_key_json = private_key.export(as_dict=True)
+			private_key_json = json.dumps(private_key.export(as_dict=True)).encode("utf-8")
 			try:
-				zkc.Client.create(self.InternalAuthKeyPath, private_key_json)
-				break
+				zkc.ZooKeeper.Client.create(self.InternalAuthKeyPath, private_key_json, makepath=True)
 			except kazoo.exceptions.NodeExistsError:
 				# Another ASAB service has probably created the key in the meantime
 				pass
-			# Ensure that the key is loaded and deserialized from ZK
-			private_key_json = zkc.Client.get(self.InternalAuthKeyPath)
-			private_key = jwcrypto.jwk.JWK.from_json(private_key_json)
 
-		self.InternalAuthKey = jwcrypto.jwk.JWK.from_pem(private_key)
-		await self._ensure_internal_auth_token()
+		private_key = jwcrypto.jwk.JWK.from_json(private_key_json)
+		self.InternalAuthKey = private_key
+		self._ensure_internal_auth_token()
 
 
-	async def _ensure_internal_auth_token(self):
+	def _ensure_internal_auth_token(self):
 		assert self.InternalAuthKey
 
 		if self.InternalAuthToken:
@@ -117,11 +122,13 @@ class DiscoveryService(Service):
 		self.InternalAuthToken.make_signed_token(self.InternalAuthKey)
 
 
-	async def _get_own_discovery_url(self):
+	def _get_own_discovery_url(self):
 		instance_id = os.getenv("INSTANCE_ID", None)
 		if instance_id:
-			urls: set = await self.locate(instance_id)
-			return urls.pop()
+			# TODO: Can't do this because async:(
+			# urls: set = await self.locate(instance_id)
+			# return urls.pop()
+			return "http://{}.asab:someport".format(instance_id)
 		else:
 			# TODO: Build proper fallback URL using ApiService.WebContainers.Addresses
 			return "http://asab"
@@ -369,10 +376,13 @@ class DiscoveryService(Service):
 			if headers is None:
 				headers = {}
 			headers["Authorization"] = "Bearer {}".format(self.InternalAuthToken.serialize())
+		elif auth is None:
+			pass
 		else:
 			raise ValueError(
 				"Invalid 'auth' value. "
-				"Only instances of aiohttp.ClientRequest or the literal string 'internal' are allowed."
+				"Only instances of aiohttp.ClientRequest or the literal string 'internal' are allowed. "
+				"Found {}.".format(type(auth))
 			)
 		return aiohttp.ClientSession(
 			base_url,
