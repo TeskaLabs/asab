@@ -420,10 +420,20 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 
 class JSONFormatter(logging.Formatter):
 
-	INSTANCE_ID = os.environ.get("INSTANCE_ID")
-	SERVICE_ID = os.environ.get("SERVICE_ID")
-	NODE_ID = os.environ.get("NODE_ID")
-	HOSTNAME = socket.gethostname()
+	def __init__(self):
+		self.Enricher = {}
+		instance_id = os.environ.get("INSTANCE_ID")
+		service_id = os.environ.get("SERVICE_ID")
+		node_id = os.environ.get("NODE_ID")
+		hostname = socket.gethostname()
+		if instance_id is not None:
+			self.Enricher["instance_id"] = instance_id
+		if service_id is not None:
+			self.Enricher["service_id"] = service_id
+		if node_id is not None:
+			self.Enricher["node_id"] = node_id
+		if hostname is not None:
+			self.Enricher["hostname"] = hostname
 
 	def _default(self, obj):
 		# If obj is not json serializable, convert it to string
@@ -434,12 +444,7 @@ class JSONFormatter(logging.Formatter):
 
 	def format(self, record):
 		r_copy = record.__dict__.copy()
-		r_copy.update({
-			"instance_id": self.INSTANCE_ID,
-			"service_id": self.SERVICE_ID,
-			"node_id": self.NODE_ID,
-			"hostname": self.HOSTNAME
-		})
+		r_copy.update(self.Enricher)
 		return json.dumps(r_copy, default=self._default)
 
 
