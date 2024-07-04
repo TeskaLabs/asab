@@ -111,13 +111,36 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		The context variable is reset to its default value (None) at the end of the operation.
 
 	Example:
-	```
-	tenant_token = TenantContextVar.set('default')
-	LibraryService.read("asab/library/schema.json")
-	TenantContextVar.reset(tenant_token)  # Reset to default context
-	```
+		Usage of TenantContextVar:
+		The 'TenantContextVar' context variable is used to specify the current tenant context.
+		It can be set at the beginning of an operation (e.g., a web request) to ensure that all
+		subsequent operations within that context are executed under the specified tenant.
+		The context variable is reset to its default value (None) at the end of the operation.
 
-	"""
+		Steps:
+
+		1. Import the necessary module:
+
+			import asab.library.providers.zookeeper
+
+		2. Set the context variable at the beginning of the operation:
+
+			tenant_token = asab.library.providers.zookeeper.TenantContextVar.set('default')
+
+		3. Perform the desired operation within the specified tenant context:
+
+			LibraryService.read("asab/library/schema.json")
+
+		4. Reset the context variable to its default value at the end of the operation:
+
+			asab.library.providers.zookeeper.TenantContextVar.reset(tenant_token)  # Reset to default context
+
+		Example:
+
+			tenant_token = asab.library.providers.zookeeper.TenantContextVar.set('default')
+			LibraryService.read("asab/library/schema.json")
+			asab.library.providers.zookeeper.TenantContextVar.reset(tenant_token)  # Reset to default context
+		"""
 
 	def __init__(self, library, path, layer):
 		super().__init__(library, layer)
