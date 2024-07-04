@@ -153,7 +153,7 @@ class Logging(object):
 					elif format == '5micro':
 						self.SyslogHandler.setFormatter(SyslogRFC5424microFormatter(sd_id=Config["logging"]["sd_id"]))
 					elif format == 'json':
-						self.SyslogHandler.setFormatter(JSONFormatter(sd_id=Config["logging"]["sd_id"]))
+						self.SyslogHandler.setFormatter(JSONFormatter())
 					else:
 						self.SyslogHandler.setFormatter(SyslogRFC3164Formatter(sd_id=Config["logging"]["sd_id"]))
 					self.RootLogger.addHandler(self.SyslogHandler)
@@ -427,10 +427,29 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 		self.converter = time.gmtime
 
 
-class JSONFormatter(StructuredDataFormatter):
+class JSONFormatter(logging.Formatter):
+
+	INSTANCE_ID = os.environ.get("INSTANCE_ID")
+	SERVICE_ID = os.environ.get("SERVICE_ID")
+	NODE_ID = os.environ.get("NODE_ID")
+	HOSTNAME = socket.gethostname()
+
+	def _default(self, obj):
+		# If obj is not json serializable, convert it to string
+		try:
+			return str(obj)
+		except Exception:
+			raise TypeError("Error when logging. Object {} of type {} is not JSON serializable.".format(obj, type(obj)))
 
 	def format(self, record):
-		return json.dumps(record.__dict__)
+		r_copy = record.__dict__.copy()
+		r_copy.update({
+			"instance_id": self.INSTANCE_ID,
+			"service_id": self.SERVICE_ID,
+			"node_id": self.NODE_ID,
+			"hostname": self.HOSTNAME
+		})
+		return json.dumps(r_copy, default=self._default)
 
 
 class FormatingDatagramHandler(logging.handlers.DatagramHandler):
