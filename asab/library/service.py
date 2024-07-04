@@ -270,7 +270,7 @@ class LibraryService(Service):
 				itemio.close()
 
 
-	async def list(self, path: str = "/", recursive: bool = False) -> typing.List[LibraryItem]:
+	async def list(self, path: str = "/", tenant: typing.Optional[str] = None, recursive: bool = False) -> typing.List[LibraryItem]:
 		"""
 		List the directory of the library specified by the path that are enabled for the specified tenant. This method can be used only after the Library is ready.
 
@@ -286,7 +286,7 @@ class LibraryService(Service):
 		_validate_path_directory(path)
 
 		# List requested level using all available providers
-		items = await self._list(path, providers=self.Libraries)
+		items = await self._list(path, tenant, providers=self.Libraries)
 
 		if recursive:
 			# If recursive scan is requested, then iterate thru list of items
@@ -301,12 +301,12 @@ class LibraryService(Service):
 				if item.type != 'dir':
 					continue
 
-				child_items = await self._list(item.name, providers=item.providers)
+				child_items = await self._list(item.name, tenant, providers=item.providers)
 				items.extend(child_items)
 				recitems.extend(child_items)
 		return items
 
-	async def _list(self, path, providers):
+	async def _list(self, tenant, path, providers):
 		# Execute the list query in all providers in-parallel
 		result = await asyncio.gather(*[
 			library.list(path)
@@ -326,7 +326,7 @@ class LibraryService(Service):
 				continue
 
 			for item in ress:
-				item.disabled = self.check_disabled(item.name)
+				item.disabled = self.check_disabled(item.name, tenant)
 
 				# If the item already exists, merge or override it
 				pitem = uniq.get(item.name)
