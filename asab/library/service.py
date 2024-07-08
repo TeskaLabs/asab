@@ -309,7 +309,7 @@ class LibraryService(Service):
 	async def _list(self, tenant, path, providers):
 		# Execute the list query in all providers in-parallel
 		result = await asyncio.gather(*[
-			library.list(path)
+			library.list(path, tenant)
 			for library in providers
 		], return_exceptions=True)
 

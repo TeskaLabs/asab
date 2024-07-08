@@ -291,7 +291,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper library provider is not ready")
 			raise RuntimeError("Zookeeper library provider is not ready")
 
-	async def list(self, path: str) -> list:
+	async def list(self, tenant: str, path: str) -> list:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
