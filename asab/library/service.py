@@ -306,7 +306,7 @@ class LibraryService(Service):
 				recitems.extend(child_items)
 		return items
 
-	async def _list(self, tenant, path, providers):
+	async def _list(self, path, tenant, providers):
 		# Execute the list query in all providers in-parallel
 		result = await asyncio.gather(*[
 			library.list(path)
