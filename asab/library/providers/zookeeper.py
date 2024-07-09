@@ -258,7 +258,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		nodes = await self.Zookeeper.get_children(node_path)
 		if nodes is None:
-			raise KeyError("Not '{}' found".format(node_path))
+			raise KeyError("Path '{}' not found by ZookeeperLibraryProvider.".format(node_path))
 
 		items = []
 		for node in nodes:

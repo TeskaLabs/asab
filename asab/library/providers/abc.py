@@ -20,8 +20,10 @@ class LibraryProviderABC(object):
 		"""
 		Reads a library item on the given path.
 
-		:param path: The path to the item to read
-		:return: I/O stream (read) with the content of the library item.
+		Args:
+			path: The path to the item to read.
+		Returns:
+			I/O stream (read) with the content of the library item.
 		"""
 		raise NotImplementedError("{}.read()".format(self.__class__.__name__))
 
@@ -30,8 +32,12 @@ class LibraryProviderABC(object):
 		"""
 		It lists all items in the library at the given path.
 
-		:param path: The path to the directory in the library to list
-		:return: A list (or iterable) of `LibraryItem`s.
+		Args:
+			path: The path to the directory in the library to list
+		Returns:
+			A list (or iterable) of `LibraryItem`s.
+		Raises:
+			`KeyError` when the path to item is not found by the library provider.
 		"""
 		raise NotImplementedError("{}.list()".format(self.__class__.__name__))
 
@@ -42,14 +48,19 @@ class LibraryProviderABC(object):
 
 	async def subscribe(self, path: str):
 		"""
-		It takes a path and subscribes to changes in this directory.
-		When change occurs, it creates a PubSub signal.
-		Use absolute path, startng with "/".
-		Keep in mind every provider requires specific implementation. These might vary in lag between change if the librarby and its propagation.
+		Take a path and subscribe to changes in this directory.
+		When change occurs, publish PubSub signal "Library.change!"
+
+		Note:
+		Keep in mind every provider requires specific implementation.
+		These might vary in lag between change if the library and its propagation.
 
 		Mind following when implementing this method:
-		- user can subscribe only on existing directory. -> Check whether subscribed path is a directory, specifically in the provider
+		- user can subscribe only on existing directory. -> Check whether subscribed path is a directory,
+			specifically in the provider
 		- subscribing to nonexisting directory or file should lead to silent error
 
+		Args:
+			path: Absolute path to subscribe (starting with "/")
 		"""
 		raise NotImplementedError("{}.subscribe()".format(self.__class__.__name__))
