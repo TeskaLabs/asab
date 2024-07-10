@@ -128,6 +128,9 @@ class MongoDBUpsertor(UpsertorABC):
 		if len(self.ModInc) > 0:
 			addobj['$inc'] = self.ModInc
 
+		if len(self.ModPull) > 0:
+			addobj['$pull'] = {k: {'$in': v} for k, v in self.ModPull.items()}
+
 		if len(self.ModPush) > 0:
 			addobj['$push'] = {k: {'$each': v} for k, v in self.ModPush.items()}
 
