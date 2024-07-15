@@ -153,7 +153,7 @@ class Logging(object):
 					elif format == '5micro':
 						self.SyslogHandler.setFormatter(SyslogRFC5424microFormatter(sd_id=Config["logging"]["sd_id"]))
 					elif format == 'json':
-						self.SyslogHandler.setFormatter(JSONFormatter(sd_id=Config["logging"]["sd_id"]))
+						self.SyslogHandler.setFormatter(JSONFormatter())
 					else:
 						self.SyslogHandler.setFormatter(SyslogRFC3164Formatter(sd_id=Config["logging"]["sd_id"]))
 					self.RootLogger.addHandler(self.SyslogHandler)
@@ -257,18 +257,16 @@ class StructuredDataFormatter(logging.Formatter):
 
 
 	def __init__(self, facility=16, fmt=None, datefmt=None, style='%', sd_id='sd', use_color: bool = False):
+		# Because of custom formatting, the style is set to percent style and cannot be changed.
+		style = '%'
 		super().__init__(fmt, datefmt, style)
 		self.SD_id = sd_id
 		self.Facility = facility
 		self.UseColor = use_color
 
-
-	def format(self, record):
-		'''
-		Format the specified record as text.
-		'''
-
-		record.struct_data = self.render_struct_data(record.__dict__.get("_struct_data"))
+	def formatMessage(self, record):
+		values = record.__dict__.copy()
+		values["struct_data"] = self.render_struct_data(values.get("_struct_data"))
 
 		# The Priority value is calculated by first multiplying the Facility number by 8 and then adding the numerical value of the Severity.
 		if record.levelno <= logging.DEBUG:
@@ -296,11 +294,12 @@ class StructuredDataFormatter(logging.Formatter):
 		if self.UseColor:
 			levelname = record.levelname
 			levelname_color = _COLOR_SEQ % (30 + color) + levelname + _RESET_SEQ
-			record.levelname = levelname_color
+			values["levelname"] = levelname_color
 
-		record.priority = (self.Facility << 3) + severity
-		return super().format(record)
+		values["priority"] = (self.Facility << 3) + severity
 
+		# We use percent style formatting only
+		return self._fmt % values
 
 	def formatTime(self, record, datefmt=None):
 		'''
@@ -428,10 +427,34 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 		self.converter = time.gmtime
 
 
-class JSONFormatter(StructuredDataFormatter):
+class JSONFormatter(logging.Formatter):
+
+	def __init__(self):
+		self.Enricher = {}
+		instance_id = os.environ.get("INSTANCE_ID")
+		service_id = os.environ.get("SERVICE_ID")
+		node_id = os.environ.get("NODE_ID")
+		hostname = socket.gethostname()
+		if instance_id is not None:
+			self.Enricher["instance_id"] = instance_id
+		if service_id is not None:
+			self.Enricher["service_id"] = service_id
+		if node_id is not None:
+			self.Enricher["node_id"] = node_id
+		if hostname is not None:
+			self.Enricher["hostname"] = hostname
+
+	def _default(self, obj):
+		# If obj is not json serializable, convert it to string
+		try:
+			return str(obj)
+		except Exception:
+			raise TypeError("Error when logging. Object {} of type {} is not JSON serializable.".format(obj, type(obj)))
 
 	def format(self, record):
-		return json.dumps(record.__dict__)
+		r_copy = record.__dict__.copy()
+		r_copy.update(self.Enricher)
+		return json.dumps(r_copy, default=self._default)
 
 
 class FormatingDatagramHandler(logging.handlers.DatagramHandler):
