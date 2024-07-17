@@ -223,7 +223,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			# The version has not changed
 			return
 
-		asyncio.create_task(self._on_library_changed())
+		self.App.TaskService.schedule(self._on_library_changed())
 
 
 
