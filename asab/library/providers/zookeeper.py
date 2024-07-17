@@ -1,5 +1,4 @@
 import io
-import asyncio
 import hashlib
 import typing
 import logging
