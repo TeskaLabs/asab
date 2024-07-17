@@ -128,6 +128,9 @@ class MongoDBUpsertor(UpsertorABC):
 		if len(self.ModInc) > 0:
 			addobj['$inc'] = self.ModInc
 
+		if len(self.ModPull) > 0:
+			addobj['$pull'] = {k: {'$in': v} for k, v in self.ModPull.items()}
+
 		if len(self.ModPush) > 0:
 			addobj['$push'] = {k: {'$each': v} for k, v in self.ModPush.items()}
 
@@ -166,16 +169,6 @@ class MongoDBUpsertor(UpsertorABC):
 				raise KeyError("NOT-FOUND")
 
 			self.ObjId = ret[id_name]
-
-		# for k, v in self.ModPull.items():
-		# 	o = obj.pop(k, None)
-		# 	if o is None: o = list()
-		# 	for x in v:
-		# 		try:
-		# 			o.remove(x)
-		# 		except ValueError:
-		# 			pass
-		# 	obj[k] = o
 
 		if self.Storage.WebhookURIs is not None:
 			webhook_data = {
