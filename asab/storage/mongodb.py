@@ -170,16 +170,6 @@ class MongoDBUpsertor(UpsertorABC):
 
 			self.ObjId = ret[id_name]
 
-		# for k, v in self.ModPull.items():
-		# 	o = obj.pop(k, None)
-		# 	if o is None: o = list()
-		# 	for x in v:
-		# 		try:
-		# 			o.remove(x)
-		# 		except ValueError:
-		# 			pass
-		# 	obj[k] = o
-
 		if self.Storage.WebhookURIs is not None:
 			webhook_data = {
 				"collection": self.Collection,
