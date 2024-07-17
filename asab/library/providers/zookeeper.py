@@ -152,7 +152,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_connected)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/SUSPENDED!", self._on_zk_lost)
-		self.App.PubSub.subscribe("Application.tick/60!", self._get_version_counter)
+		self.App.PubSub.subscribe("Application.tick/600!", self._get_version_counter)
 
 		# This will check a library for changes in subscribed folders even without version counter change.
 		self.App.PubSub.subscribe("Application.tick/60!", self._on_library_changed)
