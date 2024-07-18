@@ -316,7 +316,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	async def subscribe(self, path):
 		path = self.BasePath + path
 		self.Subscriptions[path] = await self._get_directory_hash(path)
-		print(self.Subscriptions)
 
 
 	async def _get_directory_hash(self, path):
