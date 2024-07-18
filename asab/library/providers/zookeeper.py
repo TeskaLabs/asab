@@ -345,9 +345,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				newdigest = await self._get_directory_hash(path)
 				if newdigest != digest:
 					self.Subscriptions[path] = newdigest
-					print("New changes in the library found by path: '{}'".format(path))
 					self.App.PubSub.publish("Library.change!", self, path)
-					print("\N{rabbit} New changes in the library found by path: '{}'".format(path))
 			except Exception as e:
 				L.error("Failed to process library change for path: '{}'. Reason: '{}'".format(path, e))
 
