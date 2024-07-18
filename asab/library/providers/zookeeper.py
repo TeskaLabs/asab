@@ -153,7 +153,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/SUSPENDED!", self._on_zk_lost)
 		self.App.PubSub.subscribe("Application.tick/60!", self._get_version_counter)
 
-		# This will check a library for changes in subscribed folders even without version counter change.
+		# This is a contingency check for changes for subscribed folders in library even without version counter change.
 		self.App.PubSub.subscribe("Application.tick/600!", self._on_library_changed)
 
 		self.Subscriptions = {}
@@ -316,6 +316,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	async def subscribe(self, path):
 		path = self.BasePath + path
 		self.Subscriptions[path] = await self._get_directory_hash(path)
+		print(self.Subscriptions)
 
 
 	async def _get_directory_hash(self, path):
@@ -339,12 +340,15 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 	async def _on_library_changed(self, event_name=None):
+
 		for path, digest in self.Subscriptions.items():
 			try:
 				newdigest = await self._get_directory_hash(path)
 				if newdigest != digest:
 					self.Subscriptions[path] = newdigest
+					print("New changes in the library found by path: '{}'".format(path))
 					self.App.PubSub.publish("Library.change!", self, path)
+					print("\N{rabbit} New changes in the library found by path: '{}'".format(path))
 			except Exception as e:
 				L.error("Failed to process library change for path: '{}'. Reason: '{}'".format(path, e))
 
