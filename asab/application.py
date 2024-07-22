@@ -101,11 +101,15 @@ class Application(metaclass=Singleton):
 		# Parse command line
 		self.Args = self.parse_arguments(args=args)
 
-		# Load configuration
-
 		# Obtain HostName
-		self.HostName = platform.node()
+		# The user can provide the actual hostname of the application in ASAB_HOSTNAME environment variable.
+		# This can be used to specify the hostname that is discoverable by other services in a cluster, if a local hostname is not suitable.
+		self.HostName = os.environ.get('ASAB_HOSTNAME', None)
+		if self.HostName is None:
+			self.HostName = platform.node()
 		os.environ['HOSTNAME'] = self.HostName
+
+		# Load configuration
 		Config._load()
 
 		if hasattr(self.Args, "daemonize") and self.Args.daemonize:
@@ -773,9 +777,10 @@ class Application(metaclass=Singleton):
 
 		if self.HousekeepingTime < now:
 			if now < self.HousekeepingTimeLimit and self.HousekeepingId <= today_id:
+				L.log(asab.LOG_NOTICE, "Housekeeping started.")
 				self.PubSub.publish("Application.housekeeping!")
 			else:
-				L.warning(
+				L.error(
 					"Housekeeping has not been executed: It is past the time limit.",
 					struct_data={
 						"housekeeping_time": self.HousekeepingTime.strftime("%Y-%m-%d %H:%M:%S"),
@@ -788,18 +793,9 @@ class Application(metaclass=Singleton):
 			self.HousekeepingTime += datetime.timedelta(days=1)
 			self.HousekeepingTimeLimit += datetime.timedelta(days=1)
 			self.HousekeepingId = _housekeeping_id(self.HousekeepingTime)
-			L.log(
-				LOG_NOTICE,
-				"Setting time for the next housekeeping.",
-				struct_data={
-					"next_housekeeping_time": self.HousekeepingTime.strftime("%Y-%m-%d %H:%M:%S"),
-					"next_time_limit": self.HousekeepingTimeLimit.strftime("%Y-%m-%d %H:%M:%S"),
-					"next_housekeeping_id": self.HousekeepingId,
-				}
-			)
 
 			if len(self.HousekeepingMissedEvents) > 0:
-				L.warning(
+				L.error(
 					"One or more Housekeeping events have not been executed.",
 					struct_data={
 						"missed_housekeeping_events": self.HousekeepingMissedEvents

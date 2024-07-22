@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 import logging.handlers
+import json
 import os
 import pprint
 import queue
@@ -56,7 +57,7 @@ class Logging(object):
 		if not self.RootLogger.hasHandlers():
 
 			# Add console logger if needed
-			if os.isatty(sys.stdout.fileno()) or os.environ.get('ASABFORCECONSOLE', '0') != '0':
+			if os.isatty(sys.stdout.fileno()) or os.environ.get('ASABFORCECONSOLE', '0') != '0' or Config.getboolean("logging:console", "enabled"):
 				self._configure_console_logging()
 
 			# Initialize file handler
@@ -127,10 +128,10 @@ class Logging(object):
 						))
 
 					elif url.scheme == 'udp':
-						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_INET, socket.SOCK_DGRAM, (
+						self.SyslogHandler = FormatingDatagramHandler(
 							url.hostname if url.hostname is not None else 'localhost',
 							url.port if url.port is not None else logging.handlers.SYSLOG_UDP_PORT
-						))
+						)
 
 					elif url.scheme == 'unix-connect':
 						self.SyslogHandler = AsyncIOHandler(app.Loop, socket.AF_UNIX, socket.SOCK_STREAM, url.path)
@@ -151,6 +152,8 @@ class Logging(object):
 						self.SyslogHandler.setFormatter(SyslogRFC5424Formatter(sd_id=Config["logging"]["sd_id"]))
 					elif format == '5micro':
 						self.SyslogHandler.setFormatter(SyslogRFC5424microFormatter(sd_id=Config["logging"]["sd_id"]))
+					elif format == 'json':
+						self.SyslogHandler.setFormatter(JSONFormatter())
 					else:
 						self.SyslogHandler.setFormatter(SyslogRFC3164Formatter(sd_id=Config["logging"]["sd_id"]))
 					self.RootLogger.addHandler(self.SyslogHandler)
@@ -254,18 +257,16 @@ class StructuredDataFormatter(logging.Formatter):
 
 
 	def __init__(self, facility=16, fmt=None, datefmt=None, style='%', sd_id='sd', use_color: bool = False):
+		# Because of custom formatting, the style is set to percent style and cannot be changed.
+		style = '%'
 		super().__init__(fmt, datefmt, style)
 		self.SD_id = sd_id
 		self.Facility = facility
 		self.UseColor = use_color
 
-
-	def format(self, record):
-		'''
-		Format the specified record as text.
-		'''
-
-		record.struct_data = self.render_struct_data(record.__dict__.get("_struct_data"))
+	def formatMessage(self, record):
+		values = record.__dict__.copy()
+		values["struct_data"] = self.render_struct_data(values.get("_struct_data"))
 
 		# The Priority value is calculated by first multiplying the Facility number by 8 and then adding the numerical value of the Severity.
 		if record.levelno <= logging.DEBUG:
@@ -293,11 +294,12 @@ class StructuredDataFormatter(logging.Formatter):
 		if self.UseColor:
 			levelname = record.levelname
 			levelname_color = _COLOR_SEQ % (30 + color) + levelname + _RESET_SEQ
-			record.levelname = levelname_color
+			values["levelname"] = levelname_color
 
-		record.priority = (self.Facility << 3) + severity
-		return super().format(record)
+		values["priority"] = (self.Facility << 3) + severity
 
+		# We use percent style formatting only
+		return self._fmt % values
 
 	def formatTime(self, record, datefmt=None):
 		'''
@@ -425,6 +427,52 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 		self.converter = time.gmtime
 
 
+class JSONFormatter(logging.Formatter):
+
+	def __init__(self):
+		self.Enricher = {}
+		instance_id = os.environ.get("INSTANCE_ID")
+		service_id = os.environ.get("SERVICE_ID")
+		node_id = os.environ.get("NODE_ID")
+		hostname = socket.gethostname()
+		if instance_id is not None:
+			self.Enricher["instance_id"] = instance_id
+		if service_id is not None:
+			self.Enricher["service_id"] = service_id
+		if node_id is not None:
+			self.Enricher["node_id"] = node_id
+		if hostname is not None:
+			self.Enricher["hostname"] = hostname
+
+	def _default(self, obj):
+		# If obj is not json serializable, convert it to string
+		try:
+			return str(obj)
+		except Exception:
+			raise TypeError("Error when logging. Object {} of type {} is not JSON serializable.".format(obj, type(obj)))
+
+	def format(self, record):
+		r_copy = record.__dict__.copy()
+		r_copy.update(self.Enricher)
+		return json.dumps(r_copy, default=self._default)
+
+
+class FormatingDatagramHandler(logging.handlers.DatagramHandler):
+
+	def __init__(self, host, port):
+		super().__init__(host, port)
+
+	def emit(self, record):
+		"""
+		Add formatting to DatagramHandler. See https://docs.python.org/3/library/logging.handlers.html
+		"""
+		try:
+			msg = self.format(record).encode('utf-8')
+			self.send(msg)
+		except Exception:
+			self.handleError(record)
+
+
 class AsyncIOHandler(logging.Handler):
 	"""
 	A logging handler similar to a standard `logging.handlers.SocketHandler` that utilizes `asyncio`.
@@ -470,7 +518,6 @@ class AsyncIOHandler(logging.Handler):
 		self._loop.add_writer(self._socket, self._on_write)
 		self._loop.add_reader(self._socket, self._on_read)
 
-
 	def _on_write(self):
 		self._write_ready = True
 		self._loop.remove_writer(self._socket)
@@ -496,9 +543,6 @@ class AsyncIOHandler(logging.Handler):
 			return
 		except Exception as e:
 			print("Error on the syslog socket '{}'".format(self._address), e, file=sys.stderr)
-
-		# Close a socket - there is no reason for reading or socket is actually closed
-		self._reset()
 
 
 	def emit(self, record):

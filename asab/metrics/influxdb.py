@@ -1,6 +1,7 @@
 import logging
 import aiohttp
 import urllib
+import socket
 import http.client
 
 import asab
@@ -110,7 +111,7 @@ class InfluxDBTarget(asab.Configurable):
 		rb = influxdb_format(m_tree, now)
 
 		if self.ProactorService is not None:
-			await self.ProactorService.execute(self._worker_upload, m_tree, rb)
+			self.ProactorService.schedule(self._worker_upload, m_tree, rb)
 
 		else:
 			try:
@@ -136,11 +137,12 @@ class InfluxDBTarget(asab.Configurable):
 
 		try:
 			conn.request("POST", self.WriteRequest, rb, self.Headers)
-		except ConnectionError:
+		except (ConnectionError, socket.gaierror):
 			L.error("Failed to connect to InfluxDB.", struct_data={"url": self.BaseURL})
 			return
 		except Exception as err:
 			L.exception("Failed to send metrics to InfluxDB: {}".format(err), struct_data={"url": self.BaseURL})
+			return
 
 		response = conn.getresponse()
 		if response.status != 204:

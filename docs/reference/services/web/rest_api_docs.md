@@ -19,7 +19,7 @@ self.ApiService.initialize_web() #(2)!
 
 After initializing the API Service, */doc* endpoint will become available. After you open it, you should see the following content:
 
-![Preview of Swagger documentation](../../images/rest-api-docs/1-preview.png)
+![Preview of Swagger documentation](../../../images/rest-api-docs/1-preview.png)
 
 You will notice that some or none of your endpoints have summaries, tags, or descriptions.
 
@@ -48,7 +48,7 @@ class TutorialApp(asab.Application):
 	<marquee>The description supports HTML tags</marquee>
 	"""
 ```
-![Preview of Swagger documentation with docstrings](../../images/rest-api-docs/2-preview-with-docs.png)
+![Preview of Swagger documentation with docstrings](../../../images/rest-api-docs/2-preview-with-docs.png)
 
 ## Describing parameters
 
@@ -96,7 +96,7 @@ configuration file:
 scopes=read,write
 ```
 
-To set up endpoint authorization, you can use [this example](../../examples/web-authz-userinfo).
+To set up endpoint authorization, you can use [this example](../../../examples/web-authz-userinfo).
 
 For the authorization bearer token to be added to the request, a scope is needed to be put into the security parameter in a docstring.
 It does not matter what it is called or if it exists, but it needs to be included.
@@ -118,7 +118,7 @@ async def top_secret_endpoint(self, request):
 
 After setting up Authorization, a green `Authorize` button should appear in the Swagger docs. After you click on it, you should see the following content:
 
-![Authorization of Swagger documentation](../../images/rest-api-docs/3-authorization.png)
+![Authorization of Swagger documentation](../../../images/rest-api-docs/3-authorization.png)
 
 
 ## Tags
@@ -154,8 +154,8 @@ There are two options for `default_route_tag`:
 
 === "`module_name`"
 	All tags without a custom name are displayed with the name of the **module** where the handler is defined.
-	![Authorization of Swagger documentation](../../images/rest-api-docs/4-module.png)
+	![Authorization of Swagger documentation](../../../images/rest-api-docs/4-module.png)
 
 === "`class_name`"
 	All tags without a custom name are displayed with the name of the **class** where the handler is defined.
-	![Authorization of Swagger documentation](../../images/rest-api-docs/5-class.png)
+	![Authorization of Swagger documentation](../../../images/rest-api-docs/5-class.png)

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+
+import asab.api
 import asab.web.rest
 
 
@@ -14,7 +16,7 @@ class MyApplication(asab.Application):
 		super().__init__()
 
 		# Create the Web server
-		web = asab.web.create_web_server(self)
+		web = asab.web.create_web_server(self, api = True)
 
 		# Add a route to the handler method
 		web.add_get('/hello', self.hello)

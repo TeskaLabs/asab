@@ -66,6 +66,7 @@ class ConfigParser(configparser.ConfigParser):
 		"logging:console": {
 			"format": "%(asctime)s %(levelname)s %(name)s %(struct_data)s%(message)s",
 			"datefmt": "%d-%b-%Y %H:%M:%S.%f",
+			"enabled": True
 		},
 
 		"logging:syslog": {
@@ -107,6 +108,21 @@ class ConfigParser(configparser.ConfigParser):
 			"limit": "05:00",
 			"run_at_startup": "no",
 		},
+
+		"auth": {
+			# URL location containing the authorization server's public JWK keys
+			# (often found at "/.well-known/jwks.json")
+			"public_keys_url": "",
+
+			# The "enabled" option switches authentication and authorization
+			# on, off or activates mock mode. The default value is True (on).
+			# In MOCK MODE
+			# - no authorization server is needed,
+			# - all incoming requests are mock-authorized with pre-defined user info,
+			# - custom mock user info can supplied in a JSON file.
+			# "enabled": "yes",
+			"mock_user_info_path": "/conf/mock-userinfo.json",
+		}
 	}
 
 	if 'ASAB_ZOOKEEPER_SERVERS' in os.environ:

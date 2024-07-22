@@ -79,31 +79,22 @@ SWAGGER_OAUTH_PAGE = """<!doctype html>
 </html>"""
 
 SWAGGER_DOC_PAGE = """<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<link type="text/css" rel="stylesheet" href="{swagger_css_url}">
-	<title>{title} API Documentation</title>
-	<style>
-		code {{ tab-size: 4; }}
-		pre {{ tab-size: 4; }}
-	</style>
-</head>
-<body>
-<div id="swagger-ui"></div>
-<script src="{swagger_js_url}"></script>
-<script>
-window.onload = () => {{
-	window.ui = SwaggerUIBundle({{
-		url: '{openapi_url}',
-		dom_id: '#swagger-ui',
-		presets: [
-			SwaggerUIBundle.presets.apis,
-			SwaggerUIBundle.SwaggerUIStandalonePreset
-		]
-	}})
-}}
-</script>
-</body>
-</html>"""
+<html>
+	<head>
+		<title>API Reference {openapi_url}</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<style>
+			body {{
+				margin: 0;
+			}}
+		</style>
+	</head>
+	<body>
+		<script
+			id="api-reference"
+			data-url="{openapi_url}"></script>
+		<script src="https://unpkg.com/@scalar/api-reference"></script>
+	</body>
+</html>
+"""

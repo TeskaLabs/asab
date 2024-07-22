@@ -1,8 +1,16 @@
+from ..config import Config
+
 
 class WebRequestsMetrics(object):
 
 	def __init__(self, metrics_svc):
 		self.MetricsService = metrics_svc
+		# to customize duration histogram, provide bucket upper bound values separated by comma ","
+		duration_histogram_buckets = Config.get("asab:metrics", "web_requests_duration_histogram_buckets", fallback=None)
+		if duration_histogram_buckets is None:
+			duration_histogram_buckets = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10, 50]
+		else:
+			duration_histogram_buckets = [float(bucket.strip()) for bucket in duration_histogram_buckets.split(",")]
 
 		self.MaxDurationCounter = self.MetricsService.create_aggregation_counter(
 			"web_requests_duration_max",
@@ -32,7 +40,7 @@ class WebRequestsMetrics(object):
 		)
 		self.DurationHistogram = self.MetricsService.create_histogram(
 			"web_requests_duration_hist",
-			buckets=[0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1, 1, 5, 10, 50],
+			buckets=duration_histogram_buckets,
 			unit="seconds",
 			help="Categorizes requests based on their duration.",
 			dynamic_tags=True,

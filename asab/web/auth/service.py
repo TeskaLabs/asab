@@ -25,6 +25,8 @@ try:
 except ModuleNotFoundError:
 	jwcrypto = None
 
+from ...api.discovery import NotDiscoveredError
+
 #
 
 L = logging.getLogger(__name__)
@@ -51,22 +53,18 @@ MOCK_USERINFO_DEFAULT = {
 	"email": "capybara1999@example.com",
 	# Authorized tenants and resources
 	"resources": {
-		# Globally granted resources
+		# Globally authorized resources
 		"*": [
 			"authz:superuser",
 		],
-		# Resources granted within the tenant "default"
+		# Resources authorized within the tenant "default"
 		"default": [
 			"authz:superuser",
 			"some-test-data:access",
 		],
-		# Resources granted within the tenant "test-tenant"
-		"test-tenant": [
-			"authz:superuser",
-			"cake:eat",
-		],
 	},
-	# Subject's assigned (not authorized!) tenants
+	# List of tenants that the user is a member of.
+	# These tenants are NOT AUTHORIZED!
 	"tenants": ["default", "test-tenant", "another-tenant"]
 }
 
@@ -79,37 +77,36 @@ class AuthMode(enum.Enum):
 	MOCK = enum.auto()
 
 
-asab.Config.add_defaults({
-	"auth": {
-		# URL location containing the authorization server's public JWK keys
-		# (often found at "/.well-known/jwks.json")
-		"public_keys_url": "",
-
-		# Whether the app is tenant-aware
-		"multitenancy": "yes",
-
-		# The "enabled" option switches authentication and authorization
-		# on, off or activates mock mode. The default value is True (on).
-		# In MOCK MODE
-		# - no authorization server is needed,
-		# - all incoming requests are mock-authorized with pre-defined user info,
-		# - custom mock user info can supplied in a JSON file.
-		# "enabled": "yes",
-		"mock_user_info_path": "/conf/mock-userinfo.json",
-	}
-})
-
-
 class AuthService(asab.Service):
 	"""
 	Provides authentication and authorization of incoming requests.
+
+	Configuration:
+		Configuration section: auth
+		Configuration options:
+			public_keys_url:
+				- default: ""
+				- URL containing the authorization server's public JWKey set (usually found at "/.well-known/jwks.json")
+			enabled:
+				- default: "yes"
+				- options: "yes", "no", "mocked"
+				- Switch authentication and authorization on, off or activate mock mode.
+				- In MOCK MODE
+					- no authorization server is needed,
+					- all incoming requests are mock-authorized with pre-defined user info,
+					- custom mock user info can supplied in a JSON file.
+			mock_user_info_path:
+				- default: "/conf/mock-userinfo.json"
 	"""
+
 	_PUBLIC_KEYS_URL_DEFAULT = "http://localhost:3081/.well-known/jwks.json"
 
-	def __init__(self, app, service_name="asab.AuthzService"):
+	def __init__(self, app, service_name="asab.AuthService"):
 		super().__init__(app, service_name)
-		self.MultitenancyEnabled = asab.Config.getboolean("auth", "multitenancy")
 		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
+
+		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
+		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
 
 		enabled = asab.Config.get("auth", "enabled", fallback=True)
 		if enabled == "mock":
@@ -140,6 +137,9 @@ class AuthService(asab.Service):
 		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
 		self.AuthServerLastSuccessfulCheck = None
 
+		if self.Mode == AuthMode.ENABLED:
+			self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
+
 	def _prepare_mock_user_info(self):
 		# Load custom user info
 		mock_user_info_path = asab.Config.get("auth", "mock_user_info_path")
@@ -161,11 +161,6 @@ class AuthService(asab.Service):
 				list(t for t in user_info.get("resources", {}).keys() if t != "*"),
 				mock_user_info_path))
 		return user_info
-
-
-	async def initialize(self, app):
-		if self.Mode == AuthMode.ENABLED:
-			await self._fetch_public_keys_if_needed()
 
 
 	def is_enabled(self) -> bool:
@@ -225,6 +220,17 @@ class AuthService(asab.Service):
 			raise asab.exceptions.NotAuthenticatedError()
 
 
+	def get_authorized_tenant(self, request) -> typing.Optional[str]:
+		"""
+		Get the request's authorized tenant.
+		"""
+		if hasattr(request, "_AuthorizedTenants"):
+			for tenant in request._AuthorizedTenants:
+				# Return the first authorized tenant
+				return tenant
+		return None
+
+
 	def has_superuser_access(self, authorized_resources: typing.Iterable) -> bool:
 		"""
 		Check if the superuser resource is present in the authorized resource list.
@@ -248,6 +254,21 @@ class AuthService(asab.Service):
 		return True
 
 
+	def has_tenant_access(
+		self, authorized_resources: typing.Iterable, authorized_tenants: typing.Iterable, tenant: str
+	) -> bool:
+		"""
+		Check if the request is authorized to access a tenant.
+		If the request has superuser access, tenant access is always implicitly granted.
+		"""
+		if self.Mode == AuthMode.DISABLED:
+			return True
+		if self.has_superuser_access(authorized_resources):
+			return True
+		if tenant in authorized_tenants:
+			return True
+		return False
+
 	async def _fetch_public_keys_if_needed(self, *args, **kwargs):
 		"""
 		Check if public keys have been fetched from the authorization server and fetch them if not yet.
@@ -258,7 +279,7 @@ class AuthService(asab.Service):
 			# Public keys have been fetched recently
 			return
 
-		async with aiohttp.ClientSession() as session:
+		async def fetch_keys(session):
 			try:
 				async with session.get(self.PublicKeysUrl) as response:
 					if response.status != 200:
@@ -297,10 +318,28 @@ class AuthService(asab.Service):
 					"url": self.PublicKeysUrl,
 				})
 				return
+			return public_key
+
+		if self.DiscoveryService is None:
+			async with aiohttp.ClientSession() as session:
+				public_key = await fetch_keys(session)
+
+		else:
+			async with self.DiscoveryService.session() as session:
+				try:
+					public_key = await fetch_keys(session)
+				except NotDiscoveredError as e:
+					L.error("Service Discovery error while loading public keys: {}".format(e), struct_data={
+						"url": self.PublicKeysUrl,
+					})
+					return
+
+		if public_key is None:
+			return
 
 		self.AuthServerPublicKey = public_key
 		self.AuthServerLastSuccessfulCheck = datetime.datetime.now(datetime.timezone.utc)
-		L.log(asab.LOG_NOTICE, "Public key loaded.", struct_data={"url": self.PublicKeysUrl})
+		L.debug("Public key loaded.", struct_data={"url": self.PublicKeysUrl})
 
 
 	def _authenticate_request(self, handler):
@@ -325,20 +364,24 @@ class AuthService(asab.Service):
 				assert user_info is not None
 				request._UserInfo = user_info
 				resource_dict = request._UserInfo["resources"]
-				request._Resources = frozenset(resource_dict.get("*", []))
-				request._Tenants = frozenset(t for t in resource_dict.keys() if t != "*")
+				request._AuthorizedResources = frozenset(resource_dict.get("*", []))
+				request._AuthorizedTenants = frozenset(t for t in resource_dict.keys() if t != "*")
 			else:
 				request._UserInfo = None
-				request._Resources = None
-				request._Tenants = None
+				request._AuthorizedResources = None
+				request._AuthorizedTenants = None
 
 			# Add access control methods to the request
 			def has_resource_access(*required_resources: list) -> bool:
-				return self.has_resource_access(request._Resources, required_resources)
+				return self.has_resource_access(request._AuthorizedResources, required_resources)
 			request.has_resource_access = has_resource_access
 
+			def has_tenant_access(tenant: str) -> bool:
+				return self.has_tenant_access(request._AuthorizedResources, request._AuthorizedTenants, tenant)
+			request.has_tenant_access = has_tenant_access
+
 			def has_superuser_access() -> bool:
-				return self.has_superuser_access(request._Resources)
+				return self.has_superuser_access(request._AuthorizedResources)
 			request.has_superuser_access = has_superuser_access
 
 			return await handler(*args, **kwargs)
@@ -398,10 +441,8 @@ class AuthService(asab.Service):
 		if "tenant" in args:
 			if tenant_in_path:
 				handler = self._add_tenant_from_path(handler)
-			elif self.MultitenancyEnabled or self.Mode == AuthMode.MOCK:
-				handler = self._add_tenant_from_query(handler)
 			else:
-				handler = self._add_tenant_none(handler)
+				handler = self._add_tenant_from_query(handler)
 
 		handler = self._authenticate_request(handler)
 		route._handler = handler
@@ -412,12 +453,13 @@ class AuthService(asab.Service):
 		Check access to requested tenant and add tenant resources to the request
 		"""
 		# Check if tenant access is authorized
-		if tenant not in request._Tenants:
+		if tenant not in request._AuthorizedTenants:
 			L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
 			raise asab.exceptions.AccessDeniedError()
 
 		# Extend globally granted resources with tenant-granted resources
-		request._Resources = frozenset(request._Resources.union(request._UserInfo["resources"].get(tenant, [])))
+		request._AuthorizedResources = set(request._AuthorizedResources.union(
+			request._UserInfo["resources"].get(tenant, [])))
 
 
 	def _add_tenant_from_path(self, handler):
@@ -445,27 +487,12 @@ class AuthService(asab.Service):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 			if "tenant" not in request.query:
-				if self.Mode != AuthMode.MOCK:
-					L.error("Request is missing 'tenant' query parameter.")
-					raise aiohttp.web.HTTPBadRequest()
-				tenant = None
+				return await handler(*args, tenant=None, **kwargs)
 			else:
 				tenant = request.query["tenant"]
 				if self.Mode != AuthMode.DISABLED:
 					self._authorize_tenant_request(request, tenant)
 			return await handler(*args, tenant=tenant, **kwargs)
-
-		return wrapper
-
-
-	def _add_tenant_none(self, handler):
-		"""
-		Add tenant=None to the handler arguments
-		"""
-
-		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
-			return await handler(*args, tenant=None, **kwargs)
 
 		return wrapper
 
@@ -558,5 +585,5 @@ def _add_resources(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
-		return await handler(*args, resources=request._Resources, **kwargs)
+		return await handler(*args, resources=request._AuthorizedResources, **kwargs)
 	return wrapper

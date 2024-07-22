@@ -35,6 +35,8 @@ Present if SERVICE_ID environmental variable is specified. It names a service in
 - `instance_id`: 
 Present if INSTANCE_ID environmental variable is specified. It names an instance in the cluster.
 
+- `site_id`:
+Present if SITE_ID environmental variable is specified. It is a name a site, of a specific deployment.
 
 ## Dynamic Tags
 !!! example

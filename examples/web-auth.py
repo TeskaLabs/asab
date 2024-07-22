@@ -3,28 +3,29 @@ import asab.web.rest
 import asab.web.auth
 import typing
 
-# Set up a web container listening at port 8080
-asab.Config["web"] = {"listen": "0.0.0.0 8080"}
+if "web" not in asab.Config:
+	asab.Config["web"] = {
+		# Set up a web container listening at port 8080
+		"listen": "8080"
+	}
 
-# Disables or enables all authentication and authorization, or switches it into MOCK mode.
-# When disabled, the `resources` and `userinfo` handler arguments are set to `None`.
-asab.Config["auth"]["enabled"] = "mock"  # Mock authorization, useful for debugging.
-# asab.Config["auth"]["enabled"] = "yes"   # Authorization is enabled.
-# asab.Config["auth"]["enabled"] = "no"    # Authorization is disabled.
+if "auth" not in asab.Config:
+	asab.Config["auth"] = {
+		# Disable or enable all authentication and authorization, or switch into MOCK mode.
+		# When disabled, the `resources` and `userinfo` handler arguments are set to `None`.
+		"enabled": "mock",  # Mock authorization, useful for debugging.
+		# "enabled": "yes",   # Authorization is enabled.
+		# "enabled": "no",   # Authorization is disabled.
 
-# Changes the behavior of endpoints with configurable tenant parameter.
-# With multitenancy enabled, the `tenant` paramerter in query is required.
-# With multitenancy disabled, the `tenant` paramerter in query is ignored.
-asab.Config["auth"]["multitenancy"] = "yes"
+		# Activating the mock mode disables communication with the authorization server.
+		# The requests' Authorization headers are ignored and AuthService provides mock authorization with mock user info.
+		# You can provide custom user info by specifying the path pointing to your JSON file.
+		"mock_user_info_path": "./mock-userinfo.json",
 
-# Activating the mock mode disables communication with the authorization server.
-# The requests' Authorization headers are ignored and AuthService provides mock authorization with mock user info.
-# You can provide custom user info by specifying the path pointing to your JSON file.
-asab.Config["auth"]["mock_user_info_path"] = "./mock-userinfo.json"
-
-# URL of the authorization server's JWK public keys, used for ID token verification.
-# This option is ignored in mock mode or when authorization is disabled.
-asab.Config["auth"]["public_keys_url"] = "http://localhost:3081/.well-known/jwks.json"
+		# URL of the authorization server's JWK public keys, used for ID token verification.
+		# This option is ignored in mock mode or when authorization is disabled.
+		"public_keys_url": "http://localhost:3081/.well-known/jwks.json",
+	}
 
 
 class MyApplication(asab.Application):
@@ -166,17 +167,13 @@ class MyApplication(asab.Application):
 		"""
 		CONFIGURABLY TENANT-AWARE
 		- returns 401 if authentication not successful
-		- if multitenancy is enabled
-			- `tenant` required in query string
-			- tenant access checked
-			- returns 400 if `tenant` not in query
-			- returns 403 if tenant not accessible
-		- if multitenancy is disabled
-			- `tenant` is set to `None`
+		- `tenant` expected in query string
+		- tenant access checked
+		- returns 403 if tenant not accessible
+		- `tenant` is set to `None` if `tenant` not in query
 
 		- `user_info`, `resources` params allowed
-		- `tenant` param required in query only if multitenancy is enabled
-		- `resources` contain tenant-granted resources if multitenancy is enabled,
+		- `resources` contain tenant-granted resources if tenant is not None,
 			otherwise only globally-granted resources
 		"""
 		data = {
@@ -224,19 +221,15 @@ class MyApplication(asab.Application):
 		"""
 		CONFIGURABLY TENANT-AWARE + RESOURCE CHECK
 		- returns 401 if authentication not successful
-		- if multitenancy is enabled
-			- `tenant` required in query string
-			- tenant access checked
-			- returns 400 if `tenant` not in query
-			- returns 403 if tenant not accessible
-			- returns 403 if resource access not granted within tenant
-		- if multitenancy is disabled
-			- `tenant` is set to `None`
-			- returns 403 if resources not granted globally
+		- `tenant` expected in query string
+		- tenant access checked
+		- returns 403 if tenant not accessible
+		- returns 403 if resource access not granted within tenant
+		- `tenant` is set to `None` if `tenant` not in query
+		- returns 403 if tenant is None resource access is not granted globally
 
 		- `user_info`, `resources` params allowed
-		- `tenant` param required only if multitenancy is enabled
-		- `resources` contain tenant-granted resources if multitenancy is enabled,
+		- `resources` contain tenant-granted resources if tenant is not None,
 			otherwise only globally-granted resources
 		"""
 		data = {
