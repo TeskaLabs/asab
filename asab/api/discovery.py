@@ -89,7 +89,7 @@ class DiscoveryService(Service):
 			claims = json.loads(self.InternalAuthToken.claims)
 			if claims.get("exp") > (
 				datetime.datetime.now(datetime.UTC) - datetime.timedelta(seconds=300)
-			):
+			).timestamp():
 				# Token is valid and does not expire soon
 				return
 
