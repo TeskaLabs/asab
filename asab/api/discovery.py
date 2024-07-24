@@ -73,6 +73,7 @@ class DiscoveryService(Service):
 			private_key_json = json.dumps(private_key.export(as_dict=True)).encode("utf-8")
 			try:
 				zkc.ZooKeeper.Client.create(self.InternalAuthKeyPath, private_key_json, makepath=True)
+				L.info("Internal auth key created.", struct_data={"path": self.InternalAuthKeyPath})
 			except kazoo.exceptions.NodeExistsError:
 				# Another ASAB service has probably created the key in the meantime
 				pass
@@ -105,16 +106,16 @@ class DiscoveryService(Service):
 				return
 
 		# Use this service's discovery URL as issuer ID and authorized party ID
-		discovery_url = _get_own_discovery_url()
+		my_discovery_url = _get_own_discovery_url()
 		claims = {
 			# Issuer (URL of the app that created the token)
-			"iss": discovery_url,
+			"iss": my_discovery_url,
 			# Issued at
 			"iat": int(datetime.datetime.now(datetime.UTC).timestamp()),
 			# Expires at
 			"exp": int((datetime.datetime.now(datetime.UTC) + self.InternalAuthTokenExpiration).timestamp()),
 			# Authorized party
-			"azp": discovery_url,
+			"azp": my_discovery_url,
 			# Audience (who is allowed to use this token)
 			"aud": "http://{}".format(self.App.HostName),  # TODO: Something that signifies "anyone in this internal space"
 			# Tenants and resources
@@ -132,6 +133,7 @@ class DiscoveryService(Service):
 			claims=json.dumps(claims)
 		)
 		self.InternalAuthToken.make_signed_token(self.InternalAuthKey)
+		L.info("New internal auth token issued.")
 
 
 	async def locate(self, instance_id: str = None, **kwargs) -> set:
