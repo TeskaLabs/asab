@@ -2,25 +2,28 @@
 
 Service discovery enables communication among multiple ASAB microservices in a server cluster. Each microservice can search for and find address to API interface (URL) of any other service within the cluster.
 
-Each ASAB microservice can advertise about itself to ZooKeeper. ZooKeeper, a consensus technology, distributes the advertised info to all cluster participants.
+In service discovery, there are two main roles: the "server" and the "client."
 
-There are always two parties in the communication - the one who advertises its "position" in the cluster and provides communication interface (API) and the second one who wants to use it. Let's name them a "server" and "client".
+The server advertises its "position" in the cluster and provides an API for communication. The client uses this API to interact with the server.
 
-Of course, these roles (server - client) are clear for one communication session. In a bigger picture, all microservices in the cluster are both servers and clients.
+In the context of service discovery, all microservices in the cluster act as both servers and clients.
 
-## Server - Advertising into ZooKeeper
+## Prerequisites
 
-Even though the service can provide multiple communication interfaces, major use case is the web API.
-
-A "server" application has to provide the API and advertise its address into a consensus technlogy - ZooKeeper
-
-Following requirements must be fulfilled when the application is initialized:
+Following requirements must be fulfilled:
 
 - Zookeeper connection and configuration must be the same for all services in the cluster.
 - Zookeeper container must be initialized in the service.
 - `asab.WebService` and `asab.WebContainer` must be initialized.
 - `asab.APIService` must be initialized.
 - Environment variables `NODE_ID`, `SERVICE_ID` and `INSTANCE_ID` must be set.
+- `INSTANCE_ID` (or hostname if `INSTANCE_ID` is missing) must be resolvable.
+
+## Server - Advertising into ZooKeeper
+
+Even though the service can provide multiple communication interfaces, major use case is the web API.
+
+A "server" application has to provide the API and advertise its address into a consensus technlogy - ZooKeeper.
 
 ### Application requirements
 
@@ -53,11 +56,11 @@ class MyApp(asab.Application):
 ZooKeeper configuration must be the same for all services in the cluster. Port can be set in the configuration.
 
 ```ini title="myapp.conf"
-[web]
-listen=0.0.0.0 8090
-
 [zookeeper]
 servers=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+
+[web]
+listen=0.0.0.0 8090
 ```
 
 ### Environment variables
@@ -74,12 +77,14 @@ Pre-cast ids used for service discovery. Provide them as environment variables:
 
 !!! warning "Instance ID must be resolvable"
 
-	ASAB framework cannot set up networking. In order to enable service discovery, `INSTANCE_ID` of a service must be resolavable from the client. If `INSTANCE_ID` is missing, hostname is taken instead and then hostname must be resolvable.
+	ASAB framework cannot set up networking. In order to enable service discovery, `INSTANCE_ID` of a service must be resolavable from the client. If `INSTANCE_ID` is missing, hostname is taken instead and then, hostname must be resolvable.
 
 
 ### Information advertised
 
 When all requirements of a server-side microservice are fullfilled, the service advertises into the consensus a unique information bound to its runtime.
+
+The file of JSON format contains information describing the running application.
 
 
 ```json title="asab/run/ASABMyApplication.0000090098"
@@ -113,9 +118,9 @@ When all requirements of a server-side microservice are fullfilled, the service 
 
 ## Client - Using Service Discovery
 
-As all services are being "server" and "client" at the same time, all requirements stated for server microservice are valid for the client one, as well.
+All services are being "server" and "client" at the same time. This paragraph describes how to discover (as a client) a service in the cluster.
 
-### Call API using service discovery
+### Call API using DiscoveryService.session()
 
 Once the service propagates itself into ZooKeeper, other services in the cluster can use its API.
 
@@ -170,7 +175,7 @@ The URL is constructed in the format `http://<value>.<key>.asab/...` where _key_
 
 ### locate()
 
-Returns set of URLs based on an id of a service. Provide the filter as a dictionary.
+Returns set of URLs based on an id of a service. Provide the filter as a dictionary. The keys of the dictionary can be `node_id`, `service_id`, `instance_id` or [custom ids](#custom-discovery-ids).
 
 !!! example
 
@@ -200,7 +205,7 @@ Custom identifiers can be set during runtime.
 
 !!! example
 
-	Inside the application, where ApiService is already initialized:
+	Inside the application, when Api Service is already initialized:
 
 	```python
 
@@ -208,6 +213,7 @@ Custom identifiers can be set during runtime.
 	```
 
 	The argument of the method must be a dictionary, where key is string and value is a list.
+	The `custom_id` can be used in both discovery [session](#call-api-using-discoveryservicesession) and [`locate()`](#locate) method.
 
 
 ## Using service discovery during authorization
