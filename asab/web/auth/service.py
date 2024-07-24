@@ -285,6 +285,9 @@ class AuthService(asab.Service):
 				# Only internal authorization is supported
 				return
 
+		# Either DiscoveryService or PublicKeysUrl must be defined
+		assert self.PublicKeysUrl
+
 		now = datetime.datetime.now(datetime.timezone.utc)
 		if self.AuthServerLastSuccessfulCheck is not None \
 			and now < self.AuthServerLastSuccessfulCheck + self.AuthServerCheckCooldown:
