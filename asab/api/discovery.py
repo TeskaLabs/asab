@@ -46,7 +46,7 @@ class DiscoveryService(Service):
 	async def _on_tick(self, msg):
 		self._update_cache(msg)
 		if jwcrypto is not None:
-			await self._ensure_internal_auth_token()
+			self._ensure_internal_auth_token()
 
 
 	def _on_zk_ready(self, msg, zkc):
@@ -79,11 +79,22 @@ class DiscoveryService(Service):
 
 		private_key = jwcrypto.jwk.JWK.from_json(private_key_json)
 		self.InternalAuthKey = private_key
-		await self._ensure_internal_auth_token()
+		self._ensure_internal_auth_token()
 
 
-	async def _ensure_internal_auth_token(self):
+	def _ensure_internal_auth_token(self):
 		assert self.InternalAuthKey
+
+		def _get_own_discovery_url():
+			instance_id = os.getenv("INSTANCE_ID", None)
+			if instance_id:
+				return "http://{}.instance_id.asab".format(instance_id)
+
+			service_id = os.getenv("SERVICE_ID", None)
+			if service_id:
+				return "http://{}.service_id.asab".format(service_id)
+
+			return "http://{}".format(self.App.HostName)
 
 		if self.InternalAuthToken:
 			claims = json.loads(self.InternalAuthToken.claims)
@@ -94,7 +105,7 @@ class DiscoveryService(Service):
 				return
 
 		# Use this service's discovery URL as issuer ID and authorized party ID
-		discovery_url = await self._get_own_discovery_url()
+		discovery_url = _get_own_discovery_url()
 		claims = {
 			# Issuer (URL of the app that created the token)
 			"iss": discovery_url,
@@ -105,13 +116,13 @@ class DiscoveryService(Service):
 			# Authorized party
 			"azp": discovery_url,
 			# Audience (who is allowed to use this token)
-			"aud": "http://asab",  # TODO: Something that signifies "anyone in this internal space"
+			"aud": "http://{}".format(self.App.HostName),  # TODO: Something that signifies "anyone in this internal space"
 			# Tenants and resources
 			"resources": {
 				"*": ["authz:superuser"],
 			}
 		}
-		print(claims)
+
 		self.InternalAuthToken = jwcrypto.jwt.JWT(
 			header={
 				"alg": "ES256",
@@ -121,19 +132,6 @@ class DiscoveryService(Service):
 			claims=json.dumps(claims)
 		)
 		self.InternalAuthToken.make_signed_token(self.InternalAuthKey)
-
-
-	async def _get_own_discovery_url(self):
-		instance_id = os.getenv("INSTANCE_ID", None)
-		if instance_id:
-			urls: set = await self.locate(instance_id)
-			try:
-				return urls.pop()
-			except KeyError:
-				pass
-
-		# TODO: Build proper fallback URL using ApiService.WebContainers.Addresses
-		return "http://asab"
 
 
 	async def locate(self, instance_id: str = None, **kwargs) -> set:
