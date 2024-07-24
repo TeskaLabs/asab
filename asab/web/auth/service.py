@@ -103,7 +103,7 @@ class AuthService(asab.Service):
 
 	def __init__(self, app, service_name="asab.AuthService"):
 		super().__init__(app, service_name)
-		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
+		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url") or None
 
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
@@ -125,7 +125,7 @@ class AuthService(asab.Service):
 				"You are trying to use asab.web.auth module without 'jwcrypto' installed. "
 				"Please run 'pip install jwcrypto' "
 				"or install asab with 'authz' optional dependency.")
-		elif len(self.PublicKeysUrl) == 0:
+		elif not self.PublicKeysUrl and self.DiscoveryService is None:
 			self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
 			L.warning(
 				"No 'public_keys_url' provided in [auth] config section. "
@@ -280,6 +280,10 @@ class AuthService(asab.Service):
 			else:
 				L.debug("Internal auth key is not ready yet.")
 				self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
+
+			if not self.PublicKeysUrl:
+				# Only internal authorization is supported
+				return
 
 		now = datetime.datetime.now(datetime.timezone.utc)
 		if self.AuthServerLastSuccessfulCheck is not None \
