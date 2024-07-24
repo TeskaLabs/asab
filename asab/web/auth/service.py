@@ -521,6 +521,10 @@ def _get_id_token_claims(bearer_token: str, auth_server_public_key):
 		L.error(
 			"Failed to parse JWT ID token ({}). Please check if the Authorization header contains ID token.".format(e))
 		raise aiohttp.web.HTTPBadRequest()
+	except jwcrypto.jws.InvalidJWSObject as e:
+		L.error(
+			"Failed to parse JWT ID token ({}). Please check if the Authorization header contains ID token.".format(e))
+		raise aiohttp.web.HTTPBadRequest()
 	except Exception:
 		L.exception("Failed to parse JWT ID token. Please check if the Authorization header contains ID token.")
 		raise aiohttp.web.HTTPBadRequest()
