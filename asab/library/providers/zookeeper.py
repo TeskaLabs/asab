@@ -1,5 +1,4 @@
 import io
-import asyncio
 import hashlib
 import typing
 import logging
@@ -154,8 +153,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/SUSPENDED!", self._on_zk_lost)
 		self.App.PubSub.subscribe("Application.tick/60!", self._get_version_counter)
 
-		# This will check a library for changes in subscribed folders even without version counter change.
-		self.App.PubSub.subscribe("Application.tick/60!", self._on_library_changed)
+		# This is a contingency check for changes for subscribed folders in library even without version counter change.
+		self.App.PubSub.subscribe("Application.tick/600!", self._on_library_changed)
 
 		self.Subscriptions = {}
 
@@ -223,7 +222,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			# The version has not changed
 			return
 
-		asyncio.create_task(self._on_library_changed())
+		self.App.TaskService.schedule(self._on_library_changed())
 
 
 
@@ -340,6 +339,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 	async def _on_library_changed(self, event_name=None):
+
 		for path, digest in self.Subscriptions.items():
 			try:
 				newdigest = await self._get_directory_hash(path)
