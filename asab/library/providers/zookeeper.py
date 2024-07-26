@@ -300,7 +300,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		global_nodes = await self.Zookeeper.get_children(global_node_path) or []
 		global_items = await self.process_nodes(global_nodes, path)
 
-<<<<<<< HEAD
 		# Process tenant-specific nodes
 		tenant_node_path = self.build_path(path, tenant_specific=True)
 		if tenant_node_path != global_node_path:
@@ -308,12 +307,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			tenant_items = await self.process_nodes(tenant_nodes, path)
 		else:
 			tenant_items = []
-=======
-		nodes = await self.Zookeeper.get_children(node_path)
-		if nodes is None:
-			raise KeyError("Path '{}' not found by ZookeeperLibraryProvider.".format(node_path))
->>>>>>> master
-
 		# Combine items, with tenant items taking precedence over global ones
 		combined_items = {item.name: item for item in global_items}
 		combined_items.update({item.name: item for item in tenant_items})
