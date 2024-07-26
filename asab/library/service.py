@@ -307,31 +307,27 @@ class LibraryService(Service):
 		return items
 
 	async def _list(self, path, tenant, providers):
-		# Execute the list query in all providers in-parallel
-		result = await asyncio.gather(*[
-			library.list(path)
-			for library in providers
-		], return_exceptions=True)
+		items: list[LibraryItem] = []
+		unique_items: dict[str, LibraryItem] = dict()
 
-		items = []
-		uniq = dict()
-		for ress in result:
-
-			if isinstance(ress, KeyError):
+		# List items from every provider concurrently
+		tasks = [asyncio.create_task(provider.list(path)) for provider in providers]
+		for layer, task in enumerate(asyncio.as_completed(tasks)):
+			try:
+				items_list_from_provider: list[LibraryItem] = await task
+			except KeyError:
 				# The path doesn't exists in the provider
 				continue
-
-			if isinstance(ress, Exception):
-				L.exception("Error when listing items from provider", exc_info=ress)
+			except Exception:
+				L.exception("Unexpected error when listing path '{}' by {}".format(path, providers[layer]))
 				continue
 
-			for item in ress:
-				item.disabled = self.check_disabled(item.name, tenant)
+			for item in items_list_from_provider:
+				item.disabled = self.check_disabled(item.name, tenant=tenant)
 
 				# If the item already exists, merge or override it
-				pitem = uniq.get(item.name)
+				pitem = unique_items.get(item.name)
 				if pitem is not None:
-					pitem = uniq[item.name]
 					if pitem.type == 'dir' and item.type == 'dir':
 						# Directories are joined
 						pitem.providers.extend(item.providers)
@@ -341,10 +337,12 @@ class LibraryService(Service):
 								index = i
 								break
 						pitem.override = index
-				# Other item types are skipped
 				else:
-					uniq[item.name] = item
+					# Other item types are skipped
+					unique_items[item.name] = item
 					items.append(item)
+
+		# Sort items by name
 		items.sort(key=lambda x: x.name)
 		return items
 

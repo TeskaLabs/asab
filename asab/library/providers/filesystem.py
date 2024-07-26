@@ -86,17 +86,9 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 	def _list(self, path: str):
 
 		node_path = self.BasePath + path
-
-		# Directory path must start with '/'
-		assert node_path[:1] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
-		# Directory path must end with '/'
-		assert node_path[-1:] == '/', "Directory path must end with a forward slash (/). For example: /library/Templates/"
-		# Directory cannot contain '//'
-		assert '//' not in node_path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
-
 		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
 		if not exists:
-			raise KeyError(" '{}' not found".format(path))
+			raise KeyError("Path '{}' not found by FileSystemLibraryProvider.".format(path))
 
 		items = []
 		for fname in glob.iglob(os.path.join(node_path, "*")):
