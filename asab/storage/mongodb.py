@@ -55,7 +55,7 @@ class StorageService(StorageServiceABC):
 		return MongoDBUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection: str, obj_id, decrypt=None) -> dict:
+	async def get(self, collection: str, obj_id, decrypt=None, use_obsolete_padding=False) -> dict:
 		coll = self.Database[collection]
 		ret = await coll.find_one({'_id': obj_id})
 		if ret is None:
@@ -63,7 +63,7 @@ class StorageService(StorageServiceABC):
 		if decrypt is not None:
 			for field in decrypt:
 				if field in ret:
-					ret[field] = self.aes_decrypt(ret[field])
+					ret[field] = self.aes_decrypt(ret[field], use_obsolete_padding)
 		return ret
 
 
