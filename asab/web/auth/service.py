@@ -439,10 +439,11 @@ class AuthService(asab.Service):
 		if "user_info" in args:
 			handler = _add_user_info(handler)
 		if "tenant" in args:
+			# TODO: Always extract tenant from X-Tenant header. Deprecate tenant ID in path and query.
 			if tenant_in_path:
-				handler = self._add_tenant_from_path(handler)
+				handler = self._add_tenant_from_header_or_path(handler)
 			else:
-				handler = self._add_tenant_from_query(handler)
+				handler = self._add_tenant_from_header_or_query(handler)
 
 		handler = self._authenticate_request(handler)
 		route._handler = handler
@@ -462,7 +463,7 @@ class AuthService(asab.Service):
 			request._UserInfo["resources"].get(tenant, [])))
 
 
-	def _add_tenant_from_path(self, handler):
+	def _add_tenant_from_header_or_path(self, handler):
 		"""
 		Extract tenant from request path and authorize it
 		"""
@@ -470,7 +471,11 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			tenant = request.match_info["tenant"]
+			tenant = request.headers.get("X-Tenant")
+
+			if not tenant:
+				tenant = request.match_info["tenant"]
+
 			if self.Mode != AuthMode.DISABLED:
 				self._authorize_tenant_request(request, tenant)
 			return await handler(*args, tenant=tenant, **kwargs)
@@ -478,7 +483,7 @@ class AuthService(asab.Service):
 		return wrapper
 
 
-	def _add_tenant_from_query(self, handler):
+	def _add_tenant_from_header_or_query(self, handler):
 		"""
 		Extract tenant from request query and authorize it
 		"""
@@ -486,12 +491,16 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			if "tenant" not in request.query:
-				return await handler(*args, tenant=None, **kwargs)
-			else:
-				tenant = request.query["tenant"]
-				if self.Mode != AuthMode.DISABLED:
-					self._authorize_tenant_request(request, tenant)
+			tenant = request.headers.get("X-Tenant")
+
+			if not tenant:
+				if "tenant" in request.query:
+					tenant = request.query["tenant"]
+				else:
+					return await handler(*args, tenant=None, **kwargs)
+
+			if self.Mode != AuthMode.DISABLED:
+				self._authorize_tenant_request(request, tenant)
 			return await handler(*args, tenant=tenant, **kwargs)
 
 		return wrapper
