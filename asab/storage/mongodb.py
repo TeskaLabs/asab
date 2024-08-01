@@ -55,15 +55,29 @@ class StorageService(StorageServiceABC):
 		return MongoDBUpsertor(self, collection, obj_id, version)
 
 
-	async def get(self, collection: str, obj_id, decrypt=None, use_obsolete_padding=False) -> dict:
+	async def get(self, collection: str, obj_id, decrypt=None) -> dict:
 		coll = self.Database[collection]
 		ret = await coll.find_one({'_id': obj_id})
 		if ret is None:
 			raise KeyError("NOT-FOUND")
+
 		if decrypt is not None:
+			re_encrypt_fields = {}
 			for field in decrypt:
 				if field in ret:
-					ret[field] = self.aes_decrypt(ret[field], use_obsolete_padding)
+					try:
+						ret[field] = self.aes_decrypt(ret[field])
+					except ValueError:
+						ret[field] = self.aes_decrypt(ret[field], _obsolete_padding=True)
+						re_encrypt_fields[field] = ret[field]
+
+			# Update fields encrypted with flawed padding in previous versions (before #587)
+			if re_encrypt_fields:
+				upsertor = self.upsertor(collection, ret["_id"], ret["v"])
+				for k, v in re_encrypt_fields:
+					upsertor.set(k, v, encrypt=True)
+				await upsertor.execute()
+
 		return ret
 
 
@@ -72,10 +86,20 @@ class StorageService(StorageServiceABC):
 		ret = await coll.find_one({key: value})
 		if ret is None:
 			raise KeyError("NOT-FOUND")
+
 		if decrypt is not None:
+			re_encrypt_fields = {}
 			for field in decrypt:
 				if field in ret:
 					ret[field] = self.aes_decrypt(ret[field])
+
+			# Update fields encrypted with flawed padding in previous versions (before #587)
+			if re_encrypt_fields:
+				upsertor = self.upsertor(collection, ret["_id"], ret["v"])
+				for k, v in re_encrypt_fields:
+					upsertor.set(k, v, encrypt=True)
+				await upsertor.execute()
+
 		return ret
 
 
