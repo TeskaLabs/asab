@@ -3,11 +3,14 @@ import typing
 import motor.motor_asyncio
 import pymongo
 import bson
+import logging
 
 import asab
 from .exceptions import DuplicateError
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
+
+L = logging.getLogger(__name__)
 
 asab.Config.add_defaults(
 	{
@@ -62,7 +65,7 @@ class StorageService(StorageServiceABC):
 			raise KeyError("NOT-FOUND")
 
 		if decrypt is not None:
-			await self._decrypt(ret, fields=decrypt)
+			await self._decrypt(ret, fields=decrypt, collection=collection)
 
 		return ret
 
@@ -74,7 +77,7 @@ class StorageService(StorageServiceABC):
 			raise KeyError("NOT-FOUND")
 
 		if decrypt is not None:
-			await self._decrypt(ret, fields=decrypt)
+			await self._decrypt(ret, fields=decrypt, collection=collection)
 
 		return ret
 
@@ -110,20 +113,26 @@ class StorageService(StorageServiceABC):
 		return ret['_id']
 
 
-	async def _decrypt(self, db_obj: dict, fields: typing.Iterable):
+	async def _decrypt(self, db_obj: dict, fields: typing.Iterable, collection: str):
 		"""
 		Decrypt object fields in-place
 		"""
 		re_encrypt_fields = {}
 		for field in fields:
-			if field in ret:
-				ret[field] = self.aes_decrypt(ret[field])
+			if field in db_obj:
+				try:
+					db_obj[field] = self.aes_decrypt(db_obj[field])
+				except ValueError:
+					db_obj[field] = self.aes_decrypt(db_obj[field], _obsolete_padding=True)
+					re_encrypt_fields[field] = db_obj[field]
 
 		# Update fields encrypted with flawed padding in previous versions (before #587)
 		if re_encrypt_fields:
-			upsertor = self.upsertor(collection, ret["_id"], ret["_v"])
+			upsertor = self.upsertor(collection, db_obj["_id"], db_obj["_v"])
 			for k, v in re_encrypt_fields.items():
 				upsertor.set(k, v, encrypt=True)
+			L.debug("Object encryption updated.", struct_data={
+				"coll": collection, "_id": db_obj["_id"], "fields": list(re_encrypt_fields)})
 			await upsertor.execute()
 
 
