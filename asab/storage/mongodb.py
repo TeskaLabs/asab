@@ -62,21 +62,7 @@ class StorageService(StorageServiceABC):
 			raise KeyError("NOT-FOUND")
 
 		if decrypt is not None:
-			re_encrypt_fields = {}
-			for field in decrypt:
-				if field in ret:
-					try:
-						ret[field] = self.aes_decrypt(ret[field])
-					except ValueError:
-						ret[field] = self.aes_decrypt(ret[field], _obsolete_padding=True)
-						re_encrypt_fields[field] = ret[field]
-
-			# Update fields encrypted with flawed padding in previous versions (before #587)
-			if re_encrypt_fields:
-				upsertor = self.upsertor(collection, ret["_id"], ret["_v"])
-				for k, v in re_encrypt_fields.items():
-					upsertor.set(k, v, encrypt=True)
-				await upsertor.execute()
+			await self._decrypt(ret, fields=decrypt)
 
 		return ret
 
@@ -88,17 +74,7 @@ class StorageService(StorageServiceABC):
 			raise KeyError("NOT-FOUND")
 
 		if decrypt is not None:
-			re_encrypt_fields = {}
-			for field in decrypt:
-				if field in ret:
-					ret[field] = self.aes_decrypt(ret[field])
-
-			# Update fields encrypted with flawed padding in previous versions (before #587)
-			if re_encrypt_fields:
-				upsertor = self.upsertor(collection, ret["_id"], ret["_v"])
-				for k, v in re_encrypt_fields.items():
-					upsertor.set(k, v, encrypt=True)
-				await upsertor.execute()
+			await self._decrypt(ret, fields=decrypt)
 
 		return ret
 
@@ -132,6 +108,23 @@ class StorageService(StorageServiceABC):
 		if ret is None:
 			raise KeyError("NOT-FOUND")
 		return ret['_id']
+
+
+	async def _decrypt(self, db_obj: dict, fields: typing.Iterable):
+		"""
+		Decrypt object fields in-place
+		"""
+		re_encrypt_fields = {}
+		for field in fields:
+			if field in ret:
+				ret[field] = self.aes_decrypt(ret[field])
+
+		# Update fields encrypted with flawed padding in previous versions (before #587)
+		if re_encrypt_fields:
+			upsertor = self.upsertor(collection, ret["_id"], ret["_v"])
+			for k, v in re_encrypt_fields.items():
+				upsertor.set(k, v, encrypt=True)
+			await upsertor.execute()
 
 
 class MongoDBUpsertor(UpsertorABC):
