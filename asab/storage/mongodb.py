@@ -73,8 +73,8 @@ class StorageService(StorageServiceABC):
 
 			# Update fields encrypted with flawed padding in previous versions (before #587)
 			if re_encrypt_fields:
-				upsertor = self.upsertor(collection, ret["_id"], ret["v"])
-				for k, v in re_encrypt_fields:
+				upsertor = self.upsertor(collection, ret["_id"], ret["_v"])
+				for k, v in re_encrypt_fields.items():
 					upsertor.set(k, v, encrypt=True)
 				await upsertor.execute()
 
@@ -95,8 +95,8 @@ class StorageService(StorageServiceABC):
 
 			# Update fields encrypted with flawed padding in previous versions (before #587)
 			if re_encrypt_fields:
-				upsertor = self.upsertor(collection, ret["_id"], ret["v"])
-				for k, v in re_encrypt_fields:
+				upsertor = self.upsertor(collection, ret["_id"], ret["_v"])
+				for k, v in re_encrypt_fields.items():
 					upsertor.set(k, v, encrypt=True)
 				await upsertor.execute()
 
