@@ -1,6 +1,6 @@
-# Zookeeper
+# ZooKeeper
 
-`asab.zookeeper` is an [ApacheZookeeper](https://zookeeper.apache.org) asynchronous client based on [Kazoo](https://github.com/python-zk/kazoo) library.
+`asab.zookeeper` is an [Apache ZooKeeper](https://zookeeper.apache.org) asynchronous client based on [Kazoo](https://github.com/python-zk/kazoo) library.
 
 Apache ZooKeeper is a distributed coordination service that provides a hierarchical key-value data store, 
 called a **znode tree**, to store and manage configuration, coordination, and synchronization data.
@@ -9,12 +9,12 @@ The znode tree is similar to a file system tree, where each znode is like a file
 Apache ZooKeeper can be used to design microservices in a stateless manner by managing and coordinating the state information between microservices.
 In this design, each microservice does not store any state information, but instead relies on ZooKeeper for state management.
 
-## Zookeeper container
+## ZooKeeper container
 
-A Zookeeper container represents a connectivity to Apache Zookeeper server(s).
-The application can operate multiple instances of Zookeeper container.
+A ZooKeeper container represents a connectivity to Apache ZooKeeper server(s).
+The application can operate multiple instances of ZooKeeper container.
 
-This code illustrates the typical way of creating a Zookeeper container:
+This code illustrates the typical way of creating a ZooKeeper container:
 
 ``` python
 import asab.zookeeper
@@ -102,9 +102,9 @@ Also, if configuration section doesn't provide information about servers,
 	a nd `{zookeeper_path}` is substituted with the "path" entry of the `[zookeeper]` configuration file section.
 
 
-## Reading from Zookeeeper
+## Reading from ZooKeeeper
 
-## Advertisement into Zookeeper
+TODO
 
 ## PubSub messages
 
