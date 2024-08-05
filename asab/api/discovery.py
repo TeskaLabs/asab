@@ -36,7 +36,8 @@ class DiscoveryService(Service):
 	def _on_tick(self, msg):
 		self._update_cache()
 
-	def _on_rescan(self, msg):
+	async def _on_rescan(self, msg):
+		# async method to provide threadsafe callback
 		self._update_cache()
 
 	def _on_zk_ready(self, msg, zkc):
