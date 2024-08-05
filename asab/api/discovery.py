@@ -28,17 +28,26 @@ class DiscoveryService(Service):
 		self._cache_lock = asyncio.Lock()
 		self._ready_event = asyncio.Event()
 
+		self._concurrent_future = None
+
 		self.App.PubSub.subscribe("Application.tick/300!", self._on_tick)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 
 
 	def _on_tick(self, msg):
-		self._update_cache(msg)
+		self._update_cache()
 
 
 	def _on_zk_ready(self, msg, zkc):
 		if zkc == self.ZooKeeperContainer:
-			self._update_cache(msg)
+			self._update_cache()
+
+	def _update_cache(self):
+		self.App.TaskService.schedule(self._rescan_advertised_instances())
+
+	async def finalize(self, app):
+		if self._concurrent_future is not None:
+			self._concurrent_future.cancel()
 
 
 	async def locate(self, instance_id: str = None, **kwargs) -> set:
@@ -219,7 +228,7 @@ class DiscoveryService(Service):
 				if not self.ZooKeeperContainer.ZooKeeper.Client.exists(base_path):
 					self.ZooKeeperContainer.ZooKeeper.Client.create(base_path, b'', makepath=True)
 
-				return self.ZooKeeperContainer.ZooKeeper.Client.get_children(base_path, watch=self._update_cache)
+				return self.ZooKeeperContainer.ZooKeeper.Client.get_children(base_path, watch=self._on_change)
 			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
 				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
 				return None
@@ -229,7 +238,7 @@ class DiscoveryService(Service):
 
 		def get_data(item):
 			try:
-				data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get((base_path + '/' + item), watch=self._update_cache)
+				data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get((base_path + '/' + item), watch=self._on_change)
 				return data
 			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
 				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
@@ -250,6 +259,20 @@ class DiscoveryService(Service):
 			yield item, json.loads(item_data)
 
 
+	def _on_change(self, watched_event):
+		future = asyncio.run_coroutine_threadsafe(self._rescan_advertised_instances(), self.App.Loop)
+		if self._concurrent_future is None:
+			self._concurrent_future = future
+
+		elif not self._concurrent_future.done():
+			# if previous execution is still in progress, wait. it is blocking, but not in the main thread
+			self._concurrent_future.result()
+			self._concurrent_future = future
+
+		else:
+			self._concurrent_future = future
+
+
 	def session(self, base_url=None, **kwargs) -> aiohttp.ClientSession:
 		'''
 		Usage:
@@ -263,11 +286,6 @@ class DiscoveryService(Service):
 				...
 		'''
 		return aiohttp.ClientSession(base_url, connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)), **kwargs)
-
-
-	def _update_cache(self, watched_event):
-		# TODO: update just parts of the cache based on the watched_event parameter to be more efficient
-		self.App.TaskService.schedule(self._rescan_advertised_instances())
 
 
 class DiscoveryResolver(aiohttp.DefaultResolver):
