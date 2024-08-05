@@ -32,11 +32,14 @@ class DiscoveryService(Service):
 
 		self.App.PubSub.subscribe("Application.tick/300!", self._on_tick)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
+		self.App.PubSub.subscribe("Discover.Rescan!", self._on_rescan)
 
 
 	def _on_tick(self, msg):
 		self._update_cache()
 
+	def _on_rescan(self, msg):
+		self._update_cache()
 
 	def _on_zk_ready(self, msg, zkc):
 		if zkc == self.ZooKeeperContainer:
@@ -44,10 +47,6 @@ class DiscoveryService(Service):
 
 	def _update_cache(self):
 		self.App.TaskService.schedule(self._rescan_advertised_instances())
-
-	async def finalize(self, app):
-		if self._concurrent_future is not None:
-			self._concurrent_future.cancel()
 
 
 	async def locate(self, instance_id: str = None, **kwargs) -> set:
@@ -260,17 +259,7 @@ class DiscoveryService(Service):
 
 
 	def _on_change(self, watched_event):
-		future = asyncio.run_coroutine_threadsafe(self._rescan_advertised_instances(), self.App.Loop)
-		if self._concurrent_future is None:
-			self._concurrent_future = future
-
-		elif not self._concurrent_future.done():
-			# if previous execution is still in progress, wait. it is blocking, but not in the main thread
-			self._concurrent_future.result()
-			self._concurrent_future = future
-
-		else:
-			self._concurrent_future = future
+		self.App.PubSub.publish_threadsafe("Discover.Rescan!")
 
 
 	def session(self, base_url=None, **kwargs) -> aiohttp.ClientSession:
