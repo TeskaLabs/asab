@@ -28,8 +28,6 @@ class DiscoveryService(Service):
 		self._cache_lock = asyncio.Lock()
 		self._ready_event = asyncio.Event()
 
-		self._concurrent_future = None
-
 		self.App.PubSub.subscribe("Application.tick/300!", self._on_tick)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 		self.App.PubSub.subscribe("Discover.Rescan!", self._on_rescan)
