@@ -176,12 +176,13 @@ class StorageServiceABC(asab.Service):
 		return encrypted
 
 
-	def aes_decrypt(self, encrypted: bytes) -> bytes:
+	def aes_decrypt(self, encrypted: bytes, _obsolete_padding: bool = False) -> bytes:
 		"""
 		Decrypt encrypted data using AES-CBC.
 
 		Args:
 			encrypted: The encrypted data to decrypt. It must start with b"$aes-cbc$" prefix, followed by one-block-long initialization vector.
+			_obsolete_padding: Back-compat option: Use incorrect old padding method
 
 		Returns:
 			The decrypted data.
@@ -212,9 +213,13 @@ class StorageServiceABC(asab.Service):
 		padded = decryptor.update(encrypted) + decryptor.finalize()
 
 		# Strip padding
-		unpadder = cryptography.hazmat.primitives.padding.PKCS7(block_size).unpadder()
-		raw = unpadder.update(padded)
-		raw += unpadder.finalize()
+		if _obsolete_padding:
+			# Back-compat: Incorrect old padding method
+			raw = padded.rstrip(b"\x00")
+		else:
+			unpadder = cryptography.hazmat.primitives.padding.PKCS7(block_size).unpadder()
+			raw = unpadder.update(padded)
+			raw += unpadder.finalize()
 
 		return raw
 
