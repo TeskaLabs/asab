@@ -9,7 +9,6 @@ import os.path
 import typing
 import time
 import enum
-import contextvars
 
 import aiohttp
 import aiohttp.web
@@ -18,6 +17,7 @@ import aiohttp.client_exceptions
 import asab
 import asab.exceptions
 import asab.utils
+from asab.contextvars import Tenant
 
 try:
 	import jwcrypto.jwk
@@ -70,8 +70,6 @@ MOCK_USERINFO_DEFAULT = {
 }
 
 SUPERUSER_RESOURCE = "authz:superuser"
-
-Tenant = contextvars.ContextVar("Tenant")
 
 
 class AuthMode(enum.Enum):
