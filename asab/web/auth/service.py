@@ -9,6 +9,7 @@ import os.path
 import typing
 import time
 import enum
+import contextvars
 
 import aiohttp
 import aiohttp.web
@@ -69,6 +70,10 @@ MOCK_USERINFO_DEFAULT = {
 }
 
 SUPERUSER_RESOURCE = "authz:superuser"
+
+Tenant = contextvars.ContextVar("Tenant")
+AuthorizedResources = contextvars.ContextVar("AuthorizedResources")
+UserInfo = contextvars.ContextVar("UserInfo")
 
 
 class AuthMode(enum.Enum):
@@ -438,12 +443,17 @@ class AuthService(asab.Service):
 			handler = _add_resources(handler)
 		if "user_info" in args:
 			handler = _add_user_info(handler)
+		# TODO:
+		#   - extract tenant always
+		#   - add it to args only if args available
 		if "tenant" in args:
 			# TODO: Always extract tenant from X-Tenant header. Deprecate tenant ID in path and query.
 			if tenant_in_path:
-				handler = self._add_tenant_from_header_or_path(handler)
+				handler = self._add_tenant_from_path(handler)
 			else:
-				handler = self._add_tenant_from_header_or_query(handler)
+				handler = self._add_tenant_from_query(handler)
+
+		handler = self._add_tenant_from_header(handler)
 
 		handler = self._authenticate_request(handler)
 		route._handler = handler
@@ -454,6 +464,7 @@ class AuthService(asab.Service):
 		Check access to requested tenant and add tenant resources to the request
 		"""
 		# Check if tenant access is authorized
+		print(tenant, request._AuthorizedTenants)
 		if tenant not in request._AuthorizedTenants:
 			L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
 			raise asab.exceptions.AccessDeniedError()
@@ -463,7 +474,7 @@ class AuthService(asab.Service):
 			request._UserInfo["resources"].get(tenant, [])))
 
 
-	def _add_tenant_from_header_or_path(self, handler):
+	def _add_tenant_from_header(self, handler):
 		"""
 		Extract tenant from request path and authorize it
 		"""
@@ -471,19 +482,41 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			tenant = request.headers.get("X-Tenant")
+			tenant: str | None = request.headers.get("X-Tenant")
 
-			if not tenant:
-				tenant = request.match_info["tenant"]
+			if tenant is not None and self.Mode != AuthMode.DISABLED:
+				self._authorize_tenant_request(request, tenant)
+
+			tenant_ctx = Tenant.set(tenant)
+			try:
+				response = await handler(*args, **kwargs)
+			finally:
+				Tenant.reset(tenant_ctx)
+			return response
+
+		return wrapper
+
+
+
+	def _add_tenant_from_path(self, handler):
+		"""
+		Extract tenant from request path and authorize it
+		"""
+
+		@functools.wraps(handler)
+		async def wrapper(*args, **kwargs):
+			request = args[-1]
+			tenant = request.match_info["tenant"]
 
 			if self.Mode != AuthMode.DISABLED:
 				self._authorize_tenant_request(request, tenant)
+
 			return await handler(*args, tenant=tenant, **kwargs)
 
 		return wrapper
 
 
-	def _add_tenant_from_header_or_query(self, handler):
+	def _add_tenant_from_query(self, handler):
 		"""
 		Extract tenant from request query and authorize it
 		"""
@@ -491,16 +524,14 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			tenant = request.headers.get("X-Tenant")
+			if "tenant" not in request.query:
+				return await handler(*args, tenant=Tenant.get(None), **kwargs)
 
-			if not tenant:
-				if "tenant" in request.query:
-					tenant = request.query["tenant"]
-				else:
-					return await handler(*args, tenant=None, **kwargs)
+			tenant = request.query["tenant"]
 
 			if self.Mode != AuthMode.DISABLED:
 				self._authorize_tenant_request(request, tenant)
+
 			return await handler(*args, tenant=tenant, **kwargs)
 
 		return wrapper

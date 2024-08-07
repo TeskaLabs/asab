@@ -73,9 +73,8 @@ class MyApplication(asab.Application):
 		self,
 		request,
 		*,
-		tenant: typing.Optional[str] = None,
 		user_info: typing.Optional[dict],
-		resources: typing.Optional[frozenset]
+		resources: typing.Optional[frozenset],
 	):
 		"""
 		AUTHENTICATION REQUIRED
@@ -83,6 +82,7 @@ class MyApplication(asab.Application):
 		- if there is a tenant ID in the X-Tenant header, the request must be authorized to access that tenant
 		- returns 401 if authentication not successful
 		"""
+		tenant = asab.web.auth.Tenant.get()
 		data = {
 			"tenant": tenant,
 			"resources": list(resources) if resources else None,
@@ -96,7 +96,6 @@ class MyApplication(asab.Application):
 		self,
 		request,
 		*,
-		tenant: typing.Optional[str] = None,
 		user_info: typing.Optional[dict],
 		resources: typing.Optional[frozenset]
 	):
@@ -108,6 +107,7 @@ class MyApplication(asab.Application):
 		- returns 401 if authentication not successful
 		- returns 403 if authorization not successful
 		"""
+		tenant = asab.web.auth.Tenant.get()
 		data = {
 			"tenant": tenant,
 			"resources": list(resources) if resources else None,
