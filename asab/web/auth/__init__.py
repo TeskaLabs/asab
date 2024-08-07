@@ -3,7 +3,6 @@ from .service import AuthService, Tenant
 
 __all__ = (
 	"AuthService",
-	"AuthService",
 	"Tenant",
 	"require",
 	"noauth",
