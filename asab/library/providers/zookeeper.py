@@ -235,11 +235,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		try:
 			node_data = await self.Zookeeper.get_data(node_path)
+			# NoNodeError is silent from the wrapper (returns None)
 		except kazoo.exceptions.ConnectionClosedError:
 			L.warning("Zookeeper library provider is not ready")
 			raise RuntimeError("Zookeeper library provider is not ready")
-		except kazoo.exceptions.NoNodeError:
-			return None
+		except kazoo.exceptions.KazooException:
+			return None  # TODO: should it be silent or propagated?
 
 		# Consider adding other exceptions from Kazoo to indicate common non-critical errors
 
