@@ -72,8 +72,6 @@ MOCK_USERINFO_DEFAULT = {
 SUPERUSER_RESOURCE = "authz:superuser"
 
 Tenant = contextvars.ContextVar("Tenant")
-AuthorizedResources = contextvars.ContextVar("AuthorizedResources")
-UserInfo = contextvars.ContextVar("UserInfo")
 
 
 class AuthMode(enum.Enum):
@@ -447,13 +445,13 @@ class AuthService(asab.Service):
 		#   - extract tenant always
 		#   - add it to args only if args available
 		if "tenant" in args:
-			# TODO: Always extract tenant from X-Tenant header. Deprecate tenant ID in path and query.
+			# TODO: Deprecate tenant ID in path and query, always use X-Tenant header instead.
 			if tenant_in_path:
 				handler = self._add_tenant_from_path(handler)
 			else:
 				handler = self._add_tenant_from_query(handler)
 
-		handler = self._add_tenant_from_header(handler)
+		handler = self._set_tenant_context_from_header(handler)
 
 		handler = self._authenticate_request(handler)
 		route._handler = handler
@@ -464,7 +462,6 @@ class AuthService(asab.Service):
 		Check access to requested tenant and add tenant resources to the request
 		"""
 		# Check if tenant access is authorized
-		print(tenant, request._AuthorizedTenants)
 		if tenant not in request._AuthorizedTenants:
 			L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
 			raise asab.exceptions.AccessDeniedError()
@@ -474,7 +471,7 @@ class AuthService(asab.Service):
 			request._UserInfo["resources"].get(tenant, [])))
 
 
-	def _add_tenant_from_header(self, handler):
+	def _set_tenant_context_from_header(self, handler):
 		"""
 		Extract tenant from request path and authorize it
 		"""
