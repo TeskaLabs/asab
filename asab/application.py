@@ -214,7 +214,7 @@ class Application(metaclass=Singleton):
 			current_time = time.time()
 
 			if (current_time - self.LastOnTick60) < (15 * 60):  # Fifteen minute threshold (15 * expected cycle)
-				time.sleep(5)  # Sleep one minute (one cycle)
+				time.sleep(60)  # Sleep one minute (one cycle)
 				continue
 
 			# The loop lost its interactivity
