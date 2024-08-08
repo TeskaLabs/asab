@@ -212,7 +212,7 @@ class Application(metaclass=Singleton):
 		"""
 		Periodically checks the loop interactivity
 		and if the configured threshold is passed,
-		the application is killed.
+		the application is killed by a signal.
 		"""
 
 		while True:
