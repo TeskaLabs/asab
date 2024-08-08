@@ -130,7 +130,7 @@ class Application(metaclass=Singleton):
 		self.LaunchTime = time.time()
 		self.BaseTime = self.LaunchTime - self.Loop.time()
 
-		# Last time the on_tick/10! was registered
+		# Last time the on_tick/60! was registered
 		self.LastOnTick60 = self.LaunchTime
 
 		# Variable that is set when the exit time is happening
