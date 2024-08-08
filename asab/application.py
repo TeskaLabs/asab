@@ -11,6 +11,8 @@ import platform
 import datetime
 import typing
 
+import threading
+
 import asab
 
 try:
@@ -130,6 +132,9 @@ class Application(metaclass=Singleton):
 		self.LaunchTime = time.time()
 		self.BaseTime = self.LaunchTime - self.Loop.time()
 
+		# Last time the on_tick/60! was registered
+		self.LastOnTick60 = self.LaunchTime
+
 		self.Modules: list[asab.Module] = []
 		"""
 		A list of modules that has been added to the application.
@@ -193,6 +198,35 @@ class Application(metaclass=Singleton):
 		self.HousekeepingMissedEvents: list = []
 		# Every 10 minutes listen for housekeeping
 		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
+
+		# Run the watchdog to detect lost interactivity on the event loop
+		self.WatchdogThreshold = Config["general"].getseconds("watchdog_threshold")
+
+		if self.WatchdogThreshold > 0:
+			watchdog_thread = threading.Thread(target=self._watchdog)
+			watchdog_thread.daemon = True  # Daemonize the thread to ensure it exits with the main program
+			watchdog_thread.start()
+
+
+	def _watchdog(self):
+		"""
+		Periodically checks the loop interactivity
+		and if the configured threshold is passed,
+		the application is killed by a signal.
+		"""
+
+		while True:
+			current_time = time.time()
+
+			# Check if the configured threshold passed
+			if (current_time - self.LastOnTick60) < self.WatchdogThreshold:
+				time.sleep(60)  # Sleep one minute (one cycle)
+				continue
+
+			# The loop lost its interactivity
+			L.critical("The event loop lost its interactivity. Stopping the application!")
+			os.kill(os.getpid(), signal.SIGKILL)  # Works only on Linux
+			os._exit(5)  # Cannot use sys.exit inside the thread
 
 
 	def create_argument_parser(
@@ -596,7 +630,9 @@ class Application(metaclass=Singleton):
 					self.PubSub.publish("Application.tick/10!")
 				if (cycle_no % 60) == 0:
 					# Rebase a Loop time
-					self.BaseTime = time.time() - self.Loop.time()
+					current_time = time.time()
+					self.LastOnTick60 = current_time
+					self.BaseTime = current_time - self.Loop.time()
 					self.PubSub.publish("Application.tick/60!")
 				if (cycle_no % 300) == 0:
 					self.PubSub.publish("Application.tick/300!")
