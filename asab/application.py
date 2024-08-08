@@ -200,12 +200,12 @@ class Application(metaclass=Singleton):
 		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
 
 		# Run the watchdog to detect lost interactivity on the event loop
-		thread = threading.Thread(target=self._run_watchdog_for_event_loop)
-		thread.daemon = True  # Daemonize the thread to ensure it exits with the main program
-		thread.start()
+		watchdog_thread = threading.Thread(target=self._watchdog)
+		watchdog_thread.daemon = True  # Daemonize the thread to ensure it exits with the main program
+		watchdog_thread.start()
 
 
-	def _run_watchdog_for_event_loop(self):
+	def _watchdog(self):
 		"""
 		Periodically checks the loop interactivity.
 		"""
