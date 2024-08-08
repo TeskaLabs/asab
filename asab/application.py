@@ -11,6 +11,8 @@ import platform
 import datetime
 import typing
 
+import threading
+
 import asab
 
 try:
@@ -133,9 +135,6 @@ class Application(metaclass=Singleton):
 		# Last time the on_tick/60! was registered
 		self.LastOnTick60 = self.LaunchTime
 
-		# Variable that is set when the exit time is happening
-		self.Exiting = False
-
 		self.Modules: list[asab.Module] = []
 		"""
 		A list of modules that has been added to the application.
@@ -206,9 +205,11 @@ class Application(metaclass=Singleton):
 		# Every 10 minutes listen for housekeeping
 		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
 
-		# Obtain proactor service to register interactivity check on the asyncio loop
-		self.ProactorService = self.get_service("asab.ProactorService")
-		self.ProactorService.schedule(self._run_watchdog_for_event_loop)
+		# Run the watchdog to detect lost interactivity on the event loop
+		# Start the thread that checks if the loop is still interactive
+		thread = threading.Thread(target=self._run_watchdog_for_event_loop)
+		thread.daemon = True  # Daemonize the thread to ensure it exits with the main program
+		thread.start()
 
 
 	def _run_watchdog_for_event_loop(self):
@@ -216,11 +217,11 @@ class Application(metaclass=Singleton):
 		Periodically checks the loop interactivity.
 		"""
 
-		while not self.Exiting:
+		while True:
 			current_time = time.time()
 
-			if (current_time - self.LastOnTick60) < (10 * 60):  # Ten minute threshold (10 * expected cycle)
-				time.sleep(60)  # Sleep one minute (one cycle)
+			if (current_time - self.LastOnTick60) < (15 * 60):  # Fifteen minute threshold (15 * expected cycle)
+				time.sleep(5)  # Sleep one minute (one cycle)
 				continue
 
 			# The loop lost its interactivity
@@ -649,7 +650,6 @@ class Application(metaclass=Singleton):
 
 
 	async def _exit_time_governor(self):
-		self.Exiting = True
 		self.PubSub.publish("Application.exit!")
 
 		# Finalize services
