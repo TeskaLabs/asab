@@ -192,6 +192,8 @@ class Application(metaclass=Singleton):
 		self.TaskService = TaskService(self)
 
 		# Proactor is mandatory for subsequent interactivity check
+		import asab.proactor
+
 		if asab.proactor.Module not in modules:
 			modules.append(asab.proactor.Module)
 
