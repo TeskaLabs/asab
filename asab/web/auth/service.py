@@ -208,15 +208,14 @@ class AuthService(asab.Service):
 
 		try:
 			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
-		except jwcrypto.jws.InvalidJWSSignature:
+		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey):
 			# Authz server keys may have changed. Try to reload them.
-			L.warning("Invalid ID token signature.")
 			await self._fetch_public_keys_if_needed()
 
 		try:
 			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
-		except jwcrypto.jws.InvalidJWSSignature:
-			L.error("Cannot authenticate request: Invalid ID token signature.")
+		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
+			L.error("Cannot authenticate request: {}".format(str(e)))
 			raise asab.exceptions.NotAuthenticatedError()
 
 
@@ -522,6 +521,8 @@ def _get_id_token_claims(bearer_token: str, auth_server_public_key):
 	except jwcrypto.jwt.JWTExpired:
 		L.warning("ID token expired.")
 		raise asab.exceptions.NotAuthenticatedError()
+	except jwcrypto.jwt.JWTMissingKey as e:
+		raise e
 	except jwcrypto.jws.InvalidJWSSignature as e:
 		raise e
 	except ValueError as e:
