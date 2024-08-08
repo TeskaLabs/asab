@@ -210,7 +210,9 @@ class Application(metaclass=Singleton):
 
 	def _watchdog(self):
 		"""
-		Periodically checks the loop interactivity.
+		Periodically checks the loop interactivity
+		and if the configured threshold is passed,
+		the application is killed.
 		"""
 
 		while True:
