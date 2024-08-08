@@ -103,7 +103,7 @@ class DiscoveryService(Service):
 		if self.InternalAuthToken:
 			claims = json.loads(self.InternalAuthToken.claims)
 			if claims.get("exp") > (
-				datetime.datetime.now(datetime.timezone.UTC) - datetime.timedelta(seconds=300)
+				datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=300)
 			).timestamp():
 				# Token is valid and does not expire soon
 				return
@@ -114,9 +114,9 @@ class DiscoveryService(Service):
 			# Issuer (URL of the app that created the token)
 			"iss": my_discovery_url,
 			# Issued at
-			"iat": int(datetime.datetime.now(datetime.timezone.UTC).timestamp()),
+			"iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
 			# Expires at
-			"exp": int((datetime.datetime.now(datetime.timezone.UTC) + self.InternalAuthTokenExpiration).timestamp()),
+			"exp": int((datetime.datetime.now(datetime.timezone.utc) + self.InternalAuthTokenExpiration).timestamp()),
 			# Authorized party
 			"azp": my_discovery_url,
 			# Audience (who is allowed to use this token)
