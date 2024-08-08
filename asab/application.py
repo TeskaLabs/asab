@@ -130,6 +130,12 @@ class Application(metaclass=Singleton):
 		self.LaunchTime = time.time()
 		self.BaseTime = self.LaunchTime - self.Loop.time()
 
+		# Last time the on_tick/10! was registered
+		self.LastOnTick60 = self.LaunchTime
+
+		# Variable that is set when the exit time is happening
+		self.Exiting = False
+
 		self.Modules: list[asab.Module] = []
 		"""
 		A list of modules that has been added to the application.
@@ -185,6 +191,10 @@ class Application(metaclass=Singleton):
 
 		self.TaskService = TaskService(self)
 
+		# Proactor is mandatory for subsequent interactivity check
+		if asab.proactor.Module not in modules:
+			modules.append(asab.proactor.Module)
+
 		for module in modules:
 			self.add_module(module)
 
@@ -193,6 +203,27 @@ class Application(metaclass=Singleton):
 		self.HousekeepingMissedEvents: list = []
 		# Every 10 minutes listen for housekeeping
 		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
+
+		# Obtain proactor service to register interactivity check on the asyncio loop
+		self.ProactorService = self.get_service("asab.ProactorService")
+		self.ProactorService.schedule(self._run_watchdog_for_event_loop)
+
+
+	def _run_watchdog_for_event_loop(self):
+		"""
+		Periodically checks the loop interactivity.
+		"""
+
+		while not self.Exiting:
+			current_time = time.time()
+
+			if (current_time - self.LastOnTick60) < (10 * 60):  # Ten minute threshold (10 * expected cycle)
+				time.sleep(60)  # Sleep one minute (one cycle)
+				continue
+
+			# The loop lost its interactivity
+			L.critical("The event loop lost its interactivity. Stopping the application!")
+			os._exit(5)  # Cannot use sys.exit inside the thread
 
 
 	def create_argument_parser(
@@ -596,7 +627,9 @@ class Application(metaclass=Singleton):
 					self.PubSub.publish("Application.tick/10!")
 				if (cycle_no % 60) == 0:
 					# Rebase a Loop time
-					self.BaseTime = time.time() - self.Loop.time()
+					current_time = time.time()
+					self.LastOnTick60 = current_time
+					self.BaseTime = current_time - self.Loop.time()
 					self.PubSub.publish("Application.tick/60!")
 				if (cycle_no % 300) == 0:
 					self.PubSub.publish("Application.tick/300!")
@@ -614,6 +647,7 @@ class Application(metaclass=Singleton):
 
 
 	async def _exit_time_governor(self):
+		self.Exiting = True
 		self.PubSub.publish("Application.exit!")
 
 		# Finalize services
