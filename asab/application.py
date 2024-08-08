@@ -200,9 +200,12 @@ class Application(metaclass=Singleton):
 		self.PubSub.subscribe("Application.tick/600!", self._on_housekeeping_tick)
 
 		# Run the watchdog to detect lost interactivity on the event loop
-		watchdog_thread = threading.Thread(target=self._watchdog)
-		watchdog_thread.daemon = True  # Daemonize the thread to ensure it exits with the main program
-		watchdog_thread.start()
+		self.WatchdogThreshold = Config["general"].getseconds("watchdog_threshold")
+
+		if self.WatchdogThreshold > 0:
+			watchdog_thread = threading.Thread(target=self._watchdog)
+			watchdog_thread.daemon = True  # Daemonize the thread to ensure it exits with the main program
+			watchdog_thread.start()
 
 
 	def _watchdog(self):
@@ -213,12 +216,14 @@ class Application(metaclass=Singleton):
 		while True:
 			current_time = time.time()
 
-			if (current_time - self.LastOnTick60) < (15 * 60):  # Fifteen minute threshold (15 * expected cycle)
+			# Check if the configured threshold passed
+			if (current_time - self.LastOnTick60) < self.WatchdogThreshold:
 				time.sleep(60)  # Sleep one minute (one cycle)
 				continue
 
 			# The loop lost its interactivity
 			L.critical("The event loop lost its interactivity. Stopping the application!")
+			os.kill(os.getpid(), signal.SIGKILL)  # Works only on Linux
 			os._exit(5)  # Cannot use sys.exit inside the thread
 
 
