@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
 """
-You need to run two instances of this mini app, each on a different port.
+You need to run two instances of this mini app, each on a different port:
 
-INSTANCE_ID=app-1 PORT=8081 TARGET=http://app-2.instance_id.asab python examples/internal-auth.py && INSTANCE_ID=app-2 PORT=8082 TARGET=http://app-1.instance_id.asab python examples/internal-auth.py
+INSTANCE_ID=app-1 PORT=8081 TARGET=http://app-2.instance_id.asab python examples/internal-auth.py
+INSTANCE_ID=app-2 PORT=8082 TARGET=http://app-1.instance_id.asab python examples/internal-auth.py
+
+curl http://localhost:8081/send
 """
 
 import asab.web.rest
@@ -21,9 +24,6 @@ if "zookeeper" not in asab.Config:
 	asab.Config["zookeeper"] = {
 		"servers": "localhost:2181",
 	}
-
-if "auth" not in asab.Config:
-	asab.Config["auth"] = {}
 
 
 class MyApplication(asab.Application):
@@ -63,6 +63,10 @@ class MyApplication(asab.Application):
 
 	@asab.web.auth.noauth
 	async def send(self, request):
+		"""
+		Send a request to the /receive endpoint of the TARGET application.
+		Return the log of this exchange.
+		"""
 		log = ["{} received request.".format(self.Name)]
 		async with self.DiscoveryService.session(auth="internal") as session:
 			async with session.put(
@@ -78,6 +82,9 @@ class MyApplication(asab.Application):
 
 	@asab.web.rest.json_schema_handler({"type": "array"})
 	async def receive(self, request, *, json_data):
+		"""
+		Receive an array, append message and return it.
+		"""
 		json_data.append("{} received request.".format(self.Name))
 		return asab.web.rest.json_response(request, json_data)
 
