@@ -17,6 +17,7 @@ import aiohttp.client_exceptions
 import asab
 import asab.exceptions
 import asab.utils
+from asab.contextvars import Tenant
 
 try:
 	import jwcrypto.jwk
@@ -453,10 +454,13 @@ class AuthService(asab.Service):
 		if "user_info" in args:
 			handler = _add_user_info(handler)
 		if "tenant" in args:
+			# TODO: Deprecate tenant ID in path and query, always use X-Tenant header instead.
 			if tenant_in_path:
 				handler = self._add_tenant_from_path(handler)
 			else:
 				handler = self._add_tenant_from_query(handler)
+
+		handler = self._set_tenant_context_from_header(handler)
 
 		handler = self._authenticate_request(handler)
 		route._handler = handler
@@ -476,6 +480,30 @@ class AuthService(asab.Service):
 			request._UserInfo["resources"].get(tenant, [])))
 
 
+	def _set_tenant_context_from_header(self, handler):
+		"""
+		Extract tenant from request path and authorize it
+		"""
+
+		@functools.wraps(handler)
+		async def wrapper(*args, **kwargs):
+			request = args[-1]
+			tenant: str | None = request.headers.get("X-Tenant")
+
+			if tenant is not None and self.Mode != AuthMode.DISABLED:
+				self._authorize_tenant_request(request, tenant)
+
+			tenant_ctx = Tenant.set(tenant)
+			try:
+				response = await handler(*args, **kwargs)
+			finally:
+				Tenant.reset(tenant_ctx)
+			return response
+
+		return wrapper
+
+
+
 	def _add_tenant_from_path(self, handler):
 		"""
 		Extract tenant from request path and authorize it
@@ -484,9 +512,15 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
+			tenant_from_header = Tenant.get(None)
 			tenant = request.match_info["tenant"]
+			if tenant_from_header and tenant != tenant_from_header:
+				L.warning("Tenant in path differs from tenant in X-Tenant header.", struct_data={
+					"path": tenant, "header": tenant_from_header})
+
 			if self.Mode != AuthMode.DISABLED:
 				self._authorize_tenant_request(request, tenant)
+
 			return await handler(*args, tenant=tenant, **kwargs)
 
 		return wrapper
@@ -500,12 +534,18 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
+			tenant_from_header = Tenant.get(None)
 			if "tenant" not in request.query:
-				return await handler(*args, tenant=None, **kwargs)
-			else:
-				tenant = request.query["tenant"]
-				if self.Mode != AuthMode.DISABLED:
-					self._authorize_tenant_request(request, tenant)
+				return await handler(*args, tenant=tenant_from_header, **kwargs)
+
+			tenant = request.query["tenant"]
+			if tenant_from_header and tenant != tenant_from_header:
+				L.warning("Tenant in query differs from tenant in X-Tenant header.", struct_data={
+					"query": tenant, "header": tenant_from_header})
+
+			if self.Mode != AuthMode.DISABLED:
+				self._authorize_tenant_request(request, tenant)
+
 			return await handler(*args, tenant=tenant, **kwargs)
 
 		return wrapper
