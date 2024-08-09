@@ -439,9 +439,6 @@ class AuthService(asab.Service):
 			handler = _add_resources(handler)
 		if "user_info" in args:
 			handler = _add_user_info(handler)
-		# TODO:
-		#   - extract tenant always
-		#   - add it to args only if args available
 		if "tenant" in args:
 			# TODO: Deprecate tenant ID in path and query, always use X-Tenant header instead.
 			if tenant_in_path:
