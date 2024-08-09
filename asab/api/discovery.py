@@ -59,7 +59,8 @@ class DiscoveryService(Service):
 				self.App.TaskService.schedule(self._ensure_internal_auth_key(zkc))
 
 
-	async def _ensure_internal_auth_key(self, zkc):
+	async def _ensure_internal_auth_key(self, zkc=None):
+		zkc = zkc or self.ZooKeeperContainer
 		private_key_json = None
 		# Attempt to create and write a new private key
 		# while avoiding race condition with other ASAB services
@@ -76,17 +77,20 @@ class DiscoveryService(Service):
 			private_key_json = json.dumps(private_key.export(as_dict=True)).encode("utf-8")
 			try:
 				zkc.ZooKeeper.Client.create(self.InternalAuthKeyPath, private_key_json, makepath=True)
-				L.info("Internal auth key created.", struct_data={"path": self.InternalAuthKeyPath})
+				L.info("Internal auth key created.", struct_data={
+					"kid": private_key.key_id, "path": self.InternalAuthKeyPath})
 			except kazoo.exceptions.NodeExistsError:
 				# Another ASAB service has probably created the key in the meantime
 				pass
 
 		private_key = jwcrypto.jwk.JWK.from_json(private_key_json)
-		self.InternalAuthKey = private_key
-		self._ensure_internal_auth_token()
+		if private_key != self.InternalAuthKey:
+			# Private key has changed
+			self.InternalAuthKey = private_key
+			self._ensure_internal_auth_token(force_new=True)
 
 
-	def _ensure_internal_auth_token(self):
+	def _ensure_internal_auth_token(self, force_new: bool = False):
 		assert self.InternalAuthKey
 
 		def _get_own_discovery_url():
@@ -100,7 +104,7 @@ class DiscoveryService(Service):
 
 			return "http://{}".format(self.App.HostName)
 
-		if self.InternalAuthToken:
+		if self.InternalAuthToken and not force_new:
 			claims = json.loads(self.InternalAuthToken.claims)
 			if claims.get("exp") > (
 				datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=300)
@@ -110,13 +114,14 @@ class DiscoveryService(Service):
 
 		# Use this service's discovery URL as issuer ID and authorized party ID
 		my_discovery_url = _get_own_discovery_url()
+		expiration = datetime.datetime.now(datetime.timezone.utc) + self.InternalAuthTokenExpiration
 		claims = {
 			# Issuer (URL of the app that created the token)
 			"iss": my_discovery_url,
 			# Issued at
 			"iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
 			# Expires at
-			"exp": int((datetime.datetime.now(datetime.timezone.utc) + self.InternalAuthTokenExpiration).timestamp()),
+			"exp": int((expiration).timestamp()),
 			# Authorized party
 			"azp": my_discovery_url,
 			# Audience (who is allowed to use this token)
@@ -136,7 +141,8 @@ class DiscoveryService(Service):
 			claims=json.dumps(claims)
 		)
 		self.InternalAuthToken.make_signed_token(self.InternalAuthKey)
-		L.info("New internal auth token issued.")
+
+		L.info("New internal auth token issued.", struct_data={"exp": expiration})
 
 
 	async def locate(self, instance_id: str = None, **kwargs) -> set:
