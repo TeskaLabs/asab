@@ -501,7 +501,11 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
+			tenant_from_header = Tenant.get(None)
 			tenant = request.match_info["tenant"]
+			if tenant_from_header and tenant != tenant_from_header:
+				L.warning("Tenant in path differs from tenant in X-Tenant header.", struct_data={
+					"path": tenant, "header": tenant_from_header})
 
 			if self.Mode != AuthMode.DISABLED:
 				self._authorize_tenant_request(request, tenant)
@@ -519,10 +523,14 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
+			tenant_from_header = Tenant.get(None)
 			if "tenant" not in request.query:
-				return await handler(*args, tenant=Tenant.get(None), **kwargs)
+				return await handler(*args, tenant=tenant_from_header, **kwargs)
 
 			tenant = request.query["tenant"]
+			if tenant_from_header and tenant != tenant_from_header:
+				L.warning("Tenant in query differs from tenant in X-Tenant header.", struct_data={
+					"query": tenant, "header": tenant_from_header})
 
 			if self.Mode != AuthMode.DISABLED:
 				self._authorize_tenant_request(request, tenant)
