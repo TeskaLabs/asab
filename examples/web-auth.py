@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
+import typing
 import asab.web.rest
 import asab.web.auth
-import typing
+from asab.contextvars import Tenant
 
 if "web" not in asab.Config:
 	asab.Config["web"] = {
@@ -82,7 +83,7 @@ class MyApplication(asab.Application):
 		- if there is a tenant ID in the X-Tenant header, the request must be authorized to access that tenant
 		- returns 401 if authentication not successful
 		"""
-		tenant = asab.web.auth.Tenant.get()
+		tenant = Tenant.get()
 		data = {
 			"tenant": tenant,
 			"resources": list(resources) if resources else None,
@@ -107,7 +108,7 @@ class MyApplication(asab.Application):
 		- returns 401 if authentication not successful
 		- returns 403 if authorization not successful
 		"""
-		tenant = asab.web.auth.Tenant.get()
+		tenant = Tenant.get()
 		data = {
 			"tenant": tenant,
 			"resources": list(resources) if resources else None,
