@@ -21,6 +21,8 @@ from ..application import Application
 from .providers.abc import LibraryProviderABC
 from ..exceptions import LibraryInvalidPathError
 
+from .providers.zookeeper import TenantContextVar
+
 #
 
 L = logging.getLogger(__name__)
@@ -195,7 +197,7 @@ class LibraryService(Service):
 
 		return results
 
-	async def read(self, path: str, tenant: typing.Optional[str] = None) -> typing.Optional[typing.IO]:
+	async def read(self, path: str) -> typing.Optional[typing.IO]:
 		"""
 		THIS IS OBSOLETED METHOD, USE `open(...)` !!!
 
@@ -221,7 +223,7 @@ class LibraryService(Service):
 		LogObsolete.warning("Method 'LibraryService.read()' is obsolete. Use 'LibraryService.open()' method instead.")
 		_validate_path_item(path)
 
-		if self.check_disabled(path, tenant=tenant):
+		if self.check_disabled(path):
 			return None
 
 		for library in self.Libraries:
@@ -234,7 +236,7 @@ class LibraryService(Service):
 
 
 	@contextlib.asynccontextmanager
-	async def open(self, path: str, tenant: typing.Optional[str] = None):
+	async def open(self, path: str):
 		"""
 		Read the content of the library item specified by `path` in a SAFE way, protected by a context manager/with statement.
 		This method can be used only after the Library is ready.
@@ -254,7 +256,7 @@ class LibraryService(Service):
 
 		# Same functionality as in read() method
 		itemio = None
-		disabled = self.check_disabled(path, tenant=tenant)
+		disabled = self.check_disabled(path)
 		if not disabled:
 			for library in self.Libraries:
 				itemio = await library.read(path)
@@ -270,7 +272,7 @@ class LibraryService(Service):
 				itemio.close()
 
 
-	async def list(self, path: str = "/", tenant: typing.Optional[str] = None, recursive: bool = False) -> typing.List[LibraryItem]:
+	async def list(self, path: str = "/", recursive: bool = False) -> typing.List[LibraryItem]:
 		"""
 		List the directory of the library specified by the path that are enabled for the specified tenant. This method can be used only after the Library is ready.
 
@@ -286,7 +288,7 @@ class LibraryService(Service):
 		_validate_path_directory(path)
 
 		# List requested level using all available providers
-		items = await self._list(path, tenant, providers=self.Libraries)
+		items = await self._list(path, providers=self.Libraries)
 
 		if recursive:
 			# If recursive scan is requested, then iterate thru list of items
@@ -301,12 +303,12 @@ class LibraryService(Service):
 				if item.type != 'dir':
 					continue
 
-				child_items = await self._list(item.name, tenant, providers=item.providers)
+				child_items = await self._list(item.name, providers=item.providers)
 				items.extend(child_items)
 				recitems.extend(child_items)
 		return items
 
-	async def _list(self, path, tenant, providers):
+	async def _list(self, path, providers):
 		items: list[LibraryItem] = []
 		unique_items: dict[str, LibraryItem] = dict()
 
@@ -323,7 +325,7 @@ class LibraryService(Service):
 				continue
 
 			for item in items_list_from_provider:
-				item.disabled = self.check_disabled(item.name, tenant=tenant)
+				item.disabled = self.check_disabled(item.name)
 
 				# If the item already exists, merge or override it
 				pitem = unique_items.get(item.name)
@@ -387,7 +389,7 @@ class LibraryService(Service):
 		self.DisabledPaths.sort(key=lambda x: len(x[0]))
 
 
-	def check_disabled(self, path: str, tenant: typing.Optional[str] = None) -> bool:
+	def check_disabled(self, path: str) -> bool:
 		"""
 		Check if the item specified in path is disabled, either globally or for the specified tenant.
 
@@ -403,6 +405,9 @@ class LibraryService(Service):
 				message="Argument 'path' must be a non-empty string.",
 				path=path,
 			)
+
+		tenant = TenantContextVar.get(default='*')
+
 
 		# First check disabled by path
 		for dp, disabled in self.DisabledPaths:
@@ -432,7 +437,7 @@ class LibraryService(Service):
 
 		return False
 
-	async def export(self, path: str = "/", tenant: typing.Optional[str] = None, remove_path: bool = False) -> typing.IO:
+	async def export(self, path: str = "/", remove_path: bool = False) -> typing.IO:
 		"""
 		Return a file-like stream containing a gzipped tar archive of the library contents of the path.
 
@@ -450,7 +455,7 @@ class LibraryService(Service):
 		fileobj = tempfile.TemporaryFile()
 		tarobj = tarfile.open(name=None, mode='w:gz', fileobj=fileobj)
 
-		items = await self._list(path, tenant, providers=self.Libraries[:1])
+		items = await self._list(path, providers=self.Libraries[:1])
 		recitems = list(items[:])
 
 		while len(recitems) > 0:
@@ -459,7 +464,7 @@ class LibraryService(Service):
 			if item.type != 'dir':
 				continue
 
-			child_items = await self._list(item.name, tenant, providers=item.providers)
+			child_items = await self._list(item.name, providers=item.providers)
 			items.extend(child_items)
 			recitems.extend(child_items)
 
