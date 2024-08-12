@@ -406,8 +406,7 @@ class LibraryService(Service):
 				path=path,
 			)
 
-		tenant = TenantContextVar.get(default='*')
-
+		tenant = TenantContextVar.get()
 
 		# First check disabled by path
 		for dp, disabled in self.DisabledPaths:
