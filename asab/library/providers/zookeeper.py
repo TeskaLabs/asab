@@ -11,12 +11,7 @@ import kazoo.exceptions
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
 from ...zookeeper import ZooKeeperContainer
-
-# contextvars.py
-from contextvars import ContextVar
-
-# Define a context variable for tenant
-TenantContextVar = ContextVar('tenant', default=None)
+from ... contextvars import Tenant
 
 #
 
@@ -350,10 +345,14 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		else:
 			node_path = self.BasePath
 
-		tenant = TenantContextVar.get() if tenant_specific else None
+		if tenant_specific:
+			try:
+				tenant = Tenant.get()
+			except LookupError:
+				tenant = None
 
-		if tenant:
-			node_path = self.BasePath + '/.tenants/' + tenant + path
+			if tenant:
+				node_path = self.BasePath + '/.tenants/' + tenant + path
 
 		node_path = node_path.rstrip("/")
 

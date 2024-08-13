@@ -21,7 +21,7 @@ from ..application import Application
 from .providers.abc import LibraryProviderABC
 from ..exceptions import LibraryInvalidPathError
 
-from .providers.zookeeper import TenantContextVar
+from asab.contextvars import Tenant
 
 #
 
@@ -405,8 +405,10 @@ class LibraryService(Service):
 				message="Argument 'path' must be a non-empty string.",
 				path=path,
 			)
-
-		tenant = TenantContextVar.get()
+		try:
+			tenant = Tenant.get()
+		except LookupError:
+			tenant = None
 
 		# First check disabled by path
 		for dp, disabled in self.DisabledPaths:
