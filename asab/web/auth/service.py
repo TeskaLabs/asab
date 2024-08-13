@@ -17,6 +17,7 @@ import aiohttp.client_exceptions
 import asab
 import asab.exceptions
 import asab.utils
+from asab.contextvars import Tenant
 
 try:
 	import jwcrypto.jwk
@@ -103,7 +104,7 @@ class AuthService(asab.Service):
 
 	def __init__(self, app, service_name="asab.AuthService"):
 		super().__init__(app, service_name)
-		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url")
+		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url") or None
 
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
@@ -125,14 +126,14 @@ class AuthService(asab.Service):
 				"You are trying to use asab.web.auth module without 'jwcrypto' installed. "
 				"Please run 'pip install jwcrypto' "
 				"or install asab with 'authz' optional dependency.")
-		elif len(self.PublicKeysUrl) == 0:
+		elif not self.PublicKeysUrl and self.DiscoveryService is None:
 			self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
 			L.warning(
 				"No 'public_keys_url' provided in [auth] config section. "
 				"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT)
 			)
 
-		self.AuthServerPublicKey = None  # TODO: Support multiple public keys
+		self.TrustedPublicKeys: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
 		# Limit the frequency of auth server requests to save network traffic
 		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
 		self.AuthServerLastSuccessfulCheck = None
@@ -189,7 +190,7 @@ class AuthService(asab.Service):
 			return True
 		if self.Mode == AuthMode.MOCK:
 			return True
-		if self.AuthServerPublicKey is None:
+		if not self.TrustedPublicKeys["keys"]:
 			return False
 		return True
 
@@ -200,23 +201,22 @@ class AuthService(asab.Service):
 		"""
 		if not self.is_ready():
 			# Try to load the public keys again
-			if self.AuthServerPublicKey is None:
+			if not self.TrustedPublicKeys["keys"]:
 				await self._fetch_public_keys_if_needed()
 			if not self.is_ready():
 				L.error("Cannot authenticate request: Failed to load authorization server's public keys.")
 				raise aiohttp.web.HTTPUnauthorized()
 
 		try:
-			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
-		except jwcrypto.jws.InvalidJWSSignature:
+			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
+		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey):
 			# Authz server keys may have changed. Try to reload them.
-			L.warning("Invalid ID token signature.")
 			await self._fetch_public_keys_if_needed()
 
 		try:
-			return _get_id_token_claims(bearer_token, self.AuthServerPublicKey)
-		except jwcrypto.jws.InvalidJWSSignature:
-			L.error("Cannot authenticate request: Invalid ID token signature.")
+			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
+		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
+			L.error("Cannot authenticate request: {}".format(str(e)))
 			raise asab.exceptions.NotAuthenticatedError()
 
 
@@ -273,6 +273,21 @@ class AuthService(asab.Service):
 		"""
 		Check if public keys have been fetched from the authorization server and fetch them if not yet.
 		"""
+		# Add internal shared auth key
+		if self.DiscoveryService is not None:
+			if self.DiscoveryService.InternalAuthKey is not None:
+				self.TrustedPublicKeys.add(self.DiscoveryService.InternalAuthKey.public())
+			else:
+				L.debug("Internal auth key is not ready yet.")
+				self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
+
+			if not self.PublicKeysUrl:
+				# Only internal authorization is supported
+				return
+
+		# Either DiscoveryService or PublicKeysUrl must be defined
+		assert self.PublicKeysUrl
+
 		now = datetime.datetime.now(datetime.timezone.utc)
 		if self.AuthServerLastSuccessfulCheck is not None \
 			and now < self.AuthServerLastSuccessfulCheck + self.AuthServerCheckCooldown:
@@ -337,7 +352,7 @@ class AuthService(asab.Service):
 		if public_key is None:
 			return
 
-		self.AuthServerPublicKey = public_key
+		self.TrustedPublicKeys.add(public_key)
 		self.AuthServerLastSuccessfulCheck = datetime.datetime.now(datetime.timezone.utc)
 		L.debug("Public key loaded.", struct_data={"url": self.PublicKeysUrl})
 
@@ -439,10 +454,13 @@ class AuthService(asab.Service):
 		if "user_info" in args:
 			handler = _add_user_info(handler)
 		if "tenant" in args:
+			# TODO: Deprecate tenant ID in path and query, always use X-Tenant header instead.
 			if tenant_in_path:
 				handler = self._add_tenant_from_path(handler)
 			else:
 				handler = self._add_tenant_from_query(handler)
+
+		handler = self._set_tenant_context_from_header(handler)
 
 		handler = self._authenticate_request(handler)
 		route._handler = handler
@@ -462,6 +480,30 @@ class AuthService(asab.Service):
 			request._UserInfo["resources"].get(tenant, [])))
 
 
+	def _set_tenant_context_from_header(self, handler):
+		"""
+		Extract tenant from request path and authorize it
+		"""
+
+		@functools.wraps(handler)
+		async def wrapper(*args, **kwargs):
+			request = args[-1]
+			tenant: str | None = request.headers.get("X-Tenant")
+
+			if tenant is not None and self.Mode != AuthMode.DISABLED:
+				self._authorize_tenant_request(request, tenant)
+
+			tenant_ctx = Tenant.set(tenant)
+			try:
+				response = await handler(*args, **kwargs)
+			finally:
+				Tenant.reset(tenant_ctx)
+			return response
+
+		return wrapper
+
+
+
 	def _add_tenant_from_path(self, handler):
 		"""
 		Extract tenant from request path and authorize it
@@ -470,9 +512,15 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
+			tenant_from_header = Tenant.get(None)
 			tenant = request.match_info["tenant"]
+			if tenant_from_header and tenant != tenant_from_header:
+				L.warning("Tenant in path differs from tenant in X-Tenant header.", struct_data={
+					"path": tenant, "header": tenant_from_header})
+
 			if self.Mode != AuthMode.DISABLED:
 				self._authorize_tenant_request(request, tenant)
+
 			return await handler(*args, tenant=tenant, **kwargs)
 
 		return wrapper
@@ -486,12 +534,18 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
+			tenant_from_header = Tenant.get(None)
 			if "tenant" not in request.query:
-				return await handler(*args, tenant=None, **kwargs)
-			else:
-				tenant = request.query["tenant"]
-				if self.Mode != AuthMode.DISABLED:
-					self._authorize_tenant_request(request, tenant)
+				return await handler(*args, tenant=tenant_from_header, **kwargs)
+
+			tenant = request.query["tenant"]
+			if tenant_from_header and tenant != tenant_from_header:
+				L.warning("Tenant in query differs from tenant in X-Tenant header.", struct_data={
+					"query": tenant, "header": tenant_from_header})
+
+			if self.Mode != AuthMode.DISABLED:
+				self._authorize_tenant_request(request, tenant)
+
 			return await handler(*args, tenant=tenant, **kwargs)
 
 		return wrapper
@@ -507,9 +561,15 @@ def _get_id_token_claims(bearer_token: str, auth_server_public_key):
 	except jwcrypto.jwt.JWTExpired:
 		L.warning("ID token expired.")
 		raise asab.exceptions.NotAuthenticatedError()
+	except jwcrypto.jwt.JWTMissingKey as e:
+		raise e
 	except jwcrypto.jws.InvalidJWSSignature as e:
 		raise e
 	except ValueError as e:
+		L.error(
+			"Failed to parse JWT ID token ({}). Please check if the Authorization header contains ID token.".format(e))
+		raise aiohttp.web.HTTPBadRequest()
+	except jwcrypto.jws.InvalidJWSObject as e:
 		L.error(
 			"Failed to parse JWT ID token ({}). Please check if the Authorization header contains ID token.".format(e))
 		raise aiohttp.web.HTTPBadRequest()

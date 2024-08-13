@@ -1,12 +1,22 @@
+import datetime
 import json
 import copy
 import socket
 import typing
 import asyncio
 import logging
+import os
 
 import aiohttp
 import kazoo.exceptions
+
+try:
+	# Optional dependency for using internal authorization
+	import jwcrypto
+	import jwcrypto.jwt
+	import jwcrypto.jwk
+except ModuleNotFoundError:
+	jwcrypto = None
 
 from .. import Service
 
@@ -16,10 +26,17 @@ LogObsolete = logging.getLogger('OBSOLETE')
 
 
 class DiscoveryService(Service):
+	"""
+	Service for discovering ASAB microservices in a server cluster. It is based on searching in ZooKeeper `/run` path.
+	"""
 	def __init__(self, app, zkc, service_name="asab.DiscoveryService") -> None:
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
 		self.ProactorService = zkc.ProactorService
+		self.InternalAuthKeyPath = "/asab/auth/internal_auth_private.key"
+		self.InternalAuthKey = None
+		self.InternalAuthToken = None
+		self.InternalAuthTokenExpiration: datetime.timedelta = datetime.timedelta(seconds=5 * 300)
 
 		self._advertised_cache = dict()
 		self._cache_lock = asyncio.Lock()
@@ -29,27 +46,115 @@ class DiscoveryService(Service):
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 
 
-	def _on_tick(self, msg):
+	async def _on_tick(self, msg):
 		self._update_cache(msg)
+		if jwcrypto is not None:
+			self._ensure_internal_auth_token()
 
 
 	def _on_zk_ready(self, msg, zkc):
 		if zkc == self.ZooKeeperContainer:
 			self._update_cache(msg)
+			if jwcrypto is not None:
+				self.App.TaskService.schedule(self._ensure_internal_auth_key(zkc))
+
+
+	async def _ensure_internal_auth_key(self, zkc=None):
+		zkc = zkc or self.ZooKeeperContainer
+		private_key_json = None
+		# Attempt to create and write a new private key
+		# while avoiding race condition with other ASAB services
+		while not private_key_json:
+			# Try to get the key
+			try:
+				private_key_json, _ = zkc.ZooKeeper.Client.get(self.InternalAuthKeyPath)
+				break
+			except kazoo.exceptions.NoNodeError:
+				pass
+
+			# Generate a new key
+			private_key = jwcrypto.jwk.JWK.generate(kty="EC", crv="P-256")
+			private_key_json = json.dumps(private_key.export(as_dict=True)).encode("utf-8")
+			try:
+				zkc.ZooKeeper.Client.create(self.InternalAuthKeyPath, private_key_json, makepath=True)
+				L.info("Internal auth key created.", struct_data={
+					"kid": private_key.key_id, "path": self.InternalAuthKeyPath})
+			except kazoo.exceptions.NodeExistsError:
+				# Another ASAB service has probably created the key in the meantime
+				pass
+
+		private_key = jwcrypto.jwk.JWK.from_json(private_key_json)
+		if private_key != self.InternalAuthKey:
+			# Private key has changed
+			self.InternalAuthKey = private_key
+			self._ensure_internal_auth_token(force_new=True)
+
+
+	def _ensure_internal_auth_token(self, force_new: bool = False):
+		assert self.InternalAuthKey
+
+		def _get_own_discovery_url():
+			instance_id = os.getenv("INSTANCE_ID", None)
+			if instance_id:
+				return "http://{}.instance_id.asab".format(instance_id)
+
+			service_id = os.getenv("SERVICE_ID", None)
+			if service_id:
+				return "http://{}.service_id.asab".format(service_id)
+
+			return "http://{}".format(self.App.HostName)
+
+		if self.InternalAuthToken and not force_new:
+			claims = json.loads(self.InternalAuthToken.claims)
+			if claims.get("exp") > (
+				datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=300)
+			).timestamp():
+				# Token is valid and does not expire soon
+				return
+
+		# Use this service's discovery URL as issuer ID and authorized party ID
+		my_discovery_url = _get_own_discovery_url()
+		expiration = datetime.datetime.now(datetime.timezone.utc) + self.InternalAuthTokenExpiration
+		claims = {
+			# Issuer (URL of the app that created the token)
+			"iss": my_discovery_url,
+			# Issued at
+			"iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
+			# Expires at
+			"exp": int((expiration).timestamp()),
+			# Authorized party
+			"azp": my_discovery_url,
+			# Audience (who is allowed to use this token)
+			"aud": "http://{}".format(self.App.HostName),  # TODO: Something that signifies "anyone in this internal space"
+			# Tenants and resources
+			"resources": {
+				"*": ["authz:superuser"],
+			}
+		}
+
+		self.InternalAuthToken = jwcrypto.jwt.JWT(
+			header={
+				"alg": "ES256",
+				"typ": "JWT",
+				"kid": self.InternalAuthKey.key_id,
+			},
+			claims=json.dumps(claims)
+		)
+		self.InternalAuthToken.make_signed_token(self.InternalAuthKey)
+
+		L.info("New internal auth token issued.", struct_data={"exp": expiration})
 
 
 	async def locate(self, instance_id: str = None, **kwargs) -> set:
 		"""
-		Returns a list of URLs for a given instance or service ID.
+		Return a list of URLs for a given instance or service ID.
 
-		:param instance_id: The ID of a specific instance of a service that the client wants to locate.
-		:type instance_id: str
-		:param service_id: The `service_id` parameter represents identifier of a
-		service to locate. It is used to query a service registry to find the
-		instances of the service that are currently available.
-		:type service_id: str
-		:return: A list of URLs in the format "http://servername:port" for the specified instance or
-		service.
+		Args:
+			instance_id (str): The ID of a specific instance of a service that the client wants to locate.
+			service_id (str): The `service_id` parameter represents identifier of a service to locate.
+				It is used to query a service registry to find the instances of the service that are currently available.
+
+		Returns: A list of URLs in the format "http://servername:port" for the specified instance or service.
 		"""
 
 		if instance_id is not None:
@@ -71,11 +176,13 @@ class DiscoveryService(Service):
 
 	async def _locate(self, locate_params) -> typing.Set[typing.Tuple]:
 		"""
-		Locates service instances based on their identifiers.
+		Locate service instances based on their instance ID or service ID.
 
-		:param instance_id: The unique identifier for a specific instance of a service
-		:type instance_id: str
-		:return: a list of tuples containing the server name and port number of the located service(s).
+		Args:
+			instance_id (str): The unique identifier for a specific instance of a service
+			service_id (str): The ID of the service to locate
+
+		Returns: a list of tuples containing the server name and port number of the located service(s).
 		"""
 		res = set()
 
@@ -247,16 +354,56 @@ class DiscoveryService(Service):
 			yield item, json.loads(item_data)
 
 
-	def session(self, base_url=None, **kwargs) -> aiohttp.ClientSession:
-		'''
+	def session(self, base_url=None, auth=None, headers=None, **kwargs) -> aiohttp.ClientSession:
+		"""
 		Usage:
 
+		```python
 		async with self.DiscoveryService.session() as session:
-			# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective serivce identificator
+			# use URL in format: <protocol>://<value>.<key>.asab/<endpoint>
+			# where key is "service_id" or "instance_id"
+			# and value the respective service identificator
 			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
 				...
-		'''
-		return aiohttp.ClientSession(base_url, connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)), **kwargs)
+
+		# Using end-user authorization (from the UI)
+		async with self.DiscoveryService.session(auth=request) as session:
+			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
+				...
+
+		# Using internal m2m authorization
+		async with self.DiscoveryService.session(auth="internal") as session:
+			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
+				...
+		"""
+		if isinstance(auth, aiohttp.ClientRequest):
+			if headers is None:
+				headers = {}
+			assert "Authorization" in auth.headers
+			headers["Authorization"] = auth.headers.get("Authorization")
+		elif auth == "internal":
+			if jwcrypto is None:
+				raise ModuleNotFoundError(
+					"You are trying to use internal auth without 'jwcrypto' installed. "
+					"Please run 'pip install jwcrypto' or install asab with 'authz' optional dependency."
+				)
+			if headers is None:
+				headers = {}
+			headers["Authorization"] = "Bearer {}".format(self.InternalAuthToken.serialize())
+		elif auth is None:
+			pass
+		else:
+			raise ValueError(
+				"Invalid 'auth' value. "
+				"Only instances of aiohttp.ClientRequest or the literal string 'internal' are allowed. "
+				"Found {}.".format(type(auth))
+			)
+		return aiohttp.ClientSession(
+			base_url,
+			connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)),
+			headers=headers,
+			**kwargs
+		)
 
 
 	def _update_cache(self, watched_event):
@@ -265,7 +412,9 @@ class DiscoveryService(Service):
 
 
 class DiscoveryResolver(aiohttp.DefaultResolver):
-	"""Custom aiohttp Resolver for Discovery Session based on default aiohttp resolver."""
+	"""
+	Custom resolver for Discovery Session based on default `aiohttp` resolver.
+	"""
 
 	def __init__(self, svc) -> None:
 		super().__init__()
@@ -274,8 +423,8 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 
 	async def resolve(self, hostname: str, port: int = 0, family: int = socket.AF_INET) -> typing.List[typing.Dict[str, typing.Any]]:
 		"""
-		Resolves a hostname only with '.asab' domain. and returns a list of dictionaries
-		containing information about the resolved hosts further used by aiohttp.TCPConnector
+		Resolve a hostname only with '.asab' domain. and return a list of dictionaries
+		containing information about the resolved hosts further used by `aiohttp.TCPConnector`.
 
 		The hostname to resolve must be in the format of "<value>.<key>.asab",
 		where key is "service_id" or "instance_id" and value is the particular identificator of the service to be resolved.
@@ -311,4 +460,7 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 
 
 class NotDiscoveredError(RuntimeError):
+	"""
+	Raised when given service is not discovered.
+	"""
 	pass
