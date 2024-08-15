@@ -314,11 +314,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 	async def subscribe(self, path):
-		path = self.BasePath + path
 		self.Subscriptions[path] = await self._get_directory_hash(path)
 
 
 	async def _get_directory_hash(self, path):
+		path = self.BasePath + path
+
 		def recursive_traversal(path, digest):
 			if not self.Zookeeper.Client.exists(path):
 				return
