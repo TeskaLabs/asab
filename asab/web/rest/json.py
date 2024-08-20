@@ -1,8 +1,11 @@
-import functools
 import json
-import logging
 import uuid
+import logging
 import datetime
+import functools
+import dataclasses
+
+
 import aiohttp.web
 import fastjsonschema
 
@@ -61,6 +64,9 @@ class JSONDumper(object):
 
 		elif isinstance(o, bytes):
 			return o.hex()
+
+		elif dataclasses.is_dataclass(o):
+			return dataclasses.asdict(o)
 
 		try:
 			return json.JSONEncoder.default(self, o)
