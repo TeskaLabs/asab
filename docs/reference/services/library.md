@@ -277,7 +277,7 @@ If a `path` from the `[zookeeper]` section is missing, an application class name
 
 ## Working with Tenant Layers
 
-The ASAB Library supports multi-tenancy, allowing you to manage and separate content specific to different tenants. This is particularly useful in scenarios where multiple clients or applications require isolated configurations or resources.
+The ASAB Library supports multi-tenancy, allowing you to manage and separate content specific to different tenants.
 
 ### Implementing Tenant-Specific Logic in Your Application
 
