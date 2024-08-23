@@ -109,11 +109,7 @@ class TaskService(asab.Service):
 		```
 		"""
 		for task in tasks:
-
-			def do():
-				self.NewTasks.put_nowait(task)
-
-			self.App.Loop.call_soon_threadsafe(do)
+			self.App.Loop.call_soon_threadsafe(self.NewTasks.put_nowait, task)
 
 
 	def run_forever(self, *async_functions):
