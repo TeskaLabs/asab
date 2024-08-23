@@ -97,6 +97,21 @@ class TaskService(asab.Service):
 			self.NewTasks.put_nowait(task)
 
 
+	def schedule_threadsafe(self, *tasks):
+		"""
+		Schedule a task (or tasks) threadsafe for immediate fire-and-forget execution (e.g. compressing files).
+		Use this method to schedule task from a thread to be executed in the main thread.
+
+		Examples:
+
+		```python
+		app.TaskService.schedule_threadsafe(self._start())
+		```
+		"""
+		for task in tasks:
+			self.App.Loop.call_soon_threadsafe(self.NewTasks.put_nowait, task)
+
+
 	def run_forever(self, *async_functions):
 		"""
 		Schedule an async function (or functions) for immediate fire-and-forget execution.
