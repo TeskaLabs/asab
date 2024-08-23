@@ -215,7 +215,10 @@ class PubSub(object):
 			asynchronously (bool, optional): If `True`, `call_soon()` method will be used for the asynchronous delivery of the message. Defaults to `False`.
 		"""
 		def in_main_thread():
-			self.publish(message_type, *args, **kwargs)
+			try:
+				self.publish(message_type, *args, **kwargs)
+			except Exception:
+				L.exception("Error in a PubSub threadsafe", struct_data={'message_type': message_type})
 		self.Loop.call_soon_threadsafe(in_main_thread)
 
 

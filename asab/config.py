@@ -43,6 +43,11 @@ class ConfigParser(configparser.ConfigParser):
 			'working_dir': '.',
 			'uid': '',
 			'gid': '',
+
+			# Watchdog (event loop interactivity check)
+			# If the threshold (in seconds) since the last tick/60! passed, the application is killed
+			# If 0, the watchdog is not started
+			'watchdog_threshold': 15 * 60,  # 15 minutes
 		},
 
 		"asab:metrics": {
