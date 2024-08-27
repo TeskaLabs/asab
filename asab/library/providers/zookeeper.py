@@ -156,7 +156,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		# This is a contingency check for changes for subscribed folders in library even without version counter change.
 		self.App.PubSub.subscribe("Application.tick/600!", self._on_library_changed)
 
-		self.Subscriptions = {}
+		self.Subscriptions: typing.Dict[str, typing.Dict[str, bytes]] = {}
 
 
 	async def finalize(self, app):
@@ -314,7 +314,14 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 	async def subscribe(self, path):
-		self.Subscriptions[path] = await self._get_directory_hash(path)
+		self.Subscriptions[path] = {}
+
+		# Add global target
+		self.Subscriptions[path][None] = await self._get_directory_hash(path)
+
+		# Add tenant targets
+		for tenant in await self._get_tenants():
+			self.Subscriptions[path][tenant] = await self._get_directory_hash("/.tenants/{}{}".format(tenant, path))
 
 
 	async def _get_directory_hash(self, path):
@@ -340,15 +347,53 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 	async def _on_library_changed(self, event_name=None):
+		"""
+		Check watched paths and publish a pubsub message for every one that has changed.
+		"""
 
-		for path, digest in self.Subscriptions.items():
+		for path, digests in self.Subscriptions.items():
+
+			async def do_check_path(tenant=None):
+				# If tenant is None, we are checking global layer
+				if tenant is not None:
+					path = "/.tenants/{}{}".format(tenant, path)
+				try:
+					newdigest = await self._get_directory_hash(path)
+				except kazoo.exceptions.NoNodeError:
+					# This node is either deleted or has never existed.
+					newdigest = None
+
+				if newdigest != digests.get(tenant):
+					self.Subscriptions[path][tenant] = newdigest
+					ctx = Tenant.set(tenant)
+					try:
+						self.App.PubSub.publish("Library.change!", self, path)
+					finally:
+						Tenant.reset(ctx)
+
+			# First check global layer
 			try:
-				newdigest = await self._get_directory_hash(path)
-				if newdigest != digest:
-					self.Subscriptions[path] = newdigest
-					self.App.PubSub.publish("Library.change!", self, path)
+				await do_check_path(path, tenant=None)
 			except Exception as e:
-				L.error("Failed to process library change for path: '{}'. Reason: '{}'".format(path, e))
+				L.error("Failed to process library change for path {!r}. Reason: '{}'".format(path, e))
+
+			# Check tenant layers
+			for tenant in await self._get_tenants():
+				try:
+					do_check_path(path, tenant=tenant)
+				except Exception as e:
+					L.error("Failed to process library change for path {!r} in tenant {!r}. Reason: '{}'".format(
+						path, tenant, e))
+
+
+	async def _get_tenants(self) -> typing.List[str]:
+		try:
+			tenants = await self._list("/.tenants")  # TODO: Dotted path may not be available via list method
+		except kazoo.exceptions.NoNodeError:
+			tenants = []
+		return tenants
+
+
 
 	async def find(self, filename: str) -> list:
 		"""
