@@ -157,7 +157,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		# This is a contingency check for changes for subscribed folders in library even without version counter change.
 		self.App.PubSub.subscribe("Application.tick/600!", self._on_library_changed)
 
-		self.Subscriptions: typing.Dict[str, typing.Dict[str, bytes]] = {}
+		self.Subscriptions: typing.Iterable[str] = set()
+		self.SubscriptionDigests: typing.Dict[typing.Tuple, bytes] = {}
 
 
 	async def finalize(self, app):
@@ -314,15 +315,24 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return node_path
 
 
-	async def subscribe(self, path):
-		self.Subscriptions[path] = {}
+	async def subscribe(self, path, target="global"):
+		self.Subscriptions.add((target, path))
 
-		# Add global target
-		self.Subscriptions[path][None] = await self._get_directory_hash(path)
-
-		# Add tenant targets
-		for tenant in await self._get_tenants():
-			self.Subscriptions[path][tenant] = await self._get_directory_hash("/.tenants/{}{}".format(tenant, path))
+		if target == "global":
+			# Watch path globally
+			self.SubscriptionDigests[path] = await self._get_directory_hash(path)
+		elif target == "tenant":
+			# Watch path in all tenants
+			for tenant in await self._get_tenants():
+				actual_path = "/.tenants/{}{}".format(tenant, path)
+				self.SubscriptionDigests[actual_path] = await self._get_directory_hash(actual_path)
+		elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
+			# Watch path in a specific tenant
+			_, tenant = target
+			actual_path = "/.tenants/{}{}".format(tenant, path)
+			self.SubscriptionDigests[actual_path] = await self._get_directory_hash(actual_path)
+		else:
+			raise ValueError("Unexpected target: {!r}".format(target))
 
 
 	async def _get_directory_hash(self, path):
@@ -352,44 +362,63 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		Check watched paths and publish a pubsub message for every one that has changed.
 		"""
 
-		for path, digests in self.Subscriptions.items():
+		for (target, path) in self.Subscriptions:
 
-			async def do_check_path(tenant=None):
-				# If tenant is None, we are checking global layer
-				if tenant is not None:
-					path = "/.tenants/{}{}".format(tenant, path)
+			async def do_check_path(actual_target, actual_path):
 				try:
-					newdigest = await self._get_directory_hash(path)
+					newdigest = await self._get_directory_hash(actual_path)
 				except kazoo.exceptions.NoNodeError:
 					# This node is either deleted or has never existed.
 					newdigest = None
 
-				if newdigest != digests.get(tenant):
-					self.Subscriptions[path][tenant] = newdigest
-					ctx = Tenant.set(tenant)
-					try:
-						self.App.PubSub.publish("Library.change!", self, path)
-					finally:
-						Tenant.reset(ctx)
+				if newdigest != self.SubscriptionDigests.get(actual_path):
+					self.SubscriptionDigests[actual_path] = newdigest
+					if target == "global":
+						self.App.PubSub.publish("Library.change!", self, path)  # For backward compatibility
+					else:
+						self.App.PubSub.publish("Library.change!", self, path, target=actual_target)
 
-			# First check global layer
-			try:
-				await do_check_path(path, tenant=None)
-			except Exception as e:
-				L.error("Failed to process library change for path {!r}. Reason: '{}'".format(path, e))
-
-			# Check tenant layers
-			for tenant in await self._get_tenants():
+			if target == "global":
 				try:
-					do_check_path(path, tenant=tenant)
+					await do_check_path(actual_path=path, actual_target="global")
+				except Exception as e:
+					L.error("Failed to process library change for path {!r}. Reason: '{}'".format(path, e))
+
+			elif target == "tenant":
+				for tenant in await self._get_tenants():
+					try:
+						await do_check_path(
+							actual_path="/.tenants/{}{}".format(tenant, path),
+							actual_target=("tenant", tenant)
+						)
+					except Exception as e:
+						L.error("Failed to process library change for path {!r} in tenant {!r}. Reason: '{}'".format(
+							path, tenant, e))
+
+			elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
+				tenant = target[1]
+				try:
+					await do_check_path(
+						actual_path="/.tenants/{}{}".format(tenant, path),
+						actual_target=("tenant", tenant)
+					)
 				except Exception as e:
 					L.error("Failed to process library change for path {!r} in tenant {!r}. Reason: '{}'".format(
 						path, tenant, e))
 
+			else:
+				raise ValueError("Unexpected target: {!r}".format((target, path)))
+
 
 	async def _get_tenants(self) -> typing.List[str]:
+		"""
+		List tenants that have custom content in the library (in the /.tenants directory).
+		"""
 		try:
-			tenants = await self._list("/.tenants")  # TODO: Dotted path may not be available via list method
+			tenants = [
+				t for t in await self.Zookeeper.get_children("/.tenants")
+				if not t.startswith(".")
+			]
 		except kazoo.exceptions.NoNodeError:
 			tenants = []
 		return tenants
