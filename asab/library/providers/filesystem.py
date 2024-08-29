@@ -197,7 +197,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			self.App.PubSub.publish("Library.change!", self, path)
 
 
-	async def subscribe(self, path):
+	async def subscribe(self, path, target: typing.Union[str, tuple] = "global"):
 		if not os.path.isdir(self.BasePath + path):
 			return
 		if self.FD is None:

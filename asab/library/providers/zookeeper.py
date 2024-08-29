@@ -157,7 +157,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.App.PubSub.subscribe("Application.tick/600!", self._on_library_changed)
 
 		self.Subscriptions: typing.Iterable[str] = set()
-		self.TargetDigests: typing.Dict[str, bytes] = {}
+		self.NodeDigests: typing.Dict[str, bytes] = {}
 
 
 	async def finalize(self, app):
@@ -314,22 +314,22 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return node_path
 
 
-	async def subscribe(self, path, target="global"):
+	async def subscribe(self, path, target: typing.Union[str, tuple] = "global"):
 		self.Subscriptions.add((target, path))
 
 		if target == "global":
 			# Watch path globally
-			self.TargetDigests[path] = await self._get_directory_hash(path)
+			self.NodeDigests[path] = await self._get_directory_hash(path)
 		elif target == "tenant":
 			# Watch path in all tenants
 			for tenant in await self._get_tenants():
 				actual_path = "/.tenants/{}{}".format(tenant, path)
-				self.TargetDigests[actual_path] = await self._get_directory_hash(actual_path)
+				self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
 		elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
 			# Watch path in a specific tenant
 			_, tenant = target
 			actual_path = "/.tenants/{}{}".format(tenant, path)
-			self.TargetDigests[actual_path] = await self._get_directory_hash(actual_path)
+			self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
 		else:
 			raise ValueError("Unexpected target: {!r}".format(target))
 
@@ -370,8 +370,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					# This node is either deleted or has never existed.
 					newdigest = None
 
-				if newdigest != self.TargetDigests.get(actual_path):
-					self.TargetDigests[actual_path] = newdigest
+				if newdigest != self.NodeDigests.get(actual_path):
+					self.NodeDigests[actual_path] = newdigest
 					if target == "global":
 						self.App.PubSub.publish("Library.change!", self, path)  # For backward compatibility
 					else:

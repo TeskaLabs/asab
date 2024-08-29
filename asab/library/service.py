@@ -484,7 +484,11 @@ class LibraryService(Service):
 		return fileobj
 
 
-	async def subscribe(self, paths: typing.Union[str, typing.List[str]]) -> None:
+	async def subscribe(
+		self,
+		paths: typing.Union[str, typing.List[str]],
+		target: typing.Union[str, tuple] = "global"
+	) -> None:
 		"""
 		Subscribe to changes for specified paths of the library.
 
@@ -492,6 +496,10 @@ class LibraryService(Service):
 
 		Args:
 			paths (str | list[str]): Either single path or list of paths to be subscribed. All the paths must be absolute (start with '/').
+			target: In which target to watch the changes. Possible values:
+				- "global" to watch global path changes
+				- "tenant" to watch path changes in tenants
+				- ("tenant", TENANT_ID) to watch path changes in one specified tenant TENANT_ID
 
 		Examples:
 		```python
@@ -519,7 +527,7 @@ class LibraryService(Service):
 				)
 
 			for provider in self.Libraries:
-				await provider.subscribe(path)
+				await provider.subscribe(path, target)
 
 
 def _validate_path_item(path: str) -> None:

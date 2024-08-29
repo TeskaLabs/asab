@@ -209,5 +209,5 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 					L.exception("Error when fetching the library content from a registry")
 
 
-	async def subscribe(self, path):
+	async def subscribe(self, path, target: typing.Union[str, tuple] = "global"):
 		self.SubscribedPaths.add(path)
