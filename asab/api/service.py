@@ -81,7 +81,7 @@ class ApiService(Service):
 
 		# if creation time for att_id is not present then add
 		if "_c" not in att:
-			att["_c"] = datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z'  # This is OK, no tzinfo needed
+			att["_c"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 		# add to microservice json/dict section attention_required
 		self._do_zookeeper_adv_data()
@@ -207,7 +207,7 @@ class ApiService(Service):
 		adv_data = {
 			'host': self.App.HostName,
 			'appclass': self.App.__class__.__name__,
-			'launch_time': datetime.datetime.fromtimestamp(self.App.LaunchTime, datetime.timezone.utc).isoformat() + 'Z',
+			'launch_time': datetime.datetime.fromtimestamp(self.App.LaunchTime, datetime.timezone.utc).isoformat(),
 			'process_id': os.getpid(),
 		}
 
