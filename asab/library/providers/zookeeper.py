@@ -321,7 +321,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			# Back-compat (pubsub callback must be called without `target` argument)
 			# Watch path globally
 			self.NodeDigests[path] = await self._get_directory_hash(path)
-		if target == "global":
+		elif target == "global":
 			# Watch path globally
 			self.NodeDigests[path] = await self._get_directory_hash(path)
 		elif target == "tenant":
@@ -426,7 +426,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		try:
 			tenants = [
-				t for t in await self.Zookeeper.get_children("/.tenants")
+				t for t in await self.Zookeeper.get_children("{}/.tenants".format(self.BasePath))
 				if not t.startswith(".")
 			]
 		except kazoo.exceptions.NoNodeError:
