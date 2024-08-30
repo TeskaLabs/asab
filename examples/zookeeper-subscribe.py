@@ -13,11 +13,6 @@ asab.Config["library"]["providers"] = "zk:///library"
 asab.Config["zookeeper"] = {
 	"servers": "localhost:2181",
 }
-if "web" not in asab.Config:
-	asab.Config["web"] = {
-		# Set up a web container listening at port 8080
-		"listen": "8084"
-	}
 
 
 class MyApplication(asab.Application):
@@ -39,18 +34,15 @@ class MyApplication(asab.Application):
 
 	async def on_library_ready(self, event_name, library=None):
 		# Subscribe to global changes of Triangles directory
-		await self.LibraryService.subscribe("/Triangles")
+		await self.LibraryService.subscribe("/Triangles", target="global")
 		# Subscribe to changes of Circles directory in any tenant
 		await self.LibraryService.subscribe("/Circles", target="tenant")
 		# Subscribe to changes of Squares directory in tenant "shapefactory"
 		await self.LibraryService.subscribe("/Squares", target=("tenant", "shapefactory"))
 
 
-	def on_library_change(self, msg, provider, path, target=None):
-		if target:
-			print("\N{sparkles} New changes in directory {} in target {}.".format(path, target))
-		else:
-			print("\N{sparkles} New global changes in directory {}.".format(path))
+	def on_library_change(self, msg, provider, path, target):
+		print("\N{sparkles} New changes in directory {!r} in target {!r}.".format(path, target))
 
 
 if __name__ == "__main__":
