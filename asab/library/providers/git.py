@@ -219,5 +219,5 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		return to_publish
 
 
-	async def subscribe(self, path, target: typing.Union[str, tuple] = "global"):
+	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		self.SubscribedPaths.add(path)

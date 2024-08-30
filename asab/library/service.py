@@ -487,7 +487,7 @@ class LibraryService(Service):
 	async def subscribe(
 		self,
 		paths: typing.Union[str, typing.List[str]],
-		target: typing.Union[str, tuple] = "global"
+		target: typing.Union[str, tuple, None] = None,
 	) -> None:
 		"""
 		Subscribe to changes for specified paths of the library.

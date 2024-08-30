@@ -46,7 +46,7 @@ class LibraryProviderABC(object):
 		self.IsReady = ready
 		await self.Library._set_ready(self)
 
-	async def subscribe(self, path: str, target: typing.Union[str, tuple] = "global"):
+	async def subscribe(self, path: str, target: typing.Union[str, tuple, None] = None):
 		"""
 		Take a path and subscribe to changes in this directory.
 		When change occurs, publish PubSub signal "Library.change!"

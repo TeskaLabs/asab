@@ -314,9 +314,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return node_path
 
 
-	async def subscribe(self, path, target: typing.Union[str, tuple] = "global"):
+	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		self.Subscriptions.add((target, path))
 
+		if target is None:
+			# Back-compat (pubsub callback must be called without `target` argument)
+			# Watch path globally
+			self.NodeDigests[path] = await self._get_directory_hash(path)
 		if target == "global":
 			# Watch path globally
 			self.NodeDigests[path] = await self._get_directory_hash(path)
@@ -363,7 +367,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		for (target, path) in self.Subscriptions:
 
-			async def do_check_path(actual_target, actual_path):
+			async def do_check_path(actual_path, actual_target):
 				try:
 					newdigest = await self._get_directory_hash(actual_path)
 				except kazoo.exceptions.NoNodeError:
@@ -372,12 +376,19 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 				if newdigest != self.NodeDigests.get(actual_path):
 					self.NodeDigests[actual_path] = newdigest
-					if target == "global":
+					if target is None:
 						self.App.PubSub.publish("Library.change!", self, path)  # For backward compatibility
 					else:
 						self.App.PubSub.publish("Library.change!", self, path, target=actual_target)
 
-			if target == "global":
+			if target is None:
+				# Back-compat (pubsub callback must be called without `target` argument)
+				try:
+					await do_check_path(actual_path=path, actual_target="global")
+				except Exception as e:
+					L.error("Failed to process library change for path {!r}. Reason: '{}'".format(path, e))
+
+			elif target == "global":
 				try:
 					await do_check_path(actual_path=path, actual_target="global")
 				except Exception as e:
