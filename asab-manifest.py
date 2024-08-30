@@ -59,7 +59,7 @@ envvars = [
 
 def create_manifest(args):
 	manifest = {
-		'created_at': datetime.datetime.now(datetime.timezone.utc).isoformat()
+		'created_at': datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # attention required: I used this datetime formatting with confidence I only use UTC time in this code. Do not copy blindly, mind the timezones.
 	}
 
 	try:
