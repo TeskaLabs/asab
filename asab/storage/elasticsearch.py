@@ -215,7 +215,7 @@ class StorageService(StorageServiceABC):
 		"""
 
 		if _id:
-			path = "{}/_doc/{}?refresh={}".format(index, _id, self.Refresh)
+			path = "{}/_doc/{}?refresh={}".format(index, urllib.parse.quote_plus(_id), self.Refresh)
 		else:
 			path = "{}".format(index)
 
@@ -224,9 +224,10 @@ class StorageService(StorageServiceABC):
 				raise KeyError("No existing object with ID {}".format(_id))
 
 			elif resp.status not in {200, 201}:
+				resp = await resp.json()
 				raise ConnectionError("Failed to retrieve data from ElasticSearch. Got {}: {}".format(
 					resp.get("status"),
-					resp.get("error", {}).get("reason")
+					resp.get("error", {})
 				))
 
 			else:
