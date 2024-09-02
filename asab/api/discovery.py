@@ -356,9 +356,7 @@ class DiscoveryService(Service):
 
 	def _on_change_threadsafe(self, watched_event):
 		# Runs on a thread, returns the process back to the main thread
-		def _update_cache():
-			self.App.TaskService.schedule(self._rescan_advertised_instances())
-		self.App.Loop.call_soon_threadsafe(_update_cache)
+		self.App.TaskService.schedule_threadsafe(self._rescan_advertised_instances())
 
 
 	def session(self, base_url=None, auth=None, headers=None, **kwargs) -> aiohttp.ClientSession:
