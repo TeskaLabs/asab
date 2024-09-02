@@ -11,6 +11,7 @@ import kazoo.exceptions
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
 from ...zookeeper import ZooKeeperContainer
+from ... contextvars import Tenant
 
 #
 
@@ -97,7 +98,43 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	If `path` from [zookeeper] section is missing, an application class name will be used
 	Ex. `/BSQueryApp/library`
 
-	"""
+	Usage of TenantContextVar:
+		The 'TenantContextVar' context variable is used to specify the current tenant context.
+		It can be set at the beginning of an operation (e.g., a web request) to ensure that all
+		subsequent operations within that context are executed under the specified tenant.
+		The context variable is reset to its default value (None) at the end of the operation.
+
+	Example:
+		Usage of TenantContextVar:
+		The 'TenantContextVar' context variable is used to specify the current tenant context.
+		It can be set at the beginning of an operation (e.g., a web request) to ensure that all
+		subsequent operations within that context are executed under the specified tenant.
+		The context variable is reset to its default value (None) at the end of the operation.
+
+		Steps:
+
+		1. Import the necessary module:
+
+			import asab.library.providers.zookeeper
+
+		2. Set the context variable at the beginning of the operation:
+
+			tenant_token = asab.library.providers.zookeeper.TenantContextVar.set('default')
+
+		3. Perform the desired operation within the specified tenant context:
+
+			LibraryService.read("asab/library/schema.json")
+
+		4. Reset the context variable to its default value at the end of the operation:
+
+			asab.library.providers.zookeeper.TenantContextVar.reset(tenant_token)  # Reset to default context
+
+		Example:
+
+			tenant_token = asab.library.providers.zookeeper.TenantContextVar.set('default')
+			LibraryService.read("asab/library/schema.json")
+			asab.library.providers.zookeeper.TenantContextVar.reset(tenant_token)  # Reset to default context
+		"""
 
 	def __init__(self, library, path, layer):
 		super().__init__(library, layer)
@@ -224,49 +261,60 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		self.App.TaskService.schedule(self._on_library_changed())
 
-
-
 	async def read(self, path: str) -> typing.IO:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
-		node_path = self.build_path(path)
-
 		try:
+			# Try tenant-specific path first
+			node_path = self.build_path(path, tenant_specific=True)
 			node_data = await self.Zookeeper.get_data(node_path)
+
+			# If not found, try the normal path
+			if node_data is None:
+				node_path = self.build_path(path, tenant_specific=False)
+				node_data = await self.Zookeeper.get_data(node_path)
+
+			if node_data is not None:
+				return io.BytesIO(initial_bytes=node_data)
+			else:
+				return None
+
 		except kazoo.exceptions.ConnectionClosedError:
 			L.warning("Zookeeper library provider is not ready")
 			raise RuntimeError("Zookeeper library provider is not ready")
-		except kazoo.exceptions.NoNodeError:
-			return None
-
-		# Consider adding other exceptions from Kazoo to indicate common non-critical errors
-
-		if node_data is not None:
-			return io.BytesIO(initial_bytes=node_data)
-		else:
-			return None
 
 	async def list(self, path: str) -> list:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
-		node_path = self.build_path(path)
+		# Process global nodes
+		global_node_path = self.build_path(path, tenant_specific=False)
+		global_nodes = await self.Zookeeper.get_children(global_node_path) or []
+		global_items = await self.process_nodes(global_nodes, path)
 
-		nodes = await self.Zookeeper.get_children(node_path)
-		if nodes is None:
-			raise KeyError("Path '{}' not found by ZookeeperLibraryProvider.".format(node_path))
+		# Process tenant-specific nodes
+		tenant_node_path = self.build_path(path, tenant_specific=True)
+		if tenant_node_path != global_node_path:
+			tenant_nodes = await self.Zookeeper.get_children(tenant_node_path) or []
+			tenant_items = await self.process_nodes(tenant_nodes, path)
+		else:
+			tenant_items = []
+		# Combine items, with tenant items taking precedence over global ones
+		combined_items = {item.name: item for item in global_items}
+		combined_items.update({item.name: item for item in tenant_items})
 
+		return list(combined_items.values())
+
+	async def process_nodes(self, nodes, base_path):
 		items = []
 		for node in nodes:
-
 			# Remove any component that starts with '.'
 			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), node.split(os.path.sep), False)
 			if startswithdot:
 				continue
-
 			# Extract the last 5 characters of the node name
 			last_five_chars = node[-5:]
 
@@ -275,10 +323,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			# but exclude filenames ending with '.io' or '.d' (e.g., 'logman.io', server_https.d)
 			# from being considered as files.
 			if '.' in last_five_chars and not node.endswith(('.io', '.d')):
-				fname = path + node
+				fname = base_path + node
 				ftype = "item"
 			else:
-				fname = path + node + '/'
+				fname = base_path + node + '/'
 				ftype = "dir"
 
 			items.append(LibraryItem(
@@ -290,28 +338,28 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		return items
 
-	def build_path(self, path):
-		"""
-		It takes a path in the library and transforms in into a path within Zookeeper.
-		It does also series of sanity checks (asserts).
-
-		IMPORTANT: If you encounter asserting failure, don't remove assert.
-		It means that your code is incorrect.
-		"""
+	def build_path(self, path, tenant_specific=False):
 		assert path[:1] == '/'
 		if path != '/':
 			node_path = self.BasePath + path
 		else:
 			node_path = self.BasePath
 
-		# Zookeeper path should not have forward slash at the end of path
+		if tenant_specific:
+			try:
+				tenant = Tenant.get()
+			except LookupError:
+				tenant = None
+
+			if tenant:
+				node_path = self.BasePath + '/.tenants/' + tenant + path
+
 		node_path = node_path.rstrip("/")
 
 		assert '//' not in node_path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
 		assert node_path[0] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
 
 		return node_path
-
 
 	async def subscribe(self, path):
 		self.Subscriptions[path] = await self._get_directory_hash(path)
