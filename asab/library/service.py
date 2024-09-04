@@ -359,7 +359,7 @@ class LibraryService(Service):
 			return
 
 		try:
-			disabled = yaml.safe_load(disabled)
+			disabled = yaml.load(disabled, Loader=yaml.CSafeLoader)
 		except Exception:
 			self.Disabled = {}
 			self.DisabledPaths = []
