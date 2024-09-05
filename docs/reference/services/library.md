@@ -275,9 +275,9 @@ If a `path` from the `[zookeeper]` section is missing, an application class name
 `/BSQueryApp/library`.
 
 
-## Working with Tenant Layers
+## Working with target=tenant Layers
 
-The ASAB Library supports multi-tenancy, allowing you to manage and separate content specific to different tenants. To handle tenant-specific contexts, use `Tenant.set()` to set the context and `Tenant.reset()` to reset it after processing.
+The ASAB Library supports multi-tenancy, allowing you to manage and separate content specific to different tenants within layers in library. To handle tenant-specific contexts, use `Tenant.set()` to set the context and `Tenant.reset()` to reset it after processing.
 
 ### Implementing Tenant-Specific Logic in Your Application
 
