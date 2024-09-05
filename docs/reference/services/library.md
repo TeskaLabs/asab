@@ -277,7 +277,7 @@ If a `path` from the `[zookeeper]` section is missing, an application class name
 
 ## Working with Tenant Layers
 
-The ASAB Library supports multi-tenancy, allowing you to manage and separate content specific to different tenants.
+The ASAB Library supports multi-tenancy, allowing you to manage and separate content specific to different tenants. To handle tenant-specific contexts, use `Tenant.set()` to set the context and `Tenant.reset()` to reset it after processing.
 
 ### Implementing Tenant-Specific Logic in Your Application
 
@@ -288,6 +288,42 @@ To handle tenant-specific logic, make sure the `AuthService` is present in `app.
 self.AuthService = asab.web.auth.AuthService(self)
 self.AuthService.install(self.WebContainer)
 ```
+
+### Example: Processing Multiple Tenants
+
+The following example demonstrates how to iterate through multiple tenants, setting and resetting the tenant context for each one:
+
+```
+async def process_tenants(self):
+    for tenant in self.Tenants:
+        # Set the tenant context
+        tenant_context = Tenant.set(tenant)
+        try:
+            # Process tenant-specific logic here
+            print(f"Processing workflows for tenant: {tenant}")
+        finally:
+            # Reset the tenant context
+            Tenant.reset(tenant_context)
+```
+
+In this method:
+- `Tenant.set(tenant)` establishes the context for the current tenant.
+- `Tenant.reset(tenant_context)` ensures the context is cleared after processing, preventing any unintended carryover.
+
+### Example: Handling a Single Tenant
+
+If you need to handle only one tenant context, the process is straightforward:
+
+```
+async def process_single_tenant(self, tenant):
+    tenant_context = Tenant.set(tenant)
+    try:
+        # Perform operations for the tenant
+        print(f"Processing data for tenant: {tenant}")
+    finally:
+        Tenant.reset(tenant_context)
+```
+
 
 ### Microsoft Azure Storage
 
