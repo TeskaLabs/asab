@@ -3,6 +3,7 @@ import tempfile
 import logging
 import hashlib
 import re
+import typing
 
 from .filesystem import FileSystemLibraryProvider
 from ...config import Config
@@ -218,5 +219,5 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		return to_publish
 
 
-	async def subscribe(self, path):
+	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		self.SubscribedPaths.add(path)

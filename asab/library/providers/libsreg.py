@@ -7,6 +7,7 @@ import tarfile
 import asyncio
 import shutil
 import tempfile
+import typing
 import urllib.parse
 
 import aiohttp
@@ -209,5 +210,5 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 					L.exception("Error when fetching the library content from a registry")
 
 
-	async def subscribe(self, path):
+	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		self.SubscribedPaths.add(path)

@@ -471,7 +471,7 @@ class AuthService(asab.Service):
 		Check access to requested tenant and add tenant resources to the request
 		"""
 		# Check if tenant access is authorized
-		if tenant not in request._AuthorizedTenants:
+		if not request.has_tenant_access(tenant):
 			L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
 			raise asab.exceptions.AccessDeniedError()
 

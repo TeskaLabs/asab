@@ -98,43 +98,29 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	If `path` from [zookeeper] section is missing, an application class name will be used
 	Ex. `/BSQueryApp/library`
 
-	Usage of TenantContextVar:
-		The 'TenantContextVar' context variable is used to specify the current tenant context.
+	Usage of asab.contextvars.Tenant:
+		The 'Tenant' context variable is used to specify the current tenant context.
 		It can be set at the beginning of an operation (e.g., a web request) to ensure that all
 		subsequent operations within that context are executed under the specified tenant.
 		The context variable is reset to its default value (None) at the end of the operation.
 
 	Example:
-		Usage of TenantContextVar:
-		The 'TenantContextVar' context variable is used to specify the current tenant context.
-		It can be set at the beginning of an operation (e.g., a web request) to ensure that all
-		subsequent operations within that context are executed under the specified tenant.
-		The context variable is reset to its default value (None) at the end of the operation.
 
-		Steps:
+		# Import tenant context variable
+		from asab.contextvars import Tenant
 
-		1. Import the necessary module:
+		# Set your working tenant
+		tenant_token = Tenant.set('default')
 
-			import asab.library.providers.zookeeper
-
-		2. Set the context variable at the beginning of the operation:
-
-			tenant_token = asab.library.providers.zookeeper.TenantContextVar.set('default')
-
-		3. Perform the desired operation within the specified tenant context:
-
+		# Use try-finally flow to ensure the context is always properly reset
+		try:
+			# Perform library operation in the selected tenant
 			LibraryService.read("asab/library/schema.json")
+		finally:
+			# Reset the tenant context
+			Tenant.reset(tenant_token)
 
-		4. Reset the context variable to its default value at the end of the operation:
-
-			asab.library.providers.zookeeper.TenantContextVar.reset(tenant_token)  # Reset to default context
-
-		Example:
-
-			tenant_token = asab.library.providers.zookeeper.TenantContextVar.set('default')
-			LibraryService.read("asab/library/schema.json")
-			asab.library.providers.zookeeper.TenantContextVar.reset(tenant_token)  # Reset to default context
-		"""
+	"""
 
 	def __init__(self, library, path, layer):
 		super().__init__(library, layer)
@@ -193,7 +179,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		# This is a contingency check for changes for subscribed folders in library even without version counter change.
 		self.App.PubSub.subscribe("Application.tick/600!", self._on_library_changed)
 
-		self.Subscriptions = {}
+		self.Subscriptions: typing.Iterable[str] = set()
+		self.NodeDigests: typing.Dict[str, bytes] = {}
 
 
 	async def finalize(self, app):
@@ -361,8 +348,29 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		return node_path
 
-	async def subscribe(self, path):
-		self.Subscriptions[path] = await self._get_directory_hash(path)
+
+	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
+		self.Subscriptions.add((target, path))
+
+		if target is None:
+			# Back-compat (pubsub callback must be called without `target` argument)
+			# Watch path globally
+			self.NodeDigests[path] = await self._get_directory_hash(path)
+		elif target == "global":
+			# Watch path globally
+			self.NodeDigests[path] = await self._get_directory_hash(path)
+		elif target == "tenant":
+			# Watch path in all tenants
+			for tenant in await self._get_tenants():
+				actual_path = "/.tenants/{}{}".format(tenant, path)
+				self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
+		elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
+			# Watch path in a specific tenant
+			_, tenant = target
+			actual_path = "/.tenants/{}{}".format(tenant, path)
+			self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
+		else:
+			raise ValueError("Unexpected target: {!r}".format(target))
 
 
 	async def _get_directory_hash(self, path):
@@ -388,15 +396,79 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 	async def _on_library_changed(self, event_name=None):
+		"""
+		Check watched paths and publish a pubsub message for every one that has changed.
+		"""
 
-		for path, digest in self.Subscriptions.items():
-			try:
-				newdigest = await self._get_directory_hash(path)
-				if newdigest != digest:
-					self.Subscriptions[path] = newdigest
-					self.App.PubSub.publish("Library.change!", self, path)
-			except Exception as e:
-				L.error("Failed to process library change for path: '{}'. Reason: '{}'".format(path, e))
+		for (target, path) in self.Subscriptions:
+
+			async def do_check_path(actual_path, actual_target):
+				try:
+					newdigest = await self._get_directory_hash(actual_path)
+				except kazoo.exceptions.NoNodeError:
+					# This node is either deleted or has never existed.
+					newdigest = None
+
+				if newdigest != self.NodeDigests.get(actual_path):
+					self.NodeDigests[actual_path] = newdigest
+					if target is None:
+						self.App.PubSub.publish("Library.change!", self, path)  # For backward compatibility
+					else:
+						self.App.PubSub.publish("Library.change!", self, path, target=actual_target)
+
+			if target is None:
+				# Back-compat (pubsub callback must be called without `target` argument)
+				try:
+					await do_check_path(actual_path=path, actual_target="global")
+				except Exception as e:
+					L.error("Failed to process library change for path {!r}. Reason: '{}'".format(path, e))
+
+			elif target == "global":
+				try:
+					await do_check_path(actual_path=path, actual_target="global")
+				except Exception as e:
+					L.error("Failed to process library change for path {!r}. Reason: '{}'".format(path, e))
+
+			elif target == "tenant":
+				for tenant in await self._get_tenants():
+					try:
+						await do_check_path(
+							actual_path="/.tenants/{}{}".format(tenant, path),
+							actual_target=("tenant", tenant)
+						)
+					except Exception as e:
+						L.error("Failed to process library change for path {!r} in tenant {!r}. Reason: '{}'".format(
+							path, tenant, e))
+
+			elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
+				tenant = target[1]
+				try:
+					await do_check_path(
+						actual_path="/.tenants/{}{}".format(tenant, path),
+						actual_target=("tenant", tenant)
+					)
+				except Exception as e:
+					L.error("Failed to process library change for path {!r} in tenant {!r}. Reason: '{}'".format(
+						path, tenant, e))
+
+			else:
+				raise ValueError("Unexpected target: {!r}".format((target, path)))
+
+
+	async def _get_tenants(self) -> typing.List[str]:
+		"""
+		List tenants that have custom content in the library (in the /.tenants directory).
+		"""
+		try:
+			tenants = [
+				t for t in await self.Zookeeper.get_children("{}/.tenants".format(self.BasePath))
+				if not t.startswith(".")
+			]
+		except kazoo.exceptions.NoNodeError:
+			tenants = []
+		return tenants
+
+
 
 	async def find(self, filename: str) -> list:
 		"""
