@@ -42,7 +42,13 @@ class MyApplication(asab.Application):
 
 
 	def on_library_change(self, msg, provider, path, target):
-		print("\N{sparkles} New changes in directory {!r} in target {!r}.".format(path, target))
+		if target == "global":
+			print("\N{sparkles} New global changes in directory {!r}.".format(path))
+		elif target[0] == "tenant":
+			tenant_id = target[1]
+			print("\N{sparkles} New changes in directory {!r} in tenant {!r}.".format(path, tenant_id))
+		else:
+			raise ValueError("Unknown target: {}".format(target))
 
 
 if __name__ == "__main__":
