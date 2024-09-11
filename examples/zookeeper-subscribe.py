@@ -41,14 +41,8 @@ class MyApplication(asab.Application):
 		await self.LibraryService.subscribe("/Squares", target=("tenant", "shapefactory"))
 
 
-	def on_library_change(self, msg, provider, path, target):
-		if target == "global":
-			print("\N{sparkles} New global changes in directory {!r}.".format(path))
-		elif target[0] == "tenant":
-			tenant_id = target[1]
-			print("\N{sparkles} New changes in directory {!r} in tenant {!r}.".format(path, tenant_id))
-		else:
-			raise ValueError("Unknown target: {}".format(target))
+	def on_library_change(self, msg, provider, path):
+		print("\N{sparkles} New changes in directory {!r} ({!r}).".format(path, provider))
 
 
 if __name__ == "__main__":
