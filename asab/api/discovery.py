@@ -212,6 +212,7 @@ class DiscoveryService(Service):
 		Returns a list of dictionaries. Each dictionary represents an advertised instance
 		obtained by iterating over the items in the `/run` path in ZooKeeper.
 		"""
+		# TODO: an obsolete log for this method
 		advertised = []
 		async for item, item_data in self._iter_zk_items():
 			item_data['ephemeral_id'] = item
