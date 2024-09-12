@@ -42,7 +42,8 @@ class MyApplication(asab.Application):
 
 
 	def on_library_change(self, msg, provider, path):
-		print("\N{sparkles} New changes in directory {!r} ({!r}).".format(path, provider))
+		print("\N{sparkles} New changes in directory {!r} ({}).".format(
+			path, provider.__class__.__name__))
 
 
 if __name__ == "__main__":
