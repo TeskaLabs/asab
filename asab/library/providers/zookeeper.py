@@ -402,7 +402,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		for (target, path) in self.Subscriptions:
 
-			async def do_check_path(actual_path, actual_target):
+			async def do_check_path(actual_path):
 				try:
 					newdigest = await self._get_directory_hash(actual_path)
 				except kazoo.exceptions.NoNodeError:
@@ -411,44 +411,28 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 				if newdigest != self.NodeDigests.get(actual_path):
 					self.NodeDigests[actual_path] = newdigest
-					if target is None:
-						self.App.PubSub.publish("Library.change!", self, path)  # For backward compatibility
-					else:
-						self.App.PubSub.publish("Library.change!", self, path, target=actual_target)
+					self.App.PubSub.publish("Library.change!", self, path)
 
-			if target is None:
-				# Back-compat (pubsub callback must be called without `target` argument)
+			if target in {None, "global"}:
 				try:
-					await do_check_path(actual_path=path, actual_target="global")
+					await do_check_path(actual_path=path)
 				except Exception as e:
-					L.error("Failed to process library change for path {!r}. Reason: '{}'".format(path, e))
-
-			elif target == "global":
-				try:
-					await do_check_path(actual_path=path, actual_target="global")
-				except Exception as e:
-					L.error("Failed to process library change for path {!r}. Reason: '{}'".format(path, e))
+					L.error("Failed to process library change for path {!r}: '{}'".format(path, e))
 
 			elif target == "tenant":
 				for tenant in await self._get_tenants():
 					try:
-						await do_check_path(
-							actual_path="/.tenants/{}{}".format(tenant, path),
-							actual_target=("tenant", tenant)
-						)
+						await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 					except Exception as e:
-						L.error("Failed to process library change for path {!r} in tenant {!r}. Reason: '{}'".format(
+						L.error("Failed to process library change for path {!r} in tenant {!r}: '{}'".format(
 							path, tenant, e))
 
 			elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
 				tenant = target[1]
 				try:
-					await do_check_path(
-						actual_path="/.tenants/{}{}".format(tenant, path),
-						actual_target=("tenant", tenant)
-					)
+					await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 				except Exception as e:
-					L.error("Failed to process library change for path {!r} in tenant {!r}. Reason: '{}'".format(
+					L.error("Failed to process library change for path {!r} in tenant {!r}: '{}'".format(
 						path, tenant, e))
 
 			else:
@@ -461,7 +445,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		try:
 			tenants = [
-				t for t in await self.Zookeeper.get_children("{}/.tenants".format(self.BasePath))
+				t for t in await self.Zookeeper.get_children("{}/.tenants".format(self.BasePath)) or []
 				if not t.startswith(".")
 			]
 		except kazoo.exceptions.NoNodeError:
