@@ -445,7 +445,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		try:
 			tenants = [
-				t for t in await self.Zookeeper.get_children("{}/.tenants".format(self.BasePath))
+				t for t in await self.Zookeeper.get_children("{}/.tenants".format(self.BasePath)) or []
 				if not t.startswith(".")
 			]
 		except kazoo.exceptions.NoNodeError:
