@@ -22,7 +22,6 @@ from .. import Service
 
 
 L = logging.getLogger(__name__)
-LogObsolete = logging.getLogger('OBSOLETE')
 
 
 class DiscoveryService(Service):
@@ -213,7 +212,7 @@ class DiscoveryService(Service):
 		Returns a list of dictionaries. Each dictionary represents an advertised instance
 		obtained by iterating over the items in the `/run` path in ZooKeeper.
 		"""
-		LogObsolete.warning("The method 'get_advertised_instances()' in DiscoveryService is obsolete. Use `discover()` method instead.")
+		# TODO: an obsolete log for this method
 		advertised = []
 		async for item, item_data in self._iter_zk_items():
 			item_data['ephemeral_id'] = item
