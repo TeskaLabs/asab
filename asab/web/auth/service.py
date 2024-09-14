@@ -14,10 +14,11 @@ import aiohttp
 import aiohttp.web
 import aiohttp.client_exceptions
 
+# TODO: These MUST be relative imports ... as anywhere else in ASAB
 import asab
 import asab.exceptions
 import asab.utils
-from asab.contextvars import Tenant
+import asab.contextvars
 
 try:
 	import jwcrypto.jwk
@@ -286,7 +287,7 @@ class AuthService(asab.Service):
 				return
 
 		# Either DiscoveryService or PublicKeysUrl must be defined
-		assert self.PublicKeysUrl
+		assert self.PublicKeysUrl is not None
 
 		now = datetime.datetime.now(datetime.timezone.utc)
 		if self.AuthServerLastSuccessfulCheck is not None \
@@ -493,11 +494,11 @@ class AuthService(asab.Service):
 			if tenant is not None and self.Mode != AuthMode.DISABLED:
 				self._authorize_tenant_request(request, tenant)
 
-			tenant_ctx = Tenant.set(tenant)
+			tenant_ctx = asab.contextvars.Tenant.set(tenant)
 			try:
 				response = await handler(*args, **kwargs)
 			finally:
-				Tenant.reset(tenant_ctx)
+				asab.contextvars.Tenant.reset(tenant_ctx)
 			return response
 
 		return wrapper
@@ -512,7 +513,7 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			tenant_from_header = Tenant.get(None)
+			tenant_from_header = asab.contextvars.Tenant.get(None)
 			tenant = request.match_info["tenant"]
 			if tenant_from_header and tenant != tenant_from_header:
 				L.warning("Tenant in path differs from tenant in X-Tenant header.", struct_data={
@@ -534,7 +535,7 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			tenant_from_header = Tenant.get(None)
+			tenant_from_header = asab.contextvars.Tenant.get(None)
 			if "tenant" not in request.query:
 				return await handler(*args, tenant=tenant_from_header, **kwargs)
 
