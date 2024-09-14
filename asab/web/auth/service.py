@@ -489,9 +489,23 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			tenant: str | None = request.headers.get("X-Tenant")
+
+			if request.headers.get("Upgrade") == "websocket":
+				# Get tenant from Sec-Websocket-Protocol header for websocket requests
+				x = request.headers.get("Sec-Websocket-Protocol", "")
+				for i in x.split(", "):
+					i = i.strip()
+					if i.startswith("tenant_"):
+						tenant = i[7:]
+						break
+				else:
+					tenant = None
+			else:
+				# Get tenant from X-Tenant header for HTTP requests
+				tenant = request.headers.get("X-Tenant")
 
 			if tenant is not None and self.Mode != AuthMode.DISABLED:
+				assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
 				self._authorize_tenant_request(request, tenant)
 
 			tenant_ctx = asab.contextvars.Tenant.set(tenant)
