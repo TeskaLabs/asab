@@ -107,10 +107,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	Example:
 
 		# Import tenant context variable
-		from asab.contextvars import Tenant
+		import asab.contextvars
 
 		# Set your working tenant
-		tenant_token = Tenant.set('default')
+		tenant_token = asab.contextvars.Tenant.set('default')
 
 		# Use try-finally flow to ensure the context is always properly reset
 		try:
@@ -118,7 +118,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			LibraryService.read("asab/library/schema.json")
 		finally:
 			# Reset the tenant context
-			Tenant.reset(tenant_token)
+			asab.contextvars.Tenant.reset(tenant_token)
 
 	"""
 
