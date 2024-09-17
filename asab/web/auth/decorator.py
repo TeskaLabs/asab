@@ -2,7 +2,7 @@ import logging
 import functools
 import inspect
 
-import asab.exceptions
+from ...exceptions import AccessDeniedError
 
 #
 
@@ -40,7 +40,7 @@ def require(*resources):
 					"the handler method does not use both the '@noauth' and the '@require' decorators at once.")
 
 			if not request.has_resource_access(*resources):
-				raise asab.exceptions.AccessDeniedError()
+				raise AccessDeniedError()
 
 			return await handler(*args, **kwargs)
 
