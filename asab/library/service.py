@@ -20,8 +20,7 @@ from .item import LibraryItem
 from ..application import Application
 from .providers.abc import LibraryProviderABC
 from ..exceptions import LibraryInvalidPathError
-
-from asab.contextvars import Tenant
+from ..contextvars import Tenant
 
 #
 

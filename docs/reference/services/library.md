@@ -294,18 +294,18 @@ self.AuthService.install(self.WebContainer)
 The following example demonstrates how to iterate through multiple tenants, setting and resetting the tenant context for each one:
 
 ```
-from asab.contextvars import Tenant
+import asab.contextvars
 
 async def process_tenants(self):
     for tenant in self.Tenants:
         # Set the tenant context
-        tenant_context = Tenant.set(tenant)
+        tenant_context = asab.contextvars.Tenant.set(tenant)
         try:
             # Process tenant-specific logic here
             print(f"Processing workflows for tenant: {tenant}")
         finally:
             # Reset the tenant context
-            Tenant.reset(tenant_context)
+            asab.contextvars.Tenant.reset(tenant_context)
 ```
 
 In this method:
@@ -317,15 +317,15 @@ In this method:
 If you need to handle only one tenant context, the process is straightforward:
 
 ```
-from asab.contextvars import Tenant
+import asab.contextvars
 
 async def process_single_tenant(self, tenant):
-    tenant_context = Tenant.set(tenant)
+    tenant_context = asab.contextvars.Tenant.set(tenant)
     try:
         # Perform operations for the tenant
         print(f"Processing data for tenant: {tenant}")
     finally:
-        Tenant.reset(tenant_context)
+        asab.contextvars.Tenant.reset(tenant_context)
 ```
 
 

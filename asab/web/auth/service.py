@@ -14,10 +14,12 @@ import aiohttp
 import aiohttp.web
 import aiohttp.client_exceptions
 
-import asab
-import asab.exceptions
-import asab.utils
-from asab.contextvars import Tenant
+from ...abc.service import Service
+from ...config import Config
+from ...exceptions import NotAuthenticatedError, AccessDeniedError
+from ...api.discovery import NotDiscoveredError
+from ...utils import string_to_boolean
+from ...contextvars import Tenant
 
 try:
 	import jwcrypto.jwk
@@ -25,8 +27,6 @@ try:
 	import jwcrypto.jws
 except ModuleNotFoundError:
 	jwcrypto = None
-
-from ...api.discovery import NotDiscoveredError
 
 #
 
@@ -78,7 +78,7 @@ class AuthMode(enum.Enum):
 	MOCK = enum.auto()
 
 
-class AuthService(asab.Service):
+class AuthService(Service):
 	"""
 	Provides authentication and authorization of incoming requests.
 
@@ -104,15 +104,15 @@ class AuthService(asab.Service):
 
 	def __init__(self, app, service_name="asab.AuthService"):
 		super().__init__(app, service_name)
-		self.PublicKeysUrl = asab.Config.get("auth", "public_keys_url") or None
+		self.PublicKeysUrl = Config.get("auth", "public_keys_url") or None
 
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
 
-		enabled = asab.Config.get("auth", "enabled", fallback=True)
+		enabled = Config.get("auth", "enabled", fallback=True)
 		if enabled == "mock":
 			self.Mode = AuthMode.MOCK
-		elif asab.utils.string_to_boolean(enabled):
+		elif string_to_boolean(enabled):
 			self.Mode = AuthMode.ENABLED
 		else:
 			self.Mode = AuthMode.DISABLED
@@ -143,7 +143,7 @@ class AuthService(asab.Service):
 
 	def _prepare_mock_user_info(self):
 		# Load custom user info
-		mock_user_info_path = asab.Config.get("auth", "mock_user_info_path")
+		mock_user_info_path = Config.get("auth", "mock_user_info_path")
 		if os.path.isfile(mock_user_info_path):
 			with open(mock_user_info_path, "rb") as fp:
 				user_info = json.load(fp)
@@ -217,7 +217,7 @@ class AuthService(asab.Service):
 			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
 		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
 			L.error("Cannot authenticate request: {}".format(str(e)))
-			raise asab.exceptions.NotAuthenticatedError()
+			raise NotAuthenticatedError()
 
 
 	def get_authorized_tenant(self, request) -> typing.Optional[str]:
@@ -286,7 +286,7 @@ class AuthService(asab.Service):
 				return
 
 		# Either DiscoveryService or PublicKeysUrl must be defined
-		assert self.PublicKeysUrl
+		assert self.PublicKeysUrl is not None
 
 		now = datetime.datetime.now(datetime.timezone.utc)
 		if self.AuthServerLastSuccessfulCheck is not None \
@@ -473,7 +473,7 @@ class AuthService(asab.Service):
 		# Check if tenant access is authorized
 		if not request.has_tenant_access(tenant):
 			L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
-			raise asab.exceptions.AccessDeniedError()
+			raise AccessDeniedError()
 
 		# Extend globally granted resources with tenant-granted resources
 		request._AuthorizedResources = set(request._AuthorizedResources.union(
@@ -488,9 +488,23 @@ class AuthService(asab.Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			tenant: str | None = request.headers.get("X-Tenant")
+
+			if request.headers.get("Upgrade") == "websocket":
+				# Get tenant from Sec-Websocket-Protocol header for websocket requests
+				x = request.headers.get("Sec-Websocket-Protocol", "")
+				for i in x.split(", "):
+					i = i.strip()
+					if i.startswith("tenant_"):
+						tenant = i[7:]
+						break
+				else:
+					tenant = None
+			else:
+				# Get tenant from X-Tenant header for HTTP requests
+				tenant = request.headers.get("X-Tenant")
 
 			if tenant is not None and self.Mode != AuthMode.DISABLED:
+				assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
 				self._authorize_tenant_request(request, tenant)
 
 			tenant_ctx = Tenant.set(tenant)
@@ -560,7 +574,7 @@ def _get_id_token_claims(bearer_token: str, auth_server_public_key):
 		token = jwcrypto.jwt.JWT(jwt=bearer_token, key=auth_server_public_key)
 	except jwcrypto.jwt.JWTExpired:
 		L.warning("ID token expired.")
-		raise asab.exceptions.NotAuthenticatedError()
+		raise NotAuthenticatedError()
 	except jwcrypto.jwt.JWTMissingKey as e:
 		raise e
 	except jwcrypto.jws.InvalidJWSSignature as e:
