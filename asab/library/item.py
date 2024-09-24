@@ -1,5 +1,5 @@
 import dataclasses
-
+import typing
 
 @dataclasses.dataclass
 class LibraryItem:
@@ -21,3 +21,4 @@ class LibraryItem:
 	providers: list
 	disabled: bool = False
 	override: int = 0  # Default value for override is False
+	version: typing.Optional[int] = None  # New version field
