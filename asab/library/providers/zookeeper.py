@@ -314,7 +314,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				ftype = "item"
 
 				# Use build_path only when fetching the version for items
-				print(self.build_path(base_path + node))
 				version = await self.get_node_version(self.build_path(base_path + node))
 			else:
 				# This is a directory
@@ -332,32 +331,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			))
 
 		return items
-
-	def build_path(self, path: str, tenant_specific: bool = False) -> str:
-		"""
-		Builds the full ZooKeeper path for a given item, combining it with self.BasePath.
-
-		Args:
-			path (str): The path to append to the base ZooKeeper path.
-			tenant_specific (bool): If True, add the tenant-specific path prefix.
-
-		Returns:
-			str: The fully built ZooKeeper path.
-		"""
-		assert path.startswith('/')
-		node_path = self.BasePath + path
-
-		if tenant_specific:
-			try:
-				tenant = Tenant.get()
-			except LookupError:
-				tenant = None
-			if tenant:
-				node_path = self.BasePath + '/.tenants/' + tenant + path
-
-		node_path = node_path.rstrip("/")
-		return node_path
-
+\
 	async def get_node_version(self, node_path: str) -> typing.Optional[int]:
 		"""
 		Get the version of the node from ZooKeeper.
