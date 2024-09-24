@@ -331,7 +331,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			))
 
 		return items
-\
+
 	async def get_node_version(self, node_path: str) -> typing.Optional[int]:
 		"""
 		Get the version of the node from ZooKeeper.
