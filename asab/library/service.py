@@ -272,6 +272,28 @@ class LibraryService(Service):
 				itemio.close()
 
 
+	async def get_item_version(self, path: str, tenant_specific: bool = False):
+		"""
+		Read the content of the library item specified by `path` in a SAFE way, protected by a context manager/with statement.
+		This method can be used only after the Library is ready.
+
+		Example:
+
+		```python
+		async with self.App.LibraryService.open(path) as b:
+			if b is None:
+				return None
+
+			text = b.read().decode("utf-8")
+		```
+		"""
+
+		_validate_path_item(path)
+
+		for library in self.Libraries:
+			return await library.get_item_version(path, tenant_specific)
+
+
 	async def list(self, path: str = "/", recursive: bool = False) -> typing.List[LibraryItem]:
 		"""
 		List the directory of the library specified by the path that are enabled for the specified tenant. This method can be used only after the Library is ready.

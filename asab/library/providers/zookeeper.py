@@ -314,7 +314,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				ftype = "item"
 
 				# Use build_path only when fetching the version for items
-				version = await self.get_node_version(self.build_path(base_path + node))
+				version = await self.get_item_version(base_path + node)
 			else:
 				# This is a directory
 				fname = base_path + node + '/'
@@ -332,7 +332,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		return items
 
-	async def get_node_version(self, node_path: str) -> typing.Optional[int]:
+	async def get_item_version(self, node_path: str, tenant_specific: bool = False) -> typing.Optional[int]:
 		"""
 		Get the version of the node from ZooKeeper.
 
@@ -343,7 +343,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			int | None: The version number of the node, or None if the node does not exist.
 		"""
 		try:
-			zstat = self.Zookeeper.Client.exists(node_path)
+			path = self.build_path(node_path, tenant_specific)
+			zstat = self.Zookeeper.Client.exists(path)
 			return zstat.version if zstat else None
 		except kazoo.exceptions.NoNodeError:
 			return None

@@ -64,3 +64,6 @@ class LibraryProviderABC(object):
 			path: Absolute path to subscribe (starting with "/")
 		"""
 		raise NotImplementedError("{}.subscribe()".format(self.__class__.__name__))
+
+	async def get_item_version(self, path: str, tenant_specific: bool = False) -> typing.IO:
+		raise NotImplementedError("{}.read()".format(self.__class__.__name__))
