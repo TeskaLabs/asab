@@ -302,28 +302,77 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), node.split(os.path.sep), False)
 			if startswithdot:
 				continue
+
 			# Extract the last 5 characters of the node name
 			last_five_chars = node[-5:]
 
 			# Check if there is a period in the last five characters,
-			# We detect files in Zookeeper by the presence of a dot in the filename,
-			# but exclude filenames ending with '.io' or '.d' (e.g., 'logman.io', server_https.d)
-			# from being considered as files.
+			# indicating an item (file), excluding `.io` or `.d`.
 			if '.' in last_five_chars and not node.endswith(('.io', '.d')):
+				# This is an item (file)
 				fname = base_path + node
 				ftype = "item"
+
+				# Use build_path only when fetching the version for items
+				print(self.build_path(base_path + node))
+				version = await self.get_node_version(self.build_path(base_path + node))
 			else:
+				# This is a directory
 				fname = base_path + node + '/'
 				ftype = "dir"
+				version = None  # No version for directories
 
+			# Append the LibraryItem with version for items and None for directories
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
 				layer=self.Layer,
 				providers=[self],
+				version=version  # Version is only for items (files)
 			))
 
 		return items
+
+	def build_path(self, path: str, tenant_specific: bool = False) -> str:
+		"""
+		Builds the full ZooKeeper path for a given item, combining it with self.BasePath.
+
+		Args:
+			path (str): The path to append to the base ZooKeeper path.
+			tenant_specific (bool): If True, add the tenant-specific path prefix.
+
+		Returns:
+			str: The fully built ZooKeeper path.
+		"""
+		assert path.startswith('/')
+		node_path = self.BasePath + path
+
+		if tenant_specific:
+			try:
+				tenant = Tenant.get()
+			except LookupError:
+				tenant = None
+			if tenant:
+				node_path = self.BasePath + '/.tenants/' + tenant + path
+
+		node_path = node_path.rstrip("/")
+		return node_path
+
+	async def get_node_version(self, node_path: str) -> typing.Optional[int]:
+		"""
+		Get the version of the node from ZooKeeper.
+
+		Args:
+			node_path (str): The full path to the node in ZooKeeper.
+
+		Returns:
+			int | None: The version number of the node, or None if the node does not exist.
+		"""
+		try:
+			zstat = self.Zookeeper.Client.exists(node_path)
+			return zstat.version if zstat else None
+		except kazoo.exceptions.NoNodeError:
+			return None
 
 	def build_path(self, path, tenant_specific=False):
 		assert path[:1] == '/'
