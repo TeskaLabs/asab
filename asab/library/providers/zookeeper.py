@@ -302,52 +302,28 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), node.split(os.path.sep), False)
 			if startswithdot:
 				continue
-
 			# Extract the last 5 characters of the node name
 			last_five_chars = node[-5:]
 
 			# Check if there is a period in the last five characters,
-			# indicating an item (file), excluding `.io` or `.d`.
+			# We detect files in Zookeeper by the presence of a dot in the filename,
+			# but exclude filenames ending with '.io' or '.d' (e.g., 'logman.io', server_https.d)
+			# from being considered as files.
 			if '.' in last_five_chars and not node.endswith(('.io', '.d')):
-				# This is an item (file)
 				fname = base_path + node
 				ftype = "item"
-
-				# Use build_path only when fetching the version for items
-				version = await self.get_item_version(base_path + node)
 			else:
-				# This is a directory
 				fname = base_path + node + '/'
 				ftype = "dir"
-				version = None  # No version for directories
 
-			# Append the LibraryItem with version for items and None for directories
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
 				layer=self.Layer,
 				providers=[self],
-				version=version  # Version is only for items (files)
 			))
 
 		return items
-
-	async def get_item_version(self, node_path: str, tenant_specific: bool = False) -> typing.Optional[int]:
-		"""
-		Get the version of the node from ZooKeeper.
-
-		Args:
-			node_path (str): The full path to the node in ZooKeeper.
-
-		Returns:
-			int | None: The version number of the node, or None if the node does not exist.
-		"""
-		try:
-			path = self.build_path(node_path, tenant_specific)
-			zstat = self.Zookeeper.Client.exists(path)
-			return zstat.version if zstat else None
-		except kazoo.exceptions.NoNodeError:
-			return None
 
 	def build_path(self, path, tenant_specific=False):
 		assert path[:1] == '/'
