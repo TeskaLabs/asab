@@ -234,9 +234,8 @@ class LibraryService(Service):
 
 		return None
 
-
 	@contextlib.asynccontextmanager
-	async def open(self, path: str):
+	async def open(self, path: str, return_version: bool = False):
 		"""
 		Read the content of the library item specified by `path` in a SAFE way, protected by a context manager/with statement.
 		This method can be used only after the Library is ready.
@@ -247,30 +246,38 @@ class LibraryService(Service):
 		async with self.App.LibraryService.open(path) as b:
 			if b is None:
 				return None
-
 			text = b.read().decode("utf-8")
 		```
-		"""
 
+		If return_version is True, it will also yield a tuple with the item content and version.
+		"""
 		_validate_path_item(path)
 
 		# Same functionality as in read() method
 		itemio = None
 		disabled = self.check_disabled(path)
+		version = None
+
 		if not disabled:
 			for library in self.Libraries:
-				itemio = await library.read(path)
+				if return_version:
+					itemio, version = await library.read(path, return_version)
+					print("Version is", version)
+				else:
+					itemio = await library.read(path)
 				if itemio is not None:
 					break
 
 		if itemio is None:
-			yield itemio
+			yield itemio if not return_version else (itemio, None)
 		else:
 			try:
-				yield itemio
+				if return_version:
+					yield itemio, version  # Yield both itemio and version
+				else:
+					yield itemio  # Yield only itemio (backward-compatible behavior)
 			finally:
 				itemio.close()
-
 
 	async def get_item_version(self, path: str, tenant_specific: bool = False):
 		"""
