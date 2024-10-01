@@ -16,14 +16,15 @@ class LibraryProviderABC(object):
 		pass
 
 
-	async def read(self, path: str) -> typing.IO:
+	async def read(self, path: str) -> typing.Tuple[typing.IO, typing.Optional[int]]:
 		"""
 		Reads a library item on the given path.
 
 		Args:
 			path: The path to the item to read.
+
 		Returns:
-			I/O stream (read) with the content of the library item.
+			A tuple of (I/O stream (read) with the content of the library item, version of the item).
 		"""
 		raise NotImplementedError("{}.read()".format(self.__class__.__name__))
 
