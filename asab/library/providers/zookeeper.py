@@ -226,7 +226,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 
-
 	def _check_version_counter(self, version):
 		# If version is `None` aka `/.version.yaml` doesn't exists, then assume version -1
 		if version is not None:
@@ -248,25 +247,31 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		self.App.TaskService.schedule(self._on_library_changed())
 
-	async def read(self, path: str) -> typing.IO:
+
+	async def read(self, path: str, return_version: bool = False) -> typing.IO:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
 		try:
+			breakpoint()
 			# Try tenant-specific path first
 			node_path = self.build_path(path, tenant_specific=True)
-			node_data = await self.Zookeeper.get_data(node_path)
+			node_data = await self.Zookeeper.get_data(node_path, return_version=return_version)
 
 			# If not found, try the normal path
-			if node_data is None:
+			if node_data is None or (return_version and node_data[0] is None):
 				node_path = self.build_path(path, tenant_specific=False)
-				node_data = await self.Zookeeper.get_data(node_path)
+				node_data = await self.Zookeeper.get_data(node_path, return_version=return_version)
 
 			if node_data is not None:
-				return io.BytesIO(initial_bytes=node_data)
+				if return_version:
+					data, version = node_data
+					return io.BytesIO(initial_bytes=data), version  # Return both data and version
+				else:
+					return io.BytesIO(initial_bytes=node_data)  # Return only the data
 			else:
-				return None
+				return None if not return_version else (None, None)
 
 		except kazoo.exceptions.ConnectionClosedError:
 			L.warning("Zookeeper library provider is not ready")
@@ -467,6 +472,25 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		except kazoo.exceptions.NoNodeError:
 			tenants = []
 		return tenants
+
+
+	async def get_item_version(self, node_path: str, tenant_specific: bool = False) -> typing.Optional[int]:
+		"""
+		Get the version of the node from ZooKeeper.
+
+		Args:
+			node_path (str): The full path to the node in ZooKeeper.
+
+		Returns:
+			int | None: The version number of the node, or None if the node does not exist.
+		"""
+		try:
+			path = self.build_path(node_path, tenant_specific)
+			zstat = self.Zookeeper.Client.exists(path)
+			return zstat.version if zstat else None
+		except kazoo.exceptions.NoNodeError:
+			return None
+
 
 
 
