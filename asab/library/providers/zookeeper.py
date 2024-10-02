@@ -254,7 +254,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
 		try:
-			breakpoint()
 			# Try tenant-specific path first
 			node_path = self.build_path(path, tenant_specific=True)
 			node_data = await self.Zookeeper.get_data(node_path, return_version=return_version)
