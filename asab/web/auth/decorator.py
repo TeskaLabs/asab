@@ -3,6 +3,7 @@ import functools
 import inspect
 
 from ...exceptions import AccessDeniedError
+from ...contextvars import Authz
 
 #
 
@@ -32,14 +33,11 @@ def require(*resources):
 
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
-			request = args[-1]
+			authz = Authz.get()
+			if authz is None:
+				raise AccessDeniedError()
 
-			if not hasattr(request, "has_resource_access"):
-				raise Exception(
-					"Cannot check resource access. Make sure that AuthService is installed and that "
-					"the handler method does not use both the '@noauth' and the '@require' decorators at once.")
-
-			if not request.has_resource_access(*resources):
+			if not authz.has_resource_access(resources):
 				raise AccessDeniedError()
 
 			return await handler(*args, **kwargs)

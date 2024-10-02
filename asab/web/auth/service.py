@@ -19,7 +19,8 @@ from ...config import Config
 from ...exceptions import NotAuthenticatedError, AccessDeniedError
 from ...api.discovery import NotDiscoveredError
 from ...utils import string_to_boolean
-from ...contextvars import Tenant
+from ...contextvars import Tenant, Authz
+from .authz import Authorization, has_tenant_access
 
 try:
 	import jwcrypto.jwk
@@ -102,6 +103,7 @@ class AuthService(Service):
 
 	_PUBLIC_KEYS_URL_DEFAULT = "http://localhost:3081/.well-known/jwks.json"
 
+
 	def __init__(self, app, service_name="asab.AuthService"):
 		super().__init__(app, service_name)
 		self.PublicKeysUrl = Config.get("auth", "public_keys_url") or None
@@ -140,6 +142,7 @@ class AuthService(Service):
 
 		if self.Mode == AuthMode.ENABLED:
 			self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
+
 
 	def _prepare_mock_user_info(self):
 		# Load custom user info
@@ -220,55 +223,6 @@ class AuthService(Service):
 			raise NotAuthenticatedError()
 
 
-	def get_authorized_tenant(self, request) -> typing.Optional[str]:
-		"""
-		Get the request's authorized tenant.
-		"""
-		if hasattr(request, "_AuthorizedTenants"):
-			for tenant in request._AuthorizedTenants:
-				# Return the first authorized tenant
-				return tenant
-		return None
-
-
-	def has_superuser_access(self, authorized_resources: typing.Iterable) -> bool:
-		"""
-		Check if the superuser resource is present in the authorized resource list.
-		"""
-		if self.Mode == AuthMode.DISABLED:
-			return True
-		return SUPERUSER_RESOURCE in authorized_resources
-
-
-	def has_resource_access(self, authorized_resources: typing.Iterable, required_resources: typing.Iterable) -> bool:
-		"""
-		Check if the requested resources or the superuser resource are present in the authorized resource list.
-		"""
-		if self.Mode == AuthMode.DISABLED:
-			return True
-		if self.has_superuser_access(authorized_resources):
-			return True
-		for resource in required_resources:
-			if resource not in authorized_resources:
-				return False
-		return True
-
-
-	def has_tenant_access(
-		self, authorized_resources: typing.Iterable, authorized_tenants: typing.Iterable, tenant: str
-	) -> bool:
-		"""
-		Check if the request is authorized to access a tenant.
-		If the request has superuser access, tenant access is always implicitly granted.
-		"""
-		if self.Mode == AuthMode.DISABLED:
-			return True
-		if self.has_superuser_access(authorized_resources):
-			return True
-		if tenant in authorized_tenants:
-			return True
-		return False
-
 	async def _fetch_public_keys_if_needed(self, *args, **kwargs):
 		"""
 		Check if public keys have been fetched from the authorization server and fetch them if not yet.
@@ -293,6 +247,7 @@ class AuthService(Service):
 			and now < self.AuthServerLastSuccessfulCheck + self.AuthServerCheckCooldown:
 			# Public keys have been fetched recently
 			return
+
 
 		async def fetch_keys(session):
 			try:
@@ -357,7 +312,7 @@ class AuthService(Service):
 		L.debug("Public key loaded.", struct_data={"url": self.PublicKeysUrl})
 
 
-	def _authenticate_request(self, handler):
+	def _authorize_request(self, handler):
 		"""
 		Authenticate the request by the JWT ID token in the Authorization header.
 		Extract the token claims into request attributes so that they can be used for authorization checks.
@@ -365,42 +320,42 @@ class AuthService(Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			if self.Mode == AuthMode.DISABLED:
-				user_info = None
-			elif self.Mode == AuthMode.MOCK:
-				user_info = self.MockUserInfo
-			else:
-				# Extract user info from the request Authorization header
-				bearer_token = _get_bearer_token(request)
-				user_info = await self.get_userinfo_from_id_token(bearer_token)
+			user_info = await self.extract_user_info_from_request(request)
+
+			# Authorize tenant from context
+			tenant = Tenant.get()
+			if tenant is not None and self.Mode != AuthMode.DISABLED:
+				if not has_tenant_access(user_info, tenant):
+					L.warning("Tenant not authorized.", struct_data={
+						"tenant": tenant, "sub": request._UserInfo.get("sub")})
+					raise AccessDeniedError()
 
 			# Add userinfo, tenants and global resources to the request
-			if self.Mode != AuthMode.DISABLED:
-				assert user_info is not None
-				request._UserInfo = user_info
-				resource_dict = request._UserInfo["resources"]
-				request._AuthorizedResources = frozenset(resource_dict.get("*", []))
-				request._AuthorizedTenants = frozenset(t for t in resource_dict.keys() if t != "*")
+			if not self.is_enabled():
+				response = await handler(*args, **kwargs)
 			else:
-				request._UserInfo = None
-				request._AuthorizedResources = None
-				request._AuthorizedTenants = None
-
-			# Add access control methods to the request
-			def has_resource_access(*required_resources: list) -> bool:
-				return self.has_resource_access(request._AuthorizedResources, required_resources)
-			request.has_resource_access = has_resource_access
-
-			def has_tenant_access(tenant: str) -> bool:
-				return self.has_tenant_access(request._AuthorizedResources, request._AuthorizedTenants, tenant)
-			request.has_tenant_access = has_tenant_access
-
-			def has_superuser_access() -> bool:
-				return self.has_superuser_access(request._AuthorizedResources)
-			request.has_superuser_access = has_superuser_access
+				auth = Authorization(self, user_info, tenant)
+				auth_ctx = Authz.set(auth)
+				try:
+					response = await handler(*args, **kwargs)
+				finally:
+					Authz.reset(auth_ctx)
 
 			return await handler(*args, **kwargs)
+
 		return wrapper
+
+
+	async def extract_user_info_from_request(self, request):
+		if not self.is_enabled():
+			user_info = None
+		elif self.Mode == AuthMode.MOCK:
+			user_info = self.MockUserInfo
+		else:
+			# Extract user info from the request Authorization header
+			bearer_token = _get_bearer_token(request)
+			user_info = await self.get_userinfo_from_id_token(bearer_token)
+		return user_info
 
 
 	async def _wrap_handlers(self, aiohttp_app):
@@ -449,120 +404,29 @@ class AuthService(Service):
 		handler = route.handler
 
 		# Apply the decorators in reverse order (the last applied wrapper affects the request first)
+
+		# 3) Pass authorization attributes to handler method
 		if "resources" in args:
 			handler = _add_resources(handler)
 		if "user_info" in args:
 			handler = _add_user_info(handler)
 		if "tenant" in args:
-			# TODO: Deprecate tenant ID in path and query, always use X-Tenant header instead.
-			if tenant_in_path:
-				handler = self._add_tenant_from_path(handler)
-			else:
-				handler = self._add_tenant_from_query(handler)
+			handler = _add_tenant(handler)
 
-		handler = self._set_tenant_context_from_header(handler)
+		# 2) Authenticate and authorize request, authorize tenant from context, set Authorization context
+		handler = self._authorize_request(handler)
 
-		handler = self._authenticate_request(handler)
+		# 1.5) Set tenant context from obsolete locations
+		# TODO: Deprecate tenant ID in path and query, always use X-Tenant header instead.
+		if tenant_in_path:
+			handler = _set_tenant_context_from_url_path(handler)
+		else:
+			handler = _set_tenant_context_from_url_query(handler)
+
+		# 1) Set tenant context
+		handler = _set_tenant_context_from_request_header(handler)
+
 		route._handler = handler
-
-
-	def _authorize_tenant_request(self, request, tenant):
-		"""
-		Check access to requested tenant and add tenant resources to the request
-		"""
-		# Check if tenant access is authorized
-		if not request.has_tenant_access(tenant):
-			L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
-			raise AccessDeniedError()
-
-		# Extend globally granted resources with tenant-granted resources
-		request._AuthorizedResources = set(request._AuthorizedResources.union(
-			request._UserInfo["resources"].get(tenant, [])))
-
-
-	def _set_tenant_context_from_header(self, handler):
-		"""
-		Extract tenant from request path and authorize it
-		"""
-
-		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
-			request = args[-1]
-
-			if request.headers.get("Upgrade") == "websocket":
-				# Get tenant from Sec-Websocket-Protocol header for websocket requests
-				x = request.headers.get("Sec-Websocket-Protocol", "")
-				for i in x.split(", "):
-					i = i.strip()
-					if i.startswith("tenant_"):
-						tenant = i[7:]
-						break
-				else:
-					tenant = None
-			else:
-				# Get tenant from X-Tenant header for HTTP requests
-				tenant = request.headers.get("X-Tenant")
-
-			if tenant is not None and self.Mode != AuthMode.DISABLED:
-				assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
-				self._authorize_tenant_request(request, tenant)
-
-			tenant_ctx = Tenant.set(tenant)
-			try:
-				response = await handler(*args, **kwargs)
-			finally:
-				Tenant.reset(tenant_ctx)
-			return response
-
-		return wrapper
-
-
-
-	def _add_tenant_from_path(self, handler):
-		"""
-		Extract tenant from request path and authorize it
-		"""
-
-		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
-			request = args[-1]
-			tenant_from_header = Tenant.get(None)
-			tenant = request.match_info["tenant"]
-			if tenant_from_header and tenant != tenant_from_header:
-				L.warning("Tenant in path differs from tenant in X-Tenant header.", struct_data={
-					"path": tenant, "header": tenant_from_header})
-
-			if self.Mode != AuthMode.DISABLED:
-				self._authorize_tenant_request(request, tenant)
-
-			return await handler(*args, tenant=tenant, **kwargs)
-
-		return wrapper
-
-
-	def _add_tenant_from_query(self, handler):
-		"""
-		Extract tenant from request query and authorize it
-		"""
-
-		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
-			request = args[-1]
-			tenant_from_header = Tenant.get(None)
-			if "tenant" not in request.query:
-				return await handler(*args, tenant=tenant_from_header, **kwargs)
-
-			tenant = request.query["tenant"]
-			if tenant_from_header and tenant != tenant_from_header:
-				L.warning("Tenant in query differs from tenant in X-Tenant header.", struct_data={
-					"query": tenant, "header": tenant_from_header})
-
-			if self.Mode != AuthMode.DISABLED:
-				self._authorize_tenant_request(request, tenant)
-
-			return await handler(*args, tenant=tenant, **kwargs)
-
-		return wrapper
 
 
 def _get_id_token_claims(bearer_token: str, auth_server_public_key):
@@ -648,7 +512,8 @@ def _add_user_info(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
-		return await handler(*args, user_info=request._UserInfo, **kwargs)
+		authz = Authz.get()
+		return await handler(*args, user_info=authz.UserInfo if authz is not None else None, **kwargs)
 	return wrapper
 
 
@@ -659,5 +524,126 @@ def _add_resources(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
-		return await handler(*args, resources=request._AuthorizedResources, **kwargs)
+		authz = Authz.get()
+		return await handler(*args, resources=authz.AuthorizedResources if authz is not None else None, **kwargs)
 	return wrapper
+
+
+def _add_tenant(handler):
+	"""
+	Add tenant to the handler arguments
+	"""
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
+		request = args[-1]
+		return await handler(*args, tenant=Tenant.get(), **kwargs)
+	return wrapper
+
+
+def _set_tenant_context_from_request_header(handler):
+	"""
+	Extract tenant from request header (X-Tenant or Sec-Websocket-Protocol) and add it to context
+	"""
+	def get_tenant_from_header(request) -> str:
+		if request.headers.get("Upgrade") == "websocket":
+			# Get tenant from Sec-Websocket-Protocol header for websocket requests
+			protocols = request.headers.get("Sec-Websocket-Protocol", "")
+			for protocol in protocols.split(", "):
+				protocol = protocol.strip()
+				if protocol.startswith("tenant_"):
+					return protocol[7:]
+			else:
+				return None
+		else:
+			# Get tenant from X-Tenant header for HTTP requests
+			return request.headers.get("X-Tenant")
+
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
+		request = args[-1]
+		tenant = get_tenant_from_header(request)
+
+		if tenant is None:
+			response = await handler(*args, **kwargs)
+		else:
+			assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
+			tenant_ctx = Tenant.set(tenant)
+			try:
+				response = await handler(*args, **kwargs)
+			finally:
+				Tenant.reset(tenant_ctx)
+
+		return response
+
+	return wrapper
+
+
+def _set_tenant_context_from_url_query(handler):
+	"""
+	Extract tenant from request query and add it to context
+	"""
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
+		request = args[-1]
+		header_tenant = Tenant.get()
+		tenant = request.query.get("tenant")
+
+		if tenant is None:
+			# No tenant in query
+			response = await handler(*args, **kwargs)
+		elif header_tenant is not None:
+			# Tenant from header must not be overwritten by a different tenant in query!
+			if tenant != header_tenant:
+				L.error("Tenant from URL query does not match tenant from header.", struct_data={
+					"header_tenant": header_tenant, "query_tenant": tenant})
+				raise AccessDeniedError()
+			# Tenant in query matches tenant in header
+			response = await handler(*args, **kwargs)
+		else:
+			# No tenant in header, only in query
+			assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
+			tenant_ctx = Tenant.set(tenant)
+			try:
+				response = await handler(*args, **kwargs)
+			finally:
+				Tenant.reset(tenant_ctx)
+
+		return response
+
+	return wrapper
+
+
+def _set_tenant_context_from_url_path(handler):
+	"""
+	Extract tenant from request URL path and add it to context
+	"""
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
+		request = args[-1]
+		header_tenant = Tenant.get()
+		tenant = request.match_info.get("tenant")
+
+		if header_tenant is not None:
+			# Tenant from header must not be overwritten by a different tenant in path!
+			if tenant != header_tenant:
+				L.error("Tenant from URL path does not match tenant from header.", struct_data={
+					"header_tenant": header_tenant, "path_tenant": tenant})
+				raise AccessDeniedError()
+			# Tenant in path matches tenant in header
+			response = await handler(*args, **kwargs)
+		else:
+			# No tenant in header, only in path
+			assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
+			tenant_ctx = Tenant.set(tenant)
+			try:
+				response = await handler(*args, **kwargs)
+			finally:
+				Tenant.reset(tenant_ctx)
+
+		return response
+
+	return wrapper
+
+
+def get_authorized_resources(user_info: typing.Mapping, tenant: typing.Union[str, None]):
+	return set(user_info.get("resources", {}).get(tenant if tenant is not None else "*", []))
