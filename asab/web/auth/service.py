@@ -323,7 +323,7 @@ class AuthService(Service):
 			user_info = await self.extract_user_info_from_request(request)
 
 			# Authorize tenant from context
-			tenant = Tenant.get()
+			tenant = Tenant.get(None)
 			if tenant is not None and self.Mode != AuthMode.DISABLED:
 				if not has_tenant_access(user_info, tenant):
 					L.warning("Tenant not authorized.", struct_data={
@@ -533,7 +533,7 @@ def _pass_tenant(handler):
 	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
-		return await handler(*args, tenant=Tenant.get(), **kwargs)
+		return await handler(*args, tenant=Tenant.get(None), **kwargs)
 	return wrapper
 
 
@@ -582,7 +582,7 @@ def _set_tenant_context_from_url_query(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
-		header_tenant = Tenant.get()
+		header_tenant = Tenant.get(None)
 		tenant = request.query.get("tenant")
 
 		if tenant is None:
@@ -617,7 +617,7 @@ def _set_tenant_context_from_url_path(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
-		header_tenant = Tenant.get()
+		header_tenant = Tenant.get(None)
 		tenant = request.match_info.get("tenant")
 
 		if header_tenant is not None:

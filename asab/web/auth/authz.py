@@ -10,29 +10,39 @@ class Authorization:
 	"""
 	def __init__(self, auth_service, userinfo: dict, tenant: typing.Union[str, None]):
 		self.AuthService = auth_service
-		self.Userinfo = userinfo
+		self.UserInfo = userinfo
 		self.CredentialsId = userinfo.get("sub")
 		self.Username = userinfo.get("preferred_username") or userinfo.get("username")
 		self.Email = userinfo.get("email")
 		self.Phone = userinfo.get("phone")
 
+		self.Issuer = self.UserInfo.get("iss")  # Who issued the authorization
+		self.AuthorizedParty = self.UserInfo.get("azp")  # What party (application) is authorized
+
 		self.Tenant = tenant
+
+	def __repr__(self):
+		return "<Authorization [{}cid: {!r}, azp: {!r}]>".format(
+			"SUPERUSER, " if self.has_superuser_access() else "",
+			self.CredentialsId,
+			self.AuthorizedParty,
+		)
 
 	def has_superuser_access(self):
 		if not self.AuthService.is_enabled():
 			return True
-		return has_superuser_access(self.Userinfo)
+		return has_superuser_access(self.UserInfo)
 
 	def has_resource_access(self, resource_id: str | typing.Iterable[str]):
 		if not self.AuthService.is_enabled():
 			return True
 		if isinstance(resource_id, str):
-			return has_resource_access(self.Userinfo, {resource_id}, tenant=self.Tenant)
+			return has_resource_access(self.UserInfo, {resource_id}, tenant=self.Tenant)
 		else:
-			return has_resource_access(self.Userinfo, resource_id, tenant=self.Tenant)
+			return has_resource_access(self.UserInfo, resource_id, tenant=self.Tenant)
 
 	def authorized_resources(self):
-		return get_authorized_resources(self.Userinfo, self.Tenant)
+		return get_authorized_resources(self.UserInfo, self.Tenant)
 
 
 def has_superuser_access(user_info: typing.Mapping) -> bool:
