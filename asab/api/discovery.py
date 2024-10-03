@@ -366,7 +366,7 @@ class DiscoveryService(Service):
 		base_url: typing.Optional[str] = None,
 		tenant: typing.Optional[str] = None,
 		auth: typing.Union[str, aiohttp.ClientRequest, None] = None,
-		headers: typing.Optional[typing.Mapping[str]] = None,
+		headers: typing.Optional[typing.Mapping[str, str]] = None,
 		**kwargs
 	) -> aiohttp.ClientSession:
 		"""
@@ -425,7 +425,7 @@ class DiscoveryService(Service):
 			_headers["X-Tenant"] = tenant
 		else:
 			# Use tenant from context
-			tenant = Tenant.get()
+			tenant = Tenant.get(None)
 			if tenant is not None:
 				_headers["X-Tenant"] = tenant
 
@@ -435,7 +435,7 @@ class DiscoveryService(Service):
 		return aiohttp.ClientSession(
 			base_url,
 			connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)),
-			headers=headers,
+			headers=_headers,
 			**kwargs
 		)
 
