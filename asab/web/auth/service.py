@@ -341,7 +341,7 @@ class AuthService(Service):
 				finally:
 					Authz.reset(auth_ctx)
 
-			return await handler(*args, **kwargs)
+			return response
 
 		return wrapper
 
@@ -407,17 +407,17 @@ class AuthService(Service):
 
 		# 3) Pass authorization attributes to handler method
 		if "resources" in args:
-			handler = _add_resources(handler)
+			handler = _pass_resources(handler)
 		if "user_info" in args:
-			handler = _add_user_info(handler)
+			handler = _pass_user_info(handler)
 		if "tenant" in args:
-			handler = _add_tenant(handler)
+			handler = _pass_tenant(handler)
 
 		# 2) Authenticate and authorize request, authorize tenant from context, set Authorization context
 		handler = self._authorize_request(handler)
 
 		# 1.5) Set tenant context from obsolete locations
-		# TODO: Deprecate tenant ID in path and query, always use X-Tenant header instead.
+		# TODO: Deprecated. Remove tenant extraction from path and query, always use request headers instead.
 		if tenant_in_path:
 			handler = _set_tenant_context_from_url_path(handler)
 		else:
@@ -505,37 +505,34 @@ def _get_bearer_token(request):
 	return token_value
 
 
-def _add_user_info(handler):
+def _pass_user_info(handler):
 	"""
 	Add user info to the handler arguments
 	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
-		request = args[-1]
 		authz = Authz.get()
 		return await handler(*args, user_info=authz.UserInfo if authz is not None else None, **kwargs)
 	return wrapper
 
 
-def _add_resources(handler):
+def _pass_resources(handler):
 	"""
 	Add resources to the handler arguments
 	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
-		request = args[-1]
 		authz = Authz.get()
-		return await handler(*args, resources=authz.AuthorizedResources if authz is not None else None, **kwargs)
+		return await handler(*args, resources=authz.authorized_resources() if authz is not None else None, **kwargs)
 	return wrapper
 
 
-def _add_tenant(handler):
+def _pass_tenant(handler):
 	"""
 	Add tenant to the handler arguments
 	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
-		request = args[-1]
 		return await handler(*args, tenant=Tenant.get(), **kwargs)
 	return wrapper
 
@@ -643,7 +640,3 @@ def _set_tenant_context_from_url_path(handler):
 		return response
 
 	return wrapper
-
-
-def get_authorized_resources(user_info: typing.Mapping, tenant: typing.Union[str, None]):
-	return set(user_info.get("resources", {}).get(tenant if tenant is not None else "*", []))

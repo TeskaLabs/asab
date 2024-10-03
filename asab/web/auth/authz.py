@@ -31,6 +31,9 @@ class Authorization:
 		else:
 			return has_resource_access(self.Userinfo, resource_id, tenant=self.Tenant)
 
+	def authorized_resources(self):
+		return get_authorized_resources(self.Userinfo, self.Tenant)
+
 
 def has_superuser_access(user_info: typing.Mapping) -> bool:
 	"""
