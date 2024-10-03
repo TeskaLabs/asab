@@ -361,11 +361,27 @@ class DiscoveryService(Service):
 		self.App.Loop.call_soon_threadsafe(_update_cache)
 
 
-	def session(self, base_url=None, auth=None, headers=None, **kwargs) -> aiohttp.ClientSession:
+	def session(
+		self,
+		base_url: typing.Optional[str] = None,
+		tenant: typing.Optional[str] = None,
+		auth: typing.Union[str, aiohttp.ClientRequest, None] = None,
+		headers: typing.Optional[typing.Mapping[str]] = None,
+		**kwargs
+	) -> aiohttp.ClientSession:
 		"""
+		Open HTTP session with custom hostname resolver for ASAB microservices.
+
+		Args:
+			:param base_url: Base URL to use for requests.
+			:param tenant: Request tenant ID.
+			:param auth: Client request to extract authorization from, or the string "internal", to use internal authorization.
+			:param headers: Custom session HTTP headers.
+
 		Usage:
 
 		```python
+		# Without authorization
 		async with self.DiscoveryService.session() as session:
 			# use URL in format: <protocol>://<value>.<key>.asab/<endpoint>
 			# where key is "service_id" or "instance_id"
@@ -383,20 +399,17 @@ class DiscoveryService(Service):
 			async with session.get("http://my_application_1.instance_id.asab/asab/v1/config") as resp:
 				...
 		"""
+		_headers = {}
 		if isinstance(auth, aiohttp.ClientRequest):
-			if headers is None:
-				headers = {}
 			assert "Authorization" in auth.headers
-			headers["Authorization"] = auth.headers.get("Authorization")
+			_headers["Authorization"] = auth.headers.get("Authorization")
 		elif auth == "internal":
 			if jwcrypto is None:
 				raise ModuleNotFoundError(
 					"You are trying to use internal auth without 'jwcrypto' installed. "
 					"Please run 'pip install jwcrypto' or install asab with 'authz' optional dependency."
 				)
-			if headers is None:
-				headers = {}
-			headers["Authorization"] = "Bearer {}".format(self.InternalAuthToken.serialize())
+			_headers["Authorization"] = "Bearer {}".format(self.InternalAuthToken.serialize())
 		elif auth is None:
 			pass
 		else:
@@ -406,10 +419,18 @@ class DiscoveryService(Service):
 				"Found {}.".format(type(auth))
 			)
 
-		# Set tenant header if we are in tenant context
-		tenant = Tenant.get()
+		# Set tenant header
 		if tenant is not None:
-			headers["X-Tenant"] = tenant
+			# Use tenant from argument
+			_headers["X-Tenant"] = tenant
+		else:
+			# Use tenant from context
+			tenant = Tenant.get()
+			if tenant is not None:
+				_headers["X-Tenant"] = tenant
+
+		if headers is not None:
+			_headers.update(headers)
 
 		return aiohttp.ClientSession(
 			base_url,
