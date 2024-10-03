@@ -19,6 +19,7 @@ except ModuleNotFoundError:
 	jwcrypto = None
 
 from .. import Service
+from ..contextvars import Tenant
 
 
 L = logging.getLogger(__name__)
@@ -404,6 +405,12 @@ class DiscoveryService(Service):
 				"Only instances of aiohttp.ClientRequest or the literal string 'internal' are allowed. "
 				"Found {}.".format(type(auth))
 			)
+
+		# Set tenant header if we are in tenant context
+		tenant = Tenant.get()
+		if tenant is not None:
+			headers["X-Tenant"] = tenant
+
 		return aiohttp.ClientSession(
 			base_url,
 			connector=aiohttp.TCPConnector(resolver=DiscoveryResolver(self)),
