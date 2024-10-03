@@ -23,15 +23,15 @@ class Authorization:
 
 	def __repr__(self):
 		return "<Authorization [{}cid: {!r}, azp: {!r}]>".format(
-			"SUPERUSER, " if self.has_superuser_access() else "",
+			"SUPERUSER, " if self.is_superuser() else "",
 			self.CredentialsId,
 			self.AuthorizedParty,
 		)
 
-	def has_superuser_access(self) -> bool:
+	def is_superuser(self) -> bool:
 		if not self.AuthService.is_enabled():
 			return True
-		return has_superuser_access(self.UserInfo)
+		return is_superuser(self.UserInfo)
 
 	def has_resource_access(self, resource_id: str | typing.Iterable[str]) -> bool:
 		if not self.AuthService.is_enabled():
@@ -45,7 +45,7 @@ class Authorization:
 		return get_authorized_resources(self.UserInfo, self.Tenant)
 
 
-def has_superuser_access(user_info: typing.Mapping) -> bool:
+def is_superuser(user_info: typing.Mapping) -> bool:
 	"""
 	Check if the superuser resource is present in the authorized resource list.
 	"""
@@ -60,7 +60,7 @@ def has_resource_access(
 	"""
 	Check if the requested resources or the superuser resource are present in the authorized resource list.
 	"""
-	if has_superuser_access(user_info):
+	if is_superuser(user_info):
 		return True
 
 	authorized_resources = get_authorized_resources(user_info, tenant)
@@ -78,7 +78,7 @@ def has_tenant_access(user_info: typing.Mapping, tenant: str) -> bool:
 	"""
 	if tenant == "*":
 		raise ValueError("Invalid tenant name: '*'")
-	if has_superuser_access(user_info):
+	if is_superuser(user_info):
 		return True
 	if tenant in user_info.get("resources", {}):
 		return True
