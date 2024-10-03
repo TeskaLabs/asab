@@ -28,12 +28,12 @@ class Authorization:
 			self.AuthorizedParty,
 		)
 
-	def has_superuser_access(self):
+	def has_superuser_access(self) -> bool:
 		if not self.AuthService.is_enabled():
 			return True
 		return has_superuser_access(self.UserInfo)
 
-	def has_resource_access(self, resource_id: str | typing.Iterable[str]):
+	def has_resource_access(self, resource_id: str | typing.Iterable[str]) -> bool:
 		if not self.AuthService.is_enabled():
 			return True
 		if isinstance(resource_id, str):
@@ -41,7 +41,7 @@ class Authorization:
 		else:
 			return has_resource_access(self.UserInfo, resource_id, tenant=self.Tenant)
 
-	def authorized_resources(self):
+	def authorized_resources(self) -> typing.Set[str]:
 		return get_authorized_resources(self.UserInfo, self.Tenant)
 
 
@@ -54,7 +54,7 @@ def has_superuser_access(user_info: typing.Mapping) -> bool:
 
 def has_resource_access(
 	user_info: typing.Mapping,
-	required_resources: typing.Iterable,
+	resource_ids: typing.Iterable,
 	tenant: typing.Union[str, None],
 ) -> bool:
 	"""
@@ -64,7 +64,7 @@ def has_resource_access(
 		return True
 
 	authorized_resources = get_authorized_resources(user_info, tenant)
-	for resource in required_resources:
+	for resource in resource_ids:
 		if resource not in authorized_resources:
 			return False
 
@@ -85,5 +85,11 @@ def has_tenant_access(user_info: typing.Mapping, tenant: str) -> bool:
 	return False
 
 
-def get_authorized_resources(user_info: typing.Mapping, tenant: typing.Union[str, None]):
+def get_authorized_resources(user_info: typing.Mapping, tenant: typing.Union[str, None]) -> typing.Set[str]:
+	"""
+	Extract resources authorized within given tenant (or globally, if tenant is None).
+	:param user_info:
+	:param tenant:
+	:return:
+	"""
 	return set(user_info.get("resources", {}).get(tenant if tenant is not None else "*", []))
