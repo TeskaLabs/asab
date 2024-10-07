@@ -38,7 +38,7 @@ class TenantService(Service):
 		# Load tenants from URL
 		self.TenantUrl = Config.get("tenants", "tenant_url")
 		if len(self.TenantUrl) > 0:
-			app.PubSub.subscribe("Application.tick/10!", self._update_tenants)
+			app.PubSub.subscribe("Application.tick/300!", self._update_tenants)
 
 
 	async def initialize(self, app):
