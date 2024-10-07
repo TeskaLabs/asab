@@ -6,7 +6,7 @@ from asab.exceptions import AccessDeniedError
 L = logging.getLogger(__name__)
 
 
-SUPERUSER_RES_ID = "authz:superuser"
+SUPERUSER_RESOURCE_ID = "authz:superuser"
 
 
 class Authorization:
@@ -36,6 +36,16 @@ class Authorization:
 			self.CredentialsId,
 			self.AuthorizedParty,
 		)
+
+
+	def require_superuser(self):
+		if not self.is_superuser():
+			raise AccessDeniedError()
+
+
+	def require_resource_access(self, resource_id: typing.Union[str, typing.Iterable[str]]):
+		if not self.has_resource_access(resource_id):
+			raise AccessDeniedError()
 
 
 	def is_superuser(self) -> bool:
@@ -88,7 +98,7 @@ def is_superuser(user_info: typing.Mapping) -> bool:
 	"""
 	Check if the superuser resource is present in the authorized resource list.
 	"""
-	return SUPERUSER_RES_ID in get_authorized_resources(user_info, tenant=None)
+	return SUPERUSER_RESOURCE_ID in get_authorized_resources(user_info, tenant=None)
 
 
 def has_resource_access(
