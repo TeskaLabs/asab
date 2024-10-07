@@ -29,12 +29,14 @@ class Authorization:
 		self.Issuer = self.UserInfo.get("iss")  # Who issued the authorization
 		self.AuthorizedParty = self.UserInfo.get("azp")  # What party (application) is authorized
 
+
 	def __repr__(self):
 		return "<Authorization [{}cid: {!r}, azp: {!r}]>".format(
 			"SUPERUSER, " if self.is_superuser() else "",
 			self.CredentialsId,
 			self.AuthorizedParty,
 		)
+
 
 	def is_superuser(self) -> bool:
 		"""
@@ -43,8 +45,11 @@ class Authorization:
 		:return: Is the agent a superuser?
 		"""
 		if not self.AuthService.is_enabled():
+			# Authorization is disabled = everything is allowed
 			return True
+
 		return is_superuser(self.UserInfo)
+
 
 	def has_resource_access(self, resource_id: typing.Union[str, typing.Iterable[str]]) -> bool:
 		"""
@@ -54,11 +59,14 @@ class Authorization:
 		:return: Is resource access authorized?
 		"""
 		if not self.AuthService.is_enabled():
+			# Authorization is disabled = everything is allowed
 			return True
+
 		if isinstance(resource_id, str):
 			return has_resource_access(self.UserInfo, {resource_id}, tenant=self.Tenant)
 		else:
 			return has_resource_access(self.UserInfo, resource_id, tenant=self.Tenant)
+
 
 	def authorized_resources(self) -> typing.Set[str]:
 		"""
@@ -69,6 +77,10 @@ class Authorization:
 
 		:return: Set of authorized resources.
 		"""
+		if not self.AuthService.is_enabled():
+			# Authorization is disabled = authorized resources are unknown
+			return set()
+
 		return get_authorized_resources(self.UserInfo, self.Tenant)
 
 
