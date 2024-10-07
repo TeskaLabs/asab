@@ -21,10 +21,10 @@ class Authorization:
 		self.UserInfo = userinfo or {}
 		self.Tenant = tenant
 
-		self.CredentialsId = userinfo.get("sub")
-		self.Username = userinfo.get("preferred_username") or userinfo.get("username")
-		self.Email = userinfo.get("email")
-		self.Phone = userinfo.get("phone")
+		self.CredentialsId = self.UserInfo.get("sub")
+		self.Username = self.UserInfo.get("preferred_username") or self.UserInfo.get("username")
+		self.Email = self.UserInfo.get("email")
+		self.Phone = self.UserInfo.get("phone")
 
 		self.Issuer = self.UserInfo.get("iss")  # Who issued the authorization
 		self.AuthorizedParty = self.UserInfo.get("azp")  # What party (application) is authorized
