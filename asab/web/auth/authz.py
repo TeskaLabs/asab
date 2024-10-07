@@ -68,7 +68,7 @@ class Authorization:
 			return has_resource_access(self.UserInfo, resource_id, tenant=self.Tenant)
 
 
-	def authorized_resources(self) -> typing.Set[str]:
+	def authorized_resources(self) -> typing.Optional[typing.Set[str]]:
 		"""
 		Return the set of EXPLICITLY authorized resources. (Use carefully with superusers.)
 
@@ -79,7 +79,7 @@ class Authorization:
 		"""
 		if not self.AuthService.is_enabled():
 			# Authorization is disabled = authorized resources are unknown
-			return set()
+			return None
 
 		return get_authorized_resources(self.UserInfo, self.Tenant)
 
