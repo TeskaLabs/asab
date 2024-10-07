@@ -32,6 +32,7 @@ class TenantService(Service):
 		self.TenantWebHandler = None
 		self.TenantsTrusted = Config.getboolean("tenants", "trusted")
 		self.Tenants = set()
+		self._ConfigTenants = set()
 
 		# Load tenants from configuration
 		for tenant_id in re.split(r"[,\s]+", Config.get("tenants", "ids"), flags=re.MULTILINE):
@@ -43,17 +44,21 @@ class TenantService(Service):
 				continue
 			if tenant_id[0] == ';':
 				continue
-			self.Tenants.add(tenant_id)
+			self._ConfigTenants.add(tenant_id)
+
+		if len(self._ConfigTenants) > 0:
+			self.Tenants.update(self._ConfigTenants)
+			self.App.PubSub.publish("Tenants.changed!")
 
 		# Load tenants from URL
 		self.TenantUrl = Config.get("tenants", "tenant_url")
+		if len(self.TenantUrl) > 0:
+			app.PubSub.subscribe("Application.tick/300!", self._update_tenants)
 
 
 	async def initialize(self, app):
 		if len(self.TenantUrl) > 0:
 			await self._update_tenants()
-			# TODO: Websocket persistent API should be added to seacat auth to feed these changes in realtime (eventually)
-			app.PubSub.subscribe("Application.tick/300!", self._update_tenants)
 
 
 	def locate_tenant(self, tenant_id):
@@ -84,12 +89,13 @@ class TenantService(Service):
 		async with aiohttp.ClientSession() as session:
 			async with session.get(self.TenantUrl) as resp:
 				if resp.status == 200:
-					tenants_list = await resp.json()
-					for tenant in tenants_list:
-						if isinstance(tenant, str):
-							self.Tenants.add(tenant)
-						elif isinstance(tenant, dict) and "_id" in tenant:
-							# TODO: REMOVE?
-							self.Tenants.add(tenant["_id"])
-						else:
-							L.warning("Unknown tenant format: {}".format(tenant))
+					external_tenants = await resp.json()
+				else:
+					return
+
+		external_tenants = set(external_tenants)
+		new_tenants = external_tenants.union(self._ConfigTenants)
+
+		if self.Tenants != new_tenants:
+			self.App.PubSub.publish("Tenants.changed!")
+			self.Tenants = new_tenants
