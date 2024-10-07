@@ -349,6 +349,9 @@ class AuthService(Service):
 			self.authorize_tenant(tenant, user_info)
 
 			# Create Authorization context
+			# TODO: Authorization lifecycle management
+			#  - "cache"" objects under (bearer_token, tenant) key
+			#  - clean them up after they expire
 			auth = Authorization(self, user_info, tenant)
 			auth_ctx = Authz.set(auth)
 			try:
