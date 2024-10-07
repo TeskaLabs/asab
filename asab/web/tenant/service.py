@@ -1,5 +1,6 @@
 import re
 import logging
+import typing
 
 import aiohttp
 
@@ -31,34 +32,17 @@ class TenantService(Service):
 		self.App = app
 		self.TenantWebHandler = None
 		self.TenantsTrusted = Config.getboolean("tenants", "trusted")
-		self.Tenants = set()
-		self._ConfigTenants = set()
-
-		# Load tenants from configuration
-		for tenant_id in re.split(r"[,\s]+", Config.get("tenants", "ids"), flags=re.MULTILINE):
-			tenant_id = tenant_id.strip()
-			# Skip comments and empty lines
-			if len(tenant_id) == 0:
-				continue
-			if tenant_id[0] == '#':
-				continue
-			if tenant_id[0] == ';':
-				continue
-			self._ConfigTenants.add(tenant_id)
-
-		if len(self._ConfigTenants) > 0:
-			self.Tenants.update(self._ConfigTenants)
-			self.App.PubSub.publish("Tenants.changed!")
+		self.Tenants: typing.Set[str] = set()
+		self._StaticTenants: typing.Set[str] = _read_tenants_from_config()
 
 		# Load tenants from URL
 		self.TenantUrl = Config.get("tenants", "tenant_url")
 		if len(self.TenantUrl) > 0:
-			app.PubSub.subscribe("Application.tick/300!", self._update_tenants)
+			app.PubSub.subscribe("Application.tick/10!", self._update_tenants)
 
 
 	async def initialize(self, app):
-		if len(self.TenantUrl) > 0:
-			await self._update_tenants()
+		await self._update_tenants()
 
 
 	def locate_tenant(self, tenant_id):
@@ -71,11 +55,6 @@ class TenantService(Service):
 			return None
 
 
-	def get_tenant_ids(self):
-		# TODO: REMOVE?
-		return self.get_tenants()
-
-
 	def get_tenants(self):
 		return list(self.Tenants)
 
@@ -86,16 +65,37 @@ class TenantService(Service):
 
 
 	async def _update_tenants(self, message_name=None):
-		async with aiohttp.ClientSession() as session:
-			async with session.get(self.TenantUrl) as resp:
-				if resp.status == 200:
-					external_tenants = await resp.json()
-				else:
-					return
+		new_tenants = set()
 
-		external_tenants = set(external_tenants)
-		new_tenants = external_tenants.union(self._ConfigTenants)
+		if len(self.TenantUrl) > 0:
+			async with aiohttp.ClientSession() as session:
+				async with session.get(self.TenantUrl) as resp:
+					if resp.status == 200:
+						external_tenants = await resp.json()
+					else:
+						L.warning("Failed to load tenants.", struct_data={"url": self.TenantUrl})
+						return
+
+			new_tenants.update(external_tenants)
+
+		if len(self._StaticTenants) > 0:
+			new_tenants.update(self._StaticTenants)
 
 		if self.Tenants != new_tenants:
 			self.App.PubSub.publish("Tenants.changed!")
 			self.Tenants = new_tenants
+
+
+def _read_tenants_from_config() -> typing.Set[str]:
+	tenants = set()
+	for tenant_id in re.split(r"[,\s]+", Config.get("tenants", "ids"), flags=re.MULTILINE):
+		tenant_id = tenant_id.strip()
+		# Skip comments and empty lines
+		if len(tenant_id) == 0:
+			continue
+		if tenant_id[0] == '#':
+			continue
+		if tenant_id[0] == ';':
+			continue
+		tenants.add(tenant_id)
+	return tenants
