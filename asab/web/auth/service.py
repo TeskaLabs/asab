@@ -331,7 +331,6 @@ class AuthService(Service):
 				L.warning("Tenant not authorized.", struct_data={
 					"tenant": tenant, "sub": user_info.get("sub")})
 				raise AccessDeniedError()
-		return tenant
 
 
 	def _authorize_request(self, handler):
@@ -347,7 +346,7 @@ class AuthService(Service):
 
 			# Authorize tenant context
 			tenant = Tenant.get(None)
-			tenant = self.authorize_tenant(tenant, user_info)
+			self.authorize_tenant(tenant, user_info)
 
 			# Create Authorization context
 			auth = Authorization(self, user_info, tenant)
