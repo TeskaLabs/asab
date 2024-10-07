@@ -8,6 +8,7 @@ import logging
 import os.path
 import time
 import enum
+import typing
 
 import aiohttp
 import aiohttp.web
@@ -17,6 +18,7 @@ from ...abc.service import Service
 from ...config import Config
 from ...exceptions import NotAuthenticatedError, AccessDeniedError
 from ...api.discovery import NotDiscoveredError
+from ...library.service import LogObsolete
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
 from .authz import Authorization, has_tenant_access
@@ -311,40 +313,6 @@ class AuthService(Service):
 		L.debug("Public key loaded.", struct_data={"url": self.PublicKeysUrl})
 
 
-	def _authorize_request(self, handler):
-		"""
-		Authenticate the request by the JWT ID token in the Authorization header.
-		Extract the token claims into request attributes so that they can be used for authorization checks.
-		"""
-		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
-			request = args[-1]
-			user_info = await self.extract_user_info_from_request(request)
-
-			# Authorize tenant from context
-			tenant = Tenant.get(None)
-			if tenant is not None and self.Mode != AuthMode.DISABLED:
-				if not has_tenant_access(user_info, tenant):
-					L.warning("Tenant not authorized.", struct_data={
-						"tenant": tenant, "sub": request._UserInfo.get("sub")})
-					raise AccessDeniedError()
-
-			# Add userinfo, tenants and global resources to the request
-			if not self.is_enabled():
-				response = await handler(*args, **kwargs)
-			else:
-				auth = Authorization(self, user_info, tenant)
-				auth_ctx = Authz.set(auth)
-				try:
-					response = await handler(*args, **kwargs)
-				finally:
-					Authz.reset(auth_ctx)
-
-			return response
-
-		return wrapper
-
-
 	async def extract_user_info_from_request(self, request):
 		if not self.is_enabled():
 			user_info = None
@@ -355,6 +323,43 @@ class AuthService(Service):
 			bearer_token = _get_bearer_token(request)
 			user_info = await self.get_userinfo_from_id_token(bearer_token)
 		return user_info
+
+
+	def authorize_tenant(self, tenant: typing.Union[str, None], user_info: typing.Dict):
+		if tenant is not None and self.Mode != AuthMode.DISABLED:
+			if not has_tenant_access(user_info, tenant):
+				L.warning("Tenant not authorized.", struct_data={
+					"tenant": tenant, "sub": user_info.get("sub")})
+				raise AccessDeniedError()
+		return tenant
+
+
+	def _authorize_request(self, handler):
+		"""
+		Authenticate the request by the JWT ID token in the Authorization header.
+		Extract the token claims into Authorization context so that they can be used for authorization checks.
+		"""
+		@functools.wraps(handler)
+		async def wrapper(*args, **kwargs):
+			request = args[-1]
+			# Extract auth data from request headers
+			user_info = await self.extract_user_info_from_request(request)
+
+			# Authorize tenant context
+			tenant = Tenant.get(None)
+			tenant = self.authorize_tenant(tenant, user_info)
+
+			# Create Authorization context
+			auth = Authorization(self, user_info, tenant)
+			auth_ctx = Authz.set(auth)
+			try:
+				response = await handler(*args, **kwargs)
+			finally:
+				Authz.reset(auth_ctx)
+
+			return response
+
+		return wrapper
 
 
 	async def _wrap_handlers(self, aiohttp_app):
@@ -402,27 +407,40 @@ class AuthService(Service):
 		# Extract the whole handler for wrapping
 		handler = route.handler
 
-		# Apply the decorators in reverse order (the last applied wrapper affects the request first)
+		# Apply the decorators IN REVERSE ORDER (the last applied wrapper affects the request first)
 
 		# 3) Pass authorization attributes to handler method
 		if "resources" in args:
+			LogObsolete.warning(
+				"The 'resources' argument is deprecated. "
+				"Use the access-checking methods of asab.contextvars.Authz instead.",
+				struct_data={"handler": handler.__qualname__, "eol": "2025-03-01"},
+			)
 			handler = _pass_resources(handler)
 		if "user_info" in args:
+			LogObsolete.warning(
+				"The 'user_info' argument is deprecated. "
+				"Use the Authorization object in asab.contextvars.Authz instead.",
+				struct_data={"handler": handler.__qualname__, "eol": "2025-03-01"},
+			)
 			handler = _pass_user_info(handler)
 		if "tenant" in args:
 			handler = _pass_tenant(handler)
+		if "authz" in args:
+			handler = _pass_authz(handler)
 
 		# 2) Authenticate and authorize request, authorize tenant from context, set Authorization context
 		handler = self._authorize_request(handler)
 
-		# 1.5) Set tenant context from obsolete locations
-		# TODO: Deprecated. Remove tenant extraction from path and query, always use request headers instead.
+		# 1.5) Set tenant context from obsolete locations (no authorization yet)
+		# TODO: Deprecated. Ignore tenant in path and query, always use request headers instead.
 		if tenant_in_path:
 			handler = _set_tenant_context_from_url_path(handler)
 		else:
 			handler = _set_tenant_context_from_url_query(handler)
 
-		# 1) Set tenant context
+		# 1) Set tenant context (no authorization yet)
+		# TODO: This should be eventually done by TenantService
 		handler = _set_tenant_context_from_request_header(handler)
 
 		route._handler = handler
@@ -510,7 +528,7 @@ def _pass_user_info(handler):
 	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
-		authz = Authz.get()
+		authz = Authz.get(None)
 		return await handler(*args, user_info=authz.UserInfo if authz is not None else None, **kwargs)
 	return wrapper
 
@@ -521,7 +539,7 @@ def _pass_resources(handler):
 	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
-		authz = Authz.get()
+		authz = Authz.get(None)
 		return await handler(*args, resources=authz.authorized_resources() if authz is not None else None, **kwargs)
 	return wrapper
 
@@ -533,6 +551,17 @@ def _pass_tenant(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		return await handler(*args, tenant=Tenant.get(None), **kwargs)
+	return wrapper
+
+
+def _pass_authz(handler):
+	"""
+	Add Auhorization object to the handler arguments
+	"""
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
+		authz = Authz.get(None)
+		return await handler(*args, authz=authz, **kwargs)
 	return wrapper
 
 
