@@ -82,7 +82,7 @@ class TenantService(Service):
 			new_tenants.update(self._StaticTenants)
 
 		if self.Tenants != new_tenants:
-			self.App.PubSub.publish("Tenants.changed!")
+			self.App.PubSub.publish("Tenants.change!")
 			self.Tenants = new_tenants
 
 
