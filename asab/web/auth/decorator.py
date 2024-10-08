@@ -37,8 +37,7 @@ def require(*resources):
 			if authz is None:
 				raise AccessDeniedError()
 
-			if not authz.has_resource_access(resources):
-				raise AccessDeniedError()
+			authz.require_resource_access(*resources)
 
 			return await handler(*args, **kwargs)
 
