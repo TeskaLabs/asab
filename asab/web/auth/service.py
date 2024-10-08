@@ -145,6 +145,7 @@ class AuthService(Service):
 			self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
 
 		self.Authorizations: typing.Dict[typing.Tuple[str, str], Authorization] = {}
+		self.App.PubSub.subscribe("Application.housekeeping!", self.delete_expired_authorizations)
 
 
 	def _prepare_mock_user_info(self):
@@ -201,29 +202,67 @@ class AuthService(Service):
 		return True
 
 
-	async def get_userinfo_from_id_token(self, bearer_token):
+	async def build_authorization(self, id_token: str) -> Authorization:
 		"""
-		Parse the bearer ID token and extract user info.
+		Build authorization from ID token string and tenant context.
+
+		:param id_token: Base64-encoded JWToken from Authorization header
+		:return: Valid asab.web.auth.Authorization object
 		"""
-		if not self.is_ready():
-			# Try to load the public keys again
-			if not self.TrustedPublicKeys["keys"]:
-				await self._fetch_public_keys_if_needed()
-			if not self.is_ready():
-				L.error("Cannot authenticate request: Failed to load authorization server's public keys.")
-				raise aiohttp.web.HTTPUnauthorized()
+		if not self.is_enabled():
+			raise ValueError("Cannot build Authorization when AuthService is disabled.")
 
-		try:
-			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
-		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey):
-			# Authz server keys may have changed. Try to reload them.
-			await self._fetch_public_keys_if_needed()
+		# Try if the object already exists
+		authz = self.Authorizations.get(id_token)
+		if authz is not None:
+			if not authz.is_valid():
+				L.warning("Authorization has expired.", struct_data={
+					"cid": authz.CredentialsId, "exp": authz.Expiration.isoformat()})
+				del self.Authorizations[id_token]
+				raise AccessDeniedError()
+			return authz
 
+		# Create a new Authorization object and store it
+		if self.Mode == AuthMode.MOCK:
+			assert id_token == "MOCK"
+			authz = Authorization(self, self.MockUserInfo)
+		else:
+			userinfo = await self._get_userinfo_from_id_token(id_token)
+			authz = Authorization(self, userinfo)
+
+		self.Authorizations[id_token] = authz
+		return authz
+
+
+	async def delete_expired_authorizations(self):
+		expired = []
+		for key, authz in self.Authorizations.items():
+			if not authz.is_valid():
+				expired.append(key)
+		for key in expired:
+			del self.Authorizations[key]
+
+
+	def bearer_token_from_request(self, request):
+		"""
+		Validate the Authorizetion header and extract the Bearer token value
+		"""
+		if self.Mode == AuthMode.MOCK:
+			return "MOCK"
+
+		authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
+		if authorization_header is None:
+			L.warning("No Authorization header.")
+			raise aiohttp.web.HTTPUnauthorized()
 		try:
-			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
-		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
-			L.error("Cannot authenticate request: {}".format(str(e)))
-			raise NotAuthenticatedError()
+			auth_type, token_value = authorization_header.split(" ", 1)
+		except ValueError:
+			L.warning("Cannot parse Authorization header.")
+			raise aiohttp.web.HTTPBadRequest()
+		if auth_type != "Bearer":
+			L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
+			raise aiohttp.web.HTTPUnauthorized()
+		return token_value
 
 
 	async def _fetch_public_keys_if_needed(self, *args, **kwargs):
@@ -315,47 +354,6 @@ class AuthService(Service):
 		L.debug("Public key loaded.", struct_data={"url": self.PublicKeysUrl})
 
 
-	async def extract_user_info_from_request(self, request):
-		if not self.is_enabled():
-			user_info = None
-		elif self.Mode == AuthMode.MOCK:
-			user_info = self.MockUserInfo
-		else:
-			# Extract user info from the request Authorization header
-			bearer_token = _get_bearer_token(request)
-			user_info = await self.get_userinfo_from_id_token(bearer_token)
-		return user_info
-
-
-	async def build_authorization(self, id_token: typing.Union[str, None]) -> typing.Optional[Authorization]:
-		"""
-		Build authorization from ID token string and tenant context.
-		:param id_token: Base64-encoded JWToken from Authorization header
-		:return: Valid asab.web.auth.Authorization object
-		"""
-		if self.Mode == AuthMode.DISABLED:
-			return None
-		elif self.Mode == AuthMode.MOCK:
-			return Authorization(self, self.MockUserInfo)
-		elif self.Mode == AuthMode.ENABLED and id_token is None:
-			raise AccessDeniedError()
-
-		# Try if the object already exists
-		authz = self.Authorizations.get(id_token)
-		if authz is not None:
-			if not authz.is_valid():
-				raise AccessDeniedError()
-			return authz
-
-		# Create a new Authorization object and store it
-		userinfo = await self.get_userinfo_from_id_token(id_token)
-		authz = Authorization(self, userinfo)
-		# TODO: Authorization lifecycle management
-		#  - clean them up after they expire
-		self.Authorizations[id_token] = authz
-		return authz
-
-
 	def _authorize_request(self, handler):
 		"""
 		Authenticate the request by the JWT ID token in the Authorization header.
@@ -365,12 +363,10 @@ class AuthService(Service):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 
-			if self.Mode == AuthMode.ENABLED:
-				bearer_token = _get_bearer_token(request)
-			else:
-				bearer_token = None
+			if not self.is_enabled():
+				return await handler(*args, **kwargs)
 
-			# Create Authorization context
+			bearer_token = self.bearer_token_from_request(request)
 			authz = await self.build_authorization(bearer_token)
 
 			# Authorize tenant context
@@ -378,13 +374,11 @@ class AuthService(Service):
 			if tenant is not None:
 				authz.require_tenant_access()
 
-			auth_ctx = Authz.set(authz)
+			authz_ctx = Authz.set(authz)
 			try:
-				response = await handler(*args, **kwargs)
+				return await handler(*args, **kwargs)
 			finally:
-				Authz.reset(auth_ctx)
-
-			return response
+				Authz.reset(authz_ctx)
 
 		return wrapper
 
@@ -471,6 +465,31 @@ class AuthService(Service):
 		handler = _set_tenant_context_from_request_header(handler)
 
 		route._handler = handler
+
+
+	async def _get_userinfo_from_id_token(self, bearer_token):
+		"""
+		Parse the bearer ID token and extract user info.
+		"""
+		if not self.is_ready():
+			# Try to load the public keys again
+			if not self.TrustedPublicKeys["keys"]:
+				await self._fetch_public_keys_if_needed()
+			if not self.is_ready():
+				L.error("Cannot authenticate request: Failed to load authorization server's public keys.")
+				raise aiohttp.web.HTTPUnauthorized()
+
+		try:
+			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
+		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey):
+			# Authz server keys may have changed. Try to reload them.
+			await self._fetch_public_keys_if_needed()
+
+		try:
+			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
+		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
+			L.error("Cannot authenticate request: {}".format(str(e)))
+			raise NotAuthenticatedError()
 
 
 def _get_id_token_claims(bearer_token: str, auth_server_public_key):
