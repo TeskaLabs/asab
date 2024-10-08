@@ -144,6 +144,8 @@ class AuthService(Service):
 		if self.Mode == AuthMode.ENABLED:
 			self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
 
+		self.Authorizations: typing.Dict[typing.Tuple[str, str], Authorization] = {}
+
 
 	def _prepare_mock_user_info(self):
 		# Load custom user info
@@ -325,12 +327,33 @@ class AuthService(Service):
 		return user_info
 
 
-	def authorize_tenant(self, tenant: typing.Union[str, None], user_info: typing.Dict):
-		if tenant is not None and self.Mode != AuthMode.DISABLED:
-			if not has_tenant_access(user_info, tenant):
-				L.warning("Tenant not authorized.", struct_data={
-					"tenant": tenant, "sub": user_info.get("sub")})
+	async def build_authorization(self, id_token: typing.Union[str, None]) -> typing.Optional[Authorization]:
+		"""
+		Build authorization from ID token string and tenant context.
+		:param id_token: Base64-encoded JWToken from Authorization header
+		:return: Valid asab.web.auth.Authorization object
+		"""
+		if self.Mode == AuthMode.DISABLED:
+			return None
+		elif self.Mode == AuthMode.MOCK:
+			return Authorization(self, self.MockUserInfo)
+		elif self.Mode == AuthMode.ENABLED and id_token is None:
+			raise AccessDeniedError()
+
+		# Try if the object already exists
+		authz = self.Authorizations.get(id_token)
+		if authz is not None:
+			if not authz.is_valid():
 				raise AccessDeniedError()
+			return authz
+
+		# Create a new Authorization object and store it
+		userinfo = await self.get_userinfo_from_id_token(id_token)
+		authz = Authorization(self, userinfo)
+		# TODO: Authorization lifecycle management
+		#  - clean them up after they expire
+		self.Authorizations[id_token] = authz
+		return authz
 
 
 	def _authorize_request(self, handler):
@@ -341,19 +364,21 @@ class AuthService(Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			# Extract auth data from request headers
-			user_info = await self.extract_user_info_from_request(request)
+
+			if self.Mode == AuthMode.ENABLED:
+				bearer_token = _get_bearer_token(request)
+			else:
+				bearer_token = None
+
+			# Create Authorization context
+			authz = await self.build_authorization(bearer_token)
 
 			# Authorize tenant context
 			tenant = Tenant.get(None)
-			self.authorize_tenant(tenant, user_info)
+			if tenant is not None:
+				authz.require_tenant_access()
 
-			# Create Authorization context
-			# TODO: Authorization lifecycle management
-			#  - "cache"" objects under (bearer_token, tenant) key
-			#  - clean them up after they expire
-			auth = Authorization(self, user_info, tenant)
-			auth_ctx = Authz.set(auth)
+			auth_ctx = Authz.set(authz)
 			try:
 				response = await handler(*args, **kwargs)
 			finally:
