@@ -1,7 +1,9 @@
+import datetime
 import typing
 import logging
 
-from asab.exceptions import AccessDeniedError
+from ...exceptions import AccessDeniedError
+from ...contextvars import Tenant
 
 L = logging.getLogger(__name__)
 
@@ -13,19 +15,19 @@ class Authorization:
 	"""
 	Contains authentication and authorization details, provides methods for checking access control
 	"""
-	def __init__(self, auth_service, userinfo: dict, tenant: typing.Union[str, None]):
+	def __init__(self, auth_service, userinfo: dict):
 		self.AuthService = auth_service
 		if self.AuthService.is_enabled() and userinfo is None:
 			L.error("Userinfo is mandatory when AuthService is enabled.")
 			raise AccessDeniedError()
 		self.UserInfo = userinfo or {}
-		self.Tenant = tenant
 
 		self.CredentialsId = self.UserInfo.get("sub")
 		self.Username = self.UserInfo.get("preferred_username") or self.UserInfo.get("username")
 		self.Email = self.UserInfo.get("email")
 		self.Phone = self.UserInfo.get("phone")
 
+		self.Expiration = datetime.datetime.fromtimestamp(int(self.UserInfo.get("exp")), datetime.timezone.utc)
 		self.Issuer = self.UserInfo.get("iss")  # Who issued the authorization
 		self.AuthorizedParty = self.UserInfo.get("azp")  # What party (application) is authorized
 
@@ -38,14 +40,12 @@ class Authorization:
 		)
 
 
-	def require_superuser(self):
-		if not self.is_superuser():
-			raise AccessDeniedError()
-
-
-	def require_resource_access(self, resource_id: typing.Union[str, typing.Iterable[str]]):
-		if not self.has_resource_access(resource_id):
-			raise AccessDeniedError()
+	def is_valid(self) -> bool:
+		"""
+		Check if the authorization is not expired.
+		:return: Authorization validity
+		"""
+		return datetime.datetime.now(datetime.timezone.utc) > self.Expiration
 
 
 	def is_superuser(self) -> bool:
@@ -58,24 +58,44 @@ class Authorization:
 			# Authorization is disabled = everything is allowed
 			return True
 
+		if not self.is_valid():
+			return False
+
 		return is_superuser(self.UserInfo)
 
 
-	def has_resource_access(self, resource_id: typing.Union[str, typing.Iterable[str]]) -> bool:
+	def has_resource_access(self, *resources: typing.Iterable[str]) -> bool:
 		"""
-		Check whether the agent is authorized to access a resource or multiple resources.
+		Check whether the agent is authorized to access requested resources.
 
-		:param resource_id: Resource ID or a list of resource IDs whose authorization is required.
+		:param resources: List of resource IDs whose authorization is requested.
 		:return: Is resource access authorized?
 		"""
 		if not self.AuthService.is_enabled():
 			# Authorization is disabled = everything is allowed
 			return True
 
-		if isinstance(resource_id, str):
-			return has_resource_access(self.UserInfo, {resource_id}, tenant=self.Tenant)
-		else:
-			return has_resource_access(self.UserInfo, resource_id, tenant=self.Tenant)
+		if not self.is_valid():
+			return False
+
+		return has_resource_access(self.UserInfo, resources, tenant=Tenant.get(None))
+
+
+	def require_superuser(self):
+		"""
+		Assert that the agent has superuser access.
+		"""
+		if not self.is_superuser():
+			raise AccessDeniedError()
+
+
+	def require_resource_access(self, *resources: typing.Iterable[str]):
+		"""
+		Assert that the agent is authorized to access the required resources.
+		:param resources: List of resource IDs whose authorization is required.
+		"""
+		if not self.has_resource_access(*resources):
+			raise AccessDeniedError()
 
 
 	def authorized_resources(self) -> typing.Optional[typing.Set[str]]:
@@ -88,58 +108,61 @@ class Authorization:
 		:return: Set of authorized resources.
 		"""
 		if not self.AuthService.is_enabled():
-			# Authorization is disabled = authorized resources are unknown
+			# Authorization is disabled = authorized resources are undefined
 			return None
 
-		return get_authorized_resources(self.UserInfo, self.Tenant)
+		if not self.is_valid():
+			return None
+
+		return get_authorized_resources(self.UserInfo, Tenant.get(None))
 
 
-def is_superuser(user_info: typing.Mapping) -> bool:
+def is_superuser(userinfo: typing.Mapping) -> bool:
 	"""
 	Check if the superuser resource is present in the authorized resource list.
 	"""
-	return SUPERUSER_RESOURCE_ID in get_authorized_resources(user_info, tenant=None)
+	return SUPERUSER_RESOURCE_ID in get_authorized_resources(userinfo, tenant=None)
 
 
 def has_resource_access(
-	user_info: typing.Mapping,
-	resource_ids: typing.Iterable,
+	userinfo: typing.Mapping,
+	resources: typing.Iterable,
 	tenant: typing.Union[str, None],
 ) -> bool:
 	"""
 	Check if the requested resources or the superuser resource are present in the authorized resource list.
 	"""
-	if is_superuser(user_info):
+	if is_superuser(userinfo):
 		return True
 
-	authorized_resources = get_authorized_resources(user_info, tenant)
-	for resource in resource_ids:
+	authorized_resources = get_authorized_resources(userinfo, tenant)
+	for resource in resources:
 		if resource not in authorized_resources:
 			return False
 
 	return True
 
 
-def has_tenant_access(user_info: typing.Mapping, tenant: str) -> bool:
+def has_tenant_access(userinfo: typing.Mapping, tenant: str) -> bool:
 	"""
 	Check the agent's userinfo to see if they are authorized to access a tenant.
 	If the agent has superuser access, tenant access is always implicitly granted.
 	"""
 	if tenant == "*":
 		raise ValueError("Invalid tenant name: '*'")
-	if is_superuser(user_info):
+	if is_superuser(userinfo):
 		return True
-	if tenant in user_info.get("resources", {}):
+	if tenant in userinfo.get("resources", {}):
 		return True
 	return False
 
 
-def get_authorized_resources(user_info: typing.Mapping, tenant: typing.Union[str, None]) -> typing.Set[str]:
+def get_authorized_resources(userinfo: typing.Mapping, tenant: typing.Union[str, None]) -> typing.Set[str]:
 	"""
 	Extract resources authorized within given tenant (or globally, if tenant is None).
 
-	:param user_info:
+	:param userinfo:
 	:param tenant:
 	:return: Set of authorized resources.
 	"""
-	return set(user_info.get("resources", {}).get(tenant if tenant is not None else "*", []))
+	return set(userinfo.get("resources", {}).get(tenant if tenant is not None else "*", []))
