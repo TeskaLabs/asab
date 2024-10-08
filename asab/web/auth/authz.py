@@ -27,16 +27,19 @@ class Authorization:
 		self.Email = self.UserInfo.get("email")
 		self.Phone = self.UserInfo.get("phone")
 
-		self.Expiration = datetime.datetime.fromtimestamp(int(self.UserInfo.get("exp")), datetime.timezone.utc)
 		self.Issuer = self.UserInfo.get("iss")  # Who issued the authorization
 		self.AuthorizedParty = self.UserInfo.get("azp")  # What party (application) is authorized
+		self.IssuedAt = datetime.datetime.fromtimestamp(int(self.UserInfo.get("iat")), datetime.timezone.utc)
+		self.Expiration = datetime.datetime.fromtimestamp(int(self.UserInfo.get("exp")), datetime.timezone.utc)
 
 
 	def __repr__(self):
-		return "<Authorization [{}cid: {!r}, azp: {!r}]>".format(
-			"SUPERUSER, " if self.is_superuser() else "",
+		return "<Authorization [{}cid: {!r}, azp: {!r}, iat: {!r}, exp: {!r}]>".format(
+			"SUPERUSER, " if self.has_superuser_access() else "",
 			self.CredentialsId,
 			self.AuthorizedParty,
+			self.IssuedAt.isoformat(),
+			self.Expiration.isoformat(),
 		)
 
 
@@ -45,10 +48,10 @@ class Authorization:
 		Check if the authorization is not expired.
 		:return: Authorization validity
 		"""
-		return datetime.datetime.now(datetime.timezone.utc) > self.Expiration
+		return datetime.datetime.now(datetime.timezone.utc) < self.Expiration
 
 
-	def is_superuser(self) -> bool:
+	def has_superuser_access(self) -> bool:
 		"""
 		Check whether the agent is a superuser.
 
@@ -101,11 +104,13 @@ class Authorization:
 		return has_tenant_access(self.UserInfo, tenant)
 
 
-	def require_superuser(self):
+	def require_superuser_access(self):
 		"""
 		Assert that the agent has superuser access.
 		"""
-		if not self.is_superuser():
+		if not self.has_superuser_access():
+			L.warning("Superuser authorization required.", struct_data={
+				"cid": self.CredentialsId, "azp": self.AuthorizedParty})
 			raise AccessDeniedError()
 
 
@@ -116,6 +121,8 @@ class Authorization:
 		:param resources: List of resource IDs whose authorization is required.
 		"""
 		if not self.has_resource_access(*resources):
+			L.warning("Resource authorization required.", struct_data={
+				"resource": resources, "cid": self.CredentialsId, "azp": self.AuthorizedParty})
 			raise AccessDeniedError()
 
 
@@ -124,6 +131,8 @@ class Authorization:
 		Assert that the agent is authorized to access the tenant in the context.
 		"""
 		if not self.has_tenant_access():
+			L.warning("Tenant authorization required.", struct_data={
+				"tenant": Tenant.get(), "cid": self.CredentialsId, "azp": self.AuthorizedParty})
 			raise AccessDeniedError()
 
 
