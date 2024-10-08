@@ -81,6 +81,26 @@ class Authorization:
 		return has_resource_access(self.UserInfo, resources, tenant=Tenant.get(None))
 
 
+	def has_tenant_access(self) -> bool:
+		"""
+		Check whether the agent has access to the tenant in context.
+
+		:return: Is tenant access authorized?
+		"""
+		tenant = Tenant.get(None)
+		if tenant is None:
+			raise ValueError("No tenant in context nor in argument.")
+
+		if not self.AuthService.is_enabled():
+			# Authorization is disabled = everything is allowed
+			return True
+
+		if not self.is_valid():
+			return False
+
+		return has_tenant_access(self.UserInfo, tenant)
+
+
 	def require_superuser(self):
 		"""
 		Assert that the agent has superuser access.
@@ -92,9 +112,18 @@ class Authorization:
 	def require_resource_access(self, *resources: typing.Iterable[str]):
 		"""
 		Assert that the agent is authorized to access the required resources.
+
 		:param resources: List of resource IDs whose authorization is required.
 		"""
 		if not self.has_resource_access(*resources):
+			raise AccessDeniedError()
+
+
+	def require_tenant_access(self):
+		"""
+		Assert that the agent is authorized to access the tenant in the context.
+		"""
+		if not self.has_tenant_access():
 			raise AccessDeniedError()
 
 
