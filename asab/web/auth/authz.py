@@ -13,13 +13,14 @@ SUPERUSER_RESOURCE_ID = "authz:superuser"
 
 class Authorization:
 	"""
-	Contains authentication and authorization details, provides methods for checking access control
+	Contains authentication and authorization details, provides methods for checking access control.
+
+	Requires that AuthService is initialized and enabled.
 	"""
 	def __init__(self, auth_service, userinfo: dict):
 		self.AuthService = auth_service
-		if self.AuthService.is_enabled() and userinfo is None:
-			L.error("Userinfo is mandatory when AuthService is enabled.")
-			raise AccessDeniedError()
+		if not self.AuthService.is_enabled():
+			raise ValueError("Cannot create Authorization when AuthService is disabled.")
 		self.UserInfo = userinfo or {}
 
 		self.CredentialsId = self.UserInfo.get("sub")
@@ -29,8 +30,10 @@ class Authorization:
 
 		self.Issuer = self.UserInfo.get("iss")  # Who issued the authorization
 		self.AuthorizedParty = self.UserInfo.get("azp")  # What party (application) is authorized
-		self.IssuedAt = datetime.datetime.fromtimestamp(int(self.UserInfo.get("iat")), datetime.timezone.utc)
-		self.Expiration = datetime.datetime.fromtimestamp(int(self.UserInfo.get("exp")), datetime.timezone.utc)
+		self.IssuedAt = datetime.datetime.fromtimestamp(int(self.UserInfo["iat"]), datetime.timezone.utc)
+		self.Expiration = datetime.datetime.fromtimestamp(int(self.UserInfo["exp"]), datetime.timezone.utc)
+
+		print(self)
 
 
 	def __repr__(self):
@@ -57,10 +60,6 @@ class Authorization:
 
 		:return: Is the agent a superuser?
 		"""
-		if not self.AuthService.is_enabled():
-			# Authorization is disabled = everything is allowed
-			return True
-
 		if not self.is_valid():
 			return False
 
@@ -74,10 +73,6 @@ class Authorization:
 		:param resources: List of resource IDs whose authorization is requested.
 		:return: Is resource access authorized?
 		"""
-		if not self.AuthService.is_enabled():
-			# Authorization is disabled = everything is allowed
-			return True
-
 		if not self.is_valid():
 			return False
 
@@ -93,10 +88,6 @@ class Authorization:
 		tenant = Tenant.get(None)
 		if tenant is None:
 			raise ValueError("No tenant in context nor in argument.")
-
-		if not self.AuthService.is_enabled():
-			# Authorization is disabled = everything is allowed
-			return True
 
 		if not self.is_valid():
 			return False
@@ -145,10 +136,6 @@ class Authorization:
 
 		:return: Set of authorized resources.
 		"""
-		if not self.AuthService.is_enabled():
-			# Authorization is disabled = authorized resources are undefined
-			return None
-
 		if not self.is_valid():
 			return None
 
