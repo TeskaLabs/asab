@@ -417,7 +417,7 @@ class DiscoveryService(Service):
 		else:
 			raise ValueError(
 				"Invalid 'auth' value. "
-				"Only instances of aiohttp.ClientRequest or the literal string 'internal' are allowed. "
+				"Only instances of aiohttp.web.Request or the literal string 'internal' are allowed. "
 				"Found {}.".format(type(auth))
 			)
 
