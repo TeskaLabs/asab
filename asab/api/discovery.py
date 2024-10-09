@@ -8,6 +8,7 @@ import logging
 import os
 
 import aiohttp
+import aiohttp.web
 import kazoo.exceptions
 
 try:
@@ -400,7 +401,8 @@ class DiscoveryService(Service):
 				...
 		"""
 		_headers = {}
-		if isinstance(auth, aiohttp.ClientRequest):
+		if isinstance(auth, aiohttp.web.Request):
+			# TODO: This should be the default option. Use contextvar to access the request.
 			assert "Authorization" in auth.headers
 			_headers["Authorization"] = auth.headers.get("Authorization")
 		elif auth == "internal":
