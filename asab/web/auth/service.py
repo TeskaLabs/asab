@@ -21,7 +21,7 @@ from ...api.discovery import NotDiscoveredError
 from ...library.service import LogObsolete
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
-from .authz import Authorization, has_tenant_access
+from .authz import Authorization
 
 try:
 	import jwcrypto.jwk
@@ -145,7 +145,7 @@ class AuthService(Service):
 			self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
 
 		self.Authorizations: typing.Dict[typing.Tuple[str, str], Authorization] = {}
-		self.App.PubSub.subscribe("Application.housekeeping!", self.delete_expired_authorizations)
+		self.App.PubSub.subscribe("Application.housekeeping!", self.delete_invalid_authorizations)
 
 
 	def _prepare_mock_user_info(self):
@@ -204,7 +204,7 @@ class AuthService(Service):
 
 	async def build_authorization(self, id_token: str) -> Authorization:
 		"""
-		Build authorization from ID token string and tenant context.
+		Build authorization from ID token string.
 
 		:param id_token: Base64-encoded JWToken from Authorization header
 		:return: Valid asab.web.auth.Authorization object
@@ -215,11 +215,11 @@ class AuthService(Service):
 		# Try if the object already exists
 		authz = self.Authorizations.get(id_token)
 		if authz is not None:
-			if not authz.is_valid():
-				L.warning("Authorization has expired.", struct_data={
-					"cid": authz.CredentialsId, "exp": authz.Expiration.isoformat()})
+			try:
+				authz.validate()
+			except AccessDeniedError as e:
 				del self.Authorizations[id_token]
-				raise AccessDeniedError()
+				raise e
 			return authz
 
 		# Create a new Authorization object and store it
@@ -234,11 +234,19 @@ class AuthService(Service):
 		return authz
 
 
-	async def delete_expired_authorizations(self):
+	async def delete_invalid_authorizations(self):
+		"""
+		Check for expired Authorization objects and delete them
+		"""
 		expired = []
+		# Find expired
 		for key, authz in self.Authorizations.items():
-			if not authz.is_valid():
+			try:
+				authz.validate()
+			except AccessDeniedError:
 				expired.append(key)
+
+		# Delete expired
 		for key in expired:
 			del self.Authorizations[key]
 
