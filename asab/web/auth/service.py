@@ -147,6 +147,9 @@ class AuthService(Service):
 		self.Authorizations: typing.Dict[typing.Tuple[str, str], Authorization] = {}
 		self.App.PubSub.subscribe("Application.housekeeping!", self.delete_invalid_authorizations)
 
+		# Try to auto-install authorization middleware
+		self.install()
+
 
 	def _prepare_mock_user_info(self):
 		# Load custom user info
@@ -178,14 +181,25 @@ class AuthService(Service):
 		return self.Mode in {AuthMode.ENABLED, AuthMode.MOCK}
 
 
-	def install(self, web_container):
+	def install(self, web_container=None):
 		"""
 		Apply authorization to all web handlers in a web container, according to their arguments and path parameters.
 
 		:param web_container: Web container to be protected by authorization.
 		:type web_container: asab.web.WebContainer
 		"""
-		# TODO: Call this automatically if there is only one container
+		if web_container is None:
+			# Locate web container if there is only one
+			web_service = self.App.get_service("asab.WebService")
+			if len(web_service.Containers) != 1:
+				return
+			web_container = web_service.WebContainer
+
+		# Check that the middleware has not been installed yet
+		for middleware in web_container.WebApp.on_startup:
+			if middleware == self._wrap_handlers:
+				return
+
 		web_container.WebApp.on_startup.append(self._wrap_handlers)
 
 
