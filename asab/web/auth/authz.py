@@ -46,14 +46,11 @@ class Authorization:
 		)
 
 
-	def validate(self):
+	def is_valid(self):
 		"""
-		Ensure that the authorization is not expired.
+		Check that the authorization is not expired.
 		"""
-		if datetime.datetime.now(datetime.timezone.utc) > self.Expiration:
-			L.warning("Authorization expired.", struct_data={
-				"cid": self.CredentialsId, "azp": self.AuthorizedParty, "exp": self.Expiration.isoformat()})
-			raise AccessDeniedError()
+		return datetime.datetime.now(datetime.timezone.utc) < self.Expiration
 
 
 	def has_superuser_access(self) -> bool:
@@ -62,7 +59,7 @@ class Authorization:
 
 		:return: Is the agent a superuser?
 		"""
-		self.validate()
+		self.require_valid()
 		return is_superuser(self.UserInfo)
 
 
@@ -73,7 +70,7 @@ class Authorization:
 		:param resources: List of resource IDs whose authorization is requested.
 		:return: Is resource access authorized?
 		"""
-		self.validate()
+		self.require_valid()
 		return has_resource_access(self.UserInfo, resources, tenant=Tenant.get(None))
 
 
@@ -83,13 +80,24 @@ class Authorization:
 
 		:return: Is tenant access authorized?
 		"""
-		self.validate()
+		self.require_valid()
 
-		tenant = Tenant.get(None)
-		if tenant is None:
-			raise ValueError("No tenant in context nor in argument.")
+		try:
+			tenant = Tenant.get()
+		except LookupError as e:
+			raise ValueError("No tenant in context.") from e
 
 		return has_tenant_access(self.UserInfo, tenant)
+
+
+	def require_valid(self):
+		"""
+		Ensure that the authorization is not expired.
+		"""
+		if not self.is_valid():
+			L.warning("Authorization expired.", struct_data={
+				"cid": self.CredentialsId, "azp": self.AuthorizedParty, "exp": self.Expiration.isoformat()})
+			raise AccessDeniedError()
 
 
 	def require_superuser_access(self):
@@ -133,7 +141,7 @@ class Authorization:
 
 		:return: Set of authorized resources.
 		"""
-		self.validate()
+		self.require_valid()
 		return get_authorized_resources(self.UserInfo, Tenant.get(None))
 
 

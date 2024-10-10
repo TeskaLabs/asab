@@ -216,7 +216,7 @@ class AuthService(Service):
 		authz = self.Authorizations.get(id_token)
 		if authz is not None:
 			try:
-				authz.validate()
+				authz.require_valid()
 			except AccessDeniedError as e:
 				del self.Authorizations[id_token]
 				raise e
@@ -238,12 +238,10 @@ class AuthService(Service):
 		"""
 		Check for expired Authorization objects and delete them
 		"""
-		expired = []
 		# Find expired
+		expired = []
 		for key, authz in self.Authorizations.items():
-			try:
-				authz.validate()
-			except AccessDeniedError:
+			if not authz.is_valid():
 				expired.append(key)
 
 		# Delete expired
@@ -277,6 +275,7 @@ class AuthService(Service):
 		"""
 		Check if public keys have been fetched from the authorization server and fetch them if not yet.
 		"""
+		# TODO: Refactor into Key Providers
 		# Add internal shared auth key
 		if self.DiscoveryService is not None:
 			if self.DiscoveryService.InternalAuthKey is not None:
