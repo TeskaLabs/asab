@@ -17,22 +17,31 @@ authorization server
 
 ## Getting started
 
-To get started, initialize `AuthService` and install it in your `asab.web.WebContainer`:
+To get started, add `asab.web` module to your application and initialize `asab.web.auth.AuthService`:
 
-``` python
+```python
+import asab
+import asab.web
+import asab.web.auth
+
+...
+
 class MyApplication(asab.Application):
 	def __init__(self):
 		super().__init__()
 
-		# Initialize web container
-		self.add_module(asab.web.Module)
-		self.WebService = self.get_service("asab.WebService")
-		self.WebContainer = asab.web.WebContainer(self.WebService, "web")
+		# Initialize web module
+		asab.web.create_web_server(self)
 
-		# Initialize authorization service and install the decorators
+		# Initialize authorization service
 		self.AuthService = asab.web.auth.AuthService(self)
-		self.AuthService.install(self.WebContainer)
 ```
+
+!!! note
+
+	If your app has more than one web container, you will need to call `AuthService.install(web_container)` to apply 
+    the authorization.
+
 
 !!! note
 
@@ -42,22 +51,36 @@ class MyApplication(asab.Application):
 	you can run the auth module in "mock mode". See the `configuration` section for details.
 
 
-Every handler in `WebContainer` now accepts only requests with a valid authentication.
+Every handler in your web server now accepts only requests with a valid authentication.
 Unauthenticated requests are automatically answered with
 [HTTP 401: Unauthorized](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401).
-Authenticated requests will be inspected for user info, authorized user tenant and resources.
-These attributes are passed to the handler method, if the method in question has
-the corresponding keyword arguments (`user_info`, `tenant` and `resources`).
-In the following example, the method will receive `user_info` and `resources` from the request:
+For every authenticated request, an `asab.web.auth.Authorization` object is created and stored 
+in `asab.contextvars.Authz` for easy access.
+It contains authorization and authentication details, such as `CredentialsId`, `Username` or `Email`, and 
+access-checking methods `has_resource_access`, `require_resource_access` and more (see reference below).
 
-``` python
-async def order_breakfast(self, request, *, tenant, user_info, resources):
-	user_id = user_info["sub"]
-	user_name = user_info["preferred_username"]
-	if "pancakes:eat" in resources:
-		...
+```python
+import asab.contextvars
+import asab.web.rest
+
+...
+
+async def order_breakfast(request):
+	authz = asab.contextvars.Authz.get()
+	username = authz.Username
+
+	# This will raise asab.exceptions.AccessDeniedError when the user is not authorized for resource `breakfast:access`
+	authz.require_resource_access("breakfast:access")
+	print("{} is ordering breakfast.".format(username))
+    
+	if authz.has_resource_access("breakfast:pancakes"):
+		print("{} can get pancakes for breakfast!".format(username))
+    
+	if authz.has_superuser_access():
+		print("{} can get anything they want!".format(username))
+
 	return asab.web.rest.json_response(request, {
-		"result": "Good morning {}, your breakfast will be ready in a minute!".format(user_name)
+		"result": "Good morning {}, your breakfast will be ready in a minute!".format(username)
 	})
 ```
 
@@ -68,11 +91,11 @@ See [examples/web-auth.py](https://github.com/TeskaLabs/asab/blob/master/example
 The `asab.web.auth` module is configured
 in the `[auth]` section with the following options:
 
-| Option                | Type             | Meaning |
-|-----------------------|------------------| --- |
-| `public_keys_url`     | URL              | The URL of the authorization server's public keys (also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)) |
-| `enabled`             | boolean or `"mock"` | Enables or disables authentication and authorization or switches to mock authorization. In mock mode, all incoming requests are authorized with mock user info. There is no communication with the authorization server (so it is not necessary to configure `public_keys_url` in dev mode).
-| `mock_user_info_path` | path             | Path to JSON file that contains user info claims used in mock mode. The structure of user info should follow the [OpenID Connect userinfo definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse) and also contain the `resources` object.
+| Option | Type | Meaning |
+| --- | --- | --- |
+| `public_keys_url` | URL | The URL of the authorization server's public keys (also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)) |
+| `enabled` | boolean or `"mock"` | Enables or disables authentication and authorization or switches to mock authorization. In mock mode, all incoming requests are authorized with mock user info. There is no communication with the authorization server (so it is not necessary to configure `public_keys_url` in dev mode). |
+| `mock_user_info_path` | path | Path to JSON file that contains user info claims used in mock mode. The structure of user info should follow the [OpenID Connect userinfo definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse) and also contain the `resources` object. |
 
 Default options:
 
@@ -84,6 +107,12 @@ mock_user_info_path=/conf/mock-userinfo.json
 
 ## Multitenancy
 
+`asab.web.auth.AuthService` supports multi-tenancy. 
+Incoming request can specify tenant context using `X-Tenant` HTTP header. 
+If this header is not empty, `AuthService` extracts the tenant ID and verifies if the request is authorized 
+to access that tenant.
+The request tenant can easily be accessed anywhere using `asab.contextvars.Tenant.get()`.
+
 ### Strictly multitenant endpoints
 
 Strictly multitenant endpoints always operate within a tenant, hence they need the `tenant` parameter to be always provided.
@@ -91,59 +120,18 @@ Such endpoints must define the `tenant` parameter in their **URL path** and incl
 Auth service extracts the tenant from the URL path, validates the tenant existence,
 checks if the request is authorized for the tenant, and finally passes the tenant name to the handler method.
 
-!!! example "Example handler:"
+```python
+import asab.contextvars
+import asab.web.rest
 
-	``` python
-	class MenuHandler:
-		def __init__(self, app):
-			self.MenuService = app.get_service("MenuService")
-			router = app.WebContainer.WebApp.router
-			# Add a path with `tenant` parameter
-			router.add_get("/{tenant}/todays-menu", self.get_todays_menu)
+...
 
-		# Define handler method with `tenant` argument in the signature
-		async def get_todays_menu(self, request, *, tenant):
-			menu = await self.MenuService.get_todays_menu(tenant)
-			return asab.web.rest.json_response(request, data=menu)
-	```
+async def get_todays_menu(request):
+    tenant = asab.contextvars.Tenant.get()
+    menu = await get_todays_menu(tenant)
+    return asab.web.rest.json_response(request, data=menu)
+```
 
-!!! example "Example request:"
-
-	```
-	GET http://localhost:8080/lazy-raccoon-bistro/todays-menu
-	```
-
-
-### Configurable multitenant endpoints
-
-Configurable multitenant endpoints usually operate within a tenant, 
-but they can also operate in tenantless mode if the application is designed for that. 
-
-When you create an endpoint *without* `tenant` parameter in the URL path and *with* `tenant` argument in the 
-handler method, the Auth service will either expect the `tenant` parameter to be provided in the **URL query**. 
-If it is not in the query, the tenant variable is set to `None`.
-
-!!! example "Example handler:"
-
-	``` python
-	class MenuHandler:
-		def __init__(self, app):
-			self.MenuService = app.get_service("MenuService")
-			router = app.WebContainer.WebApp.router
-			# Add a path without `tenant` parameter
-			router.add_get("/todays-menu", self.get_todays_menu)
-
-		# Define handler method with `tenant` argument in the signature
-		async def get_todays_menu(self, request, *, tenant):
-			menu = await self.MenuService.get_todays_menu(tenant)
-			return asab.web.rest.json_response(request, data=menu)
-	```
-
-!!! example "Example requests:"
-
-    ```
-    GET http://localhost:8080/todays-menu?tenant=lazy-raccoon-bistro
-    ```
 
 ## Mock mode
 
@@ -163,6 +151,9 @@ When dev mode is enabled, you don't have to provide `[public_keys_url]` since th
 ## Reference
 
 ::: asab.web.auth.AuthService
+
+
+::: asab.web.auth.Authorization
 
 
 ::: asab.web.auth.require
