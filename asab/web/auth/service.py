@@ -245,7 +245,7 @@ class AuthService(Service):
 			del self.Authorizations[key]
 
 
-	def bearer_token_from_request(self, request):
+	def get_bearer_token_from_authorization_header(self, request):
 		"""
 		Validate the Authorizetion header and extract the Bearer token value
 		"""
@@ -369,7 +369,7 @@ class AuthService(Service):
 			if not self.is_enabled():
 				return await handler(*args, **kwargs)
 
-			bearer_token = self.bearer_token_from_request(request)
+			bearer_token = self.get_bearer_token_from_authorization_header(request)
 			authz = await self.build_authorization(bearer_token)
 
 			# Authorize tenant context
@@ -550,25 +550,6 @@ def _get_id_token_claims_without_verification(bearer_token: str):
 		raise aiohttp.web.HTTPBadRequest()
 
 	return claims
-
-
-def _get_bearer_token(request):
-	"""
-	Validate the Authorizetion header and extract the Bearer token value
-	"""
-	authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
-	if authorization_header is None:
-		L.warning("No Authorization header.")
-		raise aiohttp.web.HTTPUnauthorized()
-	try:
-		auth_type, token_value = authorization_header.split(" ", 1)
-	except ValueError:
-		L.warning("Cannot parse Authorization header.")
-		raise aiohttp.web.HTTPBadRequest()
-	if auth_type != "Bearer":
-		L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
-		raise aiohttp.web.HTTPUnauthorized()
-	return token_value
 
 
 def _pass_user_info(handler):
