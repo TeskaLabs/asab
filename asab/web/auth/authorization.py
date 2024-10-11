@@ -2,7 +2,7 @@ import datetime
 import typing
 import logging
 
-from ...exceptions import AccessDeniedError
+from ...exceptions import AccessDeniedError, NotAuthenticatedError
 from ...contextvars import Tenant
 
 L = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ SUPERUSER_RESOURCE_ID = "authz:superuser"
 
 class Authorization:
 	"""
-	Contains authentication and authorization details, provides methods for checking access control.
+	Contains authentication and authorization details, provides methods for checking and enforcing access control.
 
 	Requires that AuthService is initialized and enabled.
 	"""
@@ -32,8 +32,6 @@ class Authorization:
 		self.AuthorizedParty = self.UserInfo.get("azp")  # What party (application) is authorized
 		self.IssuedAt = datetime.datetime.fromtimestamp(int(self.UserInfo["iat"]), datetime.timezone.utc)
 		self.Expiration = datetime.datetime.fromtimestamp(int(self.UserInfo["exp"]), datetime.timezone.utc)
-
-		print(self)
 
 
 	def __repr__(self):
@@ -97,7 +95,7 @@ class Authorization:
 		if not self.is_valid():
 			L.warning("Authorization expired.", struct_data={
 				"cid": self.CredentialsId, "azp": self.AuthorizedParty, "exp": self.Expiration.isoformat()})
-			raise AccessDeniedError()
+			raise NotAuthenticatedError()
 
 
 	def require_superuser_access(self):
@@ -134,10 +132,10 @@ class Authorization:
 
 	def authorized_resources(self) -> typing.Optional[typing.Set[str]]:
 		"""
-		Return the set of EXPLICITLY authorized resources. (Use carefully with superusers.)
+		Return the set of authorized resources.
 
-		NOTE: If possible, use methods has_resource_access(resource_id) and is_superuser() instead of inspecting
-		the set of resources.
+		NOTE: If possible, use methods has_resource_access(resource_id) and has_superuser_access() instead of inspecting
+		the set of resources directly.
 
 		:return: Set of authorized resources.
 		"""

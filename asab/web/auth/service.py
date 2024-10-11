@@ -21,7 +21,7 @@ from ...api.discovery import NotDiscoveredError
 from ...library.service import LogObsolete
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
-from .authz import Authorization
+from .authorization import Authorization
 
 try:
 	import jwcrypto.jwk
@@ -83,27 +83,9 @@ class AuthMode(enum.Enum):
 class AuthService(Service):
 	"""
 	Provides authentication and authorization of incoming requests.
-
-	Configuration:
-		Configuration section: auth
-		Configuration options:
-			public_keys_url:
-				- default: ""
-				- URL containing the authorization server's public JWKey set (usually found at "/.well-known/jwks.json")
-			enabled:
-				- default: "yes"
-				- options: "yes", "no", "mocked"
-				- Switch authentication and authorization on, off or activate mock mode.
-				- In MOCK MODE
-					- no authorization server is needed,
-					- all incoming requests are mock-authorized with pre-defined user info,
-					- custom mock user info can supplied in a JSON file.
-			mock_user_info_path:
-				- default: "/conf/mock-userinfo.json"
 	"""
 
 	_PUBLIC_KEYS_URL_DEFAULT = "http://localhost:3081/.well-known/jwks.json"
-
 
 	def __init__(self, app, service_name="asab.AuthService"):
 		super().__init__(app, service_name)
@@ -145,7 +127,7 @@ class AuthService(Service):
 			self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
 
 		self.Authorizations: typing.Dict[typing.Tuple[str, str], Authorization] = {}
-		self.App.PubSub.subscribe("Application.housekeeping!", self.delete_invalid_authorizations)
+		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
 
 		# Try to auto-install authorization middleware
 		self.install()
@@ -231,7 +213,7 @@ class AuthService(Service):
 		if authz is not None:
 			try:
 				authz.require_valid()
-			except AccessDeniedError as e:
+			except NotAuthenticatedError as e:
 				del self.Authorizations[id_token]
 				raise e
 			return authz
@@ -248,7 +230,7 @@ class AuthService(Service):
 		return authz
 
 
-	async def delete_invalid_authorizations(self):
+	async def _delete_invalid_authorizations(self):
 		"""
 		Check for expired Authorization objects and delete them
 		"""
