@@ -15,6 +15,7 @@ It works best with TeskaLabs [Seacat Auth](https://github.com/TeskaLabs/seacat-a
 authorization server 
 (See [its documentation](https://docs.teskalabs.com/seacat-auth/getting-started/quick-start) for setup instructions).
 
+
 ## Getting started
 
 To get started, add `asab.web` module to your application and initialize `asab.web.auth.AuthService`:
@@ -48,7 +49,7 @@ class MyApplication(asab.Application):
 	You may also need to specify your authorization server's `public_keys_url`
 	(also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)).
 	In case you don't have any authorization server at hand,
-	you can run the auth module in "mock mode". See the `configuration` section for details.
+	you can run the auth module in "mock mode". See the [Configuration section](#configuration) for details.
 
 
 Every handler in your web server now accepts only requests with a valid authentication.
@@ -57,7 +58,7 @@ Unauthenticated requests are automatically answered with
 For every authenticated request, an `asab.web.auth.Authorization` object is created and stored 
 in `asab.contextvars.Authz` for easy access.
 It contains authorization and authentication details, such as `CredentialsId`, `Username` or `Email`, and 
-access-checking methods `has_resource_access`, `require_resource_access` and more (see reference below).
+access-checking methods `has_resource_access`, `require_superuser_access` and more ([see reference](#asab.web.auth.Authorization)).
 
 ```python
 import asab.contextvars
@@ -86,6 +87,7 @@ async def order_breakfast(request):
 
 See [examples/web-auth.py](https://github.com/TeskaLabs/asab/blob/master/examples/web-auth.py) for a full demo ASAB application with auth module.
 
+
 ## Configuration
 
 The `asab.web.auth` module is configured
@@ -105,20 +107,13 @@ enabled=yes
 mock_user_info_path=/conf/mock-userinfo.json
 ```
 
+
 ## Multitenancy
 
-`asab.web.auth.AuthService` supports multi-tenancy. 
 Incoming request can specify tenant context using `X-Tenant` HTTP header. 
 If this header is not empty, `AuthService` extracts the tenant ID and verifies if the request is authorized 
 to access that tenant.
-The request tenant can easily be accessed anywhere using `asab.contextvars.Tenant.get()`.
-
-### Strictly multitenant endpoints
-
-Strictly multitenant endpoints always operate within a tenant, hence they need the `tenant` parameter to be always provided.
-Such endpoints must define the `tenant` parameter in their **URL path** and include `tenant` argument in the handler method.
-Auth service extracts the tenant from the URL path, validates the tenant existence,
-checks if the request is authorized for the tenant, and finally passes the tenant name to the handler method.
+The request tenant can easily be accessed using `asab.contextvars.Tenant.get()`.
 
 ```python
 import asab.contextvars
@@ -147,6 +142,7 @@ mock_user_info_path=${THIS_DIR}/mock_userinfo.json
 ```
 
 When dev mode is enabled, you don't have to provide `[public_keys_url]` since this option is ignored.
+
 
 ## Reference
 

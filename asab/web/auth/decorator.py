@@ -14,16 +14,16 @@ L = logging.getLogger(__name__)
 
 def require(*resources):
 	"""
-	Specify resources required for endpoint access.
-	Requests without these resources result in HTTP 403 response.
+	Require that the request have authorized access to one or more resources.
+	Requests without these resources result in AccessDeniedError and consequently in an HTTP 403 response.
 
 	Args:
-		resources (Iterable): Resources required to access the decorated method.
+		resources (Iterable): Resources whose authorization is required.
 
 	Examples:
 
 	```python
-	@asab.web.authz.require("my-app:token:generate")
+	@asab.web.auth.require("my-app:token:generate")
 	async def generate_token(self, request):
 		data = await self.service.generate_token()
 		return asab.web.rest.json_response(request, data)
@@ -49,12 +49,11 @@ def require(*resources):
 def noauth(handler):
 	"""
 	Exempt the decorated handler from authentication and authorization.
-	The `tenant`, `user_info` and `resources` arguments are not available in the handler.
 
 	Examples:
 
 	```python
-	@asab.web.authz.noauth
+	@asab.web.auth.noauth
 	async def get_public_info(self, request):
 		data = await self.service.get_public_info()
 		return asab.web.rest.json_response(request, data)
@@ -62,7 +61,7 @@ def noauth(handler):
 	"""
 	argspec = inspect.getfullargspec(handler)
 	args = set(argspec.kwonlyargs).union(argspec.args)
-	for arg in ("tenant", "user_info", "resources"):
+	for arg in ("tenant", "user_info", "resources", "authz"):
 		if arg in args:
 			raise Exception(
 				"{}(): Handler with @noauth cannot have {!r} in its arguments.".format(handler.__qualname__, arg))
