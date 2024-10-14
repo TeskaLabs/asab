@@ -21,6 +21,7 @@ from ...api.discovery import NotDiscoveredError
 from ...library.service import LogObsolete
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
+from ..websocket import WebSocketFactory
 from .authorization import Authorization
 
 try:
@@ -413,7 +414,7 @@ class AuthService(Service):
 		route_info = route.get_info()
 		tenant_in_path = "formatter" in route_info and "{tenant}" in route_info["formatter"]
 
-		# Extract the actual handler method for signature checks
+		# Extract the actual unwrapped handler method for signature inspection
 		handler_method = route.handler
 		while hasattr(handler_method, "__wrapped__"):
 			# While loop unwraps handlers wrapped in multiple decorators.
@@ -423,12 +424,14 @@ class AuthService(Service):
 		if hasattr(handler_method, "__func__"):
 			handler_method = handler_method.__func__
 
+		is_websocket = isinstance(handler_method, WebSocketFactory)
+
 		if hasattr(handler_method, "NoAuth"):
 			return
 		argspec = inspect.getfullargspec(handler_method)
 		args = set(argspec.kwonlyargs).union(argspec.args)
 
-		# Extract the whole handler for wrapping
+		# Extract the whole handler including its existing decorators and wrappers
 		handler = route.handler
 
 		# Apply the decorators IN REVERSE ORDER (the last applied wrapper affects the request first)
@@ -465,7 +468,10 @@ class AuthService(Service):
 
 		# 1) Set tenant context (no authorization yet)
 		# TODO: This should be eventually done by TenantService
-		handler = _set_tenant_context_from_request_header(handler)
+		if is_websocket:
+			handler = _set_tenant_context_from_sec_websocket_protocol_header(handler)
+		else:
+			handler = _set_tenant_context_from_x_tenant_header(handler)
 
 		route._handler = handler
 
@@ -595,23 +601,47 @@ def _pass_authz(handler):
 	return wrapper
 
 
-def _set_tenant_context_from_request_header(handler):
+def _set_tenant_context_from_x_tenant_header(handler):
 	"""
-	Extract tenant from request header (X-Tenant or Sec-Websocket-Protocol) and add it to context
+	Extract tenant from X-Tenant header and add it to context
 	"""
 	def get_tenant_from_header(request) -> str:
-		if request.headers.get("Upgrade") == "websocket":
-			# Get tenant from Sec-Websocket-Protocol header for websocket requests
-			protocols = request.headers.get("Sec-Websocket-Protocol", "")
-			for protocol in protocols.split(", "):
-				protocol = protocol.strip()
-				if protocol.startswith("tenant_"):
-					return protocol[7:]
-			else:
-				return None
+		# Get tenant from X-Tenant header for HTTP requests
+		return request.headers.get("X-Tenant")
+
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
+		request = args[-1]
+		tenant = get_tenant_from_header(request)
+
+		if tenant is None:
+			response = await handler(*args, **kwargs)
 		else:
-			# Get tenant from X-Tenant header for HTTP requests
-			return request.headers.get("X-Tenant")
+			assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
+			tenant_ctx = Tenant.set(tenant)
+			try:
+				response = await handler(*args, **kwargs)
+			finally:
+				Tenant.reset(tenant_ctx)
+
+		return response
+
+	return wrapper
+
+
+def _set_tenant_context_from_sec_websocket_protocol_header(handler):
+	"""
+	Extract tenant from Sec-Websocket-Protocol header and add it to context
+	"""
+	def get_tenant_from_header(request) -> str:
+		# Get tenant from Sec-Websocket-Protocol header for websocket requests
+		protocols = request.headers.get("Sec-Websocket-Protocol", "")
+		for protocol in protocols.split(", "):
+			protocol = protocol.strip()
+			if protocol.startswith("tenant_"):
+				return protocol[7:]
+		else:
+			return None
 
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
