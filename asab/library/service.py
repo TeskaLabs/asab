@@ -313,14 +313,14 @@ class LibraryService(Service):
 
 		# List items from every provider concurrently
 		tasks = [asyncio.create_task(provider.list(path)) for provider in providers]
-		for layer, task in enumerate(asyncio.as_completed(tasks)):
+		for prov, task in zip(providers, asyncio.as_completed(tasks)):
 			try:
 				items_list_from_provider: list[LibraryItem] = await task
 			except KeyError:
 				# The path doesn't exists in the provider
 				continue
 			except Exception:
-				L.exception("Unexpected error when listing path '{}' by {}".format(path, providers[layer]))
+				L.exception("Unexpected error when listing path '{}' on layer {}.".format(path, prov.Layer))
 				continue
 
 			for item in items_list_from_provider:

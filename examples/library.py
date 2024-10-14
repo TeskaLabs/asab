@@ -2,6 +2,7 @@
 import os.path
 
 import asab
+import asab.exceptions
 import asab.library
 import asab.zookeeper
 
@@ -41,18 +42,20 @@ class MyApplication(asab.Application):
 
 
 	async def on_library_ready(self, event_name, library):
-		items = await self.LibraryService.list("/", recursive=True)
+		items = await self.LibraryService.list("/", recursive=False)
 		print("# Library\n")
 		for item in items:
 			print(" *", item)
 			if item.type == 'item':
-				itemio = await self.LibraryService.read(item.name)
-				if itemio is not None:
-					with itemio:
-						content = itemio.read()
-						print("  - content: {} bytes".format(len(content)))
-				else:
-					print("  - N/A")  # Item is likely disabled
+				try:
+					async with self.LibraryService.open(item.name) as item_io:
+						if item_io is not None:
+							item_bytes = item_io.read()  # can be decoded with utf-8
+							print("  - content: {} bytes".format(len(item_bytes)))
+						else:
+							print("  - N/A")  # Item is likely disabled
+				except asab.exceptions.LibraryError as err:
+					print("  - !!! Cannot open item {}: {}".format(item.name, err))
 		print("\n===")
 		self.stop()
 
