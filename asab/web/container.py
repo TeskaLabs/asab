@@ -136,6 +136,17 @@ class WebContainer(Configurable):
 			preflight_paths = re.split(r"[,\s]+", preflight_str, re.MULTILINE)
 			self.add_preflight_handlers(preflight_paths)
 
+		@aiohttp.web.middleware
+		async def request_context_middleware(request, handler):
+			from ...contextvars import Request
+			request_ctx = Request.set(request)
+			try:
+				return await handler(request)
+			finally:
+				Request.reset(request_ctx)
+
+		self.WebApp.middlewares.append(request_context_middleware)
+
 
 	async def _start(self, app: Application):
 		await self.WebAppRunner.setup()
