@@ -11,6 +11,7 @@ from ..config import Configurable
 from ..tls import SSLContextBuilder
 from .service import WebService
 from ..application import Application
+from ...contextvars import Request
 
 #
 
@@ -137,15 +138,14 @@ class WebContainer(Configurable):
 			self.add_preflight_handlers(preflight_paths)
 
 		@aiohttp.web.middleware
-		async def request_context_middleware(request, handler):
-			from ...contextvars import Request
+		async def store_request_in_context(request, handler):
 			request_ctx = Request.set(request)
 			try:
 				return await handler(request)
 			finally:
 				Request.reset(request_ctx)
 
-		self.WebApp.middlewares.append(request_context_middleware)
+		self.WebApp.middlewares.append(store_request_in_context)
 
 
 	async def _start(self, app: Application):
