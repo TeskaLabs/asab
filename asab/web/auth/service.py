@@ -14,11 +14,11 @@ import aiohttp
 import aiohttp.web
 import aiohttp.client_exceptions
 
+from ... import LogObsolete
 from ...abc.service import Service
 from ...config import Config
 from ...exceptions import NotAuthenticatedError, AccessDeniedError
 from ...api.discovery import NotDiscoveredError
-from ...library.service import LogObsolete
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
 from ..websocket import WebSocketFactory
