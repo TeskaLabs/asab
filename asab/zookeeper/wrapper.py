@@ -58,18 +58,20 @@ class KazooWrapper(object):
 			return None
 		return children
 
-
-	async def get_data(self, path):
+	async def get_data(self, path, return_version=False):
 		try:
 			data, stat = await self.ProactorService.execute(
 				self.Client.get, path
 			)
 		except kazoo.exceptions.NoNodeError:
-			# This is a silent error, it is indicated by None in the return
-			return None
-		return data
+			# This is a silent error, indicated by None in the return
+			return None if not return_version else (None, None)
 
-	# write methods
+		if return_version:
+			return data, stat.version  # Return both data and the version number
+
+		return data  # Return just the data, as before
+
 	async def set_data(self, path, data):
 		try:
 			ret = await self.ProactorService.execute(
