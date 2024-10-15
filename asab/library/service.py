@@ -4,7 +4,6 @@ import time
 import os.path
 import typing
 import tarfile
-import asyncio
 import logging
 import tempfile
 import functools
