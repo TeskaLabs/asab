@@ -311,41 +311,37 @@ class LibraryService(Service):
 		items: list[LibraryItem] = []
 		unique_items: dict[str, LibraryItem] = dict()
 
-		# List items from every provider concurrently
-		tasks = [asyncio.create_task(provider.list(path)) for provider in providers]
-		for prov, task in zip(providers, asyncio.as_completed(tasks)):
+		# List items from every provider in order, starting from the topmost layer
+		for layer, provider in enumerate(providers):
 			try:
-				items_list_from_provider: list[LibraryItem] = await task
+				items_list_from_provider: list[LibraryItem] = await provider.list(path)
 			except KeyError:
-				# The path doesn't exists in the provider
+				# The path doesn't exist in this provider, continue to the next one
 				continue
 			except Exception:
-				L.exception("Unexpected error when listing path '{}' on layer {}.".format(path, prov.Layer))
+				L.exception(f"Unexpected error when listing path '{path}' by {provider}")
 				continue
 
 			for item in items_list_from_provider:
 				item.disabled = self.check_disabled(item.name)
 
-				# If the item already exists, merge or override it
+				# If the item already exists, replace it only if it is from a higher layer
 				pitem = unique_items.get(item.name)
 				if pitem is not None:
-					if pitem.type == 'dir' and item.type == 'dir':
-						# Directories are joined
-						pitem.providers.extend(item.providers)
-					elif pitem.type == 'item':
-						for i, provider in enumerate(providers):
-							if provider in item.providers:
-								index = i
-								break
-						pitem.override = index
+					# Keep the item from the higher-priority (lower-numbered) layer
+					if pitem.layer > item.layer:
+						item.layer = layer  # Ensure item gets the correct layer number
+						unique_items[item.name] = item
 				else:
-					# Other item types are skipped
+					# Add new item to the list, assigning its layer
+					item.layer = layer
 					unique_items[item.name] = item
 					items.append(item)
 
 		# Sort items by name
 		items.sort(key=lambda x: x.name)
 		return items
+
 
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
