@@ -113,7 +113,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 				# Count number of files in self.RootPath recursively
 				file_count = sum([len(files) for _, _, files in os.walk(self.RootPath)])
-				
+
 				# If less than 5 files, we ignore the E-Tag and re-download everything
 				if file_count > 5:
 					with open(etag_fname, 'r') as f:
