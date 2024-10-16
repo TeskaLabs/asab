@@ -138,14 +138,17 @@ class WebContainer(Configurable):
 			self.add_preflight_handlers(preflight_paths)
 
 		@aiohttp.web.middleware
-		async def store_request_in_context(request, handler):
+		async def set_request_context(request: aiohttp.web.Request, handler):
+			"""
+			Make sure that the incoming aiohttp.web.Request is available via Request context variable
+			"""
 			request_ctx = Request.set(request)
 			try:
 				return await handler(request)
 			finally:
 				Request.reset(request_ctx)
 
-		self.WebApp.middlewares.append(store_request_in_context)
+		self.WebApp.middlewares.append(set_request_context)
 
 
 	async def _start(self, app: Application):
