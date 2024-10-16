@@ -318,7 +318,7 @@ class LibraryService(Service):
 				# The path doesn't exist in this provider, continue to the next one
 				continue
 			except Exception:
-				L.exception(f"Unexpected error when listing path '{path}' by {provider}")
+				L.exception("Unexpected error when listing path '{}' by {}".format(path, provider))
 				continue
 
 			for item in items_list_from_provider:
