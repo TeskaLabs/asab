@@ -106,7 +106,9 @@ class AuthService(Service):
 		if self.Mode == AuthMode.DISABLED:
 			pass
 		elif self.Mode == AuthMode.MOCK:
-			self.MockUserInfo = self._prepare_mock_user_info()
+			self.MockIntrospectionUrl = Config.get("auth", "mock_introspection_url", fallback=None)
+			if not self.MockIntrospectionUrl:
+				self.MockUserInfo = self._prepare_mock_user_info()
 		elif jwcrypto is None:
 			raise ModuleNotFoundError(
 				"You are trying to use asab.web.auth module without 'jwcrypto' installed. "
@@ -220,8 +222,7 @@ class AuthService(Service):
 			return authz
 
 		# Create a new Authorization object and store it
-		if self.Mode == AuthMode.MOCK:
-			assert id_token == "MOCK"
+		if id_token == "MOCK" and self.Mode == AuthMode.MOCK:
 			authz = Authorization(self, self.MockUserInfo)
 		else:
 			userinfo = await self._get_userinfo_from_id_token(id_token)
@@ -246,17 +247,27 @@ class AuthService(Service):
 			del self.Authorizations[key]
 
 
-	def get_bearer_token_from_authorization_header(self, request):
+	async def get_bearer_token_from_authorization_header(self, request):
 		"""
 		Validate the Authorizetion header and extract the Bearer token value
 		"""
 		if self.Mode == AuthMode.MOCK:
-			return "MOCK"
+			if not self.MockIntrospectionUrl:
+				return "MOCK"
 
-		authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
-		if authorization_header is None:
-			L.warning("No Authorization header.")
-			raise aiohttp.web.HTTPUnauthorized()
+			# Send the request headers for introspection
+			async with aiohttp.ClientSession() as session:
+				async with session.post(self.MockIntrospectionUrl, headers=request.headers) as response:
+					if response.status != 200:
+						L.warning("Access token introspection failed.")
+						raise aiohttp.web.HTTPUnauthorized()
+					authorization_header = response.headers.get(aiohttp.hdrs.AUTHORIZATION)
+
+		else:
+			authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
+			if authorization_header is None:
+				L.warning("No Authorization header.")
+				raise aiohttp.web.HTTPUnauthorized()
 		try:
 			auth_type, token_value = authorization_header.split(" ", 1)
 		except ValueError:
@@ -370,7 +381,7 @@ class AuthService(Service):
 			if not self.is_enabled():
 				return await handler(*args, **kwargs)
 
-			bearer_token = self.get_bearer_token_from_authorization_header(request)
+			bearer_token = await self.get_bearer_token_from_authorization_header(request)
 			authz = await self.build_authorization(bearer_token)
 
 			# Authorize tenant context
