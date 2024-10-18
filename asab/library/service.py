@@ -4,12 +4,12 @@ import time
 import os.path
 import typing
 import tarfile
-import asyncio
 import logging
 import tempfile
 import functools
 import configparser
 import contextlib
+import asyncio
 
 import yaml
 
@@ -311,35 +311,33 @@ class LibraryService(Service):
 		items: list[LibraryItem] = []
 		unique_items: dict[str, LibraryItem] = dict()
 
-		# List items from every provider concurrently
-		tasks = [asyncio.create_task(provider.list(path)) for provider in providers]
-		for prov, task in zip(providers, asyncio.as_completed(tasks)):
+		# List items from every provider concurrently, while tracking their layers
+		tasks = [(layer, asyncio.create_task(provider.list(path))) for layer, provider in enumerate(providers)]
+
+		# Process tasks as they complete, ensuring layer precedence is correctly applied
+		for layer, task in tasks:
 			try:
 				items_list_from_provider: list[LibraryItem] = await task
 			except KeyError:
-				# The path doesn't exists in the provider
+				# The path doesn't exist in the provider
 				continue
 			except Exception:
-				L.exception("Unexpected error when listing path '{}' on layer {}.".format(path, prov.Layer))
+				L.exception("Unexpected error when listing path '{}' on layer {}.".format(path, layer))
 				continue
 
 			for item in items_list_from_provider:
 				item.disabled = self.check_disabled(item.name)
 
-				# If the item already exists, merge or override it
+				# If the item already exists, apply layer precedence
 				pitem = unique_items.get(item.name)
 				if pitem is not None:
-					if pitem.type == 'dir' and item.type == 'dir':
-						# Directories are joined
-						pitem.providers.extend(item.providers)
-					elif pitem.type == 'item':
-						for i, provider in enumerate(providers):
-							if provider in item.providers:
-								index = i
-								break
-						pitem.override = index
+					# If the existing item is from a lower-priority (higher layer number), replace it
+					if pitem.layer > layer:
+						item.layer = layer  # Ensure item gets the correct layer number
+						unique_items[item.name] = item
 				else:
-					# Other item types are skipped
+					# New item, assign its layer and add it
+					item.layer = layer
 					unique_items[item.name] = item
 					items.append(item)
 
