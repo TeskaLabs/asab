@@ -106,9 +106,7 @@ class AuthService(Service):
 		if self.Mode == AuthMode.DISABLED:
 			pass
 		elif self.Mode == AuthMode.MOCK:
-			self.MockIntrospectionUrl = Config.get("auth", "mock_introspection_url", fallback=None)
-			if not self.MockIntrospectionUrl:
-				self.MockUserInfo = self._prepare_mock_user_info()
+			self._prepare_mock_mode()
 		elif jwcrypto is None:
 			raise ModuleNotFoundError(
 				"You are trying to use asab.web.auth module without 'jwcrypto' installed. "
@@ -136,7 +134,19 @@ class AuthService(Service):
 		self.install()
 
 
-	def _prepare_mock_user_info(self):
+	def _prepare_mock_mode(self):
+		"""
+		Try to set up direct introspection. In not available, set up static mock userinfo.
+		"""
+		mock_introspection_url = Config.get("auth", "mock_introspection_url", fallback=None)
+		if mock_introspection_url is not None:
+			self.MockIntrospectionUrl = mock_introspection_url
+			L.warning(
+				"AuthService is running in MOCK MODE. Web requests will be authorized with direct introspection "
+				"call to {!r}.".format(self.MockIntrospectionUrl)
+			)
+			return
+
 		# Load custom user info
 		mock_user_info_path = Config.get("auth", "mock_user_info_path")
 		if os.path.isfile(mock_user_info_path):
@@ -151,12 +161,14 @@ class AuthService(Service):
 		):
 			raise ValueError("User info 'resources' must be an object with string keys and array values.")
 		L.warning(
-			"AuthService is running in MOCK MODE. All web requests will be authorized with mock user info, which "
+			"AuthService is running in MOCK MODE. Web requests will be authorized with mock user info, which "
 			"currently grants access to the following tenants: {}. To customize mock mode authorization (add or "
 			"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
 				list(t for t in user_info.get("resources", {}).keys() if t != "*"),
-				mock_user_info_path))
-		return user_info
+				mock_user_info_path
+			)
+		)
+		self.MockUserInfo = user_info
 
 
 	def is_enabled(self) -> bool:
