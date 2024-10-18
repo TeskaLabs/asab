@@ -9,6 +9,7 @@ import tempfile
 import functools
 import configparser
 import contextlib
+import asyncio
 
 import yaml
 
@@ -310,29 +311,32 @@ class LibraryService(Service):
 		items: list[LibraryItem] = []
 		unique_items: dict[str, LibraryItem] = dict()
 
-		# List items from every provider in order, starting from the topmost layer
-		for layer, provider in enumerate(providers):
+		# List items from every provider concurrently, while tracking their layers
+		tasks = [(layer, asyncio.create_task(provider.list(path))) for layer, provider in enumerate(providers)]
+
+		# Process tasks as they complete, ensuring layer precedence is correctly applied
+		for layer, task in tasks:
 			try:
-				items_list_from_provider: list[LibraryItem] = await provider.list(path)
+				items_list_from_provider: list[LibraryItem] = await task
 			except KeyError:
-				# The path doesn't exist in this provider, continue to the next one
+				# The path doesn't exist in the provider
 				continue
 			except Exception:
-				L.exception("Unexpected error when listing path '{}' by {}".format(path, provider))
+				L.exception("Unexpected error when listing path '{}' on layer {}.".format(path, layer))
 				continue
 
 			for item in items_list_from_provider:
 				item.disabled = self.check_disabled(item.name)
 
-				# If the item already exists, replace it only if it is from a higher layer
+				# If the item already exists, apply layer precedence
 				pitem = unique_items.get(item.name)
 				if pitem is not None:
-					# Keep the item from the higher-priority (lower-numbered) layer
-					if pitem.layer > item.layer:
+					# If the existing item is from a lower-priority (higher layer number), replace it
+					if pitem.layer > layer:
 						item.layer = layer  # Ensure item gets the correct layer number
 						unique_items[item.name] = item
 				else:
-					# Add new item to the list, assigning its layer
+					# New item, assign its layer and add it
 					item.layer = layer
 					unique_items[item.name] = item
 					items.append(item)
@@ -340,7 +344,6 @@ class LibraryService(Service):
 		# Sort items by name
 		items.sort(key=lambda x: x.name)
 		return items
-
 
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
