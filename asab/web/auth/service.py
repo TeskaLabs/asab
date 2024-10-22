@@ -134,6 +134,10 @@ class AuthService(Service):
 		self._try_auto_install()
 
 
+	async def initialize(self, app):
+		self._check_if_installed()
+
+
 	def _prepare_mock_user_info(self):
 		# Load custom user info
 		mock_user_info_path = Config.get("auth", "mock_user_info_path")
@@ -162,19 +166,6 @@ class AuthService(Service):
 		Check if the AuthService is enabled. Mock mode counts as enabled too.
 		"""
 		return self.Mode in {AuthMode.ENABLED, AuthMode.MOCK}
-
-
-	def _try_auto_install(self):
-		"""
-		If there is exactly one web container, install authorization middleware on it.
-		"""
-		web_service = self.App.get_service("asab.WebService")
-		if web_service is None:
-			return
-		if len(web_service.Containers) != 1:
-			return
-		web_container = web_service.WebContainer
-		self.install(web_container)
 
 
 	def install(self, web_container):
@@ -507,6 +498,44 @@ class AuthService(Service):
 		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
 			L.error("Cannot authenticate request: {}".format(str(e)))
 			raise NotAuthenticatedError()
+
+
+	def _check_if_installed(self):
+		"""
+		Check if there is at least one web container with authorization installed
+		"""
+		web_service = self.App.get_service("asab.WebService")
+		if web_service is None or len(web_service.Containers) == 0:
+			L.warning("Authorization is not installed: There are no web containers.")
+			return
+
+		for web_container in web_service.Containers:
+			for middleware in web_container.WebApp.on_startup:
+				if middleware == self._wrap_handlers:
+					# Container has authorization installed
+					break
+			else:
+				continue
+
+			# Container has authorization installed
+			break
+
+		else:
+			L.warning("Authorization is not installed on any web container.")
+			return
+
+
+	def _try_auto_install(self):
+		"""
+		If there is exactly one web container, install authorization middleware on it.
+		"""
+		web_service = self.App.get_service("asab.WebService")
+		if web_service is None:
+			return
+		if len(web_service.Containers) != 1:
+			return
+		web_container = web_service.WebContainer
+		self.install(web_container)
 
 
 def _get_id_token_claims(bearer_token: str, auth_server_public_key):
