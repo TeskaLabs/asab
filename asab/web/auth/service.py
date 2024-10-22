@@ -131,7 +131,7 @@ class AuthService(Service):
 		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
 
 		# Try to auto-install authorization middleware
-		self.install()
+		self._try_auto_install()
 
 
 	def _prepare_mock_user_info(self):
@@ -164,20 +164,26 @@ class AuthService(Service):
 		return self.Mode in {AuthMode.ENABLED, AuthMode.MOCK}
 
 
-	def install(self, web_container=None):
+	def _try_auto_install(self):
 		"""
-		Apply authorization to all web handlers in a web container, according to their arguments and path parameters.
+		If there is exactly one web container, install authorization middleware on it.
+		"""
+		web_service = self.App.get_service("asab.WebService")
+		if web_service is None:
+			return
+		if len(web_service.Containers) != 1:
+			return
+		web_container = web_service.WebContainer
+		self.install(web_container)
+
+
+	def install(self, web_container):
+		"""
+		Apply authorization to all web handlers in a web container.
 
 		:param web_container: Web container to be protected by authorization.
 		:type web_container: asab.web.WebContainer
 		"""
-		if web_container is None:
-			# Locate web container if there is only one
-			web_service = self.App.get_service("asab.WebService")
-			if len(web_service.Containers) != 1:
-				return
-			web_container = web_service.WebContainer
-
 		# Check that the middleware has not been installed yet
 		for middleware in web_container.WebApp.on_startup:
 			if middleware == self._wrap_handlers:
