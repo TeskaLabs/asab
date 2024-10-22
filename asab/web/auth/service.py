@@ -187,6 +187,8 @@ class AuthService(Service):
 		# Check that the middleware has not been installed yet
 		for middleware in web_container.WebApp.on_startup:
 			if middleware == self._wrap_handlers:
+				L.warning("WebContainer has authorization middleware installed already.", struct_data={
+					"web_container": web_container.Config.get("listen")})
 				return
 
 		web_container.WebApp.on_startup.append(self._wrap_handlers)
