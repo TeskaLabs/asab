@@ -616,7 +616,7 @@ def _pass_user_info(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		authz = Authz.get(None)
-		return await handler(*args, user_info=authz.UserInfo if authz is not None else None, **kwargs)
+		return await handler(*args, user_info=authz.user_info() if authz is not None else None, **kwargs)
 	return wrapper
 
 
