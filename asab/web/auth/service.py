@@ -175,11 +175,19 @@ class AuthService(Service):
 		:param web_container: Web container to be protected by authorization.
 		:type web_container: asab.web.WebContainer
 		"""
+		web_service = self.App.get_service("asab.WebService")
+
 		# Check that the middleware has not been installed yet
 		for middleware in web_container.WebApp.on_startup:
 			if middleware == self._wrap_handlers:
-				L.warning("WebContainer has authorization middleware installed already.", struct_data={
-					"web_container": web_container.Config.get("listen")})
+				if len(web_service.Containers) == 1:
+					L.warning(
+						"WebContainer has authorization middleware installed already. "
+						"You don't need to call `AuthService.install()` in applications with a single WebContainer; "
+						"it is called automatically at init time."
+					)
+				else:
+					L.warning("WebContainer has authorization middleware installed already.")
 				return
 
 		web_container.WebApp.on_startup.append(self._wrap_handlers)
@@ -509,7 +517,7 @@ class AuthService(Service):
 			L.warning("Authorization is not installed: There are no web containers.")
 			return
 
-		for web_container in web_service.Containers:
+		for web_container in web_service.Containers.values():
 			for middleware in web_container.WebApp.on_startup:
 				if middleware == self._wrap_handlers:
 					# Container has authorization installed
@@ -535,7 +543,9 @@ class AuthService(Service):
 		if len(web_service.Containers) != 1:
 			return
 		web_container = web_service.WebContainer
+
 		self.install(web_container)
+		L.info("WebContainer authorization installed automatically.")
 
 
 def _get_id_token_claims(bearer_token: str, auth_server_public_key):
