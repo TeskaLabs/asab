@@ -529,7 +529,11 @@ class AuthService(Service):
 			break
 
 		else:
-			L.warning("Authorization is not installed on any web container.")
+			L.warning(
+				"Authorization is not installed in any web container. "
+				"In applications with more than one WebContainer there is no automatic installation; "
+				"you have to call `AuthService.install(web_container)` explicitly."
+			)
 			return
 
 
