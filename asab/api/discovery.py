@@ -405,7 +405,7 @@ class DiscoveryService(Service):
 		if auth is None:
 			# By default, use the authorization from the incoming request
 			request = Request.get(None)
-			if request is not None and "Authorization" in auth.headers:
+			if request is not None and "Authorization" in request.headers:
 				_headers["Authorization"] = request.headers["Authorization"]
 
 		elif isinstance(auth, aiohttp.web.Request):
