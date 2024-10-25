@@ -142,12 +142,12 @@ class AuthService(Service):
 		"""
 		Try to set up direct introspection. In not available, set up static mock userinfo.
 		"""
-		mock_introspection_url = Config.get("auth", "mock_introspection_url", fallback=None)
-		if mock_introspection_url is not None:
-			self.MockIntrospectionUrl = mock_introspection_url
+		introspection_url = Config.get("auth", "introspection_url", fallback=None)
+		if introspection_url is not None:
+			self.IntrospectionUrl = introspection_url
 			L.warning(
 				"AuthService is running in MOCK MODE. Web requests will be authorized with direct introspection "
-				"call to {!r}.".format(self.MockIntrospectionUrl)
+				"call to {!r}.".format(self.IntrospectionUrl)
 			)
 			return
 
@@ -271,12 +271,12 @@ class AuthService(Service):
 		Validate the Authorizetion header and extract the Bearer token value
 		"""
 		if self.Mode == AuthMode.MOCK:
-			if not self.MockIntrospectionUrl:
+			if not self.IntrospectionUrl:
 				return "MOCK"
 
 			# Send the request headers for introspection
 			async with aiohttp.ClientSession() as session:
-				async with session.post(self.MockIntrospectionUrl, headers=request.headers) as response:
+				async with session.post(self.IntrospectionUrl, headers=request.headers) as response:
 					if response.status != 200:
 						L.warning("Access token introspection failed.")
 						raise aiohttp.web.HTTPUnauthorized()
