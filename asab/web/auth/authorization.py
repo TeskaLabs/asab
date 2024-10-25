@@ -21,17 +21,19 @@ class Authorization:
 		self.AuthService = auth_service
 		if not self.AuthService.is_enabled():
 			raise ValueError("Cannot create Authorization when AuthService is disabled.")
-		self.UserInfo = userinfo or {}
 
-		self.CredentialsId = self.UserInfo.get("sub")
-		self.Username = self.UserInfo.get("preferred_username") or self.UserInfo.get("username")
-		self.Email = self.UserInfo.get("email")
-		self.Phone = self.UserInfo.get("phone")
+		# Userinfo should not be accessed directly
+		self._UserInfo = userinfo or {}
 
-		self.Issuer = self.UserInfo.get("iss")  # Who issued the authorization
-		self.AuthorizedParty = self.UserInfo.get("azp")  # What party (application) is authorized
-		self.IssuedAt = datetime.datetime.fromtimestamp(int(self.UserInfo["iat"]), datetime.timezone.utc)
-		self.Expiration = datetime.datetime.fromtimestamp(int(self.UserInfo["exp"]), datetime.timezone.utc)
+		self.CredentialsId = self._UserInfo.get("sub")
+		self.Username = self._UserInfo.get("preferred_username") or self._UserInfo.get("username")
+		self.Email = self._UserInfo.get("email")
+		self.Phone = self._UserInfo.get("phone")
+
+		self.Issuer = self._UserInfo.get("iss")  # Who issued the authorization
+		self.AuthorizedParty = self._UserInfo.get("azp")  # What party (application) is authorized
+		self.IssuedAt = datetime.datetime.fromtimestamp(int(self._UserInfo["iat"]), datetime.timezone.utc)
+		self.Expiration = datetime.datetime.fromtimestamp(int(self._UserInfo["exp"]), datetime.timezone.utc)
 
 
 	def __repr__(self):
@@ -58,7 +60,7 @@ class Authorization:
 		:return: Is the agent a superuser?
 		"""
 		self.require_valid()
-		return is_superuser(self.UserInfo)
+		return is_superuser(self._UserInfo)
 
 
 	def has_resource_access(self, *resources: typing.Iterable[str]) -> bool:
@@ -69,7 +71,7 @@ class Authorization:
 		:return: Is resource access authorized?
 		"""
 		self.require_valid()
-		return has_resource_access(self.UserInfo, resources, tenant=Tenant.get(None))
+		return has_resource_access(self._UserInfo, resources, tenant=Tenant.get(None))
 
 
 	def has_tenant_access(self) -> bool:
@@ -85,7 +87,7 @@ class Authorization:
 		except LookupError as e:
 			raise ValueError("No tenant in context.") from e
 
-		return has_tenant_access(self.UserInfo, tenant)
+		return has_tenant_access(self._UserInfo, tenant)
 
 
 	def require_valid(self):
@@ -140,7 +142,20 @@ class Authorization:
 		:return: Set of authorized resources.
 		"""
 		self.require_valid()
-		return get_authorized_resources(self.UserInfo, Tenant.get(None))
+		return get_authorized_resources(self._UserInfo, Tenant.get(None))
+
+
+	def user_info(self) -> typing.Dict[str, typing.Any]:
+		"""
+		Return OpenID Connect UserInfo.
+
+		NOTE: If possible, use Authz attributes (CredentialsId, Username etc.) instead of inspecting the user info
+		dictionary directly.
+
+		:return: User info
+		"""
+		self.require_valid()
+		return self._UserInfo
 
 
 def is_superuser(userinfo: typing.Mapping) -> bool:

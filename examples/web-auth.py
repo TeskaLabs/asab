@@ -52,7 +52,6 @@ class NotesApplication(asab.Application):
 
 		# Initialize authorization
 		self.AuthService = asab.web.auth.AuthService(self)
-		self.AuthService.install(self.WebContainer)
 
 		# Add routes
 		self.WebContainer.WebApp.router.add_get("/", self.info)

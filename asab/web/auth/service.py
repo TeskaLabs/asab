@@ -131,7 +131,11 @@ class AuthService(Service):
 		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
 
 		# Try to auto-install authorization middleware
-		self.install()
+		self._try_auto_install()
+
+
+	async def initialize(self, app):
+		self._check_if_installed()
 
 
 	def _prepare_mock_mode(self):
@@ -178,23 +182,26 @@ class AuthService(Service):
 		return self.Mode in {AuthMode.ENABLED, AuthMode.MOCK}
 
 
-	def install(self, web_container=None):
+	def install(self, web_container):
 		"""
-		Apply authorization to all web handlers in a web container, according to their arguments and path parameters.
+		Apply authorization to all web handlers in a web container.
 
 		:param web_container: Web container to be protected by authorization.
 		:type web_container: asab.web.WebContainer
 		"""
-		if web_container is None:
-			# Locate web container if there is only one
-			web_service = self.App.get_service("asab.WebService")
-			if len(web_service.Containers) != 1:
-				return
-			web_container = web_service.WebContainer
+		web_service = self.App.get_service("asab.WebService")
 
 		# Check that the middleware has not been installed yet
 		for middleware in web_container.WebApp.on_startup:
 			if middleware == self._wrap_handlers:
+				if len(web_service.Containers) == 1:
+					L.warning(
+						"WebContainer has authorization middleware installed already. "
+						"You don't need to call `AuthService.install()` in applications with a single WebContainer; "
+						"it is called automatically at init time."
+					)
+				else:
+					L.warning("WebContainer has authorization middleware installed already.")
 				return
 
 		web_container.WebApp.on_startup.append(self._wrap_handlers)
@@ -524,6 +531,50 @@ class AuthService(Service):
 			raise NotAuthenticatedError()
 
 
+	def _check_if_installed(self):
+		"""
+		Check if there is at least one web container with authorization installed
+		"""
+		web_service = self.App.get_service("asab.WebService")
+		if web_service is None or len(web_service.Containers) == 0:
+			L.warning("Authorization is not installed: There are no web containers.")
+			return
+
+		for web_container in web_service.Containers.values():
+			for middleware in web_container.WebApp.on_startup:
+				if middleware == self._wrap_handlers:
+					# Container has authorization installed
+					break
+			else:
+				continue
+
+			# Container has authorization installed
+			break
+
+		else:
+			L.warning(
+				"Authorization is not installed in any web container. "
+				"In applications with more than one WebContainer there is no automatic installation; "
+				"you have to call `AuthService.install(web_container)` explicitly."
+			)
+			return
+
+
+	def _try_auto_install(self):
+		"""
+		If there is exactly one web container, install authorization middleware on it.
+		"""
+		web_service = self.App.get_service("asab.WebService")
+		if web_service is None:
+			return
+		if len(web_service.Containers) != 1:
+			return
+		web_container = web_service.WebContainer
+
+		self.install(web_container)
+		L.info("WebContainer authorization installed automatically.")
+
+
 def _get_id_token_claims(bearer_token: str, auth_server_public_key):
 	"""
 	Parse and validate JWT ID token and extract the claims (user info)
@@ -588,7 +639,7 @@ def _pass_user_info(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		authz = Authz.get(None)
-		return await handler(*args, user_info=authz.UserInfo if authz is not None else None, **kwargs)
+		return await handler(*args, user_info=authz.user_info() if authz is not None else None, **kwargs)
 	return wrapper
 
 
