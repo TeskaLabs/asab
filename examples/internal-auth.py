@@ -18,11 +18,6 @@ INSTANCE_ID=app-2 PORT=8082 TARGET=http://app-1.instance_id.asab python examples
 
 The first app will send a message to the other app every ten seconds and print the response.
 
-You can also make PUT request to the /send_to_target endpoint of either app to make
-it communicate with the other app and forward you the response:
-
-	curl -XPUT -H "X-Tenant: gummybear-corp" --data "hello!" http://localhost:8081/send_to_target
-
 """
 import random
 import os
@@ -36,7 +31,7 @@ import asab.api.discovery
 
 if "web" not in asab.Config:
 	asab.Config["web"] = {
-		"listen": os.environ.get("PORT"),
+		"listen": os.environ.get("PORT") or "8080",
 	}
 
 if "zookeeper" not in asab.Config:
@@ -71,10 +66,8 @@ class MyApplication(asab.Application):
 
 		# Initialize authorization
 		self.AuthService = asab.web.auth.AuthService(self)
-		self.AuthService.install(self.WebContainer)
 
 		# Add routes
-		self.WebContainer.WebApp.router.add_put("/send_to_target", self.send)
 		self.WebContainer.WebApp.router.add_put("/receive", self.receive)
 		if os.environ.get("AUTO_SEND"):
 			self.PubSub.subscribe("Application.tick/10!", self._on_tick)
@@ -83,7 +76,7 @@ class MyApplication(asab.Application):
 		self.Target = os.environ.get("TARGET")
 
 
-	async def _send(self, message, tenant):
+	async def _internal_send(self, message, tenant):
 		"""
 		Use discovery session to send message to requested tenant in the TARGET app.
 		"""
@@ -107,34 +100,18 @@ class MyApplication(asab.Application):
 
 	async def _on_tick(self, message_type):
 		"""
-		Send message to a random tenant in the TARGET app and print the response
+		Send message to a specified tenant in the TARGET app and print the response
 		"""
-		message = random.choice(["Hey friend!", "Wazzup!?", "Howdy!", "Hello:)", "Hiiiiii^^", "Greetings."])
-		tenant = random.choice([None, "mangos-inc", "potato-corp", "strawberry-and-co", "cabbage-io"])
-
-		response = await self._send(message, tenant)
+		response = await self._internal_send(message="Hey there:)", tenant="potato-corp")
 		print("Server replied with: {!r}".format(response))
 
 
-	# @asab.web.auth.noauth  # Enable this to be able to send requests without authorization
-	async def send(self, request):
-		"""
-		Send a request to the /receive endpoint of the TARGET application.
-		"""
-		message = await request.text()
-		tenant = request.headers.get("X-Tenant")
-		if tenant is None:
-			tenant = request.query.get("tenant")
-
-		response = await self._send(message, tenant)
-		return aiohttp.web.Response(text="{} replied with: {!r}\n".format(self.Target, response))
-
-
-	async def receive(self, request, *, user_info):
+	async def receive(self, request):
 		"""
 		Receive a plaintext message and respond
 		"""
-		sender_app = user_info.get("azp")
+		authz = asab.contextvars.Authz.get(None)
+		sender_app = authz.AuthorizedParty
 		tenant = asab.contextvars.Tenant.get(None)
 		text = await request.text()
 		if tenant:
