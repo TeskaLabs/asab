@@ -405,12 +405,12 @@ class DiscoveryService(Service):
 		if auth is None:
 			# By default, use the authorization from the incoming request
 			request = Request.get(None)
-			if request is not None:
-				_headers["Authorization"] = request.headers.get("Authorization")
+			if request is not None and "Authorization" in request.headers:
+				_headers["Authorization"] = request.headers["Authorization"]
 
 		elif isinstance(auth, aiohttp.web.Request):
 			assert "Authorization" in auth.headers
-			_headers["Authorization"] = auth.headers.get("Authorization")
+			_headers["Authorization"] = auth.headers["Authorization"]
 
 		elif auth == "internal":
 			if jwcrypto is None:
