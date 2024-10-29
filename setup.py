@@ -77,7 +77,6 @@ setup(
 		'fastjsonschema>=2.16.2,<3',
 		'kazoo>=2.9.0,<3',
 		'PyYAML>=6.0,<7',
-		'yarl<1.15.3',  # aiohttp dependency, later versions break Python 3.8 compatibility
 	],
 	extras_require={
 		'git': 'pygit2<1.12',  # For Alpine 3.16 / Python 3.10, use pygit2>=1.9,<1.10
