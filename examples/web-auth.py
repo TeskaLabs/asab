@@ -10,7 +10,7 @@ import asab.exceptions
 if "web" not in asab.Config:
 	asab.Config["web"] = {
 		# Set up a web container listening at port 8080
-		"listen": "8089"
+		"listen": "8080"
 	}
 
 if "auth" not in asab.Config:
