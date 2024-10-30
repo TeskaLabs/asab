@@ -95,6 +95,9 @@ class AuthService(Service):
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
 
+		self.IntrospectionUrl = None
+		self.MockUserInfo = None
+
 		enabled = Config.get("auth", "enabled", fallback=True)
 		if enabled == "mock":
 			self.Mode = AuthMode.MOCK
@@ -106,7 +109,7 @@ class AuthService(Service):
 		if self.Mode == AuthMode.DISABLED:
 			pass
 		elif self.Mode == AuthMode.MOCK:
-			self.MockUserInfo = self._prepare_mock_user_info()
+			self._prepare_mock_mode()
 		elif jwcrypto is None:
 			raise ModuleNotFoundError(
 				"You are trying to use asab.web.auth module without 'jwcrypto' installed. "
@@ -138,7 +141,19 @@ class AuthService(Service):
 		self._check_if_installed()
 
 
-	def _prepare_mock_user_info(self):
+	def _prepare_mock_mode(self):
+		"""
+		Try to set up direct introspection. In not available, set up static mock userinfo.
+		"""
+		introspection_url = Config.get("auth", "introspection_url", fallback=None)
+		if introspection_url is not None:
+			self.IntrospectionUrl = introspection_url
+			L.warning(
+				"AuthService is running in MOCK MODE. Web requests will be authorized with direct introspection "
+				"call to {!r}.".format(self.IntrospectionUrl)
+			)
+			return
+
 		# Load custom user info
 		mock_user_info_path = Config.get("auth", "mock_user_info_path")
 		if os.path.isfile(mock_user_info_path):
@@ -153,12 +168,14 @@ class AuthService(Service):
 		):
 			raise ValueError("User info 'resources' must be an object with string keys and array values.")
 		L.warning(
-			"AuthService is running in MOCK MODE. All web requests will be authorized with mock user info, which "
+			"AuthService is running in MOCK MODE. Web requests will be authorized with mock user info, which "
 			"currently grants access to the following tenants: {}. To customize mock mode authorization (add or "
 			"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
 				list(t for t in user_info.get("resources", {}).keys() if t != "*"),
-				mock_user_info_path))
-		return user_info
+				mock_user_info_path
+			)
+		)
+		self.MockUserInfo = user_info
 
 
 	def is_enabled(self) -> bool:
@@ -227,8 +244,7 @@ class AuthService(Service):
 			return authz
 
 		# Create a new Authorization object and store it
-		if self.Mode == AuthMode.MOCK:
-			assert id_token == "MOCK"
+		if id_token == "MOCK" and self.Mode == AuthMode.MOCK:
 			authz = Authorization(self, self.MockUserInfo)
 		else:
 			userinfo = await self._get_userinfo_from_id_token(id_token)
@@ -253,17 +269,27 @@ class AuthService(Service):
 			del self.Authorizations[key]
 
 
-	def get_bearer_token_from_authorization_header(self, request):
+	async def get_bearer_token_from_authorization_header(self, request):
 		"""
 		Validate the Authorizetion header and extract the Bearer token value
 		"""
 		if self.Mode == AuthMode.MOCK:
-			return "MOCK"
+			if not self.IntrospectionUrl:
+				return "MOCK"
 
-		authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
-		if authorization_header is None:
-			L.warning("No Authorization header.")
-			raise aiohttp.web.HTTPUnauthorized()
+			# Send the request headers for introspection
+			async with aiohttp.ClientSession() as session:
+				async with session.post(self.IntrospectionUrl, headers=request.headers) as response:
+					if response.status != 200:
+						L.warning("Access token introspection failed.")
+						raise aiohttp.web.HTTPUnauthorized()
+					authorization_header = response.headers.get(aiohttp.hdrs.AUTHORIZATION)
+
+		else:
+			authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
+			if authorization_header is None:
+				L.warning("No Authorization header.")
+				raise aiohttp.web.HTTPUnauthorized()
 		try:
 			auth_type, token_value = authorization_header.split(" ", 1)
 		except ValueError:
@@ -377,7 +403,7 @@ class AuthService(Service):
 			if not self.is_enabled():
 				return await handler(*args, **kwargs)
 
-			bearer_token = self.get_bearer_token_from_authorization_header(request)
+			bearer_token = await self.get_bearer_token_from_authorization_header(request)
 			authz = await self.build_authorization(bearer_token)
 
 			# Authorize tenant context
