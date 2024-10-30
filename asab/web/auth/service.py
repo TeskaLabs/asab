@@ -254,7 +254,7 @@ class AuthService(Service):
 		return authz
 
 
-	async def _delete_invalid_authorizations(self):
+	async def _delete_invalid_authorizations(self, message_name):
 		"""
 		Check for expired Authorization objects and delete them
 		"""
