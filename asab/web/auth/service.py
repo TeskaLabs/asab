@@ -95,6 +95,9 @@ class AuthService(Service):
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
 
+		self.IntrospectionUrl = None
+		self.MockUserInfo = None
+
 		enabled = Config.get("auth", "enabled", fallback=True)
 		if enabled == "mock":
 			self.Mode = AuthMode.MOCK
