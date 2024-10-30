@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
+import logging
 import typing
 import secrets
 import asab.web.rest
 import asab.web.auth
 import asab.contextvars
+import asab.exceptions
 
 if "web" not in asab.Config:
 	asab.Config["web"] = {
@@ -105,7 +107,11 @@ class NotesApplication(asab.Application):
 
 		Authentication required.
 		"""
-		tenant = asab.contextvars.Tenant.get()
+		try:
+			tenant = asab.contextvars.Tenant.get()
+		except LookupError:
+			L.error("No 'X-Tenant' header in request.")
+			raise asab.exceptions.ValidationError()
 		authz = asab.contextvars.Authz.get()
 
 		notes = self.Notes.get(tenant, {})
@@ -126,7 +132,11 @@ class NotesApplication(asab.Application):
 
 		Authentication and authorization of "note:read" required.
 		"""
-		tenant = asab.contextvars.Tenant.get()
+		try:
+			tenant = asab.contextvars.Tenant.get()
+		except LookupError:
+			L.error("No 'X-Tenant' header in request.")
+			raise asab.exceptions.ValidationError()
 
 		note_id = request.match_info["note_id"]
 		if tenant in self.Notes and note_id in self.Notes[tenant]:
@@ -145,10 +155,14 @@ class NotesApplication(asab.Application):
 
 		Authentication and authorization of "note:edit" required.
 		"""
-		tenant = asab.contextvars.Tenant.get()
+		try:
+			tenant = asab.contextvars.Tenant.get()
+		except LookupError:
+			L.error("No 'X-Tenant' header in request.")
+			raise asab.exceptions.ValidationError()
 		authz = asab.contextvars.Authz.get()
 
-		if not tenant in self.Notes:
+		if tenant not in self.Notes:
 			self.Notes[tenant] = {}
 		note_id = secrets.token_urlsafe(8)
 		self.Notes[tenant][note_id] = {
@@ -169,9 +183,13 @@ class NotesApplication(asab.Application):
 
 		Authentication and authorization of "note:edit" required.
 		"""
-		tenant = asab.contextvars.Tenant.get()
-		authz = asab.contextvars.Authz.get()
+		try:
+			tenant = asab.contextvars.Tenant.get()
+		except LookupError:
+			L.error("No 'X-Tenant' header in request.")
+			raise asab.exceptions.ValidationError()
 
+		note_id = request.match_info["note_id"]
 		if tenant in self.Notes and note_id in self.Notes[tenant]:
 			self.Notes[tenant][note_id]["content"] = json_data
 			return asab.web.rest.json_response(request, {"result": "OK"})
@@ -186,8 +204,11 @@ class NotesApplication(asab.Application):
 
 		Authentication and authorization of "note:delete" required.
 		"""
-		tenant = asab.contextvars.Tenant.get()
-		authz = asab.contextvars.Authz.get()
+		try:
+			tenant = asab.contextvars.Tenant.get()
+		except LookupError:
+			L.error("No 'X-Tenant' header in request.")
+			raise asab.exceptions.ValidationError()
 
 		note_id = request.match_info["note_id"]
 		if tenant in self.Notes and note_id in self.Notes[tenant]:
