@@ -280,7 +280,7 @@ class StorageService(StorageServiceABC):
 			:return: JSON response.
 			:raise Exception: Raised if connection to all server URLs fails.
 		"""
-		async with self.request("PUT", "_index_template/{}".format(template_name), json=template) as resp:
+		async with self.request("PUT", "_index_template/{}?master_timeout=120s".format(template_name), json=template) as resp:
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
@@ -398,7 +398,7 @@ class StorageService(StorageServiceABC):
 		if settings is None:
 			settings = {}
 
-		async with self.request("PUT", "_ilm/policy/{}".format(policy_name), json=settings) as resp:
+		async with self.request("PUT", "_ilm/policy/{}?master_timeout=120s".format(policy_name), json=settings) as resp:
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
