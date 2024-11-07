@@ -1,8 +1,5 @@
-import re
 import logging
 import typing
-
-import aiohttp
 
 from ...abc.service import Service
 from ...config import Config
@@ -14,13 +11,13 @@ L = logging.getLogger(__name__)
 #
 
 
-# "tenant_url" is used to periodically refresh tenants from, expecting "_id" inside a JSON structure,
-# which is compatible with SeaCat Auth product
 Config.add_defaults({
-	'tenants': {
-		'ids': '',  # List of tenant ids, entries can be separated by comma or newline
-		'tenant_url': '',  # f. e. http://seacat-auth:8080/tenant
-		'trusted': 0,  # makes sure the tenants are implicitly trusted, even though they are not located in IDs or tenant URL
+	"tenants": {
+		# List of tenant IDs, entries can be separated by comma or newline
+		"ids": "",
+
+		# URL that provides a JSON array of tenant IDs
+		"tenant_url": "",
 	}
 })
 
@@ -30,20 +27,41 @@ class TenantService(Service):
 	def __init__(self, app, service_name="asab.TenantService"):
 		super().__init__(app, service_name)
 		self.App = app
-		self.TenantWebHandler = None
-		self.TenantsTrusted = Config.getboolean("tenants", "trusted")
-		self.Tenants: typing.Set[str] = set()
-		self._StaticTenants: typing.Set[str] = _read_tenants_from_config()
+		self.Providers = set()
 
-		# Load tenants from URL
-		self.TenantUrl = Config.get("tenants", "tenant_url")
-		if len(self.TenantUrl) > 0:
-			app.PubSub.subscribe("Application.tick/300!", self._update_tenants)
+		self._prepare_providers()
+
+
+	def _prepare_providers(self):
+		if Config.get("tenants", "ids"):
+			from .providers import StaticTenantProvider
+			self.Providers.add(StaticTenantProvider(self.App, Config["tenants"]))
+
+		if Config.get("tenants", "tenant_url"):
+			from .providers import WebTenantProvider
+			self.Providers.add(WebTenantProvider(self.App, Config["tenants"]))
 
 
 	async def initialize(self, app):
-		await self._update_tenants()
+		for provider in self.Providers:
+			await provider.initialize(app)
 
+
+	@property
+	def Tenants(self) -> typing.Set[str]:
+		tenants = set()
+		for provider in self.Providers:
+			tenants.update(provider.Tenants)
+
+		return tenants
+
+
+	def get_tenants(self) -> typing.Set[str]:
+		return self.Tenants
+
+
+	def is_tenant_known(self, tenant: str) -> bool:
+		return tenant in self.Tenants
 
 	def locate_tenant(self, tenant_id):
 		if tenant_id in self.Tenants:
