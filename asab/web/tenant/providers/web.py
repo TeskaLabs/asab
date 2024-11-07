@@ -1,5 +1,4 @@
 import logging
-import typing
 import aiohttp
 
 from .abc import TenantProviderABC
