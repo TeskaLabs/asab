@@ -17,11 +17,10 @@ import aiohttp.client_exceptions
 from ... import LogObsolete
 from ...abc.service import Service
 from ...config import Config
-from ...exceptions import NotAuthenticatedError, AccessDeniedError
+from ...exceptions import NotAuthenticatedError
 from ...api.discovery import NotDiscoveredError
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
-from ..websocket import WebSocketFactory
 from .authorization import Authorization
 
 try:
