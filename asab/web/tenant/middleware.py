@@ -16,11 +16,11 @@ def allow_no_tenant(handler):
 	Returns:
 		Wrapped web handler that allows requests with undefined tenant.
 	"""
+	handler.AllowNoTenant = True
 
 	@functools.wraps(handler)
 	async def wrapper(*args, **kargs):
 		request = args[-1]
-		request.AllowNoTenant = True
 		return await handler(*args, **kargs)
 
 	return wrapper
@@ -90,7 +90,7 @@ def _set_tenant_context_from_url_query(handler):
 		tenant = request.query.get("tenant")
 
 		if tenant is None and not (
-				hasattr(request, "AllowNoTenant") and request.AllowNoTenant is True
+				hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True
 		):
 			raise ValidationError("No tenant argument in URL path or query.")
 
@@ -115,7 +115,7 @@ def _set_tenant_context_from_url_path(handler):
 		tenant = request.match_info.get("tenant")
 
 		if tenant is None and not (
-				hasattr(request, "AllowNoTenant") and request.AllowNoTenant is True
+				hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True
 		):
 			raise ValidationError("No tenant argument in URL path or query.")
 
