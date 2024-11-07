@@ -61,7 +61,7 @@ def noauth(handler):
 	"""
 	argspec = inspect.getfullargspec(handler)
 	args = set(argspec.kwonlyargs).union(argspec.args)
-	for arg in ("tenant", "user_info", "resources", "authz"):
+	for arg in ("user_info", "resources", "authz"):
 		if arg in args:
 			raise Exception(
 				"{}(): Handler with @noauth cannot have {!r} in its arguments.".format(handler.__qualname__, arg))

@@ -196,7 +196,7 @@ class AuthService(Service):
 
 		# Check that the middleware has not been installed yet
 		for middleware in web_container.WebApp.on_startup:
-			if middleware == self._wrap_handlers:
+			if middleware == self.set_up_auth_context:
 				if len(web_service.Containers) == 1:
 					L.warning(
 						"WebContainer has authorization middleware installed already. "
@@ -207,7 +207,8 @@ class AuthService(Service):
 					L.warning("WebContainer has authorization middleware installed already.")
 				return
 
-		web_container.WebApp.on_startup.append(self._wrap_handlers)
+		# TODO: Auth wrapper must be applied BEFORE tenant wrapper (so that auth is processed AFTER tenant).
+		web_container.WebApp.on_startup.append(self.set_up_auth_context)
 
 
 	def is_ready(self):
@@ -420,7 +421,7 @@ class AuthService(Service):
 		return wrapper
 
 
-	async def _wrap_handlers(self, aiohttp_app):
+	async def set_up_auth_context(self, aiohttp_app: aiohttp.web.Application):
 		"""
 		Inspect all registered handlers and wrap them in decorators according to their parameters.
 		"""
@@ -434,19 +435,15 @@ class AuthService(Service):
 				continue
 
 			try:
-				self._wrap_handler(route)
+				self._set_handler_auth(route)
 			except Exception as e:
 				raise Exception("Failed to initialize auth for handler {!r}.".format(route.handler.__qualname__)) from e
 
 
-	def _wrap_handler(self, route):
+	def _set_handler_auth(self, route: aiohttp.web.AbstractRoute):
 		"""
 		Inspect handler and apply suitable auth wrappers.
 		"""
-		# Check if tenant is in route path
-		route_info = route.get_info()
-		tenant_in_path = "formatter" in route_info and "{tenant}" in route_info["formatter"]
-
 		# Extract the actual unwrapped handler method for signature inspection
 		handler_method = route.handler
 		while hasattr(handler_method, "__wrapped__"):
@@ -457,10 +454,9 @@ class AuthService(Service):
 		if hasattr(handler_method, "__func__"):
 			handler_method = handler_method.__func__
 
-		is_websocket = isinstance(handler_method, WebSocketFactory)
-
-		if hasattr(handler_method, "NoAuth"):
+		if hasattr(handler_method, "NoAuth") and handler_method.NoAuth is True:
 			return
+
 		argspec = inspect.getfullargspec(handler_method)
 		args = set(argspec.kwonlyargs).union(argspec.args)
 
@@ -469,7 +465,7 @@ class AuthService(Service):
 
 		# Apply the decorators IN REVERSE ORDER (the last applied wrapper affects the request first)
 
-		# 3) Pass authorization attributes to handler method
+		# 2) Pass authorization attributes to handler method
 		if "resources" in args:
 			LogObsolete.warning(
 				"The 'resources' argument is deprecated. "
@@ -477,6 +473,7 @@ class AuthService(Service):
 				struct_data={"handler": handler.__qualname__, "eol": "2025-03-01"},
 			)
 			handler = _pass_resources(handler)
+
 		if "user_info" in args:
 			LogObsolete.warning(
 				"The 'user_info' argument is deprecated. "
@@ -484,27 +481,12 @@ class AuthService(Service):
 				struct_data={"handler": handler.__qualname__, "eol": "2025-03-01"},
 			)
 			handler = _pass_user_info(handler)
-		if "tenant" in args:
-			handler = _pass_tenant(handler)
+
 		if "authz" in args:
 			handler = _pass_authz(handler)
 
-		# 2) Authenticate and authorize request, authorize tenant from context, set Authorization context
+		# 1) Authenticate and authorize request, authorize tenant from context, set Authorization context
 		handler = self._authorize_request(handler)
-
-		# 1.5) Set tenant context from obsolete locations (no authorization yet)
-		# TODO: Deprecated. Ignore tenant in path and query, always use request headers instead.
-		if tenant_in_path:
-			handler = _set_tenant_context_from_url_path(handler)
-		else:
-			handler = _set_tenant_context_from_url_query(handler)
-
-		# 1) Set tenant context (no authorization yet)
-		# TODO: This should be eventually done by TenantService
-		if is_websocket:
-			handler = _set_tenant_context_from_sec_websocket_protocol_header(handler)
-		else:
-			handler = _set_tenant_context_from_x_tenant_header(handler)
 
 		route._handler = handler
 
@@ -545,7 +527,7 @@ class AuthService(Service):
 
 		for web_container in web_service.Containers.values():
 			for middleware in web_container.WebApp.on_startup:
-				if middleware == self._wrap_handlers:
+				if middleware == self.set_up_auth_context:
 					# Container has authorization installed
 					break
 			else:
@@ -657,16 +639,6 @@ def _pass_resources(handler):
 	return wrapper
 
 
-def _pass_tenant(handler):
-	"""
-	Add tenant to the handler arguments
-	"""
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		return await handler(*args, tenant=Tenant.get(None), **kwargs)
-	return wrapper
-
-
 def _pass_authz(handler):
 	"""
 	Add Auhorization object to the handler arguments
@@ -675,133 +647,4 @@ def _pass_authz(handler):
 	async def wrapper(*args, **kwargs):
 		authz = Authz.get(None)
 		return await handler(*args, authz=authz, **kwargs)
-	return wrapper
-
-
-def _set_tenant_context_from_x_tenant_header(handler):
-	"""
-	Extract tenant from X-Tenant header and add it to context
-	"""
-	def get_tenant_from_header(request) -> str:
-		# Get tenant from X-Tenant header for HTTP requests
-		return request.headers.get("X-Tenant")
-
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		request = args[-1]
-		tenant = get_tenant_from_header(request)
-
-		if tenant is None:
-			response = await handler(*args, **kwargs)
-		else:
-			assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
-			tenant_ctx = Tenant.set(tenant)
-			try:
-				response = await handler(*args, **kwargs)
-			finally:
-				Tenant.reset(tenant_ctx)
-
-		return response
-
-	return wrapper
-
-
-def _set_tenant_context_from_sec_websocket_protocol_header(handler):
-	"""
-	Extract tenant from Sec-Websocket-Protocol header and add it to context
-	"""
-	def get_tenant_from_header(request) -> str:
-		# Get tenant from Sec-Websocket-Protocol header for websocket requests
-		protocols = request.headers.get("Sec-Websocket-Protocol", "")
-		for protocol in protocols.split(", "):
-			protocol = protocol.strip()
-			if protocol.startswith("tenant_"):
-				return protocol[7:]
-		else:
-			return None
-
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		request = args[-1]
-		tenant = get_tenant_from_header(request)
-
-		if tenant is None:
-			response = await handler(*args, **kwargs)
-		else:
-			assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
-			tenant_ctx = Tenant.set(tenant)
-			try:
-				response = await handler(*args, **kwargs)
-			finally:
-				Tenant.reset(tenant_ctx)
-
-		return response
-
-	return wrapper
-
-
-def _set_tenant_context_from_url_query(handler):
-	"""
-	Extract tenant from request query and add it to context
-	"""
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		request = args[-1]
-		header_tenant = Tenant.get(None)
-		tenant = request.query.get("tenant")
-
-		if tenant is None:
-			# No tenant in query
-			response = await handler(*args, **kwargs)
-		elif header_tenant is not None:
-			# Tenant from header must not be overwritten by a different tenant in query!
-			if tenant != header_tenant:
-				L.error("Tenant from URL query does not match tenant from header.", struct_data={
-					"header_tenant": header_tenant, "query_tenant": tenant})
-				raise AccessDeniedError()
-			# Tenant in query matches tenant in header
-			response = await handler(*args, **kwargs)
-		else:
-			# No tenant in header, only in query
-			assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
-			tenant_ctx = Tenant.set(tenant)
-			try:
-				response = await handler(*args, **kwargs)
-			finally:
-				Tenant.reset(tenant_ctx)
-
-		return response
-
-	return wrapper
-
-
-def _set_tenant_context_from_url_path(handler):
-	"""
-	Extract tenant from request URL path and add it to context
-	"""
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		request = args[-1]
-		header_tenant = Tenant.get(None)
-		tenant = request.match_info.get("tenant")
-
-		if header_tenant is not None:
-			# Tenant from header must not be overwritten by a different tenant in path!
-			if tenant != header_tenant:
-				L.error("Tenant from URL path does not match tenant from header.", struct_data={
-					"header_tenant": header_tenant, "path_tenant": tenant})
-				raise AccessDeniedError()
-			# Tenant in path matches tenant in header
-			response = await handler(*args, **kwargs)
-		else:
-			# No tenant in header, only in path
-			assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
-			tenant_ctx = Tenant.set(tenant)
-			try:
-				response = await handler(*args, **kwargs)
-			finally:
-				Tenant.reset(tenant_ctx)
-
-		return response
-
 	return wrapper
