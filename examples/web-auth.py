@@ -4,6 +4,7 @@ import typing
 import secrets
 import asab.web.rest
 import asab.web.auth
+import asab.web.tenant
 import asab.contextvars
 import asab.exceptions
 
