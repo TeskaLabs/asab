@@ -3,6 +3,7 @@ import typing
 
 from ...abc.service import Service
 from ...config import Config
+from .middleware import set_up_tenant_context
 
 #
 
@@ -62,3 +63,43 @@ class TenantService(Service):
 
 	def is_tenant_known(self, tenant: str) -> bool:
 		return tenant in self.Tenants
+
+
+	def install(self, web_container):
+		"""
+		Apply tenant context to all web handlers in a web container.
+
+		Args:
+			web_container: Web container to add tenant context to.
+		"""
+		web_service = self.App.get_service("asab.WebService")
+
+		# Check that the middleware has not been installed yet
+		for middleware in web_container.WebApp.on_startup:
+			if middleware == set_up_tenant_context:
+				if len(web_service.Containers) == 1:
+					L.warning(
+						"WebContainer has tenant middleware installed already. "
+						"You don't need to call `TenantService.install()` in applications with a single WebContainer; "
+						"it is called automatically at init time."
+					)
+				else:
+					L.warning("WebContainer has tenant middleware installed already.")
+				return
+
+		web_container.WebApp.on_startup.append(set_up_tenant_context)
+
+
+	def _try_auto_install(self):
+		"""
+		If there is exactly one web container, install tenant middleware on it.
+		"""
+		web_service = self.App.get_service("asab.WebService")
+		if web_service is None:
+			return
+		if len(web_service.Containers) != 1:
+			return
+		web_container = web_service.WebContainer
+
+		self.install(web_container)
+		L.info("WebContainer tenant context installed automatically.")
