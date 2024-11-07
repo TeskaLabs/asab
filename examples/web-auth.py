@@ -52,16 +52,17 @@ class NotesApplication(asab.Application):
 		self.ApiService = ApiService(self)
 		self.ApiService.initialize_web(self.WebContainer)
 
-		# Initialize authorization
+		# Initialize multitenancy and authorization
+		self.TenantService = asab.web.tenant.TenantService(self)
 		self.AuthService = asab.web.auth.AuthService(self)
 
 		# Add routes
 		self.WebContainer.WebApp.router.add_get("/", self.info)
-		self.WebContainer.WebApp.router.add_get("/note", self.list_notes)
-		self.WebContainer.WebApp.router.add_post("/note", self.create_note)
-		self.WebContainer.WebApp.router.add_get("/note/{note_id}", self.read_note)
-		self.WebContainer.WebApp.router.add_put("/note/{note_id}", self.edit_note)
-		self.WebContainer.WebApp.router.add_delete("/note/{note_id}", self.delete_note)
+		self.WebContainer.WebApp.router.add_get("/{tenant}/note", self.list_notes)
+		self.WebContainer.WebApp.router.add_post("/{tenant}/note", self.create_note)
+		self.WebContainer.WebApp.router.add_get("/{tenant}/note/{note_id}", self.read_note)
+		self.WebContainer.WebApp.router.add_put("/{tenant}/note/{note_id}", self.edit_note)
+		self.WebContainer.WebApp.router.add_delete("/{tenant}/note/{note_id}", self.delete_note)
 
 		# Notes storage
 		self.Notes: typing.Dict[str, typing.Dict[str, typing.Dict[str, str]]] = {
@@ -84,6 +85,7 @@ class NotesApplication(asab.Application):
 
 
 	@asab.web.auth.noauth
+	@asab.web.tenant.allow_no_tenant
 	async def info(self, request):
 		"""
 		Show application info.
