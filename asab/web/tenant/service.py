@@ -33,11 +33,11 @@ class TenantService(Service):
 
 
 	def _prepare_providers(self):
-		if Config.get("tenants", "ids"):
+		if Config.get("tenants", "ids", fallback=None):
 			from .providers import StaticTenantProvider
 			self.Providers.add(StaticTenantProvider(self.App, Config["tenants"]))
 
-		if Config.get("tenants", "tenant_url"):
+		if Config.get("tenants", "tenant_url", fallback=None):
 			from .providers import WebTenantProvider
 			self.Providers.add(WebTenantProvider(self.App, Config["tenants"]))
 
