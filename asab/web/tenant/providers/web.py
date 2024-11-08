@@ -19,7 +19,7 @@ class WebTenantProvider(TenantProviderABC):
 		await self._update_tenants()
 
 
-	async def _update_tenants(self):
+	async def _update_tenants(self, message_type=None):
 		# TODO: Proactor service
 		async with aiohttp.ClientSession() as session:
 			async with session.get(self.TenantUrl) as resp:
