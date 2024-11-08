@@ -30,7 +30,12 @@ class TenantService(Service):
 		self.App = app
 		self.Providers = set()
 
+		auth_svc = self.App.get_service("asab.AuthService")
+		if auth_svc is not None:
+			raise Exception("Please initialize TenantService BEFORE AuthService.")
+
 		self._prepare_providers()
+		self._try_auto_install()
 
 
 	def _prepare_providers(self):
@@ -117,7 +122,7 @@ class TenantService(Service):
 
 		for web_container in web_service.Containers.values():
 			for middleware in web_container.WebApp.on_startup:
-				if middleware == self.set_up_auth_context:
+				if middleware == set_up_tenant_context:
 					# Container has tenant middleware installed
 					break
 			else:

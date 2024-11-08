@@ -21,6 +21,7 @@ from ...exceptions import NotAuthenticatedError
 from ...api.discovery import NotDiscoveredError
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
+from ..tenant.middleware import set_up_tenant_context
 from .authorization import Authorization
 
 try:
@@ -207,7 +208,11 @@ class AuthService(Service):
 				return
 
 		# TODO: Auth wrapper must be applied BEFORE tenant wrapper (so that auth is processed AFTER tenant).
-		web_container.WebApp.on_startup.append(self.set_up_auth_context)
+		try:
+			tenant_middleware_idx = web_container.WebApp.on_startup.index(set_up_tenant_context)
+			web_container.WebApp.on_startup.insert(tenant_middleware_idx, self.set_up_auth_context)
+		except ValueError:
+			web_container.WebApp.on_startup.append(self.set_up_auth_context)
 
 
 	def is_ready(self):
