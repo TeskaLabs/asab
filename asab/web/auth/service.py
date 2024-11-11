@@ -72,13 +72,8 @@ MOCK_USERINFO_DEFAULT = {
 	"tenants": ["default", "test-tenant", "another-tenant"]
 }
 
+
 SUPERUSER_RESOURCE = "authz:superuser"
-
-
-class AuthMode(enum.Enum):
-	ENABLED = enum.auto()
-	DISABLED = enum.auto()
-	MOCK = enum.auto()
 
 
 class AuthService(Service):
@@ -90,25 +85,29 @@ class AuthService(Service):
 
 	def __init__(self, app, service_name="asab.AuthService"):
 		super().__init__(app, service_name)
-		self.PublicKeysUrl = Config.get("auth", "public_keys_url") or None
 
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
 
+		self.PublicKeysUrl = Config.get("auth", "public_keys_url") or None
 		self.IntrospectionUrl = None
 		self.MockUserInfo = None
+		self.MockMode = False
 
+		# Configure mock mode
 		enabled = Config.get("auth", "enabled", fallback=True)
 		if enabled == "mock":
-			self.Mode = AuthMode.MOCK
-		elif string_to_boolean(enabled):
-			self.Mode = AuthMode.ENABLED
+			self.MockMode = True
+		elif string_to_boolean(enabled) is True:
+			self.MockMode = False
 		else:
-			self.Mode = AuthMode.DISABLED
+			raise ValueError(
+				"Disabling AuthService is deprecated. "
+				"For development pupropses use mock mode instead ([auth] enabled=mock)."
+			)
 
-		if self.Mode == AuthMode.DISABLED:
-			pass
-		elif self.Mode == AuthMode.MOCK:
+		# Set up auth server keys URL
+		if self.MockMode is True:
 			self._prepare_mock_mode()
 		elif jwcrypto is None:
 			raise ModuleNotFoundError(
@@ -127,7 +126,7 @@ class AuthService(Service):
 		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
 		self.AuthServerLastSuccessfulCheck = None
 
-		if self.Mode == AuthMode.ENABLED:
+		if self.PublicKeysUrl:
 			self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
 
 		self.Authorizations: typing.Dict[typing.Tuple[str, str], Authorization] = {}
@@ -180,9 +179,9 @@ class AuthService(Service):
 
 	def is_enabled(self) -> bool:
 		"""
-		Check if the AuthService is enabled. Mock mode counts as enabled too.
+		OBSOLETE. Check if the AuthService is enabled. Mock mode counts as enabled too.
 		"""
-		return self.Mode in {AuthMode.ENABLED, AuthMode.MOCK}
+		return True
 
 
 	def install(self, web_container):
@@ -219,11 +218,8 @@ class AuthService(Service):
 		"""
 		Check if the service is ready to authorize requests.
 		"""
-		if self.Mode == AuthMode.DISABLED:
-			return True
-		if self.Mode == AuthMode.MOCK:
-			return True
-		if not self.TrustedPublicKeys["keys"]:
+		if self.PublicKeysUrl and not self.TrustedPublicKeys["keys"]:
+			# Auth server keys have not been loaded yet
 			return False
 		return True
 
@@ -249,7 +245,7 @@ class AuthService(Service):
 			return authz
 
 		# Create a new Authorization object and store it
-		if id_token == "MOCK" and self.Mode == AuthMode.MOCK:
+		if id_token == "MOCK" and self.MockMode is True:
 			authz = Authorization(self, self.MockUserInfo)
 		else:
 			userinfo = await self._get_userinfo_from_id_token(id_token)
@@ -278,7 +274,7 @@ class AuthService(Service):
 		"""
 		Validate the Authorizetion header and extract the Bearer token value
 		"""
-		if self.Mode == AuthMode.MOCK:
+		if self.MockMode is True:
 			if not self.IntrospectionUrl:
 				return "MOCK"
 
@@ -450,6 +446,11 @@ class AuthService(Service):
 		"""
 		# Extract the actual unwrapped handler method for signature inspection
 		handler_method = route.handler
+
+		# Exclude endpoints with @noauth decorator
+		if hasattr(handler_method, "NoAuth") and handler_method.NoAuth is True:
+			return
+
 		while hasattr(handler_method, "__wrapped__"):
 			# While loop unwraps handlers wrapped in multiple decorators.
 			# NOTE: This requires all the decorators to use @functools.wraps().
@@ -457,9 +458,6 @@ class AuthService(Service):
 
 		if hasattr(handler_method, "__func__"):
 			handler_method = handler_method.__func__
-
-		if hasattr(handler_method, "NoAuth") and handler_method.NoAuth is True:
-			return
 
 		argspec = inspect.getfullargspec(handler_method)
 		args = set(argspec.kwonlyargs).union(argspec.args)
