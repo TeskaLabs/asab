@@ -16,16 +16,17 @@ if "web" not in asab.Config:
 
 if "auth" not in asab.Config:
 	asab.Config["auth"] = {
-		# Disable or enable all authentication and authorization, or switch into MOCK mode.
-		# When disabled, the `resources` and `userinfo` handler arguments are set to `None`.
-		"enabled": "mock",  # Mock authorization, useful for debugging.
-		# "enabled": "yes",   # Authorization is enabled.
-		# "enabled": "no",   # Authorization is disabled.
+		# Enable all authentication and authorization, or switch into MOCK mode.
+		# "enabled": "mock",  # Mock authorization, useful for debugging.
+		"enabled": "yes",   # Authorization is enabled.
 
 		# Activating the mock mode disables communication with the authorization server.
 		# The requests' Authorization headers are ignored and AuthService provides mock authorization with mock user info.
 		# You can provide custom user info by specifying the path pointing to your JSON file.
 		"mock_user_info_path": "./mock-userinfo.json",
+
+		# In mock mode, it is possible to configure URL for direct access token intropspection.
+		# "introspection_url": "http://localhost:8900/nginx/introspect/openidconnect",
 
 		# URL of the authorization server's JWK public keys, used for ID token verification.
 		# This option is ignored in mock mode or when authorization is disabled.
@@ -85,7 +86,9 @@ class NotesApplication(asab.Application):
 		}
 
 
+	# Disable authentication and authorization for this endpoint
 	@asab.web.auth.noauth
+	# Do not require tenant parameter in URL (asab.contextvars.Tenant defaults to None)
 	@asab.web.tenant.allow_no_tenant
 	async def info(self, request):
 		"""
@@ -93,11 +96,6 @@ class NotesApplication(asab.Application):
 
 		No authentication or authorization required, but also no user details are available.
 		"""
-
-		# Tenant context is not set for endpoint with @asab.web.auth.noauth decorator.
-		# `asab.contextvars.Tenant.get()` will throw LookupError
-		# Same with `asab.contextvars.Authz.get()`
-
 		data = {
 			"message": "This app stores notes. Call GET /note to see stored notes.",
 		}
@@ -110,11 +108,7 @@ class NotesApplication(asab.Application):
 
 		Authentication required.
 		"""
-		try:
-			tenant = asab.contextvars.Tenant.get()
-		except LookupError:
-			L.error("No 'X-Tenant' header in request.")
-			raise asab.exceptions.ValidationError()
+		tenant = asab.contextvars.Tenant.get()
 		authz = asab.contextvars.Authz.get()
 
 		notes = self.Notes.get(tenant, {})
@@ -135,11 +129,7 @@ class NotesApplication(asab.Application):
 
 		Authentication and authorization of "note:read" required.
 		"""
-		try:
-			tenant = asab.contextvars.Tenant.get()
-		except LookupError:
-			L.error("No 'X-Tenant' header in request.")
-			raise asab.exceptions.ValidationError()
+		tenant = asab.contextvars.Tenant.get()
 
 		note_id = request.match_info["note_id"]
 		if tenant in self.Notes and note_id in self.Notes[tenant]:
@@ -158,11 +148,7 @@ class NotesApplication(asab.Application):
 
 		Authentication and authorization of "note:edit" required.
 		"""
-		try:
-			tenant = asab.contextvars.Tenant.get()
-		except LookupError:
-			L.error("No 'X-Tenant' header in request.")
-			raise asab.exceptions.ValidationError()
+		tenant = asab.contextvars.Tenant.get()
 		authz = asab.contextvars.Authz.get()
 
 		if tenant not in self.Notes:
@@ -186,11 +172,7 @@ class NotesApplication(asab.Application):
 
 		Authentication and authorization of "note:edit" required.
 		"""
-		try:
-			tenant = asab.contextvars.Tenant.get()
-		except LookupError:
-			L.error("No 'X-Tenant' header in request.")
-			raise asab.exceptions.ValidationError()
+		tenant = asab.contextvars.Tenant.get()
 
 		note_id = request.match_info["note_id"]
 		if tenant in self.Notes and note_id in self.Notes[tenant]:
@@ -207,11 +189,7 @@ class NotesApplication(asab.Application):
 
 		Authentication and authorization of "note:delete" required.
 		"""
-		try:
-			tenant = asab.contextvars.Tenant.get()
-		except LookupError:
-			L.error("No 'X-Tenant' header in request.")
-			raise asab.exceptions.ValidationError()
+		tenant = asab.contextvars.Tenant.get()
 
 		note_id = request.match_info["note_id"]
 		if tenant in self.Notes and note_id in self.Notes[tenant]:
