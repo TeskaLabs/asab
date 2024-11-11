@@ -484,9 +484,6 @@ class AuthService(Service):
 			)
 			handler = _pass_user_info(handler)
 
-		if "authz" in args:
-			handler = _pass_authz(handler)
-
 		# 1) Authenticate and authorize request, authorize tenant from context, set Authorization context
 		handler = self._authorize_request(handler)
 
@@ -638,15 +635,4 @@ def _pass_resources(handler):
 	async def wrapper(*args, **kwargs):
 		authz = Authz.get(None)
 		return await handler(*args, resources=authz.authorized_resources() if authz is not None else None, **kwargs)
-	return wrapper
-
-
-def _pass_authz(handler):
-	"""
-	Add Auhorization object to the handler arguments
-	"""
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		authz = Authz.get(None)
-		return await handler(*args, authz=authz, **kwargs)
 	return wrapper
