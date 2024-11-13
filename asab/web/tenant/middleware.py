@@ -91,7 +91,7 @@ def _set_tenant_context_from_url_query(handler):
 		if tenant is None and not (
 			hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True
 		):
-			raise ValidationError("No tenant argument in URL path or query.")
+			raise ValidationError("Missing `tenant` parameter in URL query.")
 
 		tenant_ctx = Tenant.set(tenant)
 		try:
@@ -111,12 +111,7 @@ def _set_tenant_context_from_url_path(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
-		tenant = request.match_info.get("tenant")
-
-		if tenant is None and not (
-			hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True
-		):
-			raise ValidationError("No tenant argument in URL path or query.")
+		tenant = request.match_info["tenant"]
 
 		tenant_ctx = Tenant.set(tenant)
 		try:
