@@ -3,7 +3,7 @@ import typing
 
 from ...abc.service import Service
 from ...config import Config
-from .middleware import set_up_tenant_context
+from .middleware import set_up_tenant_context_wrapper
 
 #
 
@@ -74,7 +74,7 @@ class TenantService(Service):
 
 	def install(self, web_container):
 		"""
-		Apply tenant context to all web handlers in a web container.
+		Apply tenant context wrappers to all web handlers in the web container.
 
 		Args:
 			web_container: Web container to add tenant context to.
@@ -83,7 +83,7 @@ class TenantService(Service):
 
 		# Check that the middleware has not been installed yet
 		for middleware in web_container.WebApp.on_startup:
-			if middleware == set_up_tenant_context:
+			if middleware == set_up_tenant_context_wrapper:
 				if len(web_service.Containers) == 1:
 					L.warning(
 						"WebContainer has tenant middleware installed already. "
@@ -94,7 +94,7 @@ class TenantService(Service):
 					L.warning("WebContainer has tenant middleware installed already.")
 				return
 
-		web_container.WebApp.on_startup.append(set_up_tenant_context)
+		web_container.WebApp.on_startup.append(set_up_tenant_context_wrapper)
 
 
 	def _try_auto_install(self):
@@ -109,7 +109,7 @@ class TenantService(Service):
 		web_container = web_service.WebContainer
 
 		self.install(web_container)
-		L.info("WebContainer tenant context installed automatically.")
+		L.info("WebContainer tenant context wrapper installed automatically.")
 
 
 	def _check_if_installed(self):
@@ -123,7 +123,7 @@ class TenantService(Service):
 
 		for web_container in web_service.Containers.values():
 			for middleware in web_container.WebApp.on_startup:
-				if middleware == set_up_tenant_context:
+				if middleware == set_up_tenant_context_wrapper:
 					# Container has tenant middleware installed
 					break
 			else:

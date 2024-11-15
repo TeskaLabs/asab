@@ -25,7 +25,7 @@ def allow_no_tenant(handler):
 	return wrapper
 
 
-async def set_up_tenant_context(aiohttp_app: aiohttp.web.Application):
+async def set_up_tenant_context_wrapper(aiohttp_app: aiohttp.web.Application):
 	"""
 	Inspect all registered handlers and wrap them in decorators according to their parameters.
 	"""
