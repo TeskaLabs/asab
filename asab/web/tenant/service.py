@@ -25,7 +25,7 @@ Config.add_defaults({
 
 class TenantService(Service):
 
-	def __init__(self, app, service_name="asab.TenantService"):
+	def __init__(self, app, service_name: str = "asab.TenantService", set_up_web_wrapper: bool = True):
 		super().__init__(app, service_name)
 		self.App = app
 		self.Providers = set()
@@ -35,7 +35,8 @@ class TenantService(Service):
 			raise Exception("Please initialize TenantService BEFORE AuthService.")
 
 		self._prepare_providers()
-		self._try_auto_install()
+		if set_up_web_wrapper:
+			self._try_auto_install()
 
 
 	def _prepare_providers(self):
