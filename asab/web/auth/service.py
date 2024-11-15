@@ -6,20 +6,23 @@ import inspect
 import json
 import logging
 import os.path
-import typing
 import time
 import enum
+import typing
 
 import aiohttp
 import aiohttp.web
 import aiohttp.client_exceptions
 
+from ... import LogObsolete
 from ...abc.service import Service
 from ...config import Config
 from ...exceptions import NotAuthenticatedError, AccessDeniedError
 from ...api.discovery import NotDiscoveredError
 from ...utils import string_to_boolean
-from ...contextvars import Tenant
+from ...contextvars import Tenant, Authz
+from ..websocket import WebSocketFactory
+from .authorization import Authorization
 
 try:
 	import jwcrypto.jwk
@@ -81,23 +84,6 @@ class AuthMode(enum.Enum):
 class AuthService(Service):
 	"""
 	Provides authentication and authorization of incoming requests.
-
-	Configuration:
-		Configuration section: auth
-		Configuration options:
-			public_keys_url:
-				- default: ""
-				- URL containing the authorization server's public JWKey set (usually found at "/.well-known/jwks.json")
-			enabled:
-				- default: "yes"
-				- options: "yes", "no", "mocked"
-				- Switch authentication and authorization on, off or activate mock mode.
-				- In MOCK MODE
-					- no authorization server is needed,
-					- all incoming requests are mock-authorized with pre-defined user info,
-					- custom mock user info can supplied in a JSON file.
-			mock_user_info_path:
-				- default: "/conf/mock-userinfo.json"
 	"""
 
 	_PUBLIC_KEYS_URL_DEFAULT = "http://localhost:3081/.well-known/jwks.json"
@@ -108,6 +94,9 @@ class AuthService(Service):
 
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
+
+		self.IntrospectionUrl = None
+		self.MockUserInfo = None
 
 		enabled = Config.get("auth", "enabled", fallback=True)
 		if enabled == "mock":
@@ -120,7 +109,7 @@ class AuthService(Service):
 		if self.Mode == AuthMode.DISABLED:
 			pass
 		elif self.Mode == AuthMode.MOCK:
-			self.MockUserInfo = self._prepare_mock_user_info()
+			self._prepare_mock_mode()
 		elif jwcrypto is None:
 			raise ModuleNotFoundError(
 				"You are trying to use asab.web.auth module without 'jwcrypto' installed. "
@@ -141,7 +130,30 @@ class AuthService(Service):
 		if self.Mode == AuthMode.ENABLED:
 			self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
 
-	def _prepare_mock_user_info(self):
+		self.Authorizations: typing.Dict[typing.Tuple[str, str], Authorization] = {}
+		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
+
+		# Try to auto-install authorization middleware
+		self._try_auto_install()
+
+
+	async def initialize(self, app):
+		self._check_if_installed()
+
+
+	def _prepare_mock_mode(self):
+		"""
+		Try to set up direct introspection. In not available, set up static mock userinfo.
+		"""
+		introspection_url = Config.get("auth", "introspection_url", fallback=None)
+		if introspection_url is not None:
+			self.IntrospectionUrl = introspection_url
+			L.warning(
+				"AuthService is running in MOCK MODE. Web requests will be authorized with direct introspection "
+				"call to {!r}.".format(self.IntrospectionUrl)
+			)
+			return
+
 		# Load custom user info
 		mock_user_info_path = Config.get("auth", "mock_user_info_path")
 		if os.path.isfile(mock_user_info_path):
@@ -156,12 +168,14 @@ class AuthService(Service):
 		):
 			raise ValueError("User info 'resources' must be an object with string keys and array values.")
 		L.warning(
-			"AuthService is running in MOCK MODE. All web requests will be authorized with mock user info, which "
+			"AuthService is running in MOCK MODE. Web requests will be authorized with mock user info, which "
 			"currently grants access to the following tenants: {}. To customize mock mode authorization (add or "
 			"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
 				list(t for t in user_info.get("resources", {}).keys() if t != "*"),
-				mock_user_info_path))
-		return user_info
+				mock_user_info_path
+			)
+		)
+		self.MockUserInfo = user_info
 
 
 	def is_enabled(self) -> bool:
@@ -173,12 +187,26 @@ class AuthService(Service):
 
 	def install(self, web_container):
 		"""
-		Apply authorization to all web handlers in a web container, according to their arguments and path parameters.
+		Apply authorization to all web handlers in a web container.
 
 		:param web_container: Web container to be protected by authorization.
 		:type web_container: asab.web.WebContainer
 		"""
-		# TODO: Call this automatically if there is only one container
+		web_service = self.App.get_service("asab.WebService")
+
+		# Check that the middleware has not been installed yet
+		for middleware in web_container.WebApp.on_startup:
+			if middleware == self._wrap_handlers:
+				if len(web_service.Containers) == 1:
+					L.warning(
+						"WebContainer has authorization middleware installed already. "
+						"You don't need to call `AuthService.install()` in applications with a single WebContainer; "
+						"it is called automatically at init time."
+					)
+				else:
+					L.warning("WebContainer has authorization middleware installed already.")
+				return
+
 		web_container.WebApp.on_startup.append(self._wrap_handlers)
 
 
@@ -195,84 +223,89 @@ class AuthService(Service):
 		return True
 
 
-	async def get_userinfo_from_id_token(self, bearer_token):
+	async def build_authorization(self, id_token: str) -> Authorization:
 		"""
-		Parse the bearer ID token and extract user info.
+		Build authorization from ID token string.
+
+		:param id_token: Base64-encoded JWToken from Authorization header
+		:return: Valid asab.web.auth.Authorization object
 		"""
-		if not self.is_ready():
-			# Try to load the public keys again
-			if not self.TrustedPublicKeys["keys"]:
-				await self._fetch_public_keys_if_needed()
-			if not self.is_ready():
-				L.error("Cannot authenticate request: Failed to load authorization server's public keys.")
+		if not self.is_enabled():
+			raise ValueError("Cannot build Authorization when AuthService is disabled.")
+
+		# Try if the object already exists
+		authz = self.Authorizations.get(id_token)
+		if authz is not None:
+			try:
+				authz.require_valid()
+			except NotAuthenticatedError as e:
+				del self.Authorizations[id_token]
+				raise e
+			return authz
+
+		# Create a new Authorization object and store it
+		if id_token == "MOCK" and self.Mode == AuthMode.MOCK:
+			authz = Authorization(self, self.MockUserInfo)
+		else:
+			userinfo = await self._get_userinfo_from_id_token(id_token)
+			authz = Authorization(self, userinfo)
+
+		self.Authorizations[id_token] = authz
+		return authz
+
+
+	async def _delete_invalid_authorizations(self, message_name):
+		"""
+		Check for expired Authorization objects and delete them
+		"""
+		# Find expired
+		expired = []
+		for key, authz in self.Authorizations.items():
+			if not authz.is_valid():
+				expired.append(key)
+
+		# Delete expired
+		for key in expired:
+			del self.Authorizations[key]
+
+
+	async def get_bearer_token_from_authorization_header(self, request):
+		"""
+		Validate the Authorizetion header and extract the Bearer token value
+		"""
+		if self.Mode == AuthMode.MOCK:
+			if not self.IntrospectionUrl:
+				return "MOCK"
+
+			# Send the request headers for introspection
+			async with aiohttp.ClientSession() as session:
+				async with session.post(self.IntrospectionUrl, headers=request.headers) as response:
+					if response.status != 200:
+						L.warning("Access token introspection failed.")
+						raise aiohttp.web.HTTPUnauthorized()
+					authorization_header = response.headers.get(aiohttp.hdrs.AUTHORIZATION)
+
+		else:
+			authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
+			if authorization_header is None:
+				L.warning("No Authorization header.")
 				raise aiohttp.web.HTTPUnauthorized()
-
 		try:
-			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
-		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey):
-			# Authz server keys may have changed. Try to reload them.
-			await self._fetch_public_keys_if_needed()
+			auth_type, token_value = authorization_header.split(" ", 1)
+		except ValueError:
+			L.warning("Cannot parse Authorization header.")
+			raise aiohttp.web.HTTPBadRequest()
+		if auth_type != "Bearer":
+			L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
+			raise aiohttp.web.HTTPUnauthorized()
+		return token_value
 
-		try:
-			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
-		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
-			L.error("Cannot authenticate request: {}".format(str(e)))
-			raise NotAuthenticatedError()
-
-
-	def get_authorized_tenant(self, request) -> typing.Optional[str]:
-		"""
-		Get the request's authorized tenant.
-		"""
-		if hasattr(request, "_AuthorizedTenants"):
-			for tenant in request._AuthorizedTenants:
-				# Return the first authorized tenant
-				return tenant
-		return None
-
-
-	def has_superuser_access(self, authorized_resources: typing.Iterable) -> bool:
-		"""
-		Check if the superuser resource is present in the authorized resource list.
-		"""
-		if self.Mode == AuthMode.DISABLED:
-			return True
-		return SUPERUSER_RESOURCE in authorized_resources
-
-
-	def has_resource_access(self, authorized_resources: typing.Iterable, required_resources: typing.Iterable) -> bool:
-		"""
-		Check if the requested resources or the superuser resource are present in the authorized resource list.
-		"""
-		if self.Mode == AuthMode.DISABLED:
-			return True
-		if self.has_superuser_access(authorized_resources):
-			return True
-		for resource in required_resources:
-			if resource not in authorized_resources:
-				return False
-		return True
-
-
-	def has_tenant_access(
-		self, authorized_resources: typing.Iterable, authorized_tenants: typing.Iterable, tenant: str
-	) -> bool:
-		"""
-		Check if the request is authorized to access a tenant.
-		If the request has superuser access, tenant access is always implicitly granted.
-		"""
-		if self.Mode == AuthMode.DISABLED:
-			return True
-		if self.has_superuser_access(authorized_resources):
-			return True
-		if tenant in authorized_tenants:
-			return True
-		return False
 
 	async def _fetch_public_keys_if_needed(self, *args, **kwargs):
 		"""
 		Check if public keys have been fetched from the authorization server and fetch them if not yet.
 		"""
+		# TODO: Refactor into Key Providers
 		# Add internal shared auth key
 		if self.DiscoveryService is not None:
 			if self.DiscoveryService.InternalAuthKey is not None:
@@ -293,6 +326,7 @@ class AuthService(Service):
 			and now < self.AuthServerLastSuccessfulCheck + self.AuthServerCheckCooldown:
 			# Public keys have been fetched recently
 			return
+
 
 		async def fetch_keys(session):
 			try:
@@ -357,49 +391,32 @@ class AuthService(Service):
 		L.debug("Public key loaded.", struct_data={"url": self.PublicKeysUrl})
 
 
-	def _authenticate_request(self, handler):
+	def _authorize_request(self, handler):
 		"""
 		Authenticate the request by the JWT ID token in the Authorization header.
-		Extract the token claims into request attributes so that they can be used for authorization checks.
+		Extract the token claims into Authorization context so that they can be used for authorization checks.
 		"""
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-			if self.Mode == AuthMode.DISABLED:
-				user_info = None
-			elif self.Mode == AuthMode.MOCK:
-				user_info = self.MockUserInfo
-			else:
-				# Extract user info from the request Authorization header
-				bearer_token = _get_bearer_token(request)
-				user_info = await self.get_userinfo_from_id_token(bearer_token)
 
-			# Add userinfo, tenants and global resources to the request
-			if self.Mode != AuthMode.DISABLED:
-				assert user_info is not None
-				request._UserInfo = user_info
-				resource_dict = request._UserInfo["resources"]
-				request._AuthorizedResources = frozenset(resource_dict.get("*", []))
-				request._AuthorizedTenants = frozenset(t for t in resource_dict.keys() if t != "*")
-			else:
-				request._UserInfo = None
-				request._AuthorizedResources = None
-				request._AuthorizedTenants = None
+			if not self.is_enabled():
+				return await handler(*args, **kwargs)
 
-			# Add access control methods to the request
-			def has_resource_access(*required_resources: list) -> bool:
-				return self.has_resource_access(request._AuthorizedResources, required_resources)
-			request.has_resource_access = has_resource_access
+			bearer_token = await self.get_bearer_token_from_authorization_header(request)
+			authz = await self.build_authorization(bearer_token)
 
-			def has_tenant_access(tenant: str) -> bool:
-				return self.has_tenant_access(request._AuthorizedResources, request._AuthorizedTenants, tenant)
-			request.has_tenant_access = has_tenant_access
+			# Authorize tenant context
+			tenant = Tenant.get(None)
+			if tenant is not None:
+				authz.require_tenant_access()
 
-			def has_superuser_access() -> bool:
-				return self.has_superuser_access(request._AuthorizedResources)
-			request.has_superuser_access = has_superuser_access
+			authz_ctx = Authz.set(authz)
+			try:
+				return await handler(*args, **kwargs)
+			finally:
+				Authz.reset(authz_ctx)
 
-			return await handler(*args, **kwargs)
 		return wrapper
 
 
@@ -430,7 +447,7 @@ class AuthService(Service):
 		route_info = route.get_info()
 		tenant_in_path = "formatter" in route_info and "{tenant}" in route_info["formatter"]
 
-		# Extract the actual handler method for signature checks
+		# Extract the actual unwrapped handler method for signature inspection
 		handler_method = route.handler
 		while hasattr(handler_method, "__wrapped__"):
 			# While loop unwraps handlers wrapped in multiple decorators.
@@ -440,129 +457,125 @@ class AuthService(Service):
 		if hasattr(handler_method, "__func__"):
 			handler_method = handler_method.__func__
 
+		is_websocket = isinstance(handler_method, WebSocketFactory)
+
 		if hasattr(handler_method, "NoAuth"):
 			return
 		argspec = inspect.getfullargspec(handler_method)
 		args = set(argspec.kwonlyargs).union(argspec.args)
 
-		# Extract the whole handler for wrapping
+		# Extract the whole handler including its existing decorators and wrappers
 		handler = route.handler
 
-		# Apply the decorators in reverse order (the last applied wrapper affects the request first)
+		# Apply the decorators IN REVERSE ORDER (the last applied wrapper affects the request first)
+
+		# 3) Pass authorization attributes to handler method
 		if "resources" in args:
-			handler = _add_resources(handler)
+			LogObsolete.warning(
+				"The 'resources' argument is deprecated. "
+				"Use the access-checking methods of asab.contextvars.Authz instead.",
+				struct_data={"handler": handler.__qualname__, "eol": "2025-03-01"},
+			)
+			handler = _pass_resources(handler)
 		if "user_info" in args:
-			handler = _add_user_info(handler)
+			LogObsolete.warning(
+				"The 'user_info' argument is deprecated. "
+				"Use the Authorization object in asab.contextvars.Authz instead.",
+				struct_data={"handler": handler.__qualname__, "eol": "2025-03-01"},
+			)
+			handler = _pass_user_info(handler)
 		if "tenant" in args:
-			# TODO: Deprecate tenant ID in path and query, always use X-Tenant header instead.
-			if tenant_in_path:
-				handler = self._add_tenant_from_path(handler)
-			else:
-				handler = self._add_tenant_from_query(handler)
+			handler = _pass_tenant(handler)
+		if "authz" in args:
+			handler = _pass_authz(handler)
 
-		handler = self._set_tenant_context_from_header(handler)
+		# 2) Authenticate and authorize request, authorize tenant from context, set Authorization context
+		handler = self._authorize_request(handler)
 
-		handler = self._authenticate_request(handler)
+		# 1.5) Set tenant context from obsolete locations (no authorization yet)
+		# TODO: Deprecated. Ignore tenant in path and query, always use request headers instead.
+		if tenant_in_path:
+			handler = _set_tenant_context_from_url_path(handler)
+		else:
+			handler = _set_tenant_context_from_url_query(handler)
+
+		# 1) Set tenant context (no authorization yet)
+		# TODO: This should be eventually done by TenantService
+		if is_websocket:
+			handler = _set_tenant_context_from_sec_websocket_protocol_header(handler)
+		else:
+			handler = _set_tenant_context_from_x_tenant_header(handler)
+
 		route._handler = handler
 
 
-	def _authorize_tenant_request(self, request, tenant):
+	async def _get_userinfo_from_id_token(self, bearer_token):
 		"""
-		Check access to requested tenant and add tenant resources to the request
+		Parse the bearer ID token and extract user info.
 		"""
-		# Check if tenant access is authorized
-		if not request.has_tenant_access(tenant):
-			L.warning("Tenant not authorized.", struct_data={"tenant": tenant, "sub": request._UserInfo.get("sub")})
-			raise AccessDeniedError()
+		if not self.is_ready():
+			# Try to load the public keys again
+			if not self.TrustedPublicKeys["keys"]:
+				await self._fetch_public_keys_if_needed()
+			if not self.is_ready():
+				L.error("Cannot authenticate request: Failed to load authorization server's public keys.")
+				raise aiohttp.web.HTTPUnauthorized()
 
-		# Extend globally granted resources with tenant-granted resources
-		request._AuthorizedResources = set(request._AuthorizedResources.union(
-			request._UserInfo["resources"].get(tenant, [])))
+		try:
+			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
+		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey):
+			# Authz server keys may have changed. Try to reload them.
+			await self._fetch_public_keys_if_needed()
+
+		try:
+			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
+		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
+			L.error("Cannot authenticate request: {}".format(str(e)))
+			raise NotAuthenticatedError()
 
 
-	def _set_tenant_context_from_header(self, handler):
+	def _check_if_installed(self):
 		"""
-		Extract tenant from request path and authorize it
+		Check if there is at least one web container with authorization installed
 		"""
+		web_service = self.App.get_service("asab.WebService")
+		if web_service is None or len(web_service.Containers) == 0:
+			L.warning("Authorization is not installed: There are no web containers.")
+			return
 
-		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
-			request = args[-1]
-
-			if request.headers.get("Upgrade") == "websocket":
-				# Get tenant from Sec-Websocket-Protocol header for websocket requests
-				x = request.headers.get("Sec-Websocket-Protocol", "")
-				for i in x.split(", "):
-					i = i.strip()
-					if i.startswith("tenant_"):
-						tenant = i[7:]
-						break
-				else:
-					tenant = None
+		for web_container in web_service.Containers.values():
+			for middleware in web_container.WebApp.on_startup:
+				if middleware == self._wrap_handlers:
+					# Container has authorization installed
+					break
 			else:
-				# Get tenant from X-Tenant header for HTTP requests
-				tenant = request.headers.get("X-Tenant")
+				continue
 
-			if tenant is not None and self.Mode != AuthMode.DISABLED:
-				assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
-				self._authorize_tenant_request(request, tenant)
+			# Container has authorization installed
+			break
 
-			tenant_ctx = Tenant.set(tenant)
-			try:
-				response = await handler(*args, **kwargs)
-			finally:
-				Tenant.reset(tenant_ctx)
-			return response
-
-		return wrapper
+		else:
+			L.warning(
+				"Authorization is not installed in any web container. "
+				"In applications with more than one WebContainer there is no automatic installation; "
+				"you have to call `AuthService.install(web_container)` explicitly."
+			)
+			return
 
 
-
-	def _add_tenant_from_path(self, handler):
+	def _try_auto_install(self):
 		"""
-		Extract tenant from request path and authorize it
+		If there is exactly one web container, install authorization middleware on it.
 		"""
+		web_service = self.App.get_service("asab.WebService")
+		if web_service is None:
+			return
+		if len(web_service.Containers) != 1:
+			return
+		web_container = web_service.WebContainer
 
-		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
-			request = args[-1]
-			tenant_from_header = Tenant.get(None)
-			tenant = request.match_info["tenant"]
-			if tenant_from_header and tenant != tenant_from_header:
-				L.warning("Tenant in path differs from tenant in X-Tenant header.", struct_data={
-					"path": tenant, "header": tenant_from_header})
-
-			if self.Mode != AuthMode.DISABLED:
-				self._authorize_tenant_request(request, tenant)
-
-			return await handler(*args, tenant=tenant, **kwargs)
-
-		return wrapper
-
-
-	def _add_tenant_from_query(self, handler):
-		"""
-		Extract tenant from request query and authorize it
-		"""
-
-		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
-			request = args[-1]
-			tenant_from_header = Tenant.get(None)
-			if "tenant" not in request.query:
-				return await handler(*args, tenant=tenant_from_header, **kwargs)
-
-			tenant = request.query["tenant"]
-			if tenant_from_header and tenant != tenant_from_header:
-				L.warning("Tenant in query differs from tenant in X-Tenant header.", struct_data={
-					"query": tenant, "header": tenant_from_header})
-
-			if self.Mode != AuthMode.DISABLED:
-				self._authorize_tenant_request(request, tenant)
-
-			return await handler(*args, tenant=tenant, **kwargs)
-
-		return wrapper
+		self.install(web_container)
+		L.info("WebContainer authorization installed automatically.")
 
 
 def _get_id_token_claims(bearer_token: str, auth_server_public_key):
@@ -622,42 +635,173 @@ def _get_id_token_claims_without_verification(bearer_token: str):
 	return claims
 
 
-def _get_bearer_token(request):
-	"""
-	Validate the Authorizetion header and extract the Bearer token value
-	"""
-	authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
-	if authorization_header is None:
-		L.warning("No Authorization header.")
-		raise aiohttp.web.HTTPUnauthorized()
-	try:
-		auth_type, token_value = authorization_header.split(" ", 1)
-	except ValueError:
-		L.warning("Cannot parse Authorization header.")
-		raise aiohttp.web.HTTPBadRequest()
-	if auth_type != "Bearer":
-		L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
-		raise aiohttp.web.HTTPUnauthorized()
-	return token_value
-
-
-def _add_user_info(handler):
+def _pass_user_info(handler):
 	"""
 	Add user info to the handler arguments
 	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
-		request = args[-1]
-		return await handler(*args, user_info=request._UserInfo, **kwargs)
+		authz = Authz.get(None)
+		return await handler(*args, user_info=authz.user_info() if authz is not None else None, **kwargs)
 	return wrapper
 
 
-def _add_resources(handler):
+def _pass_resources(handler):
 	"""
 	Add resources to the handler arguments
 	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
+		authz = Authz.get(None)
+		return await handler(*args, resources=authz.authorized_resources() if authz is not None else None, **kwargs)
+	return wrapper
+
+
+def _pass_tenant(handler):
+	"""
+	Add tenant to the handler arguments
+	"""
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
+		return await handler(*args, tenant=Tenant.get(None), **kwargs)
+	return wrapper
+
+
+def _pass_authz(handler):
+	"""
+	Add Auhorization object to the handler arguments
+	"""
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
+		authz = Authz.get(None)
+		return await handler(*args, authz=authz, **kwargs)
+	return wrapper
+
+
+def _set_tenant_context_from_x_tenant_header(handler):
+	"""
+	Extract tenant from X-Tenant header and add it to context
+	"""
+	def get_tenant_from_header(request) -> str:
+		# Get tenant from X-Tenant header for HTTP requests
+		return request.headers.get("X-Tenant")
+
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
 		request = args[-1]
-		return await handler(*args, resources=request._AuthorizedResources, **kwargs)
+		tenant = get_tenant_from_header(request)
+
+		if tenant is None:
+			response = await handler(*args, **kwargs)
+		else:
+			assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
+			tenant_ctx = Tenant.set(tenant)
+			try:
+				response = await handler(*args, **kwargs)
+			finally:
+				Tenant.reset(tenant_ctx)
+
+		return response
+
+	return wrapper
+
+
+def _set_tenant_context_from_sec_websocket_protocol_header(handler):
+	"""
+	Extract tenant from Sec-Websocket-Protocol header and add it to context
+	"""
+	def get_tenant_from_header(request) -> str:
+		# Get tenant from Sec-Websocket-Protocol header for websocket requests
+		protocols = request.headers.get("Sec-Websocket-Protocol", "")
+		for protocol in protocols.split(", "):
+			protocol = protocol.strip()
+			if protocol.startswith("tenant_"):
+				return protocol[7:]
+		else:
+			return None
+
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
+		request = args[-1]
+		tenant = get_tenant_from_header(request)
+
+		if tenant is None:
+			response = await handler(*args, **kwargs)
+		else:
+			assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
+			tenant_ctx = Tenant.set(tenant)
+			try:
+				response = await handler(*args, **kwargs)
+			finally:
+				Tenant.reset(tenant_ctx)
+
+		return response
+
+	return wrapper
+
+
+def _set_tenant_context_from_url_query(handler):
+	"""
+	Extract tenant from request query and add it to context
+	"""
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
+		request = args[-1]
+		header_tenant = Tenant.get(None)
+		tenant = request.query.get("tenant")
+
+		if tenant is None:
+			# No tenant in query
+			response = await handler(*args, **kwargs)
+		elif header_tenant is not None:
+			# Tenant from header must not be overwritten by a different tenant in query!
+			if tenant != header_tenant:
+				L.error("Tenant from URL query does not match tenant from header.", struct_data={
+					"header_tenant": header_tenant, "query_tenant": tenant})
+				raise AccessDeniedError()
+			# Tenant in query matches tenant in header
+			response = await handler(*args, **kwargs)
+		else:
+			# No tenant in header, only in query
+			assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
+			tenant_ctx = Tenant.set(tenant)
+			try:
+				response = await handler(*args, **kwargs)
+			finally:
+				Tenant.reset(tenant_ctx)
+
+		return response
+
+	return wrapper
+
+
+def _set_tenant_context_from_url_path(handler):
+	"""
+	Extract tenant from request URL path and add it to context
+	"""
+	@functools.wraps(handler)
+	async def wrapper(*args, **kwargs):
+		request = args[-1]
+		header_tenant = Tenant.get(None)
+		tenant = request.match_info.get("tenant")
+
+		if header_tenant is not None:
+			# Tenant from header must not be overwritten by a different tenant in path!
+			if tenant != header_tenant:
+				L.error("Tenant from URL path does not match tenant from header.", struct_data={
+					"header_tenant": header_tenant, "path_tenant": tenant})
+				raise AccessDeniedError()
+			# Tenant in path matches tenant in header
+			response = await handler(*args, **kwargs)
+		else:
+			# No tenant in header, only in path
+			assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
+			tenant_ctx = Tenant.set(tenant)
+			try:
+				response = await handler(*args, **kwargs)
+			finally:
+				Tenant.reset(tenant_ctx)
+
+		return response
+
 	return wrapper

@@ -20,7 +20,7 @@ except ModuleNotFoundError:
 	jwcrypto = None
 
 from .. import Service
-from ..contextvars import Tenant
+from ..contextvars import Tenant, Request, Authz
 
 
 L = logging.getLogger(__name__)
@@ -401,19 +401,33 @@ class DiscoveryService(Service):
 				...
 		"""
 		_headers = {}
-		if isinstance(auth, aiohttp.web.Request):
-			# TODO: This should be the default option. Use contextvar to access the request.
+
+		if auth is None:
+			# By default, use the authorization from the incoming request
+			request = Request.get(None)
+			if request is not None and "Authorization" in request.headers:
+				_headers["Authorization"] = request.headers["Authorization"]
+
+		elif isinstance(auth, aiohttp.web.Request):
 			assert "Authorization" in auth.headers
-			_headers["Authorization"] = auth.headers.get("Authorization")
+			_headers["Authorization"] = auth.headers["Authorization"]
+
 		elif auth == "internal":
 			if jwcrypto is None:
 				raise ModuleNotFoundError(
 					"You are trying to use internal auth without 'jwcrypto' installed. "
 					"Please run 'pip install jwcrypto' or install asab with 'authz' optional dependency."
 				)
+
+			authz = Authz.get(None)
+			if authz is not None:
+				L.warning(
+					"Using internal (superuser) authorization in an already authorized context. "
+					"This is potentially unwanted and dangerous.",
+				)
+
 			_headers["Authorization"] = "Bearer {}".format(self.InternalAuthToken.serialize())
-		elif auth is None:
-			pass
+
 		else:
 			raise ValueError(
 				"Invalid 'auth' value. "

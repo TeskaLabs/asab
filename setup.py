@@ -62,10 +62,10 @@ setup(
 	platforms='any',
 	classifiers=[
 		'Development Status :: 5 - Production/Stable',
-		'Programming Language :: Python :: 3.8',
 		'Programming Language :: Python :: 3.9',
 		'Programming Language :: Python :: 3.10',
 		'Programming Language :: Python :: 3.11',
+		'Programming Language :: Python :: 3.12',
 	],
 	keywords='asyncio',
 	packages=find_packages(exclude=['module_sample']),
@@ -76,7 +76,7 @@ setup(
 		'aiohttp>=3.8.3,<4',
 		'fastjsonschema>=2.16.2,<3',
 		'kazoo>=2.9.0,<3',
-		'PyYAML>=6.0,<7'
+		'PyYAML>=6.0,<7',
 	],
 	extras_require={
 		'git': 'pygit2<1.12',  # For Alpine 3.16 / Python 3.10, use pygit2>=1.9,<1.10
