@@ -342,16 +342,26 @@ class LibraryService(Service):
 				# Check if the item already exists
 				pitem = unique_items.get(item.name)
 				if pitem is not None:
+					# Handle directory merging
 					if pitem.type == 'dir' and item.type == 'dir':
-						# Merge directory contents
+						# Merge providers for the same directory
 						pitem.providers.extend(item.providers)
+
+					# Add items to an existing directory
 					elif pitem.type == 'dir' and item.type == 'item':
-						# Treat folder and its item as separate, but associated
 						items.append(item)
+
+					# Ignore a directory from a lower-priority layer if the path is already an item
 					elif pitem.type == 'item' and item.type == 'dir':
-						# Convert the item to a directory if necessary
-						pitem.type = 'dir'
-						pitem.providers.extend(item.providers)
+						# No warning or logging; silently ignore the directory.
+						continue
+
+					# If both are items, apply layer precedence
+					elif pitem.type == 'item' and item.type == 'item':
+						if pitem.layer > layer:
+							# Replace the item with the one from a higher-priority layer
+							item.layer = layer
+							unique_items[item.name] = item
 				else:
 					# New item, assign its layer and add it
 					item.layer = layer
@@ -361,6 +371,7 @@ class LibraryService(Service):
 		# Sort items by name
 		items.sort(key=lambda x: x.name)
 		return items
+
 
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
