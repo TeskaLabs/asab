@@ -308,10 +308,21 @@ class LibraryService(Service):
 		return items
 
 	async def _list(self, path, providers):
-		items: list[LibraryItem] = []
-		unique_items: dict[str, LibraryItem] = dict()
+		"""
+		Lists items from all providers and applies layer precedence,
+		ensuring that folders aggregate their contents across layers.
 
-		# List items from every provider concurrently, while tracking their layers
+		Args:
+			path (str): The path to list items from.
+			providers (list): A list of providers to query.
+
+		Returns:
+			list: A sorted list of unique LibraryItem objects.
+		"""
+		items: list[LibraryItem] = []
+		unique_items: dict[str, LibraryItem] = {}
+
+		# List items from every provider concurrently
 		tasks = [(layer, asyncio.create_task(provider.list(path))) for layer, provider in enumerate(providers)]
 
 		# Process tasks as they complete, ensuring layer precedence is correctly applied
@@ -328,19 +339,19 @@ class LibraryService(Service):
 			for item in items_list_from_provider:
 				item.disabled = self.check_disabled(item.name)
 
-				# If the item already exists, apply layer precedence
+				# Check if the item already exists
 				pitem = unique_items.get(item.name)
 				if pitem is not None:
-					# If the existing item is from a lower-priority (higher layer number), replace it
-					if pitem.layer > layer:
-						item.layer = layer
-						unique_items[item.name] = item
-
-						# Update the existing item in items
-						for i, existing_item in enumerate(items):
-							if existing_item.name == item.name:
-								items[i] = item  # Replace the overridden item
-								break
+					if pitem.type == 'dir' and item.type == 'dir':
+						# Merge directory contents
+						pitem.providers.extend(item.providers)
+					elif pitem.type == 'dir' and item.type == 'item':
+						# Treat folder and its item as separate, but associated
+						items.append(item)
+					elif pitem.type == 'item' and item.type == 'dir':
+						# Convert the item to a directory if necessary
+						pitem.type = 'dir'
+						pitem.providers.extend(item.providers)
 				else:
 					# New item, assign its layer and add it
 					item.layer = layer
