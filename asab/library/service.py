@@ -333,8 +333,14 @@ class LibraryService(Service):
 				if pitem is not None:
 					# If the existing item is from a lower-priority (higher layer number), replace it
 					if pitem.layer > layer:
-						item.layer = layer  # Ensure item gets the correct layer number
+						item.layer = layer
 						unique_items[item.name] = item
+
+						# Update the existing item in items
+						for i, existing_item in enumerate(items):
+							if existing_item.name == item.name:
+								items[i] = item  # Replace the overridden item
+								break
 				else:
 					# New item, assign its layer and add it
 					item.layer = layer
