@@ -86,7 +86,8 @@ See [examples/web-auth.py](https://github.com/TeskaLabs/asab/blob/master/example
 
 ## Multitenancy
 
-If your web container runs in multi-tenant mode, AuthService will ensure the authorization of requested tenants.
+If your web container runs in multi-tenant mode, AuthService will ensure the authorization of tenant context.
+Read more in the [Multitenancy chapter](./multitenancy).
 
 
 ## Configuration
