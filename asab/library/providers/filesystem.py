@@ -33,10 +33,12 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		super().__init__(library, layer)
 		# Parse file:// URI if present
-		if path.startswith('file://'):
+		if path.startswith('file:///'):
 			parsed_uri = urllib.parse.urlparse(path)
-			# Combine netloc and path to get the full path
-			path = os.path.join(parsed_uri.netloc, parsed_uri.path)
+			# Extract the absolute path directly
+			path = parsed_uri.path
+		elif path.startswith('file://'):
+			raise ValueError("Invalid file URL: Only 'file:///' absolute paths are supported")
 		self.BasePath = os.path.abspath(path)
 		while self.BasePath.endswith("/"):
 			self.BasePath = self.BasePath[:-1]
