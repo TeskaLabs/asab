@@ -7,7 +7,8 @@ meaning that your application can be used by a number of independent subjects
 
 ## Tenant-aware web application
 
-To set up an application with multi-tenant web interface, create an application with a web server and initialize `asab.web.tenant.TenantService`:
+To set up an application with multi-tenant web interface, create an application with a web server and initialize `asab.web.tenant.TenantService`.
+Tenant service automatically tries to install tenant context wrapper to your web handlers, which enables you to access the request's tenant context using `asab.contextvars.Tenant.get()`.
 
 ```python
 import asab
@@ -26,7 +27,10 @@ class MyApplication(asab.Application):
 		self.TenantService = asab.web.tenant.TenantService(self)
 ```
 
-Tenant service automatically tries to install tenant context wrapper to your web handlers, which enables you to access the request's tenant context using `asab.contextvars.Tenant.get()`.
+!!! note
+
+	If your app has more than one web container, you will need to call `TenantService.install(web_container)` to apply the tenant context wrapper.
+
 This also adds the requirement for `tenant` parameter in the URL of every request - either in the path or in the query.
 
 
