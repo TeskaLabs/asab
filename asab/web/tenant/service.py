@@ -29,6 +29,14 @@ class TenantService(Service):
 	"""
 
 	def __init__(self, app, service_name: str = "asab.TenantService", set_up_web_wrapper: bool = True):
+		"""
+		Initialize and register a new TenantService.
+
+		Args:
+			app: ASAB application.
+			service_name: ASAB service identifier.
+			set_up_web_wrapper: Whether to automatically install tenant context wrapper to WebContainer.
+		"""
 		super().__init__(app, service_name)
 		self.App = app
 		self.Providers = set()

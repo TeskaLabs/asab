@@ -1,14 +1,10 @@
-# Authorization and multitenancy
+# Authorization
 
 The `asab.web.auth` module provides [authentication](https://en.wikipedia.org/wiki/Authentication) and
 [authorization](https://en.wikipedia.org/wiki/Authorization) of incoming requests.
 This enables your application to differentiate between users,
 grant or deny them API access depending on their permissions, and work
 with other relevant user data.
-
-The module also implements [multitenancy](https://en.wikipedia.org/wiki/Multitenancy),
-meaning that your application can be used by a number of independent subjects
-(tenants, for example companies) without interfering with each other.
 
 The `auth` module requires an authorization server to function.
 It works best with TeskaLabs [Seacat Auth](https://github.com/TeskaLabs/seacat-auth)
@@ -88,6 +84,11 @@ async def order_breakfast(request):
 See [examples/web-auth.py](https://github.com/TeskaLabs/asab/blob/master/examples/web-auth.py) for a full demo ASAB application with auth module.
 
 
+## Multitenancy
+
+If your web container runs in multi-tenant mode, AuthService will ensure the authorization of requested tenants.
+
+
 ## Configuration
 
 The `asab.web.auth` module is configured
@@ -95,7 +96,7 @@ in the `[auth]` section with the following options:
 
 | Option | Type | Meaning |
 | --- | --- | --- |
-| `public_keys_url` | URL | The URL of the authorization server's public keys (also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)) |
+| `public_keys_url` | URL | The URL of the authorization server's public keys (also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2) |
 | `enabled` | boolean or `"mock"` | Enables or disables authentication and authorization or switches to mock authorization. In mock mode, all incoming requests are authorized with mock user info. There is no communication with the authorization server (so it is not necessary to configure `public_keys_url` in dev mode). |
 | `mock_user_info_path` | path | Path to JSON file that contains user info claims used in mock mode. The structure of user info should follow the [OpenID Connect userinfo definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse) and also contain the `resources` object. |
 
@@ -106,42 +107,6 @@ public_keys_url=http://localhost:3081/.well-known/jwks.json
 enabled=yes
 mock_user_info_path=/conf/mock-userinfo.json
 ```
-
-
-## Multitenancy
-
-Incoming request can specify tenant context using `X-Tenant` HTTP header. 
-If this header is not empty, `AuthService` extracts the tenant ID and verifies if the request is authorized 
-to access that tenant.
-The request tenant can easily be accessed using `asab.contextvars.Tenant.get()`.
-
-```python
-import asab.contextvars
-import asab.web.rest
-
-...
-
-async def get_todays_menu(request):
-    tenant = asab.contextvars.Tenant.get()
-    menu = await get_todays_menu(tenant)
-    return asab.web.rest.json_response(request, data=menu)
-```
-
-
-## Mock mode
-
-In mock mode, actual authorization is disabled and replaced with mock authorization, which is useful when you want 
-to develop your ASAB application, but don't have any authorization server at hand. 
-Activate mock mode by setting `enabled=mock` in the `[auth]` config section.
-You can also specify a path to a JSON file with your own mock userinfo payload `[auth] mock_user_info_path`:
-
-``` ini
-[auth]
-enabled=mock
-mock_user_info_path=${THIS_DIR}/mock_userinfo.json
-```
-
-When dev mode is enabled, you don't have to provide `[public_keys_url]` since this option is ignored.
 
 
 ## Reference
