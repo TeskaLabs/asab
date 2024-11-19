@@ -24,6 +24,9 @@ Config.add_defaults({
 
 
 class TenantService(Service):
+	"""
+	Provides set of known tenants and tenant extraction for web requests.
+	"""
 
 	def __init__(self, app, service_name: str = "asab.TenantService", set_up_web_wrapper: bool = True):
 		super().__init__(app, service_name)
