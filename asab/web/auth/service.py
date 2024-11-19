@@ -7,7 +7,6 @@ import json
 import logging
 import os.path
 import time
-import enum
 import typing
 
 import aiohttp
