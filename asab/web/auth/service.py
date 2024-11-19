@@ -72,9 +72,6 @@ MOCK_USERINFO_DEFAULT = {
 }
 
 
-SUPERUSER_RESOURCE = "authz:superuser"
-
-
 class AuthService(Service):
 	"""
 	Provides authentication and authorization of incoming requests.
