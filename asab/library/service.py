@@ -322,6 +322,27 @@ class LibraryService(Service):
 		items: list[LibraryItem] = []
 		unique_items: dict[str, LibraryItem] = {}
 
+		def ensure_parent_directories(item, layer):
+			"""
+			Ensures all parent directories of the given item exist in unique_items
+			and have the same layer as the item.
+			Args:
+				item (LibraryItem): The item whose parent directories need to be added.
+				layer (int): The layer associated with the item.
+			"""
+			parent_path = os.path.dirname(item.name)
+			while parent_path and parent_path != '/':
+				pitem = unique_items.get(parent_path)
+				if pitem is None:
+					# Add a new directory for the parent path
+					parent_dir = LibraryItem(name=parent_path, type='dir', layer=layer, providers=[])
+					unique_items[parent_path] = parent_dir
+					items.append(parent_dir)
+				elif pitem.layer > layer:
+					# Update the layer if the parent already exists but has a lower precedence
+					pitem.layer = layer
+				parent_path = os.path.dirname(parent_path)
+
 		# List items from every provider concurrently
 		tasks = [(layer, asyncio.create_task(provider.list(path))) for layer, provider in enumerate(providers)]
 
@@ -339,6 +360,10 @@ class LibraryService(Service):
 			for item in items_list_from_provider:
 				item.disabled = self.check_disabled(item.name)
 
+				# Ensure parent directories are added with the correct layer
+				if item.type == 'item':
+					ensure_parent_directories(item, layer)
+
 				# Check if the item already exists
 				pitem = unique_items.get(item.name)
 				if pitem is not None:
@@ -350,11 +375,6 @@ class LibraryService(Service):
 					# Add items to an existing directory
 					elif pitem.type == 'dir' and item.type == 'item':
 						items.append(item)
-
-					# Ignore a directory from a lower-priority layer if the path is already an item
-					elif pitem.type == 'item' and item.type == 'dir':
-						# No warning or logging; silently ignore the directory.
-						continue
 
 					# If both are items, apply layer precedence
 					elif pitem.type == 'item' and item.type == 'item':
@@ -371,7 +391,6 @@ class LibraryService(Service):
 		# Sort items by name
 		items.sort(key=lambda x: x.name)
 		return items
-
 
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
