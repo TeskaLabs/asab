@@ -132,6 +132,21 @@ class AuthService(Service):
 		self._try_auto_install()
 
 
+	def get_authorized_tenant(self, request=None) -> typing.Optional[str]:
+		"""
+		DEPRECATED. Get the request's authorized tenant.
+		"""
+		authz = Authz.get()
+		resources = authz._UserInfo.get("resources", {})
+		for tenant in resources.keys():
+			if tenant == "*":
+				continue
+			# Return the first authorized tenant
+			return tenant
+
+		return None
+
+
 	async def initialize(self, app):
 		self._check_if_installed()
 
