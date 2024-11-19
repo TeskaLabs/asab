@@ -4,12 +4,12 @@ import time
 import os.path
 import typing
 import tarfile
+import asyncio
 import logging
 import tempfile
 import functools
 import configparser
 import contextlib
-import asyncio
 
 import yaml
 
@@ -310,7 +310,7 @@ class LibraryService(Service):
 	async def _list(self, path, providers):
 		"""
 		Lists items from all providers and applies layer precedence,
-		ensuring that folders aggregate their contents across layers.
+		ensuring that layers are tracked accurately for each item.
 
 		Args:
 			path (str): The path to list items from.
@@ -322,28 +322,7 @@ class LibraryService(Service):
 		items: list[LibraryItem] = []
 		unique_items: dict[str, LibraryItem] = {}
 
-		def ensure_parent_directories(item, layer):
-			"""
-			Ensures all parent directories of the given item exist in unique_items
-			and have the same layer as the item.
-			Args:
-				item (LibraryItem): The item whose parent directories need to be added.
-				layer (int): The layer associated with the item.
-			"""
-			parent_path = os.path.dirname(item.name)
-			while parent_path and parent_path != '/':
-				pitem = unique_items.get(parent_path)
-				if pitem is None:
-					# Add a new directory for the parent path
-					parent_dir = LibraryItem(name=parent_path, type='dir', layer=layer, providers=[])
-					unique_items[parent_path] = parent_dir
-					items.append(parent_dir)
-				elif pitem.layer > layer:
-					# Update the layer if the parent already exists but has a lower precedence
-					pitem.layer = layer
-				parent_path = os.path.dirname(parent_path)
-
-		# List items from every provider concurrently
+		# List items from every provider concurrently, while tracking their layers
 		tasks = [(layer, asyncio.create_task(provider.list(path))) for layer, provider in enumerate(providers)]
 
 		# Process tasks as they complete, ensuring layer precedence is correctly applied
@@ -360,31 +339,23 @@ class LibraryService(Service):
 			for item in items_list_from_provider:
 				item.disabled = self.check_disabled(item.name)
 
-				# Ensure parent directories are added with the correct layer
-				if item.type == 'item':
-					ensure_parent_directories(item, layer)
-
 				# Check if the item already exists
 				pitem = unique_items.get(item.name)
+
 				if pitem is not None:
-					# Handle directory merging
-					if pitem.type == 'dir' and item.type == 'dir':
-						# Merge providers for the same directory
+					# Merge directories (if both are 'dir')
+					if pitem.type == "dir" and item.type == "dir":
+						# Merge providers for the directory
 						pitem.providers.extend(item.providers)
 
-					# Add items to an existing directory
-					elif pitem.type == 'dir' and item.type == 'item':
-						items.append(item)
+					# Replace lower-priority items
+					elif pitem.type == item.type and item.layer < pitem.layer:
+						# Replace with the higher-priority item
+						unique_items[item.name] = item
+						items = [unique_items[x.name] if x.name == item.name else x for x in items]
 
-					# If both are items, apply layer precedence
-					elif pitem.type == 'item' and item.type == 'item':
-						if pitem.layer > layer:
-							# Replace the item with the one from a higher-priority layer
-							item.layer = layer
-							unique_items[item.name] = item
 				else:
-					# New item, assign its layer and add it
-					item.layer = layer
+					# New item: Assign it to unique_items
 					unique_items[item.name] = item
 					items.append(item)
 
