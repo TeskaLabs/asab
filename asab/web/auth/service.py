@@ -771,7 +771,7 @@ def _set_tenant_context_from_url_query(handler):
 			response = await handler(*args, **kwargs)
 		elif header_tenant is not None:
 			# Tenant from header must not be overwritten by a different tenant in query!
-			if tenant != header_tenant and not authz.is_superuser():
+			if tenant != header_tenant and not authz.has_superuser_access():
 				L.error("Tenant from URL query does not match tenant from header.", struct_data={
 					"header_tenant": header_tenant, "query_tenant": tenant})
 				raise AccessDeniedError()
@@ -804,7 +804,7 @@ def _set_tenant_context_from_url_path(handler):
 
 		if header_tenant is not None:
 			# Tenant from header must not be overwritten by a different tenant in path!
-			if tenant != header_tenant and not authz.is_superuser():
+			if tenant != header_tenant and not authz.has_superuser_access():
 				L.error("Tenant from URL path does not match tenant from header.", struct_data={
 					"header_tenant": header_tenant, "path_tenant": tenant})
 				raise AccessDeniedError()
