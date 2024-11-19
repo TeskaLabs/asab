@@ -21,7 +21,7 @@ from ...exceptions import NotAuthenticatedError
 from ...api.discovery import NotDiscoveredError
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
-from ..tenant.middleware import set_up_tenant_context_wrapper
+from ..tenant.utils import set_up_tenant_web_wrapper
 from .authorization import Authorization
 
 try:
@@ -195,7 +195,7 @@ class AuthService(Service):
 
 		# Check that the middleware has not been installed yet
 		for middleware in web_container.WebApp.on_startup:
-			if middleware == self.set_up_auth_context_wrapper:
+			if middleware == self.set_up_auth_web_wrapper:
 				if len(web_service.Containers) == 1:
 					L.warning(
 						"WebContainer has authorization middleware installed already. "
@@ -208,10 +208,10 @@ class AuthService(Service):
 
 		# TODO: Auth wrapper must be applied BEFORE tenant wrapper (so that auth is processed AFTER tenant).
 		try:
-			tenant_middleware_idx = web_container.WebApp.on_startup.index(set_up_tenant_context_wrapper)
-			web_container.WebApp.on_startup.insert(tenant_middleware_idx, self.set_up_auth_context_wrapper)
+			tenant_middleware_idx = web_container.WebApp.on_startup.index(set_up_tenant_web_wrapper)
+			web_container.WebApp.on_startup.insert(tenant_middleware_idx, self.set_up_auth_web_wrapper)
 		except ValueError:
-			web_container.WebApp.on_startup.append(self.set_up_auth_context_wrapper)
+			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
 
 
 	def is_ready(self):
@@ -421,7 +421,7 @@ class AuthService(Service):
 		return wrapper
 
 
-	async def set_up_auth_context_wrapper(self, aiohttp_app: aiohttp.web.Application):
+	async def set_up_auth_web_wrapper(self, aiohttp_app: aiohttp.web.Application):
 		"""
 		Inspect all registered handlers and wrap them in decorators according to their parameters.
 		"""
@@ -525,11 +525,11 @@ class AuthService(Service):
 			return
 
 		for web_container in web_service.Containers.values():
-			auth_wrapper_idx = web_container.WebApp.on_startup.index(self.set_up_auth_context_wrapper)
+			auth_wrapper_idx = web_container.WebApp.on_startup.index(self.set_up_auth_web_wrapper)
 			if auth_wrapper_idx is not None:
 				# Container has authorization installed
 				# Ensure the wrappers are applied in the correct order
-				tenant_wrapper_idx = web_container.WebApp.on_startup.index(set_up_tenant_context_wrapper)
+				tenant_wrapper_idx = web_container.WebApp.on_startup.index(set_up_tenant_web_wrapper)
 				if tenant_wrapper_idx is not None and auth_wrapper_idx > tenant_wrapper_idx:
 					raise Exception("TenantService.install() must be called before AuthService.install()")
 				break

@@ -1,5 +1,5 @@
 from .service import TenantService
-from .middleware import allow_no_tenant
+from .decorator import allow_no_tenant
 
 
 __all__ = (

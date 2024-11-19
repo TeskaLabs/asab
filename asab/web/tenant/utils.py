@@ -1,31 +1,12 @@
-import functools
 import inspect
+import functools
 import aiohttp.web
 
 from ...contextvars import Tenant
 from ...exceptions import ValidationError
 
 
-def allow_no_tenant(handler):
-	"""
-	Allow receiving requests without tenant parameter.
-
-	Args:
-		handler: Web handler method
-
-	Returns:
-		Wrapped web handler that allows requests with undefined tenant.
-	"""
-	handler.AllowNoTenant = True
-
-	@functools.wraps(handler)
-	async def wrapper(*args, **kargs):
-		return await handler(*args, **kargs)
-
-	return wrapper
-
-
-async def set_up_tenant_context_wrapper(aiohttp_app: aiohttp.web.Application):
+async def set_up_tenant_web_wrapper(aiohttp_app: aiohttp.web.Application):
 	"""
 	Inspect all registered handlers and wrap them in decorators according to their parameters.
 	"""

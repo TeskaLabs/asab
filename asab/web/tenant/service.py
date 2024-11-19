@@ -3,7 +3,7 @@ import typing
 
 from ...abc.service import Service
 from ...config import Config
-from .middleware import set_up_tenant_context_wrapper
+from .utils import set_up_tenant_web_wrapper
 
 #
 
@@ -50,13 +50,18 @@ class TenantService(Service):
 
 
 	async def initialize(self, app):
-		self._check_if_installed()
 		for provider in self.Providers:
 			await provider.initialize(app)
 
 
 	@property
 	def Tenants(self) -> typing.Set[str]:
+		"""
+		Get the set of known tenant IDs.
+
+		Returns:
+			The set of known tenant IDs.
+		"""
 		tenants = set()
 		for provider in self.Providers:
 			tenants.update(provider.Tenants)
@@ -65,10 +70,25 @@ class TenantService(Service):
 
 
 	def get_tenants(self) -> typing.Set[str]:
+		"""
+		Get the set of known tenant IDs.
+
+		Returns:
+			The set of known tenant IDs.
+		"""
 		return self.Tenants
 
 
 	def is_tenant_known(self, tenant: str) -> bool:
+		"""
+		Check if the tenant is among known tenants.
+
+		Args:
+			tenant: Tenant ID to check.
+
+		Returns:
+			Whether the tenant is known.
+		"""
 		return tenant in self.Tenants
 
 
@@ -83,7 +103,7 @@ class TenantService(Service):
 
 		# Check that the middleware has not been installed yet
 		for middleware in web_container.WebApp.on_startup:
-			if middleware == set_up_tenant_context_wrapper:
+			if middleware == set_up_tenant_web_wrapper:
 				if len(web_service.Containers) == 1:
 					L.warning(
 						"WebContainer has tenant middleware installed already. "
@@ -94,7 +114,7 @@ class TenantService(Service):
 					L.warning("WebContainer has tenant middleware installed already.")
 				return
 
-		web_container.WebApp.on_startup.append(set_up_tenant_context_wrapper)
+		web_container.WebApp.on_startup.append(set_up_tenant_web_wrapper)
 
 
 	def _try_auto_install(self):
@@ -110,32 +130,3 @@ class TenantService(Service):
 
 		self.install(web_container)
 		L.info("WebContainer tenant context wrapper installed automatically.")
-
-
-	def _check_if_installed(self):
-		"""
-		Check if there is at least one web container with tenant middleware installed
-		"""
-		web_service = self.App.get_service("asab.WebService")
-		if web_service is None or len(web_service.Containers) == 0:
-			L.warning("Tenant middleware is not installed: There are no web containers.")
-			return
-
-		for web_container in web_service.Containers.values():
-			for middleware in web_container.WebApp.on_startup:
-				if middleware == set_up_tenant_context_wrapper:
-					# Container has tenant middleware installed
-					break
-			else:
-				continue
-
-			# Container has tenant middleware installed
-			break
-
-		else:
-			L.warning(
-				"Tenant middleware is not installed in any web container. "
-				"In applications with more than one WebContainer there is no automatic installation; "
-				"you have to call `TenantService.install(web_container)` explicitly."
-			)
-			return
