@@ -5,9 +5,9 @@ meaning that your application can be used by a number of independent subjects
 (tenants, for example companies) without interfering with each other.
 
 
-## Tenant-aware web application
+## Getting started
 
-To set up an application with multi-tenant web interface, create an application with a web server and initialize `asab.web.tenant.TenantService`.
+To set up an **application with multi-tenant web interface**, create an application with a web server and initialize `asab.web.tenant.TenantService`.
 Tenant service automatically tries to install tenant context wrapper to your web handlers, which enables you to access the request's tenant context using `asab.contextvars.Tenant.get()`.
 
 ```python
@@ -59,13 +59,13 @@ class NotesApplication(asab.Application):
 
 !!! note
 
-	It is a good practice to have the tenant as the first component of the URL path if possible.
+	It is a good practice to have `tenant` as the first component of the URL path if possible.
 
 
 ### Mandatory tenant in query
 
-When the tenant context is mandatory for your endpoint, but it is not feasible to have the tenant parameter hard-baked into the path, define your endpoint path without the `tenant` parameter in path.
-The handler with require the `tenant` parameter to be present in the URL query.
+When the tenant context is mandatory for your endpoint, but it is not feasible to have the tenant parameter hard-baked into the path, define your endpoint path without the `tenant` path parameter.
+The handler with require `tenant` to be present in the URL query.
 Requests without the required parameter will result in `asab.exceptions.ValidationError` (HTTP 400).
 
 ```python
@@ -90,8 +90,8 @@ class NotesApplication(asab.Application):
 
 ### Optional tenant in query
 
-When the **tenant context is optional** for your endpoint (or when the endpoint does not use tenants at all), define your endpoint path without the `tenant` parameter in path and decorate the method handler with `@asab.web.tenant.allow_no_tenant`.
-Requests without the required parameter will have their tenant context set to `None`.
+When the **tenant context is optional** for your endpoint (or when the endpoint does not use tenants at all), define its path without the `tenant` parameter in path and decorate the method handler with `@asab.web.tenant.allow_no_tenant`.
+Requests without the `tenant` parameter will have their Tenant context set to `None`.
 
 ```python
 import asab
