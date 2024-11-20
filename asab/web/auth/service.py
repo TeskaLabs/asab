@@ -692,7 +692,7 @@ def _set_tenant_context_from_url_query(handler):
 		request = args[-1]
 		tenant = request.query.get("tenant", None)
 
-		assert tenant is not None or len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
+		assert tenant is None or len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
 		tenant_ctx = Tenant.set(tenant)
 		try:
 			response = await handler(*args, **kwargs)
