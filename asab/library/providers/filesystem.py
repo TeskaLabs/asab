@@ -6,7 +6,6 @@ import glob
 import struct
 import typing
 import logging
-import urllib.parse
 
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
@@ -47,8 +46,8 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			# For non-URI paths, resolve as usual
 			path = os.path.abspath(path)
 
-		# Normalize the base path
-		self.BasePath = path.rstrip("/")  # Removes trailing slashes
+		while self.BasePath.endswith("/"):
+			self.BasePath = self.BasePath[:-1]
 
 		L.info("is connected.", struct_data={'path': path})
 		# Filesystem is always ready (or you have a serious problem)
