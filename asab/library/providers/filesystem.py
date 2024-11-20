@@ -49,7 +49,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		# Normalize the base path
 		self.BasePath = path.rstrip("/")  # Removes trailing slashes
-		print(self.BasePath)
 
 		L.info("is connected.", struct_data={'path': path})
 		# Filesystem is always ready (or you have a serious problem)
