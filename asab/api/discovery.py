@@ -20,7 +20,7 @@ except ModuleNotFoundError:
 	jwcrypto = None
 
 from .. import Service
-from ..contextvars import Tenant, Request, Authz
+from ..contextvars import Request, Authz
 
 
 L = logging.getLogger(__name__)
@@ -365,7 +365,6 @@ class DiscoveryService(Service):
 	def session(
 		self,
 		base_url: typing.Optional[str] = None,
-		tenant: typing.Optional[str] = None,
 		auth: typing.Union[str, aiohttp.ClientRequest, None] = None,
 		headers: typing.Optional[typing.Mapping[str, str]] = None,
 		**kwargs
@@ -375,7 +374,6 @@ class DiscoveryService(Service):
 
 		Args:
 			:param base_url: Base URL to use for requests.
-			:param tenant: Request tenant ID.
 			:param auth: Client request to extract authorization from, or the string "internal", to use internal authorization.
 			:param headers: Custom session HTTP headers.
 
@@ -434,16 +432,6 @@ class DiscoveryService(Service):
 				"Only instances of aiohttp.web.Request or the literal string 'internal' are allowed. "
 				"Found {}.".format(type(auth))
 			)
-
-		# Set tenant header
-		if tenant is not None:
-			# Use tenant from argument
-			_headers["X-Tenant"] = tenant
-		else:
-			# Use tenant from context
-			tenant = Tenant.get(None)
-			if tenant is not None:
-				_headers["X-Tenant"] = tenant
 
 		if headers is not None:
 			_headers.update(headers)
