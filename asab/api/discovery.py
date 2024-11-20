@@ -20,7 +20,7 @@ except ModuleNotFoundError:
 	jwcrypto = None
 
 from .. import Service
-from ..contextvars import Tenant, Request, Authz
+from ..contextvars import Request, Authz
 
 
 L = logging.getLogger(__name__)

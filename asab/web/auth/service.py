@@ -17,7 +17,7 @@ import aiohttp.client_exceptions
 from ... import LogObsolete
 from ...abc.service import Service
 from ...config import Config
-from ...exceptions import NotAuthenticatedError, AccessDeniedError
+from ...exceptions import NotAuthenticatedError
 from ...api.discovery import NotDiscoveredError
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
@@ -471,8 +471,6 @@ class AuthService(Service):
 
 		if hasattr(handler_method, "__func__"):
 			handler_method = handler_method.__func__
-
-		is_websocket = isinstance(handler_method, WebSocketFactory)
 
 		if hasattr(handler_method, "NoAuth"):
 			return
