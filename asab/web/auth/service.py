@@ -21,7 +21,6 @@ from ...exceptions import NotAuthenticatedError
 from ...api.discovery import NotDiscoveredError
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
-from ..websocket import WebSocketFactory
 from .authorization import Authorization
 
 try:
