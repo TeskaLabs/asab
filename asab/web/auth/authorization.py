@@ -9,6 +9,7 @@ L = logging.getLogger(__name__)
 
 
 SUPERUSER_RESOURCE_ID = "authz:superuser"
+SCOPE_SEPARATOR = " "
 
 
 class Authorization:
@@ -39,6 +40,7 @@ class Authorization:
 			int(self._UserInfo["iat"]), datetime.timezone.utc)
 		self.Expiration: datetime.datetime = datetime.datetime.fromtimestamp(
 			int(self._UserInfo["exp"]), datetime.timezone.utc)
+		self.Scope: typing.Set[str] = set(s for s in self._UserInfo.get("scope").split(SCOPE_SEPARATOR) if len(s) > 0)
 
 
 	def __repr__(self):
