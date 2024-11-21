@@ -148,7 +148,7 @@ class AuthService(Service):
 
 
 	async def initialize(self, app):
-		self._check_if_installed()
+		self._validate_wrapper_installation()
 
 
 	def _prepare_mock_mode(self):
@@ -526,7 +526,7 @@ class AuthService(Service):
 			raise NotAuthenticatedError()
 
 
-	def _check_if_installed(self):
+	def _validate_wrapper_installation(self):
 		"""
 		Check if there is at least one web container with authorization installed
 		"""
@@ -535,17 +535,26 @@ class AuthService(Service):
 			L.warning("Authorization is not installed: There are no web containers.")
 			return
 
+		auth_wrapper_installed = False
 		for web_container in web_service.Containers.values():
-			auth_wrapper_idx = web_container.WebApp.on_startup.index(self.set_up_auth_web_wrapper)
-			if auth_wrapper_idx is not None:
-				# Container has authorization installed
-				# Ensure the wrappers are applied in the correct order
-				tenant_wrapper_idx = web_container.WebApp.on_startup.index(set_up_tenant_web_wrapper)
-				if tenant_wrapper_idx is not None and auth_wrapper_idx > tenant_wrapper_idx:
-					raise Exception("TenantService.install() must be called before AuthService.install()")
-				break
+			try:
+				auth_wrapper_idx = web_container.WebApp.on_startup.index(self.set_up_auth_web_wrapper)
+				auth_wrapper_installed = True
+			except ValueError:
+				# Authorization wrapper not installed here
+				continue
 
-		else:
+			# Ensure the wrappers are applied in the correct order
+			try:
+				tenant_wrapper_idx = web_container.WebApp.on_startup.index(set_up_tenant_web_wrapper)
+			except ValueError:
+				# Tenant wrapper not installed here
+				continue
+
+			if auth_wrapper_idx > tenant_wrapper_idx:
+				raise Exception("TenantService.install() must be called before AuthService.install()")
+
+		if not auth_wrapper_installed:
 			L.warning(
 				"Authorization is not installed in any web container. "
 				"In applications with more than one WebContainer there is no automatic installation; "
