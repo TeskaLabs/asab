@@ -308,38 +308,54 @@ class LibraryService(Service):
 		return items
 
 	async def _list(self, path, providers):
-		items: list[LibraryItem] = []
-		unique_items: dict[str, LibraryItem] = dict()
+		"""
+		Lists items from all providers and applies layer precedence,
+		ensuring that layers are tracked accurately for each item.
 
-		# List items from every provider concurrently
-		tasks = [asyncio.create_task(provider.list(path)) for provider in providers]
-		for prov, task in zip(providers, asyncio.as_completed(tasks)):
+		Args:
+			path (str): The path to list items from.
+			providers (list): A list of providers to query.
+
+		Returns:
+			list: A sorted list of unique LibraryItem objects.
+		"""
+		items: list[LibraryItem] = []
+		unique_items: dict[str, LibraryItem] = {}
+
+		# List items from every provider concurrently, while tracking their layers
+		tasks = [(layer, asyncio.create_task(provider.list(path))) for layer, provider in enumerate(providers)]
+
+		# Process tasks as they complete, ensuring layer precedence is correctly applied
+		for layer, task in tasks:
 			try:
 				items_list_from_provider: list[LibraryItem] = await task
 			except KeyError:
-				# The path doesn't exists in the provider
+				# The path doesn't exist in the provider
 				continue
 			except Exception:
-				L.exception("Unexpected error when listing path '{}' on layer {}.".format(path, prov.Layer))
+				L.exception("Unexpected error when listing path '{}' on layer {}.".format(path, layer))
 				continue
 
 			for item in items_list_from_provider:
 				item.disabled = self.check_disabled(item.name)
 
-				# If the item already exists, merge or override it
+				# Check if the item already exists
 				pitem = unique_items.get(item.name)
+
 				if pitem is not None:
-					if pitem.type == 'dir' and item.type == 'dir':
-						# Directories are joined
+					# Merge directories (if both are 'dir')
+					if pitem.type == "dir" and item.type == "dir":
+						# Merge providers for the directory
 						pitem.providers.extend(item.providers)
-					elif pitem.type == 'item':
-						for i, provider in enumerate(providers):
-							if provider in item.providers:
-								index = i
-								break
-						pitem.override = index
+
+					# Replace lower-priority items
+					elif pitem.type == item.type and item.layer < pitem.layer:
+						# Replace with the higher-priority item
+						unique_items[item.name] = item
+						items = [unique_items[x.name] if x.name == item.name else x for x in items]
+
 				else:
-					# Other item types are skipped
+					# New item: Assign it to unique_items
 					unique_items[item.name] = item
 					items.append(item)
 
