@@ -28,14 +28,14 @@ class TenantService(Service):
 	Provides set of known tenants and tenant extraction for web requests.
 	"""
 
-	def __init__(self, app, service_name: str = "asab.TenantService", set_up_web_wrapper: bool = True):
+	def __init__(self, app, service_name: str = "asab.TenantService", auto_install_web_wrapper: bool = True):
 		"""
 		Initialize and register a new TenantService.
 
 		Args:
 			app: ASAB application.
 			service_name: ASAB service identifier.
-			set_up_web_wrapper: Whether to automatically install tenant context wrapper to WebContainer.
+			auto_install_web_wrapper: Whether to automatically install tenant context wrapper to WebContainer.
 		"""
 		super().__init__(app, service_name)
 		self.App = app
@@ -46,7 +46,7 @@ class TenantService(Service):
 			raise Exception("Please initialize TenantService BEFORE AuthService.")
 
 		self._prepare_providers()
-		if set_up_web_wrapper:
+		if auto_install_web_wrapper:
 			self._try_auto_install()
 
 
@@ -116,14 +116,13 @@ class TenantService(Service):
 		for middleware in web_container.WebApp.on_startup:
 			if middleware == set_up_tenant_web_wrapper:
 				if len(web_service.Containers) == 1:
-					L.warning(
+					raise Exception(
 						"WebContainer has tenant middleware installed already. "
 						"You don't need to call `TenantService.install()` in applications with a single WebContainer; "
 						"it is called automatically at init time."
 					)
 				else:
-					L.warning("WebContainer has tenant middleware installed already.")
-				return
+					raise Exception("WebContainer has tenant middleware installed already.")
 
 		web_container.WebApp.on_startup.append(set_up_tenant_web_wrapper)
 
@@ -140,4 +139,4 @@ class TenantService(Service):
 		web_container = web_service.WebContainer
 
 		self.install(web_container)
-		L.info("WebContainer tenant context wrapper installed automatically.")
+		L.info("WebContainer tenant context wrapper will be installed automatically.")

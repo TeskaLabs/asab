@@ -205,22 +205,20 @@ class AuthService(Service):
 		web_service = self.App.get_service("asab.WebService")
 
 		# Check that the middleware has not been installed yet
-		for middleware in web_container.WebApp.on_startup:
-			if middleware == self.set_up_auth_web_wrapper:
-				if len(web_service.Containers) == 1:
-					L.warning(
-						"WebContainer has authorization middleware installed already. "
-						"You don't need to call `AuthService.install()` in applications with a single WebContainer; "
-						"it is called automatically at init time."
-					)
-				else:
-					L.warning("WebContainer has authorization middleware installed already.")
-				return
+		if self.set_up_auth_web_wrapper in web_container.WebApp.on_startup:
+			if len(web_service.Containers) == 1:
+				raise Exception(
+					"WebContainer has authorization middleware installed already. "
+					"You don't need to call `AuthService.install()` in applications with a single WebContainer; "
+					"it is called automatically at init time."
+				)
+			else:
+				raise Exception("WebContainer has authorization middleware installed already.")
 
-		# TODO: Auth wrapper must be applied BEFORE tenant wrapper (so that auth is processed AFTER tenant).
 		try:
-			tenant_middleware_idx = web_container.WebApp.on_startup.index(set_up_tenant_web_wrapper)
-			web_container.WebApp.on_startup.insert(tenant_middleware_idx, self.set_up_auth_web_wrapper)
+			tenant_wrapper_idx = web_container.WebApp.on_startup.index(set_up_tenant_web_wrapper)
+			# Tenant wrapper is installed - Auth wrapper must be applied before it
+			web_container.WebApp.on_startup.insert(tenant_wrapper_idx, self.set_up_auth_web_wrapper)
 		except ValueError:
 			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
 
