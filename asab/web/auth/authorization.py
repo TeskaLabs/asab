@@ -23,19 +23,22 @@ class Authorization:
 			raise ValueError("Cannot create Authorization when AuthService is disabled.")
 
 		# Userinfo should not be accessed directly
-		self._UserInfo = userinfo or {}
+		self._UserInfo: typing.Dict[str, typing.Any] = userinfo or {}
 
-		self.CredentialsId = self._UserInfo.get("sub")
-		self.Username = self._UserInfo.get("preferred_username") or self._UserInfo.get("username")
-		self.Email = self._UserInfo.get("email")
-		self.Phone = self._UserInfo.get("phone")
+		self.CredentialsId: str = self._UserInfo.get("sub")
+		self.Username: typing.Optional[str] = self._UserInfo.get("preferred_username") or self._UserInfo.get("username")
+		self.Email: typing.Optional[str] = self._UserInfo.get("email")
+		self.Phone: typing.Optional[str] = self._UserInfo.get("phone")
 
-		self.SessionId = self._UserInfo.get("sid")
+		self.SessionId: typing.Optional[str] = self._UserInfo.get("sid")
 
-		self.Issuer = self._UserInfo.get("iss")  # Who issued the authorization
-		self.AuthorizedParty = self._UserInfo.get("azp")  # What party (application) is authorized
-		self.IssuedAt = datetime.datetime.fromtimestamp(int(self._UserInfo["iat"]), datetime.timezone.utc)
-		self.Expiration = datetime.datetime.fromtimestamp(int(self._UserInfo["exp"]), datetime.timezone.utc)
+		self.Issuer: typing.Optional[str] = self._UserInfo.get("iss")  # Who issued the authorization
+		self.AuthorizedParty: typing.Optional[str] = self._UserInfo.get("azp")  # What party (application) is authorized
+		self.Audience: typing.Optional[str] = self._UserInfo.get("aud")  # Who is allowed to use the token
+		self.IssuedAt: datetime.datetime = datetime.datetime.fromtimestamp(
+			int(self._UserInfo["iat"]), datetime.timezone.utc)
+		self.Expiration: datetime.datetime = datetime.datetime.fromtimestamp(
+			int(self._UserInfo["exp"]), datetime.timezone.utc)
 
 
 	def __repr__(self):
