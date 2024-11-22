@@ -111,7 +111,7 @@ class MyApplication(asab.Application):
 		Receive a plaintext message and respond
 		"""
 		authz = asab.contextvars.Authz.get(None)
-		sender_app = authz.AuthorizedParty
+		sender_app = authz.IdTokenAuthorizedParty
 		tenant = asab.contextvars.Tenant.get(None)
 		text = await request.text()
 		if tenant:

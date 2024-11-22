@@ -26,29 +26,37 @@ class Authorization:
 		# Userinfo should not be accessed directly
 		self._UserInfo: typing.Dict[str, typing.Any] = userinfo or {}
 
-		self.CredentialsId: str = self._UserInfo.get("sub")
+		# OpenID Connect ID token claims
+		# https://www.iana.org/assignments/jwt/jwt.xhtml
+		self.IdTokenIssuer: typing.Optional[str] = self._UserInfo.get("iss")  # Who issued the authorization
+		self.IdTokenSubject: str = self._UserInfo.get("sub")  # Authorized End-User ID
+		self.IdTokenAudience: typing.Optional[str] = self._UserInfo.get("aud")  # Who is allowed to use the token
+		self.IdTokenExpirationTime: datetime.datetime = datetime.datetime.fromtimestamp(
+			int(self._UserInfo["exp"]), datetime.timezone.utc)
+		self.IdTokenAuthorizedParty: typing.Optional[str] = self._UserInfo.get("azp")  # What party (app) is authorized
+		self.IdTokenIssuedAt: datetime.datetime = datetime.datetime.fromtimestamp(
+			int(self._UserInfo["iat"]), datetime.timezone.utc)
+		self.IdTokenScope: typing.Set[str] = (
+			set(s for s in self._UserInfo["scope"].split(SCOPE_SEPARATOR))
+			if "scope" in self._UserInfo
+			else set()
+		)
+
+		# Common ASAB attributes
+		self.CredentialsId: str = self.IdTokenSubject
 		self.Username: typing.Optional[str] = self._UserInfo.get("preferred_username") or self._UserInfo.get("username")
 		self.Email: typing.Optional[str] = self._UserInfo.get("email")
 		self.Phone: typing.Optional[str] = self._UserInfo.get("phone")
-
 		self.SessionId: typing.Optional[str] = self._UserInfo.get("sid")
-
-		self.Issuer: typing.Optional[str] = self._UserInfo.get("iss")  # Who issued the authorization
-		self.AuthorizedParty: typing.Optional[str] = self._UserInfo.get("azp")  # What party (application) is authorized
-		self.Audience: typing.Optional[str] = self._UserInfo.get("aud")  # Who is allowed to use the token
-		self.IssuedAt: datetime.datetime = datetime.datetime.fromtimestamp(
-			int(self._UserInfo["iat"]), datetime.timezone.utc)
-		self.Expiration: datetime.datetime = datetime.datetime.fromtimestamp(
-			int(self._UserInfo["exp"]), datetime.timezone.utc)
-		self.Scope: typing.Set[str] = set(s for s in self._UserInfo.get("scope", "").split(SCOPE_SEPARATOR) if len(s) > 0)
+		self.Expiration: datetime.datetime = self.IdTokenExpirationTime
 
 
 	def __repr__(self):
 		return "<Authorization [{}cid: {!r}, azp: {!r}, iat: {!r}, exp: {!r}]>".format(
 			"SUPERUSER, " if self.has_superuser_access() else "",
 			self.CredentialsId,
-			self.AuthorizedParty,
-			self.IssuedAt.isoformat(),
+			self.IdTokenAuthorizedParty,
+			self.IdTokenIssuedAt.isoformat(),
 			self.Expiration.isoformat(),
 		)
 
@@ -103,7 +111,7 @@ class Authorization:
 		"""
 		if not self.is_valid():
 			L.warning("Authorization expired.", struct_data={
-				"cid": self.CredentialsId, "azp": self.AuthorizedParty, "exp": self.Expiration.isoformat()})
+				"cid": self.CredentialsId, "azp": self.IdTokenAuthorizedParty, "exp": self.Expiration.isoformat()})
 			raise NotAuthenticatedError()
 
 
@@ -113,7 +121,7 @@ class Authorization:
 		"""
 		if not self.has_superuser_access():
 			L.warning("Superuser authorization required.", struct_data={
-				"cid": self.CredentialsId, "azp": self.AuthorizedParty})
+				"cid": self.CredentialsId, "azp": self.IdTokenAuthorizedParty})
 			raise AccessDeniedError()
 
 
@@ -125,7 +133,7 @@ class Authorization:
 		"""
 		if not self.has_resource_access(*resources):
 			L.warning("Resource authorization required.", struct_data={
-				"resource": resources, "cid": self.CredentialsId, "azp": self.AuthorizedParty})
+				"resource": resources, "cid": self.CredentialsId, "azp": self.IdTokenAuthorizedParty})
 			raise AccessDeniedError()
 
 
@@ -135,7 +143,7 @@ class Authorization:
 		"""
 		if not self.has_tenant_access():
 			L.warning("Tenant authorization required.", struct_data={
-				"tenant": Tenant.get(), "cid": self.CredentialsId, "azp": self.AuthorizedParty})
+				"tenant": Tenant.get(), "cid": self.CredentialsId, "azp": self.IdTokenAuthorizedParty})
 			raise AccessDeniedError()
 
 
