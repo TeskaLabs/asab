@@ -3,7 +3,6 @@ import functools
 import aiohttp.web
 
 from ...contextvars import Tenant
-from ...exceptions import ValidationError
 
 
 async def set_up_tenant_web_wrapper(aiohttp_app: aiohttp.web.Application):
@@ -72,7 +71,8 @@ def _set_tenant_context_from_url_query(handler):
 		if tenant is None and not (
 			hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True
 		):
-			raise ValidationError("Missing `tenant` parameter in URL query.")
+			# TODO: Use asab.exceptions.ValidationError instead once it implements aiohttp.web.HTTPBadRequest
+			raise aiohttp.web.HTTPBadRequest(reason="Missing `tenant` parameter in URL query.")
 
 		tenant_ctx = Tenant.set(tenant)
 		try:

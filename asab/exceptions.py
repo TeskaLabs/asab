@@ -1,13 +1,12 @@
 import aiohttp.web
 
 
-class ValidationError(aiohttp.web.HTTPBadRequest):
+class ValidationError(Exception):
 	"""
 	Request cannot be processed because it does not match expected schema
 	"""
-	def __init__(self, message, *args):
-		self.Message = message
-		super().__init__(*args, reason=message)
+	# TODO: Inherit from aiohttp.web.HTTPBadRequest
+	pass
 
 
 class NotAuthenticatedError(aiohttp.web.HTTPUnauthorized):
