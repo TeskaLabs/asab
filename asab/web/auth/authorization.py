@@ -64,9 +64,9 @@ class Authorization:
 			>>> import asab.contextvars
 			>>> authz = asab.contextvars.Authz.get()
 			>>> if authz.has_superuser_access():
-			>>>     print("I am a superuser and can do anything!")
+			>>> 	print("I am a superuser and can do anything!")
 			>>> else:
-			>>>     print("I am but a mere mortal.")
+			>>> 	print("I am but a mere mortal.")
 		"""
 		self.require_valid()
 		return is_superuser(self._UserInfo)
@@ -86,9 +86,9 @@ class Authorization:
 			>>> import asab.contextvars
 			>>> authz = asab.contextvars.Authz.get()
 			>>> if authz.has_resource_access("article:read", "article:write"):
-			>>>     print("I can read and write articles!")
+			>>> 	print("I can read and write articles!")
 			>>> else:
-			>>>     print("Not much to do here.")
+			>>> 	print("Not much to do here.")
 		"""
 		self.require_valid()
 		return has_resource_access(self._UserInfo, resources, tenant=Tenant.get(None))
@@ -106,12 +106,12 @@ class Authorization:
 			>>> authz = asab.contextvars.Authz.get()
 			>>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
 			>>> try:
-			>>>     if authz.has_tenant_access():
-			>>>         print("I have access to Big Corporation!")
-			>>>     else:
-			>>>         print("Not much to do here.")
+			>>> 	if authz.has_tenant_access():
+			>>> 		print("I have access to Big Corporation!")
+			>>> 	else:
+			>>> 	print("Not much to do here.")
 			>>> finally:
-			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
+			>>> 	asab.contextvars.Tenant.reset(tenant_ctx)
 		"""
 		self.require_valid()
 
@@ -183,10 +183,10 @@ class Authorization:
 			>>> authz = asab.contextvars.Authz.get()
 			>>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
 			>>> try:
-			>>>     authz.require_tenant_access()
-			>>>     print("I have access to Big Corporation!")
+			>>> 	authz.require_tenant_access()
+			>>> 	print("I have access to Big Corporation!")
 			>>> finally:
-			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
+			>>> 	asab.contextvars.Tenant.reset(tenant_ctx)
 		"""
 		if not self.has_tenant_access():
 			L.warning("Tenant authorization required.", struct_data={
