@@ -216,7 +216,7 @@ class Authorization:
 		dictionary directly.
 
 		Returns:
-		     User info
+			User info
 		"""
 		self.require_valid()
 		return self._UserInfo
