@@ -43,7 +43,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			else:
 				# Warn if the path is not valid as relative or absolute
 				L.warning("Provided path is neither valid absolute nor relative: '{}'".format(path))
-				path = os.path.abspath(path)
 
 		# Normalize the BasePath and remove trailing slashes
 		self.BasePath = path.rstrip("/")
