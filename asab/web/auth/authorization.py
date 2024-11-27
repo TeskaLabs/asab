@@ -29,18 +29,17 @@ class Authorization:
 		self.Username = self._UserInfo.get("preferred_username") or self._UserInfo.get("username")
 		self.Email = self._UserInfo.get("email")
 		self.Phone = self._UserInfo.get("phone")
+		self.SessionId = self._UserInfo.get("sid")
 
 		self.Issuer = self._UserInfo.get("iss")  # Who issued the authorization
-		self.AuthorizedParty = self._UserInfo.get("azp")  # What party (application) is authorized
 		self.IssuedAt = datetime.datetime.fromtimestamp(int(self._UserInfo["iat"]), datetime.timezone.utc)
 		self.Expiration = datetime.datetime.fromtimestamp(int(self._UserInfo["exp"]), datetime.timezone.utc)
 
 
 	def __repr__(self):
-		return "<Authorization [{}cid: {!r}, azp: {!r}, iat: {!r}, exp: {!r}]>".format(
+		return "<Authorization [{}cid: {!r}, iat: {!r}, exp: {!r}]>".format(
 			"SUPERUSER, " if self.has_superuser_access() else "",
 			self.CredentialsId,
-			self.AuthorizedParty,
 			self.IssuedAt.isoformat(),
 			self.Expiration.isoformat(),
 		)
@@ -96,7 +95,7 @@ class Authorization:
 		"""
 		if not self.is_valid():
 			L.warning("Authorization expired.", struct_data={
-				"cid": self.CredentialsId, "azp": self.AuthorizedParty, "exp": self.Expiration.isoformat()})
+				"cid": self.CredentialsId, "exp": self.Expiration.isoformat()})
 			raise NotAuthenticatedError()
 
 
@@ -106,7 +105,7 @@ class Authorization:
 		"""
 		if not self.has_superuser_access():
 			L.warning("Superuser authorization required.", struct_data={
-				"cid": self.CredentialsId, "azp": self.AuthorizedParty})
+				"cid": self.CredentialsId})
 			raise AccessDeniedError()
 
 
@@ -118,7 +117,7 @@ class Authorization:
 		"""
 		if not self.has_resource_access(*resources):
 			L.warning("Resource authorization required.", struct_data={
-				"resource": resources, "cid": self.CredentialsId, "azp": self.AuthorizedParty})
+				"resource": resources, "cid": self.CredentialsId})
 			raise AccessDeniedError()
 
 
@@ -128,7 +127,7 @@ class Authorization:
 		"""
 		if not self.has_tenant_access():
 			L.warning("Tenant authorization required.", struct_data={
-				"tenant": Tenant.get(), "cid": self.CredentialsId, "azp": self.AuthorizedParty})
+				"tenant": Tenant.get(), "cid": self.CredentialsId})
 			raise AccessDeniedError()
 
 
@@ -156,6 +155,20 @@ class Authorization:
 		"""
 		self.require_valid()
 		return self._UserInfo
+
+
+	def get_claim(self, key: str) -> typing.Any:
+		"""
+		Get the value of a token claim.
+
+		Args:
+			key: Claim name.
+
+		Returns:
+			Value of the requested claim (or `None` if the claim is not present).
+		"""
+		self.require_valid()
+		return self._UserInfo.get(key)
 
 
 def is_superuser(userinfo: typing.Mapping) -> bool:
