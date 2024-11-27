@@ -59,7 +59,12 @@ class LibraryService(Service):
 	The library indicates that by the PubSub event `Library.ready!`.
 	"""
 
-	def __init__(self, app: Application, service_name: str, paths: typing.Union[str, typing.List[str], None] = None):
+	def __init__(
+		self,
+		app: Application,
+		service_name: str,
+		paths: typing.Union[str, typing.List[str], None] = None
+	):
 		"""
 		Initialize the LibraryService.
 
@@ -243,10 +248,9 @@ class LibraryService(Service):
 		Example:
 
 		```python
-		async with self.App.LibraryService.open(path) as b:
-			if b is None:
+		async with self.LibraryService.open(path) as io:
+			if io is None:
 				return None
-
 			text = b.read().decode("utf-8")
 		```
 		"""
@@ -273,11 +277,25 @@ class LibraryService(Service):
 
 	async def list(self, path: str = "/", recursive: bool = False) -> typing.List[LibraryItem]:
 		"""
-		List the directory of the library specified by the path that are enabled for the specified tenant. This method can be used only after the Library is ready.
+		List the directory of the library specified by the path that are enabled for the specified tenant.
+		This method can be used only after the Library is ready.
+
+		**WARNING:** Tenant must be set in the context variable!
+		If it is not set automatically (e.g. from web request), it must be set manually.
+
+		Example:
+
+		```python
+		try:
+			tenant_ctx = asab.contextvars.Tenant.set(tenant)
+			items = self.LibraryService.list(path)
+			...
+		finally:
+			asab.contextvars.Tenant.reset(tenant_ctx)
+		```
 
 		Args:
 			path (str): Path to the directory.
-			tenant (str | None): If specified, items that are enabled for the tenant are filtered.
 			recursive (bool): If `True`, return a list of items located at `path` and its subdirectories.
 
 		Returns:
@@ -408,9 +426,31 @@ class LibraryService(Service):
 		"""
 		Check if the item specified in path is disabled, either globally or for the specified tenant.
 
+		**WARNING:** When checking for items disabled for a tenant,
+		it must be set in context variable before using this function!
+		If it is not set automatically (e.g. from web request), it must be set manually.
+
+		Example:
+
+		1. Is path disabled for a specific tenant?
+
+			```python
+			try:
+				tenant_ctx = asab.contextvars.Tenant.set(tenant)
+				disabled = self.LibraryService.check_disabled(path)
+				...
+			finally:
+				asab.contextvars.Tenant.reset(tenant_ctx)
+			```
+
+		2. Is path disabled globally?
+
+			```python
+			disabled = self.LibraryService.check_disabled(path)
+			```
+
 		Args:
 			path (str): Path to the item to be checked.
-			tenant (str | None): The tenant to apply. If not specified, the global access is assumed.
 
 		Returns:
 			`True` if the item is disabled for the tenant.
@@ -531,11 +571,10 @@ class LibraryService(Service):
 				self.PubSub.subscribe("Library.change!", self.on_library_change)
 
 			async def on_library_ready(self, event_name, library=None):
-				await self.LibraryService.subscribe(["/alpha","/beta"])
+				await self.LibraryService.subscribe(["/path1/","/path2/"])
 
 			def on_library_change(self, message, provider, path):
 				print("New changes in the library found by provider: '{}'".format(provider))
-
 		```
 		"""
 		if isinstance(paths, str):
