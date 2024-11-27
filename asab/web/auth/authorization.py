@@ -29,6 +29,7 @@ class Authorization:
 		self.Username = self._UserInfo.get("preferred_username") or self._UserInfo.get("username")
 		self.Email = self._UserInfo.get("email")
 		self.Phone = self._UserInfo.get("phone")
+		self.SessionId = self._UserInfo.get("sid")
 
 		self.Issuer = self._UserInfo.get("iss")  # Who issued the authorization
 		self.AuthorizedParty = self._UserInfo.get("azp")  # What party (application) is authorized
