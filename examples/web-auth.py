@@ -17,8 +17,8 @@ if "web" not in asab.Config:
 if "auth" not in asab.Config:
 	asab.Config["auth"] = {
 		# Enable all authentication and authorization, or switch into MOCK mode.
-		# "enabled": "mock",  # Mock authorization, useful for debugging.
-		"enabled": "yes",   # Authorization is enabled.
+		"enabled": "mock",  # Mock authorization, useful for debugging.
+		# "enabled": "yes",   # Authorization is enabled (default).
 
 		# Activating the mock mode disables communication with the authorization server.
 		# The requests' Authorization headers are ignored and AuthService provides mock authorization with mock user info.
