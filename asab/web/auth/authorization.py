@@ -159,6 +159,20 @@ class Authorization:
 		return self._UserInfo
 
 
+	def get_claim(self, key: str) -> typing.Any:
+		"""
+		Get the value of a token claim.
+
+		Args:
+			key: Claim name.
+
+		Returns:
+			Value of the requested claim (or `None` if the claim is not present).
+		"""
+		self.require_valid()
+		return self._UserInfo.get(key)
+
+
 def is_superuser(userinfo: typing.Mapping) -> bool:
 	"""
 	Check if the superuser resource is present in the authorized resource list.
