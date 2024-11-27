@@ -14,14 +14,8 @@ SUPERUSER_RESOURCE_ID = "authz:superuser"
 class Authorization:
 	"""
 	Contains authentication and authorization claims, provides methods for checking and enforcing access control.
-
-	Requires that AuthService is initialized and enabled.
 	"""
-	def __init__(self, auth_service, claims: dict):
-		self.AuthService = auth_service
-		if not self.AuthService.is_enabled():
-			raise ValueError("Cannot create Authorization when AuthService is disabled.")
-
+	def __init__(self, claims: dict):
 		# Userinfo should not be accessed directly
 		self._Claims = claims or {}
 

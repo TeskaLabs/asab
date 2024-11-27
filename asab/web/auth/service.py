@@ -192,6 +192,10 @@ class AuthService(Service):
 		"""
 		OBSOLETE. Check if the AuthService is enabled. Mock mode counts as enabled too.
 		"""
+		LogObsolete.warning(
+			"AuthService.is_enabled() is obsolete since it is not possible to disable AuthService anymore.",
+			struct_data={"eol": "2025-03-31"}
+		)
 		return True
 
 
@@ -240,9 +244,6 @@ class AuthService(Service):
 		:param id_token: Base64-encoded JWToken from Authorization header
 		:return: Valid asab.web.auth.Authorization object
 		"""
-		if not self.is_enabled():
-			raise ValueError("Cannot build Authorization when AuthService is disabled.")
-
 		# Try if the object already exists
 		authz = self.Authorizations.get(id_token)
 		if authz is not None:
@@ -255,10 +256,10 @@ class AuthService(Service):
 
 		# Create a new Authorization object and store it
 		if id_token == "MOCK" and self.MockMode is True:
-			authz = Authorization(self, self.MockUserInfo)
+			authz = Authorization(self.MockUserInfo)
 		else:
 			userinfo = await self._get_userinfo_from_id_token(id_token)
-			authz = Authorization(self, userinfo)
+			authz = Authorization(userinfo)
 
 		self.Authorizations[id_token] = authz
 		return authz
@@ -409,9 +410,6 @@ class AuthService(Service):
 		@functools.wraps(handler)
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
-
-			if not self.is_enabled():
-				return await handler(*args, **kwargs)
 
 			bearer_token = await self.get_bearer_token_from_authorization_header(request)
 			authz = await self.build_authorization(bearer_token)
