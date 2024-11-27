@@ -31,23 +31,22 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		'''
 
 		super().__init__(library, layer)
-		# Parse file:// URI if present
+		# Check for `file://` prefix and strip it if present
 		if path.startswith('file://'):
-			# Strip the `file://` prefix
-			stripped_path = path[7:]
+			path = path[7:]  # Strip "file://"
 
-			# If it starts with '/', treat it as an absolute path
-			if stripped_path.startswith('/'):
-				path = stripped_path
+		# Handle relative and absolute paths
+		if not os.path.isabs(path):  # Relative path
+			if "../" in path or "./" in path:
+				# Resolve relative paths to absolute
+				path = os.path.abspath(path)
 			else:
-				# Treat it as a relative path
-				path = os.path.abspath(stripped_path)
-		else:
-			# For non-URI paths, resolve as usual
-			path = os.path.abspath(path)
+				# Warn if the path is not valid as relative or absolute
+				L.warning("Provided path is neither valid absolute nor relative: '{}'".format(path))
+				path = os.path.abspath(path)
 
-		while self.BasePath.endswith("/"):
-			self.BasePath = self.BasePath[:-1]
+		# Normalize the BasePath and remove trailing slashes
+		self.BasePath = path.rstrip("/")
 
 		L.info("is connected.", struct_data={'path': path})
 		# Filesystem is always ready (or you have a serious problem)
