@@ -137,7 +137,7 @@ class AuthService(Service):
 		DEPRECATED. Get the request's authorized tenant.
 		"""
 		authz = Authz.get()
-		resources = authz._UserInfo.get("resources", {})
+		resources = authz.get_claim("resources", {})
 		for tenant in resources.keys():
 			if tenant == "*":
 				continue

@@ -13,27 +13,27 @@ SUPERUSER_RESOURCE_ID = "authz:superuser"
 
 class Authorization:
 	"""
-	Contains authentication and authorization details, provides methods for checking and enforcing access control.
+	Contains authentication and authorization claims, provides methods for checking and enforcing access control.
 
 	Requires that AuthService is initialized and enabled.
 	"""
-	def __init__(self, auth_service, userinfo: dict):
+	def __init__(self, auth_service, claims: dict):
 		self.AuthService = auth_service
 		if not self.AuthService.is_enabled():
 			raise ValueError("Cannot create Authorization when AuthService is disabled.")
 
 		# Userinfo should not be accessed directly
-		self._UserInfo = userinfo or {}
+		self._Claims = claims or {}
 
-		self.CredentialsId = self._UserInfo.get("sub")
-		self.Username = self._UserInfo.get("preferred_username") or self._UserInfo.get("username")
-		self.Email = self._UserInfo.get("email")
-		self.Phone = self._UserInfo.get("phone")
-		self.SessionId = self._UserInfo.get("sid")
+		self.CredentialsId = self._Claims.get("sub")
+		self.Username = self._Claims.get("preferred_username") or self._Claims.get("username")
+		self.Email = self._Claims.get("email")
+		self.Phone = self._Claims.get("phone")
+		self.SessionId = self._Claims.get("sid")
 
-		self.Issuer = self._UserInfo.get("iss")  # Who issued the authorization
-		self.IssuedAt = datetime.datetime.fromtimestamp(int(self._UserInfo["iat"]), datetime.timezone.utc)
-		self.Expiration = datetime.datetime.fromtimestamp(int(self._UserInfo["exp"]), datetime.timezone.utc)
+		self.Issuer = self._Claims.get("iss")  # Who issued the authorization
+		self.IssuedAt = datetime.datetime.fromtimestamp(int(self._Claims["iat"]), datetime.timezone.utc)
+		self.Expiration = datetime.datetime.fromtimestamp(int(self._Claims["exp"]), datetime.timezone.utc)
 
 
 	def __repr__(self):
@@ -68,7 +68,7 @@ class Authorization:
 			>>>     print("I am but a mere mortal.")
 		"""
 		self.require_valid()
-		return is_superuser(self._UserInfo)
+		return is_superuser(self._Claims)
 
 
 	def has_resource_access(self, *resources: str) -> bool:
@@ -90,7 +90,7 @@ class Authorization:
 			>>>     print("Not much to do here.")
 		"""
 		self.require_valid()
-		return has_resource_access(self._UserInfo, resources, tenant=Tenant.get(None))
+		return has_resource_access(self._Claims, resources, tenant=Tenant.get(None))
 
 
 	def has_tenant_access(self) -> bool:
@@ -119,7 +119,7 @@ class Authorization:
 		except LookupError as e:
 			raise ValueError("No tenant in context.") from e
 
-		return has_tenant_access(self._UserInfo, tenant)
+		return has_tenant_access(self._Claims, tenant)
 
 
 	def require_valid(self):
@@ -204,21 +204,21 @@ class Authorization:
 			Set of authorized resources.
 		"""
 		self.require_valid()
-		return get_authorized_resources(self._UserInfo, Tenant.get(None))
+		return get_authorized_resources(self._Claims, Tenant.get(None))
 
 
 	def user_info(self) -> typing.Dict[str, typing.Any]:
 		"""
-		Return OpenID Connect UserInfo.
+		Return OpenID Connect UserInfo claims (or JWToken claims).
 
-		NOTE: If possible, use Authz attributes (CredentialsId, Username etc.) instead of inspecting the user info
-		dictionary directly.
+		NOTE: If possible, use Authz attributes (CredentialsId, Username etc.) instead of inspecting
+		the claims directly.
 
 		Returns:
-			User info
+			dict: UserInfo claims
 		"""
 		self.require_valid()
-		return self._UserInfo
+		return self._Claims
 
 
 	def get_claim(self, key: str) -> typing.Any:
@@ -232,7 +232,7 @@ class Authorization:
 			Value of the requested claim (or `None` if the claim is not present).
 		"""
 		self.require_valid()
-		return self._UserInfo.get(key)
+		return self._Claims.get(key)
 
 
 def is_superuser(userinfo: typing.Mapping) -> bool:
