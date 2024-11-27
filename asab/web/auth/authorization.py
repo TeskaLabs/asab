@@ -13,27 +13,21 @@ SUPERUSER_RESOURCE_ID = "authz:superuser"
 
 class Authorization:
 	"""
-	Contains authentication and authorization details, provides methods for checking and enforcing access control.
-
-	Requires that AuthService is initialized and enabled.
+	Contains authentication and authorization claims, provides methods for checking and enforcing access control.
 	"""
-	def __init__(self, auth_service, userinfo: dict):
-		self.AuthService = auth_service
-		if not self.AuthService.is_enabled():
-			raise ValueError("Cannot create Authorization when AuthService is disabled.")
-
+	def __init__(self, claims: dict):
 		# Userinfo should not be accessed directly
-		self._UserInfo = userinfo or {}
+		self._Claims = claims or {}
 
-		self.CredentialsId = self._UserInfo.get("sub")
-		self.Username = self._UserInfo.get("preferred_username") or self._UserInfo.get("username")
-		self.Email = self._UserInfo.get("email")
-		self.Phone = self._UserInfo.get("phone")
-		self.SessionId = self._UserInfo.get("sid")
+		self.CredentialsId = self._Claims.get("sub")
+		self.Username = self._Claims.get("preferred_username") or self._Claims.get("username")
+		self.Email = self._Claims.get("email")
+		self.Phone = self._Claims.get("phone")
+		self.SessionId = self._Claims.get("sid")
 
-		self.Issuer = self._UserInfo.get("iss")  # Who issued the authorization
-		self.IssuedAt = datetime.datetime.fromtimestamp(int(self._UserInfo["iat"]), datetime.timezone.utc)
-		self.Expiration = datetime.datetime.fromtimestamp(int(self._UserInfo["exp"]), datetime.timezone.utc)
+		self.Issuer = self._Claims.get("iss")  # Who issued the authorization
+		self.IssuedAt = datetime.datetime.fromtimestamp(int(self._Claims["iat"]), datetime.timezone.utc)
+		self.Expiration = datetime.datetime.fromtimestamp(int(self._Claims["exp"]), datetime.timezone.utc)
 
 
 	def __repr__(self):
@@ -56,28 +50,61 @@ class Authorization:
 		"""
 		Check whether the agent is a superuser.
 
-		:return: Is the agent a superuser?
+		Returns:
+			bool: Do I have superuser access?
+
+		Examples:
+			>>> import asab.contextvars
+			>>> authz = asab.contextvars.Authz.get()
+			>>> if authz.has_superuser_access():
+			>>>     print("I am a superuser and can do anything!")
+			>>> else:
+			>>>     print("I am but a mere mortal.")
 		"""
 		self.require_valid()
-		return is_superuser(self._UserInfo)
+		return is_superuser(self._Claims)
 
 
-	def has_resource_access(self, *resources: typing.Iterable[str]) -> bool:
+	def has_resource_access(self, *resources: str) -> bool:
 		"""
 		Check whether the agent is authorized to access requested resources.
 
-		:param resources: List of resource IDs whose authorization is requested.
-		:return: Is resource access authorized?
+		Args:
+			*resources (str): A variable number of resource IDs whose authorization is requested.
+
+		Returns:
+			bool: Am I authorized to access requested resources?
+
+		Examples:
+			>>> import asab.contextvars
+			>>> authz = asab.contextvars.Authz.get()
+			>>> if authz.has_resource_access("article:read", "article:write"):
+			>>>     print("I can read and write articles!")
+			>>> else:
+			>>>     print("Not much to do here.")
 		"""
 		self.require_valid()
-		return has_resource_access(self._UserInfo, resources, tenant=Tenant.get(None))
+		return has_resource_access(self._Claims, resources, tenant=Tenant.get(None))
 
 
 	def has_tenant_access(self) -> bool:
 		"""
 		Check whether the agent has access to the tenant in context.
 
-		:return: Is tenant access authorized?
+		Returns:
+			bool: Am I authorized to access requested tenant?
+
+		Examples:
+			>>> import asab.contextvars
+			>>> authz = asab.contextvars.Authz.get()
+			>>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
+			>>> try:
+			>>>     if authz.has_tenant_access():
+			>>>     	print("I have access to Big Corporation!")
+			>>>     else:
+			>>>     print("Not much to do here.")
+			>>> finally:
+			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
 		"""
 		self.require_valid()
 
@@ -86,7 +113,7 @@ class Authorization:
 		except LookupError as e:
 			raise ValueError("No tenant in context.") from e
 
-		return has_tenant_access(self._UserInfo, tenant)
+		return has_tenant_access(self._Claims, tenant)
 
 
 	def require_valid(self):
@@ -101,7 +128,16 @@ class Authorization:
 
 	def require_superuser_access(self):
 		"""
-		Assert that the agent has superuser access.
+		Ensure that the agent has superuser access.
+
+		Raises:
+			AccessDeniedError: If I do not have superuser access.
+
+		Examples:
+			>>> import asab.contextvars
+			>>> authz = asab.contextvars.Authz.get()
+			>>> authz.require_superuser_access()
+			>>> print("I am a superuser and can do anything!")
 		"""
 		if not self.has_superuser_access():
 			L.warning("Superuser authorization required.", struct_data={
@@ -109,11 +145,18 @@ class Authorization:
 			raise AccessDeniedError()
 
 
-	def require_resource_access(self, *resources: typing.Iterable[str]):
+	def require_resource_access(self, *resources: str):
 		"""
-		Assert that the agent is authorized to access the required resources.
+		Ensure that the agent is authorized to access the specified resources.
 
-		:param resources: List of resource IDs whose authorization is required.
+		Args:
+			*resources (str): A variable number of resource IDs whose authorization is requested.
+
+		Examples:
+			>>> import asab.contextvars
+			>>> authz = asab.contextvars.Authz.get()
+			>>> authz.require_resource_access("article:read", "article:write")
+			>>> print("I can read and write articles!")
 		"""
 		if not self.has_resource_access(*resources):
 			L.warning("Resource authorization required.", struct_data={
@@ -123,7 +166,20 @@ class Authorization:
 
 	def require_tenant_access(self):
 		"""
-		Assert that the agent is authorized to access the tenant in the context.
+		Ensures that the agent is authorized to access the tenant in the current context.
+
+		Raises:
+			AccessDeniedError: If the agent does not have access to the tenant.
+
+		Examples:
+			>>> import asab.contextvars
+			>>> authz = asab.contextvars.Authz.get()
+			>>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
+			>>> try:
+			>>>     authz.require_tenant_access()
+			>>>     print("I have access to Big Corporation!")
+			>>> finally:
+			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
 		"""
 		if not self.has_tenant_access():
 			L.warning("Tenant authorization required.", struct_data={
@@ -138,23 +194,25 @@ class Authorization:
 		NOTE: If possible, use methods has_resource_access(resource_id) and has_superuser_access() instead of inspecting
 		the set of resources directly.
 
-		:return: Set of authorized resources.
+		Returns:
+			Set of authorized resources.
 		"""
 		self.require_valid()
-		return get_authorized_resources(self._UserInfo, Tenant.get(None))
+		return get_authorized_resources(self._Claims, Tenant.get(None))
 
 
 	def user_info(self) -> typing.Dict[str, typing.Any]:
 		"""
-		Return OpenID Connect UserInfo.
+		Return OpenID Connect UserInfo claims (or JWToken claims).
 
-		NOTE: If possible, use Authz attributes (CredentialsId, Username etc.) instead of inspecting the user info
-		dictionary directly.
+		NOTE: If possible, use Authz attributes (CredentialsId, Username etc.) instead of inspecting
+		the claims directly.
 
-		:return: User info
+		Returns:
+			dict: UserInfo claims
 		"""
 		self.require_valid()
-		return self._UserInfo
+		return self._Claims
 
 
 	def get_claim(self, key: str) -> typing.Any:
@@ -168,7 +226,7 @@ class Authorization:
 			Value of the requested claim (or `None` if the claim is not present).
 		"""
 		self.require_valid()
-		return self._UserInfo.get(key)
+		return self._Claims.get(key)
 
 
 def is_superuser(userinfo: typing.Mapping) -> bool:

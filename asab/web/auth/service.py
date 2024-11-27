@@ -7,7 +7,6 @@ import json
 import logging
 import os.path
 import time
-import enum
 import typing
 
 import aiohttp
@@ -21,6 +20,7 @@ from ...exceptions import NotAuthenticatedError
 from ...api.discovery import NotDiscoveredError
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
+from ..tenant.utils import set_up_tenant_web_wrapper
 from .authorization import Authorization
 
 try:
@@ -71,14 +71,6 @@ MOCK_USERINFO_DEFAULT = {
 	"tenants": ["default", "test-tenant", "another-tenant"]
 }
 
-SUPERUSER_RESOURCE = "authz:superuser"
-
-
-class AuthMode(enum.Enum):
-	ENABLED = enum.auto()
-	DISABLED = enum.auto()
-	MOCK = enum.auto()
-
 
 class AuthService(Service):
 	"""
@@ -89,25 +81,29 @@ class AuthService(Service):
 
 	def __init__(self, app, service_name="asab.AuthService"):
 		super().__init__(app, service_name)
-		self.PublicKeysUrl = Config.get("auth", "public_keys_url") or None
 
 		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
 
+		self.PublicKeysUrl = Config.get("auth", "public_keys_url") or None
 		self.IntrospectionUrl = None
 		self.MockUserInfo = None
+		self.MockMode = False
 
+		# Configure mock mode
 		enabled = Config.get("auth", "enabled", fallback=True)
 		if enabled == "mock":
-			self.Mode = AuthMode.MOCK
-		elif string_to_boolean(enabled):
-			self.Mode = AuthMode.ENABLED
+			self.MockMode = True
+		elif string_to_boolean(enabled) is True:
+			self.MockMode = False
 		else:
-			self.Mode = AuthMode.DISABLED
+			raise ValueError(
+				"Disabling AuthService is deprecated. "
+				"For development pupropses use mock mode instead ([auth] enabled=mock)."
+			)
 
-		if self.Mode == AuthMode.DISABLED:
-			pass
-		elif self.Mode == AuthMode.MOCK:
+		# Set up auth server keys URL
+		if self.MockMode is True:
 			self._prepare_mock_mode()
 		elif jwcrypto is None:
 			raise ModuleNotFoundError(
@@ -126,7 +122,7 @@ class AuthService(Service):
 		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
 		self.AuthServerLastSuccessfulCheck = None
 
-		if self.Mode == AuthMode.ENABLED:
+		if self.PublicKeysUrl:
 			self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
 
 		self.Authorizations: typing.Dict[typing.Tuple[str, str], Authorization] = {}
@@ -141,7 +137,7 @@ class AuthService(Service):
 		DEPRECATED. Get the request's authorized tenant.
 		"""
 		authz = Authz.get()
-		resources = authz._UserInfo.get("resources", {})
+		resources = authz.get_claim("resources", {})
 		for tenant in resources.keys():
 			if tenant == "*":
 				continue
@@ -152,7 +148,7 @@ class AuthService(Service):
 
 
 	async def initialize(self, app):
-		self._check_if_installed()
+		self._validate_wrapper_installation()
 
 
 	def _prepare_mock_mode(self):
@@ -194,9 +190,13 @@ class AuthService(Service):
 
 	def is_enabled(self) -> bool:
 		"""
-		Check if the AuthService is enabled. Mock mode counts as enabled too.
+		OBSOLETE. Check if the AuthService is enabled. Mock mode counts as enabled too.
 		"""
-		return self.Mode in {AuthMode.ENABLED, AuthMode.MOCK}
+		LogObsolete.warning(
+			"AuthService.is_enabled() is obsolete since it is not possible to disable AuthService anymore.",
+			struct_data={"eol": "2025-03-31"}
+		)
+		return True
 
 
 	def install(self, web_container):
@@ -209,30 +209,30 @@ class AuthService(Service):
 		web_service = self.App.get_service("asab.WebService")
 
 		# Check that the middleware has not been installed yet
-		for middleware in web_container.WebApp.on_startup:
-			if middleware == self._wrap_handlers:
-				if len(web_service.Containers) == 1:
-					L.warning(
-						"WebContainer has authorization middleware installed already. "
-						"You don't need to call `AuthService.install()` in applications with a single WebContainer; "
-						"it is called automatically at init time."
-					)
-				else:
-					L.warning("WebContainer has authorization middleware installed already.")
-				return
+		if self.set_up_auth_web_wrapper in web_container.WebApp.on_startup:
+			if len(web_service.Containers) == 1:
+				raise Exception(
+					"WebContainer has authorization middleware installed already. "
+					"You don't need to call `AuthService.install()` in applications with a single WebContainer; "
+					"it is called automatically at init time."
+				)
+			else:
+				raise Exception("WebContainer has authorization middleware installed already.")
 
-		web_container.WebApp.on_startup.append(self._wrap_handlers)
+		try:
+			tenant_wrapper_idx = web_container.WebApp.on_startup.index(set_up_tenant_web_wrapper)
+			# Tenant wrapper is installed - Auth wrapper must be applied before it
+			web_container.WebApp.on_startup.insert(tenant_wrapper_idx, self.set_up_auth_web_wrapper)
+		except ValueError:
+			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
 
 
 	def is_ready(self):
 		"""
 		Check if the service is ready to authorize requests.
 		"""
-		if self.Mode == AuthMode.DISABLED:
-			return True
-		if self.Mode == AuthMode.MOCK:
-			return True
-		if not self.TrustedPublicKeys["keys"]:
+		if self.PublicKeysUrl and not self.TrustedPublicKeys["keys"]:
+			# Auth server keys have not been loaded yet
 			return False
 		return True
 
@@ -244,9 +244,6 @@ class AuthService(Service):
 		:param id_token: Base64-encoded JWToken from Authorization header
 		:return: Valid asab.web.auth.Authorization object
 		"""
-		if not self.is_enabled():
-			raise ValueError("Cannot build Authorization when AuthService is disabled.")
-
 		# Try if the object already exists
 		authz = self.Authorizations.get(id_token)
 		if authz is not None:
@@ -258,11 +255,11 @@ class AuthService(Service):
 			return authz
 
 		# Create a new Authorization object and store it
-		if id_token == "MOCK" and self.Mode == AuthMode.MOCK:
-			authz = Authorization(self, self.MockUserInfo)
+		if id_token == "MOCK" and self.MockMode is True:
+			authz = Authorization(self.MockUserInfo)
 		else:
 			userinfo = await self._get_userinfo_from_id_token(id_token)
-			authz = Authorization(self, userinfo)
+			authz = Authorization(userinfo)
 
 		self.Authorizations[id_token] = authz
 		return authz
@@ -287,7 +284,7 @@ class AuthService(Service):
 		"""
 		Validate the Authorizetion header and extract the Bearer token value
 		"""
-		if self.Mode == AuthMode.MOCK:
+		if self.MockMode is True:
 			if not self.IntrospectionUrl:
 				return "MOCK"
 
@@ -414,9 +411,6 @@ class AuthService(Service):
 		async def wrapper(*args, **kwargs):
 			request = args[-1]
 
-			if not self.is_enabled():
-				return await handler(*args, **kwargs)
-
 			bearer_token = await self.get_bearer_token_from_authorization_header(request)
 			authz = await self.build_authorization(bearer_token)
 
@@ -434,7 +428,7 @@ class AuthService(Service):
 		return wrapper
 
 
-	async def _wrap_handlers(self, aiohttp_app):
+	async def set_up_auth_web_wrapper(self, aiohttp_app: aiohttp.web.Application):
 		"""
 		Inspect all registered handlers and wrap them in decorators according to their parameters.
 		"""
@@ -448,21 +442,22 @@ class AuthService(Service):
 				continue
 
 			try:
-				self._wrap_handler(route)
+				self._set_handler_auth(route)
 			except Exception as e:
 				raise Exception("Failed to initialize auth for handler {!r}.".format(route.handler.__qualname__)) from e
 
 
-	def _wrap_handler(self, route):
+	def _set_handler_auth(self, route: aiohttp.web.AbstractRoute):
 		"""
 		Inspect handler and apply suitable auth wrappers.
 		"""
-		# Check if tenant is in route path
-		route_info = route.get_info()
-		tenant_in_path = "formatter" in route_info and "{tenant}" in route_info["formatter"]
-
 		# Extract the actual unwrapped handler method for signature inspection
 		handler_method = route.handler
+
+		# Exclude endpoints with @noauth decorator
+		if hasattr(handler_method, "NoAuth") and handler_method.NoAuth is True:
+			return
+
 		while hasattr(handler_method, "__wrapped__"):
 			# While loop unwraps handlers wrapped in multiple decorators.
 			# NOTE: This requires all the decorators to use @functools.wraps().
@@ -471,8 +466,6 @@ class AuthService(Service):
 		if hasattr(handler_method, "__func__"):
 			handler_method = handler_method.__func__
 
-		if hasattr(handler_method, "NoAuth"):
-			return
 		argspec = inspect.getfullargspec(handler_method)
 		args = set(argspec.kwonlyargs).union(argspec.args)
 
@@ -481,7 +474,7 @@ class AuthService(Service):
 
 		# Apply the decorators IN REVERSE ORDER (the last applied wrapper affects the request first)
 
-		# 3) Pass authorization attributes to handler method
+		# 2) Pass authorization attributes to handler method
 		if "resources" in args:
 			LogObsolete.warning(
 				"The 'resources' argument is deprecated. "
@@ -489,6 +482,7 @@ class AuthService(Service):
 				struct_data={"handler": handler.__qualname__, "eol": "2025-03-01"},
 			)
 			handler = _pass_resources(handler)
+
 		if "user_info" in args:
 			LogObsolete.warning(
 				"The 'user_info' argument is deprecated. "
@@ -496,20 +490,9 @@ class AuthService(Service):
 				struct_data={"handler": handler.__qualname__, "eol": "2025-03-01"},
 			)
 			handler = _pass_user_info(handler)
-		if "tenant" in args:
-			handler = _pass_tenant(handler)
-		if "authz" in args:
-			handler = _pass_authz(handler)
 
-		# 2) Authenticate and authorize request, authorize tenant from context, set Authorization context
+		# 1) Authenticate and authorize request, authorize tenant from context, set Authorization context
 		handler = self._authorize_request(handler)
-
-		# 1) Set tenant context (no authorization yet)
-		# TODO: This should be eventually done by TenantService
-		if tenant_in_path:
-			handler = _set_tenant_context_from_url_path(handler)
-		else:
-			handler = _set_tenant_context_from_url_query(handler)
 
 		route._handler = handler
 
@@ -539,7 +522,7 @@ class AuthService(Service):
 			raise NotAuthenticatedError()
 
 
-	def _check_if_installed(self):
+	def _validate_wrapper_installation(self):
 		"""
 		Check if there is at least one web container with authorization installed
 		"""
@@ -548,18 +531,26 @@ class AuthService(Service):
 			L.warning("Authorization is not installed: There are no web containers.")
 			return
 
+		auth_wrapper_installed = False
 		for web_container in web_service.Containers.values():
-			for middleware in web_container.WebApp.on_startup:
-				if middleware == self._wrap_handlers:
-					# Container has authorization installed
-					break
-			else:
+			try:
+				auth_wrapper_idx = web_container.WebApp.on_startup.index(self.set_up_auth_web_wrapper)
+				auth_wrapper_installed = True
+			except ValueError:
+				# Authorization wrapper not installed here
 				continue
 
-			# Container has authorization installed
-			break
+			# Ensure the wrappers are applied in the correct order
+			try:
+				tenant_wrapper_idx = web_container.WebApp.on_startup.index(set_up_tenant_web_wrapper)
+			except ValueError:
+				# Tenant wrapper not installed here
+				continue
 
-		else:
+			if auth_wrapper_idx > tenant_wrapper_idx:
+				raise Exception("TenantService.install() must be called before AuthService.install()")
+
+		if not auth_wrapper_installed:
 			L.warning(
 				"Authorization is not installed in any web container. "
 				"In applications with more than one WebContainer there is no automatic installation; "
@@ -570,7 +561,7 @@ class AuthService(Service):
 
 	def _try_auto_install(self):
 		"""
-		If there is exactly one web container, install authorization middleware on it.
+		If there is exactly one web container, install authorization wrapper on it.
 		"""
 		web_service = self.App.get_service("asab.WebService")
 		if web_service is None:
@@ -659,67 +650,4 @@ def _pass_resources(handler):
 	async def wrapper(*args, **kwargs):
 		authz = Authz.get(None)
 		return await handler(*args, resources=authz.authorized_resources() if authz is not None else None, **kwargs)
-	return wrapper
-
-
-def _pass_tenant(handler):
-	"""
-	Add tenant to the handler arguments
-	"""
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		return await handler(*args, tenant=Tenant.get(None), **kwargs)
-	return wrapper
-
-
-def _pass_authz(handler):
-	"""
-	Add Auhorization object to the handler arguments
-	"""
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		authz = Authz.get(None)
-		return await handler(*args, authz=authz, **kwargs)
-	return wrapper
-
-
-def _set_tenant_context_from_url_query(handler):
-	"""
-	Extract tenant from request query and add it to context
-	"""
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		request = args[-1]
-		tenant = request.query.get("tenant", None)
-
-		assert tenant is None or len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
-		tenant_ctx = Tenant.set(tenant)
-		try:
-			response = await handler(*args, **kwargs)
-		finally:
-			Tenant.reset(tenant_ctx)
-
-		return response
-
-	return wrapper
-
-
-def _set_tenant_context_from_url_path(handler):
-	"""
-	Extract tenant from request URL path and add it to context
-	"""
-	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
-		request = args[-1]
-		tenant = request.match_info["tenant"]
-
-		assert len(tenant) < 128  # Limit tenant name length to 128 characters to maintain sanity
-		tenant_ctx = Tenant.set(tenant)
-		try:
-			response = await handler(*args, **kwargs)
-		finally:
-			Tenant.reset(tenant_ctx)
-
-		return response
-
 	return wrapper

@@ -1,9 +1,8 @@
 from .service import TenantService
-from .midleware import tenant_middleware_factory, tenant_handler
+from .decorator import allow_no_tenant
 
 
 __all__ = (
-	'TenantService',
-	'tenant_middleware_factory',
-	'tenant_handler',
+	"TenantService",
+	"allow_no_tenant",
 )
