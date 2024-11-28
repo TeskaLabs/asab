@@ -36,7 +36,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			path = path[7:]  # Strip "file://"
 
 		path = os.path.abspath(path)
-		# Normalize the BasePath and remove trailing slashes
+		# remove trailing slashes
 		self.BasePath = path.rstrip("/")
 
 		L.info("is connected.", struct_data={'path': path})
