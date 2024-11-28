@@ -453,6 +453,44 @@ class LibraryService(Service):
 
 		return False
 
+	async def get_item_metadata(self, path: str) -> typing.Optional[dict]:
+		"""
+		Retrieve metadata for a specific file in the library, including its `target`.
+
+		Args:
+			path (str): The path of the file to retrieve metadata for.
+
+		Returns:
+			dict: Metadata for the specified file, including `target`, or None if not found.
+		"""
+		_validate_path_item(path)
+
+		directory, filename = os.path.split(path)
+
+		try:
+			# Fetch all items in the directory
+			items = await self.list(directory)
+		except Exception as e:
+			L.warning("Failed to list directory '{}' for path '{}': {}".format(directory, path, e))
+			return None
+
+		# Search for the specific file in the directory's items
+		for item in items:
+			if item.name == path and item.type == "item":
+				# Match found; return the item's metadata including `target`
+				return {
+					"name": item.name,
+					"type": item.type,
+					"layer": item.layer,
+					"providers": item.providers,
+					"disabled": item.disabled,
+					"override": item.override,
+					"target": item.target  # Include the target in the metadata
+				}
+
+		# If not found, return None
+		return None
+
 	async def export(self, path: str = "/", remove_path: bool = False) -> typing.IO:
 		"""
 		Return a file-like stream containing a gzipped tar archive of the library contents of the path.
