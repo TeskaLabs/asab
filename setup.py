@@ -1,8 +1,10 @@
 import pathlib
 import re
 import subprocess
+
 from setuptools.command.build_py import build_py
-from setuptools import find_packages, setup
+from setuptools import find_packages
+from setuptools import setup
 
 here = pathlib.Path(__file__).parent
 txt = (here / 'asab' / '__init__.py').read_text('utf-8')
@@ -10,16 +12,10 @@ if (here / '.git').exists():
 	# This branch is happening during build from git version
 	module_dir = (here / 'asab')
 
-	try:
-		version = subprocess.check_output(
-			['git', 'describe', '--abbrev=7', '--tags', '--dirty=-dirty', '--always'],
-			cwd=module_dir,
-			encoding='utf-8',  # Ensure output is decoded correctly
-		).strip()
-	except subprocess.CalledProcessError:
-		raise RuntimeError("Git version retrieval failed")
-
-	if version.startswith('v'):
+	version = subprocess.check_output(
+		['git', 'describe', '--abbrev=7', '--tags', '--dirty=-dirty', '--always'], cwd=module_dir)
+	version = version.decode('utf-8').strip()
+	if version[:1] == 'v':
 		version = version[1:]
 
 	# PEP 440 requires that the PUBLIC version field does not contain hyphens or pluses.
@@ -31,36 +27,34 @@ if (here / '.git').exists():
 	if match is not None:
 		version = "{}+{}".format(match[1], match[2])
 
-	try:
-		build = subprocess.check_output(
-			['git', 'rev-parse', 'HEAD'],
-			cwd=module_dir, encoding='utf-8'
-		).strip()
-	except subprocess.CalledProcessError:
-		raise RuntimeError("Git build hash retrieval failed")
+	build = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=module_dir)
+	build = build.decode('utf-8').strip()
 
 else:
-	# This is executed for packaged & distributed versions
+	# This is executed from packaged & distributed version
 	txt = (here / 'asab' / '__version__.py').read_text('utf-8')
 	version = re.findall(r"^__version__ = '([^']+)'\r?$", txt, re.M)[0]
 	build = re.findall(r"^__build__ = '([^']+)'\r?$", txt, re.M)[0]
 
-class CustomBuildPy(build_py):
+
+class custom_build_py(build_py):
+
 	def run(self):
 		super().run()
 
-		# Replace the content of `__version__.py` in the build folder with version info
+		# This replace content of `__version__.py` in build folder
 		version_file_name = pathlib.Path(self.build_lib, 'asab/__version__.py')
-		version_file_name.parent.mkdir(parents=True, exist_ok=True)
 		with open(version_file_name, 'w') as f:
-			f.write(f"__version__ = '{version}'\n")
-			f.write(f"__build__ = '{build}'\n")
+			f.write("__version__ = '{}'\n".format(version))
+			f.write("__build__ = '{}'\n".format(build))
+			f.write("\n")
+
 
 setup(
 	name='asab',
 	version=version,
 	description='ASAB simplifies a development of async application servers',
-	long_description=(here / 'README.rst').read_text('utf-8'),
+	long_description=open('README.rst').read(),
 	url='https://github.com/TeskaLabs/asab',
 	author='TeskaLabs Ltd',
 	author_email='info@teskalabs.com',
@@ -86,13 +80,13 @@ setup(
 		'PyYAML>=6.0,<7',
 	],
 	extras_require={
-		'git': ['pygit2<1.12'],
-		'encryption': ['cryptography'],
-		'authz': ['jwcrypto==1.5.6'],
-		'monitoring': ['sentry-sdk==1.45.0']
+		'git': 'pygit2<1.12',  # For Alpine 3.16 / Python 3.10, use pygit2>=1.9,<1.10
+		'encryption': 'cryptography',
+		'authz': 'jwcrypto==1.5.6',
+		'monitoring': "sentry-sdk==1.45.0"
 	},
 	cmdclass={
-		'build_py': CustomBuildPy,
+		'build_py': custom_build_py,
 	},
 	scripts=[
 		'asab-manifest.py'
