@@ -170,7 +170,7 @@ nav:
         - Web: 
           - Web server: reference/services/web/web-server.md
           - TLS/SSL: reference/services/web/tls.md
-          - Multi-tenancy: reference/services/web/multitenancy.md
+          - Multitenancy: reference/services/web/multitenancy.md
           - Authorization: reference/services/web/authorization.md
           - Cross-Origin Resource Sharing: reference/services/web/cors.md
         - Library: reference/services/library.md
