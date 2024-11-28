@@ -35,15 +35,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		if path.startswith('file://'):
 			path = path[7:]  # Strip "file://"
 
-		# Handle relative and absolute paths
-		if not os.path.isabs(path):  # Relative path
-			if "../" in path or "./" in path:
-				# Resolve relative paths to absolute
-				path = os.path.abspath(path)
-			else:
-				# Warn if the path is not valid as relative or absolute
-				L.warning("Provided path is neither valid absolute nor relative: '{}'".format(path))
-
+		path = os.path.abspath(path)
 		# Normalize the BasePath and remove trailing slashes
 		self.BasePath = path.rstrip("/")
 
