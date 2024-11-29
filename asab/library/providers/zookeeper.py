@@ -286,7 +286,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		tenant_node_path = self.build_path(path, tenant_specific=True)
 		if tenant_node_path != global_node_path:
 			tenant_nodes = await self.Zookeeper.get_children(tenant_node_path) or []
-			tenant_items = await self.process_nodes(tenant_nodes, path)
+			tenant_items = await self.process_nodes(tenant_nodes, path, target="tenant")
 		else:
 			tenant_items = []
 		# Combine items, with tenant items taking precedence over global ones
@@ -295,20 +295,27 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		return list(combined_items.values())
 
-	async def process_nodes(self, nodes, base_path):
+	async def process_nodes(self, nodes, base_path, target="global"):
+		"""
+		Processes a list of nodes and creates corresponding LibraryItem objects.
+
+		Args:
+			nodes (list): List of node names to process.
+			base_path (str): The base path for the nodes.
+			target (str): Specifies the target context, e.g., "tenant" or "global".
+
+		Returns:
+			list: A list of LibraryItem objects.
+		"""
 		items = []
 		for node in nodes:
 			# Remove any component that starts with '.'
 			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), node.split(os.path.sep), False)
 			if startswithdot:
 				continue
-			# Extract the last 5 characters of the node name
-			last_five_chars = node[-5:]
 
-			# Check if there is a period in the last five characters,
-			# We detect files in Zookeeper by the presence of a dot in the filename,
-			# but exclude filenames ending with '.io' or '.d' (e.g., 'logman.io', server_https.d)
-			# from being considered as files.
+			# Determine if this is a file or directory
+			last_five_chars = node[-5:]
 			if '.' in last_five_chars and not node.endswith(('.io', '.d')):
 				fname = base_path + node
 				ftype = "item"
@@ -316,11 +323,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				fname = base_path + node + '/'
 				ftype = "dir"
 
+			# Add the item with the specified target
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
 				layer=self.Layer,
 				providers=[self],
+				target=target
 			))
 
 		return items
