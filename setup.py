@@ -9,18 +9,6 @@ txt = (here / 'asab' / '__init__.py').read_text('utf-8')
 if (here / '.git').exists():
 	# This branch is happening during build from git version
 	module_dir = (here / 'asab')
-	print(">>>> module_dir", module_dir)
-
-	# Debug
-	try:
-		status = subprocess.check_output(
-			['git', 'status'],
-			cwd=module_dir,
-			encoding='utf-8',  # Ensure output is decoded correctly
-		).strip()
-	except subprocess.CalledProcessError:
-		raise RuntimeError("Git status retrieval failed")
-	print(">>>> status", status)
 
 	try:
 		version = subprocess.check_output(
@@ -29,12 +17,10 @@ if (here / '.git').exists():
 			encoding='utf-8',  # Ensure output is decoded correctly
 		).strip()
 	except subprocess.CalledProcessError:
-		raise RuntimeError("Git version retrieval failed")
+		raise RuntimeError('Git version retrieval failed')
 
 	if version.startswith('v'):
 		version = version[1:]
-
-	print(">>>> version", version)
 
 	# PEP 440 requires that the PUBLIC version field does not contain hyphens or pluses.
 	# https://peps.python.org/pep-0440/#semantic-versioning
@@ -43,18 +29,15 @@ if (here / '.git').exists():
 	# For example, "v22.06-rc6-291-g3021077-dirty" becomes "v22.06-rc6+291-g3021077-dirty".
 	match = re.match(r"^(.+)-([0-9]+-g[0-9a-f]{7}(?:-dirty)?)$", version)
 	if match is not None:
-		version = "{}+{}".format(match[1], match[2])
+		version = '{}+{}'.format(match[1], match[2])
 
-	print(">>>> version", version)
 	try:
 		build = subprocess.check_output(
 			['git', 'rev-parse', 'HEAD'],
 			cwd=module_dir, encoding='utf-8'
 		).strip()
 	except subprocess.CalledProcessError:
-		raise RuntimeError("Git build hash retrieval failed")
-
-	print(">>>> build", build)
+		raise RuntimeError('Git build hash retrieval failed')
 
 else:
 	# This is executed for packaged & distributed versions
