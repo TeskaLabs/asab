@@ -90,7 +90,7 @@ def _set_tenant_context_from_url_path(tenant_service, handler):
 
 		if not tenant_service.is_tenant_known(tenant):
 			L.warning("Tenant not found.", struct_data={"tenant": tenant})
-			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")	
+			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 
 		tenant_ctx = Tenant.set(tenant)
 		try:

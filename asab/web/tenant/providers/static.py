@@ -5,7 +5,8 @@ from .abc import TenantProviderABC
 
 
 class StaticTenantProvider(TenantProviderABC):
-	
+
+
 	def __init__(self, app, config):
 		super().__init__(app, config)
 		self.Tenants: typing.Set[str] = set()

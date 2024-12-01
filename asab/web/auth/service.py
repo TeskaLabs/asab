@@ -23,6 +23,7 @@ from ...contextvars import Tenant, Authz
 
 # TODO: This is not a smart way of detection of tenant middleware
 # from ..tenant.utils import set_up_tenant_web_wrapper
+set_up_tenant_web_wrapper = None
 
 from .authorization import Authorization
 

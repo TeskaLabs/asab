@@ -165,9 +165,8 @@ class TenantService(Service):
 				continue
 
 			try:
-				set_handler_tenant(self,route)
+				set_handler_tenant(self, route)
 			except Exception as e:
 				raise Exception(
 					"Failed to initialize tenant context for handler {!r}.".format(route.handler.__qualname__)
 				) from e
-
