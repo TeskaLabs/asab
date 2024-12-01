@@ -1,32 +1,18 @@
 import inspect
+import logging
 import functools
 import aiohttp.web
 
 from ...contextvars import Tenant
 
+#
 
-async def set_up_tenant_web_wrapper(aiohttp_app: aiohttp.web.Application):
-	"""
-	Inspect all registered handlers and wrap them in decorators according to their parameters.
-	"""
-	for route in aiohttp_app.router.routes():
-		# Skip non-coroutines
-		if not inspect.iscoroutinefunction(route.handler):
-			continue
+L = logging.getLogger(__name__)
 
-		# Skip HEAD requests
-		if route.method == "HEAD":
-			continue
-
-		try:
-			_set_handler_tenant(route)
-		except Exception as e:
-			raise Exception(
-				"Failed to initialize tenant context for handler {!r}.".format(route.handler.__qualname__)
-			) from e
+#
 
 
-def _set_handler_tenant(route: aiohttp.web.AbstractRoute):
+def set_handler_tenant(tenant_service, route: aiohttp.web.AbstractRoute):
 	"""
 	Inspect handler and apply suitable auth wrappers.
 	"""
@@ -37,29 +23,33 @@ def _set_handler_tenant(route: aiohttp.web.AbstractRoute):
 
 	# 2) Pass tenant if it is in handler args
 	if "tenant" in _get_route_handler_args(route):
-		handler = _pass_tenant(handler)
+		handler = _pass_tenant(tenant_service, handler)
 
 	# 1) Set tenant context from URL path or query
 	route_info = route.get_info()
 	if "formatter" in route_info and "{tenant}" in route_info["formatter"]:
-		handler = _set_tenant_context_from_url_path(handler)
+		handler = _set_tenant_context_from_url_path(tenant_service, handler)
 	else:
-		handler = _set_tenant_context_from_url_query(handler)
+		handler = _set_tenant_context_from_url_query(tenant_service, handler)
 
 	route._handler = handler
 
 
-def _pass_tenant(handler):
+def _pass_tenant(tenant_service, handler):
 	"""
 	Add tenant to the handler arguments
 	"""
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
-		return await handler(*args, tenant=Tenant.get(), **kwargs)
+		tenant = Tenant.get()
+		if not tenant_service.is_tenant_known(tenant):
+			L.warning("Tenant not found.", struct_data={"tenant": tenant})
+			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
+		return await handler(*args, tenant=tenant, **kwargs)
 	return wrapper
 
 
-def _set_tenant_context_from_url_query(handler):
+def _set_tenant_context_from_url_query(tenant_service, handler):
 	"""
 	Extract tenant from request query and add it to context
 	"""
@@ -72,7 +62,11 @@ def _set_tenant_context_from_url_query(handler):
 			hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True
 		):
 			# TODO: Use asab.exceptions.ValidationError instead once it implements aiohttp.web.HTTPBadRequest
-			raise aiohttp.web.HTTPBadRequest(reason="Missing `tenant` parameter in URL query.")
+			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
+
+		if not tenant_service.is_tenant_known(tenant):
+			L.warning("Tenant not found.", struct_data={"tenant": tenant})
+			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 
 		tenant_ctx = Tenant.set(tenant)
 		try:
@@ -85,7 +79,7 @@ def _set_tenant_context_from_url_query(handler):
 	return wrapper
 
 
-def _set_tenant_context_from_url_path(handler):
+def _set_tenant_context_from_url_path(tenant_service, handler):
 	"""
 	Extract tenant from request URL path and add it to context
 	"""
@@ -93,6 +87,10 @@ def _set_tenant_context_from_url_path(handler):
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
 		tenant = request.match_info["tenant"]
+
+		if not tenant_service.is_tenant_known(tenant):
+			L.warning("Tenant not found.", struct_data={"tenant": tenant})
+			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")	
 
 		tenant_ctx = Tenant.set(tenant)
 		try:

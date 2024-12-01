@@ -20,7 +20,10 @@ from ...exceptions import NotAuthenticatedError
 from ...api.discovery import NotDiscoveredError
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
-from ..tenant.utils import set_up_tenant_web_wrapper
+
+# TODO: This is not a smart way of detection of tenant middleware
+# from ..tenant.utils import set_up_tenant_web_wrapper
+
 from .authorization import Authorization
 
 try:

@@ -1,9 +1,12 @@
-import logging
 import typing
+import inspect
+import logging
+
+import aiohttp.web
 
 from ...abc.service import Service
 from ...config import Config
-from .utils import set_up_tenant_web_wrapper
+from .utils import set_handler_tenant
 
 #
 
@@ -39,7 +42,8 @@ class TenantService(Service):
 		"""
 		super().__init__(app, service_name)
 		self.App = app
-		self.Providers = set()
+		self.Providers = []  # Must be a list to be deterministic
+
 
 		auth_svc = self.App.get_service("asab.AuthService")
 		if auth_svc is not None:
@@ -53,11 +57,11 @@ class TenantService(Service):
 	def _prepare_providers(self):
 		if Config.get("tenants", "ids", fallback=None):
 			from .providers import StaticTenantProvider
-			self.Providers.add(StaticTenantProvider(self.App, Config["tenants"]))
+			self.Providers.append(StaticTenantProvider(self.App, Config["tenants"]))
 
 		if Config.get("tenants", "tenant_url", fallback=None):
 			from .providers import WebTenantProvider
-			self.Providers.add(WebTenantProvider(self.App, Config["tenants"]))
+			self.Providers.append(WebTenantProvider(self.App, Config["tenants"]))
 
 
 	async def initialize(self, app):
@@ -73,11 +77,7 @@ class TenantService(Service):
 		Returns:
 			The set of known tenant IDs.
 		"""
-		tenants = set()
-		for provider in self.Providers:
-			tenants.update(provider.Tenants)
-
-		return tenants
+		return self.get_tenants()
 
 
 	def get_tenants(self) -> typing.Set[str]:
@@ -87,7 +87,11 @@ class TenantService(Service):
 		Returns:
 			The set of known tenant IDs.
 		"""
-		return self.Tenants
+		tenants = set()
+		for provider in self.Providers:
+			tenants |= provider.get_tenants()
+
+		return tenants
 
 
 	def is_tenant_known(self, tenant: str) -> bool:
@@ -100,7 +104,12 @@ class TenantService(Service):
 		Returns:
 			Whether the tenant is known.
 		"""
-		return tenant in self.Tenants
+		if tenant is None:
+			return False
+		for provider in self.Providers:
+			if provider.is_tenant_known(tenant):
+				return True
+		return False
 
 
 	def install(self, web_container):
@@ -114,7 +123,7 @@ class TenantService(Service):
 
 		# Check that the middleware has not been installed yet
 		for middleware in web_container.WebApp.on_startup:
-			if middleware == set_up_tenant_web_wrapper:
+			if middleware == self._set_up_tenant_web_wrapper:
 				if len(web_service.Containers) == 1:
 					raise Exception(
 						"WebContainer has tenant middleware installed already. "
@@ -124,7 +133,7 @@ class TenantService(Service):
 				else:
 					raise Exception("WebContainer has tenant middleware installed already.")
 
-		web_container.WebApp.on_startup.append(set_up_tenant_web_wrapper)
+		web_container.WebApp.on_startup.append(self._set_up_tenant_web_wrapper)
 
 
 	def _try_auto_install(self):
@@ -140,3 +149,25 @@ class TenantService(Service):
 
 		self.install(web_container)
 		L.info("WebContainer tenant context wrapper will be installed automatically.")
+
+
+	async def _set_up_tenant_web_wrapper(self, aiohttp_app: aiohttp.web.Application):
+		"""
+		Inspect all registered handlers and wrap them in decorators according to their parameters.
+		"""
+		for route in aiohttp_app.router.routes():
+			# Skip non-coroutines
+			if not inspect.iscoroutinefunction(route.handler):
+				continue
+
+			# Skip HEAD requests
+			if route.method == "HEAD":
+				continue
+
+			try:
+				set_handler_tenant(self,route)
+			except Exception as e:
+				raise Exception(
+					"Failed to initialize tenant context for handler {!r}.".format(route.handler.__qualname__)
+				) from e
+

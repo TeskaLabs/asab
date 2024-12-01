@@ -1,11 +1,14 @@
 import re
+import typing
 
 from .abc import TenantProviderABC
 
 
 class StaticTenantProvider(TenantProviderABC):
+	
 	def __init__(self, app, config):
 		super().__init__(app, config)
+		self.Tenants: typing.Set[str] = set()
 		self._read_tenants_from_config()
 
 
@@ -23,3 +26,10 @@ class StaticTenantProvider(TenantProviderABC):
 
 		if len(self.Tenants) > 0:
 			self.App.PubSub.publish("Tenants.change!")
+
+	def get_tenants(self) -> typing.Set[str]:
+		return self.Tenants
+
+
+	def is_tenant_known(self, tenant: str) -> bool:
+		return tenant in self.Tenants
