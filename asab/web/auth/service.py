@@ -13,6 +13,13 @@ import aiohttp
 import aiohttp.web
 import aiohttp.client_exceptions
 
+try:
+	import jwcrypto.jwk
+	import jwcrypto.jwt
+	import jwcrypto.jws
+except ModuleNotFoundError:
+	jwcrypto = None
+
 from ... import LogObsolete
 from ...abc.service import Service
 from ...config import Config
@@ -21,18 +28,11 @@ from ...api.discovery import NotDiscoveredError
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
 
+from .authorization import Authorization
+
 # TODO: This is not a smart way of detection of tenant middleware
 # from ..tenant.utils import set_up_tenant_web_wrapper
 set_up_tenant_web_wrapper = None
-
-from .authorization import Authorization
-
-try:
-	import jwcrypto.jwk
-	import jwcrypto.jwt
-	import jwcrypto.jws
-except ModuleNotFoundError:
-	jwcrypto = None
 
 #
 
