@@ -1,3 +1,4 @@
+import typing
 import logging
 import aiohttp
 
@@ -10,6 +11,8 @@ L = logging.getLogger(__name__)
 class WebTenantProvider(TenantProviderABC):
 	def __init__(self, app, config):
 		super().__init__(app, config)
+		self.Tenants: typing.Set[str] = set()
+
 		self.TaskService = self.App.get_service("asab.TaskService")
 		self.TenantUrl = self.Config.get("tenant_url")
 
@@ -18,6 +21,14 @@ class WebTenantProvider(TenantProviderABC):
 
 	async def initialize(self, app):
 		self.TaskService.schedule(self._update_tenants())
+
+
+	def get_tenants(self) -> typing.Set[str]:
+		return self.Tenants
+
+
+	def is_tenant_known(self, tenant: str) -> bool:
+		return tenant in self.Tenants
 
 
 	async def _every_five_minutes(self, message_type=None):
