@@ -42,7 +42,12 @@ def _pass_tenant(tenant_service, handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		tenant = Tenant.get()
-		if not tenant_service.is_tenant_known(tenant):
+
+		if tenant is None:
+			if not (hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True):
+				raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
+
+		elif not tenant_service.is_tenant_known(tenant):
 			L.warning("Tenant not found.", struct_data={"tenant": tenant})
 			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 		return await handler(*args, tenant=tenant, **kwargs)
@@ -58,13 +63,11 @@ def _set_tenant_context_from_url_query(tenant_service, handler):
 		request = args[-1]
 		tenant = request.query.get("tenant")
 
-		if tenant is None and not (
-			hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True
-		):
-			# TODO: Use asab.exceptions.ValidationError instead once it implements aiohttp.web.HTTPBadRequest
-			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
+		if tenant is None:
+			if not (hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True):
+				raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 
-		if not tenant_service.is_tenant_known(tenant):
+		elif not tenant_service.is_tenant_known(tenant):
 			L.warning("Tenant not found.", struct_data={"tenant": tenant})
 			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 
