@@ -1,9 +1,5 @@
 Asynchronous Server App Boilerplate
 ===================================
-
-
-.. image:: https://travis-ci.com/TeskaLabs/asab.svg?branch=master
-    :target: https://travis-ci.com/TeskaLabs/asab
     
 .. image:: https://img.shields.io/github/license/TeskaLabs/asab
     :target: https://github.com/TeskaLabs/asab/blob/master/LICENSE
