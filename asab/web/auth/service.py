@@ -758,7 +758,7 @@ def _set_tenant_context_from_url_query(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
-		header_tenant = Tenant.get(None)
+		header_tenant = request.headers.get("X-Tenant")
 		tenant = request.query.get("tenant")
 
 		if tenant is None:
@@ -793,7 +793,7 @@ def _set_tenant_context_from_url_path(handler):
 	@functools.wraps(handler)
 	async def wrapper(*args, **kwargs):
 		request = args[-1]
-		header_tenant = Tenant.get(None)
+		header_tenant = request.headers.get("X-Tenant")
 		tenant = request.match_info.get("tenant")
 
 		if header_tenant is not None:
