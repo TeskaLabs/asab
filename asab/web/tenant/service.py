@@ -160,10 +160,6 @@ class TenantService(Service):
 			if not inspect.iscoroutinefunction(route.handler):
 				continue
 
-			# Skip HEAD requests
-			if route.method == "HEAD":
-				continue
-
 			try:
 				set_handler_tenant(self, route)
 			except Exception as e:
