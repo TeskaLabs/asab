@@ -30,10 +30,6 @@ from ...contextvars import Tenant, Authz
 
 from .authorization import Authorization
 
-# TODO: This is not a smart way of detection of tenant middleware
-# from ..tenant.utils import set_up_tenant_web_wrapper
-set_up_tenant_web_wrapper = None
-
 #
 
 L = logging.getLogger(__name__)
@@ -223,12 +219,19 @@ class AuthService(Service):
 			else:
 				raise Exception("WebContainer has authorization middleware installed already.")
 
+		tenant_service = self.App.get_service("asab.TenantService")
+		if tenant_service is None:
+			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
+			return
+
 		try:
-			tenant_wrapper_idx = web_container.WebApp.on_startup.index(set_up_tenant_web_wrapper)
+			tenant_wrapper_idx = web_container.WebApp.on_startup.index(tenant_service.set_up_tenant_web_wrapper)
 			# Tenant wrapper is installed - Auth wrapper must be applied before it
 			web_container.WebApp.on_startup.insert(tenant_wrapper_idx, self.set_up_auth_web_wrapper)
 		except ValueError:
+			# No tenant wrapper installed
 			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
+
 
 
 	def is_ready(self):
