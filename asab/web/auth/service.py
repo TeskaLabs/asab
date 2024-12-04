@@ -224,12 +224,10 @@ class AuthService(Service):
 			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
 			return
 
-		try:
-			tenant_wrapper_idx = web_container.WebApp.on_startup.index(tenant_service.set_up_tenant_web_wrapper)
-			# Tenant wrapper is installed - Auth wrapper must be applied before it
+		tenant_wrapper_idx = tenant_service.get_web_wrapper_position(web_container)
+		if tenant_wrapper_idx is not None:
 			web_container.WebApp.on_startup.insert(tenant_wrapper_idx, self.set_up_auth_web_wrapper)
-		except ValueError:
-			# No tenant wrapper installed
+		else:
 			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
 
 
@@ -538,6 +536,8 @@ class AuthService(Service):
 			L.warning("Authorization is not installed: There are no web containers.")
 			return
 
+		tenant_service = self.App.get_service("asab.TenantService")
+
 		auth_wrapper_installed = False
 		for web_container in web_service.Containers.values():
 			try:
@@ -547,15 +547,15 @@ class AuthService(Service):
 				# Authorization wrapper not installed here
 				continue
 
-			# Ensure the wrappers are applied in the correct order
-			try:
-				tenant_wrapper_idx = web_container.WebApp.on_startup.index(set_up_tenant_web_wrapper)
-			except ValueError:
-				# Tenant wrapper not installed here
+			if tenant_service is None:
+				# Without tenant service there are no tenant web wrappers
 				continue
 
-			if auth_wrapper_idx > tenant_wrapper_idx:
-				raise Exception("TenantService.install() must be called before AuthService.install()")
+			# Ensure the wrappers are applied in the correct order
+			tenant_wrapper_idx = tenant_service.get_web_wrapper_position(web_container)
+			if tenant_wrapper_idx is not None and auth_wrapper_idx > tenant_wrapper_idx:
+				raise Exception(
+					"TenantService.install(web_container) must be called before AuthService.install(web_container)")
 
 		if not auth_wrapper_installed:
 			L.warning(

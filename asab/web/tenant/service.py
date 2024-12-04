@@ -136,6 +136,22 @@ class TenantService(Service):
 		web_container.WebApp.on_startup.append(self._set_up_tenant_web_wrapper)
 
 
+	def get_web_wrapper_position(self, web_container) -> typing.Optional[int]:
+		"""
+		Check if tenant web wrapper is installed in container and where.
+
+		Args:
+			web_container: Web container to inspect.
+
+		Returns:
+			typing.Optional[int]: The index at which the wrapper is located, or `None` if it is not installed.
+		"""
+		try:
+			return web_container.WebApp.on_startup.index(self._set_up_tenant_web_wrapper)
+		except ValueError:
+			return None
+
+
 	def _try_auto_install(self):
 		"""
 		If there is exactly one web container, install tenant middleware on it.
