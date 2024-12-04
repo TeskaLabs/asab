@@ -15,17 +15,6 @@ L = logging.getLogger(__name__)
 #
 
 
-Config.add_defaults({
-	"tenants": {
-		# List of tenant IDs, entries can be separated by comma or newline
-		"ids": "",
-
-		# URL that provides a JSON array of tenant IDs
-		"tenant_url": "",
-	}
-})
-
-
 class TenantService(Service):
 	"""
 	Provides set of known tenants and tenant extraction for web requests.
@@ -67,6 +56,7 @@ class TenantService(Service):
 	async def initialize(self, app):
 		for provider in self.Providers:
 			await provider.initialize(app)
+		print(self.Tenants)
 
 
 	@property

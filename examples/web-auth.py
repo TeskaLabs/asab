@@ -14,6 +14,12 @@ if "web" not in asab.Config:
 		"listen": "8080"
 	}
 
+if "tenants" not in asab.Config:
+	asab.Config["tenants"] = {
+		# Define known tenants
+		"ids": "default brothers-workspace big-corporation"
+	}
+
 if "auth" not in asab.Config:
 	asab.Config["auth"] = {
 		# Enable all authentication and authorization, or switch into MOCK mode.
@@ -30,7 +36,7 @@ if "auth" not in asab.Config:
 
 		# URL of the authorization server's JWK public keys, used for ID token verification.
 		# This option is ignored in mock mode or when authorization is disabled.
-		"public_keys_url": "http://localhost:3081/.well-known/jwks.json",
+		# "public_keys_url": "http://localhost:3081/.well-known/jwks.json",
 	}
 
 
