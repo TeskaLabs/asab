@@ -32,7 +32,7 @@ def require(*resources):
 	def decorator_require(handler):
 
 		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
+		async def _require_wrapper(*args, **kwargs):
 			authz = Authz.get()
 			if authz is None:
 				raise AccessDeniedError()
@@ -41,7 +41,7 @@ def require(*resources):
 
 			return await handler(*args, **kwargs)
 
-		return wrapper
+		return _require_wrapper
 
 	return decorator_require
 
@@ -68,7 +68,7 @@ def noauth(handler):
 	handler.NoAuth = True
 
 	@functools.wraps(handler)
-	async def noauth_wrapper(*args, **kwargs):
+	async def _noauth_wrapper(*args, **kwargs):
 		return await handler(*args, **kwargs)
 
-	return noauth_wrapper
+	return _noauth_wrapper

@@ -413,7 +413,7 @@ class AuthService(Service):
 		Extract the token claims into Authorization context so that they can be used for authorization checks.
 		"""
 		@functools.wraps(handler)
-		async def authorize_wrapper(*args, **kwargs):
+		async def _authorize_request_wrapper(*args, **kwargs):
 			request = args[-1]
 
 			bearer_token = await self.get_bearer_token_from_authorization_header(request)
@@ -430,7 +430,7 @@ class AuthService(Service):
 			finally:
 				Authz.reset(authz_ctx)
 
-		return authorize_wrapper
+		return _authorize_request_wrapper
 
 
 	async def set_up_auth_web_wrapper(self, aiohttp_app: aiohttp.web.Application):
@@ -645,10 +645,10 @@ def _pass_user_info(handler):
 	Add user info to the handler arguments
 	"""
 	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
+	async def _pass_user_info_wrapper(*args, **kwargs):
 		authz = Authz.get(None)
 		return await handler(*args, user_info=authz.user_info() if authz is not None else None, **kwargs)
-	return wrapper
+	return _pass_user_info_wrapper
 
 
 def _pass_resources(handler):
@@ -656,7 +656,7 @@ def _pass_resources(handler):
 	Add resources to the handler arguments
 	"""
 	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
+	async def _pass_resources_wrapper(*args, **kwargs):
 		authz = Authz.get(None)
 		return await handler(*args, resources=authz.authorized_resources() if authz is not None else None, **kwargs)
-	return wrapper
+	return _pass_resources_wrapper
