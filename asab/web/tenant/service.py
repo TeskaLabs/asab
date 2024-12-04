@@ -54,6 +54,12 @@ class TenantService(Service):
 
 
 	async def initialize(self, app):
+		if len(self.Providers) == 0:
+			raise RuntimeError(
+				"TenantService requires at least one provider. "
+				"Specify either `tenant_url` or `ids` in the [tenants] config section."
+			)
+
 		for provider in self.Providers:
 			await provider.initialize(app)
 		print(self.Tenants)
