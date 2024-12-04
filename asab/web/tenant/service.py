@@ -36,7 +36,7 @@ class TenantService(Service):
 
 		auth_svc = self.App.get_service("asab.AuthService")
 		if auth_svc is not None:
-			raise Exception("Please initialize TenantService BEFORE AuthService.")
+			raise RuntimeError("Please initialize TenantService before AuthService.")
 
 		self._prepare_providers()
 		if auto_install_web_wrapper:
@@ -121,13 +121,13 @@ class TenantService(Service):
 		for middleware in web_container.WebApp.on_startup:
 			if middleware == self._set_up_tenant_web_wrapper:
 				if len(web_service.Containers) == 1:
-					raise Exception(
+					raise RuntimeError(
 						"WebContainer has tenant middleware installed already. "
 						"You don't need to call `TenantService.install()` in applications with a single WebContainer; "
 						"it is called automatically at init time."
 					)
 				else:
-					raise Exception("WebContainer has tenant middleware installed already.")
+					raise RuntimeError("WebContainer has tenant middleware installed already.")
 
 		web_container.WebApp.on_startup.append(self._set_up_tenant_web_wrapper)
 
@@ -175,6 +175,6 @@ class TenantService(Service):
 			try:
 				set_handler_tenant(self, route)
 			except Exception as e:
-				raise Exception(
+				raise RuntimeError(
 					"Failed to initialize tenant context for handler {!r}.".format(route.handler.__qualname__)
 				) from e
