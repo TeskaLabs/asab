@@ -1,12 +1,15 @@
 import typing
 import inspect
 import logging
+import datetime
 
 import aiohttp.web
 
+from ... import LOG_NOTICE
 from ...abc.service import Service
 from ...config import Config
 from .utils import set_handler_tenant
+from .providers.abc import TenantProviderABC
 
 #
 
@@ -31,8 +34,7 @@ class TenantService(Service):
 		"""
 		super().__init__(app, service_name)
 		self.App = app
-		self.Providers = []  # Must be a list to be deterministic
-
+		self.Providers: typing.List[TenantProviderABC] = []  # Must be a list to be deterministic
 
 		auth_svc = self.App.get_service("asab.AuthService")
 		if auth_svc is not None:
@@ -46,11 +48,11 @@ class TenantService(Service):
 	def _prepare_providers(self):
 		if Config.get("tenants", "ids", fallback=None):
 			from .providers import StaticTenantProvider
-			self.Providers.append(StaticTenantProvider(self.App, Config["tenants"]))
+			self.Providers.append(StaticTenantProvider(self.App, self, Config["tenants"]))
 
 		if Config.get("tenants", "tenant_url", fallback=None):
 			from .providers import WebTenantProvider
-			self.Providers.append(WebTenantProvider(self.App, Config["tenants"]))
+			self.Providers.append(WebTenantProvider(self.App, self, Config["tenants"]))
 
 
 	async def initialize(self, app):
@@ -62,6 +64,8 @@ class TenantService(Service):
 
 		for provider in self.Providers:
 			await provider.initialize(app)
+
+		self.LastUpdate = datetime.datetime.now(datetime.timezone.utc)
 
 
 	@property
@@ -129,6 +133,37 @@ class TenantService(Service):
 					raise RuntimeError("WebContainer has tenant middleware installed already.")
 
 		web_container.WebApp.on_startup.append(self._set_up_tenant_web_wrapper)
+
+
+	def is_ready(self) -> bool:
+		"""
+		Check if all tenant providers are ready.
+
+		Returns:
+			bool: Are all tenant providers ready?
+		"""
+		for provider in self.Providers:
+			if not provider.is_ready():
+				return False
+		return True
+
+
+	def set_ready(self, provider: TenantProviderABC):
+		"""
+		Update tenant service ready status.
+
+		Args:
+			provider: Tenant provider that updated its ready status.
+		"""
+		if len(self.Providers) == 0:
+			return
+
+		if self.is_ready():
+			L.log(LOG_NOTICE, "is ready.")
+			self.App.PubSub.publish("Tenants.ready!", self)
+		elif not provider.is_ready():
+			L.log(LOG_NOTICE, "is NOT ready.")
+			self.App.PubSub.publish("Tenants.not_ready!", self)
 
 
 	def get_web_wrapper_position(self, web_container) -> typing.Optional[int]:

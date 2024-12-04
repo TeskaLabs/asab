@@ -9,8 +9,8 @@ L = logging.getLogger(__name__)
 
 
 class WebTenantProvider(TenantProviderABC):
-	def __init__(self, app, config):
-		super().__init__(app, config)
+	def __init__(self, app, tenant_service, config):
+		super().__init__(app, tenant_service, config)
 		self.Tenants: typing.Set[str] = set()
 
 		self.TaskService = self.App.get_service("asab.TaskService")
@@ -21,6 +21,13 @@ class WebTenantProvider(TenantProviderABC):
 
 	async def initialize(self, app):
 		self.TaskService.schedule(self._update_tenants())
+
+
+	async def update_tenants(self, asynchronously: bool = True):
+		if asynchronously:
+			self.TaskService.schedule(self._update_tenants())
+		else:
+			await self._update_tenants()
 
 
 	def get_tenants(self) -> typing.Set[str]:
@@ -42,6 +49,7 @@ class WebTenantProvider(TenantProviderABC):
 					external_tenants = await resp.json()
 				else:
 					L.warning("Failed to load tenants.", struct_data={"url": self.TenantUrl})
+					self._set_ready(False)
 					return
 
 		new_tenants = set(external_tenants)
@@ -49,3 +57,5 @@ class WebTenantProvider(TenantProviderABC):
 			L.info("Tenants from URL updated.", struct_data={"url": self.TenantUrl})
 			self.Tenants = new_tenants
 			self.App.PubSub.publish("Tenants.change!")
+
+		self._set_ready(True)
