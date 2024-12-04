@@ -35,6 +35,8 @@ class TenantService(Service):
 		super().__init__(app, service_name)
 		self.App = app
 		self.Providers: typing.List[TenantProviderABC] = []  # Must be a list to be deterministic
+		self.LastUpdate: typing.Optional[datetime.datetime] = None
+		self.UpdateCooldown = datetime.timedelta(seconds=30)
 
 		auth_svc = self.App.get_service("asab.AuthService")
 		if auth_svc is not None:
@@ -43,6 +45,8 @@ class TenantService(Service):
 		self._prepare_providers()
 		if auto_install_web_wrapper:
 			self._try_auto_install()
+
+		self.App.PubSub.subscribe("Application.tick/300!", self._every_five_minutes)
 
 
 	def _prepare_providers(self):
@@ -53,6 +57,19 @@ class TenantService(Service):
 		if Config.get("tenants", "tenant_url", fallback=None):
 			from .providers import WebTenantProvider
 			self.Providers.append(WebTenantProvider(self.App, self, Config["tenants"]))
+
+
+	async def _every_five_minutes(self, message_type=None):
+		await self.update_tenants()
+
+
+	async def update_tenants(self, asynchronously: bool = True):
+		if datetime.datetime.now(datetime.timezone.utc) < self.LastUpdate + self.UpdateCooldown:
+			return
+
+		self.LastUpdate = datetime.datetime.now(datetime.timezone.utc)
+		for provider in self.Providers:
+			await provider.update(asynchronously)
 
 
 	async def initialize(self, app):
