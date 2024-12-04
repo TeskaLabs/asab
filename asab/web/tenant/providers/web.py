@@ -16,8 +16,6 @@ class WebTenantProvider(TenantProviderABC):
 		self.TaskService = self.App.get_service("asab.TaskService")
 		self.TenantUrl = self.Config.get("tenant_url")
 
-		self.App.PubSub.subscribe("Application.tick/300!", self._every_five_minutes)
-
 
 	async def initialize(self, app):
 		self.TaskService.schedule(self._update_tenants())
@@ -36,10 +34,6 @@ class WebTenantProvider(TenantProviderABC):
 
 	def is_tenant_known(self, tenant: str) -> bool:
 		return tenant in self.Tenants
-
-
-	async def _every_five_minutes(self, message_type=None):
-		self.TaskService.schedule(self._update_tenants())
 
 
 	async def _update_tenants(self, message_type=None):
