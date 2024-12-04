@@ -10,8 +10,8 @@ L = logging.getLogger(__name__)
 class StaticTenantProvider(TenantProviderABC):
 
 
-	def __init__(self, app, config):
-		super().__init__(app, config)
+	def __init__(self, app, tenant_service, config):
+		super().__init__(app, tenant_service, config)
 		self.Tenants: typing.Set[str] = set()
 		self._read_tenants_from_config()
 
@@ -31,6 +31,9 @@ class StaticTenantProvider(TenantProviderABC):
 		if len(self.Tenants) > 0:
 			L.info("Static tenants loaded from config.")
 			self.App.PubSub.publish("Tenants.change!")
+
+		self._set_ready(True)
+
 
 	def get_tenants(self) -> typing.Set[str]:
 		return self.Tenants
