@@ -98,6 +98,10 @@ def _set_tenant_context_from_url_path(tenant_service, handler):
 		request = args[-1]
 		tenant = request.match_info["tenant"]
 
+		if "tenant" in request.query:
+			L.warning("Parameter `tenant` cannot be present in URL path and query at the same time.")
+			raise aiohttp.web.HTTPBadRequest(reason="Tenant query parameter not allowed.")
+
 		if not tenant_service.is_tenant_known(tenant):
 			L.warning("Tenant not found.", struct_data={"tenant": tenant})
 			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
