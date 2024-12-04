@@ -62,7 +62,7 @@ def _set_tenant_context_from_url_query(tenant_service, handler):
 	Extract tenant from request query and add it to context
 	"""
 	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
+	async def tenant_context_from_url_query_wrapper(*args, **kwargs):
 		request = args[-1]
 		tenant = request.query.get("tenant")
 
@@ -85,7 +85,7 @@ def _set_tenant_context_from_url_query(tenant_service, handler):
 
 		return response
 
-	return wrapper
+	return tenant_context_from_url_query_wrapper
 
 
 def _set_tenant_context_from_url_path(tenant_service, handler):
@@ -93,7 +93,7 @@ def _set_tenant_context_from_url_path(tenant_service, handler):
 	Extract tenant from request URL path and add it to context
 	"""
 	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
+	async def tenant_context_from_url_path_wrapper(*args, **kwargs):
 		request = args[-1]
 		tenant = request.match_info["tenant"]
 
@@ -109,7 +109,7 @@ def _set_tenant_context_from_url_path(tenant_service, handler):
 
 		return response
 
-	return wrapper
+	return tenant_context_from_url_path_wrapper
 
 
 def _get_route_handler_args(route):

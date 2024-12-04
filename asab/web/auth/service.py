@@ -413,7 +413,7 @@ class AuthService(Service):
 		Extract the token claims into Authorization context so that they can be used for authorization checks.
 		"""
 		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
+		async def authorize_wrapper(*args, **kwargs):
 			request = args[-1]
 
 			bearer_token = await self.get_bearer_token_from_authorization_header(request)
@@ -430,7 +430,7 @@ class AuthService(Service):
 			finally:
 				Authz.reset(authz_ctx)
 
-		return wrapper
+		return authorize_wrapper
 
 
 	async def set_up_auth_web_wrapper(self, aiohttp_app: aiohttp.web.Application):

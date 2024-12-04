@@ -68,7 +68,7 @@ def noauth(handler):
 	handler.NoAuth = True
 
 	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
+	async def noauth_wrapper(*args, **kwargs):
 		return await handler(*args, **kwargs)
 
-	return wrapper
+	return noauth_wrapper
