@@ -226,6 +226,7 @@ class AuthService(Service):
 
 		tenant_wrapper_idx = tenant_service.get_web_wrapper_position(web_container)
 		if tenant_wrapper_idx is not None:
+			# Tenant wrapper is present - Auth wrapper must be applied before it
 			web_container.WebApp.on_startup.insert(tenant_wrapper_idx, self.set_up_auth_web_wrapper)
 		else:
 			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
