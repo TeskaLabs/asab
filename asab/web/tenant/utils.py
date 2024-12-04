@@ -68,6 +68,7 @@ def _set_tenant_context_from_url_query(tenant_service, handler):
 
 		if tenant is None:
 			if not (hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True):
+				L.warning("URL contains no `tenant` parameter.")
 				raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 			else:
 				# `None` is allowed: Tenant is optional at this endpoint.

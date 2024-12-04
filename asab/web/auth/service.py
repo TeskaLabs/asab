@@ -554,8 +554,10 @@ class AuthService(Service):
 			# Ensure the wrappers are applied in the correct order
 			tenant_wrapper_idx = tenant_service.get_web_wrapper_position(web_container)
 			if tenant_wrapper_idx is not None and auth_wrapper_idx > tenant_wrapper_idx:
-				raise RuntimeError(
-					"TenantService.install(web_container) must be called before AuthService.install(web_container)")
+				L.error(
+					"TenantService.install(web_container) must be called before AuthService.install(web_container). "
+					"Otherwise authorization will not work properly."
+				)
 
 		if not auth_wrapper_installed:
 			L.warning(
