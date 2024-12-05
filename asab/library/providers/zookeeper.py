@@ -417,24 +417,30 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				try:
 					await do_check_path(actual_path=path)
 				except Exception as e:
-					L.error("Failed to process library change for path {!r}: '{}'".format(path, e))
+					L.error(
+						"Failed to process library changes: '{}'".format(e),
+						struct_data={"path": path},
+					)
 
 			elif target == "tenant":
 				for tenant in await self._get_tenants():
 					try:
 						await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 					except Exception as e:
-						L.error("Failed to process library change for path {!r} in tenant {!r}: '{}'".format(
-							path, tenant, e))
+						L.error(
+							"Failed to process library changes: '{}'".format(e),
+							struct_data={"path": path, "tenant": tenant},
+						)
 
 			elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
 				tenant = target[1]
 				try:
 					await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 				except Exception as e:
-					L.error("Failed to process library change for path {!r} in tenant {!r}: '{}'".format(
-						path, tenant, e))
-
+					L.error(
+						"Failed to process library changes: '{}'".format(e),
+						struct_data={"path": path, "tenant": tenant},
+					)
 			else:
 				raise ValueError("Unexpected target: {!r}".format((target, path)))
 
