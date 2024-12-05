@@ -102,7 +102,7 @@ class Authorization:
 			>>>     if authz.has_tenant_access():
 			>>>     	print("I have access to Big Corporation!")
 			>>>     else:
-			>>>     print("Not much to do here.")
+			>>>         print("Not much to do here.")
 			>>> finally:
 			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
 		"""
@@ -198,7 +198,7 @@ class Authorization:
 			Set of authorized resources.
 		"""
 		self.require_valid()
-		return get_authorized_resources(self._Claims, Tenant.get(None))
+		return _get_authorized_resources(self._Claims, Tenant.get(None))
 
 
 	def user_info(self) -> typing.Dict[str, typing.Any]:
@@ -232,8 +232,14 @@ class Authorization:
 def is_superuser(claims: typing.Mapping) -> bool:
 	"""
 	Check if the superuser resource is present in the authorized resource list.
+
+	Args:
+		claims (typing.Mapping): Authorization server claims (aka UserInfo).
+
+	Returns:
+		bool: Do I have superuser access?
 	"""
-	return SUPERUSER_RESOURCE_ID in get_authorized_resources(claims, tenant=None)
+	return SUPERUSER_RESOURCE_ID in claims.get("resources")
 
 
 def has_resource_access(
@@ -243,11 +249,19 @@ def has_resource_access(
 ) -> bool:
 	"""
 	Check if the requested resources or the superuser resource are present in the authorized resource list.
+
+	Args:
+		claims (typing.Mapping): Authorization server claims (aka UserInfo).
+		resources (typing.Iterable[str]): A list of resource IDs whose authorization is requested.
+		tenant (str): Tenant context of the authorization.
+
+	Returns:
+		bool: Am I authorized to access requested resources?
 	"""
 	if is_superuser(claims):
 		return True
 
-	authorized_resources = get_authorized_resources(claims, tenant)
+	authorized_resources = _get_authorized_resources(claims, tenant)
 	for resource in resources:
 		if resource not in authorized_resources:
 			return False
@@ -259,9 +273,14 @@ def has_tenant_access(claims: typing.Mapping, tenant: str) -> bool:
 	"""
 	Check the agent's userinfo to see if they are authorized to access a tenant.
 	If the agent has superuser access, tenant access is always implicitly granted.
+
+	Args:
+		claims (typing.Mapping): Authorization server claims (aka UserInfo).
+		tenant (str): Tenant context of the authorization.
+
+	Returns:
+		bool: Am I authorized to access requested tenant?
 	"""
-	if tenant == "*":
-		raise ValueError("Invalid tenant name: '*'")
 	if tenant in {"*", None}:
 		raise ValueError("Invalid tenant: {!r}".format(tenant))
 	if is_superuser(claims):
@@ -271,12 +290,15 @@ def has_tenant_access(claims: typing.Mapping, tenant: str) -> bool:
 	return False
 
 
-def get_authorized_resources(claims: typing.Mapping, tenant: typing.Union[str, None]) -> typing.Set[str]:
+def _get_authorized_resources(claims: typing.Mapping, tenant: typing.Union[str, None]) -> typing.Set[str]:
 	"""
 	Extract resources authorized within given tenant (or globally, if tenant is None).
 
-	:param claims:
-	:param tenant:
-	:return: Set of authorized resources.
+	Args:
+		claims (typing.Mapping): Authorization server claims (aka UserInfo).
+		tenant (str): Tenant context of the authorization.
+
+	Returns:
+		bool: Am I authorized to access requested tenant?
 	"""
 	return set(claims.get("resources", {}).get(tenant if tenant is not None else "*", []))
