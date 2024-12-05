@@ -102,7 +102,7 @@ class PubSub(object):
 		"""
 		callback_list = self.Subscribers.get(message_type)
 		if callback_list is None:
-			L.warning("Message type subscription '{}'' not found.".format(message_type))
+			L.warning("Message type subscription '{}' not found.".format(message_type))
 			return
 
 		remove_list = None
@@ -123,7 +123,7 @@ class PubSub(object):
 				break
 
 		else:
-			L.warning("Subscriber '{}'' not found for the message type '{}'.".format(message_type, callback))
+			L.warning("Subscriber '{}' not found for the message type '{}'.".format(message_type, callback))
 
 		if remove_list is not None:
 			for callback_ref in remove_list:
