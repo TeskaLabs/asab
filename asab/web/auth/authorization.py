@@ -229,25 +229,25 @@ class Authorization:
 		return self._Claims.get(key)
 
 
-def is_superuser(userinfo: typing.Mapping) -> bool:
+def is_superuser(claims: typing.Mapping) -> bool:
 	"""
 	Check if the superuser resource is present in the authorized resource list.
 	"""
-	return SUPERUSER_RESOURCE_ID in get_authorized_resources(userinfo, tenant=None)
+	return SUPERUSER_RESOURCE_ID in get_authorized_resources(claims, tenant=None)
 
 
 def has_resource_access(
-	userinfo: typing.Mapping,
+	claims: typing.Mapping,
 	resources: typing.Iterable,
 	tenant: typing.Union[str, None],
 ) -> bool:
 	"""
 	Check if the requested resources or the superuser resource are present in the authorized resource list.
 	"""
-	if is_superuser(userinfo):
+	if is_superuser(claims):
 		return True
 
-	authorized_resources = get_authorized_resources(userinfo, tenant)
+	authorized_resources = get_authorized_resources(claims, tenant)
 	for resource in resources:
 		if resource not in authorized_resources:
 			return False
@@ -255,26 +255,26 @@ def has_resource_access(
 	return True
 
 
-def has_tenant_access(userinfo: typing.Mapping, tenant: str) -> bool:
+def has_tenant_access(claims: typing.Mapping, tenant: str) -> bool:
 	"""
 	Check the agent's userinfo to see if they are authorized to access a tenant.
 	If the agent has superuser access, tenant access is always implicitly granted.
 	"""
 	if tenant == "*":
 		raise ValueError("Invalid tenant name: '*'")
-	if is_superuser(userinfo):
+	if is_superuser(claims):
 		return True
-	if tenant in userinfo.get("resources", {}):
+	if tenant in claims.get("resources", {}):
 		return True
 	return False
 
 
-def get_authorized_resources(userinfo: typing.Mapping, tenant: typing.Union[str, None]) -> typing.Set[str]:
+def get_authorized_resources(claims: typing.Mapping, tenant: typing.Union[str, None]) -> typing.Set[str]:
 	"""
 	Extract resources authorized within given tenant (or globally, if tenant is None).
 
-	:param userinfo:
+	:param claims:
 	:param tenant:
 	:return: Set of authorized resources.
 	"""
-	return set(userinfo.get("resources", {}).get(tenant if tenant is not None else "*", []))
+	return set(claims.get("resources", {}).get(tenant if tenant is not None else "*", []))
