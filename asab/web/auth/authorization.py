@@ -262,6 +262,8 @@ def has_tenant_access(claims: typing.Mapping, tenant: str) -> bool:
 	"""
 	if tenant == "*":
 		raise ValueError("Invalid tenant name: '*'")
+	if tenant in {"*", None}:
+		raise ValueError("Invalid tenant: {!r}".format(tenant))
 	if is_superuser(claims):
 		return True
 	if tenant in claims.get("resources", {}):
