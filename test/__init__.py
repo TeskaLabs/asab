@@ -5,3 +5,5 @@ from .test_metrics.test_agg_counter import *
 from .test_metrics.test_histogram import *
 from .test_metrics.test_duplicates import *
 from .test_crash.test_crash import *
+from .test_auth.test_rbac_common import *
+from .test_auth.test_rbac_superuser import *
