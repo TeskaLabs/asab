@@ -244,7 +244,7 @@ def is_superuser(claims: typing.Mapping) -> bool:
 
 def has_resource_access(
 	claims: typing.Mapping,
-	resources: typing.Iterable,
+	resources: typing.Collection[str],
 	tenant: typing.Union[str, None],
 ) -> bool:
 	"""
@@ -252,12 +252,15 @@ def has_resource_access(
 
 	Args:
 		claims (typing.Mapping): Authorization server claims (aka UserInfo).
-		resources (typing.Iterable[str]): A list of resource IDs whose authorization is requested.
+		resources (typing.Collection[str]): A list of resource IDs whose authorization is requested.
 		tenant (str): Tenant context of the authorization (or `None` for global context).
 
 	Returns:
 		bool: Am I authorized to access requested resources?
 	"""
+	if len(resources) == 0:
+		raise ValueError("Resources must not be empty")
+
 	authorized_resources = _get_authorized_resources(claims, tenant)
 
 	if is_superuser(claims):
