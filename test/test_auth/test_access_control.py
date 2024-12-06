@@ -260,3 +260,87 @@ class TestSuperuser(unittest.TestCase):
 			),
 			"Superuser resource must grant superuser privileges.",
 		)
+
+
+class TestEmptyClaims(unittest.TestCase):
+	Claims = {}
+
+	def test_tenant_resource_access(self):
+		self.assertFalse(
+			has_resource_access(
+				claims=self.Claims,
+				resources=[RESOURCE_1],
+				tenant=TENANT_1,
+			),
+			"No authorized tenants or resources.",
+		)
+
+	def test_global_resource_access(self):
+		self.assertFalse(
+			has_resource_access(
+				claims=self.Claims,
+				resources=[RESOURCE_1],
+				tenant=None,
+			),
+			"No globally authorized resources.",
+		)
+
+	def test_tenant_access(self):
+		self.assertFalse(
+			has_tenant_access(
+				claims=self.Claims,
+				tenant=TENANT_2,
+			),
+			"No authorized tenants.",
+		)
+
+	def test_superuser(self):
+		self.assertFalse(
+			is_superuser(
+				claims=self.Claims,
+			),
+			"No authorized tenants or resources.",
+		)
+
+
+class TestEmptyResources(unittest.TestCase):
+	Claims = {
+		"resources": {},
+	}
+
+	def test_tenant_resource_access(self):
+		self.assertFalse(
+			has_resource_access(
+				claims=self.Claims,
+				resources=[RESOURCE_1],
+				tenant=TENANT_1,
+			),
+			"No authorized tenants or resources.",
+		)
+
+	def test_global_resource_access(self):
+		self.assertFalse(
+			has_resource_access(
+				claims=self.Claims,
+				resources=[RESOURCE_1],
+				tenant=None,
+			),
+			"No globally authorized resources.",
+		)
+
+	def test_tenant_access(self):
+		self.assertFalse(
+			has_tenant_access(
+				claims=self.Claims,
+				tenant=TENANT_2,
+			),
+			"No authorized tenants.",
+		)
+
+	def test_superuser(self):
+		self.assertFalse(
+			is_superuser(
+				claims=self.Claims,
+			),
+			"No authorized tenants or resources.",
+		)
