@@ -458,38 +458,50 @@ class LibraryService(Service):
 		Retrieve metadata for a specific file in the library, including its `target`.
 
 		Args:
-			path (str): The path of the file to retrieve metadata for.
+			path (str): The absolute path of the file to retrieve metadata for.
+						Must start with '/' and include a filename with an extension.
 
 		Returns:
 			dict: Metadata for the specified file, including `target`, or None if not found.
 		"""
+		# Validate the path format
 		_validate_path_item(path)
 
+		# Split into directory and filename
 		directory, filename = os.path.split(path)
+
+		if not directory or not filename:
+			L.warning("Invalid path '{}': missing directory or filename.".format(path))
+			return None
 
 		try:
 			# Fetch all items in the directory
 			items = await self.list(directory)
 		except Exception as e:
-			L.warning("Failed to list directory '{}' for path '{}': {}".format(directory, path, e))
+			L.warning("Failed to list items in directory '{}': {}".format(directory, e))
 			return None
 
-		# Search for the specific file in the directory's items
-		for item in items:
-			if item.name == path and item.type == "item":
-				# Match found; return the item's metadata including `target`
-				return {
-					"name": item.name,
-					"type": item.type,
-					"layer": item.layer,
-					"providers": item.providers,
-					"disabled": item.disabled,
-					"override": item.override,
-					"target": item.target  # Include the target in the metadata
-				}
+		# Use dictionary for faster lookup
+		items_dict = {item.name: item for item in items}
 
-		# If not found, return None
+		# Retrieve the item by path
+		item = items_dict.get(path)
+		if item and item.type == "item":
+			# Match found; return metadata including `target`
+			return {
+				"name": item.name,
+				"type": item.type,
+				"layer": item.layer,
+				"providers": item.providers,
+				"disabled": item.disabled,
+				"override": item.override,
+				"target": item.target,  # Include the target in the metadata
+			}
+
+		# Item not found
+		L.info("Item '{}' not found in directory '{}'.".format(filename, directory))
 		return None
+
 
 	async def export(self, path: str = "/", remove_path: bool = False) -> typing.IO:
 		"""
