@@ -57,7 +57,7 @@ class TestSuperuser(unittest.TestCase):
 			lambda: has_resource_access(
 				claims=self.Claims,
 				resources=["read"],
-				tenant="good",
+				tenant="*",
 			)
 		)
 
