@@ -195,10 +195,10 @@ class Authorization:
 		the set of resources directly.
 
 		Returns:
-			Set of authorized resources.
+			set: Authorized resources.
 		"""
 		self.require_valid()
-		return _get_authorized_resources(self._Claims, Tenant.get(None))
+		return _authorized_resources(self._Claims.get("resources", {}), Tenant.get(None))
 
 
 	def user_info(self) -> typing.Dict[str, typing.Any]:
@@ -229,21 +229,21 @@ class Authorization:
 		return self._Claims.get(key)
 
 
-def is_superuser(claims: typing.Mapping) -> bool:
+def is_superuser(resources_claim: typing.Mapping) -> bool:
 	"""
 	Check if the superuser resource is present in the authorized resource list.
 
 	Args:
-		claims (typing.Mapping): Authorization server claims (aka UserInfo).
+		resources_claim (typing.Mapping): The "resources" field from authorization server claims (aka UserInfo).
 
 	Returns:
 		bool: Do I have superuser access?
 	"""
-	return SUPERUSER_RESOURCE_ID in _get_authorized_resources(claims, tenant=None)
+	return SUPERUSER_RESOURCE_ID in _authorized_resources(resources_claim, tenant=None)
 
 
 def has_resource_access(
-	claims: typing.Mapping,
+	resources_claim: typing.Mapping,
 	resources: typing.Collection[str],
 	tenant: typing.Union[str, None],
 ) -> bool:
@@ -251,7 +251,7 @@ def has_resource_access(
 	Check if the requested resources or the superuser resource are present in the authorized resource list.
 
 	Args:
-		claims (typing.Mapping): Authorization server claims (aka UserInfo).
+		resources_claim (typing.Mapping): The "resources" field from authorization server claims (aka UserInfo).
 		resources (typing.Collection[str]): A list of resource IDs whose authorization is requested.
 		tenant (str): Tenant context of the authorization (or `None` for global context).
 
@@ -261,9 +261,9 @@ def has_resource_access(
 	if len(resources) == 0:
 		raise ValueError("Resources must not be empty")
 
-	authorized_resources = _get_authorized_resources(claims, tenant)
+	authorized_resources = _authorized_resources(resources_claim, tenant)
 
-	if is_superuser(claims):
+	if is_superuser(resources_claim):
 		return True
 
 	for resource in resources:
@@ -273,13 +273,13 @@ def has_resource_access(
 	return True
 
 
-def has_tenant_access(claims: typing.Mapping, tenant: str) -> bool:
+def has_tenant_access(resources_claim: typing.Mapping, tenant: str) -> bool:
 	"""
 	Check the agent's userinfo to see if they are authorized to access a tenant.
 	If the agent has superuser access, tenant access is always implicitly granted.
 
 	Args:
-		claims (typing.Mapping): Authorization server claims (aka UserInfo).
+		resources_claim (typing.Mapping): The "resources" field from authorization server claims (aka UserInfo).
 		tenant (str): Tenant context of the authorization.
 
 	Returns:
@@ -288,28 +288,28 @@ def has_tenant_access(claims: typing.Mapping, tenant: str) -> bool:
 	if tenant in {"*", None}:
 		raise ValueError("Invalid tenant: {!r}".format(tenant))
 
-	if is_superuser(claims):
+	if is_superuser(resources_claim):
 		return True
 
-	if tenant in claims.get("resources", {}):
+	if tenant in resources_claim:
 		return True
 
 	return False
 
 
-def _get_authorized_resources(claims: typing.Mapping, tenant: typing.Union[str, None]) -> typing.Set[str]:
+def _authorized_resources(resources_claim: typing.Mapping, tenant: typing.Union[str, None]) -> typing.Set[str]:
 	"""
 	Extract resources authorized within given tenant (or globally, if tenant is None).
 
 	Args:
-		claims (typing.Mapping): Authorization server claims (aka UserInfo).
+		resources_claim (typing.Mapping): The "resources" field from authorization server claims (aka UserInfo).
 		tenant (str): Tenant context of the authorization (or `None` for global context).
 
 	Returns:
-		bool: Am I authorized to access requested tenant?
+		set: Resources authorized within the tenant (or globally).
 	"""
 	if tenant == "*":
 		# Use `None` for global context instead!
 		raise ValueError("Invalid tenant name: {}".format(tenant))
 
-	return set(claims.get("resources", {}).get(tenant if tenant is not None else "*", []))
+	return set(resources_claim.get(tenant if tenant is not None else "*", []))
