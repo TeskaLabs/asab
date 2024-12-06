@@ -239,7 +239,7 @@ def is_superuser(claims: typing.Mapping) -> bool:
 	Returns:
 		bool: Do I have superuser access?
 	"""
-	return SUPERUSER_RESOURCE_ID in claims.get("resources")
+	return SUPERUSER_RESOURCE_ID in _get_authorized_resources(claims, tenant=None)
 
 
 def has_resource_access(
@@ -253,7 +253,7 @@ def has_resource_access(
 	Args:
 		claims (typing.Mapping): Authorization server claims (aka UserInfo).
 		resources (typing.Iterable[str]): A list of resource IDs whose authorization is requested.
-		tenant (str): Tenant context of the authorization.
+		tenant (str): Tenant context of the authorization (or `None` for global context).
 
 	Returns:
 		bool: Am I authorized to access requested resources?
@@ -296,9 +296,13 @@ def _get_authorized_resources(claims: typing.Mapping, tenant: typing.Union[str, 
 
 	Args:
 		claims (typing.Mapping): Authorization server claims (aka UserInfo).
-		tenant (str): Tenant context of the authorization.
+		tenant (str): Tenant context of the authorization (or `None` for global context).
 
 	Returns:
 		bool: Am I authorized to access requested tenant?
 	"""
+	if tenant == "*":
+		# Use `None` for global context instead!
+		raise ValueError("Invalid tenant name: {}".format(tenant))
+
 	return set(claims.get("resources", {}).get(tenant if tenant is not None else "*", []))
