@@ -114,6 +114,14 @@ class ConfigParser(configparser.ConfigParser):
 			"run_at_startup": "no",
 		},
 
+		"tenants": {
+			# Whitespace/comma-separated list of tenant IDs
+			"ids": "",
+
+			# Web URL that provides a JSON array of tenant ID strings
+			"tenant_url": "",
+		},
+
 		"auth": {
 			# URL location containing the authorization server's public JWK keys
 			# (often found at "/.well-known/jwks.json")
@@ -127,7 +135,7 @@ class ConfigParser(configparser.ConfigParser):
 			# - custom mock user info can supplied in a JSON file.
 			# "enabled": "yes",
 			"mock_user_info_path": "/conf/mock-userinfo.json",
-		}
+		},
 	}
 
 	if 'ASAB_ZOOKEEPER_SERVERS' in os.environ:

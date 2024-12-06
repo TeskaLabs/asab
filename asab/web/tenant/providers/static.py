@@ -1,7 +1,10 @@
 import re
 import typing
+import logging
 
 from .abc import TenantProviderABC
+
+L = logging.getLogger(__name__)
 
 
 class StaticTenantProvider(TenantProviderABC):
@@ -26,6 +29,7 @@ class StaticTenantProvider(TenantProviderABC):
 			self.Tenants.add(tenant_id)
 
 		if len(self.Tenants) > 0:
+			L.info("Static tenants loaded from config.")
 			self.App.PubSub.publish("Tenants.change!")
 
 	def get_tenants(self) -> typing.Set[str]:
