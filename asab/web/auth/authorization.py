@@ -258,10 +258,11 @@ def has_resource_access(
 	Returns:
 		bool: Am I authorized to access requested resources?
 	"""
+	authorized_resources = _get_authorized_resources(claims, tenant)
+
 	if is_superuser(claims):
 		return True
 
-	authorized_resources = _get_authorized_resources(claims, tenant)
 	for resource in resources:
 		if resource not in authorized_resources:
 			return False
@@ -283,10 +284,13 @@ def has_tenant_access(claims: typing.Mapping, tenant: str) -> bool:
 	"""
 	if tenant in {"*", None}:
 		raise ValueError("Invalid tenant: {!r}".format(tenant))
+
 	if is_superuser(claims):
 		return True
+
 	if tenant in claims.get("resources", {}):
 		return True
+
 	return False
 
 
