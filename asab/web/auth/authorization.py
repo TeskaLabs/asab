@@ -18,6 +18,7 @@ class Authorization:
 	def __init__(self, claims: dict):
 		# Userinfo should not be accessed directly
 		self._Claims = claims or {}
+		self._Resources = self._Claims.get("resources", {})
 
 		self.CredentialsId = self._Claims.get("sub")
 		self.Username = self._Claims.get("preferred_username") or self._Claims.get("username")
@@ -62,7 +63,7 @@ class Authorization:
 			>>>     print("I am but a mere mortal.")
 		"""
 		self.require_valid()
-		return is_superuser(self._Claims)
+		return is_superuser(self._Resources)
 
 
 	def has_resource_access(self, *resources: str) -> bool:
@@ -84,7 +85,7 @@ class Authorization:
 			>>>     print("Not much to do here.")
 		"""
 		self.require_valid()
-		return has_resource_access(self._Claims, resources, tenant=Tenant.get(None))
+		return has_resource_access(self._Resources, resources, tenant=Tenant.get(None))
 
 
 	def has_tenant_access(self) -> bool:
@@ -113,7 +114,7 @@ class Authorization:
 		except LookupError as e:
 			raise ValueError("No tenant in context.") from e
 
-		return has_tenant_access(self._Claims, tenant)
+		return has_tenant_access(self._Resources, tenant)
 
 
 	def require_valid(self):
@@ -198,7 +199,7 @@ class Authorization:
 			set: Authorized resources.
 		"""
 		self.require_valid()
-		return _authorized_resources(self._Claims.get("resources", {}), Tenant.get(None))
+		return _authorized_resources(self._Resources, Tenant.get(None))
 
 
 	def user_info(self) -> typing.Dict[str, typing.Any]:
