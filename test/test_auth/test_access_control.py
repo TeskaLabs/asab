@@ -5,11 +5,13 @@ from asab.web.auth.authorization import (
 	has_resource_access,
 	is_superuser,
 )
-from .constants import (
-	TENANT_1, TENANT_2,
-	RESOURCE_1, RESOURCE_2, RESOURCE_3,
-	RESOURCE_SUPERUSER,
-)
+
+TENANT_1 = "TENANT_1"
+TENANT_2 = "TENANT_2"
+RESOURCE_1 = "RESOURCE_1"
+RESOURCE_2 = "RESOURCE_2"
+RESOURCE_3 = "RESOURCE_3"
+RESOURCE_SUPERUSER = "authz:superuser"
 
 
 class TestGlobalAndTenantResources(unittest.TestCase):

@@ -4,11 +4,13 @@ import time
 import asab.contextvars
 import asab.exceptions
 from asab.web.auth.authorization import Authorization
-from .constants import (
-	TENANT_1, TENANT_2,
-	RESOURCE_1, RESOURCE_2, RESOURCE_3,
-	RESOURCE_SUPERUSER,
-)
+
+TENANT_1 = "TENANT_1"
+TENANT_2 = "TENANT_2"
+RESOURCE_1 = "RESOURCE_1"
+RESOURCE_2 = "RESOURCE_2"
+RESOURCE_3 = "RESOURCE_3"
+RESOURCE_SUPERUSER = "authz:superuser"
 
 
 class TestInvalidClaims(unittest.TestCase):
