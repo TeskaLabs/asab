@@ -190,16 +190,28 @@ class Authorization:
 
 	def authorized_resources(self) -> typing.Optional[typing.Set[str]]:
 		"""
-		Return the set of authorized resources.
+		DEPRECATED. Return the set of authorized resources.
 
-		NOTE: If possible, use methods has_resource_access(resource_id) and has_superuser_access() instead of inspecting
-		the set of resources directly.
+		Use these methods instead:
+		- has_resource_access(resource_id)
+		- has_superuser_access()
+		- has_tenant_access()
+		- require_resource_access(resource_id)
+		- require_superuser_access()
+		- require_tenant_access()
 
 		Returns:
 			set: Authorized resources.
 		"""
 		self.require_valid()
-		return _authorized_resources(self._Resources, Tenant.get(None))
+
+		resources = _authorized_resources(self._Resources, Tenant.get(None))
+
+		if self.has_superuser_access():
+			# Ensure superuser resource is present no matter the tenant
+			resources.add(SUPERUSER_RESOURCE_ID)
+
+		return resources
 
 
 	def user_info(self) -> typing.Dict[str, typing.Any]:
