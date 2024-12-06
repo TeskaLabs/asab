@@ -56,6 +56,14 @@ class TestCommonUser(unittest.TestCase):
 				tenant="bad",
 			)
 		)
+		self.assertRaises(
+			ValueError,
+			lambda: has_resource_access(
+				claims=self.Claims,
+				resources=["read"],
+				tenant="good",
+			)
+		)
 
 	def test_global_resource_access(self):
 		self.assertFalse(
@@ -72,6 +80,14 @@ class TestCommonUser(unittest.TestCase):
 				tenant=None,
 			)
 		)
+		self.assertRaises(
+			ValueError,
+			lambda: has_resource_access(
+				claims=self.Claims,
+				resources=["read"],
+				tenant="*",
+			)
+		)
 
 	def test_tenant_access(self):
 		self.assertTrue(
@@ -84,6 +100,20 @@ class TestCommonUser(unittest.TestCase):
 			has_tenant_access(
 				claims=self.Claims,
 				tenant="bad",
+			)
+		)
+		self.assertRaises(
+			ValueError,
+			lambda: has_tenant_access(
+				claims=self.Claims,
+				tenant="*",
+			)
+		)
+		self.assertRaises(
+			ValueError,
+			lambda: has_tenant_access(
+				claims=self.Claims,
+				tenant=None,
 			)
 		)
 
