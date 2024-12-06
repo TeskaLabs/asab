@@ -13,7 +13,7 @@ class TestAccessControlCommonUser(unittest.TestCase):
 			"*": [
 				"read",
 			],
-			"good": [
+			"alpha-inc": [
 				"read",
 				"write",
 			],
@@ -25,35 +25,35 @@ class TestAccessControlCommonUser(unittest.TestCase):
 			has_resource_access(
 				claims=self.Claims,
 				resources=["read", "write", "delete"],
-				tenant="good",
+				tenant="alpha-inc",
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
 				resources=["read", "write"],
-				tenant="good",
+				tenant="alpha-inc",
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
 				resources=["read"],
-				tenant="good",
+				tenant="alpha-inc",
 			)
 		)
 		self.assertFalse(
 			has_resource_access(
 				claims=self.Claims,
 				resources=["read", "write"],
-				tenant="bad",
+				tenant="beta-inc",
 			)
 		)
 		self.assertFalse(
 			has_resource_access(
 				claims=self.Claims,
 				resources=["read"],
-				tenant="bad",
+				tenant="beta-inc",
 			)
 		)
 		self.assertRaises(
@@ -93,13 +93,13 @@ class TestAccessControlCommonUser(unittest.TestCase):
 		self.assertTrue(
 			has_tenant_access(
 				claims=self.Claims,
-				tenant="good",
+				tenant="alpha-inc",
 			)
 		)
 		self.assertFalse(
 			has_tenant_access(
 				claims=self.Claims,
-				tenant="bad",
+				tenant="beta-inc",
 			)
 		)
 		self.assertRaises(
@@ -139,35 +139,35 @@ class TestAccessControlSuperuser(unittest.TestCase):
 			has_resource_access(
 				claims=self.Claims,
 				resources=["read", "write", "delete"],
-				tenant="good",
+				tenant="alpha-inc",
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
 				resources=["read", "write"],
-				tenant="good",
+				tenant="alpha-inc",
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
 				resources=["read"],
-				tenant="good",
+				tenant="alpha-inc",
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
 				resources=["read", "write"],
-				tenant="bad",
+				tenant="beta-inc",
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
 				resources=["read"],
-				tenant="bad",
+				tenant="beta-inc",
 			)
 		)
 		self.assertRaises(
@@ -207,13 +207,13 @@ class TestAccessControlSuperuser(unittest.TestCase):
 		self.assertTrue(
 			has_tenant_access(
 				claims=self.Claims,
-				tenant="good",
+				tenant="alpha-inc",
 			)
 		)
 		self.assertTrue(
 			has_tenant_access(
 				claims=self.Claims,
-				tenant="bad",
+				tenant="beta-inc",
 			)
 		)
 		self.assertRaises(
