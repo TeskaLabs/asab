@@ -5,17 +5,22 @@ from asab.web.auth.authorization import (
 	has_resource_access,
 	is_superuser,
 )
+from .constants import (
+	TENANT_1, TENANT_2,
+	RESOURCE_1, RESOURCE_2, RESOURCE_3,
+	RESOURCE_SUPERUSER,
+)
 
 
 class TestAccessControlCommonUser(unittest.TestCase):
 	Claims = {
 		"resources": {
 			"*": [
-				"read",
+				RESOURCE_1,
 			],
-			"alpha-inc": [
-				"read",
-				"write",
+			TENANT_1: [
+				RESOURCE_1,
+				RESOURCE_2,
 			],
 		},
 	}
@@ -24,43 +29,43 @@ class TestAccessControlCommonUser(unittest.TestCase):
 		self.assertFalse(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read", "write", "delete"],
-				tenant="alpha-inc",
+				resources=[RESOURCE_1, RESOURCE_2, RESOURCE_3],
+				tenant=TENANT_1,
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read", "write"],
-				tenant="alpha-inc",
+				resources=[RESOURCE_1, RESOURCE_2],
+				tenant=TENANT_1,
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read"],
-				tenant="alpha-inc",
+				resources=[RESOURCE_1],
+				tenant=TENANT_1,
 			)
 		)
 		self.assertFalse(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read", "write"],
-				tenant="beta-inc",
+				resources=[RESOURCE_1, RESOURCE_2],
+				tenant=TENANT_2,
 			)
 		)
 		self.assertFalse(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read"],
-				tenant="beta-inc",
+				resources=[RESOURCE_1],
+				tenant=TENANT_2,
 			)
 		)
 		self.assertRaises(
 			ValueError,
 			lambda: has_resource_access(
 				claims=self.Claims,
-				resources=["read"],
+				resources=[RESOURCE_1],
 				tenant="*",
 			)
 		)
@@ -69,14 +74,14 @@ class TestAccessControlCommonUser(unittest.TestCase):
 		self.assertFalse(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read", "write"],
+				resources=[RESOURCE_1, RESOURCE_2],
 				tenant=None,
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read"],
+				resources=[RESOURCE_1],
 				tenant=None,
 			)
 		)
@@ -84,7 +89,7 @@ class TestAccessControlCommonUser(unittest.TestCase):
 			ValueError,
 			lambda: has_resource_access(
 				claims=self.Claims,
-				resources=["read"],
+				resources=[RESOURCE_1],
 				tenant="*",
 			)
 		)
@@ -93,13 +98,13 @@ class TestAccessControlCommonUser(unittest.TestCase):
 		self.assertTrue(
 			has_tenant_access(
 				claims=self.Claims,
-				tenant="alpha-inc",
+				tenant=TENANT_1,
 			)
 		)
 		self.assertFalse(
 			has_tenant_access(
 				claims=self.Claims,
-				tenant="beta-inc",
+				tenant=TENANT_2,
 			)
 		)
 		self.assertRaises(
@@ -129,7 +134,7 @@ class TestAccessControlSuperuser(unittest.TestCase):
 	Claims = {
 		"resources": {
 			"*": [
-				"authz:superuser",
+				RESOURCE_SUPERUSER,
 			],
 		},
 	}
@@ -138,43 +143,43 @@ class TestAccessControlSuperuser(unittest.TestCase):
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read", "write", "delete"],
-				tenant="alpha-inc",
+				resources=[RESOURCE_1, RESOURCE_2, RESOURCE_3],
+				tenant=TENANT_1,
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read", "write"],
-				tenant="alpha-inc",
+				resources=[RESOURCE_1, RESOURCE_2],
+				tenant=TENANT_1,
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read"],
-				tenant="alpha-inc",
+				resources=[RESOURCE_1],
+				tenant=TENANT_1,
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read", "write"],
-				tenant="beta-inc",
+				resources=[RESOURCE_1, RESOURCE_2],
+				tenant=TENANT_2,
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read"],
-				tenant="beta-inc",
+				resources=[RESOURCE_1],
+				tenant=TENANT_2,
 			)
 		)
 		self.assertRaises(
 			ValueError,
 			lambda: has_resource_access(
 				claims=self.Claims,
-				resources=["read"],
+				resources=[RESOURCE_1],
 				tenant="*",
 			)
 		)
@@ -183,14 +188,14 @@ class TestAccessControlSuperuser(unittest.TestCase):
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read", "write"],
+				resources=[RESOURCE_1, RESOURCE_2],
 				tenant=None,
 			)
 		)
 		self.assertTrue(
 			has_resource_access(
 				claims=self.Claims,
-				resources=["read"],
+				resources=[RESOURCE_1],
 				tenant=None,
 			)
 		)
@@ -198,7 +203,7 @@ class TestAccessControlSuperuser(unittest.TestCase):
 			ValueError,
 			lambda: has_resource_access(
 				claims=self.Claims,
-				resources=["read"],
+				resources=[RESOURCE_1],
 				tenant="*",
 			)
 		)
@@ -207,13 +212,13 @@ class TestAccessControlSuperuser(unittest.TestCase):
 		self.assertTrue(
 			has_tenant_access(
 				claims=self.Claims,
-				tenant="alpha-inc",
+				tenant=TENANT_1,
 			)
 		)
 		self.assertTrue(
 			has_tenant_access(
 				claims=self.Claims,
-				tenant="beta-inc",
+				tenant=TENANT_2,
 			)
 		)
 		self.assertRaises(
