@@ -30,10 +30,6 @@ from ...contextvars import Tenant, Authz
 
 from .authorization import Authorization
 
-# TODO: This is not a smart way of detection of tenant middleware
-# from ..tenant.utils import set_up_tenant_web_wrapper
-set_up_tenant_web_wrapper = None
-
 #
 
 L = logging.getLogger(__name__)
@@ -215,20 +211,26 @@ class AuthService(Service):
 		# Check that the middleware has not been installed yet
 		if self.set_up_auth_web_wrapper in web_container.WebApp.on_startup:
 			if len(web_service.Containers) == 1:
-				raise Exception(
+				raise RuntimeError(
 					"WebContainer has authorization middleware installed already. "
 					"You don't need to call `AuthService.install()` in applications with a single WebContainer; "
 					"it is called automatically at init time."
 				)
 			else:
-				raise Exception("WebContainer has authorization middleware installed already.")
+				raise RuntimeError("WebContainer has authorization middleware installed already.")
 
-		try:
-			tenant_wrapper_idx = web_container.WebApp.on_startup.index(set_up_tenant_web_wrapper)
-			# Tenant wrapper is installed - Auth wrapper must be applied before it
-			web_container.WebApp.on_startup.insert(tenant_wrapper_idx, self.set_up_auth_web_wrapper)
-		except ValueError:
+		tenant_service = self.App.get_service("asab.TenantService")
+		if tenant_service is None:
 			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
+			return
+
+		tenant_wrapper_idx = tenant_service.get_web_wrapper_position(web_container)
+		if tenant_wrapper_idx is not None:
+			# Tenant wrapper is present - Auth wrapper must be applied before it
+			web_container.WebApp.on_startup.insert(tenant_wrapper_idx, self.set_up_auth_web_wrapper)
+		else:
+			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
+
 
 
 	def is_ready(self):
@@ -531,6 +533,8 @@ class AuthService(Service):
 			L.warning("Authorization is not installed: There are no web containers.")
 			return
 
+		tenant_service = self.App.get_service("asab.TenantService")
+
 		auth_wrapper_installed = False
 		for web_container in web_service.Containers.values():
 			try:
@@ -540,15 +544,17 @@ class AuthService(Service):
 				# Authorization wrapper not installed here
 				continue
 
-			# Ensure the wrappers are applied in the correct order
-			try:
-				tenant_wrapper_idx = web_container.WebApp.on_startup.index(set_up_tenant_web_wrapper)
-			except ValueError:
-				# Tenant wrapper not installed here
+			if tenant_service is None:
+				# Without tenant service there are no tenant web wrappers
 				continue
 
-			if auth_wrapper_idx > tenant_wrapper_idx:
-				raise Exception("TenantService.install() must be called before AuthService.install()")
+			# Ensure the wrappers are applied in the correct order
+			tenant_wrapper_idx = tenant_service.get_web_wrapper_position(web_container)
+			if tenant_wrapper_idx is not None and auth_wrapper_idx > tenant_wrapper_idx:
+				L.error(
+					"TenantService.install(web_container) must be called before AuthService.install(web_container). "
+					"Otherwise authorization will not work properly."
+				)
 
 		if not auth_wrapper_installed:
 			L.warning(
@@ -571,7 +577,7 @@ class AuthService(Service):
 		web_container = web_service.WebContainer
 
 		self.install(web_container)
-		L.info("WebContainer authorization installed automatically.")
+		L.debug("WebContainer authorization wrapper will be installed automatically.")
 
 
 def _get_id_token_claims(bearer_token: str, auth_server_public_key):
