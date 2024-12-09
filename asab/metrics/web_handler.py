@@ -6,6 +6,7 @@ import datetime
 from .openmetric import metric_to_openmetric
 from ..web.rest import json_response
 from ..web.auth import noauth
+from ..web.tenant import allow_no_tenant
 
 
 class MetricWebHandler(object):
@@ -21,6 +22,7 @@ class MetricWebHandler(object):
 
 
 	@noauth
+	@allow_no_tenant
 	async def metrics_json(self, request):
 		'''
 		Get metrics in a JSON.
@@ -32,6 +34,7 @@ class MetricWebHandler(object):
 
 
 	@noauth
+	@allow_no_tenant
 	async def metrics(self, request):
 		'''
 		Produce the OpenMetrics output.
@@ -58,6 +61,7 @@ class MetricWebHandler(object):
 
 
 	@noauth
+	@allow_no_tenant
 	async def watch(self, request):
 		"""
 		Endpoint to list ASAB metrics in the command line.

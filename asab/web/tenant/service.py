@@ -15,17 +15,6 @@ L = logging.getLogger(__name__)
 #
 
 
-Config.add_defaults({
-	"tenants": {
-		# List of tenant IDs, entries can be separated by comma or newline
-		"ids": "",
-
-		# URL that provides a JSON array of tenant IDs
-		"tenant_url": "",
-	}
-})
-
-
 class TenantService(Service):
 	"""
 	Provides set of known tenants and tenant extraction for web requests.
@@ -47,7 +36,7 @@ class TenantService(Service):
 
 		auth_svc = self.App.get_service("asab.AuthService")
 		if auth_svc is not None:
-			raise Exception("Please initialize TenantService BEFORE AuthService.")
+			raise RuntimeError("Please initialize TenantService before AuthService.")
 
 		self._prepare_providers()
 		if auto_install_web_wrapper:
@@ -65,6 +54,12 @@ class TenantService(Service):
 
 
 	async def initialize(self, app):
+		if len(self.Providers) == 0:
+			L.error(
+				"TenantService requires at least one provider. "
+				"Specify either `tenant_url` or `ids` in the [tenants] config section."
+			)
+
 		for provider in self.Providers:
 			await provider.initialize(app)
 
@@ -106,6 +101,9 @@ class TenantService(Service):
 		"""
 		if tenant is None:
 			return False
+		if len(self.Providers) == 0:
+			L.warning("No tenant provider registered.")
+			return False
 		for provider in self.Providers:
 			if provider.is_tenant_known(tenant):
 				return True
@@ -125,15 +123,31 @@ class TenantService(Service):
 		for middleware in web_container.WebApp.on_startup:
 			if middleware == self._set_up_tenant_web_wrapper:
 				if len(web_service.Containers) == 1:
-					raise Exception(
+					raise RuntimeError(
 						"WebContainer has tenant middleware installed already. "
 						"You don't need to call `TenantService.install()` in applications with a single WebContainer; "
 						"it is called automatically at init time."
 					)
 				else:
-					raise Exception("WebContainer has tenant middleware installed already.")
+					raise RuntimeError("WebContainer has tenant middleware installed already.")
 
 		web_container.WebApp.on_startup.append(self._set_up_tenant_web_wrapper)
+
+
+	def get_web_wrapper_position(self, web_container) -> typing.Optional[int]:
+		"""
+		Check if tenant web wrapper is installed in container and where.
+
+		Args:
+			web_container: Web container to inspect.
+
+		Returns:
+			typing.Optional[int]: The index at which the wrapper is located, or `None` if it is not installed.
+		"""
+		try:
+			return web_container.WebApp.on_startup.index(self._set_up_tenant_web_wrapper)
+		except ValueError:
+			return None
 
 
 	def _try_auto_install(self):
@@ -148,7 +162,7 @@ class TenantService(Service):
 		web_container = web_service.WebContainer
 
 		self.install(web_container)
-		L.info("WebContainer tenant context wrapper will be installed automatically.")
+		L.debug("WebContainer tenant wrapper will be installed automatically.")
 
 
 	async def _set_up_tenant_web_wrapper(self, aiohttp_app: aiohttp.web.Application):
@@ -163,6 +177,6 @@ class TenantService(Service):
 			try:
 				set_handler_tenant(self, route)
 			except Exception as e:
-				raise Exception(
+				raise RuntimeError(
 					"Failed to initialize tenant context for handler {!r}.".format(route.handler.__qualname__)
 				) from e

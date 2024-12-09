@@ -7,6 +7,7 @@ import aiohttp
 from ..web.rest.json import json_response
 from ..log import LOG_NOTICE
 from ..web.auth import noauth
+from ..web.tenant import allow_no_tenant
 
 ##
 
@@ -86,6 +87,7 @@ class WebApiLoggingHandler(logging.Handler):
 
 
 	@noauth
+	@allow_no_tenant
 	async def get_logs(self, request):
 		'''
 		Get logs.
@@ -97,6 +99,7 @@ class WebApiLoggingHandler(logging.Handler):
 
 
 	@noauth
+	@allow_no_tenant
 	async def ws(self, request):
 		'''
 		# Live feed of logs over websocket

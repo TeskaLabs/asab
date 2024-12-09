@@ -11,6 +11,7 @@ import typing
 
 from .doc_templates import SWAGGER_OAUTH_PAGE, SWAGGER_DOC_PAGE
 from ..web.auth import noauth
+from ..web.tenant import allow_no_tenant
 
 
 ##
@@ -226,6 +227,7 @@ class DocWebHandler(object):
 
 
 	@noauth
+	@allow_no_tenant
 	# This is the web request handler
 	async def doc(self, request):
 		"""
@@ -250,6 +252,7 @@ class DocWebHandler(object):
 
 
 	@noauth
+	@allow_no_tenant
 	async def oauth2_redirect(self, request):
 		"""
 		Required for the authorization to work.
@@ -261,6 +264,7 @@ class DocWebHandler(object):
 
 
 	@noauth
+	@allow_no_tenant
 	async def openapi(self, request):
 		"""
 		Download OpenAPI (version 3) API documentation (aka Swagger) in YAML.
