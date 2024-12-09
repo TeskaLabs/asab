@@ -55,7 +55,7 @@ class TenantService(Service):
 
 	async def initialize(self, app):
 		if len(self.Providers) == 0:
-			raise L.error(
+			L.error(
 				"TenantService requires at least one provider. "
 				"Specify either `tenant_url` or `ids` in the [tenants] config section."
 			)
