@@ -188,32 +188,6 @@ class Authorization:
 			raise AccessDeniedError()
 
 
-	def authorized_resources(self) -> typing.Optional[typing.Set[str]]:
-		"""
-		DEPRECATED. Return the set of authorized resources.
-
-		Use these methods instead:
-		- has_resource_access(resource_id)
-		- has_superuser_access()
-		- has_tenant_access()
-		- require_resource_access(resource_id)
-		- require_superuser_access()
-		- require_tenant_access()
-
-		Returns:
-			set: Authorized resources.
-		"""
-		self.require_valid()
-
-		resources = _authorized_resources(self._Resources, Tenant.get(None))
-
-		if self.has_superuser_access():
-			# Ensure superuser resource is present no matter the tenant
-			resources.add(SUPERUSER_RESOURCE_ID)
-
-		return resources
-
-
 	def user_info(self) -> typing.Dict[str, typing.Any]:
 		"""
 		Return OpenID Connect UserInfo claims (or JWToken claims).
@@ -240,6 +214,24 @@ class Authorization:
 		"""
 		self.require_valid()
 		return self._Claims.get(key)
+
+
+	def _resources(self) -> typing.Optional[typing.Set[str]]:
+		"""
+		Return the set of authorized resources.
+
+		Returns:
+			set: Authorized resources.
+		"""
+		self.require_valid()
+
+		resources = _authorized_resources(self._Resources, Tenant.get(None))
+
+		if self.has_superuser_access():
+			# Ensure superuser resource is present no matter the tenant
+			resources.add(SUPERUSER_RESOURCE_ID)
+
+		return resources
 
 
 def is_superuser(resources_claim: typing.Mapping) -> bool:

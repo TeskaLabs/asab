@@ -99,7 +99,7 @@ class TestExpiredSuperuser(unittest.TestCase):
 
 	def test_authorized_resources(self):
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
-			self.Authz.authorized_resources()
+			self.Authz._resources()
 
 	def test_get_claim(self):
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
@@ -186,7 +186,7 @@ class TestTenantAuthorized(unittest.TestCase):
 
 	def test_authorized_resources(self):
 		self.assertEqual(
-			self.Authz.authorized_resources(),
+			self.Authz._resources(),
 			{RESOURCE_1, RESOURCE_2},
 			"Entity is authorized to access RESOURCE_1, RESOURCE_2 in TENANT_1.",
 		)
@@ -259,7 +259,7 @@ class TestTenantForbidden(unittest.TestCase):
 
 	def test_authorized_resources(self):
 		self.assertEqual(
-			self.Authz.authorized_resources(),
+			self.Authz._resources(),
 			set(),
 			"Entity is authorized to access RESOURCE_1, RESOURCE_2 in TENANT_1.",
 		)
@@ -341,7 +341,7 @@ class TestGlobal(unittest.TestCase):
 
 	def test_authorized_resources(self):
 		self.assertEqual(
-			self.Authz.authorized_resources(),
+			self.Authz._resources(),
 			{RESOURCE_1},
 			"Entity is globally authorized to access RESOURCE_1.",
 		)
@@ -426,7 +426,7 @@ class TestSuperuserTenant(unittest.TestCase):
 
 	def test_authorized_resources(self):
 		self.assertEqual(
-			self.Authz.authorized_resources(),
+			self.Authz._resources(),
 			{RESOURCE_SUPERUSER},
 		)
 
@@ -510,6 +510,6 @@ class TestSuperuserGlobal(unittest.TestCase):
 
 	def test_authorized_resources(self):
 		self.assertEqual(
-			self.Authz.authorized_resources(),
+			self.Authz._resources(),
 			{RESOURCE_SUPERUSER},
 		)
