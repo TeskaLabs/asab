@@ -101,6 +101,9 @@ class TenantService(Service):
 		"""
 		if tenant is None:
 			return False
+		if len(self.Providers) == 0:
+			L.warning("No tenant provider registered.")
+			return False
 		for provider in self.Providers:
 			if provider.is_tenant_known(tenant):
 				return True
