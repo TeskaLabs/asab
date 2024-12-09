@@ -31,9 +31,13 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		'''
 
 		super().__init__(library, layer)
-		self.BasePath = os.path.abspath(path)
-		while self.BasePath.endswith("/"):
-			self.BasePath = self.BasePath[:-1]
+		# Check for `file://` prefix and strip it if present
+		if path.startswith('file://'):
+			path = path[7:]  # Strip "file://"
+
+		path = os.path.abspath(path)
+		# remove trailing slashes
+		self.BasePath = path.rstrip("/")
 
 		L.info("is connected.", struct_data={'path': path})
 		# Filesystem is always ready (or you have a serious problem)

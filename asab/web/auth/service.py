@@ -443,10 +443,6 @@ class AuthService(Service):
 			if not inspect.iscoroutinefunction(route.handler):
 				continue
 
-			# Skip auth for HEAD requests
-			if route.method == "HEAD":
-				continue
-
 			try:
 				self._set_handler_auth(route)
 			except Exception as e:
