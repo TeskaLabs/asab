@@ -655,5 +655,5 @@ def _pass_resources(handler):
 	@functools.wraps(handler)
 	async def _pass_resources_wrapper(*args, **kwargs):
 		authz = Authz.get(None)
-		return await handler(*args, resources=authz.authorized_resources() if authz is not None else None, **kwargs)
+		return await handler(*args, resources=authz._resources() if authz is not None else None, **kwargs)
 	return _pass_resources_wrapper
