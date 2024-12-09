@@ -5,6 +5,7 @@ import aiohttp.web
 from .. import Config
 from ..web.rest import json_response
 from ..web.auth import noauth
+from ..web.tenant import allow_no_tenant
 
 
 class APIWebHandler(object):
@@ -25,6 +26,7 @@ class APIWebHandler(object):
 
 
 	@noauth
+	@allow_no_tenant
 	async def changelog(self, request):
 		"""
 		It returns a change log file.
@@ -42,6 +44,7 @@ class APIWebHandler(object):
 
 
 	@noauth
+	@allow_no_tenant
 	async def manifest(self, request):
 		"""
 		It returns the manifest of the ASAB service.
@@ -70,6 +73,7 @@ class APIWebHandler(object):
 
 
 	@noauth
+	@allow_no_tenant
 	async def environ(self, request):
 		"""
 		It returns a JSON response containing the contents of the environment variables.
@@ -92,6 +96,7 @@ class APIWebHandler(object):
 
 
 	@noauth
+	@allow_no_tenant
 	async def config(self, request):
 		"""
 		It returns the JSON with the config of the ASAB service.
