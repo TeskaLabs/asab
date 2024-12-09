@@ -581,7 +581,7 @@ class AuthService(Service):
 		web_container = web_service.WebContainer
 
 		self.install(web_container)
-		L.info("WebContainer authorization installed automatically.")
+		L.debug("WebContainer authorization wrapper will be installed automatically.")
 
 
 def _get_id_token_claims(bearer_token: str, auth_server_public_key):

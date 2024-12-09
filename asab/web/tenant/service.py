@@ -159,7 +159,7 @@ class TenantService(Service):
 		web_container = web_service.WebContainer
 
 		self.install(web_container)
-		L.info("WebContainer tenant context wrapper will be installed automatically.")
+		L.debug("WebContainer tenant wrapper will be installed automatically.")
 
 
 	async def _set_up_tenant_web_wrapper(self, aiohttp_app: aiohttp.web.Application):
