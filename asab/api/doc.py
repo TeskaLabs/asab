@@ -139,7 +139,8 @@ class DocWebHandler(object):
 		if docstring_yaml is not None:
 			route_data.update(docstring_yaml)
 
-		for path_parameter in extract_path_parameters(route):
+		# Find all path parameters, add them if not specified in docstring.
+		for path_parameter in get_path_parameters(route):
 			if path_parameter.get("name") is not None:
 				if path_parameter["name"] not in [r["name"] for r in route_data["parameters"]]:
 					route_data["parameters"].append(path_parameter)
@@ -297,9 +298,9 @@ def get_docstring_description(docstring: typing.Optional[str]) -> str:
 	return description
 
 
-def extract_path_parameters(route) -> list:
+def get_path_parameters(route) -> list:
 	"""
-	Take a single route and return its parameters.
+	Return path parameters of a route.
 	"""
 	parameters: list = []
 	route_info = route.get_info()
