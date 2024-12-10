@@ -89,7 +89,7 @@ class DocWebHandler(object):
 				continue
 
 			# Determine which routes are asab-based
-			if re.search("(asab|doc|oauth2-redirect.html)", self.get_route_path(route)):
+			if re.search("(asab|doc|oauth2-redirect.html|bspump)", self.get_route_path(route)):
 				asab_routes.append(self.parse_route_data(route))
 			else:
 				routes.append(self.parse_route_data(route))
