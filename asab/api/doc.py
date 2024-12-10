@@ -39,7 +39,7 @@ class DocWebHandler(object):
 
 		self.Manifest = api_service.Manifest
 
-		self.DefaultRouteTag: str = asab.Config["asab:doc"].get("default_route_tag")  # default: 'module_name'
+		self.DefaultRouteTag: str = asab.Config.get("asab:doc", "default_route_tag")
 		if self.DefaultRouteTag not in ["module_name", "class_name"]:
 			raise ValueError(
 				"Unknown default_route_tag: {}. Choose between options "
@@ -52,13 +52,11 @@ class DocWebHandler(object):
 		"""
 		Take a docstring of the class and a docstring of methods and merge them into Swagger data.
 		"""
-		app_doc_string: str = self.App.__doc__
-		app_description: str = get_docstring_description(app_doc_string)
 		specification: dict = {
 			"openapi": "3.0.1",
 			"info": {
 				"title": "{}".format(self.App.__class__.__name__),
-				"description": app_description,
+				"description": get_docstring_description(self.App.__doc__),
 				"contact": {
 					"name": "ASAB-based microservice",
 					"url": "https://www.github.com/teskalabs/asab",
@@ -78,12 +76,11 @@ class DocWebHandler(object):
 		}
 
 		# Application specification
-		app_info: dict = get_docstring_yaml_dict(self.App)
-		specification.update(app_info)
+		specification.update(get_docstring_yaml(self.App))
 
 		# Find asab and microservice routes, sort them alphabetically by the first tag
 		asab_routes = []
-		microservice_routes = []
+		routes = []
 
 		for route in self.WebContainer.WebApp.router.routes():
 			if route.method == "HEAD":
@@ -92,15 +89,14 @@ class DocWebHandler(object):
 				continue
 
 			# Determine which routes are asab-based
-			path: str = self.get_route_path(route)
-			if re.search("asab", path) or re.search("/doc", path) or re.search("/oauth2-redirect.html", path):
+			if re.search("(asab|doc|oauth2-redirect.html)", self.get_route_path(route)):
 				asab_routes.append(self.parse_route_data(route))
 			else:
-				microservice_routes.append(self.parse_route_data(route))
+				routes.append(self.parse_route_data(route))
 
-		microservice_routes.sort(key=get_first_tag)
+		routes.sort(key=get_first_tag)
 
-		for endpoint in microservice_routes:
+		for endpoint in routes:
 			endpoint_name = list(endpoint.keys())[0]
 			# if endpoint already exists, then update, else create a new one
 			spec_endpoint = specification["paths"].get(endpoint_name)
@@ -123,51 +119,48 @@ class DocWebHandler(object):
 		"""
 		Take a route (a single method of an endpoint) and return its description data.
 		"""
-		path_parameters: list = extract_path_parameters(route)
-		handler_name: str = get_handler_name(route)
-
 		# Parse docstring description and yaml data
-		docstring: str = route.handler.__doc__
-		docstring_description: str = get_docstring_description(docstring)
-		docstring_description += "\n\n**Handler:** `{}`".format(handler_name)
-		docstring_yaml_dict: dict = get_docstring_yaml_dict(route.handler)
+		docstring_description = "{}\n\n**Handler:** `{}`".format(
+			get_docstring_description(route.handler.__doc__),
+			get_handler_name(route)
+		)
 
 		# Create route info dictionary
-		route_info_data: dict = {
-			"summary": docstring_description.split("\n")[0],
-			"description": docstring_description,
-			"responses": {"200": {"description": "Success"}},
+		route_data: dict = {
+			"summary": docstring_description.split("\n", 1)[0],
+			"description": docstring_description.split("\n", 1)[1],
+			"responses": {"200": {"description": "Success."}},
 			"parameters": [],
 			"tags": []
 		}
 
 		# Update it with parsed YAML and add query parameters
-		if docstring_yaml_dict is not None:
-			route_info_data.update(docstring_yaml_dict)
-			for query_parameter in docstring_yaml_dict.get("parameters", []):
-				if query_parameter.get("parameters"):
-					route_info_data["parameters"].append(query_parameter["parameters"])
+		docstring_yaml: dict = get_docstring_yaml(route.handler)
+		if docstring_yaml is not None:
+			route_data.update(docstring_yaml)
 
-		for path_parameter in path_parameters:
-			route_info_data["parameters"].append(path_parameter)
+		for path_parameter in extract_path_parameters(route):
+			if path_parameter.get("name") is not None:
+				if path_parameter["name"] not in [r["name"] for r in route_data["parameters"]]:
+					route_data["parameters"].append(path_parameter)
 
 		# Add default tag if not specified in docstring yaml
-		if len(route_info_data["tags"]) == 0:
+		if len(route_data["tags"]) == 0:
 			# Try to get the tags from class docstring
 			class_tags = get_class_tags(route)
 			if class_tags:
-				route_info_data["tags"] = class_tags[:1]
+				route_data["tags"] = class_tags[:1]
 			# Or generate tag from component name
 			elif self.DefaultRouteTag == "class_name":
-				route_info_data["tags"] = [get_class_name(route)]
+				route_data["tags"] = [get_class_name(route)]
 			elif self.DefaultRouteTag == "module_name":
-				route_info_data["tags"] = [get_module_name(route)]
+				route_data["tags"] = [get_module_name(route)]
 
 		# Create the route dictionary
 		route_path: str = self.get_route_path(route)
 		method_name: str = route.method.lower()
 		method_dict: dict = get_json_schema(route)
-		method_dict.update(route_info_data)
+		method_dict.update(route_data)
 
 		return {route_path: {method_name: method_dict}}
 
@@ -202,7 +195,7 @@ class DocWebHandler(object):
 					)
 		return security_schemes_dict
 
-	def get_version_from_manifest(self) -> dict:
+	def get_version_from_manifest(self) -> str:
 		"""
 		Get version from MANIFEST.json if exists.
 		"""
@@ -314,10 +307,10 @@ def extract_path_parameters(route) -> list:
 		path = route_info["formatter"]
 		for params in re.findall(r'\{[^\}]+\}', path):
 				parameters.append({
-					'in': 'path',
-					'name': params[1:-1],
-					'required': True,
-					'schema': {'type': 'string'},
+					"in": "path",
+					"name": params[1:-1],
+					"required": True,
+					"schema": {"type": "string"},
 				})
 	return parameters
 
@@ -341,9 +334,7 @@ def get_class_name(route) -> str:
 def get_class_tags(route) -> typing.Optional[list]:
 	if not inspect.ismethod(route.handler):
 		return None
-	handler_class = route.handler.__self__.__class__
-	yaml_dict = get_docstring_yaml_dict(handler_class)
-	return yaml_dict.get("tags")
+	return get_docstring_yaml(route.handler.__self__.__class__).get("tags")
 
 
 def get_module_name(route) -> str:
@@ -372,7 +363,7 @@ def get_first_tag(route_data: dict) -> str:
 				return method.get("tags")[0].lower()
 
 
-def get_docstring_yaml_dict(component) -> dict:
+def get_docstring_yaml(component) -> dict:
 	"""
 	Inspect the docstring of a component for YAML data and parse it if there is any.
 	"""
