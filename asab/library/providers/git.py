@@ -122,7 +122,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			pygit_message = str(err).replace('\"', '')
 			if "'refs/remotes/origin/{}'".format(self.Branch) in pygit_message:
 				# branch does not exist
-				L.critical(
+				L.exception(
 					"Branch does not exist.",
 					struct_data={
 						"url": self.URLPath,
@@ -130,13 +130,13 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					}
 				)
 			else:
-				L.critical("Error when initializing git repository: {}".format(pygit_message))
+				L.exception("Error when initializing git repository: {}".format(pygit_message))
 
 		except pygit2.GitError as err:
 			pygit_message = str(err).replace('\"', '')
 			if "unexpected http status code: 404" in pygit_message:
 				# repository not found
-				L.critical(
+				L.exception(
 					"Git repository not found.",
 					struct_data={
 						"url": self.URLPath
@@ -144,7 +144,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				)
 			elif "remote authentication required but no callback set" in pygit_message:
 				# either repository not found or authentication failed
-				L.critical(
+				L.exception(
 					"Authentication failed when initializing git repository.\n"
 					"Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'",
 					struct_data={
@@ -155,7 +155,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				)
 			elif 'cannot redirect from' in pygit_message:
 				# bad URL
-				L.critical(
+				L.exception(
 					"Git repository not found.",
 					struct_data={
 						"url": self.URLPath
@@ -163,14 +163,14 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				)
 			elif 'Temporary failure in name resolution' in pygit_message:
 				# Internet connection does
-				L.critical(
+				L.exception(
 					"Git repository not initialized: connection failed. Check your network connection.",
 					struct_data={
 						"url": self.URLPath
 					}
 				)
 			else:
-				L.critical("Git repository not initialized: {}".format(err))
+				L.exception("Git repository not initialized: {}".format(err))
 
 		except Exception as err:
 			L.exception(err)
