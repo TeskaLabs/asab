@@ -7,6 +7,7 @@ import aiohttp
 from ..web.rest.json import json_response
 from ..log import LOG_NOTICE
 from ..web.auth import noauth
+from ..web.tenant import allow_no_tenant
 
 ##
 
@@ -86,17 +87,58 @@ class WebApiLoggingHandler(logging.Handler):
 
 
 	@noauth
+	@allow_no_tenant
 	async def get_logs(self, request):
-		'''
+		"""
 		Get logs.
 		---
 		tags: ['asab.log']
-		'''
+
+		responses:
+			"200":
+				description: Logs.
+				content:
+					application/json:
+						schema:
+							type: array
+							items:
+								type: object
+								properties:
+									t:
+										type: string
+										description: Time when the log was emitted.
+										example: 2024-12-10T14:28:53.421079Z
+									C:
+										type: string
+										description: Class that produced the log.
+										example: myapp.myservice.service
+									M:
+										type: string
+										description: Log message.
+										example: Periodic check finished.
+									l:
+										type: int
+										example: 6
+										oneOf:
+										-	title: Alert
+											const: 1
+										-	title: Critical
+											const: 2
+										-	title: Error
+											const: 3
+										-	title: Warning
+											const: 4
+										-	title: Notice
+											const: 5
+										-	title: Info
+											const: 6
+		"""
 
 		return json_response(request, self.Buffer)
 
 
 	@noauth
+	@allow_no_tenant
 	async def ws(self, request):
 		'''
 		# Live feed of logs over websocket
