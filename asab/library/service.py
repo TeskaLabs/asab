@@ -480,7 +480,6 @@ class LibraryService(Service):
 		try:
 			# Fetch all items in the directory
 			items = await self.list(directory)
-			print(items)
 		except Exception as e:
 			L.warning("Failed to list items in directory '{}': {}".format(directory, e))
 			return None
