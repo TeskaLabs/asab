@@ -14,6 +14,7 @@ class WebTenantProvider(TenantProviderABC):
 		self.Tenants: typing.Set[str] = set()
 
 		self.TaskService = self.App.get_service("asab.TaskService")
+		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
 		self.TenantUrl = self.Config.get("tenant_url")
 
 
@@ -37,7 +38,12 @@ class WebTenantProvider(TenantProviderABC):
 
 
 	async def _update_tenants(self, message_type=None):
-		async with aiohttp.ClientSession() as session:
+		if self.DiscoveryService is not None:
+			open_session = self.DiscoveryService.session
+		else:
+			open_session = aiohttp.ClientSession
+
+		async with open_session as session:
 			async with session.get(self.TenantUrl) as resp:
 				if resp.status == 200:
 					external_tenants = await resp.json()
