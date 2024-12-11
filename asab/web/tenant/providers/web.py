@@ -13,20 +13,8 @@ class WebTenantProvider(TenantProviderABC):
 		super().__init__(app, tenant_service, config)
 		self.Tenants: typing.Set[str] = set()
 
-		self.TaskService = self.App.get_service("asab.TaskService")
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
 		self.TenantUrl = self.Config.get("tenant_url")
-
-
-	async def initialize(self, app):
-		self.TaskService.schedule(self._update_tenants())
-
-
-	async def update_tenants(self, asynchronously: bool = True):
-		if asynchronously:
-			self.TaskService.schedule(self._update_tenants())
-		else:
-			await self._update_tenants()
 
 
 	def get_tenants(self) -> typing.Set[str]:
@@ -37,7 +25,7 @@ class WebTenantProvider(TenantProviderABC):
 		return tenant in self.Tenants
 
 
-	async def _update_tenants(self, message_type=None):
+	async def update(self):
 		if self.DiscoveryService is not None:
 			open_session = self.DiscoveryService.session
 		else:

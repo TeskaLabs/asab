@@ -9,10 +9,7 @@ class TenantProviderABC(abc.ABC):
 		self.Config = config
 		self._IsReady = False
 
-	async def initialize(self, app):
-		pass
-
-	async def update(self, asynchronously: bool = True):
+	async def update(self):
 		pass
 
 	def get_tenants(self) -> typing.Set[str]:

@@ -1,3 +1,4 @@
+import asyncio
 import typing
 import inspect
 import logging
@@ -33,20 +34,30 @@ class TenantService(Service):
 			auto_install_web_wrapper: Whether to automatically install tenant context wrapper to WebContainer.
 		"""
 		super().__init__(app, service_name)
-		self.App = app
-		self.Providers: typing.List[TenantProviderABC] = []  # Must be a list to be deterministic
-		self.LastUpdate: typing.Optional[datetime.datetime] = None
-		self.UpdateCooldown = datetime.timedelta(seconds=30)
-
+		self.TaskService = self.App.get_service("asab.TaskService")
 		auth_svc = self.App.get_service("asab.AuthService")
 		if auth_svc is not None:
 			raise RuntimeError("Please initialize TenantService before AuthService.")
+
+		self.Providers: typing.List[TenantProviderABC] = []  # Must be a list to be deterministic
+		self.LastUpdate: typing.Optional[datetime.datetime] = None
+		self.UpdateCooldown = datetime.timedelta(seconds=30)
 
 		self._prepare_providers()
 		if auto_install_web_wrapper:
 			self._try_auto_install()
 
 		self.App.PubSub.subscribe("Application.tick/300!", self._every_five_minutes)
+
+
+	async def initialize(self, app):
+		if len(self.Providers) == 0:
+			L.error(
+				"TenantService requires at least one provider. "
+				"Specify either `tenant_url` or `ids` in the [tenants] config section."
+			)
+
+		await self.update_tenants()
 
 
 	def _prepare_providers(self):
@@ -63,26 +74,23 @@ class TenantService(Service):
 		await self.update_tenants()
 
 
-	async def update_tenants(self, asynchronously: bool = True):
+	async def update_tenants(self, await_completion: bool = False):
+		"""
+		Update all tenant providers.
+
+		Args:
+			await_completion: Whether to wait for all the providers to complete the update.
+		"""
 		if datetime.datetime.now(datetime.timezone.utc) < self.LastUpdate + self.UpdateCooldown:
 			return
 
 		self.LastUpdate = datetime.datetime.now(datetime.timezone.utc)
-		for provider in self.Providers:
-			await provider.update(asynchronously)
-
-
-	async def initialize(self, app):
-		if len(self.Providers) == 0:
-			L.error(
-				"TenantService requires at least one provider. "
-				"Specify either `tenant_url` or `ids` in the [tenants] config section."
-			)
-
-		for provider in self.Providers:
-			await provider.initialize(app)
-
-		self.LastUpdate = datetime.datetime.now(datetime.timezone.utc)
+		if await_completion:
+			tasks = [provider.update() for provider in self.Providers]
+			await asyncio.gather(*tasks)
+		else:
+			for provider in self.Providers:
+				await self.TaskService.schedule(provider.update)
 
 
 	@property
@@ -131,7 +139,7 @@ class TenantService(Service):
 
 		# Tenant not found; try to update tenants and try again
 		if datetime.datetime.now(datetime.timezone.utc) > self.LastUpdate + self.UpdateCooldown:
-			await self.update_tenants(asynchronously=False)
+			await self.update_tenants(await_completion=True)
 			for provider in self.Providers:
 				if provider.is_tenant_known(tenant):
 					return True
