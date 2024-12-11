@@ -29,7 +29,7 @@ class APIWebHandler(object):
 	@allow_no_tenant
 	async def changelog(self, request):
 		"""
-		It returns a change log file.
+		Get changelog file.
 		---
 		tags: ['asab.api']
 		"""
@@ -47,23 +47,29 @@ class APIWebHandler(object):
 	@allow_no_tenant
 	async def manifest(self, request):
 		"""
-		It returns the manifest of the ASAB service.
+		Get manifest of the ASAB service.
 
-		THe manifest is a JSON object loaded from `MANIFEST.json` file.
+		The manifest is a JSON object loaded from `MANIFEST.json` file.
 		The manifest contains the creation (build) time and the version of the ASAB service.
 		The `MANIFEST.json` is produced during the creation of docker image by `asab-manifest.py` script.
 
-		Example of `MANIFEST.json`:
-
-		```
-		{
-			'created_at': 2022-03-21T15:49:37.14000,
-			'version' :v22.9-4
-		}
-		```
-
 		---
 		tags: ['asab.api']
+
+		responses:
+			"200":
+				description: Manifest of the application.
+				content:
+					application/json:
+						schema:
+							type: object
+							properties:
+								created_at:
+									type: str
+									example: 2024-12-10T15:49:37.14000
+								version:
+									type: str
+									example: v24.50.01
 		"""
 
 		if self.ApiService.Manifest is None:
@@ -76,21 +82,30 @@ class APIWebHandler(object):
 	@allow_no_tenant
 	async def environ(self, request):
 		"""
-		It returns a JSON response containing the contents of the environment variables.
+		Get environment variables.
 
-		Example:
-
-		```
-		{
-			"LANG": "en_GB.UTF-8",
-			"SHELL": "/bin/zsh",
-			"HOME": "/home/foobar",
-		}
-
-		```
+		Get JSON response containing the contents of the environment variables.
 
 		---
 		tags: ['asab.api']
+
+		responses:
+			"200":
+				description: Environment variables.
+				content:
+					application/json:
+						schema:
+							type: object
+							properties:
+								LANG:
+									type: str
+									example: "en_GB.UTF-8"
+								SHELL:
+									type: str
+									example: "/bin/zsh"
+								HOME:
+									type: str
+									example: "/home/foobar"
 		"""
 		return json_response(request, dict(os.environ))
 
@@ -99,9 +114,11 @@ class APIWebHandler(object):
 	@allow_no_tenant
 	async def config(self, request):
 		"""
-		It returns the JSON with the config of the ASAB service.
+		Get configuration of the service.
 
-		IMPORTANT: All passwords are erased.
+		Return configuration of the ASAB service in JSON format.
+
+		**IMPORTANT: All passwords are erased.**
 
 		Example:
 
@@ -122,6 +139,15 @@ class APIWebHandler(object):
 
 		---
 		tags: ['asab.api']
+
+		responses:
+			"200":
+				description: Configuration of the service.
+				content:
+					application/json:
+						schema:
+							type: object
+							example: {"general": {"config_file": "", "tick_period": "1", "uid": "", "gid": ""}, "asab:metrics": {"native_metrics": "true", "expiration": "60"}}
 		"""
 
 		# Copy the config and erase all passwords
