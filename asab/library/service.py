@@ -473,10 +473,14 @@ class LibraryService(Service):
 		if not directory or not filename:
 			L.warning("Invalid path '{}': missing directory or filename.".format(path))
 			return None
+		# Ensure directory ends with '/'
+		if not directory.endswith('/'):
+			directory += '/'
 
 		try:
 			# Fetch all items in the directory
-			items = await self.list("/")
+			items = await self.list(directory)
+			print(items)
 		except Exception as e:
 			L.warning("Failed to list items in directory '{}': {}".format(directory, e))
 			return None
