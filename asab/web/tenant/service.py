@@ -110,7 +110,7 @@ class TenantService(Service):
 		return tenants
 
 
-	def is_tenant_known(self, tenant: str) -> bool:
+	async def is_tenant_known(self, tenant: str) -> bool:
 		"""
 		Check if the tenant is among known tenants.
 
@@ -128,6 +128,14 @@ class TenantService(Service):
 		for provider in self.Providers:
 			if provider.is_tenant_known(tenant):
 				return True
+
+		# Tenant not found; try to update tenants and try again
+		if datetime.datetime.now(datetime.timezone.utc) > self.LastUpdate + self.UpdateCooldown:
+			await self.update_tenants(asynchronously=False)
+			for provider in self.Providers:
+				if provider.is_tenant_known(tenant):
+					return True
+
 		return False
 
 
