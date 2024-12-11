@@ -50,7 +50,7 @@ def _pass_tenant(tenant_service, handler):
 				# `None` is allowed: Tenant is optional at this endpoint.
 				pass
 
-		elif not tenant_service.is_tenant_known(tenant):
+		elif not await tenant_service.is_tenant_known(tenant):
 			L.warning("Tenant not found.", struct_data={"tenant": tenant})
 			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 		return await handler(*args, tenant=tenant, **kwargs)
@@ -74,7 +74,7 @@ def _set_tenant_context_from_url_query(tenant_service, handler):
 				# `None` is allowed: Tenant is optional at this endpoint.
 				pass
 
-		elif not tenant_service.is_tenant_known(tenant):
+		elif not await tenant_service.is_tenant_known(tenant):
 			L.warning("Tenant not found.", struct_data={"tenant": tenant})
 			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 
@@ -102,7 +102,7 @@ def _set_tenant_context_from_url_path(tenant_service, handler):
 			L.warning("Parameter `tenant` cannot be present in URL path and query at the same time.")
 			raise aiohttp.web.HTTPBadRequest(reason="Tenant query parameter not allowed.")
 
-		if not tenant_service.is_tenant_known(tenant):
+		if not await tenant_service.is_tenant_known(tenant):
 			L.warning("Tenant not found.", struct_data={"tenant": tenant})
 			raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 

@@ -13,21 +13,8 @@ class WebTenantProvider(TenantProviderABC):
 		super().__init__(app, tenant_service, config)
 		self.Tenants: typing.Set[str] = set()
 
-		self.TaskService = self.App.get_service("asab.TaskService")
+		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
 		self.TenantUrl = self.Config.get("tenant_url")
-
-		self.App.PubSub.subscribe("Application.tick/300!", self._every_five_minutes)
-
-
-	async def initialize(self, app):
-		self.TaskService.schedule(self._update_tenants())
-
-
-	async def update_tenants(self, asynchronously: bool = True):
-		if asynchronously:
-			self.TaskService.schedule(self._update_tenants())
-		else:
-			await self._update_tenants()
 
 
 	def get_tenants(self) -> typing.Set[str]:
@@ -38,12 +25,13 @@ class WebTenantProvider(TenantProviderABC):
 		return tenant in self.Tenants
 
 
-	async def _every_five_minutes(self, message_type=None):
-		self.TaskService.schedule(self._update_tenants())
+	async def update(self):
+		if self.DiscoveryService is not None:
+			open_session = self.DiscoveryService.session
+		else:
+			open_session = aiohttp.ClientSession
 
-
-	async def _update_tenants(self, message_type=None):
-		async with aiohttp.ClientSession() as session:
+		async with open_session as session:
 			async with session.get(self.TenantUrl) as resp:
 				if resp.status == 200:
 					external_tenants = await resp.json()
