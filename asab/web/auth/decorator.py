@@ -29,10 +29,10 @@ def require(*resources):
 		return asab.web.rest.json_response(request, data)
 	```
 	"""
-	def decorator_require(handler):
+	def _require_resource_access_decorator(handler):
 
 		@functools.wraps(handler)
-		async def wrapper(*args, **kwargs):
+		async def _require_resource_access_wrapper(*args, **kwargs):
 			authz = Authz.get()
 			if authz is None:
 				raise AccessDeniedError()
@@ -41,9 +41,9 @@ def require(*resources):
 
 			return await handler(*args, **kwargs)
 
-		return wrapper
+		return _require_resource_access_wrapper
 
-	return decorator_require
+	return _require_resource_access_decorator
 
 
 def noauth(handler):
@@ -68,7 +68,7 @@ def noauth(handler):
 	handler.NoAuth = True
 
 	@functools.wraps(handler)
-	async def wrapper(*args, **kwargs):
+	async def _noauth_wrapper(*args, **kwargs):
 		return await handler(*args, **kwargs)
 
-	return wrapper
+	return _noauth_wrapper

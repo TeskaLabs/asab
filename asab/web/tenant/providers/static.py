@@ -29,7 +29,7 @@ class StaticTenantProvider(TenantProviderABC):
 			self.Tenants.add(tenant_id)
 
 		if len(self.Tenants) > 0:
-			L.info("Static tenants loaded from config.")
+			L.debug("Static tenants loaded from config.")
 			self.App.PubSub.publish("Tenants.change!")
 
 		self._set_ready(True)

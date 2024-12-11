@@ -54,7 +54,7 @@ class WebTenantProvider(TenantProviderABC):
 
 		new_tenants = set(external_tenants)
 		if self.Tenants != new_tenants:
-			L.info("Tenants from URL updated.", struct_data={"url": self.TenantUrl})
+			L.debug("Tenants from URL updated.", struct_data={"url": self.TenantUrl})
 			self.Tenants = new_tenants
 			self.App.PubSub.publish("Tenants.change!")
 

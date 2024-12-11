@@ -57,7 +57,7 @@ class TenantService(Service):
 
 	async def initialize(self, app):
 		if len(self.Providers) == 0:
-			raise L.error(
+			L.error(
 				"TenantService requires at least one provider. "
 				"Specify either `tenant_url` or `ids` in the [tenants] config section."
 			)
@@ -104,6 +104,9 @@ class TenantService(Service):
 			Whether the tenant is known.
 		"""
 		if tenant is None:
+			return False
+		if len(self.Providers) == 0:
+			L.warning("No tenant provider registered.")
 			return False
 		for provider in self.Providers:
 			if provider.is_tenant_known(tenant):
@@ -194,7 +197,7 @@ class TenantService(Service):
 		web_container = web_service.WebContainer
 
 		self.install(web_container)
-		L.info("WebContainer tenant context wrapper will be installed automatically.")
+		L.debug("WebContainer tenant wrapper will be installed automatically.")
 
 
 	async def _set_up_tenant_web_wrapper(self, aiohttp_app: aiohttp.web.Application):
