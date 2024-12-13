@@ -2,7 +2,6 @@ import asyncio
 import typing
 import inspect
 import logging
-import datetime
 
 import aiohttp.web
 
