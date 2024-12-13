@@ -43,7 +43,7 @@ class TenantService(Service):
 		if auto_install_web_wrapper:
 			self._try_auto_install()
 
-		self.App.PubSub.subscribe("Application.tick/10!", self._every_five_minutes)
+		self.App.PubSub.subscribe("Application.tick/300!", self._every_five_minutes)
 
 
 	async def initialize(self, app):
