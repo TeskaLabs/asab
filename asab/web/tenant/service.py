@@ -34,7 +34,6 @@ class TenantService(Service):
 			auto_install_web_wrapper: Whether to automatically install tenant context wrapper to WebContainer.
 		"""
 		super().__init__(app, service_name)
-		self.TaskService = self.App.get_service("asab.TaskService")
 		auth_svc = self.App.get_service("asab.AuthService")
 		if auth_svc is not None:
 			raise RuntimeError("Please initialize TenantService before AuthService.")
@@ -78,17 +77,6 @@ class TenantService(Service):
 		"""
 		tasks = [provider.update() for provider in self.Providers]
 		await asyncio.gather(*tasks)
-
-
-	@property
-	async def Tenants(self) -> typing.Set[str]:
-		"""
-		Get the set of known tenant IDs.
-
-		Returns:
-			The set of known tenant IDs.
-		"""
-		return await self.get_tenants()
 
 
 	async def get_tenants(self) -> typing.Set[str]:
