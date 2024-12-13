@@ -56,6 +56,11 @@ class TenantService(Service):
 		await self.update_tenants()
 
 
+	@property
+	def Tenants(self) -> typing.Set[str]:
+		raise AttributeError("Property `Tenants` has been removed. Use coroutine `get_tenants()` instead.")
+
+
 	def _prepare_providers(self):
 		if Config.get("tenants", "ids", fallback=None):
 			from .providers import StaticTenantProvider
