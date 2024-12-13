@@ -40,14 +40,12 @@ class TenantService(Service):
 			raise RuntimeError("Please initialize TenantService before AuthService.")
 
 		self.Providers: typing.List[TenantProviderABC] = []  # Must be a list to be deterministic
-		self.LastUpdate: typing.Optional[datetime.datetime] = None
-		self.UpdateCooldown = datetime.timedelta(seconds=30)
-
 		self._prepare_providers()
+
 		if auto_install_web_wrapper:
 			self._try_auto_install()
 
-		self.App.PubSub.subscribe("Application.tick/300!", self._every_five_minutes)
+		self.App.PubSub.subscribe("Application.tick/10!", self._every_five_minutes)
 
 
 	async def initialize(self, app):
@@ -74,43 +72,33 @@ class TenantService(Service):
 		await self.update_tenants()
 
 
-	async def update_tenants(self, await_completion: bool = False):
+	async def update_tenants(self):
 		"""
 		Update all tenant providers.
-
-		Args:
-			await_completion: Whether to wait for all the providers to complete the update.
 		"""
-		if datetime.datetime.now(datetime.timezone.utc) < self.LastUpdate + self.UpdateCooldown:
-			return
-
-		self.LastUpdate = datetime.datetime.now(datetime.timezone.utc)
-		if await_completion:
-			tasks = [provider.update() for provider in self.Providers]
-			await asyncio.gather(*tasks)
-		else:
-			for provider in self.Providers:
-				await self.TaskService.schedule(provider.update)
+		tasks = [provider.update() for provider in self.Providers]
+		await asyncio.gather(*tasks)
 
 
 	@property
-	def Tenants(self) -> typing.Set[str]:
+	async def Tenants(self) -> typing.Set[str]:
 		"""
 		Get the set of known tenant IDs.
 
 		Returns:
 			The set of known tenant IDs.
 		"""
-		return self.get_tenants()
+		return await self.get_tenants()
 
 
-	def get_tenants(self) -> typing.Set[str]:
+	async def get_tenants(self) -> typing.Set[str]:
 		"""
 		Get the set of known tenant IDs.
 
 		Returns:
 			The set of known tenant IDs.
 		"""
+		await self.update_tenants()
 		tenants = set()
 		for provider in self.Providers:
 			tenants |= provider.get_tenants()
@@ -138,11 +126,10 @@ class TenantService(Service):
 				return True
 
 		# Tenant not found; try to update tenants and try again
-		if datetime.datetime.now(datetime.timezone.utc) > self.LastUpdate + self.UpdateCooldown:
-			await self.update_tenants(await_completion=True)
-			for provider in self.Providers:
-				if provider.is_tenant_known(tenant):
-					return True
+		await self.update_tenants()
+		for provider in self.Providers:
+			if provider.is_tenant_known(tenant):
+				return True
 
 		return False
 

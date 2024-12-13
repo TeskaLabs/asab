@@ -35,9 +35,9 @@ class StaticTenantProvider(TenantProviderABC):
 		self._set_ready(True)
 
 
-	def get_tenants(self) -> typing.Set[str]:
+	async def get_tenants(self) -> typing.Set[str]:
 		return self.Tenants
 
 
-	def is_tenant_known(self, tenant: str) -> bool:
+	async def is_tenant_known(self, tenant: str) -> bool:
 		return tenant in self.Tenants
