@@ -489,6 +489,59 @@ class LibraryService(Service):
 
 		return False
 
+	async def get_item_metadata(self, path: str) -> typing.Optional[dict]:
+		"""
+		Retrieve metadata for a specific file in the library, including its `target`.
+
+		Args:
+			path (str): The absolute path of the file to retrieve metadata for.
+						Must start with '/' and include a filename with an extension.
+
+		Returns:
+			dict: Metadata for the specified file, including `target`, or None if not found.
+		"""
+		# Validate the path format
+		_validate_path_item(path)
+
+		# Split into directory and filename
+		directory, filename = os.path.split(path)
+
+		if not directory or not filename:
+			L.warning("Invalid path '{}': missing directory or filename.".format(path))
+			return None
+		# Ensure directory ends with '/'
+		if not directory.endswith('/'):
+			directory += '/'
+
+		try:
+			# Fetch all items in the directory
+			items = await self.list(directory)
+		except Exception as e:
+			L.warning("Failed to list items in directory '{}': {}".format(directory, e))
+			return None
+
+		# Use dictionary for faster lookup
+		items_dict = {item.name: item for item in items}
+
+		# Retrieve the item by path
+		item = items_dict.get(path)
+		if item and item.type == "item":
+			# Match found; return metadata including `target`
+			return {
+				"name": item.name,
+				"type": item.type,
+				"layer": item.layer,
+				"providers": item.providers,
+				"disabled": item.disabled,
+				"override": item.override,
+				"target": item.target,  # Include the target in the metadata
+			}
+
+		# Item not found
+		L.info("Item '{}' not found in directory '{}'.".format(filename, directory))
+		return None
+
+
 	async def export(self, path: str = "/", remove_path: bool = False) -> typing.IO:
 		"""
 		Return a file-like stream containing a gzipped tar archive of the library contents of the path.
