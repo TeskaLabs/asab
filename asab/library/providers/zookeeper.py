@@ -297,7 +297,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def process_nodes(self, nodes, base_path, target="global"):
 		"""
-		Processes a list of nodes and creates corresponding LibraryItem objects.
+		Processes a list of nodes and creates corresponding LibraryItem objects with their size.
 
 		Args:
 			nodes (list): List of node names to process.
@@ -305,7 +305,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			target (str): Specifies the target context, e.g., "tenant" or "global".
 
 		Returns:
-			list: A list of LibraryItem objects.
+			list: A list of LibraryItem objects with size information.
 		"""
 		items = []
 		for node in nodes:
@@ -323,13 +323,25 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				fname = base_path + node + '/'
 				ftype = "dir"
 
-			# Add the item with the specified target
+			# Retrieve node size
+			node_path = self.build_path(fname[len(self.BasePath):], tenant_specific=(target == "tenant"))
+			try:
+				zstat = self.Zookeeper.Client.exists(node_path)
+				size = zstat.dataLength if zstat else 0
+			except kazoo.exceptions.NoNodeError:
+				size = 0
+			except Exception as e:
+				L.warning("Failed to retrieve size for node {}: {}".format(node_path, e))
+				size = 0
+
+			# Add the item with the specified target and size
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
 				layer=self.Layer,
 				providers=[self],
-				target=target
+				target=target,
+				size=size  # Add size attribute
 			))
 
 		return items
