@@ -58,6 +58,12 @@ class TenantService(Service):
 
 	@property
 	def Tenants(self) -> typing.Set[str]:
+		"""
+		DEPRECATED. Get the set of known tenant IDs.
+
+		.. deprecated:: 25.01
+			Use coroutine `get_tenants()` instead.
+		"""
 		raise AttributeError("Property `Tenants` has been removed. Use coroutine `get_tenants()` instead.")
 
 
