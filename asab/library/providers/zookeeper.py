@@ -315,24 +315,24 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				continue
 
 			# Determine if this is a file or directory
-			last_five_chars = node[-5:]
-			if '.' in last_five_chars and not node.endswith(('.io', '.d')):
-				fname = base_path + node
+			if '.' in node and not node.endswith(('.io', '.d')):  # File check
+				fname = "{}/{}".format(base_path.rstrip("/"), node)
 				ftype = "item"
-			else:
-				fname = base_path + node + '/'
-				ftype = "dir"
 
-			# Retrieve node size
-			node_path = self.build_path(fname[len(self.BasePath):], tenant_specific=(target == "tenant"))
-			try:
-				zstat = self.Zookeeper.Client.exists(node_path)
-				size = zstat.dataLength if zstat else 0
-			except kazoo.exceptions.NoNodeError:
-				size = 0
-			except Exception as e:
-				L.warning("Failed to retrieve size for node {}: {}".format(node_path, e))
-				size = 0
+				# Retrieve node size for items only
+				try:
+					node_path = self.build_path(fname, tenant_specific=(target == "tenant"))
+					zstat = self.Zookeeper.Client.exists(node_path)
+					size = zstat.dataLength if zstat else 0
+				except kazoo.exceptions.NoNodeError:
+					size = 0
+				except Exception as e:
+					L.warning("Failed to retrieve size for node {}: {}".format(node_path, e))
+					size = 0
+			else:  # Directory check
+				fname = "{}/{}".format(base_path.rstrip("/"), node)
+				ftype = "dir"
+				size = 0  # Directories do not have a size
 
 			# Add the item with the specified target and size
 			items.append(LibraryItem(
@@ -341,7 +341,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				layer=self.Layer,
 				providers=[self],
 				target=target,
-				size=size  # Add size attribute
+				size=size
 			))
 
 		return items
