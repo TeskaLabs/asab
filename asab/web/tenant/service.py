@@ -93,7 +93,7 @@ class TenantService(Service):
 		await self.update_tenants()
 		tenants = set()
 		for provider in self.Providers:
-			tenants |= provider.get_tenants()
+			tenants |= await provider.get_tenants()
 
 		return tenants
 
@@ -114,13 +114,13 @@ class TenantService(Service):
 			L.warning("No tenant provider registered.")
 			return False
 		for provider in self.Providers:
-			if provider.is_tenant_known(tenant):
+			if await provider.is_tenant_known(tenant):
 				return True
 
 		# Tenant not found; try to update tenants and try again
 		await self.update_tenants()
 		for provider in self.Providers:
-			if provider.is_tenant_known(tenant):
+			if await provider.is_tenant_known(tenant):
 				return True
 
 		return False
