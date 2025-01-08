@@ -22,3 +22,4 @@ class LibraryItem:
     disabled: bool = False
     override: int = 0
     target: str = "global"  # Default to "global" if not tenant-specific
+    size: int = 0  # Default size to 0
