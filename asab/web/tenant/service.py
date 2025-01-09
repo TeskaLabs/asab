@@ -76,6 +76,10 @@ class TenantService(Service):
 			from .providers import WebTenantProvider
 			self.Providers.append(WebTenantProvider(self.App, self, Config["tenants"]))
 
+		if Config.get("zookeeper", "servers", fallback=None):
+			from .providers import ZookeeperTenantProvider
+			self.Providers.append(ZookeeperTenantProvider(self.App, self, Config["tenants"]))
+
 
 	async def _every_five_minutes(self, message_type=None):
 		await self.update_tenants()
