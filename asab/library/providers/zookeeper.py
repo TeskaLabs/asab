@@ -330,7 +330,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					L.warning("Failed to retrieve size for node {}: {}".format(node_path, e))
 					size = 0
 			else:  # Directory check
-				fname = "{}/{}".format(base_path.rstrip("/"), node)
+				fname = "{}/{}/".format(base_path.rstrip("/"), node)
 				ftype = "dir"
 				size = 0  # Directories do not have a size
 
