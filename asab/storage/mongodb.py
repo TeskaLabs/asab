@@ -196,10 +196,10 @@ class MongoDBUpsertor(UpsertorABC):
 			if ret.get('_v') == 1 and '_c' not in ret:
 				# If the object is new (version is 1), set the creation datetime
 				await coll.update_one(
-					{ id_name: ret[id_name] },
-					{ '$set': { '_c': ret['_m'] } }
+					{id_name: ret[id_name]},
+					{'$set': {'_c': ret['_m']}}
 				)
-			
+
 			self.ObjId = ret[id_name]
 
 		if self.Storage.WebhookURIs is not None:
