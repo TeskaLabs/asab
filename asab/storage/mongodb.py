@@ -174,7 +174,6 @@ class MongoDBUpsertor(UpsertorABC):
 		if self.Version is not None:
 			filtr['_v'] = int(self.Version)
 
-		# First wave (adding stuff)
 		if len(addobj) > 0:
 			coll = self.Storage.Database[self.Collection]
 			try:
@@ -193,6 +192,13 @@ class MongoDBUpsertor(UpsertorABC):
 			if ret is None:
 				# Object might have been changed in the meantime
 				raise KeyError("NOT-FOUND")
+
+			if ret.get('_v') == 1 and '_c' not in ret:
+				# If the object is new (version is 1), set the creation datetime
+				await coll.update_one(
+					{id_name: ret[id_name]},
+					{'$set': {'_c': ret['_m']}}
+				)
 
 			self.ObjId = ret[id_name]
 
