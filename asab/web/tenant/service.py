@@ -76,7 +76,7 @@ class TenantService(Service):
 			from .providers import WebTenantProvider
 			self.Providers.append(WebTenantProvider(self.App, self, Config["tenants"]))
 
-		if Config.get("zookeeper", "servers", fallback=None):
+		if Config.get("tenants", "zk_path", fallback=None):
 			from .providers import ZookeeperTenantProvider
 			self.Providers.append(ZookeeperTenantProvider(self.App, self, Config["tenants"]))
 

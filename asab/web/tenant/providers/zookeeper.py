@@ -38,14 +38,11 @@ class ZookeeperTenantProvider(TenantProviderABC):
 
 			if zk_node_exists:
 				external_tenants = await self.ZookeeperClient.get_children(self.ZKPath)
-				self._set_ready(True)  # Provider was checked => True
 
 			elif zk_node_exists is None:
-				L.warning(
-					"Failed to load tenants: zk node doesn't exist",
-					struct_data={"path": self.ZKPath}
-				)
+				self.Tenants = set()  # Reset data from last iteration
 				self._set_ready(True)  # Provider was checked (no data in ZK) => True
+				L.debug("Found no tenants data: zk node doesn't exist", struct_data={"path": self.ZKPath})
 				return
 
 		except Exception as e:
@@ -62,9 +59,9 @@ class ZookeeperTenantProvider(TenantProviderABC):
 
 		new_tenants = set(external_tenants)
 		if self.Tenants != new_tenants:
-			L.debug("Tenants from Zookeeper updated", struct_data={"path": self.ZKPath})
 			self.Tenants = new_tenants
+			L.debug("Tenants from Zookeeper updated", struct_data={"path": self.ZKPath})
 			self.App.PubSub.publish("Tenants.change!")
 
 		if not self._IsReady:
-			self._set_ready(True)
+			self._set_ready(True)  # Provider was checked => True
