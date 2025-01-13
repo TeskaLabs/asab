@@ -37,18 +37,27 @@ class KazooWrapper(object):
 
 	# read-only calls
 	async def ensure_path(self, path):
+		"""
+		Recursively create a path if it does not exist.
+		"""
 		ret = await self.ProactorService.execute(
 			self.Client.ensure_path, path
 		)
 		return ret
 
 	async def exists(self, path):
+		"""
+		Check if a node exists.
+		"""
 		ret = await self.ProactorService.execute(
 			self.Client.exists, path
 		)
 		return ret
 
 	async def get_children(self, path):
+		"""
+		Get list of child nodes of a path. If the node does not exist, return `None`.
+		"""
 		try:
 			children = await self.ProactorService.execute(
 				self.Client.get_children, path
@@ -60,6 +69,9 @@ class KazooWrapper(object):
 
 
 	async def get_data(self, path):
+		"""
+		Get the data from a node. If the node does not exist, return `None`.
+		"""
 		try:
 			data, stat = await self.ProactorService.execute(
 				self.Client.get, path
@@ -71,6 +83,9 @@ class KazooWrapper(object):
 
 	# write methods
 	async def set_data(self, path, data):
+		"""
+		Set the data of a given node.
+		"""
 		try:
 			ret = await self.ProactorService.execute(
 				self.Client.set, path, data
@@ -81,6 +96,9 @@ class KazooWrapper(object):
 		return ret
 
 	async def delete(self, path, version=-1, recursive=False):
+		"""
+		Delete a node.
+		"""
 		try:
 			ret = await self.ProactorService.execute(
 				self.Client.delete, path, version, recursive
@@ -91,19 +109,27 @@ class KazooWrapper(object):
 		return ret
 
 	async def create(self, path, value, sequence=False, ephemeral=False, makepath=False):
-
+		"""
+		Create a new node with a value as its data.
+		"""
 		def do():
 			return self.Client.create(path, value=value, ephemeral=ephemeral, sequence=sequence, makepath=makepath)
 
 		return await self.ProactorService.execute(do)
 
 
-	# create a new node or update the existing one
 	async def upsert(self, path, value):
+		"""
+		Update data for given path. If the node does not exist, create it.
+		"""
 		def do():
 			try:
-				return self.Client.create(path, value=value)
-			except kazoo.exceptions.NodeExistsError:
-				return self.Client.set(path, value)
+				return self.Client.set(path, value=value)
+			except kazoo.exceptions.NoNodeError:
+				try:
+					return self.Client.create(path, value, makepath=True)
+				except kazoo.exceptions.NodeExistsError:
+					# Defense against race condition
+					return self.Client.set(path, value=value)
 
 		return await self.ProactorService.execute(do)
