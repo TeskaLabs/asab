@@ -1,12 +1,15 @@
+import asyncio
 import typing
 import inspect
 import logging
 
 import aiohttp.web
 
+from ... import LOG_NOTICE
 from ...abc.service import Service
 from ...config import Config
 from .utils import set_handler_tenant
+from .providers.abc import TenantProviderABC
 
 #
 
@@ -30,27 +33,18 @@ class TenantService(Service):
 			auto_install_web_wrapper: Whether to automatically install tenant context wrapper to WebContainer.
 		"""
 		super().__init__(app, service_name)
-		self.App = app
-		self.Providers = []  # Must be a list to be deterministic
-
-
 		auth_svc = self.App.get_service("asab.AuthService")
 		if auth_svc is not None:
 			raise RuntimeError("Please initialize TenantService before AuthService.")
 
+		self.Providers: typing.List[TenantProviderABC] = []  # Must be a list to be deterministic
+		self._IsReady = False
 		self._prepare_providers()
+
 		if auto_install_web_wrapper:
 			self._try_auto_install()
 
-
-	def _prepare_providers(self):
-		if Config.get("tenants", "ids", fallback=None):
-			from .providers import StaticTenantProvider
-			self.Providers.append(StaticTenantProvider(self.App, Config["tenants"]))
-
-		if Config.get("tenants", "tenant_url", fallback=None):
-			from .providers import WebTenantProvider
-			self.Providers.append(WebTenantProvider(self.App, Config["tenants"]))
+		self.App.PubSub.subscribe("Application.tick/300!", self._every_five_minutes)
 
 
 	async def initialize(self, app):
@@ -60,36 +54,58 @@ class TenantService(Service):
 				"Specify either `tenant_url` or `ids` in the [tenants] config section."
 			)
 
-		for provider in self.Providers:
-			await provider.initialize(app)
+		await self.update_tenants()
 
 
 	@property
 	def Tenants(self) -> typing.Set[str]:
 		"""
+		DEPRECATED. Get the set of known tenant IDs.
+
+		.. deprecated:: 25.01
+			Use coroutine `get_tenants()` instead.
+		"""
+		raise AttributeError("Property `Tenants` has been removed. Use coroutine `get_tenants()` instead.")
+
+
+	def _prepare_providers(self):
+		if Config.get("tenants", "ids", fallback=None):
+			from .providers import StaticTenantProvider
+			self.Providers.append(StaticTenantProvider(self.App, self, Config["tenants"]))
+
+		if Config.get("tenants", "tenant_url", fallback=None):
+			from .providers import WebTenantProvider
+			self.Providers.append(WebTenantProvider(self.App, self, Config["tenants"]))
+
+
+	async def _every_five_minutes(self, message_type=None):
+		await self.update_tenants()
+
+
+	async def update_tenants(self):
+		"""
+		Update all tenant providers.
+		"""
+		tasks = [provider.update() for provider in self.Providers]
+		await asyncio.gather(*tasks)
+
+
+	async def get_tenants(self) -> typing.Set[str]:
+		"""
 		Get the set of known tenant IDs.
 
 		Returns:
 			The set of known tenant IDs.
 		"""
-		return self.get_tenants()
-
-
-	def get_tenants(self) -> typing.Set[str]:
-		"""
-		Get the set of known tenant IDs.
-
-		Returns:
-			The set of known tenant IDs.
-		"""
+		await self.update_tenants()
 		tenants = set()
 		for provider in self.Providers:
-			tenants |= provider.get_tenants()
+			tenants |= await provider.get_tenants()
 
 		return tenants
 
 
-	def is_tenant_known(self, tenant: str) -> bool:
+	async def is_tenant_known(self, tenant: str) -> bool:
 		"""
 		Check if the tenant is among known tenants.
 
@@ -105,8 +121,15 @@ class TenantService(Service):
 			L.warning("No tenant provider registered.")
 			return False
 		for provider in self.Providers:
-			if provider.is_tenant_known(tenant):
+			if await provider.is_tenant_known(tenant):
 				return True
+
+		# Tenant not found; try to update tenants and try again
+		await self.update_tenants()
+		for provider in self.Providers:
+			if await provider.is_tenant_known(tenant):
+				return True
+
 		return False
 
 
@@ -132,6 +155,46 @@ class TenantService(Service):
 					raise RuntimeError("WebContainer has tenant middleware installed already.")
 
 		web_container.WebApp.on_startup.append(self._set_up_tenant_web_wrapper)
+
+
+	def is_ready(self) -> bool:
+		"""
+		Check if all tenant providers are ready.
+
+		Returns:
+			bool: Are all tenant providers ready?
+		"""
+		self.check_ready()
+		return self._IsReady
+
+
+	def check_ready(self):
+		"""
+		Check and update tenant service ready status.
+		"""
+		if len(self.Providers) == 0:
+			return
+
+		# Check if all providers are ready
+		is_ready_now = False
+		for provider in self.Providers:
+			if not provider.is_ready():
+				break
+		else:
+			is_ready_now = True
+
+		if self._IsReady == is_ready_now:
+			return
+
+		# Ready status changed
+		if is_ready_now:
+			L.log(LOG_NOTICE, "is ready.")
+			self.App.PubSub.publish("Tenants.ready!", self)
+		else:
+			L.log(LOG_NOTICE, "is NOT ready.")
+			self.App.PubSub.publish("Tenants.not_ready!", self)
+
+		self._IsReady = is_ready_now
 
 
 	def get_web_wrapper_position(self, web_container) -> typing.Optional[int]:
