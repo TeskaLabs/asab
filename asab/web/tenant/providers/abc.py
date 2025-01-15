@@ -23,4 +23,4 @@ class TenantProviderABC(abc.ABC):
 
 	def _set_ready(self, ready: bool = True):
 		self._IsReady = ready
-		self.TenantService.set_ready(self)
+		self.TenantService.check_ready()

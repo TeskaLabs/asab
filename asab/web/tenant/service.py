@@ -38,6 +38,7 @@ class TenantService(Service):
 			raise RuntimeError("Please initialize TenantService before AuthService.")
 
 		self.Providers: typing.List[TenantProviderABC] = []  # Must be a list to be deterministic
+		self._IsReady = False
 		self._prepare_providers()
 
 		if auto_install_web_wrapper:
@@ -167,28 +168,37 @@ class TenantService(Service):
 		Returns:
 			bool: Are all tenant providers ready?
 		"""
-		for provider in self.Providers:
-			if not provider.is_ready():
-				return False
-		return True
+		self.check_ready()
+		return self._IsReady
 
 
-	def set_ready(self, provider: TenantProviderABC):
+	def check_ready(self):
 		"""
-		Update tenant service ready status.
-
-		Args:
-			provider: Tenant provider that updated its ready status.
+		Check and update tenant service ready status.
 		"""
 		if len(self.Providers) == 0:
 			return
 
-		if self.is_ready():
+		# Check if all providers are ready
+		is_ready_now = False
+		for provider in self.Providers:
+			if not provider.is_ready():
+				break
+		else:
+			is_ready_now = True
+
+		if self._IsReady == is_ready_now:
+			return
+
+		# Ready status changed
+		if is_ready_now:
 			L.log(LOG_NOTICE, "is ready.")
 			self.App.PubSub.publish("Tenants.ready!", self)
-		elif not provider.is_ready():
+		else:
 			L.log(LOG_NOTICE, "is NOT ready.")
 			self.App.PubSub.publish("Tenants.not_ready!", self)
+
+		self._IsReady = is_ready_now
 
 
 	def get_web_wrapper_position(self, web_container) -> typing.Optional[int]:
