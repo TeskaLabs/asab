@@ -1,4 +1,5 @@
 import dataclasses
+import typing
 
 
 @dataclasses.dataclass
@@ -22,4 +23,4 @@ class LibraryItem:
     disabled: bool = False
     override: int = 0
     target: str = "global"  # Default to "global" if not tenant-specific
-    size: int = 0  # Default size to 0
+    size: typing.Optional[int] = None  # Size is None by default, absent for directories
