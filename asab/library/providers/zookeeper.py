@@ -325,14 +325,14 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					zstat = self.Zookeeper.Client.exists(node_path)
 					size = zstat.dataLength if zstat else 0
 				except kazoo.exceptions.NoNodeError:
-					size = 0
+					size = None
 				except Exception as e:
 					L.warning("Failed to retrieve size for node {}: {}".format(node_path, e))
-					size = 0
+					size = None
 			else:  # Directory check
 				fname = "{}/{}/".format(base_path.rstrip("/"), node)
 				ftype = "dir"
-				size = 0  # Directories do not have a size
+				size = None  # Directories do not have a size
 
 			# Add the item with the specified target and size
 			items.append(LibraryItem(

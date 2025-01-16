@@ -105,10 +105,10 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			elif stat.S_ISDIR(fstat.st_mode):
 				ftype = "dir"
 				fname += '/'
-				size = 0  # Directories are assigned size 0
+				size = None  # Directories are assigned size 0
 			else:
 				ftype = "?"
-				size = 0
+				size = None
 
 			# Remove any component that starts with '.'
 			if any(x.startswith('.') for x in fname.split('/')):
