@@ -5,9 +5,8 @@ import datetime
 import aiohttp
 
 from ..web.rest.json import json_response
-from ..web.auth import require
 from ..log import LOG_NOTICE
-from ..web.auth import noauth
+from ..web.auth import require
 from ..web.tenant import allow_no_tenant
 
 ##
