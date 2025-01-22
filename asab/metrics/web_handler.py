@@ -16,6 +16,7 @@ class MetricWebHandler(object):
 		self.App = self.MetricsService.App
 
 		# Add routes
+		# TODO: Add access control (asab:service:access). Test with Prometheus first.
 		webapp.router.add_get("/asab/v1/metrics", self.metrics)
 		webapp.router.add_get("/asab/v1/watch_metrics", self.watch)
 		webapp.router.add_get("/asab/v1/metrics.json", self.metrics_json)
