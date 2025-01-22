@@ -4,7 +4,7 @@ import aiohttp.web
 
 from .. import Config
 from ..web.rest import json_response
-from ..web.auth import noauth
+from ..web.auth import noauth, require_superuser
 from ..web.tenant import allow_no_tenant
 
 
@@ -78,7 +78,7 @@ class APIWebHandler(object):
 		return json_response(request, self.ApiService.Manifest)
 
 
-	@noauth
+	@require_superuser
 	@allow_no_tenant
 	async def environ(self, request):
 		"""
@@ -110,7 +110,7 @@ class APIWebHandler(object):
 		return json_response(request, dict(os.environ))
 
 
-	@noauth
+	@require_superuser
 	@allow_no_tenant
 	async def config(self, request):
 		"""
