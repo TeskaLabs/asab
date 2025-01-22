@@ -5,6 +5,7 @@ import datetime
 import aiohttp
 
 from ..web.rest.json import json_response
+from ..web.auth import require
 from ..log import LOG_NOTICE
 from ..web.auth import noauth
 from ..web.tenant import allow_no_tenant
@@ -12,6 +13,7 @@ from ..web.tenant import allow_no_tenant
 ##
 
 L = logging.getLogger(__name__)
+LOG_ACCESS_RESOURCE_ID = "asab:service:access"
 
 ##
 
@@ -86,7 +88,7 @@ class WebApiLoggingHandler(logging.Handler):
 			asyncio.ensure_future(self._send_ws(log_entry))
 
 
-	@noauth
+	@require(LOG_ACCESS_RESOURCE_ID)
 	@allow_no_tenant
 	async def get_logs(self, request):
 		"""
@@ -137,7 +139,7 @@ class WebApiLoggingHandler(logging.Handler):
 		return json_response(request, self.Buffer)
 
 
-	@noauth
+	@require(LOG_ACCESS_RESOURCE_ID)
 	@allow_no_tenant
 	async def ws(self, request):
 		'''
