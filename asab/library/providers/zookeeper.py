@@ -332,7 +332,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			else:  # Directory check
 				fname = "{}/{}/".format(base_path.rstrip("/"), node)
 				ftype = "dir"
-				size = None  # Directories do not have a size
+				size = None
 
 			# Add the item with the specified target and size
 			items.append(LibraryItem(

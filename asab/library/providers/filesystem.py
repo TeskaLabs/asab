@@ -105,7 +105,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			elif stat.S_ISDIR(fstat.st_mode):
 				ftype = "dir"
 				fname += '/'
-				size = None  # Directories are assigned size 0
+				size = None
 			else:
 				ftype = "?"
 				size = None
