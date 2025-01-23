@@ -10,10 +10,10 @@ class PublicKeyProviderABC(abc.ABC):
 		self.App = app
 		self.AuthProvider = auth_provider
 		self.TaskService = self.App.get_service("asab.TaskService")
-		self.PublicKeys: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
+		self.PublicKeySet: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
 		self._IsReady = False
 
-	async def update_public_keys(self):
+	async def reload_keys(self):
 		raise NotImplementedError()
 
 	def is_ready(self) -> bool:
@@ -24,27 +24,37 @@ class PublicKeyProviderABC(abc.ABC):
 		self.AuthProvider.check_ready()
 
 
+class PublicKeyProvider(PublicKeyProviderABC):
+	def __init__(self, app, auth_provider, public_key: jwcrypto.jwk.JWK):
+		super().__init__(app, auth_provider)
+		self.PublicKeySet.add(public_key)
+		self._set_ready(True)
+
+
+	async def reload_keys(self):
+		pass
+
+
 class FilePublicKeyProvider(PublicKeyProviderABC):
 	def __init__(self, app, auth_provider, file_path: str, from_private_key: bool = False):
 		super().__init__(app, auth_provider)
 		self._load_key_file(file_path, from_private_key)
 
-	async def update_public_keys(self):
+	async def reload_keys(self):
 		pass
 
 	def _load_key_file(self, file_path, from_private_key):
 		if file_path.endswith(".json"):
-			load_key = jwcrypto.jwk.JWK.from_json
+			with open(file_path, "r") as f:
+				key = jwcrypto.jwk.JWK.from_json(f.read())
 		else:
-			load_key = jwcrypto.jwk.JWK.from_pem
-
-		with open(file_path, "r") as f:
-			key = load_key(f.read())
+			with open(file_path, "r") as f:
+				key = jwcrypto.jwk.JWK.from_pem(f.read())
 
 		if from_private_key:
 			key = key.public()
 
-		self.PublicKeys.add(key)
+		self.PublicKeySet.add(key)
 		self._set_ready(True)
 
 
@@ -54,7 +64,7 @@ class UrlPublicKeyProvider(PublicKeyProviderABC):
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
 		self.JwksUrl = jwks_url
 
-	async def update_public_keys(self):
+	async def reload_keys(self):
 		if self.DiscoveryService is None:
 			open_session = aiohttp.ClientSession
 		else:
@@ -64,7 +74,8 @@ class UrlPublicKeyProvider(PublicKeyProviderABC):
 			jwks = await _fetch_jwks(session, self.JwksUrl)
 
 		if jwks is not None:
-			self.PublicKeys = jwks
+			self.PublicKeySet = jwks
+			L.debug("Public key set loaded.", struct_data={"url": self.JwksUrl})
 			self._set_ready(True)
 		else:
 			self._set_ready(False)
