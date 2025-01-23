@@ -63,16 +63,16 @@ class MockAuthProvider(AuthProviderABC):
 		return self.Authorization
 
 
-	def _prepare_authorization(self, file_path: typing.Optional[str] = None):
+	def _prepare_authorization(self, auth_claims_path: typing.Optional[str] = None):
 		"""
 		Prepare the authorization object from specified file or fallback to default claims.
 
 		Args:
-			file_path: Path to the file with custom auth claims.
+			auth_claims_path: Path to the file with custom auth claims.
 		"""
 		# Load custom auth claims from a file
-		if file_path and os.path.isfile(file_path):
-			with open(file_path, "rb") as f:
+		if auth_claims_path and os.path.isfile(auth_claims_path):
+			with open(auth_claims_path, "rb") as f:
 				auth_claims = json.load(f)
 		else:
 			auth_claims = _MOCK_AUTH_CLAIMS_DEFAULT

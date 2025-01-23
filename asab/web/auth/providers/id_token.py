@@ -135,4 +135,3 @@ class IdTokenAuthProvider(AuthProviderABC):
 		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
 			L.error("Cannot authenticate request: {}".format(str(e)))
 			raise NotAuthenticatedError()
-

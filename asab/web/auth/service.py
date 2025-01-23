@@ -173,7 +173,7 @@ class AuthService(Service):
 				try:
 					authz = await provider.authorize(request)
 					break
-				except NotAuthenticatedError as e:
+				except NotAuthenticatedError:
 					L.debug("Authorization failed.", struct_data={"provider": provider.__class__.__name__})
 					continue
 			else:

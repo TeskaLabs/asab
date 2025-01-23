@@ -6,6 +6,7 @@ from .id_token import IdTokenAuthProvider
 from .key_provider import PublicKeyProviderABC
 from ..utils import get_bearer_token_from_authorization_header
 from ..authorization import Authorization
+from ....exceptions import NotAuthenticatedError
 
 
 L = logging.getLogger(__name__)
