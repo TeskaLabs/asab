@@ -93,6 +93,10 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		dom = xml.dom.minidom.parseString(content)
 		for blob in dom.getElementsByTagName("Blob"):
 			path = get_xml_text(blob.getElementsByTagName("Name"))
+			size_text = get_xml_text(blob.getElementsByTagName("Content-Length"))
+
+			# Parse size or set to None if not applicable
+			size = int(size_text) if size_text else None
 
 			path = path.split('/')
 			curmodel = model
@@ -107,7 +111,8 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 				curmodel = newmodel
 
 			curmodel.sub[path[-1]] = AzureItem(
-				name='/' + '/'.join(path)
+				name='/' + '/'.join(path),
+				size=size  # Include size or None
 			)
 
 		self.Model = model
@@ -148,6 +153,7 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 				type=i.type,
 				layer=self.Layer,
 				providers=[self],
+				size=i.size if isinstance(i, AzureItem) else 0  # Include size
 			))
 
 		return items
@@ -226,6 +232,7 @@ class AzureDirectory:
 @dataclasses.dataclass
 class AzureItem:
 	name: str
+	size: int = 0  # Default size is 0
 	type: str = "item"
 
 
