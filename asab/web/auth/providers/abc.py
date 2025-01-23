@@ -14,8 +14,10 @@ class AuthProviderABC(abc.ABC):
 		self.AuthService = auth_service
 		self._IsReady = False
 
+
 	async def initialize(self):
 		raise NotImplementedError()
+
 
 	async def authorize(self, request: aiohttp.web.Request) -> Authorization:
 		"""
@@ -29,9 +31,11 @@ class AuthProviderABC(abc.ABC):
 		"""
 		raise NotImplementedError()
 
+
 	def is_ready(self) -> bool:
 		return self._IsReady
 
+
 	def _set_ready(self, ready: bool = True):
 		self._IsReady = ready
-		self.TenantService.check_ready()
+		self.AuthService.check_ready()
