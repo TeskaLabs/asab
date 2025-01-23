@@ -5,6 +5,8 @@ import jwcrypto.jwt
 import json
 import logging
 
+from ...exceptions import NotAuthenticatedError
+
 
 L = logging.getLogger(__name__)
 

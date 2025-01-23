@@ -1,12 +1,6 @@
-import base64
-import binascii
-import datetime
 import functools
 import inspect
-import json
 import logging
-import os.path
-import time
 import typing
 
 import aiohttp
@@ -27,13 +21,10 @@ from ...exceptions import NotAuthenticatedError
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
 
-from .authorization import Authorization
+from .providers import AccessTokenAuthProvider, IdTokenAuthProvider, MockAuthProvider
 
-#
 
 L = logging.getLogger(__name__)
-
-#
 
 
 class AuthService(Service):
@@ -111,43 +102,6 @@ class AuthService(Service):
 
 	async def initialize(self, app):
 		self._validate_wrapper_installation()
-
-
-	def _prepare_mock_mode(self):
-		"""
-		Try to set up direct introspection. In not available, set up static mock userinfo.
-		"""
-		introspection_url = Config.get("auth", "introspection_url", fallback=None)
-		if introspection_url is not None:
-			self.IntrospectionUrl = introspection_url
-			L.warning(
-				"AuthService is running in MOCK MODE. Web requests will be authorized with direct introspection "
-				"call to {!r}.".format(self.IntrospectionUrl)
-			)
-			return
-
-		# Load custom user info
-		mock_user_info_path = Config.get("auth", "mock_user_info_path")
-		if os.path.isfile(mock_user_info_path):
-			with open(mock_user_info_path, "rb") as fp:
-				user_info = json.load(fp)
-		else:
-			user_info = MOCK_USERINFO_DEFAULT
-		# Validate user info
-		resources = user_info.get("resources", {})
-		if not isinstance(resources, dict) or not all(
-			map(lambda kv: isinstance(kv[0], str) and isinstance(kv[1], list), resources.items())
-		):
-			raise ValueError("User info 'resources' must be an object with string keys and array values.")
-		L.warning(
-			"AuthService is running in MOCK MODE. Web requests will be authorized with mock user info, which "
-			"currently grants access to the following tenants: {}. To customize mock mode authorization (add or "
-			"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
-				list(t for t in user_info.get("resources", {}).keys() if t != "*"),
-				mock_user_info_path
-			)
-		)
-		self.MockUserInfo = user_info
 
 
 	def is_enabled(self) -> bool:

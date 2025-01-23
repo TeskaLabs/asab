@@ -1,13 +1,22 @@
-import abc
 import typing
-
+import logging
 import aiohttp.web
 import jwcrypto
 import jwcrypto.jwk
 
 from .abc import AuthProviderABC
-from .key_provider import PublicKeyProviderABC, FilePublicKeyProvider
+from .key_provider import (
+	PublicKeyProviderABC,
+	FilePublicKeyProvider,
+	PublicKeyProvider,
+	UrlPublicKeyProvider
+)
 from ..utils import get_bearer_token_from_authorization_header, get_id_token_claims
+from ..authorization import Authorization
+from ....exceptions import NotAuthenticatedError
+
+
+L = logging.getLogger(__name__)
 
 
 class IdTokenAuthProvider(AuthProviderABC):
