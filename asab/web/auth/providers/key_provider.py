@@ -25,9 +25,15 @@ class PublicKeyProviderABC(abc.ABC):
 
 
 class PublicKeyProvider(PublicKeyProviderABC):
-	def __init__(self, app, auth_provider, public_key: jwcrypto.jwk.JWK):
+	def __init__(self, app, auth_provider, public_key: jwcrypto.jwk.JWK | jwcrypto.jwk.JWKSet):
 		super().__init__(app, auth_provider)
-		self.PublicKeySet.add(public_key)
+		if isinstance(public_key, jwcrypto.jwk.JWK):
+			self.PublicKeySet.add(public_key)
+		elif isinstance(public_key, jwcrypto.jwk.JWKSet):
+			self.PublicKeySet = public_key
+		else:
+			raise ValueError("Invalid public_key type.")
+		
 		self._set_ready(True)
 
 
