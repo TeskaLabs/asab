@@ -14,7 +14,7 @@ try:
 except ModuleNotFoundError:
 	jwcrypto = None
 
-from ... import LogObsolete
+from ... import LogObsolete, LOG_NOTICE
 from ...abc.service import Service
 from ...config import Config
 from ...exceptions import NotAuthenticatedError
@@ -43,6 +43,7 @@ class AuthService(Service):
 			)
 
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
+		self._IsReady = False
 		self.Providers: list = []
 		self._set_up_providers()
 
@@ -151,12 +152,38 @@ class AuthService(Service):
 
 	def is_ready(self):
 		"""
-		Check if the service is ready to authorize requests.
+		Check if all the providers are ready to authorize requests.
 		"""
-		if self.PublicKeysUrl and not self.TrustedPublicKeys["keys"]:
-			# Auth server keys have not been loaded yet
-			return False
-		return True
+		return self._IsReady
+
+
+	def check_ready(self):
+		"""
+		Check and update service ready status.
+		"""
+		if len(self.Providers) == 0:
+			return
+
+		# Check if all providers are ready
+		is_ready_now = False
+		for provider in self.Providers:
+			if not provider.is_ready():
+				break
+		else:
+			is_ready_now = True
+
+		if self._IsReady == is_ready_now:
+			return
+
+		# Ready status changed
+		if is_ready_now:
+			L.log(LOG_NOTICE, "is ready.")
+			self.App.PubSub.publish("Authorization.ready!", self)
+		else:
+			L.log(LOG_NOTICE, "is NOT ready.")
+			self.App.PubSub.publish("Authorization.not_ready!", self)
+
+		self._IsReady = is_ready_now
 
 
 	def _authorize_request(self, handler):

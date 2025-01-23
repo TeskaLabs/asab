@@ -24,7 +24,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 	Authorizes requests based on the ID Token provided in the Authorization header.
 	"""
 
-	def __init__(self, app, auth_service, public_key_providers: typing.Iterable[PublicKeyProviderABC]):
+	def __init__(self, app, auth_service, public_key_providers: typing.Iterable[PublicKeyProviderABC] = ()):
 		super().__init__(app, auth_service)
 		self.TrustedJwkSet: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
 		self.KeyProviders = set()
@@ -70,6 +70,27 @@ class IdTokenAuthProvider(AuthProviderABC):
 		bearer_token = get_bearer_token_from_authorization_header(request)
 		authz = await self._build_authorization(bearer_token)
 		return authz
+
+
+	def check_ready(self):
+		"""
+		Check and update service ready status.
+		"""
+		if len(self.KeyProviders) == 0:
+			return
+
+		# Check if all providers are ready
+		is_ready_now = False
+		for provider in self.KeyProviders:
+			if not provider.is_ready():
+				break
+		else:
+			is_ready_now = True
+
+		if self._IsReady == is_ready_now:
+			return
+
+		self._set_ready(is_ready_now)
 
 
 	async def _update_public_keys(self):
