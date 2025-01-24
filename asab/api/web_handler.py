@@ -15,8 +15,8 @@ class APIWebHandler(object):
 		self.ApiService = api_svc
 
 		# Add routes
-		webapp.router.add_get("/asab/v1/environ", self.environ)
-		webapp.router.add_get("/asab/v1/config", self.config)
+		# webapp.router.add_get("/asab/v1/environ", self.environ)  # Disabled for security reasons
+		# webapp.router.add_get("/asab/v1/config", self.config)  # Disabled for security reasons
 
 		webapp.router.add_get("/asab/v1/logs", log_handler.get_logs)
 		webapp.router.add_get("/asab/v1/logws", log_handler.ws)
