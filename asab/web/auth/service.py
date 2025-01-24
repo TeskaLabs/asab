@@ -21,8 +21,6 @@ from ...exceptions import NotAuthenticatedError
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
 
-from .providers import AccessTokenAuthProvider, IdTokenAuthProvider, MockAuthProvider
-
 
 L = logging.getLogger(__name__)
 
@@ -63,12 +61,13 @@ class AuthService(Service):
 		if enabled == "mock":
 			introspection_url = Config.get("auth", "introspection_url", fallback=None)
 			if introspection_url:
-				Config.get("auth", "public_keys_url") or None
+				from .providers import AccessTokenAuthProvider
 				self.register_provider(
 					AccessTokenAuthProvider,
 					introspection_url=introspection_url
 				).add_jwks_url(public_keys_url)
 			else:
+				from .providers import MockAuthProvider
 				self.register_provider(
 					MockAuthProvider,
 					auth_claims_path=Config.get("auth", "mock_user_info_path")
@@ -76,6 +75,7 @@ class AuthService(Service):
 			return
 
 		elif string_to_boolean(enabled) is True:
+			from .providers import IdTokenAuthProvider
 			self.register_provider(IdTokenAuthProvider).add_jwks_url(public_keys_url)
 			return
 
