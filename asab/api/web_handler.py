@@ -4,7 +4,7 @@ import aiohttp.web
 
 from .. import Config
 from ..web.rest import json_response
-from ..web.auth import noauth
+from ..web.auth import noauth, require_superuser
 from ..web.tenant import allow_no_tenant
 
 
@@ -15,8 +15,8 @@ class APIWebHandler(object):
 		self.ApiService = api_svc
 
 		# Add routes
-		webapp.router.add_get("/asab/v1/environ", self.environ)
-		webapp.router.add_get("/asab/v1/config", self.config)
+		# webapp.router.add_get("/asab/v1/environ", self.environ)  # Disabled for security reasons
+		# webapp.router.add_get("/asab/v1/config", self.config)  # Disabled for security reasons
 
 		webapp.router.add_get("/asab/v1/logs", log_handler.get_logs)
 		webapp.router.add_get("/asab/v1/logws", log_handler.ws)
@@ -78,7 +78,7 @@ class APIWebHandler(object):
 		return json_response(request, self.ApiService.Manifest)
 
 
-	@noauth
+	@require_superuser
 	@allow_no_tenant
 	async def environ(self, request):
 		"""
@@ -110,7 +110,7 @@ class APIWebHandler(object):
 		return json_response(request, dict(os.environ))
 
 
-	@noauth
+	@require_superuser
 	@allow_no_tenant
 	async def config(self, request):
 		"""
