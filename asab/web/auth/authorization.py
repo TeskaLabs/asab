@@ -13,15 +13,15 @@ SUPERUSER_RESOURCE_ID = "authz:superuser"
 
 class Authorization:
 	"""
-	Contains authentication and authorization claims, provides methods for checking and enforcing access control.
+	Contains authentication and authorization claims (aka UserInfo), provides methods for checking and enforcing access control.
 
 	Attributes:
 		CredentialsId (str):
 			Unique identifier of the authorized entity in the ASAB ecosystem.
 			Usually corresponds to JWT attribute "sub".
-		Username (str): End-user's preferred username.
-		Email (str): End-user email address.
-		Phone (str): End-user phone number.
+		Username (str | None): End-user's preferred username.
+		Email (str | None): End-user email address.
+		Phone (str | None): End-user phone number.
 		SessionId (str): Sign-on session identifier.
 		Issuer (str): Unique identifier of the server that issued the authorization.
 		IssuedAt (datetime.datetime): Timestamp when the authorization was issued.
@@ -34,7 +34,7 @@ class Authorization:
 		Args:
 			claims (dict): Authorization server claims (from ID token, UserInfo etc.).
 		"""
-		# Userinfo should not be accessed directly
+		# Claims dict should not be accessed directly
 		self._Claims = claims or {}
 		self._Resources = self._Claims.get("resources", {})
 
