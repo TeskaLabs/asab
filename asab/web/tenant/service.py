@@ -62,8 +62,7 @@ class TenantService(Service):
 		"""
 		DEPRECATED. Get the set of known tenant IDs.
 
-		.. deprecated:: 25.01
-			Use coroutine `get_tenants()` instead.
+		Deprecated since v25.01: Use coroutine `get_tenants()` instead.
 		"""
 		raise AttributeError("Property `Tenants` has been removed. Use coroutine `get_tenants()` instead.")
 

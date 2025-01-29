@@ -66,7 +66,7 @@ class NotesApplication(asab.Application):
 
 When the tenant context is mandatory for your endpoint, but it is not feasible to have the tenant parameter hard-baked into the path, define your endpoint path without the `tenant` path parameter.
 The handler with require `tenant` to be present in the URL query.
-Requests without the required parameter will result in `asab.exceptions.ValidationError` (HTTP 400).
+Requests without the required parameter will result in `aiohttp.web.HTTPNotFound` (HTTP 404).
 
 ```python
 import asab
