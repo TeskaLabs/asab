@@ -70,7 +70,7 @@ class Authorization:
 		Check whether the agent is a superuser.
 
 		Returns:
-			bool: Do I have superuser access?
+			bool: Does the agent have superuser access?
 
 		Raises:
 			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
@@ -95,7 +95,7 @@ class Authorization:
 			*resources (str): A variable number of resource IDs whose authorization is requested.
 
 		Returns:
-			bool: Am I authorized to access requested resources?
+			bool: Is the agent authorized to access requested resources?
 
 		Raises:
 			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
@@ -117,7 +117,7 @@ class Authorization:
 		Check whether the agent has access to the tenant in context.
 
 		Returns:
-			bool: Am I authorized to access requested tenant?
+			bool: Is the agent authorized to access requested tenant?
 
 		Raises:
 			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
