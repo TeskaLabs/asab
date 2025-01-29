@@ -23,9 +23,9 @@ def require(*resources):
 	Examples:
 
 	```python
-	@asab.web.auth.require("my-app:token:generate")
-	async def generate_token(self, request):
-		data = await self.service.generate_token()
+	@asab.web.auth.require("insider-info:access")
+	async def get_insider_info(self, request):
+		data = await self.service.get_insider_info()
 		return asab.web.rest.json_response(request, data)
 	```
 	"""

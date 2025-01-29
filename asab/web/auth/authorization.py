@@ -13,15 +13,15 @@ SUPERUSER_RESOURCE_ID = "authz:superuser"
 
 class Authorization:
 	"""
-	Contains authentication and authorization claims, provides methods for checking and enforcing access control.
+	Contains authentication and authorization claims (aka UserInfo), provides methods for checking and enforcing access control.
 
 	Attributes:
 		CredentialsId (str):
 			Unique identifier of the authorized entity in the ASAB ecosystem.
 			Usually corresponds to JWT attribute "sub".
-		Username (str): End-user's preferred username.
-		Email (str): End-user email address.
-		Phone (str): End-user phone number.
+		Username (str | None): End-user's preferred username.
+		Email (str | None): End-user email address.
+		Phone (str | None): End-user phone number.
 		SessionId (str): Sign-on session identifier.
 		Issuer (str): Unique identifier of the server that issued the authorization.
 		IssuedAt (datetime.datetime): Timestamp when the authorization was issued.
@@ -34,7 +34,7 @@ class Authorization:
 		Args:
 			claims (dict): Authorization server claims (from ID token, UserInfo etc.).
 		"""
-		# Userinfo should not be accessed directly
+		# Claims dict should not be accessed directly
 		self._Claims = claims or {}
 		self._Resources = self._Claims.get("resources", {})
 
@@ -70,7 +70,10 @@ class Authorization:
 		Check whether the agent is a superuser.
 
 		Returns:
-			bool: Do I have superuser access?
+			bool: Does the agent have superuser access?
+
+		Raises:
+			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 
 		Examples:
 			>>> import asab.contextvars
@@ -92,7 +95,10 @@ class Authorization:
 			*resources (str): A variable number of resource IDs whose authorization is requested.
 
 		Returns:
-			bool: Am I authorized to access requested resources?
+			bool: Is the agent authorized to access requested resources?
+
+		Raises:
+			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 
 		Examples:
 			>>> import asab.contextvars
@@ -111,7 +117,10 @@ class Authorization:
 		Check whether the agent has access to the tenant in context.
 
 		Returns:
-			bool: Am I authorized to access requested tenant?
+			bool: Is the agent authorized to access requested tenant?
+
+		Raises:
+			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 
 		Examples:
 			>>> import asab.contextvars
@@ -138,6 +147,9 @@ class Authorization:
 	def require_valid(self):
 		"""
 		Ensure that the authorization is not expired.
+
+		Raises:
+			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 		"""
 		if not self.is_valid():
 			L.warning("Authorization expired.", struct_data={
@@ -150,7 +162,8 @@ class Authorization:
 		Ensure that the agent has superuser access.
 
 		Raises:
-			AccessDeniedError: If I do not have superuser access.
+			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
+			AccessDeniedError: When the agent does not have superuser access.
 
 		Examples:
 			>>> import asab.contextvars
@@ -171,6 +184,10 @@ class Authorization:
 		Args:
 			*resources (str): A variable number of resource IDs whose authorization is requested.
 
+		Raises:
+			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
+			AccessDeniedError: When the agent does not have access to the requested resources.
+
 		Examples:
 			>>> import asab.contextvars
 			>>> authz = asab.contextvars.Authz.get()
@@ -188,7 +205,8 @@ class Authorization:
 		Ensures that the agent is authorized to access the tenant in the current context.
 
 		Raises:
-			AccessDeniedError: If the agent does not have access to the tenant.
+			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
+			AccessDeniedError: When the agent does not have access to the requested tenant.
 
 		Examples:
 			>>> import asab.contextvars
@@ -215,6 +233,9 @@ class Authorization:
 
 		Returns:
 			dict: UserInfo claims
+
+		Raises:
+			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 		"""
 		self.require_valid()
 		return self._Claims
@@ -229,6 +250,9 @@ class Authorization:
 
 		Returns:
 			Value of the requested claim (or `None` if the claim is not present).
+
+		Raises:
+			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 		"""
 		self.require_valid()
 		return self._Claims.get(key)
@@ -240,6 +264,9 @@ class Authorization:
 
 		Returns:
 			set: Authorized resources.
+
+		Raises:
+			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 		"""
 		self.require_valid()
 

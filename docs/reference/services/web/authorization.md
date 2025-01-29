@@ -87,7 +87,7 @@ See [examples/web-auth.py](https://github.com/TeskaLabs/asab/blob/master/example
 ## Multitenancy
 
 If your web container runs in multi-tenant mode, AuthService will ensure the authorization of tenant context.
-Read more in the [Multitenancy chapter](./multitenancy).
+Read more in the [Multitenancy chapter](../multitenancy).
 
 
 ## Configuration
@@ -119,5 +119,7 @@ mock_user_info_path=/conf/mock-userinfo.json
 
 
 ::: asab.web.auth.require
+
+::: asab.web.auth.require_superuser
 
 ::: asab.web.auth.noauth
