@@ -307,44 +307,63 @@ class LibraryService(Service):
 		return items
 
 	async def _list(self, path, tenant, providers):
-		items: list[LibraryItem] = []
-		unique_items: dict[str, LibraryItem] = dict()
+		"""
+		Lists items from all providers and applies layer precedence,
+		ensuring that layers are tracked accurately for each item.
 
-		# List items from every provider concurrently
-		tasks = [asyncio.create_task(provider.list(path)) for provider in providers]
-		for layer, task in enumerate(asyncio.as_completed(tasks)):
+		Args:
+			path (str): The path to list items from.
+			tenant (str): The tenant name for checking disabled items.
+			providers (list): A list of providers to query.
+
+		Returns:
+			list: A sorted list of unique LibraryItem objects.
+		"""
+		items: list[LibraryItem] = []
+		unique_items: dict[str, LibraryItem] = {}
+
+		# List items from every provider concurrently, tracking layers
+		tasks = [(layer, asyncio.create_task(provider.list(path))) for layer, provider in enumerate(providers)]
+
+		# Process tasks as they complete, ensuring correct layer precedence
+		for layer, task in tasks:
 			try:
 				items_list_from_provider: list[LibraryItem] = await task
 			except KeyError:
-				# The path doesn't exists in the provider
+				# The path doesn't exist in the provider
 				continue
 			except Exception:
-				L.exception("Unexpected error when listing path '{}' by {}".format(path, providers[layer]))
+				L.exception("Unexpected error when listing path '{}' on layer {}.".format(path, layer))
 				continue
 
 			for item in items_list_from_provider:
 				item.disabled = self.check_disabled(item.name, tenant=tenant)
 
-				# If the item already exists, merge or override it
+				# Check if the item already exists
 				pitem = unique_items.get(item.name)
+
 				if pitem is not None:
-					if pitem.type == 'dir' and item.type == 'dir':
-						# Directories are joined
+					# Merge directories (if both are 'dir')
+					if pitem.type == "dir" and item.type == "dir":
+						# Merge providers for the directory
 						pitem.providers.extend(item.providers)
-					elif pitem.type == 'item':
-						for i, provider in enumerate(providers):
-							if provider in item.providers:
-								index = i
-								break
-						pitem.override = index
+
+					# Replace lower-priority items
+					elif pitem.type == item.type and layer < pitem.layer:
+						# Replace with the higher-priority item
+						unique_items[item.name] = item
+						items = [unique_items[x.name] if x.name == item.name else x for x in items]
+
 				else:
-					# Other item types are skipped
+					# Assign new item to unique_items
+					item.layer = layer  # Track the layer for precedence
 					unique_items[item.name] = item
 					items.append(item)
 
 		# Sort items by name
 		items.sort(key=lambda x: x.name)
 		return items
+
 
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
