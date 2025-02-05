@@ -151,7 +151,7 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 			items.append(LibraryItem(
 				name=i.name,
 				type=i.type,
-				layer=self.Layer,
+				layers=[self.Layer],
 				providers=[self],
 				size=i.size if isinstance(i, AzureItem) else 0  # Include size
 			))
