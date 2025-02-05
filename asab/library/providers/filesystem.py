@@ -117,7 +117,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
-				layer=self.Layer,
+				layers=[self.Layer],
 				providers=[self],
 				size=size  # Include size attribute
 			))

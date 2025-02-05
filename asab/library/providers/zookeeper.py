@@ -338,7 +338,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
-				layer=self.Layer,
+				layers=[self.Layer],
 				providers=[self],
 				target=target,
 				size=size
@@ -509,7 +509,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					item = LibraryItem(
 						name=full_path[len(self.BasePath):],
 						type="item",  # or "dir" if applicable
-						layer=self.Layer,
+						layers=[self.Layer],
 						providers=[self],
 					)
 					results.append(item)
