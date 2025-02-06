@@ -23,6 +23,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 	"""
 	Authorizes requests based on the ID Token provided in the Authorization header.
 	"""
+	Type = "id_token"
 
 	def __init__(self, auth_service, public_key_providers: typing.Iterable[PublicKeyProviderABC] = ()):
 		super().__init__(auth_service)

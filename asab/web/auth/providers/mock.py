@@ -48,6 +48,7 @@ _MOCK_AUTH_CLAIMS_DEFAULT = {
 
 
 class MockAuthProvider(AuthProviderABC):
+	Type = "mock"
 
 	def __init__(self, auth_service, auth_claims_path: typing.Optional[str] = None):
 		super().__init__(auth_service)

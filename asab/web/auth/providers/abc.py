@@ -8,6 +8,7 @@ class AuthProviderABC(abc.ABC):
 	"""
 	Abstract base class for all authorization providers.
 	"""
+	Type = None
 
 	def __init__(self, auth_service):
 		self.AuthService = auth_service

@@ -19,6 +19,7 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 	Development only, not optimized for production use.
 	"""
+	Type = "access_token"
 
 	def __init__(
 		self,
