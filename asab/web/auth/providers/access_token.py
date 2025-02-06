@@ -3,7 +3,7 @@ import logging
 import aiohttp.web
 
 from .id_token import IdTokenAuthProvider
-from .key_provider import PublicKeyProviderABC
+from asab.web.auth.providers.key_providers.abc import PublicKeyProviderABC
 from ..utils import get_bearer_token_from_authorization_header
 from ..authorization import Authorization
 from ....exceptions import NotAuthenticatedError

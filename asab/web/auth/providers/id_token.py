@@ -5,10 +5,10 @@ import jwcrypto
 import jwcrypto.jwk
 
 from .abc import AuthProviderABC
-from .key_provider import (
+from .key_providers.abc import (
 	PublicKeyProviderABC,
 	FilePublicKeyProvider,
-	PublicKeyProvider,
+	DirectPublicKeyProvider,
 	UrlPublicKeyProvider
 )
 from ..utils import get_bearer_token_from_authorization_header, get_id_token_claims
@@ -27,8 +27,8 @@ class IdTokenAuthProvider(AuthProviderABC):
 	def __init__(self, app, auth_service, public_key_providers: typing.Iterable[PublicKeyProviderABC] = ()):
 		super().__init__(app, auth_service)
 		self.TrustedJwkSet: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
-		self.KeyProviders = set()
-		if self.KeyProviders:
+		self._KeyProviders = set()
+		if self._KeyProviders:
 			for provider in public_key_providers:
 				self.add_key_provider(provider)
 		self.Authorizations = {}
@@ -38,7 +38,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 	def add_key_provider(self, provider: PublicKeyProviderABC):
 		self._set_ready(False)
-		self.KeyProviders.add(provider)
+		self._KeyProviders.add(provider)
 
 
 	def add_jwks_url(self, jwks_url: str):
@@ -51,7 +51,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 	def add_public_key(self, public_key: jwcrypto.jwk.JWK | jwcrypto.jwk.JWKSet):
 		self._set_ready(False)
 		self.add_key_provider(
-			PublicKeyProvider(self.App, self, public_key)
+			DirectPublicKeyProvider(self.App, self, public_key)
 		)
 
 
@@ -76,12 +76,12 @@ class IdTokenAuthProvider(AuthProviderABC):
 		"""
 		Check and update service ready status.
 		"""
-		if len(self.KeyProviders) == 0:
+		if len(self._KeyProviders) == 0:
 			return
 
 		# Check if all providers are ready
 		is_ready_now = False
-		for provider in self.KeyProviders:
+		for provider in self._KeyProviders:
 			if not provider.is_ready():
 				break
 		else:
@@ -91,6 +91,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 			return
 
 		self._set_ready(is_ready_now)
+		print("idt provider", self._IsReady)
 
 
 	async def _update_public_keys(self):
@@ -98,7 +99,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 		Update the public keys from all key providers.
 		"""
 		jwks = jwcrypto.jwk.JWKSet()
-		for provider in self.KeyProviders:
+		for provider in self._KeyProviders:
 			await provider.reload_keys()
 			jwks.update(provider.PublicKeySet)
 

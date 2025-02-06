@@ -1,71 +1,13 @@
-import abc
 import logging
 import jwcrypto
 import jwcrypto.jwk
 import aiohttp
 import json
 
+from .abc import PublicKeyProviderABC
+
 
 L = logging.getLogger(__name__)
-
-
-class PublicKeyProviderABC(abc.ABC):
-	def __init__(self, app, auth_provider):
-		self.App = app
-		self.AuthProvider = auth_provider
-		self.TaskService = self.App.get_service("asab.TaskService")
-		self.PublicKeySet: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
-		self._IsReady = False
-
-	async def reload_keys(self):
-		raise NotImplementedError()
-
-	def is_ready(self) -> bool:
-		return self._IsReady
-
-	def _set_ready(self, ready: bool = True):
-		self._IsReady = ready
-		self.AuthProvider.check_ready()
-
-
-class PublicKeyProvider(PublicKeyProviderABC):
-	def __init__(self, app, auth_provider, public_key: jwcrypto.jwk.JWK | jwcrypto.jwk.JWKSet):
-		super().__init__(app, auth_provider)
-		if isinstance(public_key, jwcrypto.jwk.JWK):
-			self.PublicKeySet.add(public_key)
-		elif isinstance(public_key, jwcrypto.jwk.JWKSet):
-			self.PublicKeySet = public_key
-		else:
-			raise ValueError("Invalid public_key type.")
-
-		self._set_ready(True)
-
-
-	async def reload_keys(self):
-		pass
-
-
-class FilePublicKeyProvider(PublicKeyProviderABC):
-	def __init__(self, app, auth_provider, file_path: str, from_private_key: bool = False):
-		super().__init__(app, auth_provider)
-		self._load_key_file(file_path, from_private_key)
-
-	async def reload_keys(self):
-		pass
-
-	def _load_key_file(self, file_path, from_private_key):
-		if file_path.endswith(".json"):
-			with open(file_path, "r") as f:
-				key = jwcrypto.jwk.JWK.from_json(f.read())
-		else:
-			with open(file_path, "r") as f:
-				key = jwcrypto.jwk.JWK.from_pem(f.read())
-
-		if from_private_key:
-			key = key.public()
-
-		self.PublicKeySet.add(key)
-		self._set_ready(True)
 
 
 class UrlPublicKeyProvider(PublicKeyProviderABC):
