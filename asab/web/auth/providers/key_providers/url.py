@@ -13,14 +13,14 @@ L = logging.getLogger(__name__)
 class UrlPublicKeyProvider(PublicKeyProviderABC):
 	def __init__(self, auth_provider, jwks_url: str):
 		super().__init__(auth_provider)
-		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
 		self.JwksUrl = jwks_url
 
 	async def reload_keys(self):
-		if self.DiscoveryService is None:
-			open_session = aiohttp.ClientSession
+		discovery_service = self.App.get_service("asab.DiscoveryService")
+		if discovery_service is not None:
+			open_session = discovery_service.session
 		else:
-			open_session = self.DiscoveryService.session
+			open_session = aiohttp.ClientSession
 
 		async with open_session() as session:
 			jwks = await _fetch_jwks(session, self.JwksUrl)
