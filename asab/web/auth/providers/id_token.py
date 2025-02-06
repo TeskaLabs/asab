@@ -24,8 +24,8 @@ class IdTokenAuthProvider(AuthProviderABC):
 	Authorizes requests based on the ID Token provided in the Authorization header.
 	"""
 
-	def __init__(self, app, auth_service, public_key_providers: typing.Iterable[PublicKeyProviderABC] = ()):
-		super().__init__(app, auth_service)
+	def __init__(self, auth_service, public_key_providers: typing.Iterable[PublicKeyProviderABC] = ()):
+		super().__init__(auth_service)
 		self.TrustedJwkSet: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
 		self._KeyProviders = set()
 		if self._KeyProviders:

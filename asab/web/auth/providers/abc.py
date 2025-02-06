@@ -9,9 +9,9 @@ class AuthProviderABC(abc.ABC):
 	Abstract base class for all authorization providers.
 	"""
 
-	def __init__(self, app, auth_service):
-		self.App = app
+	def __init__(self, auth_service):
 		self.AuthService = auth_service
+		self.App = self.AuthService.App
 		self._IsReady = False
 
 

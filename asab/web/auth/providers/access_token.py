@@ -22,12 +22,11 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 	def __init__(
 		self,
-		app,
 		auth_service,
 		public_key_providers: typing.Iterable[PublicKeyProviderABC],
 		introspection_url: str
 	):
-		super().__init__(self, app, auth_service, public_key_providers)
+		super().__init__(self, auth_service, public_key_providers)
 		self.IntrospectionUrl: str = introspection_url
 
 
