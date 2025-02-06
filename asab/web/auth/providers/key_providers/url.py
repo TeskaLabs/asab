@@ -11,8 +11,8 @@ L = logging.getLogger(__name__)
 
 
 class UrlPublicKeyProvider(PublicKeyProviderABC):
-	def __init__(self, app, auth_provider, jwks_url: str):
-		super().__init__(app, auth_provider)
+	def __init__(self, auth_provider, jwks_url: str):
+		super().__init__(auth_provider)
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
 		self.JwksUrl = jwks_url
 
