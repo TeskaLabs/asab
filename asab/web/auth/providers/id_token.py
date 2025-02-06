@@ -91,7 +91,6 @@ class IdTokenAuthProvider(AuthProviderABC):
 			return
 
 		self._set_ready(is_ready_now)
-		print("idt provider", self._IsReady)
 
 
 	async def _update_public_keys(self):

@@ -184,7 +184,6 @@ class AuthService(Service):
 			self.App.PubSub.publish("Authorization.not_ready!", self)
 
 		self._IsReady = is_ready_now
-		print("auth svc", self._IsReady)
 
 
 	def _authorize_request(self, handler):
