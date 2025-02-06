@@ -50,6 +50,7 @@ class AuthService(Service):
 
 
 	def register_provider(self, provider_class, **kwargs):
+		self._IsReady = False
 		provider = provider_class(self.App, self, **kwargs)
 		self.Providers.append(provider)
 		return provider
