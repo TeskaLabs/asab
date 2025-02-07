@@ -59,18 +59,18 @@ class AuthService(Service):
 			introspection_url = Config.get("auth", "introspection_url", fallback=None)
 			if introspection_url:
 				from .providers import AccessTokenAuthProvider
-				provider = AccessTokenAuthProvider(introspection_url=introspection_url)
+				provider = AccessTokenAuthProvider(self.App, introspection_url=introspection_url)
 				provider.add_jwks_url(public_keys_url)
 				self.register_provider(provider)
 			else:
 				from .providers import MockAuthProvider
-				provider = AccessTokenAuthProvider(auth_claims_path=Config.get("auth", "mock_user_info_path"))
+				provider = AccessTokenAuthProvider(self.App, auth_claims_path=Config.get("auth", "mock_user_info_path"))
 				self.register_provider(provider)
 			return
 
 		elif string_to_boolean(enabled) is True:
 			from .providers import IdTokenAuthProvider
-			provider = AccessTokenAuthProvider()
+			provider = IdTokenAuthProvider(self.App)
 			provider.add_jwks_url(public_keys_url)
 			self.register_provider(provider)
 			return

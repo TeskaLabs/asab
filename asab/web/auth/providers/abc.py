@@ -11,7 +11,7 @@ class AuthProviderABC(abc.ABC):
 	Type = None
 
 	def __init__(self, app):
-		self.App = self.AuthService.App
+		self.App = app
 
 
 	async def initialize(self):
