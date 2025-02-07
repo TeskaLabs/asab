@@ -13,7 +13,6 @@ class AuthProviderABC(abc.ABC):
 	def __init__(self, auth_service):
 		self.AuthService = auth_service
 		self.App = self.AuthService.App
-		self._IsReady = False
 
 
 	async def initialize(self):
@@ -31,12 +30,3 @@ class AuthProviderABC(abc.ABC):
 			Authorization: Authorization object.
 		"""
 		raise NotImplementedError()
-
-
-	def is_ready(self) -> bool:
-		return self._IsReady
-
-
-	def _set_ready(self, ready: bool = True):
-		self._IsReady = ready
-		self.AuthService.check_ready()

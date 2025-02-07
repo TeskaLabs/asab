@@ -41,7 +41,6 @@ class AuthService(Service):
 			)
 
 		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
-		self._IsReady = False
 		self.Providers: list = []
 		self._set_up_providers()
 
@@ -50,7 +49,6 @@ class AuthService(Service):
 
 
 	def register_provider(self, provider_class, **kwargs):
-		self._IsReady = False
 		provider = provider_class(self, **kwargs)
 		self.Providers.append(provider)
 		return provider
@@ -148,43 +146,6 @@ class AuthService(Service):
 			web_container.WebApp.on_startup.insert(tenant_wrapper_idx, self.set_up_auth_web_wrapper)
 		else:
 			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
-
-
-
-	def is_ready(self):
-		"""
-		Check if all the providers are ready to authorize requests.
-		"""
-		return self._IsReady
-
-
-	def check_ready(self):
-		"""
-		Check and update service ready status.
-		"""
-		if len(self.Providers) == 0:
-			return
-
-		# Check if all providers are ready
-		is_ready_now = False
-		for provider in self.Providers:
-			if not provider.is_ready():
-				break
-		else:
-			is_ready_now = True
-
-		if self._IsReady == is_ready_now:
-			return
-
-		# Ready status changed
-		if is_ready_now:
-			L.log(LOG_NOTICE, "is ready.")
-			self.App.PubSub.publish("Authorization.ready!", self)
-		else:
-			L.log(LOG_NOTICE, "is NOT ready.")
-			self.App.PubSub.publish("Authorization.not_ready!", self)
-
-		self._IsReady = is_ready_now
 
 
 	def _authorize_request(self, handler):

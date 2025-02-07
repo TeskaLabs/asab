@@ -24,7 +24,6 @@ class DirectPublicKeyProvider(PublicKeyProviderABC):
 			self.PublicKeySet = public_key
 		else:
 			raise ValueError("Invalid public_key type.")
-		self._set_ready(True)
 
 
 	async def reload_keys(self):

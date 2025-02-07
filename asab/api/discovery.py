@@ -14,8 +14,6 @@ import kazoo.exceptions
 try:
 	# Optional dependency for using internal authorization
 	import jwcrypto
-	import jwcrypto.jwt
-	import jwcrypto.jwk
 except ModuleNotFoundError:
 	jwcrypto = None
 
@@ -34,10 +32,10 @@ class DiscoveryService(Service):
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
 		self.ProactorService = zkc.ProactorService
-		self.InternalAuthKeyPath = "/asab/auth/internal_auth_private.key"
-		self.InternalAuthKey = None
-		self.InternalAuthToken = None
-		self.InternalAuthTokenExpiration: datetime.timedelta = datetime.timedelta(seconds=5 * 300)
+		self.InternalAuth = None
+		if jwcrypto is not None:
+			from .internal_auth import InternalAuth
+			self.InternalAuth = InternalAuth(app)
 
 		self._advertised_cache = dict()
 		self._cache_lock = asyncio.Lock()
@@ -47,104 +45,18 @@ class DiscoveryService(Service):
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 
 
+	async def initialize(self, app):
+		if self.InternalAuth is not None:
+			await self.InternalAuth.initialize(app)
+
 
 	def _on_tick(self, msg):
 		self.App.TaskService.schedule(self._rescan_advertised_instances())
-		if jwcrypto is not None:
-			self._ensure_internal_auth_token()
 
 
 	def _on_zk_ready(self, msg, zkc):
 		if zkc == self.ZooKeeperContainer:
 			self.App.TaskService.schedule(self._rescan_advertised_instances())
-			if jwcrypto is not None:
-				self.App.TaskService.schedule(self._ensure_internal_auth_key(zkc))
-
-
-	async def _ensure_internal_auth_key(self, zkc=None):
-		zkc = zkc or self.ZooKeeperContainer
-		private_key_json = None
-		# Attempt to create and write a new private key
-		# while avoiding race condition with other ASAB services
-		while not private_key_json:
-			# Try to get the key
-			try:
-				private_key_json, _ = zkc.ZooKeeper.Client.get(self.InternalAuthKeyPath)
-				break
-			except kazoo.exceptions.NoNodeError:
-				pass
-
-			# Generate a new key
-			private_key = jwcrypto.jwk.JWK.generate(kty="EC", crv="P-256")
-			private_key_json = json.dumps(private_key.export(as_dict=True)).encode("utf-8")
-			try:
-				zkc.ZooKeeper.Client.create(self.InternalAuthKeyPath, private_key_json, makepath=True)
-				L.info("Internal auth key created.", struct_data={
-					"kid": private_key.key_id, "path": self.InternalAuthKeyPath})
-			except kazoo.exceptions.NodeExistsError:
-				# Another ASAB service has probably created the key in the meantime
-				pass
-
-		private_key = jwcrypto.jwk.JWK.from_json(private_key_json)
-		if private_key != self.InternalAuthKey:
-			# Private key has changed
-			self.InternalAuthKey = private_key
-			self._ensure_internal_auth_token(force_new=True)
-
-
-	def _ensure_internal_auth_token(self, force_new: bool = False):
-		assert self.InternalAuthKey
-
-		def _get_own_discovery_url():
-			instance_id = os.getenv("INSTANCE_ID", None)
-			if instance_id:
-				return "http://{}.instance_id.asab".format(instance_id)
-
-			service_id = os.getenv("SERVICE_ID", None)
-			if service_id:
-				return "http://{}.service_id.asab".format(service_id)
-
-			return "http://{}".format(self.App.HostName)
-
-		if self.InternalAuthToken and not force_new:
-			claims = json.loads(self.InternalAuthToken.claims)
-			if claims.get("exp") > (
-				datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=300)
-			).timestamp():
-				# Token is valid and does not expire soon
-				return
-
-		# Use this service's discovery URL as issuer ID and authorized party ID
-		my_discovery_url = _get_own_discovery_url()
-		expiration = datetime.datetime.now(datetime.timezone.utc) + self.InternalAuthTokenExpiration
-		claims = {
-			# Issuer (URL of the app that created the token)
-			"iss": my_discovery_url,
-			# Issued at
-			"iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
-			# Expires at
-			"exp": int((expiration).timestamp()),
-			# Authorized party
-			"azp": my_discovery_url,
-			# Audience (who is allowed to use this token)
-			"aud": "http://{}".format(self.App.HostName),  # TODO: Something that signifies "anyone in this internal space"
-			# Tenants and resources
-			"resources": {
-				"*": ["authz:superuser"],
-			}
-		}
-
-		self.InternalAuthToken = jwcrypto.jwt.JWT(
-			header={
-				"alg": "ES256",
-				"typ": "JWT",
-				"kid": self.InternalAuthKey.key_id,
-			},
-			claims=json.dumps(claims)
-		)
-		self.InternalAuthToken.make_signed_token(self.InternalAuthKey)
-
-		L.info("New internal auth token issued.", struct_data={"exp": expiration})
 
 
 	async def locate(self, instance_id: str = None, **kwargs) -> set:
@@ -409,20 +321,12 @@ class DiscoveryService(Service):
 			_headers["Authorization"] = auth.headers["Authorization"]
 
 		elif auth == "internal":
-			if jwcrypto is None:
+			if self.InternalAuth is None:
 				raise ModuleNotFoundError(
-					"You are trying to use internal auth without 'jwcrypto' installed. "
+					"Internal auth is disabled because 'jwcrypto' module is not installed. "
 					"Please run 'pip install jwcrypto' or install asab with 'authz' optional dependency."
 				)
-
-			authz = Authz.get(None)
-			if authz is not None:
-				L.warning(
-					"Using internal (superuser) authorization in an already authorized context. "
-					"This is potentially unwanted and dangerous.",
-				)
-
-			_headers["Authorization"] = "Bearer {}".format(self.InternalAuthToken.serialize())
+			_headers["Authorization"] = self.InternalAuth.obtain_bearer_token()
 
 		else:
 			raise ValueError(

@@ -95,4 +95,3 @@ class MockAuthProvider(AuthProviderABC):
 			)
 		)
 		self.Authorization = Authorization(auth_claims)
-		self._set_ready(True)

@@ -38,26 +38,22 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 
 	def add_key_provider(self, provider: PublicKeyProviderABC):
-		self._set_ready(False)
 		self._KeyProviders.add(provider)
 
 
 	def add_jwks_url(self, jwks_url: str):
-		self._set_ready(False)
 		self.add_key_provider(
 			UrlPublicKeyProvider(self.App, self, jwks_url)
 		)
 
 
 	def add_public_key(self, public_key: jwcrypto.jwk.JWK | jwcrypto.jwk.JWKSet):
-		self._set_ready(False)
 		self.add_key_provider(
 			DirectPublicKeyProvider(self.App, self, public_key)
 		)
 
 
 	def add_public_key_from_file(self, file_path: str, from_private_key: bool = False):
-		self._set_ready(False)
 		self.add_key_provider(
 			FilePublicKeyProvider(self.App, self, file_path, from_private_key)
 		)
@@ -71,27 +67,6 @@ class IdTokenAuthProvider(AuthProviderABC):
 		bearer_token = get_bearer_token_from_authorization_header(request)
 		authz = await self._build_authorization(bearer_token)
 		return authz
-
-
-	def check_ready(self):
-		"""
-		Check and update service ready status.
-		"""
-		if len(self._KeyProviders) == 0:
-			return
-
-		# Check if all providers are ready
-		is_ready_now = False
-		for provider in self._KeyProviders:
-			if not provider.is_ready():
-				break
-		else:
-			is_ready_now = True
-
-		if self._IsReady == is_ready_now:
-			return
-
-		self._set_ready(is_ready_now)
 
 
 	async def _update_public_keys(self):

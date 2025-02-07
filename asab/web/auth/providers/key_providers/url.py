@@ -27,10 +27,7 @@ class UrlPublicKeyProvider(PublicKeyProviderABC):
 
 		if jwks is not None:
 			self.PublicKeySet = jwks
-			L.debug("Public key set loaded.", struct_data={"url": self.JwksUrl})
-			self._set_ready(True)
-		else:
-			self._set_ready(False)
+			L.debug("Auth server public keys loaded.", struct_data={"url": self.JwksUrl})
 
 
 async def _fetch_jwks(session: aiohttp.ClientSession, url: str):

@@ -15,14 +15,6 @@ class PublicKeyProviderABC(abc.ABC):
 		self.App = self.AuthProvider.App
 		self.TaskService = self.App.get_service("asab.TaskService")
 		self.PublicKeySet: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
-		self._IsReady = False
 
 	async def reload_keys(self):
 		raise NotImplementedError()
-
-	def is_ready(self) -> bool:
-		return self._IsReady
-
-	def _set_ready(self, ready: bool = True):
-		self._IsReady = ready
-		self.AuthProvider.check_ready()

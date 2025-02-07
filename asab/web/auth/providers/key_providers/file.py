@@ -24,4 +24,3 @@ class FilePublicKeyProvider(PublicKeyProviderABC):
 			key = key.public()
 
 		self.PublicKeySet.add(key)
-		self._set_ready(True)
