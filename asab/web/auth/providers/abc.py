@@ -10,8 +10,7 @@ class AuthProviderABC(abc.ABC):
 	"""
 	Type = None
 
-	def __init__(self, auth_service):
-		self.AuthService = auth_service
+	def __init__(self, app):
 		self.App = self.AuthService.App
 
 

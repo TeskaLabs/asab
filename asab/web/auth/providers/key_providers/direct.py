@@ -9,10 +9,10 @@ from .abc import PublicKeyProviderABC
 class DirectPublicKeyProvider(PublicKeyProviderABC):
 	def __init__(
 		self,
-		auth_provider,
+		app,
 		public_key: typing.Optional[jwcrypto.jwk.JWK | jwcrypto.jwk.JWKSet] = None
 	):
-		super().__init__(auth_provider)
+		super().__init__(app)
 		if public_key is not None:
 			self.set_public_key(public_key)
 

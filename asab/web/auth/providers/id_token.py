@@ -5,7 +5,7 @@ import jwcrypto
 import jwcrypto.jwk
 
 from .abc import AuthProviderABC
-from .key_providers.abc import (
+from .key_providers import (
 	PublicKeyProviderABC,
 	FilePublicKeyProvider,
 	DirectPublicKeyProvider,
@@ -25,8 +25,8 @@ class IdTokenAuthProvider(AuthProviderABC):
 	"""
 	Type = "id_token"
 
-	def __init__(self, auth_service, public_key_providers: typing.Iterable[PublicKeyProviderABC] = ()):
-		super().__init__(auth_service)
+	def __init__(self, app, public_key_providers: typing.Iterable[PublicKeyProviderABC] = ()):
+		super().__init__(app)
 		self.TrustedJwkSet: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
 		self._KeyProviders = set()
 		if self._KeyProviders:
@@ -43,19 +43,19 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 	def add_jwks_url(self, jwks_url: str):
 		self.add_key_provider(
-			UrlPublicKeyProvider(self.App, self, jwks_url)
+			UrlPublicKeyProvider(self.App, jwks_url)
 		)
 
 
 	def add_public_key(self, public_key: jwcrypto.jwk.JWK | jwcrypto.jwk.JWKSet):
 		self.add_key_provider(
-			DirectPublicKeyProvider(self.App, self, public_key)
+			DirectPublicKeyProvider(self.App, public_key)
 		)
 
 
 	def add_public_key_from_file(self, file_path: str, from_private_key: bool = False):
 		self.add_key_provider(
-			FilePublicKeyProvider(self.App, self, file_path, from_private_key)
+			FilePublicKeyProvider(self.App, file_path, from_private_key)
 		)
 
 

@@ -5,8 +5,8 @@ from .abc import PublicKeyProviderABC
 
 
 class FilePublicKeyProvider(PublicKeyProviderABC):
-	def __init__(self, auth_provider, file_path: str, from_private_key: bool = False):
-		super().__init__(auth_provider)
+	def __init__(self, app, file_path: str, from_private_key: bool = False):
+		super().__init__(app)
 		self._load_key_file(file_path, from_private_key)
 
 	async def reload_keys(self):

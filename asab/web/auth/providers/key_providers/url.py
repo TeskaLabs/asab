@@ -11,8 +11,8 @@ L = logging.getLogger(__name__)
 
 
 class UrlPublicKeyProvider(PublicKeyProviderABC):
-	def __init__(self, auth_provider, jwks_url: str):
-		super().__init__(auth_provider)
+	def __init__(self, app, jwks_url: str):
+		super().__init__(app)
 		self.JwksUrl = jwks_url
 
 	async def reload_keys(self):

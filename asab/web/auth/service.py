@@ -48,10 +48,8 @@ class AuthService(Service):
 		self._try_auto_install()
 
 
-	def register_provider(self, provider_class, **kwargs):
-		provider = provider_class(self, **kwargs)
+	def register_provider(self, provider):
 		self.Providers.append(provider)
-		return provider
 
 
 	def _set_up_providers(self):
@@ -61,21 +59,20 @@ class AuthService(Service):
 			introspection_url = Config.get("auth", "introspection_url", fallback=None)
 			if introspection_url:
 				from .providers import AccessTokenAuthProvider
-				self.register_provider(
-					AccessTokenAuthProvider,
-					introspection_url=introspection_url
-				).add_jwks_url(public_keys_url)
+				provider = AccessTokenAuthProvider(introspection_url=introspection_url)
+				provider.add_jwks_url(public_keys_url)
+				self.register_provider(provider)
 			else:
 				from .providers import MockAuthProvider
-				self.register_provider(
-					MockAuthProvider,
-					auth_claims_path=Config.get("auth", "mock_user_info_path")
-				)
+				provider = AccessTokenAuthProvider(auth_claims_path=Config.get("auth", "mock_user_info_path"))
+				self.register_provider(provider)
 			return
 
 		elif string_to_boolean(enabled) is True:
 			from .providers import IdTokenAuthProvider
-			self.register_provider(IdTokenAuthProvider).add_jwks_url(public_keys_url)
+			provider = AccessTokenAuthProvider()
+			provider.add_jwks_url(public_keys_url)
+			self.register_provider(provider)
 			return
 
 		else:
