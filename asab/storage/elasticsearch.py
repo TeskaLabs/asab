@@ -176,7 +176,7 @@ class StorageService(StorageServiceABC):
 
 		async with self.request("GET", "{}/_doc/{}".format(index, obj_id)) as resp:
 
-			if resp.status not in {200, 201}:
+			if resp.status not in {200, 201, 404}:
 				resp = await resp.json()
 				raise ConnectionError("Failed to retrieve data from ElasticSearch. Got {}: {}".format(
 					resp.get("status"),
@@ -185,8 +185,10 @@ class StorageService(StorageServiceABC):
 
 			else:
 				obj = await resp.json()
+
 				if not obj.get("found"):
-					raise KeyError("No existing object with ID {}".format(obj_id))
+					return None
+
 				ret = obj['_source']
 				ret['_v'] = obj['_version']
 				ret['_id'] = obj['_id']
