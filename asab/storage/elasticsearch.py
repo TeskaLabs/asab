@@ -123,10 +123,9 @@ class StorageService(StorageServiceABC):
 						return
 
 				except aiohttp.client_exceptions.ClientConnectorError:
+
 					if n == len(self.ServerUrls):
 						raise ConnectionError("Failed to connect to '{}'.".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another node".format(url))
 
 
 	async def is_connected(self) -> bool:
