@@ -193,7 +193,6 @@ class InternalAuth:
 
 
 	def _update_public_key(self):
-		print(self.PrivateKey, self.PrivateKey.public())
 		public_key = self.PrivateKey.public()
 		self.PublicKeyProvider.set_public_key(public_key)
 		L.debug("Public key updated.", struct_data={"kid": public_key.key_id})
