@@ -124,7 +124,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 			raise NotAuthenticatedError()
 
 
-	def _delete_invalid_authorizations(self):
+	def _delete_invalid_authorizations(self, *args, **kwargs):
 		"""
 		Delete invalid authorizations.
 		"""
