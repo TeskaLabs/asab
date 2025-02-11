@@ -14,7 +14,7 @@ try:
 except ModuleNotFoundError:
 	jwcrypto = None
 
-from ... import LogObsolete, LOG_NOTICE
+from ... import LogObsolete
 from ...abc.service import Service
 from ...config import Config
 from ...exceptions import NotAuthenticatedError
@@ -46,10 +46,6 @@ class AuthService(Service):
 
 		# Try to auto-install authorization middleware
 		self._try_auto_install()
-
-
-	def register_provider(self, provider):
-		self.Providers.append(provider)
 
 
 	def get_provider(self, provider_type: str):
@@ -127,7 +123,7 @@ class AuthService(Service):
 		# The public keys are set up based on app configuration or added later
 		from .providers import IdTokenAuthProvider
 		id_token_provider = IdTokenAuthProvider(self.App)
-		self.register_provider(id_token_provider)
+		self.Providers.append(id_token_provider)
 
 		public_keys_url = Config.get("auth", "public_keys_url") or None
 		if public_keys_url:
@@ -140,11 +136,11 @@ class AuthService(Service):
 				from .providers import AccessTokenAuthProvider
 				provider = AccessTokenAuthProvider(self.App, introspection_url=introspection_url)
 				provider.add_jwks_url(public_keys_url)
-				self.register_provider(provider)
+				self.Providers.append(provider)
 			else:
 				from .providers import MockAuthProvider
-				provider = AccessTokenAuthProvider(self.App, auth_claims_path=Config.get("auth", "mock_user_info_path"))
-				self.register_provider(provider)
+				provider = MockAuthProvider(self.App, auth_claims_path=Config.get("auth", "mock_user_info_path"))
+				self.Providers.append(provider)
 			return
 
 		elif string_to_boolean(enabled) is False:

@@ -1,11 +1,9 @@
-import datetime
 import json
 import copy
 import socket
 import typing
 import asyncio
 import logging
-import os
 
 import aiohttp
 import aiohttp.web
@@ -18,7 +16,7 @@ except ModuleNotFoundError:
 	jwcrypto = None
 
 from .. import Service
-from ..contextvars import Request, Authz
+from ..contextvars import Request
 
 
 L = logging.getLogger(__name__)

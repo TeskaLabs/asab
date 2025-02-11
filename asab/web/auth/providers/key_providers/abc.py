@@ -2,8 +2,6 @@ import abc
 import logging
 import jwcrypto
 import jwcrypto.jwk
-import aiohttp
-import json
 
 
 L = logging.getLogger(__name__)
