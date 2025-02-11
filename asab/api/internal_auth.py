@@ -15,6 +15,7 @@ except ModuleNotFoundError:
 	jwcrypto = None
 
 from ..contextvars import Authz
+from ..web.auth.authorization import SUPERUSER_RESOURCE_ID
 
 
 L = logging.getLogger(__name__)
@@ -40,17 +41,21 @@ class InternalAuth:
 		# Public key is necessary for verifying ID tokens and accepting authorized requests
 		self.PublicKeyProvider = None
 
-		self.App.PubSub.subscribe("Application.tick/300!", self._every_5_minutes)
-		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
+		if jwcrypto is not None:
+			self.App.PubSub.subscribe("Application.tick/300!", self._schedule_key_and_token_update)
+			self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._schedule_key_and_token_update)
 
 
 	async def initialize(self, app):
 		"""
-		Initialize the internal authorization: Prepare the key pair and issue the first ID token.
+		Initialize internal authorization component.
 
 		Args:
 			app: ASAB application instance
 		"""
+		if jwcrypto is None:
+			return
+
 		self.AuthService = self.App.get_service("asab.AuthService")
 		if self.AuthService is not None:
 			auth_provider = self.AuthService.get_provider("id_token")
@@ -60,8 +65,7 @@ class InternalAuth:
 			self.PublicKeyProvider = DirectPublicKeyProvider(self.App)
 			auth_provider.add_key_provider(self.PublicKeyProvider)
 
-		task_service = self.App.get_service("asab.TaskService")
-		task_service.schedule(self._prepare_keys_and_tokens())
+		self._schedule_key_and_token_update()
 
 
 	def obtain_bearer_token(self) -> str:
@@ -90,9 +94,19 @@ class InternalAuth:
 		return "Bearer {}".format(self.IdToken.serialize())
 
 
+	def _schedule_key_and_token_update(self, *args, **kwargs):
+		"""
+		Schedule the private key and ID token update task.
+		"""
+		task_service = self.App.get_service("asab.TaskService")
+		task_service.schedule(self._prepare_keys_and_tokens())
+
+
 	async def _prepare_keys_and_tokens(self):
-		if jwcrypto is None:
-			return
+		"""
+		Ensure the private key is initialized and the ID token is ready.
+		"""
+		assert jwcrypto is not None
 
 		private_key_changed = await self._ensure_private_key()
 		if not self.PrivateKey:
@@ -105,17 +119,13 @@ class InternalAuth:
 			self._issue_id_token()
 
 
-	async def _every_5_minutes(self, msg):
-		task_service = self.App.get_service("asab.TaskService")
-		task_service.schedule(self._prepare_keys_and_tokens())
-
-
-	def _on_zk_ready(self, msg, zkc):
-		task_service = self.App.get_service("asab.TaskService")
-		task_service.schedule(self._prepare_keys_and_tokens())
-
-
 	async def _ensure_private_key(self) -> bool:
+		"""
+		Ensure the private key is initialized and up-to-date.
+
+		Returns:
+			True if the private key has changed, False otherwise.
+		"""
 		changed = False
 		private_key_json = None
 		# Attempt to create and write a new private key
@@ -165,8 +175,7 @@ class InternalAuth:
 		claims = json.loads(self.IdToken.claims)
 		exp = claims.get("exp")
 		if (
-			datetime.datetime.now(datetime.timezone.utc)
-			+ datetime.timedelta(seconds=required_leeway)
+			datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=required_leeway)
 		).timestamp() > exp:
 			# Token expired or will expire soon
 			return False
@@ -175,6 +184,9 @@ class InternalAuth:
 
 
 	def _issue_id_token(self):
+		"""
+		Issue a new internal ID token with superuser privileges.
+		"""
 		if self.PrivateKey is None:
 			raise RuntimeError("Private key is not initialized.")
 
@@ -189,16 +201,28 @@ class InternalAuth:
 			claims=json.dumps(claims)
 		)
 		self.IdToken.make_signed_token(self.PrivateKey)
-		L.info("New internal auth token issued.", struct_data={"exp": claims.get("exp")})
+		L.info("New internal auth token issued.", struct_data={
+			"kid": self.PrivateKey.key_id,
+			"exp": claims.get("exp"),
+		})
 
 
 	def _update_public_key(self):
+		"""
+		Derive the public key from the private key and update the public key provider.
+		"""
 		public_key = self.PrivateKey.public()
 		self.PublicKeyProvider.set_public_key(public_key)
 		L.debug("Public key updated.", struct_data={"kid": public_key.key_id})
 
 
-	def _get_own_discovery_url(self):
+	def _format_own_discovery_url(self) -> str:
+		"""
+		Format the discovery URL of this service.
+
+		Returns:
+			Discovery URL string.
+		"""
 		instance_id = os.getenv("INSTANCE_ID", None)
 		if instance_id:
 			return "http://{}.instance_id.asab".format(instance_id)
@@ -210,9 +234,15 @@ class InternalAuth:
 		return "http://{}".format(self.App.HostName)
 
 
-	def _build_auth_claims(self):
+	def _build_auth_claims(self) -> dict:
+		"""
+		Build internal authorization claims for the ID token.
+
+		Returns:
+			Claims dictionary.
+		"""
 		# Use this service's discovery URL as issuer ID and authorized party ID
-		my_discovery_url = self._get_own_discovery_url()
+		my_discovery_url = self._format_own_discovery_url()
 		expiration = datetime.datetime.now(datetime.timezone.utc) + self.IdTokenExpiration
 		return {
 			# Issuer (URL of the app that created the token)
@@ -227,6 +257,6 @@ class InternalAuth:
 			"aud": "http://{}".format(self.App.HostName),  # TODO: Something that signifies "anyone in this internal space"
 			# Tenants and resources
 			"resources": {
-				"*": ["authz:superuser"],
+				"*": [SUPERUSER_RESOURCE_ID],
 			}
 		}
