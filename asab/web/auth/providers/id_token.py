@@ -34,6 +34,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 				self.add_key_provider(provider)
 		self.Authorizations = {}
 
+		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
 		self.App.TaskService.schedule(self._update_public_keys())
 
 
@@ -132,3 +133,12 @@ class IdTokenAuthProvider(AuthProviderABC):
 		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
 			L.error("Cannot authenticate request: {}".format(str(e)))
 			raise NotAuthenticatedError()
+
+
+	def _delete_invalid_authorizations(self):
+		"""
+		Delete invalid authorizations.
+		"""
+		for id_token, authz in list(self.Authorizations.items()):
+			if not authz.is_valid():
+				del self.Authorizations[id_token]
