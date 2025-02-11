@@ -8,6 +8,10 @@ L = logging.getLogger(__name__)
 
 
 class PublicKeyProviderABC(abc.ABC):
+	"""
+	Provides authorization server public keys.
+	"""
+
 	def __init__(self, app):
 		self.App = app
 		self.TaskService = self.App.get_service("asab.TaskService")

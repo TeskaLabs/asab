@@ -21,7 +21,7 @@ L = logging.getLogger(__name__)
 
 class IdTokenAuthProvider(AuthProviderABC):
 	"""
-	Authorizes requests based on the ID Token provided in the Authorization header.
+	Authenticates and authorizes requests based on the ID Token provided in the Authorization header.
 	"""
 	Type = "id_token"
 
@@ -120,7 +120,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 				await self._update_public_keys()
 			if not self.is_ready():
 				L.error("Cannot authenticate request: Failed to load authorization server's public keys.")
-				raise aiohttp.web.HTTPUnauthorized()
+				raise NotAuthenticatedError()
 
 		try:
 			return get_id_token_claims(id_token, self.TrustedJwkSet)

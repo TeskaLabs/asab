@@ -14,7 +14,7 @@ L = logging.getLogger(__name__)
 
 class AccessTokenAuthProvider(IdTokenAuthProvider):
 	"""
-	Authorizes requests based on the Access Token provided in the Authorization header.
+	Authenticates and authorizes requests based on the Access Token provided in the Authorization header.
 	Seacat Auth Nginx introspection is used to validate the token.
 
 	Development only, not optimized for production use.

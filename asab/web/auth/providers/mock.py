@@ -48,6 +48,11 @@ _MOCK_AUTH_CLAIMS_DEFAULT = {
 
 
 class MockAuthProvider(AuthProviderABC):
+	"""
+	Authenticates and authorizes requests with preconfigured authorization claims.
+
+	Development only, not optimized for production use.
+	"""
 	Type = "mock"
 
 	def __init__(self, app, auth_claims_path: typing.Optional[str] = None):

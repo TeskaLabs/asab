@@ -6,7 +6,7 @@ from ..authorization import Authorization
 
 class AuthProviderABC(abc.ABC):
 	"""
-	Abstract base class for all authorization providers.
+	Authenticates and authorizes web requests.
 	"""
 	Type = None
 

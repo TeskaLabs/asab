@@ -165,8 +165,10 @@ class AuthService(Service):
 					authz = await provider.authorize(request)
 					break
 				except NotAuthenticatedError:
-					L.debug("Authorization failed.", struct_data={"provider": provider.__class__.__name__})
+					L.debug("Authorization failed.", struct_data={"auth_provider": provider.Type})
 					continue
+				except Exception as e:
+					print(e)
 			else:
 				L.warning("Cannot authenticate request: No valid authorization provider found.")
 				raise aiohttp.web.HTTPUnauthorized()

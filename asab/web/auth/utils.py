@@ -17,18 +17,18 @@ def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> 
 	"""
 	authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
 	if authorization_header is None:
-		L.warning("No Authorization header.")
-		raise aiohttp.web.HTTPUnauthorized()
+		L.debug("No Authorization header.")
+		raise NotAuthenticatedError()
 
 	try:
 		auth_type, token_value = authorization_header.split(" ", 1)
 	except ValueError:
 		L.warning("Cannot parse Authorization header.")
-		raise aiohttp.web.HTTPBadRequest()
+		raise NotAuthenticatedError()
 
 	if auth_type != "Bearer":
 		L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
-		raise aiohttp.web.HTTPUnauthorized()
+		raise NotAuthenticatedError()
 
 	return token_value
 
