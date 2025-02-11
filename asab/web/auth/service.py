@@ -52,34 +52,11 @@ class AuthService(Service):
 		self.Providers.append(provider)
 
 
-	def _set_up_providers(self):
-		enabled = Config.get("auth", "enabled", fallback=True)
-		public_keys_url = Config.get("auth", "public_keys_url") or None
-		if enabled == "mock":
-			introspection_url = Config.get("auth", "introspection_url", fallback=None)
-			if introspection_url:
-				from .providers import AccessTokenAuthProvider
-				provider = AccessTokenAuthProvider(self.App, introspection_url=introspection_url)
-				provider.add_jwks_url(public_keys_url)
-				self.register_provider(provider)
-			else:
-				from .providers import MockAuthProvider
-				provider = AccessTokenAuthProvider(self.App, auth_claims_path=Config.get("auth", "mock_user_info_path"))
-				self.register_provider(provider)
-			return
-
-		elif string_to_boolean(enabled) is True:
-			from .providers import IdTokenAuthProvider
-			provider = IdTokenAuthProvider(self.App)
-			provider.add_jwks_url(public_keys_url)
-			self.register_provider(provider)
-			return
-
-		else:
-			raise ValueError(
-				"Disabling AuthService is deprecated. "
-				"For development pupropses use mock mode instead ([auth] enabled=mock)."
-			)
+	def get_provider(self, provider_type: str):
+		for provider in self.Providers:
+			if provider.Type == provider_type:
+				return provider
+		return None
 
 
 	def get_authorized_tenant(self, request=None) -> typing.Optional[str]:
@@ -143,6 +120,38 @@ class AuthService(Service):
 			web_container.WebApp.on_startup.insert(tenant_wrapper_idx, self.set_up_auth_web_wrapper)
 		else:
 			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
+
+
+	def _set_up_providers(self):
+		# Always set up an ID token provider without public keys
+		# The public keys are set up based on app configuration or added later
+		from .providers import IdTokenAuthProvider
+		id_token_provider = IdTokenAuthProvider(self.App)
+		self.register_provider(id_token_provider)
+
+		public_keys_url = Config.get("auth", "public_keys_url") or None
+		if public_keys_url:
+			id_token_provider.add_jwks_url(public_keys_url)
+
+		enabled = Config.get("auth", "enabled", fallback=True)
+		if enabled == "mock":
+			introspection_url = Config.get("auth", "introspection_url", fallback=None)
+			if introspection_url:
+				from .providers import AccessTokenAuthProvider
+				provider = AccessTokenAuthProvider(self.App, introspection_url=introspection_url)
+				provider.add_jwks_url(public_keys_url)
+				self.register_provider(provider)
+			else:
+				from .providers import MockAuthProvider
+				provider = AccessTokenAuthProvider(self.App, auth_claims_path=Config.get("auth", "mock_user_info_path"))
+				self.register_provider(provider)
+			return
+
+		elif string_to_boolean(enabled) is False:
+			raise ValueError(
+				"Disabling AuthService is deprecated. "
+				"For development pupropses use mock mode instead ([auth] enabled=mock)."
+			)
 
 
 	def _authorize_request(self, handler):

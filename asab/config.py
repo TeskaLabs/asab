@@ -125,7 +125,7 @@ class ConfigParser(configparser.ConfigParser):
 		"auth": {
 			# URL location containing the authorization server's public JWK keys
 			# (often found at "/.well-known/jwks.json")
-			"public_keys_url": "http://localhost:8900/.well-known/jwks.json",
+			"public_keys_url": "",
 
 			# The "enabled" option switches authentication and authorization
 			# on, off or activates mock mode. The default value is True (on).

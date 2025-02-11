@@ -35,7 +35,7 @@ class DiscoveryService(Service):
 		self.InternalAuth = None
 		if jwcrypto is not None:
 			from .internal_auth import InternalAuth
-			self.InternalAuth = InternalAuth(app)
+			self.InternalAuth = InternalAuth(app, zkc)
 
 		self._advertised_cache = dict()
 		self._cache_lock = asyncio.Lock()
