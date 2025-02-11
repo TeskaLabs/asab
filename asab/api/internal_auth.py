@@ -3,6 +3,8 @@ import logging
 import datetime
 import json
 import os
+import secrets
+import kazoo
 
 try:
 	# Optional dependency for using internal authorization
@@ -92,13 +94,15 @@ class InternalAuth:
 		if jwcrypto is None:
 			return
 
-		await self._ensure_private_key()
+		private_key_changed = await self._ensure_private_key()
+		if not self.PrivateKey:
+			raise RuntimeError("Private key is not initialized.")
 
-		if not self._is_id_token_ready(required_leeway=300):
-			self._issue_id_token()
-
-		if self.PublicKeyProvider is not None:
+		if private_key_changed and self.PublicKeyProvider is not None:
 			self._update_public_key()
+
+		if private_key_changed or not self._is_id_token_ready(required_leeway=300):
+			self._issue_id_token()
 
 
 	async def _every_5_minutes(self, msg):
@@ -111,7 +115,8 @@ class InternalAuth:
 		task_service.schedule(self._prepare_keys_and_tokens())
 
 
-	async def _ensure_private_key(self):
+	async def _ensure_private_key(self) -> bool:
+		changed = False
 		private_key_json = None
 		# Attempt to create and write a new private key
 		# while avoiding race condition with other ASAB services
@@ -124,7 +129,8 @@ class InternalAuth:
 				pass
 
 			# Generate a new key
-			private_key = jwcrypto.jwk.JWK.generate(kty="EC", crv="P-256")
+			private_key = jwcrypto.jwk.JWK.generate(kty="EC", crv="P-256", kid=secrets.token_hex(16))
+			# private_key.key_id =
 			private_key_json = json.dumps(private_key.export(as_dict=True)).encode("utf-8")
 			try:
 				self.ZooKeeperContainer.ZooKeeper.Client.create(self.PrivateKeyPath, private_key_json, makepath=True)
@@ -139,9 +145,10 @@ class InternalAuth:
 			# Private key has changed
 			self.PrivateKey = private_key
 			L.debug("Private key updated.", struct_data={"kid": private_key.key_id})
-			self.IdToken = None
+			changed = True
 
 		assert self.PrivateKey is not None
+		return changed
 
 
 	def _is_id_token_ready(self, required_leeway: int = 0):
@@ -186,6 +193,7 @@ class InternalAuth:
 
 
 	def _update_public_key(self):
+		print(self.PrivateKey, self.PrivateKey.public())
 		public_key = self.PrivateKey.public()
 		self.PublicKeyProvider.set_public_key(public_key)
 		L.debug("Public key updated.", struct_data={"kid": public_key.key_id})
