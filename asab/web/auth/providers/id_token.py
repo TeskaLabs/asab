@@ -7,8 +7,7 @@ import jwcrypto.jwk
 from .abc import AuthProviderABC
 from .key_providers import (
 	PublicKeyProviderABC,
-	FilePublicKeyProvider,
-	DirectPublicKeyProvider,
+	StaticPublicKeyProvider,
 	UrlPublicKeyProvider
 )
 from ..utils import get_bearer_token_from_authorization_header, get_id_token_claims
@@ -31,33 +30,35 @@ class IdTokenAuthProvider(AuthProviderABC):
 		self._KeyProviders = set()
 		if self._KeyProviders:
 			for provider in public_key_providers:
-				self.add_key_provider(provider)
+				self.register_key_provider(provider)
 		self.Authorizations = {}
 
 		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
 		self.App.TaskService.schedule(self._update_public_keys())
 
 
-	def add_key_provider(self, provider: PublicKeyProviderABC):
+	def register_key_provider(self, provider: PublicKeyProviderABC):
+		if self not in provider.AuthProviders:
+			provider.AuthProviders.add(self)
 		self._KeyProviders.add(provider)
 
 
 	def add_jwks_url(self, jwks_url: str):
-		self.add_key_provider(
+		self.register_key_provider(
 			UrlPublicKeyProvider(self.App, jwks_url)
 		)
 
 
 	def add_public_key(self, public_key: jwcrypto.jwk.JWK | jwcrypto.jwk.JWKSet):
-		self.add_key_provider(
-			DirectPublicKeyProvider(self.App, public_key)
+		self.register_key_provider(
+			StaticPublicKeyProvider(self.App, public_key)
 		)
 
 
 	def add_public_key_from_file(self, file_path: str, from_private_key: bool = False):
-		self.add_key_provider(
-			FilePublicKeyProvider(self.App, file_path, from_private_key)
-		)
+		provider = StaticPublicKeyProvider(self.App)
+		provider.set_public_key_from_file(file_path, from_private_key)
+		self.register_key_provider(provider)
 
 
 	async def initialize(self):
@@ -70,16 +71,22 @@ class IdTokenAuthProvider(AuthProviderABC):
 		return authz
 
 
+	def collect_keys(self):
+		"""
+		Collect public keys from all key providers into a single trusted JWK set.
+		"""
+		jwks = jwcrypto.jwk.JWKSet()
+		for provider in self._KeyProviders:
+			jwks.update(provider.PublicKeySet)
+		self.TrustedJwkSet = jwks
+
+
 	async def _update_public_keys(self):
 		"""
 		Update the public keys from all key providers.
 		"""
-		jwks = jwcrypto.jwk.JWKSet()
 		for provider in self._KeyProviders:
 			await provider.reload_keys()
-			jwks.update(provider.PublicKeySet)
-
-		self.TrustedJwkSet = jwks
 
 
 	async def _build_authorization(self, id_token: str) -> Authorization:

@@ -11,9 +11,14 @@ L = logging.getLogger(__name__)
 
 
 class UrlPublicKeyProvider(PublicKeyProviderABC):
+	"""
+	Public key provider that loads auth server keys from a URL.
+	"""
+
 	def __init__(self, app, jwks_url: str):
 		super().__init__(app)
 		self.JwksUrl = jwks_url
+
 
 	async def reload_keys(self):
 		discovery_service = self.App.get_service("asab.DiscoveryService")
@@ -26,7 +31,7 @@ class UrlPublicKeyProvider(PublicKeyProviderABC):
 			jwks = await _fetch_jwks(session, self.JwksUrl)
 
 		if jwks is not None:
-			self.PublicKeySet = jwks
+			self._set_keys(jwks)
 			L.debug("Auth server public keys loaded.", struct_data={"url": self.JwksUrl})
 
 

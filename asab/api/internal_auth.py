@@ -60,14 +60,14 @@ class InternalAuth:
 			auth_provider = self.AuthService.get_provider("id_token")
 			assert auth_provider is not None
 
-			from ..web.auth.providers.key_providers import DirectPublicKeyProvider
-			self.PublicKeyProvider = DirectPublicKeyProvider(self.App)
-			auth_provider.add_key_provider(self.PublicKeyProvider)
+			from ..web.auth.providers.key_providers import StaticPublicKeyProvider
+			self.PublicKeyProvider = StaticPublicKeyProvider(self.App)
+			auth_provider.register_key_provider(self.PublicKeyProvider)
 
 		self._schedule_key_and_token_update()
 
 
-	def obtain_bearer_token(self) -> str:
+	def get_bearer_token(self) -> str:
 		"""
 		Obtain a Bearer token for internal authorized communication.
 
