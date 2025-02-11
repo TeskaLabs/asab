@@ -127,7 +127,9 @@ class AuthService(Service):
 
 		public_keys_url = Config.get("auth", "public_keys_url") or None
 		if public_keys_url:
-			id_token_provider.add_jwks_url(public_keys_url)
+			from .providers.key_providers import UrlPublicKeyProvider
+			public_key_provider = UrlPublicKeyProvider(self.App, public_keys_url)
+			id_token_provider.register_key_provider(public_key_provider)
 
 		enabled = Config.get("auth", "enabled", fallback=True)
 		if enabled == "mock":
@@ -135,7 +137,7 @@ class AuthService(Service):
 			if introspection_url:
 				from .providers import AccessTokenAuthProvider
 				provider = AccessTokenAuthProvider(self.App, introspection_url=introspection_url)
-				provider.add_jwks_url(public_keys_url)
+				provider.register_key_provider(public_key_provider)
 				self.Providers.append(provider)
 			else:
 				from .providers import MockAuthProvider

@@ -43,24 +43,6 @@ class IdTokenAuthProvider(AuthProviderABC):
 		self._KeyProviders.add(provider)
 
 
-	def add_jwks_url(self, jwks_url: str):
-		self.register_key_provider(
-			UrlPublicKeyProvider(self.App, jwks_url)
-		)
-
-
-	def add_public_key(self, public_key: jwcrypto.jwk.JWK | jwcrypto.jwk.JWKSet):
-		self.register_key_provider(
-			StaticPublicKeyProvider(self.App, public_key)
-		)
-
-
-	def add_public_key_from_file(self, file_path: str, from_private_key: bool = False):
-		provider = StaticPublicKeyProvider(self.App)
-		provider.set_public_key_from_file(file_path, from_private_key)
-		self.register_key_provider(provider)
-
-
 	async def initialize(self):
 		pass
 
