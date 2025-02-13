@@ -323,7 +323,7 @@ class LibraryService(Service):
 		unique_items: dict[str, LibraryItem] = {}
 
 		# List items from every provider concurrently, tracking layers
-		tasks = [(layer, asyncio.create_task(provider.list(path))) for layer, provider in enumerate(providers)]
+		tasks = [(provider.layer, asyncio.create_task(provider.list(path))) for provider in providers]
 
 		# Process tasks as they complete, ensuring correct layer precedence
 		for layer, task in tasks:
