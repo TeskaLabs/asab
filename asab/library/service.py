@@ -362,14 +362,14 @@ class LibraryService(Service):
 						# Merge providers for the directory
 						pitem.providers.extend(item.providers)
 
-					# Replace lower-priority items
-					elif pitem.type == item.type and item.layer < pitem.layer:
-						# Replace with the higher-priority item
-						unique_items[item.name] = item
-						items = [unique_items[x.name] if x.name == item.name else x for x in items]
+					# Add the layer to the list if it's not already there
+					if layer not in pitem.layers:
+						pitem.layers.append(layer)
+						pitem.layers.sort()  # Ensure layers remain in ascending order
 
 				else:
 					# New item: Assign it to unique_items
+					item.layers = [layer]  # Initialize layers list
 					unique_items[item.name] = item
 					items.append(item)
 

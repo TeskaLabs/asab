@@ -18,7 +18,7 @@ class LibraryItem:
     """
     name: str
     type: str
-    layer: int
+    layers: typing.List[int]  # Now stores multiple layers in ascending order
     providers: list
     disabled: bool = False
     override: int = 0
