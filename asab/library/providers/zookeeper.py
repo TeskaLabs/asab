@@ -297,7 +297,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def process_nodes(self, nodes, base_path, target="global"):
 		"""
-		Processes a list of nodes and creates corresponding LibraryItem objects.
+		Processes a list of nodes and creates corresponding LibraryItem objects with their size.
 
 		Args:
 			nodes (list): List of node names to process.
@@ -305,7 +305,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			target (str): Specifies the target context, e.g., "tenant" or "global".
 
 		Returns:
-			list: A list of LibraryItem objects.
+			list: A list of LibraryItem objects with size information.
 		"""
 		items = []
 		for node in nodes:
@@ -315,21 +315,33 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				continue
 
 			# Determine if this is a file or directory
-			last_five_chars = node[-5:]
-			if '.' in last_five_chars and not node.endswith(('.io', '.d')):
-				fname = base_path + node
+			if '.' in node and not node.endswith(('.io', '.d')):  # File check
+				fname = "{}/{}".format(base_path.rstrip("/"), node)
 				ftype = "item"
-			else:
-				fname = base_path + node + '/'
-				ftype = "dir"
 
-			# Add the item with the specified target
+				# Retrieve node size for items only
+				try:
+					node_path = self.build_path(fname, tenant_specific=(target == "tenant"))
+					zstat = self.Zookeeper.Client.exists(node_path)
+					size = zstat.dataLength if zstat else 0
+				except kazoo.exceptions.NoNodeError:
+					size = None
+				except Exception as e:
+					L.warning("Failed to retrieve size for node {}: {}".format(node_path, e))
+					size = None
+			else:  # Directory check
+				fname = "{}/{}/".format(base_path.rstrip("/"), node)
+				ftype = "dir"
+				size = None
+
+			# Add the item with the specified target and size
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
-				layer=self.Layer,
+				layers=[self.Layer],
 				providers=[self],
-				target=target
+				target=target,
+				size=size
 			))
 
 		return items
@@ -497,7 +509,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					item = LibraryItem(
 						name=full_path[len(self.BasePath):],
 						type="item",  # or "dir" if applicable
-						layer=self.Layer,
+						layers=[self.Layer],
 						providers=[self],
 					)
 					results.append(item)

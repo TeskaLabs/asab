@@ -123,10 +123,9 @@ class StorageService(StorageServiceABC):
 						return
 
 				except aiohttp.client_exceptions.ClientConnectorError:
+
 					if n == len(self.ServerUrls):
 						raise ConnectionError("Failed to connect to '{}'.".format(url))
-					else:
-						L.warning("Failed to connect to '{}', iterating to another node".format(url))
 
 
 	async def is_connected(self) -> bool:
@@ -176,7 +175,7 @@ class StorageService(StorageServiceABC):
 
 		async with self.request("GET", "{}/_doc/{}".format(index, obj_id)) as resp:
 
-			if resp.status not in {200, 201}:
+			if resp.status not in {200, 201, 404}:
 				resp = await resp.json()
 				raise ConnectionError("Failed to retrieve data from ElasticSearch. Got {}: {}".format(
 					resp.get("status"),
@@ -185,8 +184,10 @@ class StorageService(StorageServiceABC):
 
 			else:
 				obj = await resp.json()
+
 				if not obj.get("found"):
-					raise KeyError("No existing object with ID {}".format(obj_id))
+					return None
+
 				ret = obj['_source']
 				ret['_v'] = obj['_version']
 				ret['_id'] = obj['_id']
@@ -370,9 +371,12 @@ class StorageService(StorageServiceABC):
 		"""
 
 		async with self.request("GET", "_cat/indices/{}?format=json".format(search_string if search_string is not None else "*")) as resp:
+
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
-			return await resp.json()
+
+			res = await resp.json()
+			return res
 
 
 	async def empty_index(self, index, settings=None):
@@ -385,8 +389,10 @@ class StorageService(StorageServiceABC):
 			settings = {}
 
 		async with self.request("PUT", index, json=settings) as resp:
+
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
+
 			return await resp.json()
 
 
@@ -492,7 +498,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 			json=upsert_data,
 		) as resp:
 			if resp.status not in {200, 201}:
-				raise ConnectionError("Unexpected response code: {}".format(resp.status))
+				raise ConnectionError("Unexpected response code: '{}' with response '{}'".format(resp.status, await resp.text()))
 			else:
 				resp_json = await resp.json()
 				assert resp_json["result"] == "updated" or resp_json[

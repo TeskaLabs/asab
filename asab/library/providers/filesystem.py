@@ -86,9 +86,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		# This list method is completely synchronous, but it should look like asynchronous to make all list methods unified among providers.
 		return self._list(path)
 
-
 	def _list(self, path: str):
-
 		node_path = self.BasePath + path
 		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
 		if not exists:
@@ -96,7 +94,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		items = []
 		for fname in glob.iglob(os.path.join(node_path, "*")):
-
 			fstat = os.stat(fname)
 
 			assert fname.startswith(self.BasePath)
@@ -104,11 +101,14 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 			if stat.S_ISREG(fstat.st_mode):
 				ftype = "item"
+				size = fstat.st_size  # Get the size of the file in bytes
 			elif stat.S_ISDIR(fstat.st_mode):
 				ftype = "dir"
 				fname += '/'
+				size = None
 			else:
 				ftype = "?"
+				size = None
 
 			# Remove any component that starts with '.'
 			if any(x.startswith('.') for x in fname.split('/')):
@@ -117,8 +117,9 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
-				layer=self.Layer,
+				layers=[self.Layer],
 				providers=[self],
+				size=size  # Include size attribute
 			))
 
 		return items
@@ -150,7 +151,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			item = LibraryItem(
 				name=path[len(self.BasePath):],  # Store relative path
 				type="item",  # or "dir" if applicable
-				layer=self.Layer,
+				layers=[self.Layer],
 				providers=[self],
 			)
 			results.append(item)

@@ -23,9 +23,9 @@ def require(*resources):
 	Examples:
 
 	```python
-	@asab.web.auth.require("my-app:token:generate")
-	async def generate_token(self, request):
-		data = await self.service.generate_token()
+	@asab.web.auth.require("insider-info:access")
+	async def get_insider_info(self, request):
+		data = await self.service.get_insider_info()
 		return asab.web.rest.json_response(request, data)
 	```
 	"""
@@ -44,6 +44,33 @@ def require(*resources):
 		return _require_resource_access_wrapper
 
 	return _require_resource_access_decorator
+
+
+def require_superuser(handler):
+	"""
+	Require that the request have authorized access to the superuser resource.
+	Requests without superuser access result in AccessDeniedError and consequently in an HTTP 403 response.
+
+	Examples:
+
+	```python
+	@asab.web.auth.require_superuser
+	async def get_confidential_info(self, request):
+		data = await self.service.get_confidential_info()
+		return asab.web.rest.json_response(request, data)
+	```
+	"""
+	@functools.wraps(handler)
+	async def _require_superuser_access_wrapper(*args, **kwargs):
+		authz = Authz.get()
+		if authz is None:
+			raise AccessDeniedError()
+
+		authz.require_superuser_access()
+
+		return await handler(*args, **kwargs)
+
+	return _require_superuser_access_wrapper
 
 
 def noauth(handler):

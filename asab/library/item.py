@@ -1,4 +1,5 @@
 import dataclasses
+import typing
 
 
 @dataclasses.dataclass
@@ -17,8 +18,9 @@ class LibraryItem:
     """
     name: str
     type: str
-    layer: int
+    layers: typing.List[int]  # Now stores multiple layers in ascending order
     providers: list
     disabled: bool = False
     override: int = 0
     target: str = "global"  # Default to "global" if not tenant-specific
+    size: typing.Optional[int] = None  # Size is None by default, absent for directories
