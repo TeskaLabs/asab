@@ -1,7 +1,7 @@
 import typing
 import logging
 import aiohttp.web
-import jwcrypto
+import jwcrypto.jwt
 import jwcrypto.jwk
 
 from .abc import AuthProviderABC
@@ -28,9 +28,9 @@ class IdTokenAuthProvider(AuthProviderABC):
 		super().__init__(app)
 		self.TrustedJwkSet: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
 		self._KeyProviders = set()
-		if self._KeyProviders:
-			for provider in public_key_providers:
-				self.register_key_provider(provider)
+		for provider in public_key_providers:
+			self.register_key_provider(provider)
+
 		self.Authorizations = {}
 
 		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
@@ -41,6 +41,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 		if self not in provider.AuthProviders:
 			provider.AuthProviders.add(self)
 		self._KeyProviders.add(provider)
+		self.collect_keys()
 
 
 	async def initialize(self):
@@ -48,6 +49,10 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 
 	async def authorize(self, request: aiohttp.web.Request) -> Authorization:
+		if not self._KeyProviders:
+			L.debug("No public key providers registered for ID token authentication.")
+			raise NotAuthenticatedError()
+
 		bearer_token = get_bearer_token_from_authorization_header(request)
 		authz = await self._build_authorization(bearer_token)
 		return authz
@@ -103,18 +108,10 @@ class IdTokenAuthProvider(AuthProviderABC):
 		"""
 		Parse the bearer ID token and extract user info.
 		"""
-		if not self.is_ready():
-			# Try to load the public keys again
-			if not self.TrustedJwkSet["keys"]:
-				await self._update_public_keys()
-			if not self.is_ready():
-				L.error("Cannot authenticate request: Failed to load authorization server's public keys.")
-				raise NotAuthenticatedError()
-
 		try:
 			return get_id_token_claims(id_token, self.TrustedJwkSet)
 		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey):
-			# Authz server keys may have changed. Try to reload them.
+			# Authz server keys may have changed or are not ready yet. Try to reload them.
 			await self._update_public_keys()
 
 		try:
