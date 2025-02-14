@@ -106,7 +106,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 	async def _get_claims_from_id_token(self, id_token):
 		"""
-		Parse the bearer ID token and extract user info.
+		Parse the bearer ID token and extract auth claims.
 		"""
 		try:
 			return get_id_token_claims(id_token, self.TrustedJwkSet)
@@ -117,7 +117,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 		try:
 			return get_id_token_claims(id_token, self.TrustedJwkSet)
 		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
-			L.error("Cannot authenticate request: {}".format(str(e)))
+			L.debug("Cannot authenticate request: {}".format(str(e)))
 			raise NotAuthenticatedError()
 
 
