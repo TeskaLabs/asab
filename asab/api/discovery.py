@@ -109,9 +109,9 @@ class DiscoveryService(Service):
 		if self.InternalAuthToken and not force_new:
 			claims = json.loads(self.InternalAuthToken.claims)
 			if claims.get("exp") > (
-				datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=300)
+				datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=600)
 			).timestamp():
-				# Token is valid and does not expire soon
+				# Token is valid and does not expire within the next 10 minutes
 				return
 
 		# Use this service's discovery URL as issuer ID and authorized party ID
