@@ -19,7 +19,7 @@ from ..log import LOG_NOTICE
 from .item import LibraryItem
 from ..application import Application
 from .providers.abc import LibraryProviderABC
-from ..exceptions import LibraryInvalidPathError
+from ..exceptions import LibraryInvalidPathError, LibraryNotReadyError
 from ..contextvars import Tenant
 
 #
@@ -174,6 +174,10 @@ class LibraryService(Service):
 		elif not provider.IsReady:
 			L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("Library.not_ready!", self)
+
+	def _ensure_ready(self):
+		if not self.is_ready():
+			raise LibraryNotReadyError("Library is not ready yet.")
 
 	async def find(self, path: str) -> typing.List[str]:
 		"""
