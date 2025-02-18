@@ -66,3 +66,12 @@ class LibraryInvalidPathError(LibraryError):
 		self.Path = path
 		message = "Invalid Library path '{}': {}".format(path, message)
 		super().__init__(message, *args)
+
+
+class LibraryNotReadyError(LibraryError):
+	"""
+	Raised when an operation is attempted on the LibraryService
+	before all providers (or the library itself) are ready.
+	"""
+	def __init__(self, message="Library is not ready yet.", *args, **kwargs):
+		super().__init__(message, *args, **kwargs)
