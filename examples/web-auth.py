@@ -103,7 +103,7 @@ class NotesApplication(asab.Application):
 		No authentication or authorization required, but also no user details are available.
 		"""
 		data = {
-			"message": "This app stores notes. Call GET /note to see stored notes.",
+			"message": "This app stores notes. Call GET /default/note to see stored notes.",
 		}
 		return asab.web.rest.json_response(request, data)
 
