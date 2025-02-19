@@ -37,7 +37,7 @@ class DiscoveryService(Service):
 		self.InternalAuthKeyPath = "/asab/auth/internal_auth_private.key"
 		self.InternalAuthKey = None
 		self.InternalAuthToken = None
-		self.InternalAuthTokenExpiration: datetime.timedelta = datetime.timedelta(seconds=5 * 300)
+		self.InternalAuthTokenExpiration: datetime.timedelta = datetime.timedelta(seconds=25 * 60)
 
 		self._advertised_cache = dict()
 		self._cache_lock = asyncio.Lock()
@@ -109,7 +109,7 @@ class DiscoveryService(Service):
 		if self.InternalAuthToken and not force_new:
 			claims = json.loads(self.InternalAuthToken.claims)
 			if claims.get("exp") > (
-				datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=600)
+				datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=10 * 60)
 			).timestamp():
 				# Token is valid and does not expire within the next 10 minutes
 				return
