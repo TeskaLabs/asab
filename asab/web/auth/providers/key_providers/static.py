@@ -13,14 +13,14 @@ class StaticPublicKeyProvider(PublicKeyProviderABC):
 
 	def __init__(
 		self, app, *,
-		public_key: typing.Optional[jwcrypto.jwk.JWK | jwcrypto.jwk.JWKSet] = None
+		public_key: typing.Optional[typing.Union[jwcrypto.jwk.JWK, jwcrypto.jwk.JWKSet]] = None
 	):
 		super().__init__(app)
 		if public_key is not None:
 			self.set_public_key(public_key)
 
 
-	def set_public_key(self, public_key: jwcrypto.jwk.JWK | jwcrypto.jwk.JWKSet):
+	def set_public_key(self, public_key: typing.Union[jwcrypto.jwk.JWK, jwcrypto.jwk.JWKSet]):
 		"""
 		Directly set key (or key set) to be used for auth validation.
 

@@ -24,7 +24,7 @@ class PublicKeyProviderABC(abc.ABC):
 		raise NotImplementedError()
 
 
-	def _set_keys(self, keys: typing.Optional[jwcrypto.jwk.JWK | jwcrypto.jwk.JWKSet]):
+	def _set_keys(self, keys: typing.Optional[typing.Union[jwcrypto.jwk.JWK, jwcrypto.jwk.JWKSet]]):
 		"""
 		Update public key set and notify all auth providers that use this key provider.
 
