@@ -5,11 +5,7 @@ import jwcrypto.jwt
 import jwcrypto.jwk
 
 from .abc import AuthProviderABC
-from .key_providers import (
-	PublicKeyProviderABC,
-	StaticPublicKeyProvider,
-	UrlPublicKeyProvider
-)
+from .key_providers import PublicKeyProviderABC
 from ..utils import get_bearer_token_from_authorization_header, get_id_token_claims
 from ..authorization import Authorization
 from ....exceptions import NotAuthenticatedError
