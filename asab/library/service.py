@@ -147,19 +147,19 @@ class LibraryService(Service):
 
 	def is_ready(self) -> bool:
 		"""
-		Check if all the libraries are ready.
+		Check if all the library providers are ready.
 
 		Returns:
-			True if all libraries are ready, otherwise False.
+			True if every provider is ready; if even one provider is not, returns False.
 		"""
-		if len(self.Libraries) == 0:
+		if not self.Libraries:
 			return False
 
-		return functools.reduce(
-			lambda x, provider: provider.IsReady and x,
-			self.Libraries,
-			True
-		)
+		for provider in self.Libraries:
+			if not provider.IsReady:
+				return False
+		return True
+
 
 	async def _set_ready(self, provider):
 		if len(self.Libraries) == 0:
@@ -192,6 +192,9 @@ class LibraryService(Service):
 		Returns:
 			typing.List[str]: A list of paths to the found files. If no files are found, the list will be empty.
 		"""
+		if not self.is_ready():
+			raise LibraryNotReadyError("Library is not ready yet.")
+
 		_validate_path_item(path)
 
 		results = []
@@ -223,6 +226,8 @@ class LibraryService(Service):
 				return itemio.read()
 		```
 		"""
+		if not self.is_ready():
+			raise LibraryNotReadyError("Library is not ready yet.")
 
 		LogObsolete.warning("Method 'LibraryService.read()' is obsolete. Use 'LibraryService.open()' method instead.")
 		_validate_path_item(path)
@@ -254,6 +259,8 @@ class LibraryService(Service):
 			text = b.read().decode("utf-8")
 		```
 		"""
+		if not self.is_ready():
+			raise LibraryNotReadyError("Library is not ready yet.")
 
 		_validate_path_item(path)
 
@@ -301,6 +308,8 @@ class LibraryService(Service):
 		Returns:
 			List of items that are enabled for the tenant.
 		"""
+		if not self.is_ready():
+			raise LibraryNotReadyError("Library is not ready yet.")
 
 		_validate_path_directory(path)
 
@@ -382,6 +391,9 @@ class LibraryService(Service):
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
 		# It is applied on all libraries in the configuration.
+		if not self.is_ready():
+			raise LibraryNotReadyError("Library is not ready yet.")
+
 		disabled = await self.Libraries[0].read('/.disabled.yaml')
 
 		if disabled is None:
@@ -453,6 +465,9 @@ class LibraryService(Service):
 		Returns:
 			`True` if the item is disabled for the tenant.
 		"""
+		if not self.is_ready():
+			raise LibraryNotReadyError("Library is not ready yet.")
+
 		if not isinstance(path, str) or not path:
 			raise LibraryInvalidPathError(
 				message="Argument 'path' must be a non-empty string.",
@@ -502,6 +517,9 @@ class LibraryService(Service):
 		Returns:
 			dict: Metadata for the specified file, including `target`, or None if not found.
 		"""
+		if not self.is_ready():
+			raise LibraryNotReadyError("Library is not ready yet.")
+
 		# Validate the path format
 		_validate_path_item(path)
 
@@ -556,6 +574,8 @@ class LibraryService(Service):
 		Returns:
 			A file object containing a gzipped tar archive.
 		"""
+		if not self.is_ready():
+			raise LibraryNotReadyError("Library is not ready yet.")
 
 		_validate_path_directory(path)
 
@@ -628,6 +648,9 @@ class LibraryService(Service):
 				print("New changes in the library found by provider: '{}'".format(provider))
 		```
 		"""
+		if not self.is_ready():
+			raise LibraryNotReadyError("Library is not ready yet.")
+
 		if isinstance(paths, str):
 			paths = [paths]
 		for path in paths:
