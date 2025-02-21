@@ -114,7 +114,7 @@ class InternalAuth:
 		if private_key_changed and self.PublicKeyProvider is not None:
 			self._update_public_key()
 
-		if private_key_changed or not self._is_id_token_ready(required_leeway=300):
+		if private_key_changed or not self._is_id_token_ready(required_leeway=10 * 60):
 			self._issue_id_token()
 
 
