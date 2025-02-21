@@ -336,46 +336,44 @@ class LibraryService(Service):
 		items: list[LibraryItem] = []
 		unique_items: dict[str, LibraryItem] = {}
 
-		# List items from every provider concurrently, while tracking their layers
-		tasks = [(layer, asyncio.create_task(provider.list(path))) for layer, provider in enumerate(providers)]
+		# Use the global ordering from self.Libraries
+		tasks = [(self.Libraries.index(provider), asyncio.create_task(provider.list(path))) for provider in providers]
 
-		# Process tasks as they complete, ensuring layer precedence is correctly applied
 		for layer, task in tasks:
 			try:
 				items_list_from_provider: list[LibraryItem] = await task
 			except KeyError:
-				# The path doesn't exist in the provider
+				# The path doesn't exist in this provider.
 				continue
 			except Exception:
 				L.exception("Unexpected error when listing path '{}' on layer {}.".format(path, layer))
 				continue
 
 			for item in items_list_from_provider:
+				# Check if the item is disabled.
 				item.disabled = self.check_disabled(item.name)
 
-				# Check if the item already exists
-				pitem = unique_items.get(item.name)
-
-				if pitem is not None:
-					# Merge directories (if both are 'dir')
-					if pitem.type == "dir" and item.type == "dir":
-						# Merge providers for the directory
-						pitem.providers.extend(item.providers)
-
-					# Add the layer to the list if it's not already there
-					if layer not in pitem.layers:
-						pitem.layers.append(layer)
-						pitem.layers.sort()  # Ensure layers remain in ascending order
-
+				if item.name in unique_items:
+					existing_item = unique_items[item.name]
+					if existing_item.type == "dir" and item.type == "dir":
+						# Merge the providers for directories (avoid duplicates)
+						for p in item.providers:
+							if p not in existing_item.providers:
+								existing_item.providers.append(p)
+					# Add this layer if it's not already present and sort the layers list
+					if layer not in existing_item.layers:
+						existing_item.layers.append(layer)
+						existing_item.layers.sort()
 				else:
-					# New item: Assign it to unique_items
-					item.layers = [layer]  # Initialize layers list
+					# New item: initialize layers with the current layer.
+					item.layers = [layer]
 					unique_items[item.name] = item
 					items.append(item)
 
-		# Sort items by name
+		# Sort items by name before returning.
 		items.sort(key=lambda x: x.name)
 		return items
+
 
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
@@ -530,7 +528,7 @@ class LibraryService(Service):
 			return {
 				"name": item.name,
 				"type": item.type,
-				"layer": item.layer,
+				"layer": item.layers,
 				"providers": item.providers,
 				"disabled": item.disabled,
 				"override": item.override,
