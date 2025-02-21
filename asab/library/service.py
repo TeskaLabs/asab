@@ -7,7 +7,6 @@ import tarfile
 import asyncio
 import logging
 import tempfile
-import functools
 import configparser
 import contextlib
 
