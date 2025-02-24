@@ -67,7 +67,7 @@ class InternalAuth:
 		self._schedule_key_and_token_update()
 
 
-	def get_bearer_token(self) -> str:
+	def get_authorization_header(self) -> str:
 		"""
 		Obtain a Bearer token for internal authorized communication.
 
@@ -89,6 +89,9 @@ class InternalAuth:
 
 		if not self._is_id_token_ready():
 			self._issue_id_token()
+
+		if self.IdToken is None:
+			raise RuntimeError("Internal auth token is not available.")
 
 		return "Bearer {}".format(self.IdToken.serialize())
 

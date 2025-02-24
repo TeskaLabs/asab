@@ -324,7 +324,7 @@ class DiscoveryService(Service):
 					"Internal auth is disabled because 'jwcrypto' module is not installed. "
 					"Please run 'pip install jwcrypto' or install asab with 'authz' optional dependency."
 				)
-			_headers["Authorization"] = self.InternalAuth.get_bearer_token()
+			_headers["Authorization"] = self.InternalAuth.get_authorization_header()
 
 		else:
 			raise ValueError(
