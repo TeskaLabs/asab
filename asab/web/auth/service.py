@@ -6,7 +6,6 @@ import typing
 import aiohttp
 import aiohttp.web
 import aiohttp.client_exceptions
-from asab.web.auth import Authorization
 
 try:
 	import jwcrypto.jwk
@@ -21,6 +20,7 @@ from ...config import Config
 from ...exceptions import NotAuthenticatedError
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
+from .authorization import Authorization
 
 
 L = logging.getLogger(__name__)
