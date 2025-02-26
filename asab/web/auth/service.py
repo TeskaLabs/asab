@@ -6,6 +6,7 @@ import typing
 import aiohttp
 import aiohttp.web
 import aiohttp.client_exceptions
+from asab.web.auth import Authorization
 
 try:
 	import jwcrypto.jwk
@@ -118,6 +119,29 @@ class AuthService(Service):
 			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
 
 
+	async def authorize_request(self, request: aiohttp.web.Request) -> Authorization:
+		"""
+		Authenticate and authorize request with first valid provider
+
+		Args:
+			request (aiohttp.web.Request): Request to authenticate and authorize
+
+		Returns:
+			Authorization object
+
+		Raises:
+			NotAuthenticatedError: When no provider is able to authorize the request
+		"""
+		for provider in self.Providers:
+			try:
+				return await provider.authorize(request)
+			except NotAuthenticatedError:
+				L.debug("Authorization failed.", struct_data={"auth_provider": provider.Type})
+
+		L.warning("Cannot authenticate request: No valid authorization provider found.")
+		raise NotAuthenticatedError()
+
+
 	def _set_up_providers(self):
 		# Always set up an ID token provider without public keys
 		# The public keys are set up based on app configuration or added later
@@ -152,26 +176,17 @@ class AuthService(Service):
 			)
 
 
-	def _authorize_request(self, handler):
+	def _authorize_handler(self, handler):
 		"""
 		Authenticate the request by the JWT ID token in the Authorization header.
 		Extract the token claims into Authorization context so that they can be used for authorization checks.
 		"""
 		@functools.wraps(handler)
-		async def _authorize_request_wrapper(*args, **kwargs):
+		async def _authorize_handler_wrapper(*args, **kwargs):
 			request = args[-1]
 
 			# Authenticate and authorize request with first valid provider
-			for provider in self.Providers:
-				try:
-					authz = await provider.authorize(request)
-					break
-				except NotAuthenticatedError:
-					L.debug("Authorization failed.", struct_data={"auth_provider": provider.Type})
-					continue
-			else:
-				L.warning("Cannot authenticate request: No valid authorization provider found.")
-				raise aiohttp.web.HTTPUnauthorized()
+			authz = await self.authorize_request(request)
 
 			# Authorize tenant context
 			tenant = Tenant.get(None)
@@ -184,7 +199,7 @@ class AuthService(Service):
 			finally:
 				Authz.reset(authz_ctx)
 
-		return _authorize_request_wrapper
+		return _authorize_handler_wrapper
 
 
 	async def set_up_auth_web_wrapper(self, aiohttp_app: aiohttp.web.Application):
@@ -247,7 +262,7 @@ class AuthService(Service):
 			handler = _pass_user_info(handler)
 
 		# 1) Authenticate and authorize request, authorize tenant from context, set Authorization context
-		handler = self._authorize_request(handler)
+		handler = self._authorize_handler(handler)
 
 		route._handler = handler
 
