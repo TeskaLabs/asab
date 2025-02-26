@@ -241,7 +241,7 @@ class Authorization:
 		return self._Claims
 
 
-	def get_claim(self, key: str) -> typing.Any:
+	def get_claim(self, key: str, default = None) -> typing.Any:
 		"""
 		Get the value of a token claim.
 
@@ -255,7 +255,7 @@ class Authorization:
 			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 		"""
 		self.require_valid()
-		return self._Claims.get(key)
+		return self._Claims.get(key, default)
 
 
 	def _resources(self) -> typing.Optional[typing.Set[str]]:
