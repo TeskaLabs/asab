@@ -121,6 +121,10 @@ class IdTokenAuthProvider(AuthProviderABC):
 		"""
 		Delete invalid authorizations.
 		"""
-		for id_token, authz in list(self.Authorizations.items()):
+		expired = {}
+		for id_token, authz in self.Authorizations.items():
 			if not authz.is_valid():
-				del self.Authorizations[id_token]
+				expired.add(id_token)
+
+		for id_token in expired:
+			del self.Authorizations[id_token]
