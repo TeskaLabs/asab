@@ -136,7 +136,9 @@ class AuthService(Service):
 			try:
 				return await provider.authorize(request)
 			except NotAuthenticatedError:
-				L.debug("Authorization failed.", struct_data={"auth_provider": provider.Type})
+				# Provider was unable to authenticate request
+				# L.debug("Authorization failed.", struct_data={"auth_provider": provider.Type})
+				pass
 
 		L.warning("Cannot authenticate request: No valid authorization provider found.")
 		raise NotAuthenticatedError()
