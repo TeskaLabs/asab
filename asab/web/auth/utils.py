@@ -48,21 +48,20 @@ def get_id_token_claims(bearer_token: str, auth_server_public_key: jwcrypto.jwk.
 	except jwcrypto.jws.InvalidJWSSignature as e:
 		raise e
 	except ValueError as e:
-		L.error(
-			"Failed to parse JWT ID token ({}). Please check if the Authorization header contains ID token.".format(e))
-		raise aiohttp.web.HTTPBadRequest()
+		L.debug("Authentication failed: Bearer token is likely not a JWT ID token.")
+		raise NotAuthenticatedError()
 	except jwcrypto.jws.InvalidJWSObject as e:
-		L.error(
+		L.debug("Authentication failed: Bearer token contains an invalid JWT object.")
+		raise NotAuthenticatedError()
+	except Exception as e:
+		L.debug(
 			"Failed to parse JWT ID token ({}). Please check if the Authorization header contains ID token.".format(e))
-		raise aiohttp.web.HTTPBadRequest()
-	except Exception:
-		L.exception("Failed to parse JWT ID token. Please check if the Authorization header contains ID token.")
-		raise aiohttp.web.HTTPBadRequest()
+		raise NotAuthenticatedError()
 
 	try:
 		token_claims = json.loads(token.claims)
 	except Exception:
-		L.exception("Failed to parse JWT token claims.")
-		raise aiohttp.web.HTTPBadRequest()
+		L.error("Failed to parse JWT token claims.")
+		raise NotAuthenticatedError()
 
 	return token_claims
