@@ -45,8 +45,17 @@ class Authorization:
 		self.SessionId = self._Claims.get("sid")
 
 		self.Issuer = self._Claims.get("iss")  # Who issued the authorization
-		self.IssuedAt = datetime.datetime.fromtimestamp(int(self._Claims["iat"]), datetime.timezone.utc)
-		self.Expiration = datetime.datetime.fromtimestamp(int(self._Claims["exp"]), datetime.timezone.utc)
+		try:
+			self.IssuedAt = datetime.datetime.fromtimestamp(int(self._Claims["iat"]), datetime.timezone.utc)
+		except KeyError:
+			L.error("ID token is missing the required 'iat' field.")
+			raise NotAuthenticatedError()
+
+		try:
+			self.Expiration = datetime.datetime.fromtimestamp(int(self._Claims["exp"]), datetime.timezone.utc)
+		except KeyError:
+			L.error("ID token is missing the required 'exp' field.")
+			raise NotAuthenticatedError()
 
 
 	def __repr__(self):
