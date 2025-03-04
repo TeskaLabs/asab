@@ -50,7 +50,7 @@ def get_id_token_claims(bearer_token: str, auth_server_public_key: jwcrypto.jwk.
 	except ValueError:
 		L.debug("Authentication failed: Bearer token is likely not a JWT ID token.")
 		raise NotAuthenticatedError()
-	except jwcrypto.jws.InvalidJWSObject as e:
+	except jwcrypto.jws.InvalidJWSObject:
 		L.debug("Authentication failed: Bearer token contains an invalid JWT object.")
 		raise NotAuthenticatedError()
 	except Exception as e:
