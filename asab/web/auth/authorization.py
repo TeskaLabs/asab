@@ -250,7 +250,7 @@ class Authorization:
 		return self._Claims
 
 
-	def get_claim(self, key: str, default = None) -> typing.Any:
+	def get_claim(self, key: str, default=None) -> typing.Any:
 		"""
 		Get the value of a token claim.
 
