@@ -314,11 +314,11 @@ class StorageService(StorageServiceABC):
 		return ElasticSearchUpsertor(self, index, obj_id, version)
 
 
-	async def list(self, index: str, _from: int = 0, size: int = 10000, body: typing.Optional[dict] = None) -> dict:
-		"""List data matching the index.
+	async def list(self, index: str, _from: int = 0, size: int = 10000, body: typing.Optional[dict] = None, last_hit_sort=None) -> dict:
+		"""List data matching the index with pagination.
 
 		:param index: Specified index.
-		:param _from:  Starting document offset. Defaults to 0.
+		:param _from: Starting document offset. Defaults to 0.
 		:type _from: int
 		:param size: The number of hits to return. Defaults to 10000.
 		:type size: int
@@ -327,7 +327,6 @@ class StorageService(StorageServiceABC):
 
 		:return: The query search result.
 		:raise Exception: Raised if connection to all server URLs fails.
-
 		"""
 		if body is None:
 			body = {
@@ -340,11 +339,24 @@ class StorageService(StorageServiceABC):
 				}
 			}
 
-		async with self.request("GET", "{}/_search?size={}&from={}&version=true".format(index, size, _from)) as resp:
+		# https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#search-after
+		body['sort'] = [{'_id': 'asc'}]  # Always need a consistent sort order for deep pagination
+
+		# Use "search_after" for deep pagination when "_from" exceeds 10,000
+		if last_hit_sort:
+			body['search_after'] = last_hit_sort
+
+		async with self.request("GET", "{}/_search?size={}&from={}&version=true".format(index, size, _from), json=body) as resp:
+
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
-			return await resp.json()
+			result = await resp.json()
+
+			last_hit = result['hits']['hits'][-1] if result['hits']['hits'] else None
+			last_hit_sort = last_hit['sort'] if last_hit else []
+
+			return result, last_hit_sort
 
 
 	async def count(self, index) -> int:
