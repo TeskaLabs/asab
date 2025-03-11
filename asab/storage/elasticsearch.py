@@ -173,7 +173,7 @@ class StorageService(StorageServiceABC):
 		if decrypt is not None:
 			raise NotImplementedError("AES encryption for ElasticSearch not implemented")
 
-		async with self.request("GET", "{}/_doc/{}".format(index, urllib.parse.quote_plus(obj_id))) as resp:
+		async with self.request("GET", "{}/_doc/{}".format(index, urllib.parse.quote(obj_id))) as resp:
 
 			if resp.status not in {200, 201, 404}:
 				resp = await resp.json()
@@ -216,7 +216,7 @@ class StorageService(StorageServiceABC):
 		"""
 
 		if _id:
-			path = "{}/_doc/{}?refresh={}".format(index, urllib.parse.quote_plus(_id), self.Refresh)
+			path = "{}/_doc/{}?refresh={}".format(index, urllib.parse.quote(_id), self.Refresh)
 		else:
 			path = "{}".format(index)
 
@@ -506,7 +506,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 
 		async with self.Storage.request(
 			"POST",
-			"{}/_update/{}?refresh={}".format(self.Collection, urllib.parse.quote_plus(self.ObjId), self.Storage.Refresh),
+			"{}/_update/{}?refresh={}".format(self.Collection, urllib.parse.quote(self.ObjId), self.Storage.Refresh),
 			json=upsert_data,
 		) as resp:
 			if resp.status not in {200, 201}:
