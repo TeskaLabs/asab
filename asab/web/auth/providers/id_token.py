@@ -46,7 +46,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 	async def authorize(self, request: aiohttp.web.Request) -> Authorization:
 		if not self._KeyProviders:
-			L.debug("No public key providers registered for ID token authentication.")
+			L.warning("No public key providers registered for ID token authentication.")
 			raise NotAuthenticatedError()
 
 		bearer_token = get_bearer_token_from_authorization_header(request)

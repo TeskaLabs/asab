@@ -156,20 +156,27 @@ class AuthService(Service):
 			from .providers.key_providers import UrlPublicKeyProvider
 			public_key_provider = UrlPublicKeyProvider(self.App, public_keys_url)
 			id_token_provider.register_key_provider(public_key_provider)
+		else:
+			public_key_provider = None
 
 		enabled = Config.get("auth", "enabled", fallback=True)
 		if enabled == "mock":
-			introspection_url = Config.get("auth", "introspection_url", fallback=None)
-			if introspection_url:
-				from .providers import AccessTokenAuthProvider
-				provider = AccessTokenAuthProvider(self.App, introspection_url=introspection_url)
-				provider.register_key_provider(public_key_provider)
-				self.Providers.append(provider)
-			else:
-				from .providers import MockAuthProvider
-				provider = MockAuthProvider(self.App, auth_claims_path=Config.get("auth", "mock_user_info_path"))
-				self.Providers.append(provider)
+			from .providers import MockAuthProvider
+			provider = MockAuthProvider(self.App, auth_claims_path=Config.get("auth", "mock_user_info_path"))
+			self.Providers.append(provider)
 			return
+
+		elif enabled == "development":
+			introspection_url = Config.get("auth", "introspection_url", fallback=None)
+			if introspection_url is None or public_key_provider is None:
+				raise ValueError(
+					"AuthService is in development mode, but introspection_url or public_keys_url is not set."
+				)
+
+			from .providers import AccessTokenAuthProvider
+			provider = AccessTokenAuthProvider(self.App, introspection_url=introspection_url)
+			provider.register_key_provider(public_key_provider)
+			self.Providers.append(provider)
 
 		elif string_to_boolean(enabled) is False:
 			raise ValueError(
