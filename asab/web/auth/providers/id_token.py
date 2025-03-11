@@ -29,13 +29,12 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 		self.Authorizations = {}
 
+		self.App.PubSub.subscribe("PublicKey.updated!", self.collect_keys)
 		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
 		self.App.TaskService.schedule(self._update_public_keys())
 
 
 	def register_key_provider(self, provider: PublicKeyProviderABC):
-		if self not in provider.AuthProviders:
-			provider.AuthProviders.add(self)
 		self._KeyProviders.add(provider)
 		self.collect_keys()
 
@@ -54,7 +53,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 		return authz
 
 
-	def collect_keys(self):
+	def collect_keys(self, *args, **kwargs):
 		"""
 		Collect public keys from all key providers into a single trusted JWK set.
 		"""

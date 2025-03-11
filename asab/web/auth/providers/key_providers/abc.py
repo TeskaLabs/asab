@@ -15,7 +15,6 @@ class PublicKeyProviderABC(abc.ABC):
 
 	def __init__(self, app):
 		self.App = app
-		self.AuthProviders = set()  # Auth providers that use this public key provider
 		self.TaskService = self.App.get_service("asab.TaskService")
 		self.PublicKeySet: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
 
@@ -42,5 +41,4 @@ class PublicKeyProviderABC(abc.ABC):
 		else:
 			raise ValueError("Invalid public_key type.")
 
-		for auth_provider in self.AuthProviders:
-			auth_provider.collect_keys()
+		self.App.PubSub.publish("PublicKey.updated!", self)
