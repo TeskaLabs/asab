@@ -159,11 +159,15 @@ class AuthService(Service):
 		else:
 			public_key_provider = None
 
-		enabled = Config.get("auth", "enabled", fallback=True)
-		if enabled == "mock":
-			from .providers import MockAuthProvider
-			provider = MockAuthProvider(self.App, auth_claims_path=Config.get("auth", "mock_user_info_path"))
-			self.Providers.append(provider)
+		enabled = Config.get("auth", "enabled", fallback="production")
+		try:
+			enabled = string_to_boolean(enabled)
+		except ValueError:
+			pass
+
+		if enabled == "production" or enabled is True:
+			# Production mode is enabled by default
+			# The ID token provider is already set up
 			return
 
 		elif enabled == "development":
@@ -178,11 +182,21 @@ class AuthService(Service):
 			provider.register_key_provider(public_key_provider)
 			self.Providers.append(provider)
 
-		elif string_to_boolean(enabled) is False:
-			raise ValueError(
-				"Disabling AuthService is deprecated. "
-				"For development pupropses use mock mode instead ([auth] enabled=mock)."
+		elif enabled == "mock":
+			from .providers import MockAuthProvider
+			auth_claims_path = (
+				Config.get("auth", "mock_claims_path", fallback=None)
+				or Config.get("auth", "mock_user_info_path", fallback=None)
 			)
+			provider = MockAuthProvider(self.App, auth_claims_path=auth_claims_path)
+			self.Providers.append(provider)
+			return
+
+		elif enabled is False:
+			raise ValueError("Disabling AuthService is deprecated. Use mock mode instead.")
+
+		else:
+			raise ValueError("Unsupported auth mode: {!r}".format(enabled))
 
 
 	def _authorize_handler(self, handler):

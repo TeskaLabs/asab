@@ -80,6 +80,12 @@ class MockAuthProvider(AuthProviderABC):
 		if auth_claims_path and os.path.isfile(auth_claims_path):
 			with open(auth_claims_path, "rb") as f:
 				auth_claims = json.load(f)
+		elif os.path.isfile("/conf/mock-claims.json"):
+			with open(auth_claims_path, "rb") as f:
+				auth_claims = json.load(f)
+		elif os.path.isfile("/conf/mock-userinfo.json"):
+			with open(auth_claims_path, "rb") as f:
+				auth_claims = json.load(f)
 		else:
 			auth_claims = _MOCK_AUTH_CLAIMS_DEFAULT
 
