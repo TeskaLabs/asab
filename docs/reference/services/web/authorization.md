@@ -110,6 +110,10 @@ introspection_url=
 mock_claims_path=/conf/mock-claims.json
 ```
 
+Without any configuration, all incoming requests will be denied with HTTP 401, 
+since the auth service is in production mode and no public keys are provided.
+
+
 ### Production mode
 
 In production mode, the `AuthService` uses the authorization server to authenticate and authorize incoming requests.
