@@ -1,5 +1,6 @@
 import ssl
 import time
+import json
 import logging
 import datetime
 import urllib.parse
@@ -434,6 +435,50 @@ class StorageService(StorageServiceABC):
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
 			return await resp.json()
+
+
+	async def update_by_bulk(self, index: str, documents: list) -> dict:
+		"""
+		Use Elasticsearch bulk API to add/update multiple documents in an index.
+
+		:param index: The Elasticsearch index to update.
+		:param documents: A list of dictionaries, each containing '_id' and '_source' keys.
+		:raise RuntimeError: If the bulk update request fails.
+		"""
+		if not documents:
+			return 0
+
+		# Construct bulk request payload
+		bulk_data = ""
+
+		for doc in documents:
+			doc_id = doc.get("_id")
+			source = doc.get("_source")
+
+			if not doc_id or not source:
+				continue  # Skip invalid documents
+
+			bulk_data += json.dumps({"update": {"_index": index, "_id": doc_id}}) + "\n"
+			bulk_data += json.dumps({"doc": source, "doc_as_upsert": True}) + "\n"
+
+		async with self.request("POST", "_bulk?refresh={}".format(self.Refresh), data=bulk_data.encode("utf-8")) as resp:
+
+			if resp.status != 200:
+				raise RuntimeError(f"Bulk update failed: {resp.status} - {await resp.text()}")
+
+			result = await resp.json()
+
+			# Get how many items were updated
+			items_updated = 0
+
+			for item in result.get("items", []):
+
+				for value in item.values():
+
+					if value.get("status") in {200, 201}:
+						items_updated += 1
+
+			return items_updated
 
 
 class ElasticSearchUpsertor(UpsertorABC):
