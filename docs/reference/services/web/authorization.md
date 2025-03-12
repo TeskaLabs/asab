@@ -1,4 +1,4 @@
-# Authorization
+# Authentication and authorization
 
 The `asab.web.auth` module provides [authentication](https://en.wikipedia.org/wiki/Authentication) and
 [authorization](https://en.wikipedia.org/wiki/Authorization) of incoming requests.
@@ -92,21 +92,73 @@ Read more in the [Multitenancy chapter](../multitenancy).
 
 ## Configuration
 
-The `asab.web.auth` module is configured
-in the `[auth]` section with the following options:
+The `asab.web.auth` module is configured in the `[auth]` section with the following options:
 
-| Option | Type | Meaning |
-| --- | --- | --- |
-| `public_keys_url` | URL | The URL of the authorization server's public keys (also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2) |
-| `enabled` | boolean or `"mock"` | Enables or disables authentication and authorization or switches to mock authorization. In mock mode, all incoming requests are authorized with mock user info. There is no communication with the authorization server (so it is not necessary to configure `public_keys_url` in dev mode). |
-| `mock_user_info_path` | path | Path to JSON file that contains user info claims used in mock mode. The structure of user info should follow the [OpenID Connect userinfo definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse) and also contain the `resources` object. |
+| Option              | Type                                            | Meaning                                                                                                                                                                                                                                                                                                                                        |
+|---------------------|-------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `enabled`           | `production` (default), `mock` or `development` | Switches authentication and authorization mode. In _mock_ mode all incoming requests are authorized with mock user info without any communication with the auth server. In _development_ mode the app is expected to run without Nginx reverse proxy and does auth introspection by itself (it is necessary to configure `introspection_url`). |
+| `public_keys_url`   | URL                                             | The URL of the authorization server's public keys (also known as `jwks_uri` in [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8414#section-2)                                                                                                                                                                                                   |
+| `introspection_url` | URL                                             | The URL of Seacat Auth introspection endpoint used in development mode.                                                                                                                                                                                                                                                                        |
+| `mock_claims_path`  | path                                            | Path to JSON file that contains auth claims (aka User Info) used in mock mode. The structure of the JSON object should follow the [OpenID Connect userinfo definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse) and also contain the `resources` object.                                                        |
 
-Default options:
+Default values:
 
 ```ini
-public_keys_url=http://localhost:3081/.well-known/jwks.json
-enabled=yes
-mock_user_info_path=/conf/mock-userinfo.json
+enabled=production
+public_keys_url=
+introspection_url=
+mock_claims_path=/conf/mock-claims.json
+```
+
+### Production mode
+
+In production mode, the `AuthService` uses the authorization server to authenticate and authorize incoming requests.
+The application is expected to run behind Nginx reverse proxy with auth introspection enabled.
+
+You need to configure `public_keys_url` to point to the auth server's public keys endpoint to be able to verify incoming requests.
+
+```ini
+[auth]
+public_keys_url=https://example.teskalabs.com/.well-known/jwks.json
+```
+
+#### Internal auth
+
+To use ASAB's cluster-internal authentication (together with the web authentication above), 
+initialize `asab.api.ApiService` and `asab.zookeeper.Module` in your application.
+This will automatically set up shared keys necessary for internal auth, no extra configuration necessary.
+
+You can also use internal authentication without web authentication by leaving `public_keys_url` empty.
+
+
+### Development mode
+
+In development mode, the `AuthService` expects the application to run without Nginx reverse proxy and 
+does auth token introspection by itself.
+
+To use the development mode, set the `enabled` option to `development` and specify 
+the `introspection_url` to point to the auth server's access token introspection endpoint.
+You also need to configure `public_keys_url` to the auth server's public keys endpoint.
+
+```ini
+[auth]
+enabled=development
+public_keys_url=http://localhost:8900/.well-known/jwks.json
+introspection_url=http://localhost:8900/nginx/introspect/openidconnect
+```
+
+### Mock mode
+
+In mock mode, the `AuthService` authorizes all incoming requests with mock authorization claims (aka User Info) without 
+any communication with the auth server.
+You can also customize the claims by providing a path to a JSON file with mock claims.
+The file content should comply with the [OpenID Connect userinfo response definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse) 
+and also contain the `resources` object.
+
+```ini
+[auth]
+enabled=mock
+mock_claims_path=./mock-claims.json
 ```
 
 

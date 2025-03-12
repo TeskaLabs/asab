@@ -8,6 +8,7 @@ import asab.web.tenant
 import asab.contextvars
 import asab.exceptions
 
+
 if "web" not in asab.Config:
 	asab.Config["web"] = {
 		# Set up a web container listening at port 8080
@@ -22,21 +23,25 @@ if "tenants" not in asab.Config:
 
 if "auth" not in asab.Config:
 	asab.Config["auth"] = {
-		# Enable all authentication and authorization, or switch into MOCK mode.
-		"enabled": "mock",  # Mock authorization, useful for debugging.
-		# "enabled": "yes",   # Authorization is enabled (default).
+		# In the default PRODUCTION mode the application expects web requests to be authorized with ID tokens.
+		# This implies that the application is running behind reverse proxy with access token introspection.
+		# It is necessary to provide the auth server's JWKs URL.
+		# "enabled": "production",
+		# "public_keys_url": "http://localhost:8900/.well-known/jwks.json",
 
-		# Activating the mock mode disables communication with the authorization server.
-		# The requests' Authorization headers are ignored and AuthService provides mock authorization with mock user info.
-		# You can provide custom user info by specifying the path pointing to your JSON file.
-		"mock_user_info_path": "./mock-userinfo.json",
+		# In the MOCK mode the application does not communicate with the authorization server.
+		# The requests' Authorization headers are ignored and replaced with mock authorization.
+		# The authorization claims can be customized by supplying your own JSON file.
+		"enabled": "mock",
+		# "mock_claims_path": "./mock-claims.json",
 
-		# In mock mode, it is possible to configure URL for direct access token intropspection.
+		# In DEVELOPMENT mode the application is expected to run without reverse proxy and introspection.
+		# It expects web requests to be authorized with access tokens and does the introspection by itself,
+		# communicating with the auth server directly.
+		# It is necessary to provide the auth server's JWKs URL and the introspection URL.
+		# "enabled": "development",
 		# "introspection_url": "http://localhost:8900/nginx/introspect/openidconnect",
-
-		# URL of the authorization server's JWK public keys, used for ID token verification.
-		# This option is ignored in mock mode or when authorization is disabled.
-		# "public_keys_url": "http://localhost:3081/.well-known/jwks.json",
+		# "public_keys_url": "http://localhost:8900/.well-known/jwks.json",
 	}
 
 
