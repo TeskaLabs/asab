@@ -13,6 +13,21 @@ class Storage(object):
 		self.Metrics = []
 
 
+	def delete(self, metric_name: str, tags: dict):
+
+		for i in range(len(self.Metrics) - 1, -1, -1):
+
+			metric = self.Metrics[i]
+
+			if metric_name != metric['name']:
+				continue
+
+			if tags != metric["static_tags"]:
+				continue
+
+			del self.Metrics[i]
+
+
 	def add(self, metric_name: str, tags: dict, reset: bool, help: str, unit: str):
 
 		for i in range(len(self.Metrics) - 1, -1, -1):
