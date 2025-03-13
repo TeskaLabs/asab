@@ -144,7 +144,7 @@ class StorageService(StorageServiceABC):
 				resp = await resp.json()
 				L.error("Failed to connect to ElasticSearch.", struct_data={
 					"code": resp.get("status"),
-					"reason": resp.get("error", {}).get("reason")
+					"reason": resp.get("error")
 				})
 				return False
 
