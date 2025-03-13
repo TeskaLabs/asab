@@ -177,6 +177,10 @@ class AuthService(Service):
 					"AuthService is in development mode, but introspection_url or public_keys_url is not set."
 				)
 
+			L.warning(
+				"AuthService is in development mode. "
+				"Web requests will be authorized with introspection call to {}.".format(introspection_url)
+			)
 			from .providers import AccessTokenAuthProvider
 			provider = AccessTokenAuthProvider(self.App, introspection_url=introspection_url)
 			provider.register_key_provider(public_key_provider)
@@ -189,7 +193,8 @@ class AuthService(Service):
 				or Config.get("auth", "mock_user_info_path", fallback=None)
 			)
 			provider = MockAuthProvider(self.App, auth_claims_path=auth_claims_path)
-			self.Providers.append(provider)
+			# Make sure the mock provider is the first one and catches every request
+			self.Providers.insert(0, provider)
 			return
 
 		elif enabled is False:
