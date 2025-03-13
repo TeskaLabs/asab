@@ -32,14 +32,14 @@ class TestInvalidClaims(unittest.TestCase):
 		claims = {
 			"iat": time.time() - 60,
 		}
-		with self.assertRaises(KeyError):
+		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			Authorization(claims)
 
 	def test_missing_issued_at(self):
 		claims = {
 			"exp": time.time() + 3600,
 		}
-		with self.assertRaises(KeyError):
+		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			Authorization(claims)
 
 
