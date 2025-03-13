@@ -10,6 +10,7 @@ class StaticPublicKeyProvider(PublicKeyProviderABC):
 	Static auth server key provider.
 	The key has to be provided through a variable or a file.
 	"""
+	Type = "static"
 
 	def __init__(
 		self, app, *,

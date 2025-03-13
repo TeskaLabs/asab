@@ -12,6 +12,7 @@ class PublicKeyProviderABC(abc.ABC):
 	"""
 	Provides authorization server public keys.
 	"""
+	Type = None
 
 	def __init__(self, app):
 		self.App = app
@@ -41,4 +42,4 @@ class PublicKeyProviderABC(abc.ABC):
 		else:
 			raise ValueError("Invalid public_key type.")
 
-		self.App.PubSub.publish("PublicKey.updated!", self)
+		self.App.PubSub.publish("PublicKey.updated!", self, asynchronously=False)

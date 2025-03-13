@@ -14,6 +14,7 @@ class UrlPublicKeyProvider(PublicKeyProviderABC):
 	"""
 	Public key provider that loads auth server keys from a URL.
 	"""
+	Type = "url"
 
 	def __init__(self, app, jwks_url: str):
 		super().__init__(app)
