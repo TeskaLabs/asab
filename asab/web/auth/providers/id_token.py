@@ -59,7 +59,8 @@ class IdTokenAuthProvider(AuthProviderABC):
 		"""
 		jwks = jwcrypto.jwk.JWKSet()
 		for provider in self._KeyProviders:
-			jwks.update(provider.PublicKeySet)
+			for key in provider.public_keys():
+				jwks.add(key)
 		self.TrustedJwkSet = jwks
 
 
@@ -69,6 +70,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 		"""
 		for provider in self._KeyProviders:
 			await provider.reload_keys()
+		self.collect_keys()
 
 
 	async def _build_authorization(self, id_token: str) -> Authorization:
