@@ -383,7 +383,7 @@ class StorageService(StorageServiceABC):
 		:param search_string: A search string. Default to None.
 		"""
 
-		async with self.request("GET", "_cat/indices/{}?format=json".format(search_string if search_string is not None else "*")) as resp:
+		async with self.request("GET", "_cat/indices/{}?format=json&s=index".format(search_string if search_string is not None else "*")) as resp:
 
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
