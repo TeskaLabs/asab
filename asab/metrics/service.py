@@ -90,10 +90,16 @@ class MetricsService(Service):
 		"""
 		This method deletes an existing metric from the service.
 		It has similar signature to other "delete" methods within technologies built by TeskaLabs.
+
+		It is up to the user to call flush when needed.
 		"""
 		metric_name, metric_tags = self.MetricToNameAndTags[metric_obj]
 		self.Storage.delete(metric_name, metric_tags)
 		self.Metrics.remove(metric_obj)
+
+
+	async def flush(self):
+		await self._on_flushing_event()
 
 
 	def clear(self):
