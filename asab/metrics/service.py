@@ -118,7 +118,7 @@ class MetricsService(Service):
 
 		return now
 
-	async def _on_flushing_event(self, event_type):
+	async def _on_flushing_event(self, event_type=None):
 		if len(self.Metrics) == 0:
 			return
 
