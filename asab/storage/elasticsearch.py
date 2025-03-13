@@ -180,7 +180,7 @@ class StorageService(StorageServiceABC):
 				resp = await resp.json()
 				raise ConnectionError("Failed to retrieve data from ElasticSearch. Got {}: {}".format(
 					resp.get("status"),
-					resp.get("error", {}).get("reason")
+					resp.get("error")
 				))
 
 			else:
