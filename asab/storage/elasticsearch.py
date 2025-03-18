@@ -342,7 +342,7 @@ class StorageService(StorageServiceABC):
 
 		elif _filter:
 			# Apply case-insensitive filtering if _filter is provided
-			body['query'] = {}
+			body = {'query': {}}
 			body['query']['wildcard'] = {
 				'_keys': {
 					'value': f"*{_filter.lower()}*",  # Case-insensitive wildcard search
