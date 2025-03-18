@@ -329,7 +329,7 @@ class StorageService(StorageServiceABC):
 		:return: The query search result.
 		:raise Exception: Raised if connection to all server URLs fails.
 		"""
-		if body is None:
+		if body is None and not _filter:
 			body = {
 				'query': {
 					'bool': {
