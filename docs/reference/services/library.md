@@ -82,7 +82,7 @@ Each Library item is represented by `LibraryItem` dataclass. Read more in the [r
 The library is created in a **not-ready** state. If an operation is attempted before all providers are initialized,  
 it raises a `LibraryNotReadyError`. Ensure that the library is ready before performing operations.
 
-!!! example "Handling LibraryNotReadyError"
+!!! example "Example of the use:"
 
     ```python
     import asab
