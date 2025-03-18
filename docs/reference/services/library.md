@@ -77,35 +77,40 @@ For that reason, you have to provide a unique `service_name` and there is no def
 
 Each Library item is represented by `LibraryItem` dataclass. Read more in the [reference section](#asab.library.item.LibraryItem).
 
-!!! example "Example of the use:"
+### Handling Library Not Ready State
 
-	```python
-	import asab
-	import asab.library
+The library is created in a **not-ready** state. If an operation is attempted before all providers are initialized,  
+it raises a `LibraryNotReadyError`. Ensure that the library is ready before performing operations.
 
-	class MyApplication(asab.Application):
+!!! example "Handling LibraryNotReadyError"
 
-		async def initialize(self):
-			self.LibraryService = asab.library.LibraryService(self, "LibraryService") #(1)!
-			self.PubSub.subscribe("Library.ready!", self.on_library_ready) #(2)!
+    ```python
+    import asab
+    import asab.library
 
-		async def on_library_ready(self, event_name, library): #(3)!
+    class MyApplication(asab.Application):
 
-			for item in await self.LibraryService.list("/", recursive=True): #(4)!
-				print("*", item)
-				if item.type == 'item': #(5)!
-					itemio = await self.LibraryService.read(item.name) #(6)!
-					if itemio is not None:
-						with itemio: #(7)!
-							content = itemio.read()
-							print("- content: {} bytes".format(len(content)))
-					else:
-						print("  - (DISABLED)")
+        async def initialize(self):
+            self.LibraryService = asab.library.LibraryService(self, "LibraryService")
 
-	if __name__ == '__main__':
-		app = MyApplication()
-		app.run()
-	```
+            # Subscribe to Library.ready! to perform operations once the library is ready
+            self.PubSub.subscribe("Library.ready!", self.on_library_ready)
+
+        async def on_library_ready(self, event_name, library):
+            print("Library is now ready.")
+
+        async def safe_read(self, path):
+            try:
+                async with self.LibraryService.open(path) as item:
+                    if item is not None:
+                        return await item.read()
+            except asab.library.LibraryNotReadyError:
+                print("Library is not ready yet.")
+
+    if __name__ == '__main__':
+        app = MyApplication()
+        app.run()
+    ```
 
 	1. Initializes the Library Service. Remember to specify a unique `service_name`.
 	2. When the Library is initialized, `Library.ready!` PubSub message is emitted. 
