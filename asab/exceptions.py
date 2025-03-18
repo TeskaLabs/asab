@@ -72,6 +72,14 @@ class LibraryNotReadyError(LibraryError):
 	"""
 	Raised when an operation is attempted on the LibraryService
 	before all providers (or the library itself) are ready.
+
+	Example Usage:
+	try:
+		async with library_service.open("/path/to/item") as item:
+			if item is not None:
+				data = item.read()
+	except LibraryNotReadyError:
+		print("Library is not ready yet. Please try again later.")
 	"""
 	def __init__(self, message="Library is not ready yet.", *args, **kwargs):
 		super().__init__(message, *args, **kwargs)
