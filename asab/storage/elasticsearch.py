@@ -315,7 +315,7 @@ class StorageService(StorageServiceABC):
 		return ElasticSearchUpsertor(self, index, obj_id, version)
 
 
-	async def list(self, index: str, _from: int = 0, size: int = 10000, body: typing.Optional[dict] = None, last_hit_sort=None) -> dict:
+	async def list(self, index: str, _from: int = 0, size: int = 10000, body: typing.Optional[dict] = None, last_hit_sort=None, _filter=None) -> dict:
 		"""List data matching the index with pagination.
 
 		:param index: Specified index.
@@ -337,6 +337,16 @@ class StorageService(StorageServiceABC):
 							'match_all': {}
 						}
 					}
+				}
+			}
+
+		elif _filter:
+			# Apply case-insensitive filtering if _filter is provided
+			body['query'] = {}
+			body['query']['wildcard'] = {
+				'_keys': {
+					'value': f"*{_filter.lower()}*",  # Case-insensitive wildcard search
+					'case_insensitive': True  # Requires ES 7.10+
 				}
 			}
 
