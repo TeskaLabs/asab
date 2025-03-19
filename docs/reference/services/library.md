@@ -104,7 +104,7 @@ it raises a `LibraryNotReadyError`. Ensure that the library is ready before perf
                 async with self.LibraryService.open(path) as item:
                     if item is not None:
                         return await item.read()
-            except asab.library.LibraryNotReadyError:
+            except asab.exceptions.LibraryNotReadyError:
                 print("Library is not ready yet.")
 
     if __name__ == '__main__':
