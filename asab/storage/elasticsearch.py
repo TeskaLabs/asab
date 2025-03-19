@@ -198,6 +198,7 @@ class StorageService(StorageServiceABC):
 	async def get_by(self, collection: str, key: str, value, decrypt=None):
 		raise NotImplementedError("get_by")
 
+
 	async def delete(self, index: str, _id=None) -> dict:
 		"""
 		Delete an entire index or document from that index.
@@ -370,7 +371,7 @@ class StorageService(StorageServiceABC):
 			return result, last_hit_sort
 
 
-	async def count(self, index) -> int:
+	async def count(self, index, _filter=None) -> int:
 		"""
 		Get the number of matches for a given index.
 
@@ -379,7 +380,21 @@ class StorageService(StorageServiceABC):
 		:raise Exception: Connection failed.
 		"""
 
-		async with self.request("GET", "{}/_count".format(index)) as resp:
+		if _filter:
+			# Apply case-insensitive filtering if _filter is provided
+			body = {'query': {}}
+			body['query']['wildcard'] = {
+				'_keys': {
+					'value': f"*{_filter.lower()}*",  # Case-insensitive wildcard search
+					'case_insensitive': True  # Requires ES 7.10+
+				}
+			}
+
+		else:
+			body = {}
+
+		async with self.request("GET", "{}/_count".format(index), json=body) as resp:
+
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
