@@ -79,7 +79,7 @@ class LibraryNotReadyError(LibraryError):
 			if item is not None:
 				data = item.read()
 	except LibraryNotReadyError:
-		print("Library is not ready yet. Please try again later.")
+		print("Library is not ready yet.")
 	"""
 	def __init__(self, message="Library is not ready yet.", *args, **kwargs):
 		super().__init__(message, *args, **kwargs)
