@@ -318,7 +318,6 @@ class LibraryService(Service):
 
 				child_items = await self._list(item.name, providers=item.providers)
 				items.extend(child_items)
-				print(items)
 				recitems.extend(child_items)
 
 		return items
@@ -376,17 +375,17 @@ class LibraryService(Service):
 		# Sorting function that handles both integer and string layers
 		def sorting_key(item):
 			layer_values = []
-			for l in item.layers:
-				if isinstance(l, int):  # If the layer is an integer, use it as is
-					layer_values.append(l)
-				elif isinstance(l, str) and ":" in l:  # Extract numeric part from "0:global", "0:tenant"
+			for layer in item.layers:
+				if isinstance(layer, int):  # If the layer is an integer, use it as is
+					layer_values.append(layer)
+				elif isinstance(layer, str) and ":" in layer:  # Extract numeric part from "0:global", "0:tenant"
 					try:
-						layer_values.append(int(l.split(":")[0]))
+						layer_values.append(int(layer.split(":")[0]))
 					except ValueError:
 						continue  # Ignore unexpected values
 
 			layer_num = min(layer_values) if layer_values else 999  # Default to high number if empty
-			is_global = any(isinstance(l, str) and ":global" in l for l in item.layers)
+			is_global = any(isinstance(layer, str) and ":global" in layer for layer in item.layers)
 			return (layer_num, not is_global, item.name)
 
 		# Sort items ensuring `0:global` comes before `0:tenant` (if applicable)
