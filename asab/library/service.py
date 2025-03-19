@@ -550,7 +550,6 @@ class LibraryService(Service):
 				"providers": item.providers,
 				"disabled": item.disabled,
 				"override": item.override,
-				"target": item.target,  # Include the target in the metadata
 			}
 
 		# Item not found
