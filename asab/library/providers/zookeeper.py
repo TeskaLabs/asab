@@ -334,17 +334,23 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				ftype = "dir"
 				size = None
 
+			# Assign correct layer
+			if self.Layer == 0:  # Only apply this logic to layer `0`
+				layer_label = "0:global" if target == "global" else "0:tenant"
+			else:
+				layer_label = self.Layer  # Keep normal numbering for other layers
+
 			# Add the item with the specified target and size
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
-				layers=[self.Layer],
+				layers=[layer_label],
 				providers=[self],
-				target=target,
 				size=size
 			))
 
 		return items
+
 
 	def build_path(self, path, tenant_specific=False):
 		assert path[:1] == '/'

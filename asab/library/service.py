@@ -318,8 +318,11 @@ class LibraryService(Service):
 
 				child_items = await self._list(item.name, providers=item.providers)
 				items.extend(child_items)
+				print(items)
 				recitems.extend(child_items)
+
 		return items
+
 
 	async def _list(self, path, providers):
 		"""
@@ -361,17 +364,33 @@ class LibraryService(Service):
 							if p not in existing_item.providers:
 								existing_item.providers.append(p)
 					# Add this layer if it's not already present and sort the layers list
-					if layer not in existing_item.layers:
-						existing_item.layers.append(layer)
-						existing_item.layers.sort()
+					for layer_label in item.layers:
+						if layer_label not in existing_item.layers:
+							existing_item.layers.append(layer_label)
+							existing_item.layers.sort()
 				else:
-					# New item: initialize layers with the current layer.
-					item.layers = [layer]
+					# New item: store with its assigned layers.
 					unique_items[item.name] = item
 					items.append(item)
 
-		# Sort items by name before returning.
-		items.sort(key=lambda x: x.name)
+		# Sorting function that handles both integer and string layers
+		def sorting_key(item):
+			layer_values = []
+			for l in item.layers:
+				if isinstance(l, int):  # If the layer is an integer, use it as is
+					layer_values.append(l)
+				elif isinstance(l, str) and ":" in l:  # Extract numeric part from "0:global", "0:tenant"
+					try:
+						layer_values.append(int(l.split(":")[0]))
+					except ValueError:
+						continue  # Ignore unexpected values
+
+			layer_num = min(layer_values) if layer_values else 999  # Default to high number if empty
+			is_global = any(isinstance(l, str) and ":global" in l for l in item.layers)
+			return (layer_num, not is_global, item.name)
+
+		# Sort items ensuring `0:global` comes before `0:tenant` (if applicable)
+		items.sort(key=sorting_key)
 		return items
 
 
