@@ -22,5 +22,4 @@ class LibraryItem:
     providers: list
     disabled: bool = False
     override: int = 0
-    target: str = "global"  # Default to "global" if not tenant-specific
     size: typing.Optional[int] = None  # Size is None by default, absent for directories
