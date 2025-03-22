@@ -529,7 +529,7 @@ class LibraryService(Service):
 			return {
 				"name": item.name,
 				"type": item.type,
-				"layer": item.layers,
+				"layers": item.layers,
 				"providers": item.providers,
 				"disabled": item.disabled,
 				"override": item.override,
