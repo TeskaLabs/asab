@@ -319,7 +319,7 @@ class LibraryService(Service):
 				child_items = await self._list(item.name, providers=item.providers)
 				items.extend(child_items)
 				recitems.extend(child_items)
-		print(items)
+
 		return items
 
 	async def _list(self, path, providers):
