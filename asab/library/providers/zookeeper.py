@@ -289,11 +289,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			tenant_items = await self.process_nodes(tenant_nodes, path, target="tenant")
 		else:
 			tenant_items = []
-		# Combine items, with tenant items taking precedence over global ones
-		combined_items = {item.name: item for item in global_items}
-		combined_items.update({item.name: item for item in tenant_items})
 
-		return list(combined_items.values())
+		# Instead of merging by item.name, simply concatenate the two lists.
+		return global_items + tenant_items
+
 
 	async def process_nodes(self, nodes, base_path, target="global"):
 		"""
