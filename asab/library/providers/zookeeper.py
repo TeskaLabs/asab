@@ -291,7 +291,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			tenant_items = []
 
 		# Instead of merging by item.name, simply concatenate the two lists.
-		return global_items + tenant_items
+		return tenant_items + global_items
 
 
 	async def process_nodes(self, nodes, base_path, target="global"):
