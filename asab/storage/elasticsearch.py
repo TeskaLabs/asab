@@ -66,7 +66,8 @@ class StorageService(StorageServiceABC):
 		self.ServerUrls = get_url_list(url)
 
 		if len(self.ServerUrls) == 0:
-			raise RuntimeError("No ElasticSearch URL has been provided.")
+			L.error("No ElasticSearch URL has been provided. The application will work without Elasticsearch storage.")
+			return
 
 		# Authorization: username or API-key
 		username = Config.get(config_section_name, 'elasticsearch_username')
