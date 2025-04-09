@@ -317,7 +317,7 @@ class StorageService(StorageServiceABC):
 		return ElasticSearchUpsertor(self, index, obj_id, version)
 
 
-	async def list(self, index: str, _from: int = 0, size: int = 10000, body: typing.Optional[dict] = None, last_hit_sort=None, _filter=None) -> dict:
+	async def list(self, index: str, _from: int = 0, size: int = 10000, body: typing.Optional[dict] = None, last_hit_sort=None, _filter=None, sorts=None) -> dict:
 		"""List data matching the index with pagination.
 
 		:param index: Specified index.
@@ -352,8 +352,17 @@ class StorageService(StorageServiceABC):
 				}
 			}
 
-		# https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#search-after
-		body['sort'] = [{'_id': 'asc'}]  # Always need a consistent sort order for deep pagination
+		if sorts:
+			body['sort'] = []
+
+			for field, desc in sorts:
+				order = 'desc' if desc else 'asc'
+				body['sort'].append({field: {"order": order}})
+
+		else:
+
+			# https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#search-after
+			body['sort'] = [{'_id': 'asc'}]  # Always need a consistent sort order for deep pagination
 
 		# Use "search_after" for deep pagination when "_from" exceeds 10,000
 		if last_hit_sort:
