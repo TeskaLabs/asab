@@ -382,9 +382,6 @@ class LibraryService(Service):
 	async def _read_disabled(self):
 		# `.disabled.yaml` is read from the first configured library
 		# It is applied on all libraries in the configuration.
-		if not self.is_ready():
-			raise LibraryNotReadyError("Library is not ready yet.")
-
 		disabled = await self.Libraries[0].read('/.disabled.yaml')
 
 		if disabled is None:
