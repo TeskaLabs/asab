@@ -302,6 +302,7 @@ class StorageService(StorageServiceABC):
 			}
 		}
 		async with self.request("POST", "_reindex", json=data) as resp:
+
 			if resp.status != 200:
 				raise AssertionError(
 					"Unexpected response code when reindexing: {}, {}".format(
@@ -309,7 +310,6 @@ class StorageService(StorageServiceABC):
 					)
 				)
 
-			print('------> REINDEX ;=)')
 			return await resp.json()
 
 
