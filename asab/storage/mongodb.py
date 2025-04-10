@@ -94,21 +94,6 @@ class StorageService(StorageServiceABC):
 	async def collection(self, collection: str) -> motor.motor_asyncio.AsyncIOMotorCollection:
 		"""
 		Get collection. Useful for custom operations.
-
-		Args:
-			collection: Collection to get.
-
-		Returns:
-			`AsyncIOMotorCollection` object connected to the queried database.
-
-		Examples:
-
-			>>> coll = await storage.collection("test-collection")
-			>>> cursor = coll.find({})
-			>>> while await cursor.fetch_next:
-			... 	obj = cursor.next_object()
-			... 	pprint.pprint(obj)
-
 		"""
 
 		return self.Database[collection]
@@ -124,33 +109,34 @@ class StorageService(StorageServiceABC):
 		return ret['_id']
 
 
-	async def list(self, collection_name: str, _from: int = 0, size: int = 0, _filter=None) -> dict:
+	async def list(self, collection_name: str, _from: int = 0, size: int = 0, _filter=None, sorts=None):
 		"""
 		Lists all the elements in the collection starting from _from and ending with size (unless the size is 0).
 		"""
 		collection = self.Database[collection_name]
-		loaded_items = 0
 
+		# Build filter
 		if _filter is None:
-			items_cursor = collection.find({})
+			query = {}
 
 		else:
-			_filter = collection.find({
-				"_id": {"$regex": "^{}".format(_filter)}
-			})
+			query = {"_id": {"$regex": f"^{_filter}"}}
 
-		# Iterate through the idvidual rows stored in MongoDB
+		items_cursor = collection.find(query)
+
+		# Apply sorting if needed
+		if sorts:
+			sort_list = [(field, -1 if descending else 1) for field, descending in sorts]
+			items_cursor = items_cursor.sort(sort_list)
+
+		# Apply skip and limit
+		if _from:
+			items_cursor = items_cursor.skip(_from)
+
+		if size:
+			items_cursor = items_cursor.limit(size)
+
 		async for item in items_cursor:
-
-			# Start _from
-			if loaded_items < _from:
-				loaded_items += 1
-				continue
-
-			# What is the requested size?
-			if size != 0 and loaded_items >= size:
-				break
-
 			yield item
 
 
