@@ -438,7 +438,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				try:
 					await do_check_path(actual_path=path)
 				except Exception as e:
-					L.error(
+					L.exception(
 						"Failed to process library changes: '{}'".format(e),
 						struct_data={"path": path},
 					)
@@ -448,7 +448,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					try:
 						await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 					except Exception as e:
-						L.error(
+						L.exception(
 							"Failed to process library changes: '{}'".format(e),
 							struct_data={"path": path, "tenant": tenant},
 						)
@@ -458,7 +458,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				try:
 					await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 				except Exception as e:
-					L.error(
+					L.exception(
 						"Failed to process library changes: '{}'".format(e),
 						struct_data={"path": path, "tenant": tenant},
 					)
