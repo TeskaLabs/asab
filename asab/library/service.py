@@ -418,20 +418,56 @@ class LibraryService(Service):
 		if publish_changes:
 			await self._publish_change_for_disabled_diff(old_disabled, old_disabled_paths)
 
-
 	async def _publish_change_for_disabled_diff(self, old_disabled, old_disabled_paths):
+		"""
+		Compare old and new disabled data and publish Library.change! if any subscribed path is affected.
+		"""
+
+		if not self.Libraries:
+			return
+
+		# Check only the first provider for subscriptions
+		provider = self.Libraries[0]
+
+		# Create quick lookup for all currently subscribed paths
 		subscribed_paths = set()
-		for provider in self.Libraries:
-			if hasattr(provider, "Subscriptions"):
-				for target, subscribed_path in getattr(provider, "Subscriptions", []):
-					subscribed_paths.add((target, subscribed_path))
+		for p_target, p_path in provider.Subscriptions:
+			# Ignore special tenant-specific subscriptions here
+			if isinstance(p_target, tuple):
+				continue
+			subscribed_paths.add(p_path)
 
-		for target, subscribed_path in subscribed_paths:
-			was_disabled = self._check_disabled_against(subscribed_path, old_disabled, old_disabled_paths, target)
-			now_disabled = self.check_disabled_with_target(subscribed_path, target)
+		# For each subscribed path
+		for sub_path in subscribed_paths:
+			# Check if something disabled under this path changed
+			changed = self._is_disabled_diff_affecting_path(sub_path, old_disabled, old_disabled_paths)
 
-			if not was_disabled and now_disabled:
-				self.App.PubSub.publish("Library.change!", self, subscribed_path)
+			if changed:
+				self.App.PubSub.publish("Library.change!", self, sub_path)
+
+	def _is_disabled_diff_affecting_path(self, sub_path, old_disabled, old_disabled_paths):
+		"""
+		Check if disabling changes affect the subscribed path.
+		"""
+
+		# Normalize path (ensure it ends with / for folders)
+		if not sub_path.endswith('/'):
+			sub_path = sub_path + '/'
+
+		# Check disabled items
+		for path in old_disabled.keys() | self.Disabled.keys():
+			if path.startswith(sub_path):
+				old_entry = old_disabled.get(path)
+				new_entry = self.Disabled.get(path)
+				if old_entry != new_entry:
+					return True
+
+		# Check disabled folders
+		for path, _ in old_disabled_paths + self.DisabledPaths:
+			if path.startswith(sub_path):
+				return True
+
+		return False
 
 
 	def check_disabled_with_target(self, path: str, target) -> bool:
