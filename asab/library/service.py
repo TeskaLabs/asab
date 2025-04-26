@@ -375,45 +375,85 @@ class LibraryService(Service):
 		return items
 
 
-	async def _read_disabled(self):
-		# `.disabled.yaml` is read from the first configured library
-		# It is applied on all libraries in the configuration.
-		disabled = await self.Libraries[0].read('/.disabled.yaml')
+	async def _read_disabled(self, publish_changes=False):
+		old_disabled = self.Disabled.copy()
+		old_disabled_paths = list(self.DisabledPaths)
 
-		if disabled is None:
+		# Read the file
+		disabled_file = await self.Libraries[0].read('/.disabled.yaml')
+
+		if disabled_file is None:
 			self.Disabled = {}
 			self.DisabledPaths = []
-			return
+		else:
+			try:
+				disabled_data = yaml.load(disabled_file, Loader=yaml.CSafeLoader)
+			except Exception:
+				L.exception("Failed to parse '/.disabled.yaml'")
+				self.Disabled = {}
+				self.DisabledPaths = []
+				return
 
-		try:
-			disabled = yaml.load(disabled, Loader=yaml.CSafeLoader)
-		except Exception:
-			self.Disabled = {}
-			self.DisabledPaths = []
-			L.exception("Failed to parse '/.disabled.yaml'")
-			return
+			if disabled_data is None:
+				self.Disabled = {}
+				self.DisabledPaths = []
+				return
 
-		if disabled is None:
-			self.Disabled = {}
-			self.DisabledPaths = []
-			return
-
-		if isinstance(disabled, set):
-			# This is for a backward compatibility (Aug 2023)
-			self.Disabled = {key: '*' for key in self.Disabled}
-			self.DisabledPaths = []
-			return
-
-		self.Disabled = {}
-		self.DisabledPaths = []
-		for k, v in disabled.items():
-			if k.endswith('/'):
-				self.DisabledPaths.append((k, v))
+			if isinstance(disabled_data, set):
+				# Backward compatibility (August 2023)
+				self.Disabled = {key: '*' for key in disabled_data}
+				self.DisabledPaths = []
 			else:
-				self.Disabled[k] = v
+				self.Disabled = {}
+				self.DisabledPaths = []
+				for k, v in disabled_data.items():
+					if k.endswith('/'):
+						self.DisabledPaths.append((k, v))
+					else:
+						self.Disabled[k] = v
 
-		# Sort self.DisabledPaths from the shortest to longest
 		self.DisabledPaths.sort(key=lambda x: len(x[0]))
+
+		if publish_changes:
+			await self._publish_change_for_disabled_diff(old_disabled, old_disabled_paths)
+
+
+	async def _publish_change_for_disabled_diff(self, old_disabled, old_disabled_paths):
+		# Collect all subscribed paths
+		subscribed_paths = set()
+		for provider in self.Libraries:
+			if hasattr(provider, "Subscriptions"):
+				for _, subscribed_path in getattr(provider, "Subscriptions", []):
+					subscribed_paths.add(subscribed_path)
+
+		# Check which subscribed paths are now disabled (newly)
+		for subscribed_path in subscribed_paths:
+			was_disabled = self._check_disabled_against(subscribed_path, old_disabled, old_disabled_paths)
+			now_disabled = self.check_disabled(subscribed_path)
+
+			if not was_disabled and now_disabled:
+				self.App.PubSub.publish("Library.change!", self, subscribed_path)
+
+	def _check_disabled_against(self, path: str, disabled: dict, disabled_paths: list) -> bool:
+		# Get tenant context if any
+		try:
+			tenant = Tenant.get()
+		except LookupError:
+			tenant = None
+
+		for dp, val in disabled_paths:
+			if path.startswith(dp):
+				if "*" in val or (tenant and tenant in val):
+					return True
+
+		val = disabled.get(path)
+		if val is None:
+			return False
+
+		if "*" in val or (tenant and tenant in val):
+			return True
+
+		return False
 
 
 	def check_disabled(self, path: str) -> bool:
