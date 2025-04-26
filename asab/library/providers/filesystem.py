@@ -60,7 +60,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		self.BasePath = path.rstrip("/")
 		self.DisabledFilePath = os.path.join(self.BasePath, '.disabled.yaml')
 
-
 		self.AggrEvents = []
 		self.WDs = {}
 
