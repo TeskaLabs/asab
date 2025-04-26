@@ -414,6 +414,7 @@ class LibraryService(Service):
 
 		self.DisabledPaths.sort(key=lambda x: len(x[0]))
 
+		# If requested, compare old and new disables to notify subscribers via Library.change!
 		if publish_changes:
 			await self._publish_change_for_disabled_diff(old_disabled, old_disabled_paths)
 
