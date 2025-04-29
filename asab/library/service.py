@@ -420,34 +420,31 @@ class LibraryService(Service):
 
 	async def _publish_change_for_disabled_diff(self, old_disabled, old_disabled_paths):
 		"""
-		Compare old and new disabled data and publish Library.change! if any subscribed path is affected.
+		Compare old and new disabled data and publish Library.change!
+		if any subscribed path is affected for the specific subscription target.
 		"""
 
 		if not self.Libraries:
 			return
 
-		# Check only the first provider for subscriptions
 		provider = self.Libraries[0]
 
-		# Create quick lookup for all currently subscribed paths
-		subscribed_paths = set()
-		for p_target, p_path in provider.Subscriptions:
-			# Ignore special tenant-specific subscriptions here
-			if isinstance(p_target, tuple):
-				continue
-			subscribed_paths.add(p_path)
+		# Check if the provider has Subscriptions attribute
+		subscriptions = getattr(provider, "Subscriptions", None)
+		if subscriptions is None:
+			return
 
-		# For each subscribed path
-		for sub_path in subscribed_paths:
-			# Check if something disabled under this path changed
-			changed = self._is_disabled_diff_affecting_path(sub_path, old_disabled, old_disabled_paths)
+		# For each subscription (path + target)
+		for p_target, p_path in subscriptions:
+			# Check if something disabled under this path and target changed
+			changed = self._is_disabled_diff_affecting_path(p_path, old_disabled, old_disabled_paths, p_target)
 
 			if changed:
-				self.App.PubSub.publish("Library.change!", self, sub_path)
+				self.App.PubSub.publish("Library.change!", self, p_path)
 
-	def _is_disabled_diff_affecting_path(self, sub_path, old_disabled, old_disabled_paths):
+	def _is_disabled_diff_affecting_path(self, sub_path, old_disabled, old_disabled_paths, target=None):
 		"""
-		Check if disabling changes affect the subscribed path.
+		Check if disabling changes affect the subscribed path for a specific target.
 		"""
 
 		# Normalize path (ensure it ends with / for folders)
@@ -456,85 +453,54 @@ class LibraryService(Service):
 
 		# Check disabled items
 		for path in old_disabled.keys() | self.Disabled.keys():
-			if path.startswith(sub_path):
-				old_entry = old_disabled.get(path)
-				new_entry = self.Disabled.get(path)
-				if old_entry != new_entry:
-					return True
+			if not path.startswith(sub_path):
+				continue
+
+			old_disabled_entry = old_disabled.get(path)
+			new_disabled_entry = self.Disabled.get(path)
+
+			old_disabled_for_target = self._is_disabled_for_target(old_disabled_entry, target)
+			new_disabled_for_target = self._is_disabled_for_target(new_disabled_entry, target)
+
+			if old_disabled_for_target != new_disabled_for_target:
+				return True
 
 		# Check disabled folders
-		for path, _ in old_disabled_paths + self.DisabledPaths:
-			if path.startswith(sub_path):
+		old_paths = {p: v for p, v in old_disabled_paths}
+		new_paths = {p: v for p, v in self.DisabledPaths}
+
+		for path in old_paths.keys() | new_paths.keys():
+			if not path.startswith(sub_path):
+				continue
+
+			old_disabled_entry = old_paths.get(path)
+			new_disabled_entry = new_paths.get(path)
+
+			old_disabled_for_target = self._is_disabled_for_target(old_disabled_entry, target)
+			new_disabled_for_target = self._is_disabled_for_target(new_disabled_entry, target)
+
+			if old_disabled_for_target != new_disabled_for_target:
 				return True
 
 		return False
 
-
-	def check_disabled_with_target(self, path: str, target) -> bool:
+	def _is_disabled_for_target(self, disabled_entry, target):
 		"""
-		Check if a path is disabled for a specific subscription target (global or tenant-specific).
+		Check if a disabled entry affects a specific target (global, tenant, or tenant ID).
 		"""
-		if not isinstance(path, str) or not path:
-			raise LibraryInvalidPathError(
-				message="Argument 'path' must be a non-empty string.",
-				path=path,
-			)
-
-		tenant = None
-		if isinstance(target, tuple) and target[0] == "tenant":
-			tenant = target[1]
-		elif target == "tenant":
-			try:
-				tenant = Tenant.get()
-			except LookupError:
-				tenant = None
-
-		# First check DisabledPaths (folder disables)
-		for dp, disabled in self.DisabledPaths:
-			if path.startswith(dp):
-				if "*" in disabled:
-					return True
-				if tenant is not None and tenant in disabled:
-					return True
-
-		# Then check Disabled (file disables)
-		disabled = self.Disabled.get(path)
-
-		if disabled is None:
+		if disabled_entry is None:
 			return False
 
-		if "*" in disabled:
-			return True
-		if tenant is not None and tenant in disabled:
-			return True
+		if target is None or target == "global":
+			return "*" in disabled_entry
 
-		return False
+		if target == "tenant":
+			# Wildcard tenant subscription (all tenants)
+			return bool(disabled_entry)
 
-	def _check_disabled_against(self, path: str, disabled: dict, disabled_paths: list, target=None) -> bool:
-		tenant = None
 		if isinstance(target, tuple) and target[0] == "tenant":
-			tenant = target[1]
-		elif target == "tenant":
-			try:
-				tenant = Tenant.get()
-			except LookupError:
-				tenant = None
-
-		for dp, val in disabled_paths:
-			if path.startswith(dp):
-				if "*" in val:
-					return True
-				if tenant is not None and tenant in val:
-					return True
-
-		val = disabled.get(path)
-		if val is None:
-			return False
-
-		if "*" in val:
-			return True
-		if tenant is not None and tenant in val:
-			return True
+			tenant_id = target[1]
+			return "*" in disabled_entry or tenant_id in disabled_entry
 
 		return False
 
