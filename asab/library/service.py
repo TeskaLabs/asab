@@ -427,6 +427,8 @@ class LibraryService(Service):
 		if not self.Libraries:
 			return
 
+		# Only the first provider (layer 0) owns and manages '/.disabled.yaml',
+		# so all disable‐and‐subscription logic is driven from that topmost layer.
 		provider = self.Libraries[0]
 
 		# Check if the provider has Subscriptions attribute
