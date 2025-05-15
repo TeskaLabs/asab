@@ -89,6 +89,9 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		if version.startswith('v'):
 			# Fixed versions (ie v24.04) are much less likely to change, therefore we can check only every 12 hours
 			self.App.PubSub.subscribe("Application.tick/43200!", self._periodic_pull)
+		elif archname == 'teskalabs-versions-library':
+			# TODO: This is a temporary workaround for the teskalabs-versions-library. It has to be delivered continuously. However, it is not a good idea to check every minute. Better solution coming soon in LogMan.io.
+			self.App.PubSub.subscribe("Application.tick/43200!", self._periodic_pull)
 		else:
 			self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
@@ -135,6 +138,8 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 					# Sleep for 5 seconds before trying the next URL set
 					await asyncio.sleep(5)
 					continue
+
+				L.debug("Periodic pull of libsreg library", struct_data={'url': url})
 
 				last_try = i == len(urllist) - 1
 				try:
