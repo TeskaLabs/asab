@@ -376,45 +376,143 @@ class LibraryService(Service):
 		# Do not sort items; return them in the order they were merged.
 		return items
 
-	async def _read_disabled(self):
-		# `.disabled.yaml` is read from the first configured library
-		# It is applied on all libraries in the configuration.
-		disabled = await self.Libraries[0].read('/.disabled.yaml')
+	async def _read_disabled(self, publish_changes=False):
+		old_disabled = self.Disabled.copy()
+		old_disabled_paths = list(self.DisabledPaths)
+		# Read the file
+		disabled_file = await self.Libraries[0].read('/.disabled.yaml')
 
-		if disabled is None:
+		if disabled_file is None:
 			self.Disabled = {}
 			self.DisabledPaths = []
-			return
+		else:
+			try:
+				disabled_data = yaml.load(disabled_file, Loader=yaml.CSafeLoader)
+			except Exception:
+				L.exception("Failed to parse '/.disabled.yaml'")
+				self.Disabled = {}
+				self.DisabledPaths = []
+				return
 
-		try:
-			disabled = yaml.load(disabled, Loader=yaml.CSafeLoader)
-		except Exception:
-			self.Disabled = {}
-			self.DisabledPaths = []
-			L.exception("Failed to parse '/.disabled.yaml'")
-			return
+			if disabled_data is None:
+				self.Disabled = {}
+				self.DisabledPaths = []
+				return
 
-		if disabled is None:
-			self.Disabled = {}
-			self.DisabledPaths = []
-			return
-
-		if isinstance(disabled, set):
-			# This is for a backward compatibility (Aug 2023)
-			self.Disabled = {key: '*' for key in self.Disabled}
-			self.DisabledPaths = []
-			return
-
-		self.Disabled = {}
-		self.DisabledPaths = []
-		for k, v in disabled.items():
-			if k.endswith('/'):
-				self.DisabledPaths.append((k, v))
+			if isinstance(disabled_data, set):
+				# Backward compatibility (August 2023)
+				self.Disabled = {key: '*' for key in disabled_data}
+				self.DisabledPaths = []
 			else:
-				self.Disabled[k] = v
+				self.Disabled = {}
+				self.DisabledPaths = []
+				for k, v in disabled_data.items():
+					if k.endswith('/'):
+						self.DisabledPaths.append((k, v))
+					else:
+						self.Disabled[k] = v
 
-		# Sort self.DisabledPaths from the shortest to longest
 		self.DisabledPaths.sort(key=lambda x: len(x[0]))
+
+		# If requested, compare old and new disables to notify subscribers via Library.change!
+		if publish_changes:
+			await self._publish_change_for_disabled_diff(old_disabled, old_disabled_paths)
+
+	async def _publish_change_for_disabled_diff(self, old_disabled, old_disabled_paths):
+		"""
+		Compare old and new disabled data and publish Library.change!
+		if any subscribed path is affected for the specific subscription target.
+		"""
+
+		if not self.Libraries:
+			return
+
+		# Only the first provider (layer 0) owns and manages '/.disabled.yaml',
+		# so all disable‐and‐subscription logic is driven from that topmost layer.
+		provider = self.Libraries[0]
+
+		# Check if the provider has Subscriptions attribute
+		subscriptions = getattr(provider, "Subscriptions", None)
+		if subscriptions is None:
+			return
+
+		# For each subscription (path + target)
+		for p_target, p_path in subscriptions:
+			# Check if something disabled under this path and target changed
+			changed = self._is_disabled_diff_affecting_path(p_path, old_disabled, old_disabled_paths, p_target)
+
+			if changed:
+				self.App.PubSub.publish("Library.change!", self, p_path)
+
+	def _is_disabled_diff_affecting_path(self, sub_path, old_disabled, old_disabled_paths, target=None):
+		"""
+		Check if disabling changes affect the subscribed path for a specific target.
+		For target=="tenant" (wildcard), we fire whenever the set of tenants changes.
+		"""
+
+		# Normalize path (ensure it ends with / for folders)
+		if not sub_path.endswith('/'):
+			sub_path = sub_path + '/'
+
+		# 1) File-level disables
+		for path in old_disabled.keys() | self.Disabled.keys():
+			if not path.startswith(sub_path):
+				continue
+
+			old_entry = old_disabled.get(path) or []
+			new_entry = self.Disabled.get(path) or []
+
+			if target == "tenant":
+				# Wildcard tenant subscription: any change in the list of tenants
+				if set(old_entry) != set(new_entry):
+					return True
+			else:
+				old_flag = self._is_disabled_for_target(old_entry, target)
+				new_flag = self._is_disabled_for_target(new_entry, target)
+				if old_flag != new_flag:
+					return True
+
+		# 2) Folder-level disables
+		old_map = {p: v for p, v in old_disabled_paths}
+		new_map = {p: v for p, v in self.DisabledPaths}
+
+		for path in old_map.keys() | new_map.keys():
+			if not path.startswith(sub_path):
+				continue
+
+			old_entry = old_map.get(path) or []
+			new_entry = new_map.get(path) or []
+
+			if target == "tenant":
+				if set(old_entry) != set(new_entry):
+					return True
+			else:
+				old_flag = self._is_disabled_for_target(old_entry, target)
+				new_flag = self._is_disabled_for_target(new_entry, target)
+				if old_flag != new_flag:
+					return True
+
+		return False
+
+	def _is_disabled_for_target(self, disabled_entry, target):
+		"""
+		Check if a disabled entry affects a specific target (global, tenant, or tenant ID).
+		"""
+		if disabled_entry is None:
+			return False
+
+		if target is None or target == "global":
+			return "*" in disabled_entry
+
+		if target == "tenant":
+			# Wildcard tenant subscription (all tenants)
+			return bool(disabled_entry)
+
+		if isinstance(target, tuple) and target[0] == "tenant":
+			tenant_id = target[1]
+			return "*" in disabled_entry or tenant_id in disabled_entry
+
+		return False
 
 
 	def check_disabled(self, path: str) -> bool:
