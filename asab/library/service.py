@@ -447,42 +447,50 @@ class LibraryService(Service):
 	def _is_disabled_diff_affecting_path(self, sub_path, old_disabled, old_disabled_paths, target=None):
 		"""
 		Check if disabling changes affect the subscribed path for a specific target.
+		For target=="tenant" (wildcard), we fire whenever the set of tenants changes.
 		"""
 
 		# Normalize path (ensure it ends with / for folders)
 		if not sub_path.endswith('/'):
 			sub_path = sub_path + '/'
 
-		# Check disabled items
+		# 1) File-level disables
 		for path in old_disabled.keys() | self.Disabled.keys():
 			if not path.startswith(sub_path):
 				continue
 
-			old_disabled_entry = old_disabled.get(path)
-			new_disabled_entry = self.Disabled.get(path)
+			old_entry = old_disabled.get(path) or []
+			new_entry = self.Disabled.get(path) or []
 
-			old_disabled_for_target = self._is_disabled_for_target(old_disabled_entry, target)
-			new_disabled_for_target = self._is_disabled_for_target(new_disabled_entry, target)
+			if target == "tenant":
+				# Wildcard tenant subscription: any change in the list of tenants
+				if set(old_entry) != set(new_entry):
+					return True
+			else:
+				old_flag = self._is_disabled_for_target(old_entry, target)
+				new_flag = self._is_disabled_for_target(new_entry, target)
+				if old_flag != new_flag:
+					return True
 
-			if old_disabled_for_target != new_disabled_for_target:
-				return True
+		# 2) Folder-level disables
+		old_map = {p: v for p, v in old_disabled_paths}
+		new_map = {p: v for p, v in self.DisabledPaths}
 
-		# Check disabled folders
-		old_paths = {p: v for p, v in old_disabled_paths}
-		new_paths = {p: v for p, v in self.DisabledPaths}
-
-		for path in old_paths.keys() | new_paths.keys():
+		for path in old_map.keys() | new_map.keys():
 			if not path.startswith(sub_path):
 				continue
 
-			old_disabled_entry = old_paths.get(path)
-			new_disabled_entry = new_paths.get(path)
+			old_entry = old_map.get(path) or []
+			new_entry = new_map.get(path) or []
 
-			old_disabled_for_target = self._is_disabled_for_target(old_disabled_entry, target)
-			new_disabled_for_target = self._is_disabled_for_target(new_disabled_entry, target)
-
-			if old_disabled_for_target != new_disabled_for_target:
-				return True
+			if target == "tenant":
+				if set(old_entry) != set(new_entry):
+					return True
+			else:
+				old_flag = self._is_disabled_for_target(old_entry, target)
+				new_flag = self._is_disabled_for_target(new_entry, target)
+				if old_flag != new_flag:
+					return True
 
 		return False
 
