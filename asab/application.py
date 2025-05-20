@@ -480,6 +480,7 @@ class Application(metaclass=Singleton):
 		Args:
 			exit_code (int, optional): Exit code of the finalized process.
 		"""
+
 		if exit_code is not None:
 			self.set_exit_code(exit_code)
 

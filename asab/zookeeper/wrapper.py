@@ -26,13 +26,17 @@ class KazooWrapper(object):
 		)
 
 		self.Client.add_listener(zkcnt._listener)
+		self.Stopped = False
 
 
 	async def _stop(self):
-		ret = await self.ProactorService.execute(
-			self.Client.stop,
-		)
-		return ret
+		def do():
+			self.Stopped = True
+			ret = self.Client.stop()
+			self.Client.close()
+			return ret
+
+		return await self.ProactorService.execute(do)
 
 
 	# read-only calls

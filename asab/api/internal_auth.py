@@ -1,8 +1,9 @@
+import os
+import json
 import logging
 import datetime
-import json
-import os
 import secrets
+
 import kazoo
 
 try:
@@ -64,8 +65,6 @@ class InternalAuth:
 			self.PublicKeyProvider = StaticPublicKeyProvider(self.App)
 			auth_provider.register_key_provider(self.PublicKeyProvider)
 
-		self._schedule_key_and_token_update()
-
 
 	def get_authorization_header(self) -> str:
 		"""
@@ -96,7 +95,7 @@ class InternalAuth:
 		return "Bearer {}".format(self.IdToken.serialize())
 
 
-	def _schedule_key_and_token_update(self, *args, **kwargs):
+	def _schedule_key_and_token_update(self, event_name, *args, **kwargs):
 		"""
 		Schedule the private key and ID token update task.
 		"""
@@ -128,6 +127,7 @@ class InternalAuth:
 		Returns:
 			True if the private key has changed, False otherwise.
 		"""
+
 		changed = False
 		private_key_json = None
 		# Attempt to create and write a new private key
@@ -142,12 +142,11 @@ class InternalAuth:
 
 			# Generate a new key
 			private_key = jwcrypto.jwk.JWK.generate(kty="EC", crv="P-256", kid=secrets.token_hex(16))
-			# private_key.key_id =
+
 			private_key_json = json.dumps(private_key.export(as_dict=True)).encode("utf-8")
 			try:
 				self.ZooKeeperContainer.ZooKeeper.Client.create(self.PrivateKeyPath, private_key_json, makepath=True)
-				L.info("Internal auth key created.", struct_data={
-					"kid": private_key.key_id, "path": self.PrivateKeyPath})
+				L.info("Internal auth key created.", struct_data={"kid": private_key.key_id, "path": self.PrivateKeyPath})
 			except kazoo.exceptions.NodeExistsError:
 				# Another ASAB service has probably created the key in the meantime
 				pass
