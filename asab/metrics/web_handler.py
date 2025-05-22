@@ -103,6 +103,7 @@ class MetricWebHandler(object):
 def watch_table(metric_records: list, filter, tags):
 	lines = []
 	m_name_len = max([len(i["name"]) for i in metric_records])
+	m_name_len = max(m_name_len, 11)  # in case the header ("Metric name") is the longest in column
 
 	v_name_len = 0
 	for i in metric_records:
