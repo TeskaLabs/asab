@@ -101,9 +101,12 @@ class MetricWebHandler(object):
 
 
 def watch_table(metric_records: list, filter, tags):
+
+	header = ["Metric name", "Value name", "Value", "Timestamp", "Tags"]
 	lines = []
+
 	m_name_len = max([len(i["name"]) for i in metric_records])
-	m_name_len = max(m_name_len, 11)  # in case the header ("Metric name") is the longest in column
+	m_name_len = max(m_name_len, len(header[0]))  # in case the header is the longest text in column
 
 	v_name_len = 0
 	for i in metric_records:
@@ -123,10 +126,23 @@ def watch_table(metric_records: list, filter, tags):
 	else:
 		separator = "-" * (m_name_len + v_name_len + timestamp_len + 30 + 2)
 
+	# Build header
 	lines.append(separator)
-	lines.append(build_line("Metric name", "Value name", "Value", "Timestamp", m_name_len, v_name_len, tags, timestamp_len, t_string="Tags", t_name_len=t_name_len))
+	lines.append(build_line(
+		header[0],
+		header[1],
+		header[2],
+		header[3],
+		m_name_len,
+		v_name_len,
+		tags,
+		timestamp_len,
+		t_string=header[4],
+		t_name_len=t_name_len)
+	)
 	lines.append(separator)
 
+	# Build the rest of the table
 	for metric_record in metric_records:
 		for field in metric_record["fieldset"]:
 			if field.get("values") is None:
