@@ -160,7 +160,10 @@ class TaskService(asab.Service):
 					try:
 						await task
 					except Exception as e:
-						L.exception("Error '{}' during task:".format(e))
+						msg = str(e)
+						if len(msg) == 0:
+							msg = e.__class__.__name__
+						L.exception("Error '{}' during task:".format(msg))
 					self.App.PubSub.publish("TaskService.task_done!", task)
 
 
