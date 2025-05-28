@@ -31,12 +31,13 @@ class KazooWrapper(object):
 
 	async def _stop(self):
 		def do():
-			self.Stopped = True
+			if not self.Stopped:
 			ret = self.Client.stop()
-			self.Client.close()
-			return ret
+				self.Stopped = True
+				self.Client.stop()
+				self.Client.close()
 
-		return await self.ProactorService.execute(do)
+		await self.ProactorService.execute(do)
 
 
 	# read-only calls
