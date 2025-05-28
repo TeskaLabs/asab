@@ -136,7 +136,7 @@ Licence
 
 ASAB is an open-source software, available under BSD 3-Clause License.  
 
-**Commercial License:**
+**Commercial License**
 
 If you use this software without complying with the terms of the BSD 3-Clause License (e.g., failing to provide attribution or include the license text), you must purchase a commercial license.
 
