@@ -192,7 +192,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		The `finalize` function is called when the application is shutting down
 		"""
 		self.DisabledWatch = None
-		await self.Zookeeper._stop()
+		zksvc = self.App.get_service("asab.ZooKeeperService")
+		await zksvc.remove(self.ZookeeperContainer)
 
 
 	async def _on_zk_connected(self, event_name, zkcontainer):
