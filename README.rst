@@ -31,7 +31,7 @@ Installation
 Documentation
 -------------
 
-* `Documentation on Readthedocs <http://asab.readthedocs.io/>`_
+* `Documentation <https://docs.teskalabs.com/asab/>`_
 * `Examples <https://github.com/TeskaLabs/asab/tree/master/examples>`_
 
 
@@ -100,14 +100,6 @@ Highlights
 * Unified microservice **API**
 
 
-Automatic API documentation
----------------------------
-
-The REST API is automatically documented using OpenAPI3 standard and the Swagger.
-
-.. image:: https://github.com/TeskaLabs/asab/raw/master/doc/openapi3-swagger.jpg
-
-
 Principles
 ----------
 
@@ -122,13 +114,6 @@ Principles
 * Kappa architecture
 * Support for introspection
 * Modularized
-
-
-Video tutorial
-^^^^^^^^^^^^^^
-
-.. image:: http://img.youtube.com/vi/77StpWxOIBc/0.jpg
-   :target: https://www.youtube.com/watch?v=77StpWxOIBc&list=PLhdpLpq_tPSDb2YMDwyz431pM1BPDWHNK
 
 
 Licence
