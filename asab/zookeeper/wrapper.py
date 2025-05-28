@@ -32,7 +32,6 @@ class KazooWrapper(object):
 	async def _stop(self):
 		def do():
 			if not self.Stopped:
-			ret = self.Client.stop()
 				self.Stopped = True
 				self.Client.stop()
 				self.Client.close()
