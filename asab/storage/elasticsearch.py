@@ -1,5 +1,6 @@
 import ssl
 import time
+import json
 import logging
 import datetime
 import urllib.parse
@@ -65,7 +66,8 @@ class StorageService(StorageServiceABC):
 		self.ServerUrls = get_url_list(url)
 
 		if len(self.ServerUrls) == 0:
-			raise RuntimeError("No ElasticSearch URL has been provided.")
+			L.error("No ElasticSearch URL has been provided. The application will work without Elasticsearch storage.")
+			return
 
 		# Authorization: username or API-key
 		username = Config.get(config_section_name, 'elasticsearch_username')
@@ -143,7 +145,7 @@ class StorageService(StorageServiceABC):
 				resp = await resp.json()
 				L.error("Failed to connect to ElasticSearch.", struct_data={
 					"code": resp.get("status"),
-					"reason": resp.get("error", {}).get("reason")
+					"reason": resp.get("error")
 				})
 				return False
 
@@ -173,13 +175,13 @@ class StorageService(StorageServiceABC):
 		if decrypt is not None:
 			raise NotImplementedError("AES encryption for ElasticSearch not implemented")
 
-		async with self.request("GET", "{}/_doc/{}".format(index, obj_id)) as resp:
+		async with self.request("GET", "{}/_doc/{}".format(index, urllib.parse.quote(obj_id))) as resp:
 
 			if resp.status not in {200, 201, 404}:
 				resp = await resp.json()
 				raise ConnectionError("Failed to retrieve data from ElasticSearch. Got {}: {}".format(
 					resp.get("status"),
-					resp.get("error", {}).get("reason")
+					resp.get("error")
 				))
 
 			else:
@@ -196,6 +198,7 @@ class StorageService(StorageServiceABC):
 
 	async def get_by(self, collection: str, key: str, value, decrypt=None):
 		raise NotImplementedError("get_by")
+
 
 	async def delete(self, index: str, _id=None) -> dict:
 		"""
@@ -216,7 +219,7 @@ class StorageService(StorageServiceABC):
 		"""
 
 		if _id:
-			path = "{}/_doc/{}?refresh={}".format(index, urllib.parse.quote_plus(_id), self.Refresh)
+			path = "{}/_doc/{}?refresh={}".format(index, urllib.parse.quote(_id), self.Refresh)
 		else:
 			path = "{}".format(index)
 
@@ -299,6 +302,7 @@ class StorageService(StorageServiceABC):
 			}
 		}
 		async with self.request("POST", "_reindex", json=data) as resp:
+
 			if resp.status != 200:
 				raise AssertionError(
 					"Unexpected response code when reindexing: {}, {}".format(
@@ -306,7 +310,6 @@ class StorageService(StorageServiceABC):
 					)
 				)
 
-			print('------> REINDEX ;=)')
 			return await resp.json()
 
 
@@ -314,11 +317,11 @@ class StorageService(StorageServiceABC):
 		return ElasticSearchUpsertor(self, index, obj_id, version)
 
 
-	async def list(self, index: str, _from: int = 0, size: int = 10000, body: typing.Optional[dict] = None) -> dict:
-		"""List data matching the index.
+	async def list(self, index: str, _from: int = 0, size: int = 10000, body: typing.Optional[dict] = None, last_hit_sort=None, _filter=None, sorts=None) -> dict:
+		"""List data matching the index with pagination.
 
 		:param index: Specified index.
-		:param _from:  Starting document offset. Defaults to 0.
+		:param _from: Starting document offset. Defaults to 0.
 		:type _from: int
 		:param size: The number of hits to return. Defaults to 10000.
 		:type size: int
@@ -327,9 +330,8 @@ class StorageService(StorageServiceABC):
 
 		:return: The query search result.
 		:raise Exception: Raised if connection to all server URLs fails.
-
 		"""
-		if body is None:
+		if body is None and not _filter:
 			body = {
 				'query': {
 					'bool': {
@@ -340,14 +342,46 @@ class StorageService(StorageServiceABC):
 				}
 			}
 
-		async with self.request("GET", "{}/_search?size={}&from={}&version=true".format(index, size, _from)) as resp:
+		elif _filter:
+			# Apply case-insensitive filtering if _filter is provided
+			body = {'query': {}}
+			body['query']['wildcard'] = {
+				'_keys': {
+					'value': f"*{_filter.lower()}*",  # Case-insensitive wildcard search
+					'case_insensitive': True  # Requires ES 7.10+
+				}
+			}
+
+		if sorts:
+			body['sort'] = []
+
+			for field, desc in sorts:
+				order = 'desc' if desc else 'asc'
+				body['sort'].append({field: {"order": order}})
+
+		else:
+
+			# https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#search-after
+			body['sort'] = [{'_id': 'asc'}]  # Always need a consistent sort order for deep pagination
+
+		# Use "search_after" for deep pagination when "_from" exceeds 10,000
+		if last_hit_sort:
+			body['search_after'] = last_hit_sort
+
+		async with self.request("GET", "{}/_search?size={}&from={}&version=true".format(index, size, _from), json=body) as resp:
+
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
-			return await resp.json()
+			result = await resp.json()
+
+			last_hit = result['hits']['hits'][-1] if result['hits']['hits'] else None
+			last_hit_sort = last_hit['sort'] if last_hit else []
+
+			return result, last_hit_sort
 
 
-	async def count(self, index) -> int:
+	async def count(self, index, _filter=None) -> int:
 		"""
 		Get the number of matches for a given index.
 
@@ -356,7 +390,21 @@ class StorageService(StorageServiceABC):
 		:raise Exception: Connection failed.
 		"""
 
-		async with self.request("GET", "{}/_count".format(index)) as resp:
+		if _filter:
+			# Apply case-insensitive filtering if _filter is provided
+			body = {'query': {}}
+			body['query']['wildcard'] = {
+				'_keys': {
+					'value': f"*{_filter.lower()}*",  # Case-insensitive wildcard search
+					'case_insensitive': True  # Requires ES 7.10+
+				}
+			}
+
+		else:
+			body = {}
+
+		async with self.request("GET", "{}/_count".format(index), json=body) as resp:
+
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
@@ -370,7 +418,7 @@ class StorageService(StorageServiceABC):
 		:param search_string: A search string. Default to None.
 		"""
 
-		async with self.request("GET", "_cat/indices/{}?format=json".format(search_string if search_string is not None else "*")) as resp:
+		async with self.request("GET", "_cat/indices/{}?format=json&s=index".format(search_string if search_string is not None else "*")) as resp:
 
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
@@ -422,6 +470,50 @@ class StorageService(StorageServiceABC):
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
 
 			return await resp.json()
+
+
+	async def update_by_bulk(self, index: str, documents: list) -> dict:
+		"""
+		Use Elasticsearch bulk API to add/update multiple documents in an index.
+
+		:param index: The Elasticsearch index to update.
+		:param documents: A list of dictionaries, each containing '_id' and '_source' keys.
+		:raise RuntimeError: If the bulk update request fails.
+		"""
+		if not documents:
+			return 0
+
+		# Construct bulk request payload
+		bulk_data = ""
+
+		for doc in documents:
+			doc_id = doc.get("_id")
+			source = doc.get("_source")
+
+			if not doc_id or not source:
+				continue  # Skip invalid documents
+
+			bulk_data += json.dumps({"update": {"_index": index, "_id": doc_id}}) + "\n"
+			bulk_data += json.dumps({"doc": source, "doc_as_upsert": True}) + "\n"
+
+		async with self.request("POST", "_bulk?refresh={}".format(self.Refresh), data=bulk_data.encode("utf-8")) as resp:
+
+			if resp.status != 200:
+				raise RuntimeError(f"Bulk update failed: {resp.status} - {await resp.text()}")
+
+			result = await resp.json()
+
+			# Get how many items were updated
+			items_updated = 0
+
+			for item in result.get("items", []):
+
+				for value in item.values():
+
+					if value.get("status") in {200, 201}:
+						items_updated += 1
+
+			return items_updated
 
 
 class ElasticSearchUpsertor(UpsertorABC):
@@ -494,7 +586,7 @@ class ElasticSearchUpsertor(UpsertorABC):
 
 		async with self.Storage.request(
 			"POST",
-			"{}/_update/{}?refresh={}".format(self.Collection, self.ObjId, self.Storage.Refresh),
+			"{}/_update/{}?refresh={}".format(self.Collection, urllib.parse.quote(self.ObjId), self.Storage.Refresh),
 			json=upsert_data,
 		) as resp:
 			if resp.status not in {200, 201}:

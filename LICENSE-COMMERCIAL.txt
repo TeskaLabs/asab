@@ -1,0 +1,10 @@
+Commercial License for asab
+
+This software is also available under a commercial license.
+
+Any use of this software that does not fully comply with the BSD 3-Clause License—such as failure to include license notices or provide proper attribution—constitutes unauthorized use.
+In such cases, a commercial license is required.
+
+To obtain a commercial license, please contact TeskaLabs at: sales@teskalabs.com.
+
+Unauthorized use may result in legal consequences under applicable copyright laws.

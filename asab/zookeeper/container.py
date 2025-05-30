@@ -141,7 +141,11 @@ class ZooKeeperContainer(Configurable):
 			self.App.Loop.call_soon_threadsafe(self.ZooKeeper.Client.ensure_path, self.Path)
 			L.log(LOG_NOTICE, "Connected to ZooKeeper.")
 		else:
-			L.warning("ZooKeeper connection state changed.", struct_data={"state": str(state)})
+			if self.ZooKeeper.Stopped and state == kazoo.protocol.states.KazooState.LOST:
+				# This is normal
+				pass
+			else:
+				L.warning("ZooKeeper connection state changed.", struct_data={"state": str(state)})
 
 		self.App.PubSub.publish_threadsafe("ZooKeeperContainer.state/{}!".format(state), self)
 

@@ -4,9 +4,6 @@ Asynchronous Server App Boilerplate
 .. image:: https://img.shields.io/github/license/TeskaLabs/asab
     :target: https://github.com/TeskaLabs/asab/blob/master/LICENSE
 
-.. image:: https://readthedocs.org/projects/asab/badge/?version=latest
-    :target: https://asab.readthedocs.io/en/latest/?badge=latest
-
 Asynchronous Server App Boilerplate (or ASAB for short) is a microservice *framework* for Python 3 and `asyncio`.
 The aim of ASAB is to minimize the amount of code that needs to be written when building a microservice or an aplication server.
 ASAB is fully asynchronous using async/await syntax from Python 3, making your code modern, non-blocking, speedy and hence scalable.
@@ -34,7 +31,7 @@ Installation
 Documentation
 -------------
 
-* `Documentation on Readthedocs <http://asab.readthedocs.io/>`_
+* `Documentation <https://docs.teskalabs.com/asab/>`_
 * `Examples <https://github.com/TeskaLabs/asab/tree/master/examples>`_
 
 
@@ -103,14 +100,6 @@ Highlights
 * Unified microservice **API**
 
 
-Automatic API documentation
----------------------------
-
-The REST API is automatically documented using OpenAPI3 standard and the Swagger.
-
-.. image:: https://github.com/TeskaLabs/asab/raw/master/doc/openapi3-swagger.jpg
-
-
 Principles
 ----------
 
@@ -127,16 +116,17 @@ Principles
 * Modularized
 
 
-Video tutorial
-^^^^^^^^^^^^^^
-
-.. image:: http://img.youtube.com/vi/77StpWxOIBc/0.jpg
-   :target: https://www.youtube.com/watch?v=77StpWxOIBc&list=PLhdpLpq_tPSDb2YMDwyz431pM1BPDWHNK
-
-
 Licence
 -------
 
 ASAB is an open-source software, available under BSD 3-Clause License.  
+
+**Commercial License**
+
+If you use this software without complying with the terms of the BSD 3-Clause License (e.g., failing to provide attribution or include the license text), you must purchase a commercial license.
+
+For commercial licensing, please contact: sales@teskalabs.com
+
 ASAB is maintained by `TeskaLabs Ltd <https://www.teskalabs.com>`_.
+
 

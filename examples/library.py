@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os.path
+import asyncio
 
 import asab
 import asab.exceptions
@@ -40,6 +41,8 @@ class MyApplication(asab.Application):
 		# We need to wait till eg. Zookeeper is connected
 		self.PubSub.subscribe("Library.ready!", self.on_library_ready)
 
+		self.Event = asyncio.Event()
+
 
 	async def on_library_ready(self, event_name, library):
 		try:
@@ -61,6 +64,11 @@ class MyApplication(asab.Application):
 			print("Library is not ready yet.")
 
 		print("\n===")
+		self.Event.set()
+
+
+	async def main(self):
+		await self.Event.wait()
 		self.stop()
 
 

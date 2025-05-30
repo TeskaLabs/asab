@@ -7,6 +7,7 @@ import os.path
 import urllib.parse
 
 import kazoo.exceptions
+import kazoo.recipe.watchers
 
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
@@ -171,6 +172,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.Version = None  # Will be read when a library become ready
 		self.VersionWatch = None
 
+		self.DisabledNodePath = self.build_path('/.disabled.yaml')
+		self.DisabledWatch = None
+
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_connected)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/SUSPENDED!", self._on_zk_lost)
@@ -187,7 +191,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		The `finalize` function is called when the application is shutting down
 		"""
-		await self.Zookeeper._stop()
+		self.DisabledWatch = None
+		zksvc = self.App.get_service("asab.ZooKeeperService")
+		await zksvc.remove(self.ZookeeperContainer)
 
 
 	async def _on_zk_connected(self, event_name, zkcontainer):
@@ -206,6 +212,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.VersionNodePath, on_version_changed)
 
 		self.VersionWatch = await self.Zookeeper.ProactorService.execute(install_watcher)
+
+		def on_disabled_changed(data, stat):
+			# Whenever .disabled.yaml changes, reload disables
+			self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
+
+		def install_disabled_watcher():
+			return kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.DisabledNodePath, on_disabled_changed)
+
+		self.DisabledWatch = await self.Zookeeper.ProactorService.execute(install_disabled_watcher)
+
 
 		await self._set_ready()
 
@@ -289,11 +305,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			tenant_items = await self.process_nodes(tenant_nodes, path, target="tenant")
 		else:
 			tenant_items = []
-		# Combine items, with tenant items taking precedence over global ones
-		combined_items = {item.name: item for item in global_items}
-		combined_items.update({item.name: item for item in tenant_items})
 
-		return list(combined_items.values())
+		# Instead of merging by item.name, simply concatenate the two lists.
+		return tenant_items + global_items
+
 
 	async def process_nodes(self, nodes, base_path, target="global"):
 		"""
@@ -334,17 +349,23 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				ftype = "dir"
 				size = None
 
+			# Assign correct layer
+			if self.Layer == 0:  # Only apply this logic to layer `0`
+				layer_label = "0:global" if target == "global" else "0:tenant"
+			else:
+				layer_label = self.Layer  # Keep normal numbering for other layers
+
 			# Add the item with the specified target and size
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
-				layers=[self.Layer],
+				layers=[layer_label],
 				providers=[self],
-				target=target,
 				size=size
 			))
 
 		return items
+
 
 	def build_path(self, path, tenant_specific=False):
 		assert path[:1] == '/'
@@ -438,7 +459,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				try:
 					await do_check_path(actual_path=path)
 				except Exception as e:
-					L.error(
+					L.exception(
 						"Failed to process library changes: '{}'".format(e),
 						struct_data={"path": path},
 					)
@@ -448,7 +469,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					try:
 						await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 					except Exception as e:
-						L.error(
+						L.exception(
 							"Failed to process library changes: '{}'".format(e),
 							struct_data={"path": path, "tenant": tenant},
 						)
@@ -458,7 +479,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				try:
 					await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 				except Exception as e:
-					L.error(
+					L.exception(
 						"Failed to process library changes: '{}'".format(e),
 						struct_data={"path": path, "tenant": tenant},
 					)

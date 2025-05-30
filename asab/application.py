@@ -480,6 +480,7 @@ class Application(metaclass=Singleton):
 		Args:
 			exit_code (int, optional): Exit code of the finalized process.
 		"""
+
 		if exit_code is not None:
 			self.set_exit_code(exit_code)
 
@@ -498,11 +499,12 @@ class Application(metaclass=Singleton):
 				return os._exit(0)
 
 		elif self._stop_counter > 1:
-			L.warning("{} tasks still active".format(len(asyncio.all_tasks())))
+			L.warning("{} tasks still active".format(len(asyncio.all_tasks())), struct_data={"count": self._stop_counter})
 
 
 	def _do_restart(self, event_name):
 		self.stop("!RESTART!")
+
 
 	def restart(self):
 		"""
@@ -653,36 +655,18 @@ class Application(metaclass=Singleton):
 		self.PubSub.publish("Application.exit!")
 
 		# Finalize services
-		futures = set()
-		for service in self.Services.values():
-			futures.add(
-				asyncio.ensure_future(service.finalize(self))
-			)
-
-		while len(futures) > 0:
-			done, futures = await asyncio.wait(futures, return_when=asyncio.FIRST_EXCEPTION)
-			for fut in done:
-				try:
-					fut.result()
-				except Exception:
-					L.exception("Error during finalize call")
-
+		for service in reversed(self.Services.values()):
+			try:
+				await service.finalize(self)
+			except Exception:
+				L.exception("Error during service finalize call")
 
 		# Finalize modules
-		futures = set()
-		for module in self.Modules:
-			futures.add(
-				asyncio.ensure_future(module.finalize(self))
-			)
-
-		while len(futures) > 0:
-			done, futures = await asyncio.wait(futures, return_when=asyncio.FIRST_EXCEPTION)
-			for fut in done:
-				try:
-					fut.result()
-				except Exception:
-					L.exception("Error during finalize call")
-
+		for module in reversed(self.Modules):
+			try:
+				await module.finalize(self)
+			except Exception:
+				L.exception("Error during module finalize call")
 
 		# Wait for non-finalized tasks
 		tasks_awaiting = 0

@@ -25,7 +25,8 @@ class MetricsService(Service):
 
 		super().__init__(app, service_name)
 
-		self.Metrics = []
+		self.Metrics = set()
+		self.MetricToNameAndTags = {}
 		self.Targets = []
 		self.Tags = {
 			"host": app.HostName,
@@ -85,6 +86,22 @@ class MetricsService(Service):
 		await self._on_flushing_event("finalize!")
 
 
+	def del_metric(self, metric_obj):
+		"""
+		This method deletes an existing metric from the service.
+		It has similar signature to other "delete" methods within technologies built by TeskaLabs.
+
+		It is up to the user to call flush when needed.
+		"""
+		metric_name, metric_tags = self.MetricToNameAndTags[metric_obj]
+		self.Storage.delete(metric_name, metric_tags)
+		self.Metrics.remove(metric_obj)
+
+
+	async def flush(self):
+		await self._on_flushing_event()
+
+
 	def clear(self):
 		self.Metrics.clear()
 		self.Storage.clear()
@@ -101,7 +118,7 @@ class MetricsService(Service):
 
 		return now
 
-	async def _on_flushing_event(self, event_type):
+	async def _on_flushing_event(self, event_type=None):
 		if len(self.Metrics) == 0:
 			return
 
@@ -135,7 +152,8 @@ class MetricsService(Service):
 			self.Storage.add(metric_name, tags=metric.StaticTags.copy(), reset=reset, help=help, unit=unit)
 		)
 
-		self.Metrics.append(metric)
+		self.MetricToNameAndTags[metric] = (metric_name, metric.StaticTags.copy())
+		self.Metrics.add(metric)
 
 	def create_gauge(self, metric_name: str, tags: dict = None, init_values: dict = None, help: str = None, unit: str = None):
 		"""

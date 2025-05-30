@@ -58,7 +58,7 @@ class MockMetricsService(MetricsService):
 		metric._initialize_storage(
 			self.Storage.add(metric_name, tags=metric.StaticTags.copy(), reset=reset, help=help, unit=unit)
 		)
-		self.Metrics.append(metric)
+		self.Metrics.add(metric)
 
 	def _flush_metrics(self):
 		now = MockApplication().time() + 30  # This is to distinguish creation time from flush time

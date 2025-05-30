@@ -57,6 +57,9 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		else:
 			self.FD = None
 
+		self.BasePath = path.rstrip("/")
+		self.DisabledFilePath = os.path.join(self.BasePath, '.disabled.yaml')
+
 		self.AggrEvents = []
 		self.WDs = {}
 
@@ -181,7 +184,11 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 				del self.WDs[wd]
 				continue
 
-			self.AggrEvents.append((wd, mask, cookie, os.fsdecode(name)))
+			name = (data[pos - namesize: pos].split(b'\x00', 1)[0]).decode()
+
+			full_path = os.path.join(self.BasePath, name)
+			if os.path.normpath(full_path) == os.path.normpath(self.DisabledFilePath):
+				self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
 
 		self.AggrTimer.restart(0.2)
 

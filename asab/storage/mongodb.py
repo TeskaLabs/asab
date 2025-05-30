@@ -1,7 +1,9 @@
 import datetime
 import typing
+
 import motor.motor_asyncio
 import pymongo
+
 import bson
 import logging
 
@@ -10,7 +12,11 @@ from .exceptions import DuplicateError
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
 
+#
+
 L = logging.getLogger(__name__)
+
+#
 
 asab.Config.add_defaults(
 	{
@@ -33,6 +39,7 @@ class StorageService(StorageServiceABC):
 
 		# Check the old section and then the new section for uri
 		uri = asab.Config.get(config_section_name, 'mongodb_uri', fallback='')
+
 		if len(uri) == 0:
 			uri = asab.Config.get("mongo", 'uri', fallback='')
 
@@ -61,6 +68,7 @@ class StorageService(StorageServiceABC):
 	async def get(self, collection: str, obj_id, decrypt=None) -> dict:
 		coll = self.Database[collection]
 		ret = await coll.find_one({'_id': obj_id})
+
 		if ret is None:
 			raise KeyError("NOT-FOUND")
 
@@ -73,6 +81,7 @@ class StorageService(StorageServiceABC):
 	async def get_by(self, collection: str, key: str, value, decrypt=None) -> dict:
 		coll = self.Database[collection]
 		ret = await coll.find_one({key: value})
+
 		if ret is None:
 			raise KeyError("NOT-FOUND")
 
@@ -85,21 +94,6 @@ class StorageService(StorageServiceABC):
 	async def collection(self, collection: str) -> motor.motor_asyncio.AsyncIOMotorCollection:
 		"""
 		Get collection. Useful for custom operations.
-
-		Args:
-			collection: Collection to get.
-
-		Returns:
-			`AsyncIOMotorCollection` object connected to the queried database.
-
-		Examples:
-
-			>>> coll = await storage.collection("test-collection")
-			>>> cursor = coll.find({})
-			>>> while await cursor.fetch_next:
-			... 	obj = cursor.next_object()
-			... 	pprint.pprint(obj)
-
 		"""
 
 		return self.Database[collection]
@@ -108,9 +102,97 @@ class StorageService(StorageServiceABC):
 	async def delete(self, collection: str, obj_id):
 		coll = self.Database[collection]
 		ret = await coll.find_one_and_delete({'_id': obj_id})
+
 		if ret is None:
 			raise KeyError("NOT-FOUND")
+
 		return ret['_id']
+
+
+	async def list(self, collection_name: str, _from: int = 0, size: int = 0, _filter=None, sorts=None):
+		"""
+		Lists all the elements in the collection starting from _from and ending with size (unless the size is 0).
+		"""
+		collection = self.Database[collection_name]
+
+		# Build filter
+		if _filter is None:
+			query = {}
+
+		else:
+			query = {"_id": {"$regex": f"^{_filter}"}}
+
+		items_cursor = collection.find(query)
+
+		# Apply sorting if needed
+		if sorts:
+			sort_list = [(field, -1 if descending else 1) for field, descending in sorts]
+			items_cursor = items_cursor.sort(sort_list)
+
+		# Apply skip and limit
+		if _from:
+			items_cursor = items_cursor.skip(_from)
+
+		if size:
+			items_cursor = items_cursor.limit(size)
+
+		async for item in items_cursor:
+			yield item
+
+
+	async def rename(self, previous_collection_name, new_collection_name):
+		if previous_collection_name == new_collection_name:
+			return  # No action needed
+
+		existing_collections = await self.Database.list_collection_names()
+
+		if previous_collection_name not in existing_collections:
+			raise KeyError(f"Collection '{previous_collection_name}' does not exist.")
+
+		if new_collection_name in existing_collections:
+			raise DuplicateError(f"Collection '{new_collection_name}' already exists.")
+
+		return await self.Database[previous_collection_name].rename(new_collection_name)
+
+
+	async def count(self, collection_name, _filter=None) -> int:
+		"""
+		Counts all the elements in the collection.
+		"""
+		coll = self.Database[collection_name]
+		count = await coll.count()
+		return count
+
+
+	async def collections(self, search_string=None):
+		return await self.Database.list_collection_names()
+
+
+	async def update_by_bulk(self, collection_name: str, documents: list) -> dict:
+		"""
+		Writes all the documents defined by _id and _source to the MongoDB as bulk.
+		"""
+		bulk = []
+		coll = self.Database[collection_name]
+
+		for document in documents:
+			doc_id = document.get("_id")
+			source = document.get("_source")
+
+			if not doc_id or not source:
+				continue  # Skip invalid documents
+
+			bulk.append(
+				pymongo.UpdateOne(
+					{"_id": doc_id},
+					{
+						"$set": source,
+					},
+					upsert=True
+				)
+			)
+
+		return coll.bulk_write(bulk)
 
 
 	async def _decrypt(self, db_obj: dict, fields: typing.Iterable, collection: str):

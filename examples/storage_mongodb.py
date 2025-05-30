@@ -1,5 +1,4 @@
 import pprint
-import os
 import asab
 import asab.storage
 
@@ -8,7 +7,10 @@ asab.Config.add_defaults(
 	{
 		'asab:storage': {
 			'type': 'mongodb',
-			'aes_key': os.urandom(24)
+		},
+		"mongo": {
+			"uri": "localhost",
+			"database": "test",
 		}
 	}
 )
@@ -43,20 +45,23 @@ class MyApplication(asab.Application):
 		print(f"Result of get by id: {object_id}")
 		pprint.pprint(obj)
 
+		# Get collections
+		print(await storage.collections())
+
 		# Encrypt some data
 		u = storage.upsertor("test-collection", obj_id=object_id, version=obj['_v'])
-		secret_message = "This is a super secret message!"
+		# secret_message = "This is a super secret message!"
 		# Convert the message to binary format before encrypting
-		u.set("super_secret", secret_message.encode("ascii"), encrypt=True)
-		object_id = await u.execute()
+		# u.set("super_secret", secret_message.encode("ascii"), encrypt=True)
+		# object_id = await u.execute()
 
 		# See the encrypted data
-		obj = await storage.get("test-collection", object_id)
-		print("Encrypted data: {}".format(obj.get("super_secret")))
+		# obj = await storage.get("test-collection", object_id)
+		# print("Encrypted data: {}".format(obj.get("super_secret")))
 
 		# See the decrypted data
-		obj = await storage.get("test-collection", object_id, decrypt=["super_secret"])
-		print("Decrypted data: {}".format(obj.get("super_secret")))
+		# obj = await storage.get("test-collection", object_id, decrypt=["super_secret"])
+		# print("Decrypted data: {}".format(obj.get("super_secret")))
 
 		# Test the StorageService.collection() method
 		coll = await storage.collection("test-collection")

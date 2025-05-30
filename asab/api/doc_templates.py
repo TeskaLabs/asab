@@ -91,10 +91,8 @@ SWAGGER_DOC_PAGE = """<!DOCTYPE html>
 		</style>
 	</head>
 	<body>
-		<script
-			id="api-reference"
-			data-url="{openapi_url}"></script>
-		<script src="https://unpkg.com/@scalar/api-reference"></script>
+		<script id="api-reference" data-url="{openapi_url}"></script>
+		<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 	</body>
 </html>
 """

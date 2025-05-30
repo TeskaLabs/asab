@@ -1,12 +1,6 @@
-import base64
-import binascii
-import datetime
 import functools
 import inspect
-import json
 import logging
-import os.path
-import time
 import typing
 
 import aiohttp
@@ -24,52 +18,12 @@ from ... import LogObsolete
 from ...abc.service import Service
 from ...config import Config
 from ...exceptions import NotAuthenticatedError
-from ...api.discovery import NotDiscoveredError
 from ...utils import string_to_boolean
 from ...contextvars import Tenant, Authz
-
 from .authorization import Authorization
 
-#
 
 L = logging.getLogger(__name__)
-
-#
-
-# Used for mock authorization
-MOCK_USERINFO_DEFAULT = {
-	# Token issuer
-	"iss": "auth.test.loc",
-	# Token issued at (timestamp)
-	"iat": int(time.time()),
-	# Token expires at (timestamp)
-	"exp": int(time.time()) + 5 * 365 * 24 * 3600,
-	# Authorized party
-	"azp": "my-asab-app",
-	# Audience
-	"aud": "my-asab-app",
-	# Subject (Unique user ID)
-	"sub": "abc:xyz:799b53e0",
-	# Subject's preferred username
-	"preferred_username": "little-capybara",
-	# Subject's email
-	"email": "capybara1999@example.com",
-	# Authorized tenants and resources
-	"resources": {
-		# Globally authorized resources
-		"*": [
-			"authz:superuser",
-		],
-		# Resources authorized within the tenant "default"
-		"default": [
-			"authz:superuser",
-			"some-test-data:access",
-		],
-	},
-	# List of tenants that the user is a member of.
-	# These tenants are NOT AUTHORIZED!
-	"tenants": ["default", "test-tenant", "another-tenant"]
-}
 
 
 class AuthService(Service):
@@ -77,59 +31,29 @@ class AuthService(Service):
 	Provides authentication and authorization of incoming requests.
 	"""
 
-	_PUBLIC_KEYS_URL_DEFAULT = "http://localhost:3081/.well-known/jwks.json"
-
 	def __init__(self, app, service_name="asab.AuthService"):
 		super().__init__(app, service_name)
 
-		# To enable Service Discovery, initialize Api Service and call its initialize_zookeeper() method before AuthService initialization
-		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
-
-		self.PublicKeysUrl = Config.get("auth", "public_keys_url") or None
-		self.IntrospectionUrl = None
-		self.MockUserInfo = None
-		self.MockMode = False
-
-		# Configure mock mode
-		enabled = Config.get("auth", "enabled", fallback=True)
-		if enabled == "mock":
-			self.MockMode = True
-		elif string_to_boolean(enabled) is True:
-			self.MockMode = False
-		else:
-			raise ValueError(
-				"Disabling AuthService is deprecated. "
-				"For development pupropses use mock mode instead ([auth] enabled=mock)."
-			)
-
-		# Set up auth server keys URL
-		if self.MockMode is True:
-			self._prepare_mock_mode()
-		elif jwcrypto is None:
+		if jwcrypto is None:
 			raise ModuleNotFoundError(
 				"You are trying to use asab.web.auth module without 'jwcrypto' installed. "
 				"Please run 'pip install jwcrypto' "
-				"or install asab with 'authz' optional dependency.")
-		elif not self.PublicKeysUrl and self.DiscoveryService is None:
-			self.PublicKeysUrl = self._PUBLIC_KEYS_URL_DEFAULT
-			L.warning(
-				"No 'public_keys_url' provided in [auth] config section. "
-				"Defaulting to {!r}.".format(self._PUBLIC_KEYS_URL_DEFAULT)
+				"or install asab with 'authz' optional dependency."
 			)
 
-		self.TrustedPublicKeys: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
-		# Limit the frequency of auth server requests to save network traffic
-		self.AuthServerCheckCooldown = datetime.timedelta(minutes=5)
-		self.AuthServerLastSuccessfulCheck = None
-
-		if self.PublicKeysUrl:
-			self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
-
-		self.Authorizations: typing.Dict[typing.Tuple[str, str], Authorization] = {}
-		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
+		self.DiscoveryService = self.App.get_service("asab.DiscoveryService")
+		self.Providers: list = []
+		self._set_up_providers()
 
 		# Try to auto-install authorization middleware
 		self._try_auto_install()
+
+
+	def get_provider(self, provider_type: str):
+		for provider in self.Providers:
+			if provider.Type == provider_type:
+				return provider
+		return None
 
 
 	def get_authorized_tenant(self, request=None) -> typing.Optional[str]:
@@ -149,43 +73,6 @@ class AuthService(Service):
 
 	async def initialize(self, app):
 		self._validate_wrapper_installation()
-
-
-	def _prepare_mock_mode(self):
-		"""
-		Try to set up direct introspection. In not available, set up static mock userinfo.
-		"""
-		introspection_url = Config.get("auth", "introspection_url", fallback=None)
-		if introspection_url is not None:
-			self.IntrospectionUrl = introspection_url
-			L.warning(
-				"AuthService is running in MOCK MODE. Web requests will be authorized with direct introspection "
-				"call to {!r}.".format(self.IntrospectionUrl)
-			)
-			return
-
-		# Load custom user info
-		mock_user_info_path = Config.get("auth", "mock_user_info_path")
-		if os.path.isfile(mock_user_info_path):
-			with open(mock_user_info_path, "rb") as fp:
-				user_info = json.load(fp)
-		else:
-			user_info = MOCK_USERINFO_DEFAULT
-		# Validate user info
-		resources = user_info.get("resources", {})
-		if not isinstance(resources, dict) or not all(
-			map(lambda kv: isinstance(kv[0], str) and isinstance(kv[1], list), resources.items())
-		):
-			raise ValueError("User info 'resources' must be an object with string keys and array values.")
-		L.warning(
-			"AuthService is running in MOCK MODE. Web requests will be authorized with mock user info, which "
-			"currently grants access to the following tenants: {}. To customize mock mode authorization (add or "
-			"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
-				list(t for t in user_info.get("resources", {}).keys() if t != "*"),
-				mock_user_info_path
-			)
-		)
-		self.MockUserInfo = user_info
 
 
 	def is_enabled(self) -> bool:
@@ -232,193 +119,102 @@ class AuthService(Service):
 			web_container.WebApp.on_startup.append(self.set_up_auth_web_wrapper)
 
 
-
-	def is_ready(self):
+	async def authorize_request(self, request: aiohttp.web.Request) -> Authorization:
 		"""
-		Check if the service is ready to authorize requests.
-		"""
-		if self.PublicKeysUrl and not self.TrustedPublicKeys["keys"]:
-			# Auth server keys have not been loaded yet
-			return False
-		return True
+		Authenticate and authorize request with first valid provider
 
+		Args:
+			request (aiohttp.web.Request): Request to authenticate and authorize
 
-	async def build_authorization(self, id_token: str) -> Authorization:
-		"""
-		Build authorization from ID token string.
+		Returns:
+			Authorization object
 
-		:param id_token: Base64-encoded JWToken from Authorization header
-		:return: Valid asab.web.auth.Authorization object
+		Raises:
+			NotAuthenticatedError: When no provider is able to authorize the request
 		"""
-		# Try if the object already exists
-		authz = self.Authorizations.get(id_token)
-		if authz is not None:
+		for provider in self.Providers:
 			try:
-				authz.require_valid()
-			except NotAuthenticatedError as e:
-				del self.Authorizations[id_token]
-				raise e
-			return authz
+				return await provider.authorize(request)
+			except NotAuthenticatedError:
+				# Provider was unable to authenticate request
+				# L.debug("Authorization failed.", struct_data={"auth_provider": provider.Type})
+				pass
 
-		# Create a new Authorization object and store it
-		if id_token == "MOCK" and self.MockMode is True:
-			authz = Authorization(self.MockUserInfo)
+		L.warning("Cannot authenticate request: No valid authorization provider found.")
+		raise NotAuthenticatedError()
+
+
+	def _set_up_providers(self):
+		# Always set up an ID token provider without public keys
+		# The public keys are set up based on app configuration or added later
+		from .providers import IdTokenAuthProvider
+		id_token_provider = IdTokenAuthProvider(self.App)
+		self.Providers.append(id_token_provider)
+
+		public_keys_url = Config.get("auth", "public_keys_url") or None
+		if public_keys_url:
+			from .providers.key_providers import UrlPublicKeyProvider
+			public_key_provider = UrlPublicKeyProvider(self.App, public_keys_url)
+			id_token_provider.register_key_provider(public_key_provider)
 		else:
-			userinfo = await self._get_userinfo_from_id_token(id_token)
-			authz = Authorization(userinfo)
+			public_key_provider = None
 
-		self.Authorizations[id_token] = authz
-		return authz
-
-
-	async def _delete_invalid_authorizations(self, message_name):
-		"""
-		Check for expired Authorization objects and delete them
-		"""
-		# Find expired
-		expired = []
-		for key, authz in self.Authorizations.items():
-			if not authz.is_valid():
-				expired.append(key)
-
-		# Delete expired
-		for key in expired:
-			del self.Authorizations[key]
-
-
-	async def get_bearer_token_from_authorization_header(self, request):
-		"""
-		Validate the Authorizetion header and extract the Bearer token value
-		"""
-		if self.MockMode is True:
-			if not self.IntrospectionUrl:
-				return "MOCK"
-
-			# Send the request headers for introspection
-			async with aiohttp.ClientSession() as session:
-				async with session.post(self.IntrospectionUrl, headers=request.headers) as response:
-					if response.status != 200:
-						L.warning("Access token introspection failed.")
-						raise aiohttp.web.HTTPUnauthorized()
-					authorization_header = response.headers.get(aiohttp.hdrs.AUTHORIZATION)
-
-		else:
-			authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
-			if authorization_header is None:
-				L.warning("No Authorization header.")
-				raise aiohttp.web.HTTPUnauthorized()
+		enabled = Config.get("auth", "enabled", fallback="production")
 		try:
-			auth_type, token_value = authorization_header.split(" ", 1)
+			enabled = string_to_boolean(enabled)
 		except ValueError:
-			L.warning("Cannot parse Authorization header.")
-			raise aiohttp.web.HTTPBadRequest()
-		if auth_type != "Bearer":
-			L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
-			raise aiohttp.web.HTTPUnauthorized()
-		return token_value
+			pass
 
-
-	async def _fetch_public_keys_if_needed(self, *args, **kwargs):
-		"""
-		Check if public keys have been fetched from the authorization server and fetch them if not yet.
-		"""
-		# TODO: Refactor into Key Providers
-		# Add internal shared auth key
-		if self.DiscoveryService is not None:
-			if self.DiscoveryService.InternalAuthKey is not None:
-				self.TrustedPublicKeys.add(self.DiscoveryService.InternalAuthKey.public())
-			else:
-				L.debug("Internal auth key is not ready yet.")
-				self.App.TaskService.schedule(self._fetch_public_keys_if_needed())
-
-			if not self.PublicKeysUrl:
-				# Only internal authorization is supported
-				return
-
-		# Either DiscoveryService or PublicKeysUrl must be defined
-		assert self.PublicKeysUrl is not None
-
-		now = datetime.datetime.now(datetime.timezone.utc)
-		if self.AuthServerLastSuccessfulCheck is not None \
-			and now < self.AuthServerLastSuccessfulCheck + self.AuthServerCheckCooldown:
-			# Public keys have been fetched recently
+		if enabled == "production" or enabled is True:
+			# Production mode is enabled by default
+			# The ID token provider is already set up
 			return
 
+		elif enabled == "development":
+			introspection_url = Config.get("auth", "introspection_url", fallback=None)
+			if introspection_url is None or public_key_provider is None:
+				raise ValueError(
+					"AuthService is in development mode, but introspection_url or public_keys_url is not set."
+				)
 
-		async def fetch_keys(session):
-			try:
-				async with session.get(self.PublicKeysUrl) as response:
-					if response.status != 200:
-						L.error("HTTP error while loading public keys.", struct_data={
-							"status": response.status,
-							"url": self.PublicKeysUrl,
-							"text": await response.text(),
-						})
-						return
-					try:
-						data = await response.json()
-					except json.JSONDecodeError:
-						L.error("JSON decoding error while loading public keys.", struct_data={
-							"url": self.PublicKeysUrl,
-							"data": data,
-						})
-						return
-					try:
-						key_data = data["keys"].pop()
-					except (IndexError, KeyError):
-						L.error("Error while loading public keys: No public keys in server response.", struct_data={
-							"url": self.PublicKeysUrl,
-							"data": data,
-						})
-						return
-					try:
-						public_key = jwcrypto.jwk.JWK(**key_data)
-					except Exception as e:
-						L.error("JWK decoding error while loading public keys: {}.".format(e), struct_data={
-							"url": self.PublicKeysUrl,
-							"data": data,
-						})
-						return
-			except aiohttp.client_exceptions.ClientConnectorError as e:
-				L.error("Connection error while loading public keys: {}".format(e), struct_data={
-					"url": self.PublicKeysUrl,
-				})
-				return
-			return public_key
+			L.warning(
+				"AuthService is in development mode. "
+				"Web requests will be authorized with introspection call to {}.".format(introspection_url)
+			)
+			from .providers import AccessTokenAuthProvider
+			provider = AccessTokenAuthProvider(self.App, introspection_url=introspection_url)
+			provider.register_key_provider(public_key_provider)
+			self.Providers.append(provider)
 
-		if self.DiscoveryService is None:
-			async with aiohttp.ClientSession() as session:
-				public_key = await fetch_keys(session)
+		elif enabled == "mock":
+			from .providers import MockAuthProvider
+			auth_claims_path = (
+				Config.get("auth", "mock_claims_path", fallback=None)
+				or Config.get("auth", "mock_user_info_path", fallback=None)
+			)
+			provider = MockAuthProvider(self.App, auth_claims_path=auth_claims_path)
+			# Make sure the mock provider is the first one and catches every request
+			self.Providers.insert(0, provider)
+			return
+
+		elif enabled is False:
+			raise ValueError("Disabling AuthService is deprecated. Use mock mode instead.")
 
 		else:
-			async with self.DiscoveryService.session() as session:
-				try:
-					public_key = await fetch_keys(session)
-				except NotDiscoveredError as e:
-					L.error("Service Discovery error while loading public keys: {}".format(e), struct_data={
-						"url": self.PublicKeysUrl,
-					})
-					return
-
-		if public_key is None:
-			return
-
-		self.TrustedPublicKeys.add(public_key)
-		self.AuthServerLastSuccessfulCheck = datetime.datetime.now(datetime.timezone.utc)
-		L.debug("Public key loaded.", struct_data={"url": self.PublicKeysUrl})
+			raise ValueError("Unsupported auth mode: {!r}".format(enabled))
 
 
-	def _authorize_request(self, handler):
+	def _authorize_handler(self, handler):
 		"""
 		Authenticate the request by the JWT ID token in the Authorization header.
 		Extract the token claims into Authorization context so that they can be used for authorization checks.
 		"""
 		@functools.wraps(handler)
-		async def _authorize_request_wrapper(*args, **kwargs):
+		async def _authorize_handler_wrapper(*args, **kwargs):
 			request = args[-1]
 
-			bearer_token = await self.get_bearer_token_from_authorization_header(request)
-			authz = await self.build_authorization(bearer_token)
+			# Authenticate and authorize request with first valid provider
+			authz = await self.authorize_request(request)
 
 			# Authorize tenant context
 			tenant = Tenant.get(None)
@@ -431,7 +227,7 @@ class AuthService(Service):
 			finally:
 				Authz.reset(authz_ctx)
 
-		return _authorize_request_wrapper
+		return _authorize_handler_wrapper
 
 
 	async def set_up_auth_web_wrapper(self, aiohttp_app: aiohttp.web.Application):
@@ -494,34 +290,9 @@ class AuthService(Service):
 			handler = _pass_user_info(handler)
 
 		# 1) Authenticate and authorize request, authorize tenant from context, set Authorization context
-		handler = self._authorize_request(handler)
+		handler = self._authorize_handler(handler)
 
 		route._handler = handler
-
-
-	async def _get_userinfo_from_id_token(self, bearer_token):
-		"""
-		Parse the bearer ID token and extract user info.
-		"""
-		if not self.is_ready():
-			# Try to load the public keys again
-			if not self.TrustedPublicKeys["keys"]:
-				await self._fetch_public_keys_if_needed()
-			if not self.is_ready():
-				L.error("Cannot authenticate request: Failed to load authorization server's public keys.")
-				raise aiohttp.web.HTTPUnauthorized()
-
-		try:
-			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
-		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey):
-			# Authz server keys may have changed. Try to reload them.
-			await self._fetch_public_keys_if_needed()
-
-		try:
-			return _get_id_token_claims(bearer_token, self.TrustedPublicKeys)
-		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
-			L.error("Cannot authenticate request: {}".format(str(e)))
-			raise NotAuthenticatedError()
 
 
 	def _validate_wrapper_installation(self):
@@ -578,63 +349,6 @@ class AuthService(Service):
 
 		self.install(web_container)
 		L.debug("WebContainer authorization wrapper will be installed automatically.")
-
-
-def _get_id_token_claims(bearer_token: str, auth_server_public_key):
-	"""
-	Parse and validate JWT ID token and extract the claims (user info)
-	"""
-	assert jwcrypto is not None
-	try:
-		token = jwcrypto.jwt.JWT(jwt=bearer_token, key=auth_server_public_key)
-	except jwcrypto.jwt.JWTExpired:
-		L.warning("ID token expired.")
-		raise NotAuthenticatedError()
-	except jwcrypto.jwt.JWTMissingKey as e:
-		raise e
-	except jwcrypto.jws.InvalidJWSSignature as e:
-		raise e
-	except ValueError as e:
-		L.error(
-			"Failed to parse JWT ID token ({}). Please check if the Authorization header contains ID token.".format(e))
-		raise aiohttp.web.HTTPBadRequest()
-	except jwcrypto.jws.InvalidJWSObject as e:
-		L.error(
-			"Failed to parse JWT ID token ({}). Please check if the Authorization header contains ID token.".format(e))
-		raise aiohttp.web.HTTPBadRequest()
-	except Exception:
-		L.exception("Failed to parse JWT ID token. Please check if the Authorization header contains ID token.")
-		raise aiohttp.web.HTTPBadRequest()
-
-	try:
-		token_claims = json.loads(token.claims)
-	except Exception:
-		L.exception("Failed to parse JWT token claims.")
-		raise aiohttp.web.HTTPBadRequest()
-
-	return token_claims
-
-
-def _get_id_token_claims_without_verification(bearer_token: str):
-	"""
-	Parse JWT ID token without validation and extract the claims (user info)
-	"""
-	try:
-		header, payload, signature = bearer_token.split(".")
-	except IndexError:
-		L.warning("Cannot parse ID token: Wrong number of '.'.")
-		raise aiohttp.web.HTTPBadRequest()
-
-	try:
-		claims = json.loads(base64.b64decode(payload.encode("utf-8")))
-	except binascii.Error:
-		L.warning("Cannot parse ID token: Payload is not base 64.")
-		raise aiohttp.web.HTTPBadRequest()
-	except json.JSONDecodeError:
-		L.warning("Cannot parse ID token: Payload cannot be parsed as JSON.")
-		raise aiohttp.web.HTTPBadRequest()
-
-	return claims
 
 
 def _pass_user_info(handler):

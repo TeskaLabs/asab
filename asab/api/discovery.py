@@ -1,11 +1,9 @@
-import datetime
 import json
 import copy
 import socket
 import typing
 import asyncio
 import logging
-import os
 
 import aiohttp
 import aiohttp.web
@@ -14,13 +12,11 @@ import kazoo.exceptions
 try:
 	# Optional dependency for using internal authorization
 	import jwcrypto
-	import jwcrypto.jwt
-	import jwcrypto.jwk
 except ModuleNotFoundError:
 	jwcrypto = None
 
 from .. import Service
-from ..contextvars import Request, Authz
+from ..contextvars import Request
 
 
 L = logging.getLogger(__name__)
@@ -34,12 +30,14 @@ class DiscoveryService(Service):
 		super().__init__(app, service_name)
 		self.ZooKeeperContainer = zkc
 		self.ProactorService = zkc.ProactorService
-		self.InternalAuthKeyPath = "/asab/auth/internal_auth_private.key"
-		self.InternalAuthKey = None
-		self.InternalAuthToken = None
-		self.InternalAuthTokenExpiration: datetime.timedelta = datetime.timedelta(seconds=5 * 300)
+		self.InternalAuth = None
+		if jwcrypto is not None:
+			from .internal_auth import InternalAuth
+			self.InternalAuth = InternalAuth(app, zkc)
 
 		self._advertised_cache = dict()
+		self._advertised_raw = dict()
+
 		self._cache_lock = asyncio.Lock()
 		self._ready_event = asyncio.Event()
 
@@ -47,104 +45,18 @@ class DiscoveryService(Service):
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 
 
+	async def initialize(self, app):
+		if self.InternalAuth is not None:
+			await self.InternalAuth.initialize(app)
+
 
 	def _on_tick(self, msg):
 		self.App.TaskService.schedule(self._rescan_advertised_instances())
-		if jwcrypto is not None:
-			self._ensure_internal_auth_token()
 
 
 	def _on_zk_ready(self, msg, zkc):
 		if zkc == self.ZooKeeperContainer:
 			self.App.TaskService.schedule(self._rescan_advertised_instances())
-			if jwcrypto is not None:
-				self.App.TaskService.schedule(self._ensure_internal_auth_key(zkc))
-
-
-	async def _ensure_internal_auth_key(self, zkc=None):
-		zkc = zkc or self.ZooKeeperContainer
-		private_key_json = None
-		# Attempt to create and write a new private key
-		# while avoiding race condition with other ASAB services
-		while not private_key_json:
-			# Try to get the key
-			try:
-				private_key_json, _ = zkc.ZooKeeper.Client.get(self.InternalAuthKeyPath)
-				break
-			except kazoo.exceptions.NoNodeError:
-				pass
-
-			# Generate a new key
-			private_key = jwcrypto.jwk.JWK.generate(kty="EC", crv="P-256")
-			private_key_json = json.dumps(private_key.export(as_dict=True)).encode("utf-8")
-			try:
-				zkc.ZooKeeper.Client.create(self.InternalAuthKeyPath, private_key_json, makepath=True)
-				L.info("Internal auth key created.", struct_data={
-					"kid": private_key.key_id, "path": self.InternalAuthKeyPath})
-			except kazoo.exceptions.NodeExistsError:
-				# Another ASAB service has probably created the key in the meantime
-				pass
-
-		private_key = jwcrypto.jwk.JWK.from_json(private_key_json)
-		if private_key != self.InternalAuthKey:
-			# Private key has changed
-			self.InternalAuthKey = private_key
-			self._ensure_internal_auth_token(force_new=True)
-
-
-	def _ensure_internal_auth_token(self, force_new: bool = False):
-		assert self.InternalAuthKey
-
-		def _get_own_discovery_url():
-			instance_id = os.getenv("INSTANCE_ID", None)
-			if instance_id:
-				return "http://{}.instance_id.asab".format(instance_id)
-
-			service_id = os.getenv("SERVICE_ID", None)
-			if service_id:
-				return "http://{}.service_id.asab".format(service_id)
-
-			return "http://{}".format(self.App.HostName)
-
-		if self.InternalAuthToken and not force_new:
-			claims = json.loads(self.InternalAuthToken.claims)
-			if claims.get("exp") > (
-				datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=300)
-			).timestamp():
-				# Token is valid and does not expire soon
-				return
-
-		# Use this service's discovery URL as issuer ID and authorized party ID
-		my_discovery_url = _get_own_discovery_url()
-		expiration = datetime.datetime.now(datetime.timezone.utc) + self.InternalAuthTokenExpiration
-		claims = {
-			# Issuer (URL of the app that created the token)
-			"iss": my_discovery_url,
-			# Issued at
-			"iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
-			# Expires at
-			"exp": int((expiration).timestamp()),
-			# Authorized party
-			"azp": my_discovery_url,
-			# Audience (who is allowed to use this token)
-			"aud": "http://{}".format(self.App.HostName),  # TODO: Something that signifies "anyone in this internal space"
-			# Tenants and resources
-			"resources": {
-				"*": ["authz:superuser"],
-			}
-		}
-
-		self.InternalAuthToken = jwcrypto.jwt.JWT(
-			header={
-				"alg": "ES256",
-				"typ": "JWT",
-				"kid": self.InternalAuthKey.key_id,
-			},
-			claims=json.dumps(claims)
-		)
-		self.InternalAuthToken.make_signed_token(self.InternalAuthKey)
-
-		L.info("New internal auth token issued.", struct_data={"exp": expiration})
 
 
 	async def locate(self, instance_id: str = None, **kwargs) -> set:
@@ -208,6 +120,11 @@ class DiscoveryService(Service):
 		return copy.deepcopy(self._advertised_cache)
 
 
+	async def discover_raw(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple]]]:
+		await asyncio.wait_for(self._ready_event.wait(), 600)
+		return copy.deepcopy(self._advertised_raw)
+
+
 	async def get_advertised_instances(self) -> typing.List[typing.Dict]:
 		"""
 		This method is here for backward compatibility. Use `discover()` method instead.
@@ -216,7 +133,7 @@ class DiscoveryService(Service):
 		"""
 		# TODO: an obsolete log for this method
 		advertised = []
-		async for item, item_data in self._iter_zk_items():
+		for item, item_data in await self._iter_zk_items():
 			item_data['ephemeral_id'] = item
 			advertised.append(item_data)
 
@@ -254,6 +171,7 @@ class DiscoveryService(Service):
 			# Only one rescan / cache update at a time
 			return
 
+
 		async with self._cache_lock:
 
 			advertised = {
@@ -261,58 +179,64 @@ class DiscoveryService(Service):
 				"service_id": {},
 			}
 
-			iterator = self._iter_zk_items()
-			if iterator is None:
-				return  # reason logged from the _iter_zk_items method
+			advertised_raw = {}
 
-			async for item, item_data in iterator:
-				instance_id = item_data.get("instance_id")
-				service_id = item_data.get("service_id")
-				discovery: typing.Dict[str, list] = item_data.get("discovery", {})
+			try:
+				for item, item_data in await self._iter_zk_items():
 
-				if instance_id is not None:
-					discovery["instance_id"] = [instance_id]
+					advertised_raw[item] = item_data
 
-				if instance_id is not None:
-					discovery["service_id"] = [service_id]
+					instance_id = item_data.get("instance_id")
+					service_id = item_data.get("service_id")
+					discovery: typing.Dict[str, list] = item_data.get("discovery", {})
 
-				host = item_data.get("host")
-				if host is None:
-					continue
+					if instance_id is not None:
+						discovery["instance_id"] = [instance_id]
 
-				web = item_data.get("web")
-				if web is None:
-					continue
+					if service_id is not None:
+						discovery["service_id"] = [service_id]
 
-				for i in web:
-
-					try:
-						ip = i[0]
-						port = i[1]
-					except KeyError:
-						L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
-						return
-
-					if ip == "0.0.0.0":
-						family = socket.AF_INET
-					elif ip == "::":
-						family = socket.AF_INET6
-					else:
+					host = item_data.get("host")
+					if host is None:
 						continue
 
-					if discovery is not None:
-						for id_type, ids in discovery.items():
-							if advertised.get(id_type) is None:
-								advertised[id_type] = {}
+					web = item_data.get("web")
+					if web is None:
+						continue
 
-							for identifier in ids:
-								if identifier is not None:
-									if advertised[id_type].get(identifier) is None:
-										advertised[id_type][identifier] = {(host, port, family)}
-									else:
-										advertised[id_type][identifier].add((host, port, family))
+					for i in web:
+
+						try:
+							ip = i[0]
+							port = i[1]
+						except KeyError:
+							L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
+							continue
+
+						if ip == "0.0.0.0":
+							family = socket.AF_INET
+						elif ip == "::":
+							family = socket.AF_INET6
+						else:
+							continue
+
+						if discovery is not None:
+							for id_type, ids in discovery.items():
+								if advertised.get(id_type) is None:
+									advertised[id_type] = {}
+
+								for identifier in ids:
+									if identifier is not None:
+										if advertised[id_type].get(identifier) is None:
+											advertised[id_type][identifier] = {(host, port, family)}
+										else:
+											advertised[id_type][identifier].add((host, port, family))
+			except Exception:
+				L.exception("Error when scanning advertised instances")
+				return
 
 			self._advertised_cache = advertised
+			self._advertised_raw = advertised_raw
 			self._ready_event.set()
 
 
@@ -320,40 +244,40 @@ class DiscoveryService(Service):
 		base_path = self.ZooKeeperContainer.Path + "/run"
 
 		def get_items():
+			result = []
 			try:
 				# Create the base path if it does not exist
 				if not self.ZooKeeperContainer.ZooKeeper.Client.exists(base_path):
 					self.ZooKeeperContainer.ZooKeeper.Client.create(base_path, b'', makepath=True)
 
-				return self.ZooKeeperContainer.ZooKeeper.Client.get_children(base_path, watch=self._on_change_threadsafe)
+				items = self.ZooKeeperContainer.ZooKeeper.Client.get_children(base_path, watch=self._on_change_threadsafe)
+
 			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
 				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
 				return None
 
-			except kazoo.exceptions.KazooException:
+			except Exception:
+				L.exception("Error when getting advertised instances")
 				return None
 
-		def get_data(item):
-			try:
-				data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get((base_path + '/' + item), watch=self._on_change_threadsafe)
-				return data
-			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
-				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
-				return None
+			for item in items:
+				try:
+					data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get(base_path + '/' + item, watch=self._on_change_threadsafe)
+					result.append((item, json.loads(data)))
+				except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
+					L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
+					return None
+				except kazoo.exceptions.NoNodeError:
+					continue
 
-			except kazoo.exceptions.KazooException:
-				# There's a race condition -> if ZK node is deleted between get_items and get_data calls, NoNodeError is raised. Let's just ignore it. The ZK node is already deleted.
-				return None
+			return result
 
-		items = await self.ProactorService.execute(get_items)
-		if items is None:
-			return
+		result = await self.ProactorService.execute(get_items)
+		if result is None:
+			return []
 
-		for item in items:
-			item_data = await self.ProactorService.execute(get_data, item)
-			if item_data is None:
-				continue
-			yield item, json.loads(item_data)
+		return result
+
 
 	def _on_change_threadsafe(self, watched_event):
 		# Runs on a thread, returns the process back to the main thread
@@ -409,20 +333,12 @@ class DiscoveryService(Service):
 			_headers["Authorization"] = auth.headers["Authorization"]
 
 		elif auth == "internal":
-			if jwcrypto is None:
+			if self.InternalAuth is None:
 				raise ModuleNotFoundError(
-					"You are trying to use internal auth without 'jwcrypto' installed. "
+					"Internal auth is disabled because 'jwcrypto' module is not installed. "
 					"Please run 'pip install jwcrypto' or install asab with 'authz' optional dependency."
 				)
-
-			authz = Authz.get(None)
-			if authz is not None:
-				L.warning(
-					"Using internal (superuser) authorization in an already authorized context. "
-					"This is potentially unwanted and dangerous.",
-				)
-
-			_headers["Authorization"] = "Bearer {}".format(self.InternalAuthToken.serialize())
+			_headers["Authorization"] = self.InternalAuth.get_authorization_header()
 
 		else:
 			raise ValueError(
