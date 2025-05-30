@@ -77,40 +77,35 @@ For that reason, you have to provide a unique `service_name` and there is no def
 
 Each Library item is represented by `LibraryItem` dataclass. Read more in the [reference section](#asab.library.item.LibraryItem).
 
-### Handling Library Not Ready State
-
-The library is created in a **not-ready** state. If an operation is attempted before all providers are initialized,  
-it raises a `LibraryNotReadyError`. Ensure that the library is ready before performing operations.
-
 !!! example "Example of the use:"
 
-    ```python
-    import asab
-    import asab.library
+	```python
+	import asab
+	import asab.library
 
-    class MyApplication(asab.Application):
+	class MyApplication(asab.Application):
 
-        async def initialize(self):
-            self.LibraryService = asab.library.LibraryService(self, "LibraryService")
+		async def initialize(self):
+			self.LibraryService = asab.library.LibraryService(self, "LibraryService") #(1)!
+			self.PubSub.subscribe("Library.ready!", self.on_library_ready) #(2)!
 
-            # Subscribe to Library.ready! to perform operations once the library is ready
-            self.PubSub.subscribe("Library.ready!", self.on_library_ready)
+		async def on_library_ready(self, event_name, library): #(3)!
 
-        async def on_library_ready(self, event_name, library):
-            print("Library is now ready.")
+			for item in await self.LibraryService.list("/", recursive=True): #(4)!
+				print("*", item)
+				if item.type == 'item': #(5)!
+					itemio = await self.LibraryService.read(item.name) #(6)!
+					if itemio is not None:
+						with itemio: #(7)!
+							content = itemio.read()
+							print("- content: {} bytes".format(len(content)))
+					else:
+						print("  - (DISABLED)")
 
-        async def safe_read(self, path):
-            try:
-                async with self.LibraryService.open(path) as item:
-                    if item is not None:
-                        return await item.read()
-            except asab.exceptions.LibraryNotReadyError:
-                print("Library is not ready yet.")
-
-    if __name__ == '__main__':
-        app = MyApplication()
-        app.run()
-    ```
+	if __name__ == '__main__':
+		app = MyApplication()
+		app.run()
+	```
 
 	1. Initializes the Library Service. Remember to specify a unique `service_name`.
 	2. When the Library is initialized, `Library.ready!` PubSub message is emitted. 
