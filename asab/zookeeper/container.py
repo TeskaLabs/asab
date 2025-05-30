@@ -187,12 +187,11 @@ class ZooKeeperContainer(Configurable):
 			adv = ZooKeeperAdvertisement(path=self.Path + path, data=data)
 			self.Advertisments[self.Path + path] = adv
 		else:
-			if data != adv.data:
-				adv.version = -1  # Force the update
-				adv.data = data
-			else:
-				# No change, do not publish
-				return
+			if data == adv.data:
+				return  # No change, do not publish
+
+			adv.version = -1  # Force the update
+			adv.data = data
 
 		self.ProactorService.schedule(self._publish_adv_in_proactor, [adv])
 
@@ -219,7 +218,8 @@ class ZooKeeperContainer(Configurable):
 								adv.real_path = None
 
 				if adv.real_path is None:
-					adv.real_path, adv.version = self.ZooKeeper.Client.create(adv.path, adv.data, sequence=True, ephemeral=True, makepath=True, include_data=True)
+					adv.real_path, stats = self.ZooKeeper.Client.create(adv.path, adv.data, sequence=True, ephemeral=True, makepath=True, include_data=True)
+					adv.version = stats.version
 
 		except Exception:
 			L.exception("Error when publishing advertisement")
