@@ -1,5 +1,4 @@
 import os
-import pprint
 import logging
 import aiohttp
 import aiohttp.web
@@ -25,7 +24,7 @@ L = logging.getLogger(__name__)
 asab.Config.add_defaults(
 	{
 		"web": {
-			"listen": "0",
+			"listen": "8090",
 		},
 
 		"zookeeper": {
@@ -57,13 +56,15 @@ class ServiceDiscoveryDemoApplication(asab.Application):
 		self.DiscoveryService = self.get_service("asab.DiscoveryService")
 
 		self.WebContainer.WebApp.router.add_get('/locate', self.locate_self)
+		self.WebContainer.WebApp.router.add_get('/hello', self.hello)
+
 		self.PubSub.subscribe("Application.tick/10!", self._on_tick10)
 
 
 	async def _on_tick10(self, event_name):
 		discover = await self.DiscoveryService.discover()
-		print("Discovered services:")
-		pprint.pprint(discover)
+		print("Discovered services:", len(discover))
+		# pprint.pprint(discover)
 
 
 	async def locate_self(self, request):
@@ -76,7 +77,7 @@ class ServiceDiscoveryDemoApplication(asab.Application):
 		async with self.DiscoveryService.session() as session:
 			try:
 				# use URL in format: <protocol>://<value>.<key>.asab/<endpoint> where key is "service_id" or "instance_id" and value the respective service identificator
-				async with session.get("http://service-discovery-demo.service_id.asab/asab/v1/config") as resp:
+				async with session.get("http://service-discovery-demo.service_id.asab/hello") as resp:
 					if resp.status == 200:
 						config = await resp.json()
 			except asab.api.discovery.NotDiscoveredError as e:
@@ -86,6 +87,10 @@ class ServiceDiscoveryDemoApplication(asab.Application):
 			return aiohttp.web.json_response({"result": "FAILED"})
 
 		return aiohttp.web.json_response(config)
+
+
+	async def hello(self, request):
+		return aiohttp.web.json_response({"result": "Hello, world!"})
 
 
 if __name__ == '__main__':
