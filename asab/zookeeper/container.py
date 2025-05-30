@@ -135,7 +135,7 @@ class ZooKeeperContainer(Configurable):
 		* ZooKeeperContainer.state/SUSPENDED!
 		'''
 		if state == kazoo.protocol.states.KazooState.CONNECTED:
-			self.ProactorService.schedule_threadsafe(self._on_connected)
+			self.ProactorService.schedule_threadsafe(self._on_connected_at_proactor_thread)
 			L.log(LOG_NOTICE, "Connected to ZooKeeper.")
 		else:
 			if state == kazoo.protocol.states.KazooState.LOST:
@@ -148,7 +148,7 @@ class ZooKeeperContainer(Configurable):
 		self.App.PubSub.publish_threadsafe("ZooKeeperContainer.state/{}!".format(state), self)
 
 
-	def _on_connected(self):
+	def _on_connected_at_proactor_thread(self):
 		self.ZooKeeper.Client.ensure_path(self.Path)
 
 		# Re-publish all existing advertisements after connection is established
@@ -156,14 +156,14 @@ class ZooKeeperContainer(Configurable):
 		for adv in self.Advertisments.values():
 			advs.append(adv)
 		if len(advs) > 0:
-			self._publish_adv_in_proactor(advs)
+			self._publish_adv_at_proactor_thread(advs)
 
 
 	def _on_tick300(self, *args):
 		# Re-publish all existing advertisements every 300 seconds
 		advs = [*self.Advertisments.values()]
 		if len(advs) > 0:
-			self.ProactorService.schedule(self._publish_adv_in_proactor, advs)
+			self.ProactorService.schedule(self._publish_adv_at_proactor_thread, advs)
 
 
 	def is_connected(self):
@@ -193,10 +193,10 @@ class ZooKeeperContainer(Configurable):
 			adv.version = -1  # Force the update
 			adv.data = data
 
-		self.ProactorService.schedule(self._publish_adv_in_proactor, [adv])
+		self.ProactorService.schedule(self._publish_adv_at_proactor_thread, [adv])
 
 
-	def _publish_adv_in_proactor(self, advs):
+	def _publish_adv_at_proactor_thread(self, advs):
 		if not self.ZooKeeper.Client.connected:
 			return
 
