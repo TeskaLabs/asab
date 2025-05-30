@@ -17,26 +17,22 @@ class KazooWrapper(object):
 	def __init__(self, zkcnt, hosts):
 		self.App = zkcnt.App
 		self.ProactorService = zkcnt.ProactorService
+		self.Stopped = False
 
 		self.Client = kazoo.client.KazooClient(
 			hosts=hosts,
 			connection_retry=kazoo.retry.KazooRetry(
-				max_tries=-1,  # Try to reconnect indefinetively
+				max_tries=2,   # Two tries to connect / reconnect before giving up and going LOST
+				ignore_expire=False,
+			),
+			command_retry=kazoo.retry.KazooRetry(
+				max_tries=1,
+				ignore_expire=False,
+				max_delay=20,
 			),
 		)
 
 		self.Client.add_listener(zkcnt._listener)
-		self.Stopped = False
-
-
-	async def _stop(self):
-		def do():
-			if not self.Stopped:
-				self.Stopped = True
-				self.Client.stop()
-				self.Client.close()
-
-		await self.ProactorService.execute(do)
 
 
 	# read-only calls
@@ -48,6 +44,7 @@ class KazooWrapper(object):
 			self.Client.ensure_path, path
 		)
 		return ret
+
 
 	async def exists(self, path):
 		"""

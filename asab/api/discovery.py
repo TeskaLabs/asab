@@ -1,5 +1,4 @@
 import json
-import copy
 import socket
 import typing
 import asyncio
@@ -117,12 +116,12 @@ class DiscoveryService(Service):
 	async def discover(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple]]]:
 		# We need to make a copy of the cache so that the caller can't modify our cache.
 		await asyncio.wait_for(self._ready_event.wait(), 600)
-		return copy.deepcopy(self._advertised_cache)
+		return self._advertised_cache
 
 
 	async def discover_raw(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple]]]:
 		await asyncio.wait_for(self._ready_event.wait(), 600)
-		return copy.deepcopy(self._advertised_raw)
+		return self._advertised_raw
 
 
 	async def get_advertised_instances(self) -> typing.List[typing.Dict]:
@@ -235,8 +234,10 @@ class DiscoveryService(Service):
 				L.exception("Error when scanning advertised instances")
 				return
 
+			# TODO: Transform _advertised_cache and _advertised_raw into read-only structures
 			self._advertised_cache = advertised
 			self._advertised_raw = advertised_raw
+
 			self._ready_event.set()
 
 

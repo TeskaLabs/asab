@@ -168,7 +168,7 @@ class Logging(object):
 			self.RootLogger.warning("Logging seems to be already configured. Proceed with caution.")
 
 		if Config["logging"].getboolean("verbose"):
-			self.RootLogger.setLevel(logging.DEBUG)
+			self.RootLogger.setLevel(2)
 		else:
 			level_name = Config["logging"]["level"].upper()
 			try:
