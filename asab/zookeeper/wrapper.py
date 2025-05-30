@@ -22,10 +22,13 @@ class KazooWrapper(object):
 		self.Client = kazoo.client.KazooClient(
 			hosts=hosts,
 			connection_retry=kazoo.retry.KazooRetry(
-				max_tries=2, ignore_expire=False,  # Try to reconnect indefinetively
+				max_tries=2,   # Two tries to connect / reconnect before giving up and going LOST
+				ignore_expire=False,
 			),
 			command_retry=kazoo.retry.KazooRetry(
-				max_tries=1, ignore_expire=False, max_delay=20,
+				max_tries=1,
+				ignore_expire=False,
+				max_delay=20,
 			),
 		)
 

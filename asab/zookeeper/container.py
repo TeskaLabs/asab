@@ -139,11 +139,8 @@ class ZooKeeperContainer(Configurable):
 			L.log(LOG_NOTICE, "Connected to ZooKeeper.")
 		else:
 			if state == kazoo.protocol.states.KazooState.LOST:
-				if self.ZooKeeper.Stopped:
-					# This is normal
-					pass
-				else:
-					L.warning("ZooKeeper connection state changed. Will try to reconnect.", struct_data={"state": str(state)})
+				if not self.ZooKeeper.Stopped:
+					L.error("ZooKeeper connection LOST. Will try to reconnect.")
 
 			else:
 				L.warning("ZooKeeper connection state changed.", struct_data={"state": str(state)})
@@ -153,6 +150,8 @@ class ZooKeeperContainer(Configurable):
 
 	def _on_connected(self):
 		self.ZooKeeper.Client.ensure_path(self.Path)
+
+		# Re-publish all existing advertisements after connection is established
 		advs = []
 		for adv in self.Advertisments.values():
 			advs.append(adv)
@@ -161,6 +160,7 @@ class ZooKeeperContainer(Configurable):
 
 
 	def _on_tick300(self, *args):
+		# Re-publish all existing advertisements every 300 seconds
 		advs = [*self.Advertisments.values()]
 		if len(advs) > 0:
 			self.ProactorService.schedule(self._publish_adv_in_proactor, advs)
@@ -176,17 +176,24 @@ class ZooKeeperContainer(Configurable):
 	# Advertisement into Zookeeper
 
 	def advertise(self, data, path):
+		if isinstance(data, dict):
+			data = json.dumps(data).encode("utf-8")
+		elif isinstance(data, str):
+			data = data.encode("utf-8")
+		assert isinstance(data, bytes)
+
 		adv = self.Advertisments.get(self.Path + path)
 		if adv is None:
-			if isinstance(data, dict):
-				data = json.dumps(data).encode("utf-8")
-			elif isinstance(data, str):
-				data = data.encode("utf-8")
-			assert isinstance(data, bytes)
 			adv = ZooKeeperAdvertisement(path=self.Path + path, data=data)
 			self.Advertisments[self.Path + path] = adv
 		else:
-			adv.version = -1  # Force the update
+			if data != adv.data:
+				adv.version = -1  # Force the update
+				adv.data = data
+			else:
+				# No change, do not publish
+				return
+
 		self.ProactorService.schedule(self._publish_adv_in_proactor, [adv])
 
 
@@ -201,12 +208,15 @@ class ZooKeeperContainer(Configurable):
 			for adv in advs:
 				if adv.real_path is not None:
 					stats = self.ZooKeeper.Client.exists(adv.real_path)
-					if stats is None or stats.version != adv.version:
-						try:
-							stats = self.ZooKeeper.Client.set(adv.real_path, adv.data)
-							adv.version = stats.version
-						except kazoo.exceptions.NoNodeError:
-							adv.real_path = None
+					if stats is None:
+						adv.real_path = None
+					else:
+						if stats.version != adv.version:
+							try:
+								stats = self.ZooKeeper.Client.set(adv.real_path, adv.data)
+								adv.version = stats.version
+							except kazoo.exceptions.NoNodeError:
+								adv.real_path = None
 
 				if adv.real_path is None:
 					adv.real_path, adv.version = self.ZooKeeper.Client.create(adv.path, adv.data, sequence=True, ephemeral=True, makepath=True, include_data=True)
