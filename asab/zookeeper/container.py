@@ -143,7 +143,7 @@ class ZooKeeperContainer(Configurable):
 					L.error("ZooKeeper connection LOST. Will try to reconnect.")
 
 			else:
-				L.warning("ZooKeeper connection state changed.", struct_data={"state": str(state)})
+				L.warning("ZooKeeper connection state changed. Zookeeper calls are now blocking!", struct_data={"state": str(state)})
 
 		self.App.PubSub.publish_threadsafe("ZooKeeperContainer.state/{}!".format(state), self)
 
