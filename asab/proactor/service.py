@@ -47,3 +47,13 @@ class ProactorService(asab.Service):
 
 		future = self.execute(func, *args)
 		self.App.TaskService.schedule(future)
+
+
+	def schedule_threadsafe(self, func, *args):
+		"""
+		Execute `func(*args)` in the thread from the Proactor Service pool.
+		The result of the future is discarded (using Task Service).
+		"""
+
+		future = self.execute(func, *args)
+		self.App.TaskService.schedule_threadsafe(future)
