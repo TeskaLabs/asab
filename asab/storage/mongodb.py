@@ -218,6 +218,13 @@ class StorageService(StorageServiceABC):
 			await upsertor.execute()
 
 
+class DryRunAbort(Exception):
+	def __init__(self, obj_id):
+		super.__init__()
+		self.ObjID = obj_id
+
+
+
 class MongoDBUpsertor(UpsertorABC):
 
 
@@ -226,7 +233,7 @@ class MongoDBUpsertor(UpsertorABC):
 		return bson.objectid.ObjectId()
 
 
-	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
+	async def transaction(self, session, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None, dry_run: bool = True):
 		id_name = self.get_id_name()
 		addobj = {}
 
@@ -263,7 +270,8 @@ class MongoDBUpsertor(UpsertorABC):
 					filtr,
 					update=addobj,
 					upsert=True if (self.Version == 0) or (self.Version is None) else False,
-					return_document=pymongo.collection.ReturnDocument.AFTER
+					return_document=pymongo.collection.ReturnDocument.AFTER,
+					session=session,
 				)
 			except pymongo.errors.DuplicateKeyError as e:
 				if hasattr(e, "details"):
@@ -279,7 +287,8 @@ class MongoDBUpsertor(UpsertorABC):
 				# If the object is new (version is 1), set the creation datetime
 				await coll.update_one(
 					{id_name: ret[id_name]},
-					{'$set': {'_c': ret['_m']}}
+					{'$set': {'_c': ret['_m']}},
+					session=session,
 				)
 
 			self.ObjId = ret[id_name]
@@ -313,4 +322,27 @@ class MongoDBUpsertor(UpsertorABC):
 
 			await self.webhook(webhook_data)
 
+		if dry_run:
+			await session.abort_transaction()
+			raise DryRunAbort(obj_id=self.ObjId)
+
 		return self.ObjId
+
+	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
+		async with await self.Storage.Client.start_session() as session:
+			try:
+				session.start_transaction(
+					read_concern=pymongo.read_concern.ReadConcern("local"),
+					write_concern=pymongo.write_concern.WriteConcern("majority")
+				)
+				result = await self.transaction(session, custom_data, event_type)
+
+				if session.in_transaction:
+					await session.commit_transaction()
+				return result
+			except DryRunAbort:
+				return DryRunAbort.ObjID
+			except DuplicateError:
+				raise
+			except Exception as e:
+				L.exception("Unknown exception encountered while executing MongoDB transaction: {}".format(e))
