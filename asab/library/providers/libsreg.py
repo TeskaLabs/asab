@@ -142,8 +142,14 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 				L.debug("Periodic pull of libsreg library", struct_data={'url': url})
 
 				last_try = i == len(urllist) - 1
+
 				try:
-					async with aiohttp.ClientSession(trust_env=self.TrustEnv) as session:
+					# Some SSL servers do not properly complete SSL shutdown process,
+					# in that case asyncio leaks SSL connections. If this parameter is set to True,
+					# aiohttp additionally aborts underlining transport after 2 seconds. It is off by default.
+					connector = aiohttp.TCPConnector(enable_cleanup_closed=False)
+
+					async with aiohttp.ClientSession(connector=connector, trust_env=self.TrustEnv) as session:
 						async with session.get(url, headers=headers) as response:
 
 							if response.status == 200:  # The request indicates a new version that we don't have yet
