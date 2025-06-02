@@ -144,10 +144,14 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 				last_try = i == len(urllist) - 1
 
 				try:
+					# This is a hotfix at 02/06/2025
 					# Some SSL servers do not properly complete SSL shutdown process,
 					# in that case asyncio leaks SSL connections. If this parameter is set to True,
 					# aiohttp additionally aborts underlining transport after 2 seconds. It is off by default.
-					connector = aiohttp.TCPConnector(enable_cleanup_closed=True)
+					connector = aiohttp.TCPConnector(
+						enable_cleanup_closed=True,
+						force_close=True,  # Close underlying sockets after connection releasing
+					)
 
 					async with aiohttp.ClientSession(connector=connector, trust_env=self.TrustEnv) as session:
 						async with session.get(url, headers=headers) as response:
