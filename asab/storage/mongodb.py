@@ -29,6 +29,58 @@ asab.Config.add_defaults(
 	}
 )
 
+def transactional(method_to_decorate):
+	@functools.wraps(method_to_decorate)
+	async def wrapper(*args, **kwargs):
+		inst_self = args[0]
+		decorated_method_args = args[1:]
+
+		if isinstance(inst_self, asab.storage.mongodb.MongoDBUpsertor):
+			client = inst_self.Storage.Client
+			obj_id = inst_self.ObjId
+		else:
+			client = inst_self.Client
+			_, obj_id = decorated_method_args
+
+		async with await client.start_session() as session:
+			try:
+				session.start_transaction(
+					read_concern=pymongo.read_concern.ReadConcern("local"),
+					write_concern=pymongo.write_concern.WriteConcern("majority")
+				)
+				result = await method_to_decorate(inst_self, session, *decorated_method_args, **kwargs)
+
+				dry_run = DRY_RUN.get("dry_run")
+				if dry_run:
+					if session.in_transaction:
+						await session.abort_transaction()
+
+					
+					raise DryRunAbort(obj_id=obj_id)
+
+				if session.in_transaction:
+					await session.commit_transaction()
+				return result
+
+			except DryRunAbort:
+				return obj_id
+			except DuplicateError:
+				if session.in_transaction:
+					await session.abort_transaction()
+				raise
+			except Exception as e:
+				L.exception("Unknown exception encountered while executing MongoDB transaction: {}".format(e))
+				if session.in_transaction:
+					await session.abort_transaction()
+				raise
+	return wrapper
+
+
+class DryRunAbort(Exception):
+	def __init__(self, obj_id):
+		self.ObjID = obj_id
+		super().__init__(obj_id)
+
 
 class StorageService(StorageServiceABC):
 	'''
@@ -62,45 +114,6 @@ class StorageService(StorageServiceABC):
 
 		assert self.Database is not None
 
-
-	def transactional(method_to_decorate):
-		@functools.wraps(method_to_decorate)
-		async def wrapper(*args, **kwargs):
-			inst_self = args[0]
-			decorated_method_args = args[1:]
-
-			async with await inst_self.Client.start_session() as session:
-				try:
-					session.start_transaction(
-						read_concern=pymongo.read_concern.ReadConcern("local"),
-						write_concern=pymongo.write_concern.WriteConcern("majority")
-					)
-					result = await method_to_decorate(inst_self, session, *decorated_method_args, **kwargs)
-
-					dry_run = DRY_RUN.get("dry_run")
-					if dry_run:
-						if session.in_transaction:
-							await session.abort_transaction()
-
-						_, obj_id = decorated_method_args
-						raise DryRunAbort()
-
-					if session.in_transaction:
-						await session.commit_transaction()
-					return result
-
-				except DryRunAbort:
-					return obj_id
-				except DuplicateError:
-					if session.in_transaction:
-						await session.abort_transaction()
-					raise
-				except Exception as e:
-					L.exception("Unknown exception encountered while executing MongoDB transaction: {}".format(e))
-					if session.in_transaction:
-						await session.abort_transaction()
-					raise
-		return wrapper
 
 	def upsertor(self, collection: str, obj_id=None, version=0):
 		return MongoDBUpsertor(self, collection, obj_id, version)
@@ -259,11 +272,6 @@ class StorageService(StorageServiceABC):
 			await upsertor.execute()
 
 
-class DryRunAbort(Exception):
-	pass
-
-
-
 class MongoDBUpsertor(UpsertorABC):
 
 
@@ -271,8 +279,8 @@ class MongoDBUpsertor(UpsertorABC):
 	def generate_id(cls):
 		return bson.objectid.ObjectId()
 
-
-	async def transaction(self, session, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
+	@transactional
+	async def execute(self, session, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
 		dry_run = DRY_RUN.get("dry_run")
 		id_name = self.get_id_name()
 		addobj = {}
@@ -362,27 +370,4 @@ class MongoDBUpsertor(UpsertorABC):
 
 			await self.webhook(webhook_data)
 
-		if dry_run:
-			await session.abort_transaction()
-			raise DryRunAbort()
-
 		return self.ObjId
-
-	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
-		async with await self.Storage.Client.start_session() as session:
-			try:
-				session.start_transaction(
-					read_concern=pymongo.read_concern.ReadConcern("local"),
-					write_concern=pymongo.write_concern.WriteConcern("majority")
-				)
-				result = await self.transaction(session, custom_data, event_type)
-
-				if session.in_transaction:
-					await session.commit_transaction()
-				return result
-			except DryRunAbort:
-				return self.ObjId
-			except DuplicateError:
-				raise
-			except Exception as e:
-				L.exception("Unknown exception encountered while executing MongoDB transaction: {}".format(e))
