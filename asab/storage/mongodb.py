@@ -1,5 +1,6 @@
 import datetime
 import typing
+import functools
 
 import motor.motor_asyncio
 import pymongo
@@ -62,6 +63,43 @@ class StorageService(StorageServiceABC):
 		assert self.Database is not None
 
 
+	async def _execute_with_transaction(self, transaction, *op_args, **op_kwargs):
+		async with await self.Client.start_session() as session:
+			try:
+				session.start_transaction(
+					read_concern=pymongo.read_concern.ReadConcern("local"),
+					write_concern=pymongo.write_concern.WriteConcern("majority")
+				)
+				result = await transaction(session, *op_args, **op_kwargs)
+
+				dry_run = DRY_RUN.get("dry_run")
+				if dry_run:
+					await session.abort_transaction()
+					_, obj_id = op_args
+					raise DryRunAbort()
+
+				if session.in_transaction:
+					await session.commit_transaction()
+				return result
+			except DryRunAbort:
+				return obj_id
+			except DuplicateError:
+				raise
+			except Exception as e:
+				L.exception("Unknown exception encountered while executing MongoDB transaction: {}".format(e))
+				raise
+
+	def transactional(func_to_decorate):
+		@functools.wraps(func_to_decorate)
+		async def wrapper(*args, **kwargs):
+			inst_self = args[0]
+			m_args = args[1:]
+			async def operation(session, *op_args, **op_kwargs):
+				return await func_to_decorate(inst_self, session, *op_args, **op_kwargs)
+
+			return await inst_self._execute_with_transaction(operation, *m_args,**kwargs)
+		return wrapper
+
 	def upsertor(self, collection: str, obj_id=None, version=0):
 		return MongoDBUpsertor(self, collection, obj_id, version)
 
@@ -99,10 +137,10 @@ class StorageService(StorageServiceABC):
 
 		return self.Database[collection]
 
-	#dryrun here
-	async def delete(self, collection: str, obj_id):
+	@transactional
+	async def delete(self, session, collection: str, obj_id):
 		coll = self.Database[collection]
-		ret = await coll.find_one_and_delete({'_id': obj_id})
+		ret = await coll.find_one_and_delete({'_id': obj_id}, session=session)
 
 		if ret is None:
 			raise KeyError("NOT-FOUND")
@@ -220,9 +258,7 @@ class StorageService(StorageServiceABC):
 
 
 class DryRunAbort(Exception):
-	def __init__(self, obj_id):
-		super.__init__()
-		self.ObjID = obj_id
+	pass
 
 
 
@@ -326,7 +362,7 @@ class MongoDBUpsertor(UpsertorABC):
 
 		if dry_run:
 			await session.abort_transaction()
-			raise DryRunAbort(obj_id=self.ObjId)
+			raise DryRunAbort()
 
 		return self.ObjId
 
@@ -343,7 +379,7 @@ class MongoDBUpsertor(UpsertorABC):
 					await session.commit_transaction()
 				return result
 			except DryRunAbort:
-				return DryRunAbort.ObjID
+				return self.ObjId
 			except DuplicateError:
 				raise
 			except Exception as e:
