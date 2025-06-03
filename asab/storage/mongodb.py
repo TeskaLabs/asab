@@ -11,7 +11,7 @@ import asab
 from .exceptions import DuplicateError
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
-from dry_run import DRY_RUN
+from .dry_run import DRY_RUN
 
 #
 
