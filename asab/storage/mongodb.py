@@ -9,7 +9,7 @@ import bson
 import logging
 
 import asab
-from .exceptions import DuplicateError
+from .exceptions import DuplicateError, DryRunAbort
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
 from .dry_run import DRY_RUN
@@ -74,12 +74,6 @@ def transactional(method_to_decorate):
 					await session.abort_transaction()
 				raise
 	return wrapper
-
-
-class DryRunAbort(Exception):
-	def __init__(self, obj_id):
-		self.ObjID = obj_id
-		super().__init__(obj_id)
 
 
 class StorageService(StorageServiceABC):
