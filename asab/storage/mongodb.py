@@ -63,41 +63,43 @@ class StorageService(StorageServiceABC):
 		assert self.Database is not None
 
 
-	async def _execute_with_transaction(self, transaction, *op_args, **op_kwargs):
-		async with await self.Client.start_session() as session:
-			try:
-				session.start_transaction(
-					read_concern=pymongo.read_concern.ReadConcern("local"),
-					write_concern=pymongo.write_concern.WriteConcern("majority")
-				)
-				result = await transaction(session, *op_args, **op_kwargs)
-
-				dry_run = DRY_RUN.get("dry_run")
-				if dry_run:
-					await session.abort_transaction()
-					_, obj_id = op_args
-					raise DryRunAbort()
-
-				if session.in_transaction:
-					await session.commit_transaction()
-				return result
-			except DryRunAbort:
-				return obj_id
-			except DuplicateError:
-				raise
-			except Exception as e:
-				L.exception("Unknown exception encountered while executing MongoDB transaction: {}".format(e))
-				raise
-
-	def transactional(func_to_decorate):
-		@functools.wraps(func_to_decorate)
+	def transactional(method_to_decorate):
+		@functools.wraps(method_to_decorate)
 		async def wrapper(*args, **kwargs):
 			inst_self = args[0]
-			m_args = args[1:]
-			async def operation(session, *op_args, **op_kwargs):
-				return await func_to_decorate(inst_self, session, *op_args, **op_kwargs)
+			decorated_method_args = args[1:]
 
-			return await inst_self._execute_with_transaction(operation, *m_args,**kwargs)
+			async with await inst_self.Client.start_session() as session:
+				try:
+					session.start_transaction(
+						read_concern=pymongo.read_concern.ReadConcern("local"),
+						write_concern=pymongo.write_concern.WriteConcern("majority")
+					)
+					result = await method_to_decorate(inst_self, session, *decorated_method_args, **kwargs)
+
+					dry_run = DRY_RUN.get("dry_run")
+					if dry_run:
+						if session.in_transaction:
+							await session.abort_transaction()
+
+						_, obj_id = decorated_method_args
+						raise DryRunAbort()
+
+					if session.in_transaction:
+						await session.commit_transaction()
+					return result
+
+				except DryRunAbort:
+					return obj_id
+				except DuplicateError:
+					if session.in_transaction:
+						await session.abort_transaction()
+					raise
+				except Exception as e:
+					L.exception("Unknown exception encountered while executing MongoDB transaction: {}".format(e))
+					if session.in_transaction:
+						await session.abort_transaction()
+					raise
 		return wrapper
 
 	def upsertor(self, collection: str, obj_id=None, version=0):
