@@ -111,7 +111,8 @@ class InternalAuth:
 
 		private_key_changed = await self._ensure_private_key()
 		if not self.PrivateKey:
-			raise RuntimeError("Private key is not initialized.")
+			L.error("Private key is not initialized.")
+			return
 
 		if private_key_changed and self.PublicKeyProvider is not None:
 			self._update_public_key()
@@ -139,6 +140,8 @@ class InternalAuth:
 				break
 			except kazoo.exceptions.NoNodeError:
 				pass
+			except (kazoo.exceptions.ConnectionClosedError, kazoo.exceptions.ConnectionLoss):
+				return False
 
 			# Generate a new key
 			private_key = jwcrypto.jwk.JWK.generate(kty="EC", crv="P-256", kid=secrets.token_hex(16))
