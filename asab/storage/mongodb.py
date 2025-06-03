@@ -11,6 +11,7 @@ import asab
 from .exceptions import DuplicateError
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
+from dry_run import DRY_RUN
 
 #
 
@@ -98,7 +99,7 @@ class StorageService(StorageServiceABC):
 
 		return self.Database[collection]
 
-
+	#dryrun here
 	async def delete(self, collection: str, obj_id):
 		coll = self.Database[collection]
 		ret = await coll.find_one_and_delete({'_id': obj_id})
@@ -233,7 +234,8 @@ class MongoDBUpsertor(UpsertorABC):
 		return bson.objectid.ObjectId()
 
 
-	async def transaction(self, session, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None, dry_run: bool = True):
+	async def transaction(self, session, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
+		dry_run = DRY_RUN.get("dry_run")
 		id_name = self.get_id_name()
 		addobj = {}
 
