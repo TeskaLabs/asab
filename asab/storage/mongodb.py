@@ -29,6 +29,7 @@ asab.Config.add_defaults(
 	}
 )
 
+
 def transactional(method_to_decorate):
 	@functools.wraps(method_to_decorate)
 	async def wrapper(*args, **kwargs):
@@ -55,7 +56,7 @@ def transactional(method_to_decorate):
 					if session.in_transaction:
 						await session.abort_transaction()
 
-					
+
 					raise DryRunAbort(obj_id=obj_id)
 
 				if session.in_transaction:
@@ -275,7 +276,6 @@ class MongoDBUpsertor(UpsertorABC):
 
 	@transactional
 	async def execute(self, session, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
-		dry_run = DRY_RUN.get("dry_run")
 		id_name = self.get_id_name()
 		addobj = {}
 
