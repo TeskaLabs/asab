@@ -191,9 +191,6 @@ class LibraryService(Service):
 		Returns:
 			typing.List[str]: A list of paths to the found files. If no files are found, the list will be empty.
 		"""
-
-		self._ensure_ready()
-
 		_validate_path_item(path)
 
 		results = []
@@ -225,6 +222,7 @@ class LibraryService(Service):
 				return itemio.read()
 		```
 		"""
+		self._ensure_ready()
 
 		LogObsolete.warning("Method 'LibraryService.read()' is obsolete. Use 'LibraryService.open()' method instead.")
 		_validate_path_item(path)
@@ -256,6 +254,7 @@ class LibraryService(Service):
 			text = b.read().decode("utf-8")
 		```
 		"""
+		self._ensure_ready()
 
 		_validate_path_item(path)
 
