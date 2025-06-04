@@ -192,6 +192,8 @@ class LibraryService(Service):
 			typing.List[str]: A list of paths to the found files. If no files are found, the list will be empty.
 		"""
 
+		self._ensure_ready()
+
 		_validate_path_item(path)
 
 		results = []
@@ -301,6 +303,7 @@ class LibraryService(Service):
 		Returns:
 			List of items that are enabled for the tenant.
 		"""
+		self._ensure_ready()
 
 		_validate_path_directory(path)
 
@@ -655,6 +658,8 @@ class LibraryService(Service):
 		Returns:
 			A file object containing a gzipped tar archive.
 		"""
+		self._ensure_ready()
+
 		_validate_path_directory(path)
 
 		fileobj = tempfile.TemporaryFile()
@@ -726,6 +731,8 @@ class LibraryService(Service):
 				print("New changes in the library found by provider: '{}'".format(provider))
 		```
 		"""
+		self._ensure_ready()
+
 		if isinstance(paths, str):
 			paths = [paths]
 		for path in paths:
