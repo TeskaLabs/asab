@@ -31,6 +31,12 @@ asab.Config.add_defaults(
 
 
 def transactional(method_to_decorate):
+	"""
+    A decorator for asynchronous methods that wraps execution within a MongoDB transaction.
+
+    Ensures ACID properties for operations. Handles session management, transaction
+    start/commit/abort, and specific error conditions like `DryRunAbort` and `DuplicateError`.
+	"""
 	@functools.wraps(method_to_decorate)
 	async def wrapper(*args, **kwargs):
 		inst_self = args[0]
