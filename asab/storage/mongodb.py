@@ -1,5 +1,6 @@
 import datetime
 import typing
+import functools
 
 import motor.motor_asyncio
 import pymongo
@@ -8,9 +9,10 @@ import bson
 import logging
 
 import asab
-from .exceptions import DuplicateError
+from .exceptions import DuplicateError, DryRunAbort
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
+from .dry_run import DRY_RUN
 
 #
 
@@ -26,6 +28,63 @@ asab.Config.add_defaults(
 		}
 	}
 )
+
+
+def transactional(method_to_decorate):
+	"""
+	A decorator for asynchronous methods that wraps execution within a MongoDB transaction.
+
+	Ensures ACID properties for operations. Handles session management, transaction
+	start/commit/abort, and specific error conditions like `DryRunAbort` and `DuplicateError`.
+	"""
+	@functools.wraps(method_to_decorate)
+	async def wrapper(*args, **kwargs):
+		inst_self = args[0]
+		decorated_method_args = args[1:]
+
+		if isinstance(inst_self, asab.storage.mongodb.MongoDBUpsertor):
+			client = inst_self.Storage.Client
+			obj_id = inst_self.ObjId
+		else:
+			client = inst_self.Client
+			_, obj_id = decorated_method_args
+
+		async with await client.start_session() as session:
+			try:
+				session.start_transaction(
+					read_concern=pymongo.read_concern.ReadConcern("local"),
+					write_concern=pymongo.write_concern.WriteConcern("majority")
+				)
+				result = await method_to_decorate(inst_self, session, *decorated_method_args, **kwargs)
+
+				dry_run = DRY_RUN.get("dry_run")
+				if dry_run:
+					if session.in_transaction:
+						await session.abort_transaction()
+
+
+					raise DryRunAbort(obj_id=obj_id)
+
+				if session.in_transaction:
+					await session.commit_transaction()
+				return result
+
+			except DryRunAbort:
+				return obj_id
+			except DuplicateError:
+				if session.in_transaction:
+					await session.abort_transaction()
+				raise
+			except Exception as e:
+				L.exception(
+					"Unknown exception encountered while executing MongoDB transaction",
+					struct_data={
+						"reason": e,
+					})
+				if session.in_transaction:
+					await session.abort_transaction()
+				raise
+	return wrapper
 
 
 class StorageService(StorageServiceABC):
@@ -98,10 +157,10 @@ class StorageService(StorageServiceABC):
 
 		return self.Database[collection]
 
-
-	async def delete(self, collection: str, obj_id):
+	@transactional
+	async def delete(self, session, collection: str, obj_id):
 		coll = self.Database[collection]
-		ret = await coll.find_one_and_delete({'_id': obj_id})
+		ret = await coll.find_one_and_delete({'_id': obj_id}, session=session)
 
 		if ret is None:
 			raise KeyError("NOT-FOUND")
@@ -225,8 +284,8 @@ class MongoDBUpsertor(UpsertorABC):
 	def generate_id(cls):
 		return bson.objectid.ObjectId()
 
-
-	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
+	@transactional
+	async def execute(self, session, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
 		id_name = self.get_id_name()
 		addobj = {}
 
@@ -263,7 +322,8 @@ class MongoDBUpsertor(UpsertorABC):
 					filtr,
 					update=addobj,
 					upsert=True if (self.Version == 0) or (self.Version is None) else False,
-					return_document=pymongo.collection.ReturnDocument.AFTER
+					return_document=pymongo.collection.ReturnDocument.AFTER,
+					session=session,
 				)
 			except pymongo.errors.DuplicateKeyError as e:
 				if hasattr(e, "details"):
@@ -279,7 +339,8 @@ class MongoDBUpsertor(UpsertorABC):
 				# If the object is new (version is 1), set the creation datetime
 				await coll.update_one(
 					{id_name: ret[id_name]},
-					{'$set': {'_c': ret['_m']}}
+					{'$set': {'_c': ret['_m']}},
+					session=session,
 				)
 
 			self.ObjId = ret[id_name]
