@@ -70,7 +70,11 @@ def transactional(method_to_decorate):
 					await session.abort_transaction()
 				raise
 			except Exception as e:
-				L.exception("Unknown exception encountered while executing MongoDB transaction: {}".format(e))
+				L.exception(
+					"Unknown exception encountered while executing MongoDB transaction",
+					struct_data={
+						"reason": e,
+					})
 				if session.in_transaction:
 					await session.abort_transaction()
 				raise
