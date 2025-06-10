@@ -437,7 +437,7 @@ class LibraryService(Service):
 			return
 
 		# For each subscription (path + target)
-		for p_target, p_path in subscriptions:
+		for p_target, p_path in list(subscriptions):
 			# Check if something disabled under this path and target changed
 			changed = self._is_disabled_diff_affecting_path(p_path, old_disabled, old_disabled_paths, p_target)
 

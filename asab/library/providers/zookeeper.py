@@ -441,8 +441,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		Check watched paths and publish a pubsub message for every one that has changed.
 		"""
-
-		for (target, path) in self.Subscriptions:
+		for (target, path) in list(self.Subscriptions):
 
 			async def do_check_path(actual_path):
 				try:
