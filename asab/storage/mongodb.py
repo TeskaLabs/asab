@@ -57,7 +57,7 @@ def transactional(method_to_decorate):
 				)
 				result = await method_to_decorate(inst_self, session, *decorated_method_args, **kwargs)
 
-				dry_run = DRY_RUN.get("dry_run")
+				dry_run = DRY_RUN.get()
 				if dry_run:
 					if session.in_transaction:
 						await session.abort_transaction()
