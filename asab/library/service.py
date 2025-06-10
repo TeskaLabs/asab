@@ -637,58 +637,95 @@ class LibraryService(Service):
 		L.info("Item '{}' not found in directory '{}'.".format(filename, directory))
 		return None
 
-
-	async def export(self, path: str = "/", remove_path: bool = False) -> typing.IO:
+	async def export(
+			self,
+			path: str = "/",
+			remove_path: bool = False,
+			tenant: bool = False
+	) -> typing.IO:
 		"""
-		Return a file-like stream containing a gzipped tar archive of the library contents of the path.
+		Produce a gzipped tar of global and, optionally, tenant layers.
 
 		Args:
-			path: The path to export.
-			tenant (str | None ): The tenant to use for the operation.
-			remove_path: If `True`, the path will be removed from the tar file.
-
+			path: Directory path to export (must end with '/').
+			remove_path: If True, strip `path` prefix from archived names.
+			tenant: If True, append each tenant's layer under `.tenants/<tenant>/`.
 		Returns:
-			A file object containing a gzipped tar archive.
+			A file-like object with the tar.gz archive.
 		"""
-
 		_validate_path_directory(path)
 
+		provider = self.Libraries[0]
 		fileobj = tempfile.TemporaryFile()
 		tarobj = tarfile.open(name=None, mode='w:gz', fileobj=fileobj)
 
-		items = await self._list(path, providers=self.Libraries[:1])
-		recitems = list(items[:])
-
-		while len(recitems) > 0:
-
-			item = recitems.pop(0)
-			if item.type != 'dir':
-				continue
-
-			child_items = await self._list(item.name, providers=item.providers)
-			items.extend(child_items)
-			recitems.extend(child_items)
-
+		# -- Global layer --
+		items = await self._collect_items(path, providers=[provider])
 		for item in items:
 			if item.type != 'item':
 				continue
-			my_data = await self.Libraries[0].read(item.name)
-			if remove_path:
-				assert item.name.startswith(path)
-				tar_name = item.name[len(path):]
-			else:
-				tar_name = item.name
-			info = tarfile.TarInfo(tar_name)
-			my_data.seek(0, io.SEEK_END)
-			info.size = my_data.tell()
-			my_data.seek(0, io.SEEK_SET)
+			data = await provider.read(item.name)
+			if data is None:
+				continue
+			name = item.name[len(path):] if remove_path else item.name
+			info = tarfile.TarInfo(name)
+			data.seek(0, io.SEEK_END)
+			info.size = data.tell()
+			data.seek(0)
 			info.mtime = time.time()
-			tarobj.addfile(tarinfo=info, fileobj=my_data)
+			tarobj.addfile(tarinfo=info, fileobj=data)
+
+		# -- Tenant layers --
+		if tenant:
+			try:
+				tenants = await provider._get_tenants()
+			except Exception:
+				tenants = []
+
+			for t in tenants:
+				token = Tenant.set(t)
+				try:
+					t_items = await self._collect_items(path, providers=[provider])
+				finally:
+					Tenant.reset(token)
+
+				for item in t_items:
+					if item.type != 'item':
+						continue
+					data = await provider.read(item.name)
+					if data is None:
+						continue
+					rel = item.name[len(path):] if remove_path else item.name
+					archive_name = ".tenants/{0}/{1}".format(t, rel.lstrip("/"))
+					info = tarfile.TarInfo(archive_name)
+					data.seek(0, io.SEEK_END)
+					info.size = data.tell()
+					data.seek(0)
+					info.mtime = time.time()
+					tarobj.addfile(tarinfo=info, fileobj=data)
 
 		tarobj.close()
 		fileobj.seek(0)
 		return fileobj
 
+	async def _collect_items(
+			self,
+			path: str,
+			providers: typing.List[LibraryProviderABC]
+	) -> typing.List[LibraryItem]:
+		"""
+		Helper to recursively collect all LibraryItem objects under `path` for given providers.
+		"""
+		items = await self._list(path, providers=providers)
+		rec = list(items)
+		while rec:
+			node = rec.pop(0)
+			if node.type != 'dir':
+				continue
+			children = await self._list(node.name, providers=node.providers)
+			items.extend(children)
+			rec.extend(children)
+		return items
 
 	async def subscribe(
 		self,
