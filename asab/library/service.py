@@ -694,7 +694,7 @@ class LibraryService(Service):
 				if data is None:
 					continue
 				rel = item.name[len(path):] if remove_path else item.name
-				archive_name = ".tenants/{0}/{1}".format(t, rel.lstrip("/"))
+				archive_name = "tenants/{0}/{1}".format(t, rel.lstrip("/"))
 				info = tarfile.TarInfo(archive_name)
 				data.seek(0, io.SEEK_END)
 				info.size = data.tell()
