@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## vXX.XX
+## Relase Candidate
 
 ### Breaking Changes
 - XX
