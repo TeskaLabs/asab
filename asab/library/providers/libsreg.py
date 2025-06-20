@@ -232,6 +232,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 							if os.path.exists(newtarfname):
 								os.remove(newtarfname)
 
+							L.debug("Library updated from remote repository.", struct_data={"url": url, 'size': dwnld_size, 'etag': etag_incoming})
 							return  # We are done, leaving the loop
 
 						elif response.status == 304:
