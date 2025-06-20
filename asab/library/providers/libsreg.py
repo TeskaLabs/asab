@@ -106,7 +106,6 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 		self.PullLock = asyncio.Lock()
 		self.LastPull = self.App.time()
-		L.info("", struct_data={"path": self.RepoPath, "urls": self.URLs, "pull_interval": self.PullInterval})
 
 		# TODO: Subscription to changes in the library
 		self.SubscribedPaths = set()
