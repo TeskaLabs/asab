@@ -54,6 +54,12 @@ class WebContainer(Configurable):
 
 		# Parse listen address(es), can be multiline configuration item
 		ls = self.Config.get("listen")
+
+		if isinstance(ls, int):
+			ls = str(ls)  # Assume that the integer is a port number
+		if not isinstance(ls, str):
+			raise TypeError("Invalid type of 'listen' configuration item: {}".format(type(ls)))
+
 		self._listen = []
 		for line in ls.split('\n'):
 			line = line.strip()
