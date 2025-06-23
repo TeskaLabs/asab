@@ -118,7 +118,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		super().__init__(library, self.RepoPath, layer, set_ready=False)
 
 		self.PullLock = asyncio.Lock()
-		self.LastPull = self.App.time()
+		self.LastPull = None
 
 		# TODO: Subscription to changes in the library
 		self.SubscribedPaths = set()
@@ -138,7 +138,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		if self.PullLock.locked():
 			return
 
-		if self.App.time() - self.LastPull < self.PullInterval:
+		if self.LastPull is not None and self.App.time() - self.LastPull < self.PullInterval:
 			# Do not pull if the last pull was done less than PullInterval ago
 			return
 
