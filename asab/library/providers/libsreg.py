@@ -39,7 +39,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		...
 	```
 
-	Specify the library version in the URL fragment (after `#`):
+	Specify the library version in the URL fragment (after `#`), the default is `production`:
 	```ini
 	[library]
 	providers=
@@ -48,12 +48,13 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		...
 	```
 
-	Specify the pull interval after `@pull:`:
+	Specify the pull interval after `#pull:`:
 	```ini
 	[library]
 	providers=
 		...
-		libsreg+https://libsreg1.example.com,libsreg2.example.com/my-library@pull:24h
+		libsreg+https://libsreg1.example.com,libsreg2.example.com/my-library#v25.14.01#pull:24h  ; v25.14.01, 24 hours
+		libsreg+https://libsreg1.example.com,libsreg2.example.com/my-library#pull:30m  ; production, 30 minutes
 		...
 	```
 	"""
@@ -61,16 +62,28 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 	def __init__(self, library, path, layer):
 
-		if "@pull:" in path:
-			path, pull_interval = path.rsplit("@pull:", 1)
+		url = urllib.parse.urlparse(path)
+		assert url.scheme.startswith("libsreg+")
+
+		fragment = url.fragment
+
+		version = ""
+		pull_interval = None
+
+		# Split fragment by '#' and process parts
+		if fragment:
+			parts = fragment.split('#')
+			for part in parts:
+				if part.startswith("pull:"):
+					pull_interval = part[5:]
+				elif part:
+					version = part
+
+		if pull_interval is not None:
 			self.PullInterval = convert_to_seconds(pull_interval)
 		else:
 			self.PullInterval = 43200  # Default pull interval is 12 hours
 
-		url = urllib.parse.urlparse(path)
-		assert url.scheme.startswith("libsreg+")
-
-		version = url.fragment
 		if version == "":
 			version = "production"
 
