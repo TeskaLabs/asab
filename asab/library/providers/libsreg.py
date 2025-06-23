@@ -86,14 +86,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 		self.App.TaskService.schedule(self._periodic_pull(None))
 
-		if version.startswith('v'):
-			# Fixed versions (ie v24.04) are much less likely to change, therefore we can check only every 12 hours
-			self.App.PubSub.subscribe("Application.tick/43200!", self._periodic_pull)
-		elif archname == 'teskalabs-versions-library':
-			# TODO: This is a temporary workaround for the teskalabs-versions-library. It has to be delivered continuously. However, it is not a good idea to check every minute. Better solution coming soon in LogMan.io.
-			self.App.PubSub.subscribe("Application.tick/43200!", self._periodic_pull)
-		else:
-			self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
+		self.App.PubSub.subscribe("Application.tick/43200!", self._periodic_pull)  # Check for changes every 12 hours
 
 
 	async def _periodic_pull(self, event_name):
