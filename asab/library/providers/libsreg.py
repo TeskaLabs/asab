@@ -48,13 +48,13 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		...
 	```
 
-	Specify the pull interval after `#pull:`:
+	Specify the pull interval after `#pull=`:
 	```ini
 	[library]
 	providers=
 		...
-		libsreg+https://libsreg1.example.com,libsreg2.example.com/my-library#v25.14.01#pull:24h  ; v25.14.01, 24 hours
-		libsreg+https://libsreg1.example.com,libsreg2.example.com/my-library#pull:30m  ; production, 30 minutes
+		libsreg+https://libsreg1.example.com,libsreg2.example.com/my-library#v25.14.01#pull=24h  ; v25.14.01, 24 hours
+		libsreg+https://libsreg1.example.com,libsreg2.example.com/my-library#pull=30m  ; production, 30 minutes
 		...
 	```
 	"""
@@ -74,7 +74,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		if fragment:
 			parts = fragment.split('#')
 			for part in parts:
-				if part.startswith("pull:"):
+				if part.startswith("pull="):
 					pull_interval = part[5:]
 				elif part:
 					version = part
