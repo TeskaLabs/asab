@@ -76,7 +76,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 			for part in parts:
 				if part.startswith("pull="):
 					pull_interval = part[5:]
-				elif part:
+				elif "=" not in part:
 					version = part
 
 		if pull_interval is not None:
