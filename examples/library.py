@@ -45,7 +45,12 @@ class MyApplication(asab.Application):
 
 
 	async def on_library_ready(self, event_name, library):
-		items = await self.LibraryService.list("/", recursive=False)
+		try:
+			items = await self.LibraryService.list("/", recursive=False)
+		except asab.exceptions.LibraryNotReadyError as err:
+			print("  - !!! Cannot list Library (not ready): {}".format(err))
+			return
+
 		print("# Library\n")
 		for item in items:
 			print(" *", item)
@@ -58,7 +63,10 @@ class MyApplication(asab.Application):
 						else:
 							print("  - N/A")  # Item is likely disabled
 				except asab.exceptions.LibraryError as err:
-					print("  - !!! Cannot open item {}: {}".format(item.name, err))
+					print("  - !!! Cannot open {} (not ready): {}".format(item.name, err))
+				except asab.exceptions.LibraryNotReadyError as err:
+					print("  - !!! Failed to open {}: {}".format(item.name, err))
+
 		print("\n===")
 		self.Event.set()
 
