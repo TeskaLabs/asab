@@ -1,6 +1,5 @@
 import datetime
 import typing
-import functools
 
 import motor.motor_asyncio
 import pymongo
@@ -28,6 +27,7 @@ asab.Config.add_defaults(
 		}
 	}
 )
+
 
 class MongoTransaction:
 	"""
