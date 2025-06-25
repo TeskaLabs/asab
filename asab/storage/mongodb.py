@@ -30,6 +30,16 @@ asab.Config.add_defaults(
 )
 
 class MongoTransaction:
+	"""
+	MongoDB transaction context manager.
+	Usage example (with upsertor):
+	client = upsertor.Storage.Client
+	async with asab.storage.mongodb.MongoTransaction(client=client, obj_id=pbid, target_accessor=upsertor) as transaction:
+			pbid = await upsertor.execute()
+	'client' is StorageService Client (a mongo motor AsyncIOMotorClientSession)
+	'obj_id' is MongoDB _id
+	'target_accessor' is either StorageService itself, or in this case instance of MongoDBUpsertor class
+	"""
 	def __init__(self, client, obj_id=None, target_accessor=None):
 		self.Client = client
 		self.ObjId = obj_id
@@ -331,10 +341,7 @@ class MongoDBUpsertor(UpsertorABC):
 		if len(addobj) > 0:
 			coll = self.Storage.Database[self.Collection]
 			try:
-
-				print("storage is", self.Storage._current_session)
 				if self.Storage._current_session:
-					print("executing in transaction from asab")
 					ret = await coll.find_one_and_update(
 						filtr,
 						update=addobj,
