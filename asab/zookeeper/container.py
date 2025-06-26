@@ -1,8 +1,8 @@
 import os
-import time
 import json
-import asyncio
 import logging
+import threading
+import dataclasses
 import urllib.parse
 import configparser
 
@@ -99,34 +99,31 @@ class ZooKeeperContainer(Configurable):
 		self.Path = url_path
 
 		self.Advertisments = dict()
-		self.DataWatchers = set()
-		self.App.PubSub.subscribe("Application.tick/300!", self._readvertise)
+		self.AdvertismentsLock = threading.Lock()
+
+		self.App.PubSub.subscribe("Application.tick/300!", self._on_tick300)
+		self.App.PubSub.subscribe("Application.tick/60!", self._on_tick60)
 
 		self.ZooKeeper = KazooWrapper(self, url_netloc)
 
 		zookeeper_service.Containers.append(self)
-		self.ProactorService.schedule(self._start)
+		self.ZooKeeper.Client.start_async()
 
 
-	def _start(self):
-		# This method is called on proactor thread
-		while True:
-			try:
-				self.ZooKeeper.Client.start(timeout=600)  # 600 seconds
-				return
-			except Exception as e:
-				L.error(
-					"Failed to connect to ZooKeeper: {} (retrying in 2 seconds)".format(e),
-					struct_data={
-						'hosts': str(self.ZooKeeper.Client.hosts),
-					}
-				)
-				time.sleep(2)
-				continue
+	def _on_tick60(self, *args):
+		# Reconnect if the connection is lost
+		if self.ZooKeeper.Client.state == kazoo.protocol.states.KazooState.LOST and self.ZooKeeper.Client.client_state == kazoo.protocol.states.KeeperState.CLOSED and not self.ZooKeeper.Stopped:
+			self.ZooKeeper.Client.start_async()
 
 
 	async def _stop(self):
-		await self.ZooKeeper._stop()
+		def do():
+			if not self.ZooKeeper.Stopped:
+				self.ZooKeeper.Stopped = True
+				self.ZooKeeper.Client.stop()
+				self.ZooKeeper.Client.close()
+
+		await self.ProactorService.execute(do)
 
 
 	def _listener(self, state):
@@ -138,12 +135,35 @@ class ZooKeeperContainer(Configurable):
 		* ZooKeeperContainer.state/SUSPENDED!
 		'''
 		if state == kazoo.protocol.states.KazooState.CONNECTED:
-			self.App.Loop.call_soon_threadsafe(self.ZooKeeper.Client.ensure_path, self.Path)
+			self.ProactorService.schedule_threadsafe(self._on_connected_at_proactor_thread)
 			L.log(LOG_NOTICE, "Connected to ZooKeeper.")
 		else:
-			L.warning("ZooKeeper connection state changed.", struct_data={"state": str(state)})
+			if state == kazoo.protocol.states.KazooState.LOST:
+				if not self.ZooKeeper.Stopped:
+					L.error("ZooKeeper connection LOST. Will try to reconnect.")
+
+			else:
+				L.warning("ZooKeeper connection state changed. Zookeeper calls are now blocking!", struct_data={"state": str(state)})
 
 		self.App.PubSub.publish_threadsafe("ZooKeeperContainer.state/{}!".format(state), self)
+
+
+	def _on_connected_at_proactor_thread(self):
+		self.ZooKeeper.Client.ensure_path(self.Path)
+
+		# Re-publish all existing advertisements after connection is established
+		advs = []
+		for adv in self.Advertisments.values():
+			advs.append(adv)
+		if len(advs) > 0:
+			self._publish_adv_at_proactor_thread(advs)
+
+
+	def _on_tick300(self, *args):
+		# Re-publish all existing advertisements every 300 seconds
+		advs = [*self.Advertisments.values()]
+		if len(advs) > 0:
+			self.ProactorService.schedule(self._publish_adv_at_proactor_thread, advs)
 
 
 	def is_connected(self):
@@ -156,17 +176,56 @@ class ZooKeeperContainer(Configurable):
 	# Advertisement into Zookeeper
 
 	def advertise(self, data, path):
+		if isinstance(data, dict):
+			data = json.dumps(data).encode("utf-8")
+		elif isinstance(data, str):
+			data = data.encode("utf-8")
+		assert isinstance(data, bytes)
+
 		adv = self.Advertisments.get(self.Path + path)
 		if adv is None:
-			adv = ZooKeeperAdvertisement(self.Path + path)
+			adv = ZooKeeperAdvertisement(path=self.Path + path, data=data)
 			self.Advertisments[self.Path + path] = adv
-		self.App.TaskService.schedule(adv._set_data(self, data))
+		else:
+			if data == adv.data:
+				return  # No change, do not publish
+
+			adv.version = -1  # Force the update
+			adv.data = data
+
+		self.ProactorService.schedule(self._publish_adv_at_proactor_thread, [adv])
 
 
-	async def _readvertise(self, *args):
-		for adv in self.Advertisments.values():
-			await adv._readvertise(self)
+	def _publish_adv_at_proactor_thread(self, advs):
+		if not self.ZooKeeper.Client.connected:
+			return
 
+		if not self.AdvertismentsLock.acquire(blocking=False):
+			return
+
+		try:
+			for adv in advs:
+				if adv.real_path is not None:
+					stats = self.ZooKeeper.Client.exists(adv.real_path)
+					if stats is None:
+						adv.real_path = None
+					else:
+						if stats.version != adv.version:
+							try:
+								stats = self.ZooKeeper.Client.set(adv.real_path, adv.data)
+								adv.version = stats.version
+							except kazoo.exceptions.NoNodeError:
+								adv.real_path = None
+
+				if adv.real_path is None:
+					adv.real_path, stats = self.ZooKeeper.Client.create(adv.path, adv.data, sequence=True, ephemeral=True, makepath=True, include_data=True)
+					adv.version = stats.version
+
+		except Exception:
+			L.exception("Error when publishing advertisement")
+
+		finally:
+			self.AdvertismentsLock.release()
 
 	# Reading
 
@@ -183,57 +242,9 @@ class ZooKeeperContainer(Configurable):
 		return await self.ZooKeeper.get_data("{}/{}".format(self.Path, path))
 
 
-class ZooKeeperAdvertisement(object):
-
-	def __init__(self, path):
-		self.Data = None
-
-		self.Path = path
-		self.RealPath = None
-
-		self.Lock = asyncio.Lock()
-
-
-	async def _set_data(self, zoocontainer, data):
-		async with self.Lock:
-			if isinstance(data, dict):
-				self.Data = json.dumps(data).encode("utf-8")
-			elif isinstance(data, str):
-				self.Data = data.encode("utf-8")
-			else:
-				self.Data = data
-
-			def write_to_zk():
-				if self.RealPath is None:
-					self.RealPath = zoocontainer.ZooKeeper.Client.create(self.Path, self.Data, sequence=True, ephemeral=True, makepath=True)
-				else:
-					try:
-						zoocontainer.ZooKeeper.Client.set(self.RealPath, self.Data)
-					except kazoo.exceptions.NoNodeError:
-						self.RealPath = zoocontainer.ZooKeeper.Client.create(self.Path, self.Data, sequence=True, ephemeral=True, makepath=True)
-
-			await zoocontainer.ZooKeeper.ProactorService.execute(write_to_zk)
-
-
-	async def _readvertise(self, zoocontainer):
-		if self.Data is None:
-			return
-
-		if self.RealPath is None:
-			return
-
-		async with self.Lock:
-
-			def check_at_zk():
-				try:
-					if zoocontainer.ZooKeeper.Client.exists(self.RealPath):
-						return
-
-					# If the advertisement node is not present in the Zookeeper, force the recreation
-					self.RealPath = zoocontainer.ZooKeeper.Client.create(self.Path, self.Data, sequence=True, ephemeral=True)
-
-				except kazoo.exceptions.SessionExpiredError:
-					# The connection to Zookeeper is likely down, this will be retried later
-					pass
-
-			await zoocontainer.ZooKeeper.ProactorService.execute(check_at_zk)
+@dataclasses.dataclass
+class ZooKeeperAdvertisement:
+	path: str
+	data: bytes
+	version: int = -1
+	real_path: str = None

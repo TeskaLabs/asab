@@ -1,5 +1,4 @@
 import json
-import copy
 import socket
 import typing
 import asyncio
@@ -36,6 +35,8 @@ class DiscoveryService(Service):
 			self.InternalAuth = InternalAuth(app, zkc)
 
 		self._advertised_cache = dict()
+		self._advertised_raw = dict()
+
 		self._cache_lock = asyncio.Lock()
 		self._ready_event = asyncio.Event()
 
@@ -115,7 +116,12 @@ class DiscoveryService(Service):
 	async def discover(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple]]]:
 		# We need to make a copy of the cache so that the caller can't modify our cache.
 		await asyncio.wait_for(self._ready_event.wait(), 600)
-		return copy.deepcopy(self._advertised_cache)
+		return self._advertised_cache
+
+
+	async def discover_raw(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple]]]:
+		await asyncio.wait_for(self._ready_event.wait(), 600)
+		return self._advertised_raw
 
 
 	async def get_advertised_instances(self) -> typing.List[typing.Dict]:
@@ -126,7 +132,7 @@ class DiscoveryService(Service):
 		"""
 		# TODO: an obsolete log for this method
 		advertised = []
-		async for item, item_data in self._iter_zk_items():
+		for item, item_data in await self._iter_zk_items():
 			item_data['ephemeral_id'] = item
 			advertised.append(item_data)
 
@@ -164,6 +170,7 @@ class DiscoveryService(Service):
 			# Only one rescan / cache update at a time
 			return
 
+
 		async with self._cache_lock:
 
 			advertised = {
@@ -171,58 +178,66 @@ class DiscoveryService(Service):
 				"service_id": {},
 			}
 
-			iterator = self._iter_zk_items()
-			if iterator is None:
-				return  # reason logged from the _iter_zk_items method
+			advertised_raw = {}
 
-			async for item, item_data in iterator:
-				instance_id = item_data.get("instance_id")
-				service_id = item_data.get("service_id")
-				discovery: typing.Dict[str, list] = item_data.get("discovery", {})
+			try:
+				for item, item_data in await self._iter_zk_items():
 
-				if instance_id is not None:
-					discovery["instance_id"] = [instance_id]
+					advertised_raw[item] = item_data
 
-				if instance_id is not None:
-					discovery["service_id"] = [service_id]
+					instance_id = item_data.get("instance_id")
+					service_id = item_data.get("service_id")
+					discovery: typing.Dict[str, list] = item_data.get("discovery", {})
 
-				host = item_data.get("host")
-				if host is None:
-					continue
+					if instance_id is not None:
+						discovery["instance_id"] = [instance_id]
 
-				web = item_data.get("web")
-				if web is None:
-					continue
+					if service_id is not None:
+						discovery["service_id"] = [service_id]
 
-				for i in web:
-
-					try:
-						ip = i[0]
-						port = i[1]
-					except KeyError:
-						L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
-						return
-
-					if ip == "0.0.0.0":
-						family = socket.AF_INET
-					elif ip == "::":
-						family = socket.AF_INET6
-					else:
+					host = item_data.get("host")
+					if host is None:
 						continue
 
-					if discovery is not None:
-						for id_type, ids in discovery.items():
-							if advertised.get(id_type) is None:
-								advertised[id_type] = {}
+					web = item_data.get("web")
+					if web is None:
+						continue
 
-							for identifier in ids:
-								if identifier is not None:
-									if advertised[id_type].get(identifier) is None:
-										advertised[id_type][identifier] = {(host, port, family)}
-									else:
-										advertised[id_type][identifier].add((host, port, family))
+					for i in web:
 
+						try:
+							ip = i[0]
+							port = i[1]
+						except KeyError:
+							L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
+							continue
+
+						if ip == "0.0.0.0":
+							family = socket.AF_INET
+						elif ip == "::":
+							family = socket.AF_INET6
+						else:
+							continue
+
+						if discovery is not None:
+							for id_type, ids in discovery.items():
+								if advertised.get(id_type) is None:
+									advertised[id_type] = {}
+
+								for identifier in ids:
+									if identifier is not None:
+										if advertised[id_type].get(identifier) is None:
+											advertised[id_type][identifier] = {(host, port, family)}
+										else:
+											advertised[id_type][identifier].add((host, port, family))
+			except Exception:
+				L.exception("Error when scanning advertised instances")
+				return
+
+			# TODO: Transform _advertised_cache and _advertised_raw into read-only structures
 			self._advertised_cache = advertised
+			self._advertised_raw = advertised_raw
+
 			self._ready_event.set()
 
 
@@ -230,40 +245,40 @@ class DiscoveryService(Service):
 		base_path = self.ZooKeeperContainer.Path + "/run"
 
 		def get_items():
+			result = []
 			try:
 				# Create the base path if it does not exist
 				if not self.ZooKeeperContainer.ZooKeeper.Client.exists(base_path):
 					self.ZooKeeperContainer.ZooKeeper.Client.create(base_path, b'', makepath=True)
 
-				return self.ZooKeeperContainer.ZooKeeper.Client.get_children(base_path, watch=self._on_change_threadsafe)
+				items = self.ZooKeeperContainer.ZooKeeper.Client.get_children(base_path, watch=self._on_change_threadsafe)
+
 			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
 				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
 				return None
 
-			except kazoo.exceptions.KazooException:
+			except Exception:
+				L.exception("Error when getting advertised instances")
 				return None
 
-		def get_data(item):
-			try:
-				data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get((base_path + '/' + item), watch=self._on_change_threadsafe)
-				return data
-			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
-				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
-				return None
+			for item in items:
+				try:
+					data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get(base_path + '/' + item, watch=self._on_change_threadsafe)
+					result.append((item, json.loads(data)))
+				except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
+					L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
+					return None
+				except kazoo.exceptions.NoNodeError:
+					continue
 
-			except kazoo.exceptions.KazooException:
-				# There's a race condition -> if ZK node is deleted between get_items and get_data calls, NoNodeError is raised. Let's just ignore it. The ZK node is already deleted.
-				return None
+			return result
 
-		items = await self.ProactorService.execute(get_items)
-		if items is None:
-			return
+		result = await self.ProactorService.execute(get_items)
+		if result is None:
+			return []
 
-		for item in items:
-			item_data = await self.ProactorService.execute(get_data, item)
-			if item_data is None:
-				continue
-			yield item, json.loads(item_data)
+		return result
+
 
 	def _on_change_threadsafe(self, watched_event):
 		# Runs on a thread, returns the process back to the main thread

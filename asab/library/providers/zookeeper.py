@@ -7,6 +7,7 @@ import os.path
 import urllib.parse
 
 import kazoo.exceptions
+import kazoo.recipe.watchers
 
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
@@ -171,6 +172,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.Version = None  # Will be read when a library become ready
 		self.VersionWatch = None
 
+		self.DisabledNodePath = self.build_path('/.disabled.yaml')
+		self.DisabledWatch = None
+
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_connected)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/SUSPENDED!", self._on_zk_lost)
@@ -187,7 +191,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		The `finalize` function is called when the application is shutting down
 		"""
-		await self.Zookeeper._stop()
+		self.DisabledWatch = None
+		zksvc = self.App.get_service("asab.ZooKeeperService")
+		await zksvc.remove(self.ZookeeperContainer)
 
 
 	async def _on_zk_connected(self, event_name, zkcontainer):
@@ -206,6 +212,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.VersionNodePath, on_version_changed)
 
 		self.VersionWatch = await self.Zookeeper.ProactorService.execute(install_watcher)
+
+		def on_disabled_changed(data, stat):
+			# Whenever .disabled.yaml changes, reload disables
+			self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
+
+		def install_disabled_watcher():
+			return kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.DisabledNodePath, on_disabled_changed)
+
+		self.DisabledWatch = await self.Zookeeper.ProactorService.execute(install_disabled_watcher)
+
 
 		await self._set_ready()
 
@@ -425,8 +441,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		Check watched paths and publish a pubsub message for every one that has changed.
 		"""
-
-		for (target, path) in self.Subscriptions:
+		for (target, path) in list(self.Subscriptions):
 
 			async def do_check_path(actual_path):
 				try:

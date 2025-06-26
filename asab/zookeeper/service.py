@@ -25,5 +25,13 @@ class ZooKeeperService(Service):
 	async def finalize(self, app):
 		# Remove containers from the list
 		while len(self.Containers) > 0:
-			container = self.Containers.pop()
+			await self.remove(self.Containers[-1])
+
+
+	async def remove(self, container):
+		try:
+			self.Containers.remove(container)
 			await container._stop()
+		except ValueError:
+			L.warning("Zookeeper not found in the list, check your initialization/finalization order")
+			return

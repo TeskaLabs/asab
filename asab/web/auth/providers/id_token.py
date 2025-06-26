@@ -68,7 +68,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 		"""
 		Update the public keys from all key providers.
 		"""
-		for provider in self._KeyProviders:
+		for provider in list(self._KeyProviders):
 			await provider.reload_keys()
 		self.collect_keys()
 
