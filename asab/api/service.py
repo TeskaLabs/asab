@@ -10,7 +10,6 @@ from ..utils import running_in_container
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
 from .doc import DocWebHandler
-from .discovery import DiscoveryService
 
 ##
 
@@ -67,9 +66,6 @@ class ApiService(Service):
 			self.ChangeLog = path
 		else:
 			self.ChangeLog = None
-
-		# Service Discovery
-		self.DiscoveryService = None
 
 
 	def attention_required(self, att: dict, att_id=None):
@@ -189,19 +185,11 @@ class ApiService(Service):
 
 		# get zookeeper-service
 		self.ZkContainer = zoocontainer
-
-		# initialize service discovery
-		self.DiscoveryService = DiscoveryService(self.App, self.ZkContainer)
-
-		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zkcontainer_start)
 		self._do_zookeeper_adv_data()
 
 
 	def _do_zookeeper_adv_data(self):
 		if self.ZkContainer is None:
-			return
-
-		if not self.ZkContainer.is_connected():
 			return
 
 		adv_data = {
@@ -253,10 +241,6 @@ class ApiService(Service):
 			path="/run/{}.".format(self.App.__class__.__name__),
 		)
 
-
-	def _on_zkcontainer_start(self, message_type, container):
-		if container == self.ZkContainer:
-			self._do_zookeeper_adv_data()
 
 	def _on_webcontainer_start(self, message_type, container):
 		if container == self.WebContainer:
