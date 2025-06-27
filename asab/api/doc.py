@@ -11,7 +11,6 @@ import typing
 
 from .doc_templates import SWAGGER_OAUTH_PAGE, SWAGGER_DOC_PAGE
 from ..web.auth import noauth
-from ..web.tenant import allow_no_tenant
 
 
 ##

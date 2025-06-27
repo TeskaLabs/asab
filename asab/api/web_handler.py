@@ -5,7 +5,6 @@ import aiohttp.web
 from .. import Config
 from ..web.rest import json_response
 from ..web.auth import noauth, require_superuser
-from ..web.tenant import allow_no_tenant
 
 
 class APIWebHandler(object):
