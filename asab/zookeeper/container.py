@@ -152,18 +152,14 @@ class ZooKeeperContainer(Configurable):
 		self.ZooKeeper.Client.ensure_path(self.Path)
 
 		# Re-publish all existing advertisements after connection is established
-		advs = []
-		for adv in self.Advertisments.values():
-			advs.append(adv)
-		if len(advs) > 0:
-			self._publish_adv_at_proactor_thread(advs)
+		if len(self.Advertisments) > 0:
+			self._publish_adv_at_proactor_thread()
 
 
 	def _on_tick300(self, *args):
 		# Re-publish all existing advertisements every 300 seconds
-		advs = [*self.Advertisments.values()]
-		if len(advs) > 0:
-			self.ProactorService.schedule(self._publish_adv_at_proactor_thread, advs)
+		if len(self.Advertisments) > 0:
+			self._publish_adv_at_proactor_thread()
 
 
 	def is_connected(self):
@@ -193,15 +189,17 @@ class ZooKeeperContainer(Configurable):
 			adv.version = -1  # Force the update
 			adv.data = data
 
-		self.ProactorService.schedule(self._publish_adv_at_proactor_thread, [adv])
+		self.ProactorService.schedule(self._publish_adv_at_proactor_thread)
 
 
-	def _publish_adv_at_proactor_thread(self, advs):
+	def _publish_adv_at_proactor_thread(self):
 		if not self.ZooKeeper.Client.connected:
 			return
 
 		if not self.AdvertismentsLock.acquire(blocking=False):
 			return
+
+		advs = [*self.Advertisments.values()]
 
 		try:
 			for adv in advs:
