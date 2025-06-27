@@ -26,7 +26,6 @@ class APIWebHandler(object):
 
 
 	@noauth
-	@allow_no_tenant
 	async def changelog(self, request):
 		"""
 		Get changelog file.
@@ -44,7 +43,6 @@ class APIWebHandler(object):
 
 
 	@noauth
-	@allow_no_tenant
 	async def manifest(self, request):
 		"""
 		Get manifest of the ASAB service.
@@ -79,7 +77,6 @@ class APIWebHandler(object):
 
 
 	@require_superuser
-	@allow_no_tenant
 	async def environ(self, request):
 		"""
 		Get environment variables.
@@ -111,7 +108,6 @@ class APIWebHandler(object):
 
 
 	@require_superuser
-	@allow_no_tenant
 	async def config(self, request):
 		"""
 		Get configuration of the service.
