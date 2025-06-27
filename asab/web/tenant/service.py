@@ -37,8 +37,11 @@ class TenantService(Service):
 			app: ASAB application.
 			service_name: ASAB service identifier.
 			auto_install_web_wrapper: Whether to automatically install tenant context wrapper to WebContainer.
-			strict: If True, tenant is required as the first path component for all web handlers and @allow_no_tenant decorator cannot be used.
-				If False, tenant is required either in path (any position) or as a query parameter or @allow_no_tenant decorator must be present.
+			strict:
+				If True, tenant is required as the first path component for all web handlers
+				and @allow_no_tenant decorator cannot be used.
+				If False, tenant is required either in path (any position except the first)
+				or as a query parameter or @allow_no_tenant decorator must be present.
 		"""
 		super().__init__(app, service_name)
 		auth_svc = self.App.get_service("asab.AuthService")
