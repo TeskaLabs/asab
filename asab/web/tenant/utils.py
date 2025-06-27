@@ -18,6 +18,13 @@ def set_handler_tenant(tenant_service, route: aiohttp.web.AbstractRoute):
 	"""
 	# Extract the whole handler including its existing decorators and wrappers
 	handler = route.handler
+	route_info = route.get_info()
+
+	# Skip the ASAB API endpoints
+	if "path" in route_info:
+		path = route_info["path"]
+		if path.startswith("/asab/") or path in {"/oauth2-redirect.html", "/doc"}:
+			return
 
 	# Apply the decorators IN REVERSE ORDER (the last applied wrapper affects the request first)
 
@@ -26,7 +33,15 @@ def set_handler_tenant(tenant_service, route: aiohttp.web.AbstractRoute):
 		handler = _pass_tenant(tenant_service, handler)
 
 	# 1) Set tenant context from URL path or query
-	route_info = route.get_info()
+	if tenant_service.Strict:
+		if hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True:
+			raise RuntimeError("In strict mode, the use of @allow_no_tenant is not permitted.")
+		if not ("formatter" in route_info and route_info["formatter"].startswith("/{tenant}")):
+			raise RuntimeError("In strict mode, all endpoints must start with `/{tenant}`.")
+	else:
+		if "formatter" in route_info and route_info["formatter"].startswith("/{tenant}"):
+			raise RuntimeError("In non-strict mode, endpoints must NOT start with `/{tenant}`.")
+
 	if "formatter" in route_info and "{tenant}" in route_info["formatter"]:
 		handler = _set_tenant_context_from_url_path(tenant_service, handler)
 	else:
