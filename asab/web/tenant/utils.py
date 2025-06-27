@@ -35,12 +35,12 @@ def set_handler_tenant(tenant_service, route: aiohttp.web.AbstractRoute):
 	# 1) Set tenant context from URL path or query
 	if tenant_service.Strict:
 		if hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True:
-			raise ValueError("In strict mode, the use of @allow_no_tenant is not permitted.")
+			raise RuntimeError("In strict mode, the use of @allow_no_tenant is not permitted.")
 		if not ("formatter" in route_info and route_info["formatter"].startswith("/{tenant}")):
-			raise ValueError("In strict mode, all endpoints must start with `/{tenant}`.")
+			raise RuntimeError("In strict mode, all endpoints must start with `/{tenant}`.")
 	else:
 		if "formatter" in route_info and route_info["formatter"].startswith("/{tenant}"):
-			raise ValueError("In non-strict mode, endpoints must NOT start with `/{tenant}`.")
+			raise RuntimeError("In non-strict mode, endpoints must NOT start with `/{tenant}`.")
 
 	if "formatter" in route_info and "{tenant}" in route_info["formatter"]:
 		handler = _set_tenant_context_from_url_path(tenant_service, handler)
