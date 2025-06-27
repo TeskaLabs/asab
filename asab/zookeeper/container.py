@@ -172,6 +172,9 @@ class ZooKeeperContainer(Configurable):
 	# Advertisement into Zookeeper
 
 	def advertise(self, data, path):
+
+		L.warning("ADVERTISE {} {}".format(data, path))
+
 		if isinstance(data, dict):
 			data = json.dumps(data).encode("utf-8")
 		elif isinstance(data, str):
