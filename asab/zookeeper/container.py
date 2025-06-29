@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import logging
 import threading
@@ -200,6 +201,7 @@ class ZooKeeperContainer(Configurable):
 
 		try:
 
+			count = 0
 			while True:
 				advs = [*self.Advertisments.values()]
 				for adv in advs:
@@ -219,8 +221,18 @@ class ZooKeeperContainer(Configurable):
 						adv.real_path, stats = self.ZooKeeper.Client.create(adv.path, adv.data, sequence=True, ephemeral=True, makepath=True, include_data=True)
 						adv.version = stats.version
 
-				if any((adv.version == -1) or (adv.real_path is None) for adv in self.Advertisments.values()) and self.ZooKeeper.Client.connected:
+				if not self.ZooKeeper.Client.connected:
+					break
+
+				count += 1
+				if count > 10:
+					break
+
+				if any((adv.version == -1) or (adv.real_path is None) for adv in self.Advertisments.values()):
 					# Where was a change or a new advertisement, we need to try again
+					if count > 2:
+						# Slow down the publishing if there are many changes
+						time.sleep(count)
 					continue
 				else:
 					break
