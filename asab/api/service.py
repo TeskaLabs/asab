@@ -234,7 +234,12 @@ class ApiService(Service):
 			adv_data.update({"discovery": self.Discovery})
 
 		if self.WebContainer is not None:
-			adv_data['web'] = self.WebContainer.Addresses
+			web = self.WebContainer.Addresses
+			if web is not None:
+				adv_data['web'] = web
+			else:
+				# Web server is not ready yet, skip advertising - it will be advertised in a small moment, hopefully
+				return
 
 		self.ZkContainer.advertise(
 			data=adv_data,
