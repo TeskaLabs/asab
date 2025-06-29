@@ -98,8 +98,8 @@ class ZooKeeperContainer(Configurable):
 
 		self.Path = url_path
 
-		self.Advertisments = dict()
 		self.AdvertismentsLock = threading.Lock()
+		self.Advertisments = dict()
 
 		self.App.PubSub.subscribe("Application.tick/300!", self._on_tick300)
 		self.App.PubSub.subscribe("Application.tick/60!", self._on_tick60)
@@ -159,7 +159,7 @@ class ZooKeeperContainer(Configurable):
 	def _on_tick300(self, *args):
 		# Re-publish all existing advertisements every 300 seconds
 		if len(self.Advertisments) > 0:
-			self._publish_adv_at_proactor_thread()
+			self.ProactorService.schedule(self._publish_adv_at_proactor_thread)
 
 
 	def is_connected(self):
@@ -172,22 +172,22 @@ class ZooKeeperContainer(Configurable):
 	# Advertisement into Zookeeper
 
 	def advertise(self, data, path):
+		print(f"->>> Advertising {path} with data {data}")
 		if isinstance(data, dict):
 			data = json.dumps(data).encode("utf-8")
 		elif isinstance(data, str):
 			data = data.encode("utf-8")
 		assert isinstance(data, bytes)
 
-		adv = self.Advertisments.get(self.Path + path)
-		if adv is None:
-			adv = ZooKeeperAdvertisement(path=self.Path + path, data=data)
-			self.Advertisments[self.Path + path] = adv
-		else:
-			if data == adv.data:
-				return  # No change, do not publish
+		full_path = self.Path + path
+		existing_adv = self.Advertisments.get(full_path)
 
-			adv.version = -1  # Force the update
-			adv.data = data
+		if existing_adv is not None:
+			existing_adv.data = data
+			existing_adv.version = -1
+		else:
+			adv = ZooKeeperAdvertisement(path=full_path, data=data)
+			self.Advertisments[full_path] = adv
 
 		self.ProactorService.schedule(self._publish_adv_at_proactor_thread)
 
@@ -199,31 +199,41 @@ class ZooKeeperContainer(Configurable):
 		if not self.AdvertismentsLock.acquire(blocking=False):
 			return
 
-		advs = [*self.Advertisments.values()]
-
 		try:
-			for adv in advs:
-				if adv.real_path is not None:
-					stats = self.ZooKeeper.Client.exists(adv.real_path)
-					if stats is None:
-						adv.real_path = None
-					else:
-						if stats.version != adv.version:
-							try:
-								stats = self.ZooKeeper.Client.set(adv.real_path, adv.data)
-								adv.version = stats.version
-							except kazoo.exceptions.NoNodeError:
-								adv.real_path = None
 
-				if adv.real_path is None:
-					adv.real_path, stats = self.ZooKeeper.Client.create(adv.path, adv.data, sequence=True, ephemeral=True, makepath=True, include_data=True)
-					adv.version = stats.version
+			while True:
+				advs = [*self.Advertisments.values()]
+				for adv in advs:
+					if adv.real_path is not None:
+						stats = self.ZooKeeper.Client.exists(adv.real_path)
+						if stats is None:
+							adv.real_path = None
+						else:
+							if stats.version != adv.version:
+								try:
+									stats = self.ZooKeeper.Client.set(adv.real_path, adv.data)
+									print(f"->>> Updated advertisement {adv.path} to version {stats.version}")
+									adv.version = stats.version
+								except kazoo.exceptions.NoNodeError:
+									adv.real_path = None
+
+					if adv.real_path is None:
+						adv.real_path, stats = self.ZooKeeper.Client.create(adv.path, adv.data, sequence=True, ephemeral=True, makepath=True, include_data=True)
+						print(f"->>> Created advertisement {adv.real_path} with version {stats.version} and data {adv.data}")
+						adv.version = stats.version
+
+				if any(adv.version == -1 for adv in self.Advertisments.values()):
+					# Where was a change or a new advertisement, we need to try again
+					continue
+				else:
+					break
 
 		except Exception:
 			L.exception("Error when publishing advertisement")
 
 		finally:
 			self.AdvertismentsLock.release()
+
 
 	# Reading
 
