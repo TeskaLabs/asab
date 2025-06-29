@@ -1,5 +1,7 @@
-import datetime
 import typing
+import datetime
+import contextlib
+import contextvars
 
 import motor.motor_asyncio
 import pymongo
@@ -8,7 +10,7 @@ import bson
 import logging
 
 import asab
-from .exceptions import DuplicateError
+from .exceptions import DuplicateError, AbortTransactionError
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
 
@@ -26,6 +28,9 @@ asab.Config.add_defaults(
 		}
 	}
 )
+
+
+_tx_session = contextvars.ContextVar("MongoDBTransactionSession", default=None)
 
 
 class StorageService(StorageServiceABC):
@@ -218,6 +223,43 @@ class StorageService(StorageServiceABC):
 			await upsertor.execute()
 
 
+	@contextlib.asynccontextmanager
+	async def transaction(self):
+		'''
+		async with storage.transaction():
+			...
+			object_id = await u.execute()
+
+		to abort transaction:
+
+		async with storage.transaction() as tx:
+			object_id = await u.execute()
+			tx.abort()
+
+		'''
+
+		async with await self.Client.start_session() as session:
+			async with session.start_transaction():
+				try:
+					token = _tx_session.set(session)
+					yield MongoDBTransaction()
+				except AbortTransactionError:
+					await session.abort_transaction()
+					return  # Be silent about the abort
+				except Exception:
+					await session.abort_transaction()
+					raise
+				else:
+					await session.commit_transaction()
+				finally:
+					_tx_session.reset(token)
+
+
+class MongoDBTransaction:
+	def abort(self):
+		raise AbortTransactionError()
+
+
 class MongoDBUpsertor(UpsertorABC):
 
 
@@ -227,6 +269,8 @@ class MongoDBUpsertor(UpsertorABC):
 
 
 	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
+		session = _tx_session.get()  # Can be None
+
 		id_name = self.get_id_name()
 		addobj = {}
 
@@ -263,7 +307,8 @@ class MongoDBUpsertor(UpsertorABC):
 					filtr,
 					update=addobj,
 					upsert=True if (self.Version == 0) or (self.Version is None) else False,
-					return_document=pymongo.collection.ReturnDocument.AFTER
+					return_document=pymongo.collection.ReturnDocument.AFTER,
+					session=session
 				)
 			except pymongo.errors.DuplicateKeyError as e:
 				if hasattr(e, "details"):
@@ -279,7 +324,8 @@ class MongoDBUpsertor(UpsertorABC):
 				# If the object is new (version is 1), set the creation datetime
 				await coll.update_one(
 					{id_name: ret[id_name]},
-					{'$set': {'_c': ret['_m']}}
+					{'$set': {'_c': ret['_m']}},
+					session=session
 				)
 
 			self.ObjId = ret[id_name]
