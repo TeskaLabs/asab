@@ -97,7 +97,7 @@ class ZooKeeperContainer(Configurable):
 			url_path = url_path[1:]
 
 		self.Path = url_path
-	
+
 		self.Advertisments = dict()
 		self.AdvertismentsLock = threading.Lock()
 
