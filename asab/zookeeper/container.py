@@ -97,9 +97,9 @@ class ZooKeeperContainer(Configurable):
 			url_path = url_path[1:]
 
 		self.Path = url_path
-
-		self.AdvertismentsLock = threading.Lock()
+	
 		self.Advertisments = dict()
+		self.AdvertismentsLock = threading.Lock()
 
 		self.App.PubSub.subscribe("Application.tick/300!", self._on_tick300)
 		self.App.PubSub.subscribe("Application.tick/60!", self._on_tick60)
@@ -172,7 +172,6 @@ class ZooKeeperContainer(Configurable):
 	# Advertisement into Zookeeper
 
 	def advertise(self, data, path):
-		print(f"->>> Advertising {path} with data {data}")
 		if isinstance(data, dict):
 			data = json.dumps(data).encode("utf-8")
 		elif isinstance(data, str):
@@ -212,17 +211,15 @@ class ZooKeeperContainer(Configurable):
 							if stats.version != adv.version:
 								try:
 									stats = self.ZooKeeper.Client.set(adv.real_path, adv.data)
-									print(f"->>> Updated advertisement {adv.path} to version {stats.version}")
 									adv.version = stats.version
 								except kazoo.exceptions.NoNodeError:
 									adv.real_path = None
 
 					if adv.real_path is None:
 						adv.real_path, stats = self.ZooKeeper.Client.create(adv.path, adv.data, sequence=True, ephemeral=True, makepath=True, include_data=True)
-						print(f"->>> Created advertisement {adv.real_path} with version {stats.version} and data {adv.data}")
 						adv.version = stats.version
 
-				if any(adv.version == -1 for adv in self.Advertisments.values()):
+				if any((adv.version == -1) or (adv.real_path is None) for adv in self.Advertisments.values()) and self.ZooKeeper.Client.connected:
 					# Where was a change or a new advertisement, we need to try again
 					continue
 				else:
