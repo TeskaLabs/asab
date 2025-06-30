@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import logging
 import threading
@@ -159,7 +160,7 @@ class ZooKeeperContainer(Configurable):
 	def _on_tick300(self, *args):
 		# Re-publish all existing advertisements every 300 seconds
 		if len(self.Advertisments) > 0:
-			self._publish_adv_at_proactor_thread()
+			self.ProactorService.schedule(self._publish_adv_at_proactor_thread)
 
 
 	def is_connected(self):
@@ -181,16 +182,15 @@ class ZooKeeperContainer(Configurable):
 			data = data.encode("utf-8")
 		assert isinstance(data, bytes)
 
-		adv = self.Advertisments.get(self.Path + path)
-		if adv is None:
-			adv = ZooKeeperAdvertisement(path=self.Path + path, data=data)
-			self.Advertisments[self.Path + path] = adv
-		else:
-			if data == adv.data:
-				return  # No change, do not publish
+		full_path = self.Path + path
+		existing_adv = self.Advertisments.get(full_path)
 
-			adv.version = -1  # Force the update
-			adv.data = data
+		if existing_adv is not None:
+			existing_adv.data = data
+			existing_adv.version = -1
+		else:
+			adv = ZooKeeperAdvertisement(path=full_path, data=data)
+			self.Advertisments[full_path] = adv
 
 		self.ProactorService.schedule(self._publish_adv_at_proactor_thread)
 
@@ -202,31 +202,50 @@ class ZooKeeperContainer(Configurable):
 		if not self.AdvertismentsLock.acquire(blocking=False):
 			return
 
-		advs = [*self.Advertisments.values()]
-
 		try:
-			for adv in advs:
-				if adv.real_path is not None:
-					stats = self.ZooKeeper.Client.exists(adv.real_path)
-					if stats is None:
-						adv.real_path = None
-					else:
-						if stats.version != adv.version:
-							try:
-								stats = self.ZooKeeper.Client.set(adv.real_path, adv.data)
-								adv.version = stats.version
-							except kazoo.exceptions.NoNodeError:
-								adv.real_path = None
 
-				if adv.real_path is None:
-					adv.real_path, stats = self.ZooKeeper.Client.create(adv.path, adv.data, sequence=True, ephemeral=True, makepath=True, include_data=True)
-					adv.version = stats.version
+			count = 0
+			while True:
+				advs = [*self.Advertisments.values()]
+				for adv in advs:
+					if adv.real_path is not None:
+						stats = self.ZooKeeper.Client.exists(adv.real_path)
+						if stats is None:
+							adv.real_path = None
+						else:
+							if stats.version != adv.version:
+								try:
+									stats = self.ZooKeeper.Client.set(adv.real_path, adv.data)
+									adv.version = stats.version
+								except kazoo.exceptions.NoNodeError:
+									adv.real_path = None
+
+					if adv.real_path is None:
+						adv.real_path, stats = self.ZooKeeper.Client.create(adv.path, adv.data, sequence=True, ephemeral=True, makepath=True, include_data=True)
+						adv.version = stats.version
+
+				if not self.ZooKeeper.Client.connected:
+					break
+
+				count += 1
+				if count > 10:
+					break
+
+				if any((adv.version == -1) or (adv.real_path is None) for adv in self.Advertisments.values()):
+					# Where was a change or a new advertisement, we need to try again
+					if count > 2:
+						# Slow down the publishing if there are many changes
+						time.sleep(count)
+					continue
+				else:
+					break
 
 		except Exception:
 			L.exception("Error when publishing advertisement")
 
 		finally:
 			self.AdvertismentsLock.release()
+
 
 	# Reading
 
