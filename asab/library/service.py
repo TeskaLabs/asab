@@ -638,9 +638,9 @@ class LibraryService(Service):
 		return None
 
 	async def export(
-			self,
-			path: str = "/",
-			remove_path: bool = False
+		self,
+		path: str = "/",
+		remove_path: bool = False
 	) -> typing.IO:
 		"""
 		Produce a gzipped tar of global and, if a tenant context is set, that tenant layer.
@@ -700,25 +700,6 @@ class LibraryService(Service):
 		tarobj.close()
 		fileobj.seek(0)
 		return fileobj
-
-	async def _collect_items(
-			self,
-			path: str,
-			providers: typing.List[LibraryProviderABC]
-	) -> typing.List[LibraryItem]:
-		"""
-		Helper to recursively collect all LibraryItem objects under `path` for given providers.
-		"""
-		items = await self._list(path, providers=providers)
-		rec = list(items)
-		while rec:
-			node = rec.pop(0)
-			if node.type != 'dir':
-				continue
-			children = await self._list(node.name, providers=node.providers)
-			items.extend(children)
-			rec.extend(children)
-		return items
 
 	async def _collect_items(
 		self,
