@@ -638,17 +638,17 @@ class LibraryService(Service):
 		return None
 
 	async def export(
-		self,
-		path: str = "/",
-		remove_path: bool = False,
+			self,
+			path: str = "/",
+			remove_path: bool = False
 	) -> typing.IO:
 		"""
-		Produce a gzipped tar of global and, optionally, tenant layers.
+		Produce a gzipped tar of global and, if a tenant context is set, that tenant layer.
 
 		Args:
 			path: Directory path to export (must end with '/').
 			remove_path: If True, strip `path` prefix from archived names.
-			tenant: If True, append each tenant's layer under `.tenants/<tenant>/`.
+
 		Returns:
 			A file-like object with the tar.gz archive.
 		"""
@@ -674,19 +674,14 @@ class LibraryService(Service):
 			info.mtime = time.time()
 			tarobj.addfile(tarinfo=info, fileobj=data)
 
-		# -- Tenant layers --
+		# -- Tenant-specific layer --
 		try:
-			tenants = await provider._get_tenants()
-		except Exception:
-			tenants = []
+			tenant_id = Tenant.get()
+		except LookupError:
+			tenant_id = None
 
-		for t in tenants:
-			token = Tenant.set(t)
-			try:
-				t_items = await self._collect_items(path, providers=[provider])
-			finally:
-				Tenant.reset(token)
-
+		if tenant_id:
+			t_items = await self._collect_items(path, providers=[provider])
 			for item in t_items:
 				if item.type != 'item':
 					continue
@@ -694,7 +689,7 @@ class LibraryService(Service):
 				if data is None:
 					continue
 				rel = item.name[len(path):] if remove_path else item.name
-				archive_name = "tenants/{0}/{1}".format(t, rel.lstrip("/"))
+				archive_name = "tenants/{0}/{1}".format(tenant_id, rel.lstrip("/"))
 				info = tarfile.TarInfo(archive_name)
 				data.seek(0, io.SEEK_END)
 				info.size = data.tell()
@@ -705,6 +700,25 @@ class LibraryService(Service):
 		tarobj.close()
 		fileobj.seek(0)
 		return fileobj
+
+	async def _collect_items(
+			self,
+			path: str,
+			providers: typing.List[LibraryProviderABC]
+	) -> typing.List[LibraryItem]:
+		"""
+		Helper to recursively collect all LibraryItem objects under `path` for given providers.
+		"""
+		items = await self._list(path, providers=providers)
+		rec = list(items)
+		while rec:
+			node = rec.pop(0)
+			if node.type != 'dir':
+				continue
+			children = await self._list(node.name, providers=node.providers)
+			items.extend(children)
+			rec.extend(children)
+		return items
 
 	async def _collect_items(
 		self,
