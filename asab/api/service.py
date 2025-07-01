@@ -68,7 +68,7 @@ class ApiService(Service):
 		else:
 			self.ChangeLog = None
 
-		# Service Discovery
+		# Discovery service is essential to ASAB API service
 		self.DiscoveryService = None
 
 
@@ -190,18 +190,14 @@ class ApiService(Service):
 		# get zookeeper-service
 		self.ZkContainer = zoocontainer
 
-		# initialize service discovery
+		# Use the container for service discovery
 		self.DiscoveryService = DiscoveryService(self.App, self.ZkContainer)
 
-		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zkcontainer_start)
 		self._do_zookeeper_adv_data()
 
 
 	def _do_zookeeper_adv_data(self):
 		if self.ZkContainer is None:
-			return
-
-		if not self.ZkContainer.is_connected():
 			return
 
 		adv_data = {
@@ -246,17 +242,18 @@ class ApiService(Service):
 			adv_data.update({"discovery": self.Discovery})
 
 		if self.WebContainer is not None:
-			adv_data['web'] = self.WebContainer.Addresses
+			web = self.WebContainer.Addresses
+			if web is not None:
+				adv_data['web'] = web
+			else:
+				# Web server is not ready yet, skip advertising - it will be advertised in a small moment, hopefully
+				return
 
 		self.ZkContainer.advertise(
 			data=adv_data,
 			path="/run/{}.".format(self.App.__class__.__name__),
 		)
 
-
-	def _on_zkcontainer_start(self, message_type, container):
-		if container == self.ZkContainer:
-			self._do_zookeeper_adv_data()
 
 	def _on_webcontainer_start(self, message_type, container):
 		if container == self.WebContainer:
