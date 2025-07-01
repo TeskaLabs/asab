@@ -10,6 +10,7 @@ from ..utils import running_in_container
 from .web_handler import APIWebHandler
 from .log import WebApiLoggingHandler
 from .doc import DocWebHandler
+from .discovery import DiscoveryService
 
 ##
 
@@ -66,6 +67,9 @@ class ApiService(Service):
 			self.ChangeLog = path
 		else:
 			self.ChangeLog = None
+
+		# Discovery service is essential to ASAB API service
+		self.DiscoveryService = None
 
 
 	def attention_required(self, att: dict, att_id=None):
@@ -185,6 +189,10 @@ class ApiService(Service):
 
 		# get zookeeper-service
 		self.ZkContainer = zoocontainer
+
+		# Use the container for service discovery
+		self.DiscoveryService = DiscoveryService(self.App, self.ZkContainer)
+
 		self._do_zookeeper_adv_data()
 
 
