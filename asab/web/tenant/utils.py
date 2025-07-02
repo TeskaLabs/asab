@@ -20,10 +20,20 @@ def set_handler_tenant(tenant_service, route: aiohttp.web.AbstractRoute):
 	handler = route.handler
 	route_info = route.get_info()
 
-	# Skip the ASAB API endpoints
 	if "path" in route_info:
 		path = route_info["path"]
-		if path.startswith("/asab/") or path in {"/oauth2-redirect.html", "/doc"}:
+	elif "formatter" in route_info:
+		path = route_info["formatter"]
+	else:
+		raise RuntimeError("Route has no path or formatter.")
+
+	for skip_path in tenant_service.SkipPaths:
+		if skip_path.endswith("/"):
+			# If the skip path ends with a slash, skip all paths that start with it
+			if path.startswith(skip_path):
+				return
+		elif path == skip_path:
+			# Otherwise skip exact matches
 			return
 
 	# Apply the decorators IN REVERSE ORDER (the last applied wrapper affects the request first)
