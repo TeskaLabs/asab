@@ -266,5 +266,5 @@ class TenantService(Service):
 				set_handler_tenant(self, route)
 			except Exception as e:
 				raise RuntimeError(
-					"Failed to initialize tenant context for handler {!r}.".format(route.handler.__qualname__)
+					"Failed to initialize tenant context for handler {!r}: {}".format(route.handler.__qualname__, e)
 				) from e
