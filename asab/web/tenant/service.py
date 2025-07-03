@@ -23,7 +23,14 @@ class TenantService(Service):
 	Provides set of known tenants and tenant extraction for web requests.
 	"""
 
-	def __init__(self, app, service_name: str = "asab.TenantService", auto_install_web_wrapper: bool = True):
+	def __init__(
+		self,
+		app,
+		service_name: str = "asab.TenantService",
+		auto_install_web_wrapper: bool = True,
+		strict: bool = True,
+		skip_paths: typing.Iterable[str] = (),
+	):
 		"""
 		Initialize and register a new TenantService.
 
@@ -31,11 +38,26 @@ class TenantService(Service):
 			app: ASAB application.
 			service_name: ASAB service identifier.
 			auto_install_web_wrapper: Whether to automatically install tenant context wrapper to WebContainer.
+			strict:
+				If True, tenant is required as the first path component for all web handlers
+				and @allow_no_tenant decorator cannot be used.
+				If False, tenant is required either in path (any position except the first)
+				or as a query parameter or @allow_no_tenant decorator must be present.
+			skip_paths:
+				Iterable of absolute paths to exclude from tenant context wrapping.
+				Paths that end with '/' are treated as prefixes and all endpoints starting with them are skipped.
 		"""
 		super().__init__(app, service_name)
 		auth_svc = self.App.get_service("asab.AuthService")
 		if auth_svc is not None:
 			raise RuntimeError("Please initialize TenantService before AuthService.")
+
+		self.Strict = strict
+		self.SkipPaths = {"/asab/", "/oauth2-redirect.html", "/doc"}  # Default skip paths
+		for path in skip_paths:
+			if not path.startswith("/"):
+				raise ValueError("skip_paths must only contain absolute paths starting with '/'.")
+		self.SkipPaths.update(skip_paths)
 
 		self.Providers: typing.List[TenantProviderABC] = []  # Must be a list to be deterministic
 		self._IsReady = False
@@ -244,5 +266,5 @@ class TenantService(Service):
 				set_handler_tenant(self, route)
 			except Exception as e:
 				raise RuntimeError(
-					"Failed to initialize tenant context for handler {!r}.".format(route.handler.__qualname__)
+					"Failed to initialize tenant context for handler {!r}: {}".format(route.handler.__qualname__, e)
 				) from e
