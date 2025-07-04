@@ -8,9 +8,10 @@ import bson
 import logging
 
 import asab
-from .exceptions import DuplicateError
+from .exceptions import DuplicateError, DryRunAbort
 from .service import StorageServiceABC
 from .upsertor import UpsertorABC
+from .dry_run import DRY_RUN
 
 #
 
@@ -26,6 +27,78 @@ asab.Config.add_defaults(
 		}
 	}
 )
+
+
+class MongoTransaction:
+	"""
+	MongoDB transaction context manager.
+	Usage example (with upsertor):
+	client = upsertor.Storage.Client
+	async with asab.storage.mongodb.MongoTransaction(client=client, obj_id=pbid, target_accessor=upsertor) as transaction:
+			pbid = await upsertor.execute()
+	'client' is StorageService Client (a mongo motor AsyncIOMotorClientSession)
+	'obj_id' is MongoDB _id
+	'target_accessor' is either StorageService itself, or in this case instance of MongoDBUpsertor class
+	"""
+	def __init__(self, client, obj_id=None, target_accessor=None):
+		self.Client = client
+		self.ObjId = obj_id
+		self.Session = None
+		self.TargetAccessor = target_accessor
+
+	async def __aenter__(self):
+		self.Session = await self.Client.start_session()
+		self.Session.start_transaction(
+			read_concern=pymongo.read_concern.ReadConcern("local"),
+			write_concern=pymongo.write_concern.WriteConcern("majority")
+		)
+		if self.TargetAccessor and hasattr(self.TargetAccessor, '_current_session'):
+			self.TargetAccessor.set_session(self.Session)
+		if self.TargetAccessor and hasattr(self.TargetAccessor.Storage, "_current_session"):
+			self.TargetAccessor.Storage.set_session(self.Session)
+		return self.Session
+
+	async def __aexit__(self, exception_type, exception_value, exception_trace):
+		if self.TargetAccessor and hasattr(self.TargetAccessor, '_current_session'):
+			self.TargetAccessor.unset_session()
+		if self.TargetAccessor and hasattr(self.TargetAccessor.Storage, "_current_session"):
+			self.TargetAccessor.Storage.unset_session()
+		try:
+			if exception_type is None:
+				dry_run = DRY_RUN.get()
+				if dry_run:
+					if self.Session.in_transaction:
+						await self.Session.abort_transaction()
+					raise DryRunAbort(obj_id=self.ObjId)
+
+				if self.Session.in_transaction:
+					await self.Session.commit_transaction()
+
+			elif exception_type is DuplicateError:
+				await self.Session.abort_transaction()
+				return False
+
+			else:
+				L.exception(
+					"Unknown exception enountered while executing MongoDB transaction",
+					struct_data={
+						"reason": exception_value
+					},
+				)
+				await self.Session.abort_transaction()
+				return False
+		except Exception as e:
+			# if something happens in the __aexit__
+			L.exception(
+				"Exception during MongoDB transaction cleanup",
+				struct_data={
+					"reason": e
+				},
+			)
+			return False
+		finally:
+			if self.Session:
+				await self.Session.end_session()
 
 
 class StorageService(StorageServiceABC):
@@ -60,6 +133,15 @@ class StorageService(StorageServiceABC):
 
 		assert self.Database is not None
 
+		# For the transactions, session is needed
+		self._current_session = None
+
+
+	def set_session(self, session):
+		self._current_session = session
+
+	def unset_session(self):
+		self._current_session = None
 
 	def upsertor(self, collection: str, obj_id=None, version=0):
 		return MongoDBUpsertor(self, collection, obj_id, version)
@@ -98,11 +180,12 @@ class StorageService(StorageServiceABC):
 
 		return self.Database[collection]
 
-
 	async def delete(self, collection: str, obj_id):
 		coll = self.Database[collection]
-		ret = await coll.find_one_and_delete({'_id': obj_id})
-
+		if self._current_session:
+			ret = await coll.find_one_and_delete({'_id': obj_id}, session=self._current_session)
+		else:
+			ret = await coll.find_one_and_delete({'_id': obj_id})
 		if ret is None:
 			raise KeyError("NOT-FOUND")
 
@@ -225,7 +308,6 @@ class MongoDBUpsertor(UpsertorABC):
 	def generate_id(cls):
 		return bson.objectid.ObjectId()
 
-
 	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
 		id_name = self.get_id_name()
 		addobj = {}
@@ -259,12 +341,21 @@ class MongoDBUpsertor(UpsertorABC):
 		if len(addobj) > 0:
 			coll = self.Storage.Database[self.Collection]
 			try:
-				ret = await coll.find_one_and_update(
-					filtr,
-					update=addobj,
-					upsert=True if (self.Version == 0) or (self.Version is None) else False,
-					return_document=pymongo.collection.ReturnDocument.AFTER
-				)
+				if self.Storage._current_session:
+					ret = await coll.find_one_and_update(
+						filtr,
+						update=addobj,
+						upsert=True if (self.Version == 0) or (self.Version is None) else False,
+						return_document=pymongo.collection.ReturnDocument.AFTER,
+						session=self.Storage._current_session,
+					)
+				else:
+					ret = await coll.find_one_and_update(
+						filtr,
+						update=addobj,
+						upsert=True if (self.Version == 0) or (self.Version is None) else False,
+						return_document=pymongo.collection.ReturnDocument.AFTER,
+					)
 			except pymongo.errors.DuplicateKeyError as e:
 				if hasattr(e, "details"):
 					raise DuplicateError("Duplicate key error: {}".format(e), self.ObjId, key_value=e.details.get("keyValue"))
@@ -277,10 +368,17 @@ class MongoDBUpsertor(UpsertorABC):
 
 			if ret.get('_v') == 1 and '_c' not in ret:
 				# If the object is new (version is 1), set the creation datetime
-				await coll.update_one(
-					{id_name: ret[id_name]},
-					{'$set': {'_c': ret['_m']}}
-				)
+				if self.Storage._current_session:
+					await coll.update_one(
+						{id_name: ret[id_name]},
+						{'$set': {'_c': ret['_m']}},
+						session=self.Storage._current_session,
+					)
+				else:
+					await coll.update_one(
+						{id_name: ret[id_name]},
+						{'$set': {'_c': ret['_m']}},
+					)
 
 			self.ObjId = ret[id_name]
 
