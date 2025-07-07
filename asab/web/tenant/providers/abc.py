@@ -3,6 +3,10 @@ import typing
 
 
 class TenantProviderABC(abc.ABC):
+
+	Type = None
+
+
 	def __init__(self, app, tenant_service, config):
 		self.App = app
 		self.TenantService = tenant_service
