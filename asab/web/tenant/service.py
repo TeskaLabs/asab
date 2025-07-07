@@ -68,6 +68,9 @@ class TenantService(Service):
 
 
 	def _prepare_providers(self):
+		from .providers import SystemTenantProvider
+		self.Providers.append(SystemTenantProvider(self.App, self, Config["tenants"]))
+
 		if Config.get("tenants", "ids", fallback=None):
 			from .providers import StaticTenantProvider
 			self.Providers.append(StaticTenantProvider(self.App, self, Config["tenants"]))
@@ -91,6 +94,22 @@ class TenantService(Service):
 		"""
 		tasks = [provider.update() for provider in self.Providers]
 		await asyncio.gather(*tasks)
+
+
+	async def get_provider(self, provider_type: str):
+		"""
+		Get a tenant provider by its type.
+
+		Args:
+			provider_type: Type of the tenant provider to retrieve.
+
+		Returns:
+			The tenant provider instance or None if not found.
+		"""
+		for provider in self.Providers:
+			if provider.Type == provider_type:
+				return provider
+		return None
 
 
 	async def get_tenants(self) -> typing.Set[str]:
