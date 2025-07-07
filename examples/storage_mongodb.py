@@ -9,7 +9,7 @@ asab.Config.add_defaults(
 			'type': 'mongodb',
 		},
 		"mongo": {
-			"uri": "localhost",
+			"uri": "192.168.64.14",
 			"database": "test",
 		}
 	}
@@ -30,7 +30,11 @@ class MyApplication(asab.Application):
 		# To create new object we keep default `version` to zero
 		u = storage.upsertor("test-collection")
 		u.set("foo", "bar")
+
 		object_id = await u.execute()
+
+
+		# Executor runs in a transaction
 
 		# Get the object by its id
 		obj = await storage.get("test-collection", object_id)
@@ -38,7 +42,26 @@ class MyApplication(asab.Application):
 		# Obtain upsertor object for update - specify existing `version` number
 		u = storage.upsertor("test-collection", obj_id=object_id, version=obj['_v'])
 		u.set("foo", "buzz")
-		object_id = await u.execute()
+
+		async with storage.transaction():
+			object_id = await u.execute()
+
+
+		# Abort transaction
+
+		# Get the object by its id
+		obj = await storage.get("test-collection", object_id)
+
+		# Obtain upsertor object for update - specify existing `version` number
+		u = storage.upsertor("test-collection", obj_id=object_id, version=obj['_v'])
+		u.set("foo", "buzzA")
+
+		async with storage.transaction() as tx:
+			object_id = await u.execute()
+			tx.abort()
+		obj = await storage.get("test-collection", object_id)
+		print("Attribute is not updated", obj['foo'])
+
 
 		# See the results
 		obj = await storage.get("test-collection", object_id)
