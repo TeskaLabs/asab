@@ -105,8 +105,10 @@ class StorageService(StorageServiceABC):
 
 
 	async def delete(self, collection: str, obj_id):
+		session = _tx_session.get()  # Can be None
+
 		coll = self.Database[collection]
-		ret = await coll.find_one_and_delete({'_id': obj_id})
+		ret = await coll.find_one_and_delete({'_id': obj_id}, session=session)
 
 		if ret is None:
 			raise KeyError("NOT-FOUND")
