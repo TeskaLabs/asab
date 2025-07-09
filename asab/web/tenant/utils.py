@@ -8,6 +8,7 @@ from ...contextvars import Tenant
 #
 
 L = logging.getLogger(__name__)
+NO_TENANT_ROUTES = set()
 
 #
 
@@ -27,7 +28,7 @@ def set_handler_tenant(tenant_service, route: aiohttp.web.AbstractRoute):
 	else:
 		raise RuntimeError("Route has no path or formatter.")
 
-	for skip_path in tenant_service.SkipPaths:
+	for skip_path in NO_TENANT_ROUTES:
 		if skip_path.endswith("/"):
 			# If the skip path ends with a slash, skip all paths that start with it
 			if path.startswith(skip_path):

@@ -5,6 +5,7 @@ import aiohttp.web
 from .. import Config
 from ..web.rest import json_response
 from ..web.auth import noauth, require_superuser
+from ..web.tenant import NO_TENANT_ROUTES
 
 
 class APIWebHandler(object):
@@ -22,6 +23,8 @@ class APIWebHandler(object):
 
 		webapp.router.add_get("/asab/v1/changelog", self.changelog)
 		webapp.router.add_get("/asab/v1/manifest", self.manifest)
+
+		NO_TENANT_ROUTES.update({"/asab/v1/logs", "/asab/v1/logws", "asab/v1/changelog", "asab/v1/manifest"})
 
 
 	@noauth
