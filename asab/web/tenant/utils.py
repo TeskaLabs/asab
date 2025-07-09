@@ -28,14 +28,9 @@ def set_handler_tenant(tenant_service, route: aiohttp.web.AbstractRoute):
 	else:
 		raise RuntimeError("Route has no path or formatter.")
 
-	for skip_path in NO_TENANT_ROUTES:
-		if skip_path.endswith("/"):
-			# If the skip path ends with a slash, skip all paths that start with it
-			if path.startswith(skip_path):
-				return
-		elif path == skip_path:
-			# Otherwise skip exact matches
-			return
+	# If the route is in NO_TENANT_ROUTES, skip tenant handling
+	if path in NO_TENANT_ROUTES:
+		return
 
 	# Apply the decorators IN REVERSE ORDER (the last applied wrapper affects the request first)
 
