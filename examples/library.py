@@ -48,7 +48,6 @@ class MyApplication(asab.Application):
 		try:
 			items = await self.LibraryService.list("/", recursive=False)
 		except asab.exceptions.LibraryNotReadyError as err:
-			print("  - !!! Cannot list Library (not ready): {}".format(err))
 			return
 
 		print("# Library\n")
