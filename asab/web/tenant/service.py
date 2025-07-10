@@ -1,14 +1,11 @@
 import asyncio
 import typing
-import inspect
 import logging
-
-import aiohttp.web
 
 from ... import LOG_NOTICE
 from ...abc.service import Service
 from ...config import Config
-from .utils import set_handler_tenant
+from .installer import TenantWebWrapperInstaller
 from .providers.abc import TenantProviderABC
 
 #
@@ -23,7 +20,13 @@ class TenantService(Service):
 	Provides set of known tenants and tenant extraction for web requests.
 	"""
 
-	def __init__(self, app, service_name: str = "asab.TenantService", auto_install_web_wrapper: bool = True):
+	def __init__(
+		self,
+		app,
+		service_name: str = "asab.TenantService",
+		auto_install_web_wrapper: bool = True,
+		strict: bool = True,
+	):
 		"""
 		Initialize and register a new TenantService.
 
@@ -31,12 +34,18 @@ class TenantService(Service):
 			app: ASAB application.
 			service_name: ASAB service identifier.
 			auto_install_web_wrapper: Whether to automatically install tenant context wrapper to WebContainer.
+			strict:
+				If True, tenant is required as the first path component for all web handlers
+				and @allow_no_tenant decorator cannot be used.
+				If False, tenant is required either in path (any position except the first)
+				or as a query parameter or @allow_no_tenant decorator must be present.
 		"""
 		super().__init__(app, service_name)
 		auth_svc = self.App.get_service("asab.AuthService")
 		if auth_svc is not None:
 			raise RuntimeError("Please initialize TenantService before AuthService.")
 
+		self.Strict = strict
 		self.Providers: typing.List[TenantProviderABC] = []  # Must be a list to be deterministic
 		self._IsReady = False
 		self._prepare_providers()
@@ -136,18 +145,21 @@ class TenantService(Service):
 		return False
 
 
-	def install(self, web_container):
+	def install(self, web_container, strict: bool = None):
 		"""
 		Apply tenant context wrappers to all web handlers in the web container.
 
 		Args:
 			web_container: Web container to add tenant context to.
+			strict: If True, tenant is required as the first path component for all routes in the container.
 		"""
 		web_service = self.App.get_service("asab.WebService")
+		if strict is None:
+			strict = self.Strict
 
 		# Check that the middleware has not been installed yet
 		for middleware in web_container.WebApp.on_startup:
-			if middleware == self._set_up_tenant_web_wrapper:
+			if isinstance(middleware, TenantWebWrapperInstaller):
 				if len(web_service.Containers) == 1:
 					raise RuntimeError(
 						"WebContainer has tenant middleware installed already. "
@@ -157,7 +169,7 @@ class TenantService(Service):
 				else:
 					raise RuntimeError("WebContainer has tenant middleware installed already.")
 
-		web_container.WebApp.on_startup.append(self._set_up_tenant_web_wrapper)
+		web_container.WebApp.on_startup.append(TenantWebWrapperInstaller(self, strict=strict))
 
 
 	def is_ready(self) -> bool:
@@ -210,10 +222,10 @@ class TenantService(Service):
 		Returns:
 			typing.Optional[int]: The index at which the wrapper is located, or `None` if it is not installed.
 		"""
-		try:
-			return web_container.WebApp.on_startup.index(self._set_up_tenant_web_wrapper)
-		except ValueError:
-			return None
+		for i, obj in enumerate(web_container.WebApp.on_startup):
+			if isinstance(obj, TenantWebWrapperInstaller):
+				return i
+		return None
 
 
 	def _try_auto_install(self):
@@ -229,20 +241,3 @@ class TenantService(Service):
 
 		self.install(web_container)
 		L.debug("WebContainer tenant wrapper will be installed automatically.")
-
-
-	async def _set_up_tenant_web_wrapper(self, aiohttp_app: aiohttp.web.Application):
-		"""
-		Inspect all registered handlers and wrap them in decorators according to their parameters.
-		"""
-		for route in aiohttp_app.router.routes():
-			# Skip non-coroutines
-			if not inspect.iscoroutinefunction(route.handler):
-				continue
-
-			try:
-				set_handler_tenant(self, route)
-			except Exception as e:
-				raise RuntimeError(
-					"Failed to initialize tenant context for handler {!r}.".format(route.handler.__qualname__)
-				) from e

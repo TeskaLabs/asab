@@ -6,7 +6,7 @@ import datetime
 from .openmetric import metric_to_openmetric
 from ..web.rest import json_response
 from ..web.auth import noauth
-from ..web.tenant import allow_no_tenant
+from ..web.tenant import allow_no_tenant, NO_TENANT_ROUTES
 
 
 class MetricWebHandler(object):
@@ -20,6 +20,8 @@ class MetricWebHandler(object):
 		webapp.router.add_get("/asab/v1/metrics", self.metrics)
 		webapp.router.add_get("/asab/v1/watch_metrics", self.watch)
 		webapp.router.add_get("/asab/v1/metrics.json", self.metrics_json)
+
+		NO_TENANT_ROUTES.update({"/asab/v1/metrics", "/asab/v1/watch_metrics", "/asab/v1/metrics.json"})
 
 
 	@noauth
