@@ -53,7 +53,9 @@ class MetricsService(Service):
 
 		self.Storage = Storage()
 
-		app.PubSub.subscribe("Application.tick/60!", self._on_flushing_event)
+		self.TickIntervalMultiplier = Config.getint('asab:metrics', 'interval_multiplier')
+		self.TickCounter = 0
+		app.PubSub.subscribe("Application.tick/60!", self._on_tick60)
 
 		if Config.has_option('asab:metrics', 'target'):
 			for target in Config.get('asab:metrics', 'target').split():
@@ -117,6 +119,17 @@ class MetricsService(Service):
 				L.exception("Exception during metric.flush()")
 
 		return now
+
+
+	async def _on_tick60(self, event_name):
+		if self.TickIntervalMultiplier == 0:
+			# Flushing metrics on tic is disabled
+			return
+		self.TickCounter += 1
+		if self.TickCounter >= self.TickIntervalMultiplier:
+			self.TickCounter = 0
+			await self._on_flushing_event()
+
 
 	async def _on_flushing_event(self, event_type=None):
 		if len(self.Metrics) == 0:
