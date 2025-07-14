@@ -99,13 +99,14 @@ class StorageService(StorageServiceABC):
 
 	@contextlib.asynccontextmanager
 	async def request(self, method, path, data=None, json=None):
-		'''
-		This method can be used to do a custom call to ElasticSearch like so:
+		"""
+		This method can be used to do a custom call to Elasticsearch like so:
 
-		async with self.request("GET", "cluster/_health") as resp:
+		Usage:
+			async with self.request("GET", "cluster/_health") as resp:
 			...
 
-		'''
+		"""
 		async with aiohttp.ClientSession() as session:
 			for n, url in enumerate(self.ServerUrls, 1):
 				try:
@@ -132,7 +133,7 @@ class StorageService(StorageServiceABC):
 
 	async def is_connected(self) -> bool:
 		"""
-		Check if the service is connected to ElasticSearch cluster.
+		Check if the service is connected to Elasticsearch cluster.
 
 		Raises:
 			ConnectionError: Connection failed.
@@ -204,18 +205,13 @@ class StorageService(StorageServiceABC):
 		"""
 		Delete an entire index or document from that index.
 
-		Args:
-			index: Index to delete.
-			_id: If specified, only document with the ID is deleted.
-
-		Raises:
-			ConnectionRefusedError: Authorization required (status 401)
-			KeyError: No existing object with ID
-			ConnectionError: Unexpected status code
-			Exception: ClientConnectorError
-
-		Returns:
-			The deleted document or message that the entire index was deleted.
+		:param index: Index to delete.
+		:param _id: If specified, only document with the ID is deleted.
+		:raise ConnectionRefusedError: Authorization required (status 401)
+		:raise KeyError: No existing object with ID
+		:raise ConnectionError: Unexpected status code
+		:raise Exception: ClientConnectorError
+		:return: The deleted document or message that the entire index was deleted.
 		"""
 
 		if _id:
@@ -250,10 +246,9 @@ class StorageService(StorageServiceABC):
 		:param index: Specified index.
 		:type index: str
 		:raise Exception: Connection failed.
-
-		Returns:
-			dict: Mapping definitions for the index.
+		:return: Mapping definitions for the index.
 		"""
+
 		async with self.request("GET", "{}/_mapping".format(index)) as resp:
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
@@ -269,6 +264,7 @@ class StorageService(StorageServiceABC):
 		:raise Exception: Raised if connection to all server URLs fails.
 		:return: ElasticSearch Index template.
 		"""
+
 		async with self.request("GET", "_index_template/{}?format=json".format(template_name)) as resp:
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
@@ -279,10 +275,10 @@ class StorageService(StorageServiceABC):
 		"""
 		Create a new ECS index template.
 
-			:param template_name: The name of ECS template.
-			:param template: Body for the request.
-			:return: JSON response.
-			:raise Exception: Raised if connection to all server URLs fails.
+		:param template_name: The name of ECS template.
+		:param template: Body for the request.
+		:return: JSON response.
+		:raise Exception: Raised if connection to all server URLs fails.
 		"""
 		async with self.request("PUT", "_index_template/{}?master_timeout=120s".format(template_name), json=template) as resp:
 			if resp.status != 200:
@@ -292,6 +288,12 @@ class StorageService(StorageServiceABC):
 
 
 	async def reindex(self, previous_index, new_index):
+		"""
+		Moves index from previous_index to new_index.
+
+		:param previous_index: The name of the previous index.
+		:param new_index: The name of the index to be the previous reindexed into.
+		"""
 
 		data = {
 			"source": {
@@ -318,7 +320,8 @@ class StorageService(StorageServiceABC):
 
 
 	async def list(self, index: str, _from: int = 0, size: int = 10000, body: typing.Optional[dict] = None, last_hit_sort=None, _filter=None, sorts=None) -> dict:
-		"""List data matching the index with pagination.
+		"""
+		List data matching the index with pagination.
 
 		:param index: Specified index.
 		:param _from: Starting document offset. Defaults to 0.
@@ -327,10 +330,10 @@ class StorageService(StorageServiceABC):
 		:type size: int
 		:param body: An optional request body. Defaults to None.
 		:type body: dict
-
-		:return: The query search result.
 		:raise Exception: Raised if connection to all server URLs fails.
+		:return: The query search result.
 		"""
+
 		if body is None and not _filter:
 			body = {
 				'query': {
@@ -428,9 +431,13 @@ class StorageService(StorageServiceABC):
 
 
 	async def empty_index(self, index, settings=None):
-		'''
-		Create an empty ECS index.
-		'''
+		"""
+		Creates an empty ECS index.
+
+		:param index: The specified index.
+		:param settings: The index settings.
+		:return: The index dictionary.
+		"""
 		# TODO: There is an option here to specify settings (e.g. shard number, replica number etc) and mappings here
 
 		if settings is None:
@@ -445,9 +452,13 @@ class StorageService(StorageServiceABC):
 
 
 	async def put_policy(self, policy_name, settings=None):
-		'''
+		"""
 		Create a lifecycle policy.
-		'''
+
+		:param index: The specified ILM policy.
+		:param settings: The policy settings.
+		:return: The policy dictionary.
+		"""
 
 		if settings is None:
 			settings = {}
@@ -463,8 +474,9 @@ class StorageService(StorageServiceABC):
 		"""
 		Return high-level information about ILM policies in a cluster, including backing indices for data streams.
 
-		:param search_string: A search string. Default to None.
+		:return: The list of ILM policies.
 		"""
+
 		async with self.request("GET", "_ilm/policy") as resp:
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
@@ -480,6 +492,7 @@ class StorageService(StorageServiceABC):
 		:param documents: A list of dictionaries, each containing '_id' and '_source' keys.
 		:raise RuntimeError: If the bulk update request fails.
 		"""
+
 		if not documents:
 			return 0
 
