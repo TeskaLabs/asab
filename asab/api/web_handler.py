@@ -24,7 +24,7 @@ class APIWebHandler(object):
 		webapp.router.add_get("/asab/v1/changelog", self.changelog)
 		webapp.router.add_get("/asab/v1/manifest", self.manifest)
 
-		NO_TENANT_ROUTES.update({"/asab/v1/logs", "/asab/v1/logws", "asab/v1/changelog", "asab/v1/manifest"})
+		NO_TENANT_ROUTES.update({"/asab/v1/logs", "/asab/v1/logws", "/asab/v1/changelog", "/asab/v1/manifest"})
 
 
 	@noauth
