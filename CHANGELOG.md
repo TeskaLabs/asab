@@ -7,7 +7,7 @@
   Strict mode is considered the default.
 
 ### Fix
-- XX
+- Remove race condition from service advertisement in asab.api (#694)
 
 ### Features
 - Introducing multi-tenancy modes (#679)
@@ -16,5 +16,6 @@
 - XX
 
 ---
+
 
 ## v25.25

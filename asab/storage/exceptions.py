@@ -8,3 +8,10 @@ class DuplicateError(RuntimeError):
 		super().__init__(message)
 		self.ObjId = obj_id
 		self.KeyValue = key_value
+
+
+class AbortTransactionError(Exception):
+	'''
+	Raised by the user when the transaction is aborted.
+	'''
+	pass

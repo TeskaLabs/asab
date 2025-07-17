@@ -99,13 +99,14 @@ class StorageService(StorageServiceABC):
 
 	@contextlib.asynccontextmanager
 	async def request(self, method, path, data=None, json=None):
-		'''
-		This method can be used to do a custom call to ElasticSearch like so:
+		"""
+		This method can be used to do a custom call to Elasticsearch like so:
 
-		async with self.request("GET", "cluster/_health") as resp:
+		Usage:
+			async with self.request("GET", "cluster/_health") as resp:
 			...
 
-		'''
+		"""
 		async with aiohttp.ClientSession() as session:
 			for n, url in enumerate(self.ServerUrls, 1):
 				try:
@@ -132,7 +133,7 @@ class StorageService(StorageServiceABC):
 
 	async def is_connected(self) -> bool:
 		"""
-		Check if the service is connected to ElasticSearch cluster.
+		Check if the service is connected to Elasticsearch cluster.
 
 		Raises:
 			ConnectionError: Connection failed.
@@ -202,20 +203,20 @@ class StorageService(StorageServiceABC):
 
 	async def delete(self, index: str, _id=None) -> dict:
 		"""
-		Delete an entire index or document from that index.
+		Delete an entire index or a specific document within the index.
 
 		Args:
-			index: Index to delete.
-			_id: If specified, only document with the ID is deleted.
-
-		Raises:
-			ConnectionRefusedError: Authorization required (status 401)
-			KeyError: No existing object with ID
-			ConnectionError: Unexpected status code
-			Exception: ClientConnectorError
+			index (str): The name of the index to delete.
+			_id (str, optional): The ID of the document to delete. If not provided, the entire index is deleted.
 
 		Returns:
-			The deleted document or message that the entire index was deleted.
+			dict: A response from Elasticsearch indicating the result of the delete operation.
+
+		Raises:
+			ConnectionRefusedError: If authorization fails (HTTP 401).
+			KeyError: If the document with the specified ID does not exist (HTTP 404).
+			ConnectionError: If an unexpected response status is returned from Elasticsearch.
+			Exception: If a connection error occurs during the request.
 		"""
 
 		if _id:
@@ -245,15 +246,18 @@ class StorageService(StorageServiceABC):
 
 	async def mapping(self, index: str) -> dict:
 		"""
-		Retrieve mapping definitions for one index.
+		Retrieve mapping definitions for a specified index.
 
-		:param index: Specified index.
-		:type index: str
-		:raise Exception: Connection failed.
+		Args:
+			index (str): The name of the index.
 
 		Returns:
-			dict: Mapping definitions for the index.
+			dict: Mapping definitions for the specified index.
+
+		Raises:
+			Exception: If the request fails.
 		"""
+
 		async with self.request("GET", "{}/_mapping".format(index)) as resp:
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
@@ -262,13 +266,18 @@ class StorageService(StorageServiceABC):
 
 	async def get_index_template(self, template_name: str) -> dict:
 		"""
-		Retrieve ECS Index template for the given template name.
+		Retrieve an ECS index template by name.
 
-		:param template_name: The name of the ECS template to retrieve.
-		:type template_name: str
-		:raise Exception: Raised if connection to all server URLs fails.
-		:return: ElasticSearch Index template.
+		Args:
+			template_name (str): The name of the ECS template to retrieve.
+
+		Returns:
+			dict: The requested ECS index template.
+
+		Raises:
+			Exception: If the request fails.
 		"""
+
 		async with self.request("GET", "_index_template/{}?format=json".format(template_name)) as resp:
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
@@ -277,12 +286,17 @@ class StorageService(StorageServiceABC):
 
 	async def put_index_template(self, template_name: str, template: dict) -> dict:
 		"""
-		Create a new ECS index template.
+		Create or update an ECS index template.
 
-			:param template_name: The name of ECS template.
-			:param template: Body for the request.
-			:return: JSON response.
-			:raise Exception: Raised if connection to all server URLs fails.
+		Args:
+			template_name (str): The name of the ECS template.
+			template (dict): The body of the template.
+
+		Returns:
+			dict: The response from Elasticsearch.
+
+		Raises:
+			Exception: If the request fails.
 		"""
 		async with self.request("PUT", "_index_template/{}?master_timeout=120s".format(template_name), json=template) as resp:
 			if resp.status != 200:
@@ -292,6 +306,19 @@ class StorageService(StorageServiceABC):
 
 
 	async def reindex(self, previous_index, new_index):
+		"""
+		Reindex documents from one index to another.
+
+		Args:
+			previous_index (str): The source index.
+			new_index (str): The destination index.
+
+		Returns:
+			dict: Response from Elasticsearch reindex API.
+
+		Raises:
+			AssertionError: If the request fails.
+		"""
 
 		data = {
 			"source": {
@@ -314,23 +341,40 @@ class StorageService(StorageServiceABC):
 
 
 	def upsertor(self, index: str, obj_id=None, version: int = 0):
+		"""
+		Create an upsertor object for inserting or updating documents.
+
+		Args:
+			index (str): The index where the document will be upserted.
+			obj_id (str, optional): The ID of the document. Defaults to None.
+			version (int): Document version. Defaults to 0.
+
+		Returns:
+			ElasticSearchUpsertor: An instance for performing the upsert operation.
+		"""
 		return ElasticSearchUpsertor(self, index, obj_id, version)
 
 
 	async def list(self, index: str, _from: int = 0, size: int = 10000, body: typing.Optional[dict] = None, last_hit_sort=None, _filter=None, sorts=None) -> dict:
-		"""List data matching the index with pagination.
-
-		:param index: Specified index.
-		:param _from: Starting document offset. Defaults to 0.
-		:type _from: int
-		:param size: The number of hits to return. Defaults to 10000.
-		:type size: int
-		:param body: An optional request body. Defaults to None.
-		:type body: dict
-
-		:return: The query search result.
-		:raise Exception: Raised if connection to all server URLs fails.
 		"""
+		List documents in an index with support for pagination, filtering, and sorting.
+
+		Args:
+			index (str): The name of the index.
+			_from (int): Starting document offset. Defaults to 0.
+			size (int): Number of hits to return. Defaults to 10000.
+			body (Optional[dict]): Custom Elasticsearch query body. If not provided, a default query is constructed.
+			last_hit_sort (list, optional): Sort values from the last hit for deep pagination.
+			_filter (str, optional): Wildcard filter string.
+			sorts (list, optional): List of tuples specifying sort fields and order.
+
+		Returns:
+			dict: Search results and sort values for pagination.
+
+		Raises:
+			Exception: If the request fails.
+		"""
+
 		if body is None and not _filter:
 			body = {
 				'query': {
@@ -383,11 +427,17 @@ class StorageService(StorageServiceABC):
 
 	async def count(self, index, _filter=None) -> int:
 		"""
-		Get the number of matches for a given index.
+		Count the number of documents in an index with optional filtering.
 
-		:param index: The specified index.
-		:return: The number of matches for a given index.
-		:raise Exception: Connection failed.
+		Args:
+			index (str): The name of the index.
+			_filter (Optional[str]): Optional wildcard filter string.
+
+		Returns:
+			int: Number of matching documents.
+
+		Raises:
+			Exception: If the request fails.
 		"""
 
 		if _filter:
@@ -413,9 +463,16 @@ class StorageService(StorageServiceABC):
 
 	async def indices(self, search_string=None):
 		"""
-		Return high-level information about indices in a cluster, including backing indices for data streams.
+		Get a list of all indices in the Elasticsearch cluster.
 
-		:param search_string: A search string. Default to None.
+		Args:
+			search_string (Optional[str]): A filter string for index names.
+
+		Returns:
+			list: A list of index metadata.
+
+		Raises:
+			Exception: If the request fails.
 		"""
 
 		async with self.request("GET", "_cat/indices/{}?format=json&s=index".format(search_string if search_string is not None else "*")) as resp:
@@ -428,10 +485,19 @@ class StorageService(StorageServiceABC):
 
 
 	async def empty_index(self, index, settings=None):
-		'''
+		"""
 		Create an empty ECS index.
-		'''
-		# TODO: There is an option here to specify settings (e.g. shard number, replica number etc) and mappings here
+
+		Args:
+			index (str): The name of the index.
+			settings (Optional[dict]): Index settings.
+
+		Returns:
+			dict: Elasticsearch response.
+
+		Raises:
+			Exception: If the request fails.
+		"""
 
 		if settings is None:
 			settings = {}
@@ -445,9 +511,19 @@ class StorageService(StorageServiceABC):
 
 
 	async def put_policy(self, policy_name, settings=None):
-		'''
+		"""
 		Create a lifecycle policy.
-		'''
+
+		Args:
+			policy_name (str): The name of the ILM policy.
+			settings (Optional[dict]): The policy settings.
+
+		Returns:
+			dict: Elasticsearch response.
+
+		Raises:
+			Exception: If the request fails.
+		"""
 
 		if settings is None:
 			settings = {}
@@ -461,10 +537,15 @@ class StorageService(StorageServiceABC):
 
 	async def policies(self):
 		"""
-		Return high-level information about ILM policies in a cluster, including backing indices for data streams.
+		Retrieve a list of all ILM lifecycle policies.
 
-		:param search_string: A search string. Default to None.
+		Returns:
+			dict: A dictionary of lifecycle policies.
+
+		Raises:
+			Exception: If the request fails.
 		"""
+
 		async with self.request("GET", "_ilm/policy") as resp:
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))
@@ -474,12 +555,19 @@ class StorageService(StorageServiceABC):
 
 	async def update_by_bulk(self, index: str, documents: list) -> dict:
 		"""
-		Use Elasticsearch bulk API to add/update multiple documents in an index.
+		Update or insert multiple documents in bulk.
 
-		:param index: The Elasticsearch index to update.
-		:param documents: A list of dictionaries, each containing '_id' and '_source' keys.
-		:raise RuntimeError: If the bulk update request fails.
+		Args:
+			index (str): The name of the index.
+			documents (list): A list of dictionaries each with '_id' and '_source'.
+
+		Returns:
+			dict: Elasticsearch bulk API response.
+
+		Raises:
+			RuntimeError: If the bulk operation fails.
 		"""
+
 		if not documents:
 			return 0
 

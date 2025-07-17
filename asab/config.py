@@ -54,6 +54,10 @@ class ConfigParser(configparser.ConfigParser):
 			"native_metrics": "true",
 			"web_requests_metrics": False,  # False is a default, web_requests_metrics won't be generated.
 			"expiration": 60,
+
+			# 1 means that metrics are submitted every minute, 2 means every 2 minutes, 3 means every 3 minutes, etc.
+			# 0 means that the automated periodic flush is disabled and the app must call MetricsService.flush() manually
+			"interval_multiplier": 1,
 		},
 
 		"asab:doc": {
