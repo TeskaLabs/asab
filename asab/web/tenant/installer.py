@@ -23,7 +23,7 @@ class TenantWebWrapperInstaller:
 		self.Strict = strict
 
 
-	def __call__(self, aiohttp_app: aiohttp.web.Application):
+	async def __call__(self, aiohttp_app: aiohttp.web.Application):
 		"""
 		Inspect all registered handlers and wrap them in decorators according to their parameters.
 		"""
