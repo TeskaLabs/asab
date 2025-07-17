@@ -35,7 +35,7 @@ class KazooWrapper(object):
 		self.Client.add_listener(zkcnt._listener)
 
 
-	# read-only calls
+	# Read-only calls
 	async def ensure_path(self, path):
 		"""
 		Recursively create a path if it does not exist.
@@ -54,6 +54,28 @@ class KazooWrapper(object):
 			self.Client.exists, path
 		)
 		return ret
+
+
+	async def get(self, path):
+		"""
+		Get the data and stats from a node as a tuple. If the node does not exist, return `None`.
+
+		Example:
+		```python
+		>>> data, stat = await zk.get("/path/to/node")
+		>>> stat.ctime
+		1700000000.0
+		```
+		"""
+		try:
+			data, stat = await self.ProactorService.execute(
+				self.Client.get, path
+			)
+		except kazoo.exceptions.NoNodeError:
+			# This is a silent error, it is indicated by None in the return
+			return None, None
+		return data, stat
+
 
 	async def get_children(self, path):
 		"""
@@ -82,7 +104,7 @@ class KazooWrapper(object):
 			return None
 		return data
 
-	# write methods
+	# Write methods
 	async def set_data(self, path, data):
 		"""
 		Set the data of a given node.
