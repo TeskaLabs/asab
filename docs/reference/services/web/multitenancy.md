@@ -23,50 +23,26 @@ class MyApplication(asab.Application):
 		# Initialize web module
 		asab.web.create_web_server(self)
 
-		# Initialize tenant service
+		# Initialize tenant service in strict mode...
 		self.TenantService = asab.web.tenant.TenantService(self)
+
+		# ...OR in non-strict mode
+		self.TenantService = asab.web.tenant.TenantService(self, strict=False)
+
 ```
 
 !!! note
 
 	If your app has more than one web container, you will need to call `TenantService.install(web_container)` to apply the tenant context wrapper.
 
-This also adds the requirement for `tenant` parameter in the URL of every request - either in the path or in the query.
+Tenant module offers two modes of tenant awareness: strict and non-strict.
 
 
-### Mandatory tenant in path
+### Strict mode
 
-If **tenant context is mandatory** for your endpoint, it is recommended to require the `tenant` parameter in the URL path, such as:
-
-```python
-import asab
-import asab.web
-import asab.web.tenant
-import asab.contextvars
-
-class NotesApplication(asab.Application):
-	def __init__(self):
-		super().__init__()
-		web = asab.web.create_web_server(self)
-		tenant_svc = asab.web.tenant.TenantService(self)
-
-		web.add_get("/{tenant}/note", self.list_notes)  # Tenant parameter required in path
-        
-	async def list_notes(self, request):
-		tenant = asab.contextvars.Tenant.get()
-		print("Requesting notes for tenant {!r}...".format(tenant))
-```
-
-!!! note
-
-	It is a good practice to have `tenant` as the first component of the URL path if possible.
-
-
-### Mandatory tenant in query
-
-When the tenant context is mandatory for your endpoint, but it is not feasible to have the tenant parameter hard-baked into the path, define your endpoint path without the `tenant` path parameter.
-The handler with require `tenant` to be present in the URL query.
-Requests without the required parameter will result in `aiohttp.web.HTTPNotFound` (HTTP 404).
+In **strict mode**, the tenant context is mandatory for every request and all endpoint paths 
+must **start with the `/{tenant}` path parameter**, no exceptions allowed.
+This mode is useful for applications that operate on tenants as business objects.
 
 ```python
 import asab
@@ -80,7 +56,40 @@ class NotesApplication(asab.Application):
 		web = asab.web.create_web_server(self)
 		tenant_svc = asab.web.tenant.TenantService(self)
 
-		web.add_get("/note", self.list_notes)  # No tenant parameter in path!
+		web.add_get("/{tenant}/notes", self.list_notes)  # Tenant parameter required as the first path component
+        
+	async def list_notes(self, request):
+		tenant = asab.contextvars.Tenant.get()
+		print("Requesting notes for tenant {!r}...".format(tenant))
+```
+
+### Non-strict mode
+
+In **non-strict mode**, the tenant context is by default mandatory for every endpoint, but the parameter is usually 
+provided **in the URL query**.
+It can also be in the path, but it is not allowed to be the first path component.
+Non-strict mode also allows to define endpoints that do not require tenant context at all, using the `@allow_no_tenant` decorator.
+
+
+#### Mandatory tenant in query
+
+Define your endpoint path without the `tenant` path parameter and the handler 
+will require `tenant` to be present in the URL query.
+Requests without that parameter will result in `aiohttp.web.HTTPNotFound` (HTTP 404).
+
+```python
+import asab
+import asab.web
+import asab.web.tenant
+import asab.contextvars
+
+class NotesApplication(asab.Application):
+	def __init__(self):
+		super().__init__()
+		web = asab.web.create_web_server(self)
+		tenant_svc = asab.web.tenant.TenantService(self)
+
+		web.add_get("/notes", self.list_notes)  # No tenant parameter in path!
         
 	async def list_notes(self, request):
 		tenant = asab.contextvars.Tenant.get()
@@ -88,11 +97,40 @@ class NotesApplication(asab.Application):
 ```
 
 
-### Optional tenant in query
+#### Mandatory tenant in path
 
-When the **tenant context is optional** for your endpoint (or when the endpoint does not use tenants at all), define its path without the `tenant` parameter in path and decorate the method handler with `@asab.web.tenant.allow_no_tenant`.
+If **tenant context is mandatory** for your endpoint, it is recommended to require the `tenant` parameter 
+in the URL path, such as:
+
+```python
+import asab
+import asab.web
+import asab.web.tenant
+import asab.contextvars
+
+class NotesApplication(asab.Application):
+	def __init__(self):
+		super().__init__()
+		web = asab.web.create_web_server(self)
+		tenant_svc = asab.web.tenant.TenantService(self)
+
+		web.add_get("/notes/{tenant}", self.list_notes)  # Tenant parameter required in path
+        
+	async def list_notes(self, request):
+		tenant = asab.contextvars.Tenant.get()
+		print("Requesting notes for tenant {!r}...".format(tenant))
+```
+
+
+#### Optional tenant in query
+
+When the **tenant context is optional** for your endpoint (or when the endpoint does not use tenants at all), 
+define its path without the `tenant` parameter in path and decorate the method handler 
+with `@asab.web.tenant.allow_no_tenant`.
 Requests without the `tenant` parameter will have their Tenant context set to `None`.
 
+Note that the decorator is intended to be used only sparsely for exceptions.
+
 ```python
 import asab
 import asab.web
@@ -105,7 +143,7 @@ class NotesApplication(asab.Application):
 		web = asab.web.create_web_server(self)
 		tenant_svc = asab.web.tenant.TenantService(self)
 
-		web.add_get("/{tenant}/note", self.list_notes)  # No tenant parameter in path!
+		web.add_get("/notes", self.list_notes)  # No tenant parameter in path!
         
 	@asab.web.tenant.allow_no_tenant  # Allow requests with undefined tenant!
 	async def list_notes(self, request):

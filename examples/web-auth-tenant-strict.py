@@ -70,7 +70,7 @@ class NotesApplication(asab.Application):
 		self.AuthService = asab.web.auth.AuthService(self)
 
 		# Add routes
-		self.WebContainer.WebApp.router.add_get("/", self.info)
+		# Strict tenant mode: All paths must start with "/{tenant}/"
 		self.WebContainer.WebApp.router.add_get("/{tenant}/note", self.list_notes)
 		self.WebContainer.WebApp.router.add_post("/{tenant}/note", self.create_note)
 		self.WebContainer.WebApp.router.add_get("/{tenant}/note/{note_id}", self.read_note)
@@ -87,30 +87,14 @@ class NotesApplication(asab.Application):
 					"content": "This is an example note in tenant 'default'!",
 				}
 			},
-			"brothers-workspace": {
+			"some-guys-workspace": {
 				"abcdefgh": {
 					"_id": "abcdefgh",
 					"created_by": "that-one-developer:)",
-					"content": "This is another example note, this time in tenant 'brothers-workspace'!",
+					"content": "This is another example note, this time in tenant 'some-guys-workspace'!",
 				}
 			},
 		}
-
-
-	# Disable authentication and authorization for this endpoint
-	@asab.web.auth.noauth
-	# Do not require tenant parameter in URL (asab.contextvars.Tenant defaults to None)
-	@asab.web.tenant.allow_no_tenant
-	async def info(self, request):
-		"""
-		Show application info.
-
-		No authentication or authorization required, but also no user details are available.
-		"""
-		data = {
-			"message": "This app stores notes. Call GET /default/note to see stored notes.",
-		}
-		return asab.web.rest.json_response(request, data)
 
 
 	async def list_notes(self, request):

@@ -5,7 +5,7 @@ import aiohttp.web
 from .. import Config
 from ..web.rest import json_response
 from ..web.auth import noauth, require_superuser
-from ..web.tenant import allow_no_tenant
+from ..web.tenant import NO_TENANT_ROUTES
 
 
 class APIWebHandler(object):
@@ -24,9 +24,10 @@ class APIWebHandler(object):
 		webapp.router.add_get("/asab/v1/changelog", self.changelog)
 		webapp.router.add_get("/asab/v1/manifest", self.manifest)
 
+		NO_TENANT_ROUTES.update({"/asab/v1/logs", "/asab/v1/logws", "/asab/v1/changelog", "/asab/v1/manifest"})
+
 
 	@noauth
-	@allow_no_tenant
 	async def changelog(self, request):
 		"""
 		Get changelog file.
@@ -44,7 +45,6 @@ class APIWebHandler(object):
 
 
 	@noauth
-	@allow_no_tenant
 	async def manifest(self, request):
 		"""
 		Get manifest of the ASAB service.
@@ -79,7 +79,6 @@ class APIWebHandler(object):
 
 
 	@require_superuser
-	@allow_no_tenant
 	async def environ(self, request):
 		"""
 		Get environment variables.
@@ -111,7 +110,6 @@ class APIWebHandler(object):
 
 
 	@require_superuser
-	@allow_no_tenant
 	async def config(self, request):
 		"""
 		Get configuration of the service.
