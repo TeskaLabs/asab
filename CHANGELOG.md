@@ -1,15 +1,16 @@
 # CHANGELOG
 
-## Relase Candidate
+## v25.29
 
 ### Breaking Changes
-- XX
+- Tenant-aware applications must choose whether to use strict or non-strict mode and adjust their web routes accordingly.
+  Strict mode is considered the default.
 
 ### Fix
 - XX
 
 ### Features
-- XX
+- Introducing multi-tenancy modes (#679)
 
 ### Refactoring
 - XX
