@@ -7,11 +7,12 @@
   Strict mode is considered the default. (#679)
 
 ### Fix
+- Do not apply tenant and auth handling to OPTIONS routes (#701)
 - Remove race condition from service advertisement in asab.api (#694)
 
 ### Features
-- Introducing multi-tenancy modes (#679)
 - Add path info to "Failed to initialize tenant context" error message (#701)
+- Introducing multi-tenancy modes (#679)
 
 ### Refactoring
 - XX
