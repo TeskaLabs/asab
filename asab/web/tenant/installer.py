@@ -32,6 +32,10 @@ class TenantWebWrapperInstaller:
 			if not inspect.iscoroutinefunction(route.handler):
 				continue
 
+			# Skip OPTIONS routes, no tenant validation should be applied to them
+			if route.method == "OPTIONS":
+				continue
+
 			# If the route is in NO_TENANT_ROUTES, skip tenant handling
 			path = _get_route_path(route)
 			if path in NO_TENANT_ROUTES:
