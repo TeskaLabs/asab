@@ -239,6 +239,10 @@ class AuthService(Service):
 			if not inspect.iscoroutinefunction(route.handler):
 				continue
 
+			# Skip OPTIONS routes, they should require no authentication
+			if route.method == "OPTIONS":
+				continue
+
 			try:
 				self._set_handler_auth(route)
 			except Exception as e:

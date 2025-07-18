@@ -32,11 +32,21 @@ class TenantWebWrapperInstaller:
 			if not inspect.iscoroutinefunction(route.handler):
 				continue
 
+			# Skip OPTIONS routes, no tenant validation should be applied to them
+			if route.method == "OPTIONS":
+				continue
+
+			# If the route is in NO_TENANT_ROUTES, skip tenant handling
+			path = _get_route_path(route)
+			if path in NO_TENANT_ROUTES:
+				continue
+
 			try:
 				self.set_handler_tenant(route, strict=self.Strict)
 			except Exception as e:
 				raise RuntimeError(
-					"Failed to initialize tenant context for handler {!r}: {}".format(route.handler.__qualname__, e)
+					"Failed to initialize tenant context for {} ({!r}): {}".format(
+						route.handler.__qualname__, path, e)
 				) from e
 
 
@@ -48,17 +58,6 @@ class TenantWebWrapperInstaller:
 		handler = route.handler
 		route_info = route.get_info()
 
-		if "path" in route_info:
-			path = route_info["path"]
-		elif "formatter" in route_info:
-			path = route_info["formatter"]
-		else:
-			raise RuntimeError("Route has no path or formatter: {}".format(route_info))
-
-		# If the route is in NO_TENANT_ROUTES, skip tenant handling
-		if path in NO_TENANT_ROUTES:
-			return
-
 		# Apply the decorators IN REVERSE ORDER (the last applied wrapper affects the request first)
 
 		# 2) Pass tenant if it is in handler args
@@ -68,12 +67,12 @@ class TenantWebWrapperInstaller:
 		# 1) Set tenant context from URL path or query
 		if strict:
 			if not ("formatter" in route_info and route_info["formatter"].startswith("/{tenant}")):
-				raise RuntimeError("In strict mode, all endpoint paths must start with `/{tenant}`.")
+				raise RuntimeError("In strict mode, all endpoint paths must start with '/{tenant}'.")
 			if hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True:
 				raise RuntimeError("In strict mode, the use of @allow_no_tenant is not permitted.")
 		else:
 			if "formatter" in route_info and route_info["formatter"].startswith("/{tenant}"):
-				raise RuntimeError("In non-strict mode, endpoint paths must NOT start with `/{tenant}`.")
+				raise RuntimeError("In non-strict mode, endpoint paths must NOT start with '/{tenant}'.")
 
 		if "formatter" in route_info and "{tenant}" in route_info["formatter"]:
 			handler = self._set_tenant_context_from_url_path(handler)
@@ -177,3 +176,14 @@ def _get_route_handler_args(route):
 	argspec = inspect.getfullargspec(handler_method)
 	args = set(argspec.kwonlyargs).union(argspec.args)
 	return args
+
+
+def _get_route_path(route):
+	route_info = route.get_info()
+	if "path" in route_info:
+		path = route_info["path"]
+	elif "formatter" in route_info:
+		path = route_info["formatter"]
+	else:
+		raise RuntimeError("Route has no path or formatter: {}".format(route_info))
+	return path
