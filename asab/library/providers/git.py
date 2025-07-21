@@ -62,6 +62,13 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		self.GitRepository = None
 
+		# Set custom SSL certificate locations if specified
+		if any((Config.get("library:git", "cert_file", fallback=None), Config.get("library:git", "cert_dir", fallback=None))):
+			pygit2.settings.set_ssl_cert_locations(
+				cert_file=Config.get("library:git", "cert_file", fallback=None),
+				cert_dir=Config.get("library:git", "cert_dir", fallback=None)
+			)
+
 		from ...proactor import Module
 		self.App.add_module(Module)
 		self.ProactorService = self.App.get_service("asab.ProactorService")
