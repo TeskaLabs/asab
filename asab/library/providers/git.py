@@ -62,6 +62,13 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		self.GitRepository = None
 
+		# Set custom SSL certificate locations if specified
+		if any((Config.get("library:git", "cert_file", fallback=None), Config.get("library:git", "cert_dir", fallback=None))):
+			pygit2.settings.set_ssl_cert_locations(
+				cert_file=Config.get("library:git", "cert_file", fallback=None),
+				cert_dir=Config.get("library:git", "cert_dir", fallback=None)
+			)
+
 		from ...proactor import Module
 		self.App.add_module(Module)
 		self.ProactorService = self.App.get_service("asab.ProactorService")
@@ -105,11 +112,14 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			if pygit2.discover_repository(self.RepoPath) is None:
 				# For a new repository, clone the remote bit
 				os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
-				self.GitRepository = pygit2.clone_repository(
-					url=self.URL,
-					path=self.RepoPath,
-					checkout_branch=self.Branch
-				)
+				try:
+					self.GitRepository = pygit2.clone_repository(
+						url=self.URL,
+						path=self.RepoPath,
+						checkout_branch=self.Branch
+					)
+				except Exception as err:
+					L.exception("Error when cloning git repository: {}".format(err))
 			else:
 				# For existing repository, pull the latest changes
 				self.GitRepository = pygit2.Repository(self.RepoPath)
