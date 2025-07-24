@@ -11,6 +11,7 @@
 - Remove race condition from service advertisement in asab.api (#694)
 
 ### Features
+- Improve mock auth mode customization (#703)
 - Add path info to "Failed to initialize tenant context" error message (#701)
 - Introducing multi-tenancy modes (#679)
 
