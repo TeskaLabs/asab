@@ -72,7 +72,7 @@ class MockAuthProvider(AuthProviderABC):
 		Args:
 			auth_claims_path: Path to the file with custom auth claims.
 		"""
-		auth_claims = _MOCK_AUTH_CLAIMS_DEFAULT
+		auth_claims = _MOCK_AUTH_CLAIMS_DEFAULT.copy()
 
 		# Load custom auth claims from a file
 		for path in [auth_claims_path, "/conf/mock-claims.json", "/conf/mock-userinfo.json"]:
