@@ -173,18 +173,18 @@ mock_claims_path=./mock-claims.json
 Custom issue and expiration time
 ```json
 {
-	"iat": "now - 1h",
-	"exp": "now + 30m"
+    "iat": "now - 1h",
+    "exp": "now + 30m"
 }
 ```
 
 Custom subject ID (sub) and access control (resources)
 ```json
 {
-	"sub": "abc123def456-xyz789",
-	"resources": {
-      "*": [],
-      "cool-eshop": ["article:edit", "article:delete"],
+    "sub": "abc123def456-xyz789",
+    "resources": {
+        "*": [],
+        "cool-eshop": ["article:edit", "article:delete"],
     }
 }
 ```
