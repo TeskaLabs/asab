@@ -77,7 +77,7 @@ class MockAuthProvider(AuthProviderABC):
 		# Load custom auth claims from a file
 		for path in [auth_claims_path, "/conf/mock-claims.json", "/conf/mock-userinfo.json"]:
 			if path is not None and os.path.isfile(path):
-				with open(auth_claims_path, "rb") as f:
+				with open(path, "rb") as f:
 					for k, v in json.load(f).items():
 						if v is None:
 							del auth_claims[k]
