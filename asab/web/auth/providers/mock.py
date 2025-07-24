@@ -5,6 +5,7 @@ import json
 import aiohttp.web
 import logging
 
+from .... import utils
 from .abc import AuthProviderABC
 from ..authorization import Authorization
 
@@ -14,19 +15,17 @@ L = logging.getLogger(__name__)
 
 _MOCK_AUTH_CLAIMS_DEFAULT = {
 	# Token issuer
-	"iss": "auth.test.loc",
+	"iss": "my-app.asab",
 	# Token issued at (timestamp)
-	"iat": int(time.time()),
+	"iat": "now - 10s",
 	# Token expires at (timestamp)
-	"exp": int(time.time()) + 5 * 365 * 24 * 3600,
-	# Authorized party
-	"azp": "my-asab-app",
+	"exp": "now + 1h",
 	# Audience
-	"aud": "my-asab-app",
+	"aud": "my-app.asab",
 	# Subject (Unique user ID)
-	"sub": "abc:xyz:799b53e0",
+	"sub": "asab:user:capybara1999",
 	# Subject's preferred username
-	"preferred_username": "little-capybara",
+	"preferred_username": "littlecapybara",
 	# Subject's email
 	"email": "capybara1999@example.com",
 	# Authorized tenants and resources
@@ -41,9 +40,6 @@ _MOCK_AUTH_CLAIMS_DEFAULT = {
 			"some-test-data:access",
 		],
 	},
-	# List of tenants that the user is a member of.
-	# These tenants are NOT AUTHORIZED!
-	"tenants": ["default", "test-tenant", "another-tenant"]
 }
 
 
@@ -76,18 +72,28 @@ class MockAuthProvider(AuthProviderABC):
 		Args:
 			auth_claims_path: Path to the file with custom auth claims.
 		"""
+		auth_claims = _MOCK_AUTH_CLAIMS_DEFAULT
+
 		# Load custom auth claims from a file
-		if auth_claims_path and os.path.isfile(auth_claims_path):
-			with open(auth_claims_path, "rb") as f:
-				auth_claims = json.load(f)
-		elif os.path.isfile("/conf/mock-claims.json"):
-			with open(auth_claims_path, "rb") as f:
-				auth_claims = json.load(f)
-		elif os.path.isfile("/conf/mock-userinfo.json"):
-			with open(auth_claims_path, "rb") as f:
-				auth_claims = json.load(f)
-		else:
-			auth_claims = _MOCK_AUTH_CLAIMS_DEFAULT
+		for path in [auth_claims_path, "/conf/mock-claims.json", "/conf/mock-userinfo.json"]:
+			if path is not None and os.path.isfile(path):
+				with open(auth_claims_path, "rb") as f:
+					for k, v in json.load(f).items():
+						if v is None:
+							del auth_claims[k]
+						else:
+							auth_claims[k] = v
+				break
+
+		# Convert duration values to timestamps
+		for k in ("iat", "exp"):
+			v = auth_claims[k]
+			if isinstance(v, str):
+				v = v.replace(" ", "")
+				if v.startswith("now+"):
+					auth_claims[k] = int(time.time()) + utils.convert_to_seconds(v[4:])
+				if v.startswith("now-"):
+					auth_claims[k] = int(time.time()) - utils.convert_to_seconds(v[4:])
 
 		# Validate auth claims
 		resources = auth_claims.get("resources", {})
@@ -96,13 +102,13 @@ class MockAuthProvider(AuthProviderABC):
 		):
 			raise ValueError("The 'resources' claim must be an object with string keys and array values.")
 
+		self.Authorization = Authorization(auth_claims)
 		L.warning(
-			"Mock authorization provider is enabled. All web requests will be provided with {!r} which also"
+			"Mock authorization provider is enabled. All web requests will be provided with {!r} which also "
 			"grants access to the following tenants: {}. To customize the authorization (add or "
-			"remove tenants and resources, change username etc.), provide your own user info in {!r}.".format(
+			"remove tenants and resources, change username etc.), provide your own claims in {!r}.".format(
 				self.Authorization,
 				list(t for t in auth_claims.get("resources", {}).keys() if t != "*"),
 				auth_claims_path
 			)
 		)
-		self.Authorization = Authorization(auth_claims)
