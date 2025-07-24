@@ -156,13 +156,37 @@ introspection_url=http://localhost:8900/nginx/introspect/openidconnect
 In mock mode, the `AuthService` authorizes all incoming requests with mock authorization claims (aka User Info) without 
 any communication with the auth server.
 You can also customize the claims by providing a path to a JSON file with mock claims.
-The file content should comply with the [OpenID Connect userinfo response definition](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse) 
+The file content should comply with the [OpenID Connect ID token claims](https://openid.net/specs/openid-connect-core-1_0.html#IDToken) 
 and also contain the `resources` object.
+The `iss` and `exp` timestamp claims can contain relative value as a string in the format `now + 30m`, `now - 1d` etc.
+They will be converted to absolute timestamps at runtime.
+Omitted claims will be supplied with default values.
 
 ```ini
 [auth]
 enabled=mock
 mock_claims_path=./mock-claims.json
+```
+
+#### Custom claims examples
+
+Custom issue and expiration time
+```json
+{
+	"iat": "now - 1h",
+	"exp": "now + 30m"
+}
+```
+
+Custom subject ID (sub) and access control (resources)
+```json
+{
+	"sub": "abc123def456-xyz789",
+	"resources": {
+      "*": [],
+      "cool-eshop": ["article:edit", "article:delete"],
+    }
+}
 ```
 
 
