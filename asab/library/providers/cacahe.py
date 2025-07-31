@@ -95,5 +95,5 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
         try:
             return await super().list(path)
         except Exception:
-            L.debug("Cache list miss or error: %s", path)
+            L.warning("Cache list miss or error: %s", path)
             return []
