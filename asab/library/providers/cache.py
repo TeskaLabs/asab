@@ -8,6 +8,7 @@ from asab import exceptions
 
 L = logging.getLogger(__name__)
 
+
 class CacheLibraryProvider(FileSystemLibraryProvider):
     """
     A read-only cache-backed wrapper that serves exclusively from the on-disk cache.
