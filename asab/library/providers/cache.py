@@ -44,13 +44,13 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
                 "Missing [library:cache].dir configuration"
             )
         if not os.path.isdir(cache_root):
-            L.critical("Cache root %s not found, exiting.", cache_root)
+            L.critical("Cache root '{}' not found, exiting.".format(cache_root))
             raise SystemExit("Missing cache root")
 
         # 2) Build the cache URI
         self.cache_dir = os.path.join(cache_root, "@global", self.layer_hash)
         if not os.path.isdir(self.cache_dir):
-            L.warning("Cache directory not found for %s: %s", uri, self.cache_dir)
+            L.warning("Cache directory not found for '{}' '{}'.".format(uri, self.cache_dir))
 
         cache_uri = "file://" + self.cache_dir.rstrip("/")
         # Initialize the filesystem provider *only* against the cache
