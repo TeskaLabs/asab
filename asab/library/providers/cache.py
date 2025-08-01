@@ -67,6 +67,11 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
                 "Missing [library:cache].dir configuration"
             )
 
+        library.App.PubSub.subscribe(
+            "library.cache.ready",
+            self._on_cache_ready
+        )
+
         # Build path to on-disk cache for this layer
         self.cache_dir = os.path.join(cache_root, '@global', self.layer_hash)
         if not os.path.isdir(self.cache_dir):
@@ -75,6 +80,10 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
         # Initialize filesystem provider against cache path, skip ready event
         cache_uri = 'file://' + self.cache_dir.rstrip('/')
         super().__init__(library, cache_uri, layer, set_ready=False)
+
+
+    async def _on_cache_ready(self, event, data):
+        await self._set_ready()
 
     # Override read/list to serve only from cache
     async def read(self, path):
