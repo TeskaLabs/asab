@@ -46,14 +46,6 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
       [cache_root]/@global/<layer_hash>/           # symlink to active snapshot
       [cache_root]/@global/<layer_hash>/.uri
       [cache_root]/@global/<layer_hash>/.unique_id
-
-    Notes for GitLab Merge Request:
-    - This change introduces a CacheLibraryProvider to serve from disk-only cache.
-    - Ensure `[library:cache].dir` is documented in configuration reference.
-    - Update LibraryService to wrap `libsreg+` URIs with this provider instead of direct network fetch.
-    - Add integration test to verify cache lookup and symlink resolution.
-    - Confirm backward compatibility: providers other than `libsreg+` remain unaffected.
-    - Mention atomic symlink swap behavior in release notes.
     """
     def __init__(self, library, uri, layer):
         # Compute stable layer key
