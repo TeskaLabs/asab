@@ -132,15 +132,13 @@ class LibraryService(Service):
 			library_provider = GitLibraryProvider(self, path, layer)
 
 		elif path.startswith("libsreg+"):
-			# 1) register the on-disk cache provider first
-			from .providers.cache import CacheLibraryProvider
-			cache = CacheLibraryProvider(self, path, layer)
-			self.Libraries.append(cache)
-
-			# 2) then register the real registry provider as a fallback
 			from .providers.libsreg import LibsRegLibraryProvider
 			real = LibsRegLibraryProvider(self, path, layer)
-			self.Libraries.append(real)
+			from .providers.cache import CacheLibraryProvider
+			cache = CacheLibraryProvider(self, path, layer, real_provider=real)
+			# Only register the cache wrapper:
+			self.Libraries.append(cache)
+			return  # <-- skip the generic append below
 
 		elif path == '' or path.startswith("#") or path.startswith(";"):
 			# This is empty or commented line
