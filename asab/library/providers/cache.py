@@ -5,7 +5,12 @@ import hashlib
 from asab.library.providers.filesystem import FileSystemLibraryProvider
 from asab.config import Config
 
+##
+
 L = logging.getLogger(__name__)
+
+##
+
 
 class CacheLibraryProvider(FileSystemLibraryProvider):
     """
@@ -46,16 +51,27 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
     async def _on_cache_ready(self, *args):
         await self._set_ready()
 
+    def _cache_live(self):
+        # True once @global/<layer_hash> exists
+        return os.path.isdir(self.cache_dir)
+
     async def read(self, path):
-        # FALLBACK only if the entire cache folder is gone
-        if not os.path.isdir(self.cache_dir):
-            return await self._real.read(path)
-        # otherwise serve from cache (None on missing file → next provider)
-        return await super().read(path)
+        if self._cache_live():
+            return await super().read(path)
+        return await self._real.read(path)
 
     async def list(self, path):
-        # FALLBACK only if the entire cache folder is gone
-        if not os.path.isdir(self.cache_dir):
-            return await self._real.list(path)
-        # otherwise serve from cache (KeyError on missing dir → next provider)
-        return await super().list(path)
+        if self._cache_live():
+            return await super().list(path)
+        return await self._real.list(path)
+
+    async def find(self, path):
+        if self._cache_live():
+            return await super().find(path)
+        return await self._real.find(path)
+
+    async def subscribe(self, path, target=None):
+        # subscribe *only* where we actually expect changes
+        if self._cache_live():
+            return await super().subscribe(path, target)
+        return await self._real.subscribe(path, target)
