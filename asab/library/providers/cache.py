@@ -44,11 +44,3 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
     async def _on_cache_ready(self, *args):
         # once a new snapshot appears, mark ready
         await self._set_ready()
-
-    async def read(self, path):
-        # returns None on cache-miss → LibraryService will try next provider
-        return await super().read(path)
-
-    async def list(self, path):
-        # raises KeyError on missing directory → LibraryService will try next provider
-        return await super().list(path)
