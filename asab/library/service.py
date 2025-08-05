@@ -134,14 +134,14 @@ class LibraryService(Service):
 		# LibsReg → cache first, then real
 
 		elif path.startswith('libsreg+'):
-			# 1) on-disk cache wrapper
-			from .providers.cache import CacheLibraryProvider
-			cache = CacheLibraryProvider(self, path, layer)
-			self.Libraries.append(cache)
-			# 2) registry fallback
+			# 1) Create the real registry provider
 			from .providers.libsreg import LibsRegLibraryProvider
 			real = LibsRegLibraryProvider(self, path, layer)
-			self.Libraries.append(real)
+
+			# 2) Wrap it in your cache provider
+			from .providers.cache import CacheLibraryProvider
+			cache_wrapper = CacheLibraryProvider(self, path, layer, real_provider=real)
+			self.Libraries.append(cache_wrapper)
 			return
 
 		elif path == '' or path.startswith("#") or path.startswith(";"):
