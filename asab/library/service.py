@@ -114,45 +114,40 @@ class LibraryService(Service):
 		await self._read_disabled()
 
 	def _create_library(self, path, layer):
-		library_provider = None
+		# Handle libsreg+ URIs (which may be comma-separated)
+		if path.startswith('libsreg+'):
+			uris = path[7:].split(',')  # Remove 'libsreg+' prefix, split by comma
+			for uri in uris:
+				full_uri = 'libsreg+{}'.format(uri.strip())
+				from .providers.cache import CacheLibraryProvider
+				provider = CacheLibraryProvider(self, full_uri, layer)
+				if provider._cache_live():
+					self.Libraries.append(provider)
+				else:
+					from .providers.libsreg import LibsRegLibraryProvider
+					real_provider = LibsRegLibraryProvider(self, full_uri, layer)
+					self.Libraries.append(real_provider)
+			return
+
 		if path.startswith('zk://') or path.startswith('zookeeper://'):
 			from .providers.zookeeper import ZooKeeperLibraryProvider
-			library_provider = ZooKeeperLibraryProvider(self, path, layer)
-
+			provider = ZooKeeperLibraryProvider(self, path, layer)
 		elif path.startswith('./') or path.startswith('/') or path.startswith('file://'):
 			from .providers.filesystem import FileSystemLibraryProvider
-			library_provider = FileSystemLibraryProvider(self, path, layer)
-
+			provider = FileSystemLibraryProvider(self, path, layer)
 		elif path.startswith('azure+https://'):
 			from .providers.azurestorage import AzureStorageLibraryProvider
-			library_provider = AzureStorageLibraryProvider(self, path, layer)
-
+			provider = AzureStorageLibraryProvider(self, path, layer)
 		elif path.startswith('git+'):
 			from .providers.git import GitLibraryProvider
-			library_provider = GitLibraryProvider(self, path, layer)
-
-		# LibsReg → cache first, then real
-
-		elif path.startswith('libsreg+'):
-			# 1) Create the real registry provider
-			from .providers.libsreg import LibsRegLibraryProvider
-			real = LibsRegLibraryProvider(self, path, layer)
-
-			# 2) Wrap it in your cache provider
-			from .providers.cache import CacheLibraryProvider
-			cache_wrapper = CacheLibraryProvider(self, path, layer, real_provider=real)
-			self.Libraries.append(cache_wrapper)
-			return
-
+			provider = GitLibraryProvider(self, path, layer)
 		elif path == '' or path.startswith("#") or path.startswith(";"):
-			# This is empty or commented line
 			return
-
 		else:
 			L.error("Incorrect/unknown provider for '{}'".format(path))
 			raise SystemExit("Exit due to a critical configuration error.")
 
-		self.Libraries.append(library_provider)
+		self.Libraries.append(provider)
 
 	def is_ready(self) -> bool:
 		"""
