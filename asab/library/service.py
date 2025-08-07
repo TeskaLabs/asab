@@ -312,7 +312,7 @@ class LibraryService(Service):
 
 		# 4) yield & close
 		if itemio is None:
-			yield None
+			yield itemio
 		else:
 			try:
 				yield itemio
@@ -351,10 +351,7 @@ class LibraryService(Service):
 
 		# cache-first lookup using try/except
 		try:
-			print(self.CacheLibraries)
 			items = await self._list(path, providers=self.CacheLibraries)
-			breakpoint()
-			print(items)
 		except KeyError:
 			# cache miss: fall back immediately to live providers
 			items = await self._list(path, providers=self.Libraries)
