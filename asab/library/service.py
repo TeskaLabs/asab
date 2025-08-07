@@ -83,6 +83,7 @@ class LibraryService(Service):
 
 		super().__init__(app, service_name)
 		self.Libraries: list[LibraryProviderABC] = []
+		self.CacheLibraries: list[LibraryProviderABC] = []  # cache-first
 		self.Disabled: dict = {}
 		self.DisabledPaths: list = []
 
@@ -116,38 +117,47 @@ class LibraryService(Service):
 	def _create_library(self, path, layer):
 		# Handle libsreg+ URIs (which may be comma-separated)
 		if path.startswith('libsreg+'):
-			uris = path[7:].split(',')  # Remove 'libsreg+' prefix, split by comma
-			for uri in uris:
-				full_uri = 'libsreg+{}'.format(uri.strip())
-				from .providers.cache import CacheLibraryProvider
-				provider = CacheLibraryProvider(self, full_uri, layer)
-				if provider._cache_live():
-					self.Libraries.append(provider)
-				else:
-					from .providers.libsreg import LibsRegLibraryProvider
-					real_provider = LibsRegLibraryProvider(self, full_uri, layer)
-					self.Libraries.append(real_provider)
+			from .providers.cache import CacheLibraryProvider
+			cachep = CacheLibraryProvider(self, path, layer)
+			# always register the cache wrapper (even if no snapshot yet)
+			self.CacheLibraries.append(cachep)
+
+			from .providers.libsreg import LibsRegLibraryProvider
+			realp = LibsRegLibraryProvider(self, path, layer)
+			self.Libraries.append(realp)
 			return
 
+		# ZooKeeper (no cache support)
 		if path.startswith('zk://') or path.startswith('zookeeper://'):
 			from .providers.zookeeper import ZooKeeperLibraryProvider
 			provider = ZooKeeperLibraryProvider(self, path, layer)
+			self.Libraries.append(provider)
+
+		# Filesystem (no cache support)
 		elif path.startswith('./') or path.startswith('/') or path.startswith('file://'):
 			from .providers.filesystem import FileSystemLibraryProvider
 			provider = FileSystemLibraryProvider(self, path, layer)
+			self.Libraries.append(provider)
+
+		# Azure Storage
 		elif path.startswith('azure+https://'):
 			from .providers.azurestorage import AzureStorageLibraryProvider
 			provider = AzureStorageLibraryProvider(self, path, layer)
+			self.Libraries.append(provider)
+
+		# Git
 		elif path.startswith('git+'):
 			from .providers.git import GitLibraryProvider
 			provider = GitLibraryProvider(self, path, layer)
-		elif path == '' or path.startswith("#") or path.startswith(";"):
-			return
-		else:
-			L.error("Incorrect/unknown provider for '{}'".format(path))
-			raise SystemExit("Exit due to a critical configuration error.")
+			self.Libraries.append(provider)
 
-		self.Libraries.append(provider)
+		# comments or blanks
+		elif not path or path[0] in ('#', ';'):
+			return
+
+		else:
+			L.error("Incorrect provider for '{}'".format(path))
+			raise SystemExit(1)
 
 	def is_ready(self) -> bool:
 		"""
@@ -194,6 +204,20 @@ class LibraryService(Service):
 		"""
 		_validate_path_item(path)
 
+		# 1) cache‐first phase
+		try:
+			results = []
+			for library in self.CacheLibraries:
+				found = await library.find(path)
+				if found:
+					results.extend(found)
+			if results:
+				return results
+		except KeyError:
+			# cache miss → skip to live
+			pass
+
+		# 2) live fallback (your original logic)
 		results = []
 		for library in self.Libraries:
 			found_files = await library.find(path)
@@ -227,17 +251,26 @@ class LibraryService(Service):
 		LogObsolete.warning("Method 'LibraryService.read()' is obsolete. Use 'LibraryService.open()' method instead.")
 		_validate_path_item(path)
 
+		# 1) global disable check
 		if self.check_disabled(path):
 			return None
 
-		for library in self.Libraries:
-			itemio = await library.read(path)
-			if itemio is None:
-				continue
-			return itemio
+		# 2) cache-first
+		try:
+			# this will raise KeyError as soon as any cache provider is “missing”
+			for cachep in self.CacheLibraries:
+				itemio = await cachep.read(path)
+				if itemio is not None:
+					return itemio
+		except KeyError:
+			# cache miss → fall back
+			pass
 
-		return None
-
+		# 3) live fallback
+		for livep in self.Libraries:
+			itemio = await livep.read(path)
+			if itemio is not None:
+				return itemio
 
 	@contextlib.asynccontextmanager
 	async def open(self, path: str):
@@ -259,15 +292,27 @@ class LibraryService(Service):
 
 		# Same functionality as in read() method
 		itemio = None
-		disabled = self.check_disabled(path)
-		if not disabled:
-			for library in self.Libraries:
-				itemio = await library.read(path)
+
+		# 2) cache-first
+		try:
+			for cachep in self.CacheLibraries:
+				itemio = await cachep.read(path)
+				if itemio is not None:
+					break
+		except KeyError:
+			# cache miss → clear and fall back
+			itemio = None
+
+		# 3) live fallback if nothing in cache
+		if itemio is None:
+			for livep in self.Libraries:
+				itemio = await livep.read(path)
 				if itemio is not None:
 					break
 
+		# 4) yield & close
 		if itemio is None:
-			yield itemio
+			yield None
 		else:
 			try:
 				yield itemio
@@ -304,27 +349,34 @@ class LibraryService(Service):
 
 		_validate_path_directory(path)
 
-		# List requested level using all available providers
-		items = await self._list(path, providers=self.Libraries)
+		# cache-first lookup using try/except
+		try:
+			print(self.CacheLibraries)
+			items = await self._list(path, providers=self.CacheLibraries)
+			breakpoint()
+			print(items)
+		except KeyError:
+			# cache miss: fall back immediately to live providers
+			items = await self._list(path, providers=self.Libraries)
+		else:
+			# if cache returned empty list, also fall back
+			if not items:
+				items = await self._list(path, providers=self.Libraries)
 
+		# recursive expansion
 		if recursive:
-			# If recursive scan is requested, then iterate thru list of items
-			# find 'dir' types there and list them.
-			# Output of this list is attached to the list for recursive scan
-			# and also to the final output
-			recitems = list(items[:])
-
-			while len(recitems) > 0:
-
+			recitems = list(items)
+			while recitems:
 				item = recitems.pop(0)
 				if item.type != 'dir':
 					continue
 
-				child_items = await self._list(item.name, providers=item.providers)
-				items.extend(child_items)
-				recitems.extend(child_items)
+				child = await self._list(item.name, providers=item.providers)
+				items.extend(child)
+				recitems.extend(child)
 
 		return items
+
 
 	async def _list(self, path, providers):
 		"""
@@ -342,7 +394,11 @@ class LibraryService(Service):
 		unique_items: dict[str, LibraryItem] = {}
 
 		# Launch tasks to list items from each provider.
-		tasks = [(self.Libraries.index(provider), asyncio.create_task(provider.list(path))) for provider in providers]
+		# Launch tasks to list items from each provider.
+		tasks = [
+			(provider.Layer, asyncio.create_task(provider.list(path)))
+			for provider in providers
+		]
 
 		for outer_layer, task in tasks:
 			try:
@@ -735,6 +791,17 @@ class LibraryService(Service):
 					path=path,
 				)
 
+			# 1) cache-first phase
+			try:
+				for provider in self.CacheLibraries:
+					await provider.subscribe(path, target)
+				# if cache subscribe succeeded without KeyError, skip live fallback
+				continue
+			except KeyError:
+				# cache miss → fall back to live
+				pass
+
+			# 2) live fallback
 			for provider in self.Libraries:
 				await provider.subscribe(path, target)
 
