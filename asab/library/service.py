@@ -7,7 +7,6 @@ import tarfile
 import asyncio
 import logging
 import tempfile
-import functools
 import configparser
 import contextlib
 
@@ -19,7 +18,7 @@ from ..log import LOG_NOTICE
 from .item import LibraryItem
 from ..application import Application
 from .providers.abc import LibraryProviderABC
-from ..exceptions import LibraryInvalidPathError
+from ..exceptions import LibraryInvalidPathError, LibraryNotReadyError
 from ..contextvars import Tenant
 
 #
@@ -147,19 +146,19 @@ class LibraryService(Service):
 
 	def is_ready(self) -> bool:
 		"""
-		Check if all the libraries are ready.
+		Check if all the library providers are ready.
 
 		Returns:
-			True if all libraries are ready, otherwise False.
+			True if every provider is ready; if even one provider is not, returns False.
 		"""
-		if len(self.Libraries) == 0:
+		if not self.Libraries:
 			return False
 
-		return functools.reduce(
-			lambda x, provider: provider.IsReady and x,
-			self.Libraries,
-			True
-		)
+		for provider in self.Libraries:
+			if not provider.IsReady:
+				return False
+		return True
+
 
 	async def _set_ready(self, provider):
 		if len(self.Libraries) == 0:
@@ -174,6 +173,10 @@ class LibraryService(Service):
 		elif not provider.IsReady:
 			L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("Library.not_ready!", self)
+
+	def _ensure_ready(self):
+		if not self.is_ready():
+			raise LibraryNotReadyError("Library is not ready yet.")
 
 	async def find(self, path: str) -> typing.List[str]:
 		"""
@@ -219,6 +222,7 @@ class LibraryService(Service):
 				return itemio.read()
 		```
 		"""
+		self._ensure_ready()
 
 		LogObsolete.warning("Method 'LibraryService.read()' is obsolete. Use 'LibraryService.open()' method instead.")
 		_validate_path_item(path)
@@ -250,6 +254,7 @@ class LibraryService(Service):
 			text = b.read().decode("utf-8")
 		```
 		"""
+		self._ensure_ready()
 
 		_validate_path_item(path)
 
@@ -297,6 +302,7 @@ class LibraryService(Service):
 		Returns:
 			List of items that are enabled for the tenant.
 		"""
+		self._ensure_ready()
 
 		_validate_path_directory(path)
 
@@ -597,6 +603,7 @@ class LibraryService(Service):
 		Returns:
 			dict: Metadata for the specified file, including `target`, or None if not found.
 		"""
+
 		# Validate the path format
 		_validate_path_item(path)
 
@@ -650,6 +657,7 @@ class LibraryService(Service):
 		Returns:
 			A file object containing a gzipped tar archive.
 		"""
+		self._ensure_ready()
 
 		_validate_path_directory(path)
 
@@ -722,6 +730,8 @@ class LibraryService(Service):
 				print("New changes in the library found by provider: '{}'".format(provider))
 		```
 		"""
+		self._ensure_ready()
+
 		if isinstance(paths, str):
 			paths = [paths]
 		for path in paths:
