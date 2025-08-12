@@ -383,7 +383,6 @@ class LibraryService(Service):
 		return items
 
 	async def _read_disabled(self, publish_changes=False):
-		self._ensure_ready()
 
 		old_disabled = self.Disabled.copy()
 		old_disabled_paths = list(self.DisabledPaths)
