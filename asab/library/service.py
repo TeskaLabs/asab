@@ -616,7 +616,7 @@ class LibraryService(Service):
 		Retrieve metadata for a specific file in the library, including its `target`.
 
 		Args:
-			path (str): The absolute pƒath of the file to retrieve metadata for.
+			path (str): The absolute path of the file to retrieve metadata for.
 						Must start with '/' and include a filename with an extension.
 
 		Returns:
