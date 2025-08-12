@@ -83,7 +83,6 @@ class LibraryService(Service):
 
 		super().__init__(app, service_name)
 		self.Libraries: list[LibraryProviderABC] = []
-		self.CacheLibraries: list[LibraryProviderABC] = []  # cache-first
 		self.Disabled: dict = {}
 		self.DisabledPaths: list = []
 
@@ -120,8 +119,7 @@ class LibraryService(Service):
 			from .providers.cache import CacheLibraryProvider
 			cachep = CacheLibraryProvider(self, path, layer)
 			# always register the cache wrapper (even if no snapshot yet)
-			self.CacheLibraries.append(cachep)
-
+			self.Libraries.append(cachep)
 			from .providers.libsreg import LibsRegLibraryProvider
 			realp = LibsRegLibraryProvider(self, path, layer)
 			self.Libraries.append(realp)
@@ -204,20 +202,6 @@ class LibraryService(Service):
 		"""
 		_validate_path_item(path)
 
-		# 1) cache‐first phase
-		try:
-			results = []
-			for library in self.CacheLibraries:
-				found = await library.find(path)
-				if found:
-					results.extend(found)
-			if results:
-				return results
-		except KeyError:
-			# cache miss → skip to live
-			pass
-
-		# 2) live fallback (your original logic)
 		results = []
 		for library in self.Libraries:
 			found_files = await library.find(path)
@@ -251,26 +235,17 @@ class LibraryService(Service):
 		LogObsolete.warning("Method 'LibraryService.read()' is obsolete. Use 'LibraryService.open()' method instead.")
 		_validate_path_item(path)
 
-		# 1) global disable check
 		if self.check_disabled(path):
 			return None
 
-		# 2) cache-first
-		try:
-			# this will raise KeyError as soon as any cache provider is “missing”
-			for cachep in self.CacheLibraries:
-				itemio = await cachep.read(path)
-				if itemio is not None:
-					return itemio
-		except KeyError:
-			# cache miss → fall back
-			pass
+		for library in self.Libraries:
+			itemio = await library.read(path)
+			if itemio is None:
+				continue
+			return itemio
 
-		# 3) live fallback
-		for livep in self.Libraries:
-			itemio = await livep.read(path)
-			if itemio is not None:
-				return itemio
+		return None
+
 
 	@contextlib.asynccontextmanager
 	async def open(self, path: str):
@@ -292,25 +267,13 @@ class LibraryService(Service):
 
 		# Same functionality as in read() method
 		itemio = None
-
-		# 2) cache-first
-		try:
-			for cachep in self.CacheLibraries:
-				itemio = await cachep.read(path)
-				if itemio is not None:
-					break
-		except KeyError:
-			# cache miss → clear and fall back
-			itemio = None
-
-		# 3) live fallback if nothing in cache
-		if itemio is None:
-			for livep in self.Libraries:
-				itemio = await livep.read(path)
+		disabled = self.check_disabled(path)
+		if not disabled:
+			for library in self.Libraries:
+				itemio = await library.read(path)
 				if itemio is not None:
 					break
 
-		# 4) yield & close
 		if itemio is None:
 			yield itemio
 		else:
@@ -349,28 +312,25 @@ class LibraryService(Service):
 
 		_validate_path_directory(path)
 
-		# cache-first lookup using try/except
-		try:
-			items = await self._list(path, providers=self.CacheLibraries)
-		except KeyError:
-			# cache miss: fall back immediately to live providers
-			items = await self._list(path, providers=self.Libraries)
-		else:
-			# if cache returned empty list, also fall back
-			if not items:
-				items = await self._list(path, providers=self.Libraries)
+		# List requested level using all available providers
+		items = await self._list(path, providers=self.Libraries)
 
-		# recursive expansion
 		if recursive:
-			recitems = list(items)
-			while recitems:
+			# If recursive scan is requested, then iterate thru list of items
+			# find 'dir' types there and list them.
+			# Output of this list is attached to the list for recursive scan
+			# and also to the final output
+			recitems = list(items[:])
+
+			while len(recitems) > 0:
+
 				item = recitems.pop(0)
 				if item.type != 'dir':
 					continue
 
-				child = await self._list(item.name, providers=item.providers)
-				items.extend(child)
-				recitems.extend(child)
+				child_items = await self._list(item.name, providers=item.providers)
+				items.extend(child_items)
+				recitems.extend(child_items)
 
 		return items
 
@@ -648,7 +608,7 @@ class LibraryService(Service):
 		Retrieve metadata for a specific file in the library, including its `target`.
 
 		Args:
-			path (str): The absolute path of the file to retrieve metadata for.
+			path (str): The absolute pƒath of the file to retrieve metadata for.
 						Must start with '/' and include a filename with an extension.
 
 		Returns:
@@ -788,17 +748,6 @@ class LibraryService(Service):
 					path=path,
 				)
 
-			# 1) cache-first phase
-			try:
-				for provider in self.CacheLibraries:
-					await provider.subscribe(path, target)
-				# if cache subscribe succeeded without KeyError, skip live fallback
-				continue
-			except KeyError:
-				# cache miss → fall back to live
-				pass
-
-			# 2) live fallback
 			for provider in self.Libraries:
 				await provider.subscribe(path, target)
 
