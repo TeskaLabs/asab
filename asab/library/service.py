@@ -357,11 +357,7 @@ class LibraryService(Service):
 		unique_items: dict[str, LibraryItem] = {}
 
 		# Launch tasks to list items from each provider.
-		# Launch tasks to list items from each provider.
-		tasks = [
-			(provider.Layer, asyncio.create_task(provider.list(path)))
-			for provider in providers
-		]
+		tasks = [(self.Libraries.index(provider), asyncio.create_task(provider.list(path))) for provider in providers]
 
 		for outer_layer, task in tasks:
 			try:
