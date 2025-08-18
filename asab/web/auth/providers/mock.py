@@ -19,7 +19,7 @@ _MOCK_AUTH_CLAIMS_DEFAULT = {
 	# Token issued at (timestamp)
 	"iat": "now - 10s",
 	# Token expires at (timestamp)
-	"exp": "now + 1h",
+	"exp": "now + 1y",
 	# Audience
 	"aud": "my-app.asab",
 	# Subject (Unique user ID)
