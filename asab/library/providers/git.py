@@ -141,7 +141,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				)
 			else:
 				L.exception("Error when initializing git repository: {}".format(pygit_message))
-			self.App.stop()  # NOTE: raising Exception doesn't exit the app
+			return
 
 		except pygit2.GitError as err:
 			pygit_message = str(err).replace('\"', '')
@@ -182,10 +182,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				)
 			else:
 				L.exception("Git repository not initialized: {}".format(err))
-			self.App.stop()
+			return
 
 		except Exception as err:
 			L.exception(err)
+			return
 
 		assert hasattr(self.GitRepository, "remotes"), "Git repository not initialized."
 		assert self.GitRepository.remotes["origin"] is not None, "Git repository not initialized."
