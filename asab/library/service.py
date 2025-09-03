@@ -85,7 +85,7 @@ class LibraryService(Service):
 		self.Disabled: dict = {}
 		self.DisabledPaths: list = []
 		self.Favorites: dict = {}
-		self.FavoritePaths : list = []
+		self.FavoritePaths: list = []
 
 
 		if paths is None:
@@ -392,12 +392,14 @@ class LibraryService(Service):
 		Load favorites from '/.favorites.yaml' into:
 			- self.Favorites: { '/path/file.ext': ['tenant', '*', ...] }
 			- self.FavoritePaths: [ ('/path/folder/', ['tenant', '*', ...]), ... ]
-		If publish_changes=True, compare old vs new and (optionally) emit events.
+		Expected YAML shape:
+			/path:
+				tenants:
+				- system
 		"""
 		old_favorites = self.Favorites.copy()
 		old_favorite_paths = list(self.FavoritePaths)
 
-		# Read the file
 		try:
 			fav_file = await self.Libraries[0].read('/.favorites.yaml')
 		except Exception as e:
@@ -409,45 +411,95 @@ class LibraryService(Service):
 		if fav_file is None:
 			self.Favorites = {}
 			self.FavoritePaths = []
-		else:
-			try:
-				fav_data = yaml.load(fav_file, Loader=yaml.CSafeLoader)
-			except Exception:
-				L.exception("Failed to parse '/.favorites.yaml'")
-				self.Favorites = {}
-				self.FavoritePaths = []
-				return
+			return
 
-			if fav_data is None:
-				self.Favorites = {}
-				self.FavoritePaths = []
-				return
+		try:
+			fav_data = yaml.load(fav_file, Loader=yaml.CSafeLoader)
+		except Exception:
+			L.exception("Failed to parse '/.favorites.yaml'")
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
 
-			if isinstance(fav_data, set):
-				# Backward compatibility (if ever stored as a set)
-				self.Favorites = {key: ['*'] for key in fav_data if not str(key).endswith('/')}
-				self.FavoritePaths = [(key, ['*']) for key in fav_data if str(key).endswith('/')]
-			elif isinstance(fav_data, dict):
-				self.Favorites = {}
-				self.FavoritePaths = []
-				for k, v in fav_data.items():
-					if k.endswith('/'):
-						self.FavoritePaths.append((k, v))
-					else:
-						self.Favorites[k] = v
+		if fav_data is None:
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+
+		if not isinstance(fav_data, dict):
+			L.warning("Unexpected favorites format ({}). Resetting.".format(type(fav_data).__name__))
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+
+		files = {}
+		folders = []
+		for k, v in fav_data.items():
+			if not isinstance(k, str):
+				L.warning("Ignoring non-string favorite key: {}".format(k))
+				continue
+
+			# normalize tenants list
+			tenants = []
+			if isinstance(v, dict) and 'tenants' in v:
+				tv = v.get('tenants')
+				if isinstance(tv, list):
+					tenants = [str(t) for t in tv]
+				elif isinstance(tv, set):
+					tenants = [str(t) for t in list(tv)]
+				elif tv is None:
+					tenants = []
+				else:
+					tenants = [str(tv)]
+			elif isinstance(v, list):
+				# Back-compat: allow direct list
+				tenants = [str(t) for t in v]
 			else:
-				L.warning("Unexpected favorites format ({}). Resetting.".format(type(fav_data).__name__))
-				self.Favorites = {}
-				self.FavoritePaths = []
+				tenants = [str(v)]
 
-		# sort folder paths by length (short → long), matching your disabled flow
-		self.FavoritePaths.sort(key=lambda x: len(x[0]))
+			if k.endswith('/'):
+				folders.append((k, tenants))
+			else:
+				files[k] = tenants
 
-		# Optional eventing for favorites, parallel to disabled
+		# Sort folders shortest→longest (consistent with DisabledPaths sort)
+		folders.sort(key=lambda x: len(x[0]))
+
+		self.Favorites = files
+		self.FavoritePaths = folders
+
 		if publish_changes:
 			publisher = getattr(self, "_publish_change_for_favorites_diff", None)
 			if callable(publisher):
 				await publisher(old_favorites, old_favorite_paths)
+
+	async def _publish_change_for_favorites_diff(self, old_favorites, old_favorite_paths):
+		def _to_map(files, folders):
+			m = {p: set(ts or []) for p, ts in files.items()}
+			for p, ts in folders:
+				m[p] = set(ts or [])
+			return m
+
+		old_map = _to_map(old_favorites or {}, old_favorite_paths or [])
+		new_map = _to_map(self.Favorites or {}, self.FavoritePaths or [])
+		all_paths = set(old_map.keys()) | set(new_map.keys())
+
+		for path in sorted(all_paths):
+			before = old_map.get(path, set())
+			after = new_map.get(path, set())
+			if before == after:
+				continue
+			added = sorted(list(after - before))
+			removed = sorted(list(before - after))
+			try:
+				self.App.PubSub.publish("Library.change!", {
+					"kind": "favorite",
+					"path": path,
+					"added": added,
+					"removed": removed,
+				})
+			except Exception as e:
+				L.warning("Failed to publish favorites change for '{}': {}.".format(path, e))
 
 
 	async def _read_disabled(self, publish_changes=False):
