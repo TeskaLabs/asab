@@ -84,6 +84,9 @@ class LibraryService(Service):
 		self.Libraries: list[LibraryProviderABC] = []
 		self.Disabled: dict = {}
 		self.DisabledPaths: list = []
+		self.Favorites: dict = {}
+		self.FavoritePaths : list = []
+
 
 		if paths is None:
 			# load them from configuration
@@ -166,6 +169,7 @@ class LibraryService(Service):
 
 		if (provider == self.Libraries[0]) and provider.IsReady:
 			await self._read_disabled()
+			await self._read_favorites()
 
 		if self.is_ready():
 			L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
@@ -381,6 +385,70 @@ class LibraryService(Service):
 
 		# Do not sort items; return them in the order they were merged.
 		return items
+
+
+	async def _read_favorites(self, publish_changes=False):
+		"""
+		Load favorites from '/.favorites.yaml' into:
+			- self.Favorites: { '/path/file.ext': ['tenant', '*', ...] }
+			- self.FavoritePaths: [ ('/path/folder/', ['tenant', '*', ...]), ... ]
+		If publish_changes=True, compare old vs new and (optionally) emit events.
+		"""
+		old_favorites = self.Favorites.copy()
+		old_favorite_paths = list(self.FavoritePaths)
+
+		# Read the file
+		try:
+			fav_file = await self.Libraries[0].read('/.favorites.yaml')
+		except Exception as e:
+			L.warning("Failed to read '/.favorites.yaml': {}.".format(e))
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+
+		if fav_file is None:
+			self.Favorites = {}
+			self.FavoritePaths = []
+		else:
+			try:
+				fav_data = yaml.load(fav_file, Loader=yaml.CSafeLoader)
+			except Exception:
+				L.exception("Failed to parse '/.favorites.yaml'")
+				self.Favorites = {}
+				self.FavoritePaths = []
+				return
+
+			if fav_data is None:
+				self.Favorites = {}
+				self.FavoritePaths = []
+				return
+
+			if isinstance(fav_data, set):
+				# Backward compatibility (if ever stored as a set)
+				self.Favorites = {key: ['*'] for key in fav_data if not str(key).endswith('/')}
+				self.FavoritePaths = [(key, ['*']) for key in fav_data if str(key).endswith('/')]
+			elif isinstance(fav_data, dict):
+				self.Favorites = {}
+				self.FavoritePaths = []
+				for k, v in fav_data.items():
+					if k.endswith('/'):
+						self.FavoritePaths.append((k, v))
+					else:
+						self.Favorites[k] = v
+			else:
+				L.warning("Unexpected favorites format ({}). Resetting.".format(type(fav_data).__name__))
+				self.Favorites = {}
+				self.FavoritePaths = []
+
+		# sort folder paths by length (short → long), matching your disabled flow
+		self.FavoritePaths.sort(key=lambda x: len(x[0]))
+
+		# Optional eventing for favorites, parallel to disabled
+		if publish_changes:
+			publisher = getattr(self, "_publish_change_for_favorites_diff", None)
+			if callable(publisher):
+				await publisher(old_favorites, old_favorite_paths)
+
 
 	async def _read_disabled(self, publish_changes=False):
 
