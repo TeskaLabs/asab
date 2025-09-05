@@ -713,6 +713,86 @@ class LibraryService(Service):
 
 		return False
 
+	def check_favorite(self, path: str, inherit: bool = False) -> bool:
+		"""
+		Check if `path` is marked as favorite for the current tenant (or globally via '*').
+
+		If `inherit` is True and a parent *folder* is favorited for the tenant/'*',
+		any child path under that folder is considered favorited.
+
+		**WARNING:** Tenant must be set in the context variable before using this function
+		if you want tenant-aware behavior (same as check_disabled).
+
+		Examples:
+
+		1) Tenant-aware check:
+
+			```python
+			try:
+				tenant_ctx = asab.contextvars.Tenant.set(tenant)
+				is_fav = self.LibraryService.check_favorite(path)
+				...
+			finally:
+				asab.contextvars.Tenant.reset(tenant_ctx)
+			```
+
+		2) Global-only check (any tenant):
+
+			```python
+			is_fav = self.LibraryService.check_favorite(path)
+			```
+
+		Args:
+			path (str): Path to the item or folder to be checked.
+			inherit (bool): If True, a favorited folder marks all descendants as favorited.
+
+		Returns:
+			bool: True if favorited for current tenant or globally.
+		"""
+		if not isinstance(path, str) or not path:
+			raise LibraryInvalidPathError(
+				message="Argument 'path' must be a non-empty string.",
+				path=path,
+			)
+
+		try:
+			tenant = Tenant.get()
+		except LookupError:
+			tenant = None
+
+		# 1) Folder favorites
+		#    - Exact match if not inheriting
+		#    - Prefix match if inheriting (folder favorite applies to children)
+		if inherit:
+			for fp, fav_tenants in self.FavoritePaths:
+				if path.startswith(fp):
+					if '*' in fav_tenants:
+						return True
+					if tenant is not None and tenant in fav_tenants:
+						return True
+		else:
+			# exact folder favorite (no inheritance)
+			for fp, fav_tenants in self.FavoritePaths:
+				if path == fp:
+					if '*' in fav_tenants:
+						return True
+					if tenant is not None and tenant in fav_tenants:
+						return True
+
+		# 2) Exact item favorites
+		fav_tenants = self.Favorites.get(path)
+		if fav_tenants is None:
+			return False
+
+		if '*' in fav_tenants:
+			return True
+
+		if tenant is not None and tenant in fav_tenants:
+			return True
+
+		return False
+
+
 	async def get_item_metadata(self, path: str) -> typing.Optional[dict]:
 		"""
 		Retrieve metadata for a specific file in the library, including its `target`.
