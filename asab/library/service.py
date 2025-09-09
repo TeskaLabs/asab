@@ -491,15 +491,12 @@ class LibraryService(Service):
 				continue
 			added = sorted(list(after - before))
 			removed = sorted(list(before - after))
-			try:
-				self.App.PubSub.publish("Library.change!", {
-					"kind": "favorite",
-					"path": path,
-					"added": added,
-					"removed": removed,
-				})
-			except Exception as e:
-				L.warning("Failed to publish favorites change for '{}': {}.".format(path, e))
+			self.App.PubSub.publish("Library.change!", {
+				"kind": "favorite",
+				"path": path,
+				"added": added,
+				"removed": removed,
+			})
 
 
 	async def _read_disabled(self, publish_changes=False):
