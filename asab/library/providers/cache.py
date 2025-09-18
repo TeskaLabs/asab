@@ -65,8 +65,8 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
 		# 7) Delegate to FileSystemLibraryProvider
 		cache_uri = "file://{}".format(self.cache_dir.rstrip("/"))
 		super().__init__(library, cache_uri, layer, set_ready=False)
+		library.App.TaskService.schedule(self._set_ready())
 		library.App.PubSub.subscribe("library.cache.ready", self._on_cache_ready)
-
 
 
 	async def _on_cache_ready(self, *args):
