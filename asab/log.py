@@ -85,20 +85,20 @@ class Logging(object):
 
 				rotate_every = Config.get("logging:file", "rotate_every")
 				if rotate_every != '':
-					rotate_every = re.match(r"^([0-9]+)([dMHs])$", rotate_every)
+					rotate_every = re.match(r"^([0-9]+)([dDmMhHsS])$", rotate_every)
 					if rotate_every is not None:
 						i, u = rotate_every.groups()
 						i = int(i)
 						if i <= 0:
 							self.RootLogger.error("Invalid 'rotate_every' configuration value.")
 						else:
-							if u == 'H':
+							if u == 'H' or u == 'h':
 								i = i * 60 * 60
-							elif u == 'M':
+							elif u == 'm' or u == 'M':
 								i = i * 60
-							elif u == 'd':
+							elif u == 'd' or u == 'D':
 								i = i * 60 * 60 * 24
-							elif u == 's':
+							elif u == 's' or u == 'S':
 								pass
 
 							# PubSub is not ready at this moment, we need to create timer in a future
