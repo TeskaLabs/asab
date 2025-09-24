@@ -270,7 +270,12 @@ class MongoDBUpsertor(UpsertorABC):
 		return bson.objectid.ObjectId()
 
 
-	async def execute(self, custom_data: typing.Optional[dict] = None, event_type: typing.Optional[str] = None):
+	async def execute(
+		self,
+		custom_data: typing.Optional[dict] = None,
+		event_type: typing.Optional[str] = None,
+		op_options: typing.Optional[str] = None
+	):
 		session = _tx_session.get()  # Can be None
 
 		id_name = self.get_id_name()
@@ -304,14 +309,31 @@ class MongoDBUpsertor(UpsertorABC):
 
 		if len(addobj) > 0:
 			coll = self.Storage.Database[self.Collection]
+			opts = dict(op_options or {})  # shallow copy so we can pop safely
+
+			# Must be applied on collection
+			wc = opts.pop("writeConcern", None)
+			if wc is not None:
+				wc = wc if isinstance(wc, pymongo.WriteConcern) else pymongo.WriteConcern(**wc)
+				coll = coll.with_options(write_concern=wc)
+
+			# Set usual defaults
+			defaults = {
+				"upsert": True if (self.Version == 0) or (self.Version is None) else False,
+				"return_document": pymongo.collection.ReturnDocument.AFTER,
+				"session": session
+			}
+
+			# Let custom opts override the defaults
+			final_opts = {**defaults, **(opts or {})}
+
 			try:
 				ret = await coll.find_one_and_update(
 					filtr,
 					update=addobj,
-					upsert=True if (self.Version == 0) or (self.Version is None) else False,
-					return_document=pymongo.collection.ReturnDocument.AFTER,
-					session=session
+					**final_opts
 				)
+
 			except pymongo.errors.DuplicateKeyError as e:
 				if hasattr(e, "details"):
 					raise DuplicateError("Duplicate key error: {}".format(e), self.ObjId, key_value=e.details.get("keyValue"))
