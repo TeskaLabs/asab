@@ -280,23 +280,27 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		except LookupError:
 			return None
 
-	def _build_personal_path(self, path: str) -> str:
+	def _personal_node_path(self, path: str, cred_id: typing.Optional[str] = None) -> typing.Optional[str]:
 		"""
-		Build an absolute ZooKeeper node path for the personal target.
+		Resolve the absolute znode path for the personal target.
 
 		Args:
 			path (str): Logical library path (must start with '/').
+			cred_id (str | None): CredentialsId; if None, it is looked up.
 
 		Returns:
-			str: Absolute znode path under '/.personal/{CredentialsId}'.
-
-		Raises:
-			RuntimeError: If CredentialsId is not available in the current context.
+			str | None: '/<base>/.personal/<CredentialsId><path>' or None if not available.
 		"""
 		assert path[:1] == '/'
-		cred_id = self._current_credentials_id()
+		if cred_id is None:
+			try:
+				cred_id = self._current_credentials_id()
+			except Exception:
+				cred_id = None
+
 		if not cred_id:
-			raise RuntimeError("CredentialsId is required for personal target.")
+			return None
+
 		base = "{}/.personal/{}{}".format(self.BasePath, cred_id, path)
 		return base.rstrip("/")
 
