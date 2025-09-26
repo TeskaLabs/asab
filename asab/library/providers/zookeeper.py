@@ -5,8 +5,6 @@ import logging
 import functools
 import os.path
 import urllib.parse
-from io import BytesIO
-from typing import Optional
 
 import kazoo.exceptions
 import kazoo.recipe.watchers
@@ -302,46 +300,50 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		base = "{}/.personal/{}{}".format(self.BasePath, cred_id, path)
 		return base.rstrip("/")
 
-	async def read(self, path: str) -> typing.IO:
+	async def read(self, path: str) -> typing.Optional[typing.IO]:
 		"""
-		Read a library item with precedence: personal → tenant → global.
+		Read a node from ZooKeeper honoring target precedence:
 
-		Args:
-			path (str): Logical library path to the file (must start with '/').
+		1) personal:   <BasePath>/.personal/{CredentialsId}{path}
+		2) tenant:     <BasePath>/.tenants/{Tenant}{path}
+		3) global:     <BasePath>{path}
 
-		Returns:
-			io.BytesIO | None: File content if found; None if not found.
-
-		Raises:
-			RuntimeError: If provider is not ready.
+		- "personal" is resolved only if a CredentialsId is available (eg. from Authz).
+		- "tenant" is resolved only if a tenant is present in contextvars.
+		- If none of the targets contain the node, returns None.
 		"""
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
+		# Build candidates in precedence order
+		candidate_paths: typing.List[str] = []
+
+		# personal
+		cred_id = None
 		try:
-			# 1) personal (only if CredentialsId available)
-			try:
-				personal_path = self._build_personal_path(path)
-				node_data = await self.Zookeeper.get_data(personal_path)
+			cred_id = self._current_credentials_id()
+		except Exception:
+			cred_id = None
+		personal_candidate = self._personal_node_path(path, cred_id)
+		if personal_candidate:
+			candidate_paths.append(personal_candidate)
+
+		# tenant (uses build_path tenant_specific=True)
+		tenant_candidate = self.build_path(path, tenant_specific=True)
+		if tenant_candidate not in candidate_paths:
+			candidate_paths.append(tenant_candidate)
+
+		# global
+		global_candidate = self.build_path(path, tenant_specific=False)
+		if global_candidate not in candidate_paths:
+			candidate_paths.append(global_candidate)
+
+		try:
+			for node_path in candidate_paths:
+				node_data = await self.Zookeeper.get_data(node_path)
 				if node_data is not None:
 					return io.BytesIO(initial_bytes=node_data)
-			except RuntimeError:
-				# No CredentialsId → skip personal silently
-				pass
-
-			# 2) tenant
-			tenant_node_path = self.build_path(path, tenant_specific=True)
-			node_data = await self.Zookeeper.get_data(tenant_node_path)
-			if node_data is not None:
-				return io.BytesIO(initial_bytes=node_data)
-
-			# 3) global
-			global_node_path = self.build_path(path, tenant_specific=False)
-			node_data = await self.Zookeeper.get_data(global_node_path)
-			if node_data is not None:
-				return io.BytesIO(initial_bytes=node_data)
-
 			return None
 
 		except kazoo.exceptions.ConnectionClosedError:
@@ -349,89 +351,88 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			raise RuntimeError("Zookeeper library provider is not ready")
 
 	async def list(self, path: str) -> list:
-		"""
-		List children at the given directory path across scopes with precedence order:
-		personal + tenant + global.
-
-		Args:
-			path (str): Directory path (must start and end with '/').
-
-		Returns:
-			list[LibraryItem]: Items from personal, then tenant, then global.
-		"""
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
-		personal_items = []
-		# Personal scope (if we have CredentialsId)
-		cred_id = self._current_credentials_id()
-		if cred_id:
-			try:
-				personal_node_path = "{}/.personal/{}{}".format(self.BasePath, cred_id, path)
-				personal_nodes = await self.Zookeeper.get_children(personal_node_path) or []
-				personal_items = await self.process_nodes(personal_nodes, path, target="personal")
-			except Exception as e:
-				L.warning("Failed listing personal path {}: {}".format(path, e))
+		# Process global nodes
+		global_node_path = self.build_path(path, tenant_specific=False)
+		global_nodes = await self.Zookeeper.get_children(global_node_path) or []
+		global_items = await self.process_nodes(global_nodes, path, target="global")
 
-		# Tenant scope
+		# Process tenant-specific nodes
 		tenant_node_path = self.build_path(path, tenant_specific=True)
-		if tenant_node_path != self.build_path(path, tenant_specific=False):
+		if tenant_node_path != global_node_path:
 			tenant_nodes = await self.Zookeeper.get_children(tenant_node_path) or []
 			tenant_items = await self.process_nodes(tenant_nodes, path, target="tenant")
 		else:
 			tenant_items = []
 
-		# Global scope
-		global_node_path = self.build_path(path, tenant_specific=False)
-		global_nodes = await self.Zookeeper.get_children(global_node_path) or []
-		global_items = await self.process_nodes(global_nodes, path, target="global")
+		# Process personal nodes for current credentials (if any)
+		cred_id = None
+		try:
+			cred_id = self._current_credentials_id()
+		except Exception:
+			cred_id = None
 
-		# Precedence: personal + tenant + global
+		if cred_id:
+			personal_node_path = "{}/.personal/{}{}".format(self.BasePath, cred_id, path)
+			personal_node_path = personal_node_path.replace("//", "/")
+			try:
+				personal_nodes = await self.Zookeeper.get_children(personal_node_path) or []
+			except kazoo.exceptions.NoNodeError:
+				personal_nodes = []
+			personal_items = await self.process_nodes(personal_nodes, path, target="personal")
+		else:
+			personal_items = []
+
+		# Legacy behavior was tenant + global; now extend with personal first (no merging by name).
 		return personal_items + tenant_items + global_items
+
 
 	async def process_nodes(self, nodes, base_path, target="global"):
 		"""
-		Translate a list of node names under 'base_path' into LibraryItem objects,
-		resolving the znode for size according to the target.
+		Processes a list of nodes and creates corresponding LibraryItem objects with their size.
 
 		Args:
-			nodes (list[str]): Child node names from ZooKeeper.
-			base_path (str): Logical directory (must start and end with '/').
-			target (str): One of 'personal', 'tenant', 'global'.
+			nodes (list): List of node names to process.
+			base_path (str): The base path for the nodes.
+			target (str): Specifies the target context, e.g., "personal", "tenant", or "global".
 
 		Returns:
-			list[LibraryItem]: Items with layer labels and computed size for files.
+			list: A list of LibraryItem objects with size information.
 		"""
 		items = []
 		for node in nodes:
-			# Skip any component starting with '.'
+			# Remove any component that starts with '.'
 			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), node.split(os.path.sep), False)
 			if startswithdot:
 				continue
 
-			# File vs. directory
-			if '.' in node and not node.endswith(('.io', '.d')):
+			# Determine if this is a file or directory
+			if '.' in node and not node.endswith(('.io', '.d')):  # File check
 				fname = "{}/{}".format(base_path.rstrip("/"), node)
 				ftype = "item"
+
+				# Retrieve node size for items only
 				try:
 					if target == "personal":
-						node_path = self._build_personal_path(fname)
-					elif target == "tenant":
-						node_path = self.build_path(fname, tenant_specific=True)
+						node_path = self._personal_node_path(fname, self._current_credentials_id())
 					else:
-						node_path = self.build_path(fname, tenant_specific=False)
+						node_path = self.build_path(fname, tenant_specific=(target == "tenant"))
 					zstat = self.Zookeeper.Client.exists(node_path)
-					size = zstat.dataLength if zstat is not None else 0
+					size = zstat.dataLength if zstat else 0
+				except kazoo.exceptions.NoNodeError:
+					size = None
 				except Exception as e:
 					L.warning("Failed to retrieve size for node {}: {}".format(fname, e))
 					size = None
-			else:
+			else:  # Directory check
 				fname = "{}/{}/".format(base_path.rstrip("/"), node)
 				ftype = "dir"
 				size = None
 
-			# Layer labelling
+			# Assign correct layer label for top layer 0 (presentational only)
 			if self.Layer == 0:
 				if target == "global":
 					layer_label = "0:global"
@@ -451,49 +452,25 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				providers=[self],
 				size=size
 			))
+
 		return items
 
-	def build_path(self, path: str, target: str = "global") -> str:
-		"""
-		Build an absolute ZooKeeper node path for the given logical library `path`
-		within the specified target scope ('personal' | 'tenant' | 'global').
 
-		Args:
-			path: The logical library path starting with '/'.
-			target: Scope selector. Defaults to 'global'.
-
-		Returns:
-			The fully qualified ZooKeeper node path.
-
-		Raises:
-			AssertionError: If the resulting node path is malformed.
-		"""
+	def build_path(self, path, tenant_specific=False):
 		assert path[:1] == '/'
 		if path != '/':
-			node_path = "{}{}".format(self.BasePath, path)
+			node_path = self.BasePath + path
 		else:
-			node_path = "{}".format(self.BasePath)
+			node_path = self.BasePath
 
-		if target == "personal":
-			# /.personal/{CredentialsId}/...
-			try:
-				authz = Authz.get()
-				cred_id = getattr(authz, "CredentialsId", None)
-			except LookupError:
-				cred_id = None
-			if cred_id not in (None, ""):
-				node_path = "{}/.personal/{}{}".format(self.BasePath, cred_id, path)
-
-		elif target == "tenant":
-			# /.tenants/{tenant}/...
+		if tenant_specific:
 			try:
 				tenant = Tenant.get()
 			except LookupError:
 				tenant = None
-			if tenant:
-				node_path = "{}/.tenants/{}{}".format(self.BasePath, tenant, path)
 
-		# global target keeps node_path as is
+			if tenant:
+				node_path = self.BasePath + '/.tenants/' + tenant + path
 
 		node_path = node_path.rstrip("/")
 
@@ -503,29 +480,31 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return node_path
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
-		"""
-		Subscribe to changes at 'path' for a given target ('global', 'tenant', 'personal',
-		or ('tenant', TENANT_ID)). For 'personal', the current CredentialsId must be present.
-		"""
 		self.Subscriptions.add((target, path))
 
-		if target is None or target == "global":
+		if target is None:
+			# Back-compat (pubsub callback must be called without `target` argument)
+			# Watch path globally
+			self.NodeDigests[path] = await self._get_directory_hash(path)
+		elif target == "global":
+			# Watch path globally
 			self.NodeDigests[path] = await self._get_directory_hash(path)
 		elif target == "tenant":
+			# Watch path in all tenants
 			for tenant in await self._get_tenants():
 				actual_path = "/.tenants/{}{}".format(tenant, path)
 				self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
 		elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
+			# Watch path in a specific tenant
 			_, tenant = target
 			actual_path = "/.tenants/{}{}".format(tenant, path)
 			self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
 		elif target == "personal":
+			# Watch current user's personal path (if credentials id present)
 			cred_id = self._current_credentials_id()
 			if cred_id:
 				actual_path = "/.personal/{}{}".format(cred_id, path)
 				self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
-			else:
-				L.warning("Skipping personal subscription at '{}' because CredentialsId is not available.".format(path))
 		else:
 			raise ValueError("Unexpected target: {!r}".format(target))
 
@@ -552,7 +531,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def _on_library_changed(self, event_name=None):
 		"""
-		Check watched paths across targets and publish 'Library.change!' for any that changed.
+		Check watched paths and publish a pubsub message for every one that has changed.
 		"""
 		for (target, path) in list(self.Subscriptions):
 
@@ -560,6 +539,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				try:
 					newdigest = await self._get_directory_hash(actual_path)
 				except kazoo.exceptions.NoNodeError:
+					# This node is either deleted or has never existed.
 					newdigest = None
 
 				if newdigest != self.NodeDigests.get(actual_path):
@@ -570,37 +550,48 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				try:
 					await do_check_path(actual_path=path)
 				except Exception as e:
-					L.exception("Failed to process library changes: '{}'".format(e), struct_data={"path": path})
+					L.exception(
+						"Failed to process library changes: '{}'".format(e),
+						struct_data={"path": path},
+					)
 
 			elif target == "tenant":
 				for tenant in await self._get_tenants():
 					try:
 						await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 					except Exception as e:
-						L.exception("Failed to process library changes: '{}'".format(e),
-									struct_data={"path": path, "tenant": tenant})
+						L.exception(
+							"Failed to process library changes: '{}'".format(e),
+							struct_data={"path": path, "tenant": tenant},
+						)
 
 			elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
 				tenant = target[1]
 				try:
 					await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 				except Exception as e:
-					L.exception("Failed to process library changes: '{}'".format(e),
-								struct_data={"path": path, "tenant": tenant})
+					L.exception(
+						"Failed to process library changes: '{}'".format(e),
+						struct_data={"path": path, "tenant": tenant},
+					)
 
 			elif target == "personal":
-				cred_id = self._current_credentials_id()
+				cred_id = None
+				try:
+					cred_id = self._current_credentials_id()
+				except Exception:
+					cred_id = None
 				if cred_id:
 					try:
 						await do_check_path(actual_path="/.personal/{}{}".format(cred_id, path))
 					except Exception as e:
-						L.exception("Failed to process library changes: '{}'".format(e),
-									struct_data={"path": path, "credentials_id": cred_id})
-				else:
-					# cannot watch personal scope without a principal in context
-					continue
+						L.exception(
+							"Failed to process library changes: '{}'".format(e),
+							struct_data={"path": path, "credentials_id": cred_id},
+						)
 			else:
 				raise ValueError("Unexpected target: {!r}".format((target, path)))
+
 
 	async def _get_personals(self) -> typing.List[str]:
 		"""
