@@ -293,22 +293,24 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
-		# Process global nodes
-		global_node_path = self.build_path(path, tenant_specific=False)
+		items = []
+
+		# Personal nodes
+		personal_node_path = self.build_path(path, target="personal")
+		personal_nodes = await self.Zookeeper.get_children(personal_node_path) or []
+		items += await self.process_nodes(personal_nodes, path, target="personal")
+
+		# Tenant nodes
+		tenant_node_path = self.build_path(path, target="tenant")
+		tenant_nodes = await self.Zookeeper.get_children(tenant_node_path) or []
+		items += await self.process_nodes(tenant_nodes, path, target="tenant")
+
+		# Global nodes
+		global_node_path = self.build_path(path, target="global")
 		global_nodes = await self.Zookeeper.get_children(global_node_path) or []
-		global_items = await self.process_nodes(global_nodes, path)
+		items += await self.process_nodes(global_nodes, path, target="global")
 
-		# Process tenant-specific nodes
-		tenant_node_path = self.build_path(path, tenant_specific=True)
-		if tenant_node_path != global_node_path:
-			tenant_nodes = await self.Zookeeper.get_children(tenant_node_path) or []
-			tenant_items = await self.process_nodes(tenant_nodes, path, target="tenant")
-		else:
-			tenant_items = []
-
-		# Instead of merging by item.name, simply concatenate the two lists.
-		return tenant_items + global_items
-
+		return items
 
 	async def process_nodes(self, nodes, base_path, target="global"):
 		"""
@@ -317,7 +319,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		Args:
 			nodes (list): List of node names to process.
 			base_path (str): The base path for the nodes.
-			target (str): Specifies the target context, e.g., "tenant" or "global".
+			target (str): Specifies the target context, e.g., "tenant", "global", or "personal".
 
 		Returns:
 			list: A list of LibraryItem objects with size information.
@@ -334,9 +336,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				fname = "{}/{}".format(base_path.rstrip("/"), node)
 				ftype = "item"
 
-				# Retrieve node size for items only
 				try:
-					node_path = self.build_path(fname, tenant_specific=(target == "tenant"))
+					node_path = self.build_path(fname, target=target)
 					zstat = self.Zookeeper.Client.exists(node_path)
 					size = zstat.dataLength if zstat else 0
 				except kazoo.exceptions.NoNodeError:
@@ -349,13 +350,18 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				ftype = "dir"
 				size = None
 
-			# Assign correct layer
-			if self.Layer == 0:  # Only apply this logic to layer `0`
-				layer_label = "0:global" if target == "global" else "0:tenant"
+			# 👇 Add your block here
+			if self.Layer == 0:
+				if target == "global":
+					layer_label = "0:global"
+				elif target == "tenant":
+					layer_label = "0:tenant"
+				elif target == "personal":
+					layer_label = "0:personal"
 			else:
-				layer_label = self.Layer  # Keep normal numbering for other layers
+				layer_label = self.Layer
 
-			# Add the item with the specified target and size
+			# Build LibraryItem
 			items.append(LibraryItem(
 				name=fname,
 				type=ftype,
@@ -367,21 +373,30 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return items
 
 
-	def build_path(self, path, tenant_specific=False):
+	def build_path(self, path, target="global"):
 		assert path[:1] == '/'
 		if path != '/':
-			node_path = self.BasePath + path
+			node_path = "{}{}".format(self.BasePath, path)
 		else:
-			node_path = self.BasePath
+			node_path = "{}".format(self.BasePath)
 
-		if tenant_specific:
+		if target == "personal":
+			try:
+				from ...contextvars import Authz
+				authz = Authz.get()
+				cred_id = getattr(authz, "CredentialsId", None)
+			except LookupError:
+				cred_id = None
+			if cred_id not in (None, ""):
+				node_path = "{}/.personal/{}{}".format(self.BasePath, cred_id, path)
+
+		elif target == "tenant":
 			try:
 				tenant = Tenant.get()
 			except LookupError:
 				tenant = None
-
 			if tenant:
-				node_path = self.BasePath + '/.tenants/' + tenant + path
+				node_path = "{}/.tenants/{}{}".format(self.BasePath, tenant, path)
 
 		node_path = node_path.rstrip("/")
 
@@ -389,7 +404,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		assert node_path[0] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
 
 		return node_path
-
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		self.Subscriptions.add((target, path))
