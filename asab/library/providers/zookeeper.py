@@ -292,12 +292,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			str | None: '/<base>/.personal/<CredentialsId><path>' or None if not available.
 		"""
 		assert path[:1] == '/'
-		if cred_id is None:
-			try:
-				cred_id = self._current_credentials_id()
-			except Exception:
-				cred_id = None
-
+		cred_id = self._current_credentials_id()
 		if not cred_id:
 			return None
 
@@ -373,11 +368,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			tenant_items = []
 
 		# Process personal nodes for current credentials (if any)
-		cred_id = None
-		try:
-			cred_id = self._current_credentials_id()
-		except Exception:
-			cred_id = None
+		cred_id = self._current_credentials_id()
 
 		if cred_id:
 			personal_node_path = "{}/.personal/{}{}".format(self.BasePath, cred_id, path)
@@ -580,11 +571,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					)
 
 			elif target == "personal":
-				cred_id = None
-				try:
-					cred_id = self._current_credentials_id()
-				except Exception:
-					cred_id = None
+				cred_id = self._current_credentials_id()
 				if cred_id:
 					try:
 						await do_check_path(actual_path="/.personal/{}{}".format(cred_id, path))
