@@ -369,18 +369,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		# Process personal nodes for current credentials (if any)
 		cred_id = self._current_credentials_id()
-
-		if cred_id:
-			personal_node_path = "{}/.personal/{}{}".format(self.BasePath, cred_id, path)
-			personal_node_path = personal_node_path.replace("//", "/")
-			try:
-				personal_nodes = await self.Zookeeper.get_children(personal_node_path) or []
-			except kazoo.exceptions.NoNodeError:
-				personal_nodes = []
+		personal_node_path = self._personal_node_path(path, cred_id)
+		if personal_node_path:
+			personal_nodes = await self.Zookeeper.get_children(personal_node_path) or []
 			personal_items = await self.process_nodes(personal_nodes, path, target="personal")
 		else:
 			personal_items = []
-
 		# Legacy behavior was tenant + global; now extend with personal first (no merging by name).
 		return personal_items + tenant_items + global_items
 
