@@ -280,37 +280,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		except LookupError:
 			return None
 
-	def _personal_node_path(self, path: str, cred_id: typing.Optional[str] = None) -> typing.Optional[str]:
+	def _personal_node_path(self, path: str, tenant_id: typing.Optional[str], cred_id: typing.Optional[str]) -> typing.Optional[str]:
 		"""
-		Resolve the absolute znode path for the personal target.
-
-		Args:
-			path (str): Logical library path (must start with '/').
-			cred_id (str | None): CredentialsId; if None, it is looked up.
-
-		Returns:
-			str | None: '/<base>/.personal/<CredentialsId><path>' or None if not available.
+		Returns '/.personal/{tenant}/{cred}{path}' or None if tenant/cred are missing.
 		"""
 		assert path[:1] == '/'
-		cred_id = self._current_credentials_id()
-		if not cred_id:
+		if not tenant_id or not cred_id:
 			return None
-
-		base = "{}/.personal/{}{}".format(self.BasePath, cred_id, path)
-		return base.rstrip("/")
+		return "{}/.personal/{}/{}{}".format(self.BasePath, tenant_id, cred_id, path).rstrip("/")
 
 	async def read(self, path: str) -> typing.Optional[typing.IO]:
-		"""
-		Read a node from ZooKeeper honoring target precedence:
-
-		1) personal:   <BasePath>/.personal/{CredentialsId}{path}
-		2) tenant:     <BasePath>/.tenants/{Tenant}{path}
-		3) global:     <BasePath>{path}
-
-		- "personal" is resolved only if a CredentialsId is available (eg. from Authz).
-		- "tenant" is resolved only if a tenant is present in contextvars.
-		- If none of the targets contain the node, returns None.
-		"""
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
@@ -318,17 +297,25 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		# Build candidates in precedence order
 		candidate_paths: typing.List[str] = []
 
-		# personal
+		# personal (needs both tenant + CredentialsId)
+		tenant_id = None
+		try:
+			tenant_id = Tenant.get()
+		except LookupError:
+			tenant_id = None
+
 		cred_id = None
 		try:
-			cred_id = self._current_credentials_id()
-		except Exception:
+			authz = Authz.get()
+			cred_id = getattr(authz, "CredentialsId", None)
+		except LookupError:
 			cred_id = None
-		personal_candidate = self._personal_node_path(path, cred_id)
+
+		personal_candidate = self._personal_node_path(path, tenant_id, cred_id)
 		if personal_candidate:
 			candidate_paths.append(personal_candidate)
 
-		# tenant (uses build_path tenant_specific=True)
+		# tenant
 		tenant_candidate = self.build_path(path, tenant_specific=True)
 		if tenant_candidate not in candidate_paths:
 			candidate_paths.append(tenant_candidate)
@@ -354,12 +341,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
-		# Process global nodes
+		# global
 		global_node_path = self.build_path(path, tenant_specific=False)
 		global_nodes = await self.Zookeeper.get_children(global_node_path) or []
 		global_items = await self.process_nodes(global_nodes, path, target="global")
 
-		# Process tenant-specific nodes
+		# tenant
 		tenant_node_path = self.build_path(path, tenant_specific=True)
 		if tenant_node_path != global_node_path:
 			tenant_nodes = await self.Zookeeper.get_children(tenant_node_path) or []
@@ -367,61 +354,68 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		else:
 			tenant_items = []
 
-		# Process personal nodes for current credentials (if any)
-		cred_id = self._current_credentials_id()
-		personal_node_path = self._personal_node_path(path, cred_id)
-		if personal_node_path:
-			personal_nodes = await self.Zookeeper.get_children(personal_node_path) or []
+		# personal (only for current tenant + current credentials)
+		try:
+			tenant_id = Tenant.get()
+		except LookupError:
+			tenant_id = None
+
+		try:
+			authz = Authz.get()
+			cred_id = getattr(authz, "CredentialsId", None)
+		except LookupError:
+			cred_id = None
+
+		personal_items = []
+		if tenant_id and cred_id:
+			personal_node_path = "{}/.personal/{}/{}{}".format(self.BasePath, tenant_id, cred_id, path)
+			personal_node_path = personal_node_path.replace("//", "/")
+			try:
+				personal_nodes = await self.Zookeeper.get_children(personal_node_path) or []
+			except kazoo.exceptions.NoNodeError:
+				personal_nodes = []
 			personal_items = await self.process_nodes(personal_nodes, path, target="personal")
-		else:
-			personal_items = []
-		# Legacy behavior was tenant + global; now extend with personal first (no merging by name).
+
+		# precedence in listing result: personal + tenant + global (no name merge here)
 		return personal_items + tenant_items + global_items
 
-
 	async def process_nodes(self, nodes, base_path, target="global"):
-		"""
-		Processes a list of nodes and creates corresponding LibraryItem objects with their size.
-
-		Args:
-			nodes (list): List of node names to process.
-			base_path (str): The base path for the nodes.
-			target (str): Specifies the target context, e.g., "personal", "tenant", or "global".
-
-		Returns:
-			list: A list of LibraryItem objects with size information.
-		"""
 		items = []
 		for node in nodes:
-			# Remove any component that starts with '.'
 			startswithdot = functools.reduce(lambda x, y: x or y.startswith('.'), node.split(os.path.sep), False)
 			if startswithdot:
 				continue
 
-			# Determine if this is a file or directory
-			if '.' in node and not node.endswith(('.io', '.d')):  # File check
+			if '.' in node and not node.endswith(('.io', '.d')):
 				fname = "{}/{}".format(base_path.rstrip("/"), node)
 				ftype = "item"
-
-				# Retrieve node size for items only
 				try:
 					if target == "personal":
-						node_path = self._personal_node_path(fname, self._current_credentials_id())
+						# current tenant + current cred
+						try:
+							tenant_id = Tenant.get()
+						except LookupError:
+							tenant_id = None
+						try:
+							authz = Authz.get()
+							cred_id = getattr(authz, "CredentialsId", None)
+						except LookupError:
+							cred_id = None
+						node_path = self._personal_node_path(fname, tenant_id, cred_id) or ""
 					else:
 						node_path = self.build_path(fname, tenant_specific=(target == "tenant"))
-					zstat = self.Zookeeper.Client.exists(node_path)
+					zstat = self.Zookeeper.Client.exists(node_path) if node_path else None
 					size = zstat.dataLength if zstat else 0
 				except kazoo.exceptions.NoNodeError:
 					size = None
 				except Exception as e:
 					L.warning("Failed to retrieve size for node {}: {}".format(fname, e))
 					size = None
-			else:  # Directory check
+			else:
 				fname = "{}/{}/".format(base_path.rstrip("/"), node)
 				ftype = "dir"
 				size = None
 
-			# Assign correct layer label for top layer 0 (presentational only)
 			if self.Layer == 0:
 				if target == "global":
 					layer_label = "0:global"
@@ -441,9 +435,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				providers=[self],
 				size=size
 			))
-
 		return items
-
 
 	def build_path(self, path, tenant_specific=False):
 		assert path[:1] == '/'
@@ -471,28 +463,32 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		self.Subscriptions.add((target, path))
 
-		if target is None:
-			# Back-compat (pubsub callback must be called without `target` argument)
-			# Watch path globally
+		if target in {None, "global"}:
 			self.NodeDigests[path] = await self._get_directory_hash(path)
-		elif target == "global":
-			# Watch path globally
-			self.NodeDigests[path] = await self._get_directory_hash(path)
+
 		elif target == "tenant":
-			# Watch path in all tenants
 			for tenant in await self._get_tenants():
 				actual_path = "/.tenants/{}{}".format(tenant, path)
 				self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
+
 		elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
-			# Watch path in a specific tenant
 			_, tenant = target
 			actual_path = "/.tenants/{}{}".format(tenant, path)
 			self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
+
 		elif target == "personal":
-			# Watch current user's personal path (if credentials id present)
-			cred_id = self._current_credentials_id()
-			if cred_id:
-				actual_path = "/.personal/{}{}".format(cred_id, path)
+			# current tenant + current credentials
+			try:
+				tenant_id = Tenant.get()
+			except LookupError:
+				tenant_id = None
+			try:
+				authz = Authz.get()
+				cred_id = getattr(authz, "CredentialsId", None)
+			except LookupError:
+				cred_id = None
+			if tenant_id and cred_id:
+				actual_path = "/.personal/{}/{}{}".format(tenant_id, cred_id, path)
 				self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
 		else:
 			raise ValueError("Unexpected target: {!r}".format(target))
@@ -519,18 +515,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return digest.digest()
 
 	async def _on_library_changed(self, event_name=None):
-		"""
-		Check watched paths and publish a pubsub message for every one that has changed.
-		"""
 		for (target, path) in list(self.Subscriptions):
 
 			async def do_check_path(actual_path):
 				try:
 					newdigest = await self._get_directory_hash(actual_path)
 				except kazoo.exceptions.NoNodeError:
-					# This node is either deleted or has never existed.
 					newdigest = None
-
 				if newdigest != self.NodeDigests.get(actual_path):
 					self.NodeDigests[actual_path] = newdigest
 					self.App.PubSub.publish("Library.change!", self, path)
@@ -539,44 +530,42 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				try:
 					await do_check_path(actual_path=path)
 				except Exception as e:
-					L.exception(
-						"Failed to process library changes: '{}'".format(e),
-						struct_data={"path": path},
-					)
+					L.exception("Failed to process library changes: '{}'".format(e), struct_data={"path": path})
 
 			elif target == "tenant":
 				for tenant in await self._get_tenants():
 					try:
 						await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 					except Exception as e:
-						L.exception(
-							"Failed to process library changes: '{}'".format(e),
-							struct_data={"path": path, "tenant": tenant},
-						)
+						L.exception("Failed to process library changes: '{}'".format(e), struct_data={"path": path, "tenant": tenant})
 
 			elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
 				tenant = target[1]
 				try:
 					await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 				except Exception as e:
-					L.exception(
-						"Failed to process library changes: '{}'".format(e),
-						struct_data={"path": path, "tenant": tenant},
-					)
+					L.exception("Failed to process library changes: '{}'".format(e), struct_data={"path": path, "tenant": tenant})
 
 			elif target == "personal":
-				cred_id = self._current_credentials_id()
-				if cred_id:
+				try:
+					tenant_id = Tenant.get()
+				except LookupError:
+					tenant_id = None
+				try:
+					authz = Authz.get()
+					cred_id = getattr(authz, "CredentialsId", None)
+				except LookupError:
+					cred_id = None
+				if tenant_id and cred_id:
 					try:
-						await do_check_path(actual_path="/.personal/{}{}".format(cred_id, path))
+						await do_check_path(actual_path="/.personal/{}/{}{}".format(tenant_id, cred_id, path))
 					except Exception as e:
 						L.exception(
 							"Failed to process library changes: '{}'".format(e),
-							struct_data={"path": path, "credentials_id": cred_id},
+							struct_data={"path": path, "tenant": tenant_id, "credentials_id": cred_id},
 						)
 			else:
 				raise ValueError("Unexpected target: {!r}".format((target, path)))
-
 
 	async def _get_personals(self) -> typing.List[str]:
 		"""
