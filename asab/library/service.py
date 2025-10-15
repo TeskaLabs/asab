@@ -769,7 +769,7 @@ class LibraryService(Service):
 		"""
 		Compare old vs new favorites and publish Library.change! for any subscribed
 		path/target that is affected, using the same signature as disabled:
-		    self.App.PubSub.publish("Library.change!", self, p_path)
+			self.App.PubSub.publish("Library.change!", self, p_path)
 		"""
 
 		if not self.Libraries:
@@ -792,21 +792,21 @@ class LibraryService(Service):
 
 		for p_target, p_path in list(subscriptions):
 			if self._is_favorite_diff_affecting_path(
-					p_path,
-					old_files, old_folders,
-					new_files, new_folders,
-					p_target,
+				p_path,
+				old_files, old_folders,
+				new_files, new_folders,
+				p_target,
 			):
 				self.App.PubSub.publish("Library.change!", self, p_path)
 
 	def _is_favorite_diff_affecting_path(
-			self,
-			sub_path: str,
-			old_files: dict,
-			old_folders: dict,
-			new_files: dict,
-			new_folders: dict,
-			target: typing.Union[str, tuple, None] = None,
+		self,
+		sub_path: str,
+		old_files: dict,
+		old_folders: dict,
+		new_files: dict,
+		new_folders: dict,
+		target: typing.Union[str, tuple, None] = None,
 	) -> bool:
 		"""
 		Return True if the favorites diff affects the subscribed directory `sub_path`
@@ -852,9 +852,9 @@ class LibraryService(Service):
 		for folder_path in set(list(old_folders.keys()) + list(new_folders.keys())):
 			if sub_path.startswith(folder_path) or folder_path.startswith(sub_path):
 				if _tenant_relevant_change(
-						old_folders.get(folder_path, set()),
-						new_folders.get(folder_path, set()),
-						target,
+					old_folders.get(folder_path, set()),
+					new_folders.get(folder_path, set()),
+					target,
 				):
 					return True
 
