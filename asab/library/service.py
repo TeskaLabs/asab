@@ -400,6 +400,7 @@ class LibraryService(Service):
 		"""
 		old_favorites = self.Favorites.copy()
 		old_favorite_paths = list(self.FavoritePaths)
+		fav_data = None
 
 		try:
 			fav_file = await self.Libraries[0].read('/.favorites.yaml')
@@ -421,6 +422,11 @@ class LibraryService(Service):
 			self.Favorites = {}
 			self.FavoritePaths = []
 			return
+		finally:
+			try:
+				fav_file.close()
+			except Exception:
+				pass
 
 		if fav_data is None:
 			self.Favorites = {}
