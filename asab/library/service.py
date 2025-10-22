@@ -364,6 +364,7 @@ class LibraryService(Service):
 			for item in provider_items:
 				# Check if the item is disabled.
 				item.disabled = self.check_disabled(item.name)
+				item.favorite = self.check_favorite(item.name)
 				# Use the layers as provided by the provider; if empty, fall back to outer_layer.
 				provider_layers = item.layers if item.layers else [outer_layer]
 
