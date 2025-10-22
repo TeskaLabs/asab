@@ -21,5 +21,6 @@ class LibraryItem:
     layers: typing.List[int]  # Now stores multiple layers in ascending order
     providers: list
     disabled: bool = False
+    favorite: bool = False
     override: int = 0
     size: typing.Optional[int] = None  # Size is None by default, absent for directories
