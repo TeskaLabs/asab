@@ -13,6 +13,7 @@ class LibraryItem:
         layer (int): The number of highest layer in which this Item is found. The higher the number, the lower the layer is.
         providers (list): List of `LibraryProvider` objects containing this Item.
         disabled (bool): `True` if the Item is disabled, `False` otherwise. If the Item is disabled, `LibraryService.read(...)` will return `None`.
+        favorite (bool): True if the Item is marked as a favorite.
         override (int): If `True`, this item is marked as an override for the providers with the same Item name.
         target (str): Specifies the target context, e.g., "tenant" or "global". Defaults to "global".
     """
