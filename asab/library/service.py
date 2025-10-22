@@ -913,6 +913,7 @@ class LibraryService(Service):
 				"layers": item.layers,
 				"providers": item.providers,
 				"disabled": item.disabled,
+				"favorite": item.favorite,
 				"override": item.override,
 			}
 
