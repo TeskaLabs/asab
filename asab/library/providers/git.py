@@ -20,6 +20,22 @@ except ImportError:
 	L.critical("Please install pygit2 package to enable Git Library Provider. >>> pip install pygit2")
 	raise SystemExit("Application exiting... .")
 
+# Try to get the SSH key credential type constant - location varies by pygit2 version
+try:
+	GIT_CREDTYPE_SSH_KEY = pygit2.GIT_CREDTYPE_SSH_KEY
+except AttributeError:
+	try:
+		GIT_CREDTYPE_SSH_KEY = pygit2.credentials.GIT_CREDTYPE_SSH_KEY
+	except (AttributeError, ImportError):
+		try:
+			GIT_CREDTYPE_SSH_KEY = pygit2.GIT_CREDENTIAL_SSH_KEY
+		except AttributeError:
+			try:
+				GIT_CREDTYPE_SSH_KEY = pygit2.credentials.GIT_CREDENTIAL_SSH_KEY
+			except (AttributeError, ImportError):
+				# Fall back to the numeric value if constant not found
+				GIT_CREDTYPE_SSH_KEY = 2  # Standard value across libgit2 versions
+
 
 class GitLibraryProvider(FileSystemLibraryProvider):
 	"""
@@ -175,34 +191,37 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					"allowed_types": allowed_types
 				})
 
-				# Check if SSH key authentication is allowed
-				if allowed_types & pygit2.credentials.GIT_CREDENTIAL_SSH_KEY:
-					# Expand paths
-					key_path = os.path.expanduser(self.SSHKeyPath)
-					pubkey_path = os.path.expanduser(self.SSHPubkeyPath)
+				# Warn if the allowed_types doesn't match what we expect
+				if not (allowed_types & GIT_CREDTYPE_SSH_KEY):
+					L.warning(
+						f"SSH credentials requested but allowed_types ({allowed_types}) "
+						f"doesn't include SSH_KEY flag ({GIT_CREDTYPE_SSH_KEY}). Attempting anyway."
+					)
 
-					# Check if key files exist
-					if not os.path.exists(key_path):
-						L.error(f"SSH private key not found: {key_path}")
-						return None
-					if not os.path.exists(pubkey_path):
-						L.warning(f"SSH public key not found: {pubkey_path}, trying without it")
-						pubkey_path = ""
+				# Expand paths
+				key_path = os.path.expanduser(self.SSHKeyPath)
+				pubkey_path = os.path.expanduser(self.SSHPubkeyPath)
 
-					L.debug(f"Using SSH key: {key_path}")
+				# Check if key files exist
+				if not os.path.exists(key_path):
+					L.error(f"SSH private key not found: {key_path}")
+					return None
+				if not os.path.exists(pubkey_path):
+					L.warning(f"SSH public key not found: {pubkey_path}, trying without it")
+					pubkey_path = ""
 
-					try:
-						return pygit2.Keypair(
-							username_from_url or self.User or "git",
-							pubkey_path,
-							key_path,
-							self.SSHPassphrase or ""
-						)
-					except Exception as e:
-						L.error(f"Failed to create SSH keypair: {e}")
-						return None
+				L.debug(f"Using SSH key: {key_path}")
 
-				return None
+				try:
+					return pygit2.Keypair(
+						username_from_url or self.User or "git",
+						pubkey_path,
+						key_path,
+						self.SSHPassphrase or ""
+					)
+				except Exception as e:
+					L.error(f"Failed to create SSH keypair: {e}")
+					return None
 
 			callbacks.credentials = credentials_cb
 
