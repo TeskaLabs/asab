@@ -25,7 +25,7 @@ class MyApplication(asab.Application):
 		#
 		# Optional SSH configuration (defaults shown):
 		asab.Config["library:git"] = {}
-		asab.Config["library:git"]["ssh_key_path"] = "./ssh-keys/id_rsa"
+		asab.Config["library:git"]["ssh_key_path"] = "./id_rsa"
 		asab.Config["library:git"]["ssh_pubkey_path"] = "./id_rsa.pub"
 		# asab.Config["library:git"]["ssh_passphrase"] = ""  # if your SSH key has a passphrase
 		# asab.Config["library:git"]["verify_ssh_fingerprint"] = "no"  # set to "yes" to enable verification
