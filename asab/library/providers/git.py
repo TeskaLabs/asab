@@ -20,6 +20,22 @@ except ImportError:
 	L.critical("Please install pygit2 package to enable Git Library Provider. >>> pip install pygit2")
 	raise SystemExit("Application exiting... .")
 
+# Try to get the SSH key credential type constant - location varies by pygit2 version
+try:
+	GIT_CREDTYPE_SSH_KEY = pygit2.GIT_CREDTYPE_SSH_KEY
+except AttributeError:
+	try:
+		GIT_CREDTYPE_SSH_KEY = pygit2.credentials.GIT_CREDTYPE_SSH_KEY
+	except (AttributeError, ImportError):
+		try:
+			GIT_CREDTYPE_SSH_KEY = pygit2.GIT_CREDENTIAL_SSH_KEY
+		except AttributeError:
+			try:
+				GIT_CREDTYPE_SSH_KEY = pygit2.credentials.GIT_CREDENTIAL_SSH_KEY
+			except (AttributeError, ImportError):
+				# Fall back to the numeric value if constant not found
+				GIT_CREDTYPE_SSH_KEY = 2  # Standard value across libgit2 versions
+
 
 class GitLibraryProvider(FileSystemLibraryProvider):
 	"""
@@ -28,22 +44,29 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	FileSystemLibraryProvider to read the files.
 	To read from local git repository, please use FileSystemProvider.
 
+	Supports both HTTPS and SSH authentication:
+
 	.. code::
 
+		# HTTPS with deploy token
 		[library]
-		providers=git+<URL or deploy token>#<branch name>
+		providers=git+https://<username>:<deploy token>@<url>#<branch name>
+
+		# SSH (uses default SSH keys from ~/.ssh/)
+		[library]
+		providers=git+ssh://git@<url>#<branch name>
 
 		[library:git]
 		repodir=<optional location of the repository cache>
+		ssh_key_path=<optional path to SSH private key, defaults to ~/.ssh/id_rsa>
+		ssh_pubkey_path=<optional path to SSH public key, defaults to ~/.ssh/id_rsa.pub>
+		ssh_passphrase=<optional passphrase for SSH key>
+		verify_ssh_fingerprint=yes|no (default: no - auto-accepts host keys)
 	"""
 	def __init__(self, library, path, layer):
 
-		# format: 'git+http[s]://[<username>:<deploy token>@]<url>[#<branch>]'
-		pattern = re.compile(r"git\+(https?://)((.*):(.*)@)?([^#]*)(?:#(.*))?$")
-		path_split = pattern.findall(path)[0]
-		L.debug(path_split)
-		self.URLScheme, self.UserInfo, self.User, self.DeployToken, self.URLPath, self.Branch = path_split
-		self.URL = "".join([self.URLScheme, self.UserInfo, self.URLPath])
+		# Parse URL - supports both HTTPS and SSH formats
+		self._parse_url(path)
 		self.Branch = self.Branch if self.Branch != '' else None
 
 
@@ -69,8 +92,157 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		self.SubscribedPaths = set()
 
+		# SSH configuration
+		self.SSHKeyPath = None
+		self.SSHPubkeyPath = None
+		self.SSHPassphrase = None
+		self.VerifySSHFingerprint = False
+		if self.is_ssh:
+			self.SSHKeyPath = Config.get("library:git", "ssh_key_path", fallback=os.path.expanduser("~/.ssh/id_rsa"))
+			self.SSHPubkeyPath = Config.get("library:git", "ssh_pubkey_path", fallback=os.path.expanduser("~/.ssh/id_rsa.pub"))
+			self.SSHPassphrase = Config.get("library:git", "ssh_passphrase", fallback=None)
+			self.VerifySSHFingerprint = Config.getboolean("library:git", "verify_ssh_fingerprint", fallback=False)
+
 		self.App.TaskService.schedule(self.initialize_git_repository())
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
+
+
+	def _parse_url(self, path):
+		"""
+		Parse git URL from various formats:
+		- git+https://[user:token@]host/path[#branch]
+		- git+ssh://[user@]host/path[#branch]  (e.g., git+ssh://git@github.com/user/repo.git)
+		- git+git@host:path[#branch]  (SSH shorthand, e.g., git+git@github.com:user/repo.git)
+		"""
+		# First, try HTTPS pattern
+		https_pattern = re.compile(r"git\+(https?://)((.*):(.*)@)?([^#]*)(?:#(.*))?$")
+		https_match = https_pattern.match(path)
+
+		if https_match:
+			# HTTPS URL with optional credentials
+			groups = https_match.groups()
+			self.URLScheme = groups[0]
+			self.UserInfo = groups[1] or ""
+			self.User = groups[2] or ""
+			self.DeployToken = groups[3] or ""
+			self.URLPath = groups[4]
+			self.Branch = groups[5] or ""
+			self.URL = "".join([self.URLScheme, self.UserInfo, self.URLPath])
+			self.is_ssh = False
+			return
+
+		# Try SSH URL pattern (git+ssh://user@host/path or git+user@host:path)
+		ssh_pattern1 = re.compile(r"git\+ssh://([^@]+@)?([^/#]+)(/[^#]*)?(?:#(.*))?$")
+		ssh_match1 = ssh_pattern1.match(path)
+
+		if ssh_match1:
+			# SSH URL format: git+ssh://git@github.com/user/repo.git#branch
+			groups = ssh_match1.groups()
+			user = groups[0] or "git@"
+			host = groups[1]
+			repo_path = groups[2] or ""
+			self.Branch = groups[3] or ""
+			self.URL = f"ssh://{user}{host}{repo_path}"
+			self.URLPath = f"{host}{repo_path}"
+			self.User = user.rstrip("@")
+			self.DeployToken = ""
+			self.URLScheme = "ssh://"
+			self.UserInfo = user
+			self.is_ssh = True
+			return
+
+		# Try SSH shorthand pattern: git+git@host:path
+		ssh_pattern2 = re.compile(r"git\+([^@]+@)?([^:]+):([^#]+)(?:#(.*))?$")
+		ssh_match2 = ssh_pattern2.match(path)
+
+		if ssh_match2:
+			# SSH shorthand format: git+git@github.com:user/repo.git#branch
+			groups = ssh_match2.groups()
+			user = groups[0] or "git@"
+			host = groups[1]
+			repo_path = groups[2]
+			self.Branch = groups[3] or ""
+			# Convert to full SSH URL for pygit2
+			self.URL = f"{user}{host}:{repo_path}"
+			self.URLPath = f"{host}:{repo_path}"
+			self.User = user.rstrip("@")
+			self.DeployToken = ""
+			self.URLScheme = ""
+			self.UserInfo = user
+			self.is_ssh = True
+			return
+
+		raise ValueError(f"Invalid git URL format: {path}")
+
+
+	def _create_callbacks(self):
+		"""
+		Create RemoteCallbacks for git operations.
+		This handles SSH authentication and fingerprint verification.
+		"""
+		callbacks = pygit2.RemoteCallbacks()
+
+		if self.is_ssh:
+			# Set up SSH credential callback
+			def credentials_cb(url, username_from_url, allowed_types):
+				L.debug("Git SSH authentication requested", struct_data={
+					"url": url,
+					"username": username_from_url,
+					"allowed_types": allowed_types
+				})
+
+				# Warn if the allowed_types doesn't match what we expect
+				if not (allowed_types & GIT_CREDTYPE_SSH_KEY):
+					L.warning(
+						f"SSH credentials requested but allowed_types ({allowed_types}) "
+						f"doesn't include SSH_KEY flag ({GIT_CREDTYPE_SSH_KEY}). Attempting anyway."
+					)
+
+				# Expand paths
+				key_path = os.path.expanduser(self.SSHKeyPath)
+				pubkey_path = os.path.expanduser(self.SSHPubkeyPath)
+
+				# Check if key files exist
+				if not os.path.exists(key_path):
+					L.error(f"SSH private key not found: {key_path}")
+					return None
+				if not os.path.exists(pubkey_path):
+					L.warning(f"SSH public key not found: {pubkey_path}, trying without it")
+					pubkey_path = ""
+
+				L.debug(f"Using SSH key: {key_path}")
+
+				try:
+					return pygit2.Keypair(
+						username_from_url or self.User or "git",
+						pubkey_path,
+						key_path,
+						self.SSHPassphrase or ""
+					)
+				except Exception as e:
+					L.error(f"Failed to create SSH keypair: {e}")
+					return None
+
+			callbacks.credentials = credentials_cb
+
+			# Set up certificate/fingerprint callback
+			# This prevents hanging on "Are you sure you want to continue connecting?" prompt
+			def certificate_check_cb(cert, valid, host):
+				if self.VerifySSHFingerprint:
+					# TODO: Could implement proper known_hosts verification here
+					L.warning(
+						"SSH fingerprint verification is enabled but not yet fully implemented. "
+						"Accepting host key.",
+						struct_data={"host": host}
+					)
+				else:
+					L.debug(f"Auto-accepting SSH host key for {host}")
+				# Return True to accept the certificate
+				return True
+
+			callbacks.certificate_check = certificate_check_cb
+
+		return callbacks
 
 
 	async def _periodic_pull(self, event_name):
@@ -105,11 +277,16 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			if pygit2.discover_repository(self.RepoPath) is None:
 				# For a new repository, clone the remote bit
 				os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
-				self.GitRepository = pygit2.clone_repository(
-					url=self.URL,
-					path=self.RepoPath,
-					checkout_branch=self.Branch
-				)
+				try:
+					callbacks = self._create_callbacks()
+					self.GitRepository = pygit2.clone_repository(
+						url=self.URL,
+						path=self.RepoPath,
+						checkout_branch=self.Branch,
+						callbacks=callbacks
+					)
+				except Exception as err:
+					L.exception("Error when cloning git repository: {}".format(err))
 			else:
 				# For existing repository, pull the latest changes
 				self.GitRepository = pygit2.Repository(self.RepoPath)
@@ -191,7 +368,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		if self.GitRepository is None:
 			return None
 
-		self.GitRepository.remotes["origin"].fetch()
+		callbacks = self._create_callbacks()
+		self.GitRepository.remotes["origin"].fetch(callbacks=callbacks)
 		if self.Branch is None:
 			reference = self.GitRepository.lookup_reference("refs/remotes/origin/HEAD")
 		else:
