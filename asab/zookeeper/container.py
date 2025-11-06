@@ -40,7 +40,7 @@ class ZooKeeperContainer(Configurable):
 		"path": "",
 
 		"timeout": '10s',  # Connection timeout in seconds, 10 seconds is a Kazoo default
-		# Maximum value can by 40 seconds or `maxSessionTimeout=...` value in the ZooKeeper server configuration
+		# Maximum value can be 40 seconds or `maxSessionTimeout=...` value in the ZooKeeper server configuration
 	}
 
 
