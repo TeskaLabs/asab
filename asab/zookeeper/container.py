@@ -8,7 +8,6 @@ import urllib.parse
 import configparser
 
 import kazoo.exceptions
-import kazoo.recipe.watchers
 import kazoo.protocol.states
 
 from .wrapper import KazooWrapper
@@ -39,6 +38,9 @@ class ZooKeeperContainer(Configurable):
 
 		# If not provided, "/asab" path will be used
 		"path": "",
+
+		"timeout": '10s',  # Connection timeout in seconds, 10 seconds is a Kazoo default
+		# Maximum value can by 40 seconds or `maxSessionTimeout=...` value in the ZooKeeper server configuration
 	}
 
 
@@ -105,7 +107,7 @@ class ZooKeeperContainer(Configurable):
 		self.App.PubSub.subscribe("Application.tick/300!", self._on_tick300)
 		self.App.PubSub.subscribe("Application.tick/60!", self._on_tick60)
 
-		self.ZooKeeper = KazooWrapper(self, url_netloc)
+		self.ZooKeeper = KazooWrapper(self, url_netloc, self.Config.getseconds("timeout"))
 
 		zookeeper_service.Containers.append(self)
 		self.ZooKeeper.Client.start_async()

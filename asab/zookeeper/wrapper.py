@@ -14,13 +14,14 @@ L = logging.getLogger(__name__.rsplit(".", 1)[0])  # We want just "asab.zookeepe
 class KazooWrapper(object):
 
 
-	def __init__(self, zkcnt, hosts):
+	def __init__(self, zkcnt, hosts, timeout=10.0):
 		self.App = zkcnt.App
 		self.ProactorService = zkcnt.ProactorService
 		self.Stopped = False
 
 		self.Client = kazoo.client.KazooClient(
 			hosts=hosts,
+			timeout=timeout,
 			connection_retry=kazoo.retry.KazooRetry(
 				max_tries=2,   # Two tries to connect / reconnect before giving up and going LOST
 				ignore_expire=False,

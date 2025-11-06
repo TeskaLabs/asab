@@ -7,7 +7,8 @@ asab.Config.add_defaults(
 	{
 		"my:zk": {
 			# specify "servers": "..." here to provide addresses of Zookeeper servers
-			"path": "asab"
+			"path": "asab",
+			"timeout": "30",
 		},
 	}
 )
