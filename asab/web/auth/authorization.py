@@ -135,6 +135,7 @@ class Authorization:
 			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 
 		Examples:
+			>>> # Using tenant context
 			>>> import asab.contextvars
 			>>> authz = asab.contextvars.Authz.get()
 			>>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
@@ -145,6 +146,8 @@ class Authorization:
 			>>>         print("Not much to do here.")
 			>>> finally:
 			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
+			>>>
+			>>> # Specifying tenant directly
 			>>> authz.has_tenant_access("big-corporation")
 		"""
 		self.require_valid()
@@ -226,6 +229,7 @@ class Authorization:
 			AccessDeniedError: When the agent does not have access to the requested tenant.
 
 		Examples:
+			>>> # Using tenant context
 			>>> import asab.contextvars
 			>>> authz = asab.contextvars.Authz.get()
 			>>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
@@ -234,8 +238,12 @@ class Authorization:
 			>>>     print("I have access to Big Corporation!")
 			>>> finally:
 			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
+			>>>
+			>>> # Specifying tenant directly
 			>>> authz.require_tenant_access("big-corporation")
 		"""
+		self.require_valid()
+
 		if tenant is None:
 			try:
 				tenant = Tenant.get()
