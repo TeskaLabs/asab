@@ -135,17 +135,17 @@ class Authorization:
 		    NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 
 		Examples:
-		    >>> import asab.contextvars
-		    >>> authz = asab.contextvars.Authz.get()
-		    >>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
-		    >>> try:
-		    >>>     if authz.has_tenant_access():
-		    >>>         print("I have access to Big Corporation!")
-		    >>>     else:
-		    >>>         print("Not much to do here.")
-		    >>> finally:
-		    >>>     asab.contextvars.Tenant.reset(tenant_ctx)
-		    >>> authz.has_tenant_access("big-corporation")
+			>>> import asab.contextvars
+			>>> authz = asab.contextvars.Authz.get()
+			>>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
+			>>> try:
+			>>>     if authz.has_tenant_access():
+			>>>         print("I have access to Big Corporation!")
+			>>>     else:
+			>>>         print("Not much to do here.")
+			>>> finally:
+			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
+			>>> authz.has_tenant_access("big-corporation")
 		"""
 		self.require_valid()
 
@@ -226,15 +226,15 @@ class Authorization:
 		    AccessDeniedError: When the agent does not have access to the requested tenant.
 
 		Examples:
-		    >>> import asab.contextvars
-		    >>> authz = asab.contextvars.Authz.get()
-		    >>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
-		    >>> try:
-		    >>>     authz.require_tenant_access()
-		    >>>     print("I have access to Big Corporation!")
-		    >>> finally:
-		    >>>     asab.contextvars.Tenant.reset(tenant_ctx)
-		    >>> authz.require_tenant_access("big-corporation")
+			>>> import asab.contextvars
+			>>> authz = asab.contextvars.Authz.get()
+			>>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
+			>>> try:
+			>>>     authz.require_tenant_access()
+			>>>     print("I have access to Big Corporation!")
+			>>> finally:
+			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
+			>>> authz.require_tenant_access("big-corporation")
 		"""
 		if tenant is None:
 			try:
