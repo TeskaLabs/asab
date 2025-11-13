@@ -278,12 +278,12 @@ class TestTenantForbidden(unittest.TestCase):
 		# Explicit tenant param
 		self.assertTrue(
 			self.Authz.has_tenant_access(TENANT_1),
-			"Explicit tenant param: Access to TENANT_1 is not authorized in TENANT_2 context.",
+			"Explicit tenant param: Access to TENANT_1 is authorized (overrides TENANT_2 context).",
 		)
 
 		self.assertIsNone(
 			self.Authz.require_tenant_access(TENANT_1),
-			"Explicit tenant param: Authorized access to TENANT_1 must succeed without return.",
+			"Explicit tenant param: Authorized access to TENANT_1 must succeed without return (overrides TENANT_2 context).",
 		)
 
 		# Negative: authorized tenant should be False in this context
@@ -380,7 +380,7 @@ class TestGlobal(unittest.TestCase):
 		# Explicit tenant param: should use the provided tenant argument as the context
 		self.assertTrue(
 			self.Authz.has_tenant_access(TENANT_1),
-			"Explicit tenant param: Access to TENANT_1 is not authorized with no context.",
+			"Explicit tenant param: Access to TENANT_1 is not authorized.",
 		)
 		self.assertIsNone(
 			self.Authz.require_tenant_access(TENANT_1),
@@ -388,7 +388,7 @@ class TestGlobal(unittest.TestCase):
 		)
 		self.assertFalse(
 			self.Authz.has_tenant_access(TENANT_2),
-			"Explicit tenant param: Access to TENANT_2 is not authorized with no context.",
+			"Explicit tenant param: Access to TENANT_2 is not authorized.",
 		)
 		with self.assertRaises(asab.exceptions.AccessDeniedError):
 			self.Authz.require_tenant_access(TENANT_2)
