@@ -219,11 +219,11 @@ class Authorization:
 		Ensures that the agent is authorized to access the tenant in the current context or the provided tenant.
 
 		Args:
-		    tenant (str, optional): The tenant to check access for. If None, uses the tenant from context.
+			tenant (str, optional): The tenant to check access for. If None, uses the tenant from context.
 
 		Raises:
-		    NotAuthenticatedError: When the authorization is expired or otherwise invalid.
-		    AccessDeniedError: When the agent does not have access to the requested tenant.
+			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
+			AccessDeniedError: When the agent does not have access to the requested tenant.
 
 		Examples:
 			>>> import asab.contextvars
