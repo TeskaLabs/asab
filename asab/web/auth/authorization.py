@@ -121,34 +121,39 @@ class Authorization:
 		return has_resource_access(self._Resources, resources, tenant=Tenant.get(None))
 
 
-	def has_tenant_access(self) -> bool:
+	def has_tenant_access(self, tenant=None) -> bool:
 		"""
-		Check whether the agent has access to the tenant in context.
+		Check whether the agent has access to the tenant in context or the provided tenant.
+
+		Args:
+		    tenant (str, optional): The tenant to check access for. If None, uses the tenant from context.
 
 		Returns:
-			bool: Is the agent authorized to access requested tenant?
+		    bool: Is the agent authorized to access requested tenant?
 
 		Raises:
-			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
+		    NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 
 		Examples:
-			>>> import asab.contextvars
-			>>> authz = asab.contextvars.Authz.get()
-			>>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
-			>>> try:
-			>>>     if authz.has_tenant_access():
-			>>>     	print("I have access to Big Corporation!")
-			>>>     else:
-			>>>         print("Not much to do here.")
-			>>> finally:
-			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
+		    >>> import asab.contextvars
+		    >>> authz = asab.contextvars.Authz.get()
+		    >>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
+		    >>> try:
+		    >>>     if authz.has_tenant_access():
+		    >>>         print("I have access to Big Corporation!")
+		    >>>     else:
+		    >>>         print("Not much to do here.")
+		    >>> finally:
+		    >>>     asab.contextvars.Tenant.reset(tenant_ctx)
+		    >>> authz.has_tenant_access("big-corporation")
 		"""
 		self.require_valid()
 
-		try:
-			tenant = Tenant.get()
-		except LookupError as e:
-			raise ValueError("No tenant in context.") from e
+		if tenant is None:
+			try:
+				tenant = Tenant.get()
+			except LookupError as e:
+				raise ValueError("No tenant in context.") from e
 
 		return has_tenant_access(self._Resources, tenant)
 
@@ -209,27 +214,37 @@ class Authorization:
 			raise AccessDeniedError()
 
 
-	def require_tenant_access(self):
+	def require_tenant_access(self, tenant=None):
 		"""
-		Ensures that the agent is authorized to access the tenant in the current context.
+		Ensures that the agent is authorized to access the tenant in the current context or the provided tenant.
+
+		Args:
+		    tenant (str, optional): The tenant to check access for. If None, uses the tenant from context.
 
 		Raises:
-			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
-			AccessDeniedError: When the agent does not have access to the requested tenant.
+		    NotAuthenticatedError: When the authorization is expired or otherwise invalid.
+		    AccessDeniedError: When the agent does not have access to the requested tenant.
 
 		Examples:
-			>>> import asab.contextvars
-			>>> authz = asab.contextvars.Authz.get()
-			>>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
-			>>> try:
-			>>>     authz.require_tenant_access()
-			>>>     print("I have access to Big Corporation!")
-			>>> finally:
-			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
+		    >>> import asab.contextvars
+		    >>> authz = asab.contextvars.Authz.get()
+		    >>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
+		    >>> try:
+		    >>>     authz.require_tenant_access()
+		    >>>     print("I have access to Big Corporation!")
+		    >>> finally:
+		    >>>     asab.contextvars.Tenant.reset(tenant_ctx)
+		    >>> authz.require_tenant_access("big-corporation")
 		"""
-		if not self.has_tenant_access():
+		if tenant is None:
+			try:
+				tenant = Tenant.get()
+			except LookupError as e:
+				raise ValueError("No tenant in context.") from e
+
+		if not has_tenant_access(self._Resources, tenant):
 			L.warning("Tenant authorization required.", struct_data={
-				"tenant": Tenant.get(), "cid": self.CredentialsId})
+				"tenant": tenant, "cid": self.CredentialsId})
 			raise AccessDeniedError()
 
 
