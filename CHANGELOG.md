@@ -1,6 +1,24 @@
 # CHANGELOG
 
-## v25.29
+## v25.46
+
+### Features
+- Explicit tenant argument in Authorization's tenant access methods (#717)
+
+---
+
+
+## v25.45
+
+---
+
+
+## v25.43
+
+---
+
+
+## v25.36
 
 ### Breaking Changes
 - Tenant-aware applications must choose whether to use strict or non-strict mode and adjust their web routes accordingly.
