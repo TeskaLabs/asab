@@ -126,13 +126,13 @@ class Authorization:
 		Check whether the agent has access to the tenant in context or the provided tenant.
 
 		Args:
-		    tenant (str, optional): The tenant to check access for. If None, uses the tenant from context.
+			tenant (str, optional): The tenant to check access for. If None, uses the tenant from context.
 
 		Returns:
-		    bool: Is the agent authorized to access requested tenant?
+			bool: Is the agent authorized to access requested tenant?
 
 		Raises:
-		    NotAuthenticatedError: When the authorization is expired or otherwise invalid.
+			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 
 		Examples:
 			>>> import asab.contextvars
