@@ -84,6 +84,9 @@ class LibraryService(Service):
 		self.Libraries: list[LibraryProviderABC] = []
 		self.Disabled: dict = {}
 		self.DisabledPaths: list = []
+		self.Favorites: dict = {}
+		self.FavoritePaths: list = []
+
 
 		if paths is None:
 			# load them from configuration
@@ -111,6 +114,7 @@ class LibraryService(Service):
 
 	async def _on_tick60(self, message_type):
 		await self._read_disabled()
+		await self._read_favorites()
 
 	def _create_library(self, path, layer):
 		library_provider = None
@@ -166,6 +170,7 @@ class LibraryService(Service):
 
 		if (provider == self.Libraries[0]) and provider.IsReady:
 			await self._read_disabled()
+			await self._read_favorites()
 
 		if self.is_ready():
 			L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
@@ -359,6 +364,7 @@ class LibraryService(Service):
 			for item in provider_items:
 				# Check if the item is disabled.
 				item.disabled = self.check_disabled(item.name)
+				item.favorite = self.check_favorite(item.name)
 				# Use the layers as provided by the provider; if empty, fall back to outer_layer.
 				provider_layers = item.layers if item.layers else [outer_layer]
 
@@ -381,6 +387,100 @@ class LibraryService(Service):
 
 		# Do not sort items; return them in the order they were merged.
 		return items
+
+
+	async def _read_favorites(self, publish_changes=False):
+		"""
+		Load favorites from '/.favorites.yaml' into:
+			- self.Favorites: { '/path/file.ext': ['tenant', '*', ...] }
+			- self.FavoritePaths: [ ('/path/folder/', ['tenant', '*', ...]), ... ]
+		Expected YAML shape:
+			/path:
+				tenants:
+				- system
+		"""
+		old_favorites = self.Favorites.copy()
+		old_favorite_paths = list(self.FavoritePaths)
+		fav_data = None
+
+		try:
+			fav_file = await self.Libraries[0].read('/.favorites.yaml')
+		except Exception as e:
+			L.warning("Failed to read '/.favorites.yaml': {}.".format(e))
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+
+		if fav_file is None:
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+
+		try:
+			fav_data = yaml.load(fav_file, Loader=yaml.CSafeLoader)
+		except Exception:
+			L.exception("Failed to parse '/.favorites.yaml'")
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+		finally:
+			try:
+				fav_file.close()
+			except Exception:
+				pass
+
+		if fav_data is None:
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+
+		if not isinstance(fav_data, dict):
+			L.warning("Unexpected favorites format ({}). Resetting.".format(type(fav_data).__name__))
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+
+		files = {}
+		folders = []
+		for k, v in fav_data.items():
+			if not isinstance(k, str):
+				L.warning("Ignoring non-string favorite key: {}".format(k))
+				continue
+
+			# normalize tenants list
+			tenants = []
+			if isinstance(v, dict) and 'tenants' in v:
+				tv = v.get('tenants')
+				if isinstance(tv, list):
+					tenants = [str(t) for t in tv]
+				elif isinstance(tv, set):
+					tenants = [str(t) for t in list(tv)]
+				elif tv is None:
+					tenants = []
+				else:
+					tenants = [str(tv)]
+			elif isinstance(v, list):
+				# Back-compat: allow direct list
+				tenants = [str(t) for t in v]
+			else:
+				tenants = [str(v)]
+
+			if k.endswith('/'):
+				folders.append((k, tenants))
+			else:
+				files[k] = tenants
+
+		# Sort folders shortest→longest (consistent with DisabledPaths sort)
+		folders.sort(key=lambda x: len(x[0]))
+
+		self.Favorites = files
+		self.FavoritePaths = folders
+
+		if publish_changes:
+			publisher = getattr(self, "_publish_change_for_favorites_diff", None)
+			if callable(publisher):
+				await publisher(old_favorites, old_favorite_paths)
+
 
 	async def _read_disabled(self, publish_changes=False):
 
@@ -593,6 +693,181 @@ class LibraryService(Service):
 
 		return False
 
+	def check_favorite(self, path: str, inherit: bool = False) -> bool:
+		"""
+		Check if `path` is marked as favorite for the current tenant (or globally via '*').
+
+		If `inherit` is True and a parent *folder* is favorited for the tenant/'*',
+		any child path under that folder is considered favorited.
+
+		**WARNING:** Tenant must be set in the context variable before using this function
+		if you want tenant-aware behavior (same as check_disabled).
+
+		Examples:
+
+		1) Tenant-aware check:
+
+			```python
+			try:
+				tenant_ctx = asab.contextvars.Tenant.set(tenant)
+				is_fav = self.LibraryService.check_favorite(path)
+				...
+			finally:
+				asab.contextvars.Tenant.reset(tenant_ctx)
+			```
+
+		2) Global-only check (any tenant):
+
+			```python
+			is_fav = self.LibraryService.check_favorite(path)
+			```
+
+		Args:
+			path (str): Path to the item or folder to be checked.
+			inherit (bool): If True, a favorited folder marks all descendants as favorited.
+
+		Returns:
+			bool: True if favorited for current tenant or globally.
+		"""
+		if not isinstance(path, str) or not path:
+			raise LibraryInvalidPathError(
+				message="Argument 'path' must be a non-empty string.",
+				path=path,
+			)
+
+		try:
+			tenant = Tenant.get()
+		except LookupError:
+			tenant = None
+
+		# 1) Folder favorites
+		#    - Exact match if not inheriting
+		#    - Prefix match if inheriting (folder favorite applies to children)
+		if inherit:
+			for fp, fav_tenants in self.FavoritePaths:
+				if path.startswith(fp):
+					if '*' in fav_tenants:
+						return True
+					if tenant is not None and tenant in fav_tenants:
+						return True
+		else:
+			# exact folder favorite (no inheritance)
+			for fp, fav_tenants in self.FavoritePaths:
+				if path == fp:
+					if '*' in fav_tenants:
+						return True
+					if tenant is not None and tenant in fav_tenants:
+						return True
+
+		# 2) Exact item favorites
+		fav_tenants = self.Favorites.get(path)
+		if fav_tenants is None:
+			return False
+
+		if '*' in fav_tenants:
+			return True
+
+		if tenant is not None and tenant in fav_tenants:
+			return True
+
+		return False
+
+	async def _publish_change_for_favorites_diff(self, old_favorites, old_favorite_paths):
+		"""
+		Compare old vs new favorites and publish Library.change! for any subscribed
+		path/target that is affected, using the same signature as disabled:
+			self.App.PubSub.publish("Library.change!", self, p_path)
+		"""
+
+		if not self.Libraries:
+			return
+
+		# Drive subscriptions from the topmost provider (layer 0) just like disabled
+		provider = self.Libraries[0]
+		subscriptions = getattr(provider, "Subscriptions", None)
+		if subscriptions is None:
+			return
+
+		# Build comparable maps: files -> {path: set(tenants)}, folders -> {folder/: set(tenants)}
+		def _to_maps(files_dict, folders_list):
+			files_map = {p: set(ts or []) for p, ts in (files_dict or {}).items()}
+			folders_map = {p: set(ts or []) for p, ts in (folders_list or [])}
+			return files_map, folders_map
+
+		old_files, old_folders = _to_maps(old_favorites or {}, old_favorite_paths or [])
+		new_files, new_folders = _to_maps(self.Favorites or {}, self.FavoritePaths or [])
+
+		for p_target, p_path in list(subscriptions):
+			if self._is_favorite_diff_affecting_path(
+				p_path,
+				old_files, old_folders,
+				new_files, new_folders,
+				p_target,
+			):
+				self.App.PubSub.publish("Library.change!", self, p_path)
+
+	def _is_favorite_diff_affecting_path(
+		self,
+		sub_path: str,
+		old_files: dict,
+		old_folders: dict,
+		new_files: dict,
+		new_folders: dict,
+		target: typing.Union[str, tuple, None] = None,
+	) -> bool:
+		"""
+		Return True if the favorites diff affects the subscribed directory `sub_path`
+		for the specified `target` ('global' | 'tenant' | ('tenant', TENANT_ID)).
+
+		Behavior mirrors disabled:
+		- 'global' reacts to membership of '*' changing
+		- 'tenant' (wildcard) reacts to any set change
+		- ('tenant', X) reacts if '*' or X membership changes
+
+		Folder favorites are treated as affecting their subtree (inheritance).
+		"""
+
+		# Normalize subscription path to a directory prefix
+		if not sub_path.endswith('/'):
+			sub_path = sub_path + '/'
+
+		def _changed(a: set, b: set) -> bool:
+			return a != b
+
+		def _tenant_relevant_change(a: set, b: set, tgt) -> bool:
+			# Match disabled semantics
+			if tgt is None or tgt == "global":
+				return ("*" in a) != ("*" in b)
+			if tgt == "tenant":
+				return _changed(a, b)
+			if isinstance(tgt, tuple) and tgt[0] == "tenant":
+				tid = tgt[1]
+				return (("*" in a) or (tid in a)) != (("*" in b) or (tid in b))
+			return False
+
+		# 1) Item-level favorites under the subscription subtree
+		for path in set(list(old_files.keys()) + list(new_files.keys())):
+			if not path.startswith(sub_path):
+				continue
+			if _tenant_relevant_change(old_files.get(path, set()), new_files.get(path, set()), target):
+				return True
+
+		# 2) Folder-level favorites that intersect with the subscription subtree
+		# Two relevant cases:
+		#   a) Subscription lives inside a favorited folder (folder is a prefix of sub_path)
+		#   b) Favorited folder lives inside the subscription (folder starts with sub_path)
+		for folder_path in set(list(old_folders.keys()) + list(new_folders.keys())):
+			if sub_path.startswith(folder_path) or folder_path.startswith(sub_path):
+				if _tenant_relevant_change(
+					old_folders.get(folder_path, set()),
+					new_folders.get(folder_path, set()),
+					target,
+				):
+					return True
+
+		return False
+
+
 	async def get_item_metadata(self, path: str) -> typing.Optional[dict]:
 		"""
 		Retrieve metadata for a specific file in the library, including its `target`.
@@ -638,6 +913,7 @@ class LibraryService(Service):
 				"layers": item.layers,
 				"providers": item.providers,
 				"disabled": item.disabled,
+				"favorite": item.favorite,
 				"override": item.override,
 			}
 
