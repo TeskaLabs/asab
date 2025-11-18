@@ -59,7 +59,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		self.BasePath = path.rstrip("/")
 		self.DisabledFilePath = os.path.join(self.BasePath, '.disabled.yaml')
-		self.FavoritesFilePath = os.path.join(self.BasePath, '.favorites.yaml')
 
 		self.AggrEvents = []
 		self.WDs = {}
@@ -190,10 +189,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			full_path = os.path.join(self.BasePath, name)
 			if os.path.normpath(full_path) == os.path.normpath(self.DisabledFilePath):
 				self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
-
-			#  react to .favorites.yaml
-			if os.path.normpath(full_path) == os.path.normpath(self.FavoritesFilePath):
-				self.App.TaskService.schedule(self.Library._read_favorites(publish_changes=True))
 
 		self.AggrTimer.restart(0.2)
 
