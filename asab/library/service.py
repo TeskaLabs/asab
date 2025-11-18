@@ -389,7 +389,7 @@ class LibraryService(Service):
 		return items
 
 
-	async def _read_favorites(self, publish_changes=False):
+	async def _read_favorites(self):
 		"""
 		Load favorites from '/.favorites.yaml' into:
 			- self.Favorites: { '/path/file.ext': ['tenant', '*', ...] }
@@ -475,12 +475,6 @@ class LibraryService(Service):
 
 		self.Favorites = files
 		self.FavoritePaths = folders
-
-		if publish_changes:
-			publisher = getattr(self, "_publish_change_for_favorites_diff", None)
-			if callable(publisher):
-				await publisher(old_favorites, old_favorite_paths)
-
 
 	async def _read_disabled(self, publish_changes=False):
 
@@ -771,102 +765,6 @@ class LibraryService(Service):
 			return True
 
 		return False
-
-	async def _publish_change_for_favorites_diff(self, old_favorites, old_favorite_paths):
-		"""
-		Compare old vs new favorites and publish Library.change! for any subscribed
-		path/target that is affected, using the same signature as disabled:
-			self.App.PubSub.publish("Library.change!", self, p_path)
-		"""
-
-		if not self.Libraries:
-			return
-
-		# Drive subscriptions from the topmost provider (layer 0) just like disabled
-		provider = self.Libraries[0]
-		subscriptions = getattr(provider, "Subscriptions", None)
-		if subscriptions is None:
-			return
-
-		# Build comparable maps: files -> {path: set(tenants)}, folders -> {folder/: set(tenants)}
-		def _to_maps(files_dict, folders_list):
-			files_map = {p: set(ts or []) for p, ts in (files_dict or {}).items()}
-			folders_map = {p: set(ts or []) for p, ts in (folders_list or [])}
-			return files_map, folders_map
-
-		old_files, old_folders = _to_maps(old_favorites or {}, old_favorite_paths or [])
-		new_files, new_folders = _to_maps(self.Favorites or {}, self.FavoritePaths or [])
-
-		for p_target, p_path in list(subscriptions):
-			if self._is_favorite_diff_affecting_path(
-				p_path,
-				old_files, old_folders,
-				new_files, new_folders,
-				p_target,
-			):
-				self.App.PubSub.publish("Library.change!", self, p_path)
-
-	def _is_favorite_diff_affecting_path(
-		self,
-		sub_path: str,
-		old_files: dict,
-		old_folders: dict,
-		new_files: dict,
-		new_folders: dict,
-		target: typing.Union[str, tuple, None] = None,
-	) -> bool:
-		"""
-		Return True if the favorites diff affects the subscribed directory `sub_path`
-		for the specified `target` ('global' | 'tenant' | ('tenant', TENANT_ID)).
-
-		Behavior mirrors disabled:
-		- 'global' reacts to membership of '*' changing
-		- 'tenant' (wildcard) reacts to any set change
-		- ('tenant', X) reacts if '*' or X membership changes
-
-		Folder favorites are treated as affecting their subtree (inheritance).
-		"""
-
-		# Normalize subscription path to a directory prefix
-		if not sub_path.endswith('/'):
-			sub_path = sub_path + '/'
-
-		def _changed(a: set, b: set) -> bool:
-			return a != b
-
-		def _tenant_relevant_change(a: set, b: set, tgt) -> bool:
-			# Match disabled semantics
-			if tgt is None or tgt == "global":
-				return ("*" in a) != ("*" in b)
-			if tgt == "tenant":
-				return _changed(a, b)
-			if isinstance(tgt, tuple) and tgt[0] == "tenant":
-				tid = tgt[1]
-				return (("*" in a) or (tid in a)) != (("*" in b) or (tid in b))
-			return False
-
-		# 1) Item-level favorites under the subscription subtree
-		for path in set(list(old_files.keys()) + list(new_files.keys())):
-			if not path.startswith(sub_path):
-				continue
-			if _tenant_relevant_change(old_files.get(path, set()), new_files.get(path, set()), target):
-				return True
-
-		# 2) Folder-level favorites that intersect with the subscription subtree
-		# Two relevant cases:
-		#   a) Subscription lives inside a favorited folder (folder is a prefix of sub_path)
-		#   b) Favorited folder lives inside the subscription (folder starts with sub_path)
-		for folder_path in set(list(old_folders.keys()) + list(new_folders.keys())):
-			if sub_path.startswith(folder_path) or folder_path.startswith(sub_path):
-				if _tenant_relevant_change(
-					old_folders.get(folder_path, set()),
-					new_folders.get(folder_path, set()),
-					target,
-				):
-					return True
-
-		return False
-
 
 	async def get_item_metadata(self, path: str) -> typing.Optional[dict]:
 		"""
