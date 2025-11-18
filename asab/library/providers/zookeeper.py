@@ -175,9 +175,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.DisabledNodePath = self.build_path('/.disabled.yaml')
 		self.DisabledWatch = None
 
-		self.FavoritesNodePath = self.build_path('/.favorites.yaml')
-		self.FavoritesWatch = None
-
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_connected)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/SUSPENDED!", self._on_zk_lost)
@@ -224,17 +221,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.DisabledNodePath, on_disabled_changed)
 
 		self.DisabledWatch = await self.Zookeeper.ProactorService.execute(install_disabled_watcher)
-
-		# NEW: favorites watcher
-		def on_favorites_changed(data, stat):
-			# Whenever .favorites.yaml changes, reload favorites and publish diffs
-			self.App.TaskService.schedule(self.Library._read_favorites(publish_changes=True))
-
-		def install_favorites_watcher():
-			return kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.FavoritesNodePath, on_favorites_changed)
-
-		self.FavoritesWatch = await self.Zookeeper.ProactorService.execute(install_favorites_watcher)
-
 
 		await self._set_ready()
 
