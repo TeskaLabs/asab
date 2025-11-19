@@ -222,7 +222,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		self.DisabledWatch = await self.Zookeeper.ProactorService.execute(install_disabled_watcher)
 
-
 		await self._set_ready()
 
 
