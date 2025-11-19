@@ -43,18 +43,3 @@ def prune_nulls(value):
 		return pruned_items
 
 	return value
-
-
-
-def uri_template_match_(pattern, uri: str) -> dict:
-	'''
-	Check if the URI matches the URI template.
-	Returns a dictionary of the variables in the URI template or None
-
-	According to RFC 6570 URI Template Matching
-	'''
-
-	# TODO: This is a placeholder implementation, more complete implementation of RFC 6570 URI Template Matching is needed
-
-	# URI template is ie "note://{path}", uri is e.g. "note://notes/mynote.md"
-	return pattern == uri
