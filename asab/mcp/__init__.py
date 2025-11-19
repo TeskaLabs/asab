@@ -1,6 +1,6 @@
 from .service import MCPService
 from .decorators import mcp_tool, mcp_resource_template
-from .datacls import MCPToolInfo, MCPResourceTemplateInfo
+from .datacls import MCPToolInfo, MCPResourceTemplateInfo, MCPToolResultTextContent, MCPToolResultResourceLink
 
 __all__ = [
 	"MCPService",
@@ -8,4 +8,6 @@ __all__ = [
 	"mcp_resource_template",
 	"MCPToolInfo",
 	"MCPResourceTemplateInfo",
+	"MCPToolResultTextContent",
+	"MCPToolResultResourceLink",
 ]
