@@ -136,7 +136,7 @@ class MCPService(asab.Service):
 			return {
 				"content": [{
 					"type": "text",
-					"text": "General error occured."
+					"text": "General error occurred."
 				}],
 				"isError": True,
 			}
