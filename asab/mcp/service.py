@@ -152,7 +152,7 @@ class MCPService(asab.Service):
 					"text": item.text,
 				})
 			elif isinstance(item, str):
-				# A shotcut for Text content.
+				# A shortcut for Text content.
 				transformed_result.append({
 					"type": "text",
 					"text": item,
