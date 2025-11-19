@@ -5,7 +5,7 @@ import asab
 
 import aiohttp_rpc
 
-from .utils import rpccall_ping, prune_nulls
+from .utils import rpc_ping, prune_nulls
 from .datacls import MCPToolResultTextContent, MCPToolResultResourceLink
 
 
@@ -24,17 +24,17 @@ class MCPService(asab.Service):
 		self.RPCServer = aiohttp_rpc.JsonRpcServer(middlewares=[logging_middleware])
 		web.add_post(r'/{tenant}/mcp', self._handle_http_request)
 
-		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rcpcall_mcp_initialize, name="initialize"))
-		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rcpcall_notifications_initialized, name="notifications/initialized"))
-		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(rpccall_ping, name="ping"))
+		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rpc_mcp_initialize, name="initialize"))
+		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rpc_notifications_initialized, name="notifications/initialized"))
+		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(rpc_ping, name="ping"))
 
-		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rcpcall_tools_list, name="tools/list"))
-		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rcpcall_tools_call, name="tools/call"))
+		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rcp_tools_list, name="tools/list"))
+		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rpc_tools_call, name="tools/call"))
 
-		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rcpcall_resources_list, name="resources/list"))
-		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rcpcall_resources_read, name="resources/read"))
+		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rpc_resources_list, name="resources/list"))
+		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rpc_resources_read, name="resources/read"))
 
-		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rcpcall_resource_templates_list, name="resources/templates/list"))
+		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rpc_resource_templates_list, name="resources/templates/list"))
 
 
 	def add_tool(self, tool_function, mcp_tool_info=None):
@@ -66,7 +66,7 @@ class MCPService(asab.Service):
 		return await self.RPCServer.handle_http_request(request)
 
 
-	async def _rcpcall_mcp_initialize(self, capabilities=None, clientInfo=None, *args, **kwargs):
+	async def _rpc_mcp_initialize(self, capabilities=None, clientInfo=None, *args, **kwargs):
 		capabilities = capabilities or {}
 		clientInfo = clientInfo or {}
 
@@ -100,7 +100,7 @@ class MCPService(asab.Service):
 		}
 
 
-	async def _rcpcall_tools_list(self, *args, **kwargs):
+	async def _rcp_tools_list(self, *args, **kwargs):
 		'''
 		To discover available tools, clients send a tools/list request.
 
@@ -115,7 +115,7 @@ class MCPService(asab.Service):
 		}
 
 
-	async def _rcpcall_tools_call(self, name, arguments, *args, **kwargs):
+	async def _rpc_tools_call(self, name, arguments, *args, **kwargs):
 		'''
 		To invoke a tool, clients send a tools/call request.
 
@@ -174,7 +174,7 @@ class MCPService(asab.Service):
 		}
 
 
-	async def _rcpcall_resources_list(self, *args, **kwargs):
+	async def _rpc_resources_list(self, *args, **kwargs):
 		'''
 		To list resources, clients send a resources/list request.
 
@@ -203,7 +203,7 @@ class MCPService(asab.Service):
 		}
 
 
-	async def _rcpcall_resources_read(self, uri, *args, **kwargs):
+	async def _rpc_resources_read(self, uri, *args, **kwargs):
 		'''
 		To read a resource, clients send a resources/read request.
 
@@ -238,7 +238,7 @@ class MCPService(asab.Service):
 		}
 
 
-	async def _rcpcall_resource_templates_list(self, *args, **kwargs):
+	async def _rpc_resource_templates_list(self, *args, **kwargs):
 		'''
 		To discover available resource templates, clients send a resources/templates/list request.
 
@@ -253,7 +253,7 @@ class MCPService(asab.Service):
 		}
 
 
-	async def _rcpcall_notifications_initialized(self, *args, **kwargs):
+	async def _rpc_notifications_initialized(self, *args, **kwargs):
 		"""
 		This notification is sent from the client to the server after initialization has finished.
 

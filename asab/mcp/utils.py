@@ -1,5 +1,5 @@
 
-def rpccall_ping(*args, **kwargs):
+def rpc_ping(*args, **kwargs):
 	"""
 	MCP ping method - health check endpoint.
 	Returns an empty result to confirm the server is alive and responsive.
