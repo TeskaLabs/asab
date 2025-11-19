@@ -54,5 +54,7 @@ def uri_template_match_(pattern, uri: str) -> dict:
 	According to RFC 6570 URI Template Matching
 	'''
 
+	# TODO: This is a placeholder implementation, more complete implementation of RFC 6570 URI Template Matching is needed
+
 	# URI template is ie "note://{path}", uri is e.g. "note://notes/mynote.md"
 	return pattern == uri
