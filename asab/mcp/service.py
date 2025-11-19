@@ -5,7 +5,7 @@ import asab
 
 import aiohttp_rpc
 
-from .utils import rcpcall_ping, prune_nulls
+from .utils import rpccall_ping, prune_nulls
 from .datacls import MCPToolResultTextContent, MCPToolResultResourceLink
 
 
@@ -26,7 +26,7 @@ class MCPService(asab.Service):
 
 		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rcpcall_mcp_initialize, name="initialize"))
 		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rcpcall_notifications_initialized, name="notifications/initialized"))
-		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(rcpcall_ping, name="ping"))
+		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(rpccall_ping, name="ping"))
 
 		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rcpcall_tools_list, name="tools/list"))
 		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rcpcall_tools_call, name="tools/call"))
