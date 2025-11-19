@@ -283,8 +283,8 @@ class LibraryService(Service):
 
 	async def list(self, path: str = "/", recursive: bool = False) -> typing.List[LibraryItem]:
 		"""
-		List the directory of the library specified by the path that are enabled for the specified tenant.
-		This method can be used only after the Library is ready.
+		List the directory of the library specified by the path that are enabled for the
+		specified target (global, tenant, or personal).
 
 		**WARNING:** Tenant must be set in the context variable!
 		If it is not set automatically (e.g. from web request), it must be set manually.
@@ -888,6 +888,8 @@ class LibraryService(Service):
 				- "global" to watch global path changes
 				- "tenant" to watch path changes in tenants
 				- ("tenant", TENANT_ID) to watch path changes in one specified tenant TENANT_ID
+				- "personal" to watch path changes for all personal credential IDs
+				- ("personal", CREDENTIALS_ID) to watch in one specific personal scope
 
 		Examples:
 		```python
