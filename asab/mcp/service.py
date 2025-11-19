@@ -75,7 +75,7 @@ class MCPService(asab.Service):
 
 
 	async def _rpc_mcp_initialize(self, capabilities=None, clientInfo=None, *args, **kwargs):
-		capabilities = capabilities or {}
+		capabilities = capabilities.copy() or {}
 		clientInfo = clientInfo or {}
 
 		L.log(asab.LOG_NOTICE, "MCP Client initializing", struct_data={
@@ -88,7 +88,6 @@ class MCPService(asab.Service):
 		for instruction in self.Instructions.values():
 			instructions += instruction + "\n"
 
-		capabilities = {}
 		if len(self.Tools) > 0:
 			capabilities['tools'] = {
 				'listChanged': True,
@@ -131,6 +130,7 @@ class MCPService(asab.Service):
 
 		https://modelcontextprotocol.io/specification/2025-06-18/server/tools#invoking-tools
 		'''
+		arguments = arguments or {}
 
 		x = self.Tools.get(name)
 		if x is None:
