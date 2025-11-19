@@ -422,10 +422,11 @@ class LibraryService(Service):
 			self.FavoritePaths = []
 			return
 		finally:
-			try:
-				fav_file.close()
-			except Exception:
-				pass
+			if hasattr(fav_file, "close"):
+				try:
+					fav_file.close()
+				except Exception:
+					pass
 
 		if fav_data is None:
 			self.Favorites = {}
