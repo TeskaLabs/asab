@@ -399,8 +399,6 @@ class LibraryService(Service):
 				tenants:
 				- system
 		"""
-		old_favorites = self.Favorites.copy()
-		old_favorite_paths = list(self.FavoritePaths)
 		fav_data = None
 
 		try:
