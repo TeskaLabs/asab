@@ -298,13 +298,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		candidate_paths: typing.List[str] = []
 
 		# personal (needs both tenant + CredentialsId)
-		tenant_id = None
 		try:
 			tenant_id = Tenant.get()
 		except LookupError:
 			tenant_id = None
 
-		cred_id = None
 		try:
 			authz = Authz.get()
 			cred_id = getattr(authz, "CredentialsId", None)
@@ -334,7 +332,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		except kazoo.exceptions.ConnectionClosedError:
 			L.warning("Zookeeper library provider is not ready")
-			raise RuntimeError("Zookeeper library provider is not ready")
+			raise RuntimeError("Zookeeper library provider is not ready")  from None
 
 	async def list(self, path: str) -> list:
 		if self.Zookeeper is None:
