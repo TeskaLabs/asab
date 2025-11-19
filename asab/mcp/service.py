@@ -14,12 +14,16 @@ L = logging.getLogger(__name__)
 
 class MCPService(asab.Service):
 
-	def __init__(self, app, web, service_name="asab.MCPService"):
+	def __init__(self, app, web, service_name="asab.MCPService", name="asab-mcp", version="25.11.0"):
 		super().__init__(app, service_name)
 
 		self.Tools = {}
 		self.ResourceTemplates = {}
 		self.ResourceLists = {}
+		self.Instructions = {}
+
+		self.Name = name
+		self.Version = version
 
 		self.RPCServer = aiohttp_rpc.JsonRpcServer(middlewares=[logging_middleware])
 		web.add_post(r'/{tenant}/mcp', self._handle_http_request)
@@ -61,6 +65,10 @@ class MCPService(asab.Service):
 		self.ResourceLists[resource_uri_prefix] = resource_list_function
 
 
+	def add_instruction(self, who, instruction):
+		self.Instructions[who] = instruction
+
+
 	async def _handle_http_request(self, request):
 		# TODO: Handle tenant and authorization
 		return await self.RPCServer.handle_http_request(request)
@@ -76,6 +84,10 @@ class MCPService(asab.Service):
 
 		})
 
+		instructions = ""
+		for instruction in self.Instructions.values():
+			instructions += instruction + "\n"
+
 		capabilities = {}
 		if len(self.Tools) > 0:
 			capabilities['tools'] = {
@@ -90,12 +102,10 @@ class MCPService(asab.Service):
 		return {
 			"protocolVersion": "2024-11-05",
 			"serverInfo": {
-				"name": "asab-mcp",
-				"version": "25.11.0",
+				"name": self.Name,
+				"version": self.Version,
 			},
-			"instructions": (
-				"ASAB MCP server is ready."
-			),
+			"instructions": instructions,
 			"capabilities": capabilities,
 		}
 
