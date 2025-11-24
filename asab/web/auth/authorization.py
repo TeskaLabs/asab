@@ -191,7 +191,7 @@ class Authorization:
 		if not self.has_superuser_access():
 			L.warning("Superuser authorization required.", struct_data={
 				"cid": self.CredentialsId})
-			raise AccessDeniedError()
+			raise AccessDeniedError(scope=[SUPERUSER_RESOURCE_ID])
 
 
 	def require_resource_access(self, *resources: str):
@@ -214,7 +214,7 @@ class Authorization:
 		if not self.has_resource_access(*resources):
 			L.warning("Resource authorization required.", struct_data={
 				"resource": resources, "cid": self.CredentialsId})
-			raise AccessDeniedError()
+			raise AccessDeniedError(scope=list(resources))
 
 
 	def require_tenant_access(self, tenant=None):
@@ -253,7 +253,7 @@ class Authorization:
 		if not has_tenant_access(self._Resources, tenant):
 			L.warning("Tenant authorization required.", struct_data={
 				"tenant": tenant, "cid": self.CredentialsId})
-			raise AccessDeniedError()
+			raise AccessDeniedError(scope=["tenant:{}".format(tenant)])
 
 
 	def user_info(self) -> typing.Dict[str, typing.Any]:
