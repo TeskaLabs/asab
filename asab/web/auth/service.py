@@ -1,6 +1,7 @@
 import functools
 import inspect
 import logging
+import re
 import typing
 
 import aiohttp
@@ -142,6 +143,20 @@ class AuthService(Service):
 
 		L.warning("Cannot authenticate request: No valid authorization provider found.")
 		raise NotAuthenticatedError()
+
+
+	def get_auth_servers(self) -> typing.List[str]:
+		"""
+		Get the list of authorization servers trusted by the AuthService.
+
+		Returns:
+			List of authorization server URLs.
+		"""
+		# TODO: Temporary redundant config - Use providers to get the auth servers
+		auth_servers = Config.get("auth", "servers", fallback="").strip()
+		if not auth_servers:
+			return []
+		return re.split(r"\s+", auth_servers, flags=re.MULTILINE)
 
 
 	def _set_up_providers(self):
