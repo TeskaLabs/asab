@@ -29,8 +29,6 @@ class MCPService(asab.Service):
 
 		self.RPCServer = aiohttp_rpc.JsonRpcServer(middlewares=[logging_middleware])
 		web.add_post(r'/{tenant}/mcp', self._handle_http_request)
-		web.add_get(r'/.well-known/oauth-protected-resource/{resource:.*}', self._resource_metadata)
-		asab.web.tenant.NO_TENANT_ROUTES.add('/.well-known/oauth-protected-resource/{resource}')
 
 		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rpc_mcp_initialize, name="initialize"))
 		self.RPCServer.add_method(aiohttp_rpc.JsonRpcMethod(self._rpc_notifications_initialized, name="notifications/initialized"))
@@ -76,29 +74,6 @@ class MCPService(asab.Service):
 	async def _handle_http_request(self, request):
 		# TODO: Handle tenant and authorization
 		return await self.RPCServer.handle_http_request(request)
-
-
-	@asab.web.auth.noauth
-	async def _resource_metadata(self, request):
-		"""
-		Handles OAuth 2.1 Resource Metadata requests.
-
-		https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization#authorization-server-location
-		"""
-		resource_id = request.match_info["resource"]
-		response = {
-			"resource": resource_id,
-		}
-		# TODO: Check resource existence and authorization
-		# TODO: Resource must contain tenant ID
-		# resource = self.get_resource_metadata(resource_id)
-		# if "name" in resource:
-		# 	response["resource_name"] = resource["name"]
-
-		auth_svc = self.App.get_service("asab.AuthService")
-		if auth_svc is not None:
-			response["authorization_servers"] = auth_svc.get_auth_servers()
-		return asab.web.rest.json_response(request, response)
 
 
 	async def _rpc_mcp_initialize(self, capabilities=None, clientInfo=None, *args, **kwargs):
