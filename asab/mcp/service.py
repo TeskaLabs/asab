@@ -2,8 +2,6 @@ import logging
 import dataclasses
 
 import asab
-import asab.web.rest
-import asab.web.tenant
 
 import aiohttp_rpc
 

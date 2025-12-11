@@ -66,5 +66,3 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 		self.Authorizations[access_token] = authz
 		return authz
-
-
