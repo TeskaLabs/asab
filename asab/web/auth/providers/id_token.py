@@ -3,6 +3,7 @@ import logging
 import aiohttp.web
 import jwcrypto.jwt
 import jwcrypto.jwk
+import asab
 
 from .abc import AuthProviderABC
 from .key_providers import PublicKeyProviderABC
