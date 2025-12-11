@@ -191,7 +191,7 @@ class Authorization:
 		if not self.has_superuser_access():
 			L.warning("Superuser authorization required.", struct_data={
 				"cid": self.CredentialsId})
-			raise AccessDeniedError(scope=[SUPERUSER_RESOURCE_ID])
+			raise AccessDeniedError()
 
 
 	def require_resource_access(self, *resources: str):
@@ -214,7 +214,7 @@ class Authorization:
 		if not self.has_resource_access(*resources):
 			L.warning("Resource authorization required.", struct_data={
 				"resource": resources, "cid": self.CredentialsId})
-			scope = set(resources)
+			scope = set()
 			_add_tenant_scope(scope)
 			raise AccessDeniedError(scope=scope)
 
