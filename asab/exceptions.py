@@ -6,12 +6,12 @@ class _WWWAuthenticateMixin:
 	def update_www_authenticate(
 		self,
 		*,
-		realm: str | None = None,
-		scope: typing.List[str] | None = None,
-		error: str | None = None,
-		error_description: str | None = None,
-		error_uri: str | None = None,
-		resource_metadata: str | None = None,
+		realm: typing.Optional[str] = None,
+		scope: typing.Optional[typing.List[str]] = None,
+		error: typing.Optional[str] = None,
+		error_description: typing.Optional[str] = None,
+		error_uri: typing.Optional[str] = None,
+		resource_metadata: typing.Optional[str] = None,
 	):
 		if not hasattr(self, "WwwAuthenticate"):
 			self.WWWAuthenticate = {}
@@ -52,12 +52,12 @@ class NotAuthenticatedError(_WWWAuthenticateMixin, aiohttp.web.HTTPUnauthorized)
 	def __init__(
 		self,
 		*args,
-		realm: str | None = "asab",
-		scope: typing.List[str] | None = None,
-		error: str | None = "invalid_token",
-		error_description: str | None = None,
-		error_uri: str | None = None,
-		resource_metadata: str | None = None,
+		realm: typing.Optional[str] = "asab",
+		scope: typing.Optional[typing.List[str]] = None,
+		error: typing.Optional[str] = "invalid_token",
+		error_description: typing.Optional[str] = None,
+		error_uri: typing.Optional[str] = None,
+		resource_metadata: typing.Optional[str] = None,
 		**kwargs
 	):
 		"""
@@ -88,12 +88,12 @@ class AccessDeniedError(_WWWAuthenticateMixin, aiohttp.web.HTTPForbidden):
 	def __init__(
 		self,
 		*args,
-		realm: str | None = "asab",
-		scope: typing.List[str] | None = None,
-		error: str | None = "insufficient_scope",
-		error_description: str | None = None,
-		error_uri: str | None = None,
-		resource_metadata: str | None = None,
+		realm: typing.Optional[str] = "asab",
+		scope: typing.Optional[typing.List[str]] = None,
+		error: typing.Optional[str] = "insufficient_scope",
+		error_description: typing.Optional[str] = None,
+		error_uri: typing.Optional[str] = None,
+		resource_metadata: typing.Optional[str] = None,
 		**kwargs
 	):
 		"""
