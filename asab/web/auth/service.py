@@ -133,15 +133,20 @@ class AuthService(Service):
 		Raises:
 			NotAuthenticatedError: When no provider is able to authorize the request
 		"""
+		error = None
 		for provider in self.Providers:
 			try:
 				return await provider.authorize(request)
-			except NotAuthenticatedError:
+			except NotAuthenticatedError as e:
 				# Provider was unable to authenticate request
 				# L.debug("Authorization failed.", struct_data={"auth_provider": provider.Type})
-				pass
+				error = e
 
 		L.warning("Cannot authenticate request: No valid authorization provider found.")
+		if error:
+			# Re-raise the last error, preserve the original error response headers
+			raise error
+
 		raise NotAuthenticatedError()
 
 
