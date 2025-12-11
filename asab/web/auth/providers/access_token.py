@@ -32,6 +32,14 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 
 	async def authorize(self, request: aiohttp.web.Request) -> Authorization:
+		try:
+			return await self._authorize(request)
+		except NotAuthenticatedError as e:
+			e.update_www_authenticate(resource_metadata=self.ResourceMatadataUrl)
+			raise e
+
+
+	async def _authorize(self, request: aiohttp.web.Request) -> Authorization:
 		access_token = get_bearer_token_from_authorization_header(request)
 
 		# Try if the access token is already known
@@ -49,7 +57,7 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 			async with session.post(self.IntrospectionUrl, headers=request.headers) as response:
 				if response.status != 200:
 					L.warning("Access token introspection failed.")
-					raise aiohttp.web.HTTPUnauthorized()
+					raise NotAuthenticatedError()
 				id_token = get_bearer_token_from_authorization_header(response)
 
 		# Create a new Authorization object and store it
@@ -58,3 +66,5 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 		self.Authorizations[access_token] = authz
 		return authz
+
+
