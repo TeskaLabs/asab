@@ -13,7 +13,7 @@ class _WWWAuthenticateMixin:
 		error_uri: typing.Optional[str] = None,
 		resource_metadata: typing.Optional[str] = None,
 	):
-		if not hasattr(self, "WwwAuthenticate"):
+		if not hasattr(self, "WWWAuthenticate"):
 			self.WWWAuthenticate = {}
 		if realm is not None:
 			self.WWWAuthenticate["realm"] = realm
