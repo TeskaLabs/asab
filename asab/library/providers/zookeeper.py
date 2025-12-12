@@ -402,7 +402,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 						node_path = self._personal_node_path(fname, tenant_id, cred_id) or ""
 					else:
 						node_path = self.build_path(fname, tenant_specific=(target == "tenant"))
-					zstat = self.Zookeeper.Client.exists(node_path) if node_path else None
+					zstat = await self.Zookeeper.exists(node_path) if node_path else None
 					size = zstat.dataLength if zstat else 0
 				except kazoo.exceptions.NoNodeError:
 					size = None
