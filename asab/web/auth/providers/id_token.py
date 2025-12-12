@@ -3,6 +3,7 @@ import logging
 import aiohttp.web
 import jwcrypto.jwt
 import jwcrypto.jwk
+import asab
 
 from .abc import AuthProviderABC
 from .key_providers import PublicKeyProviderABC
@@ -23,6 +24,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 	def __init__(self, app, public_key_providers: typing.Iterable[PublicKeyProviderABC] = ()):
 		super().__init__(app)
 		self.TrustedJwkSet: jwcrypto.jwk.JWKSet = jwcrypto.jwk.JWKSet()
+		self.ResourceMatadataUrl = asab.Config.get("auth", "resource_metadata_url", fallback=None)
 		self._KeyProviders = set()
 		for provider in public_key_providers:
 			self.register_key_provider(provider)
@@ -46,11 +48,15 @@ class IdTokenAuthProvider(AuthProviderABC):
 	async def authorize(self, request: aiohttp.web.Request) -> Authorization:
 		if not self._KeyProviders:
 			L.warning("No public key providers registered for ID token authentication.")
-			raise NotAuthenticatedError()
+			raise NotAuthenticatedError(resource_metadata=self.ResourceMatadataUrl)
 
-		bearer_token = get_bearer_token_from_authorization_header(request)
-		authz = await self._build_authorization(bearer_token)
-		return authz
+		try:
+			bearer_token = get_bearer_token_from_authorization_header(request)
+			authz = await self._build_authorization(bearer_token)
+			return authz
+		except NotAuthenticatedError as e:
+			e.update_www_authenticate(resource_metadata=self.ResourceMatadataUrl)
+			raise e
 
 
 	def collect_keys(self, *args, **kwargs):
