@@ -71,7 +71,7 @@ class NotAuthenticatedError(_WWWAuthenticateMixin, aiohttp.web.HTTPUnauthorized)
 			resource_metadata: The URL of the protected resource metadata (RFC9728)
 			**kwargs:
 		"""
-		super().__init__()
+		super().__init__(*args, **kwargs)
 		self.WWWAuthenticate = {}
 		self.update_www_authenticate(
 			realm=realm,
@@ -108,7 +108,7 @@ class AccessDeniedError(_WWWAuthenticateMixin, aiohttp.web.HTTPForbidden):
 			resource_metadata: The URL of the protected resource metadata (RFC9728)
 			**kwargs:
 		"""
-		super().__init__()
+		super().__init__(*args, **kwargs)
 		self.WWWAuthenticate = {}
 		self.update_www_authenticate(
 			realm=realm,
