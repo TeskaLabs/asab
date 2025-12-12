@@ -1,4 +1,5 @@
 import aiohttp.web
+import aiohttp.hdrs
 import typing
 
 
@@ -77,6 +78,7 @@ class NotAuthenticatedError(_WWWAuthenticateMixin, aiohttp.web.HTTPUnauthorized)
 			scope=scope,
 			error=error,
 			error_description=error_description,
+			error_uri=error_uri,
 			resource_metadata=resource_metadata
 		)
 
@@ -113,6 +115,7 @@ class AccessDeniedError(_WWWAuthenticateMixin, aiohttp.web.HTTPForbidden):
 			scope=scope,
 			error=error,
 			error_description=error_description,
+			error_uri=error_uri,
 			resource_metadata=resource_metadata
 		)
 
