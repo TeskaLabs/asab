@@ -273,21 +273,25 @@ class FileSystemLibraryProviderTarget(LibraryProviderABC):
 		while pos < len(data):
 			wd, mask, cookie, namesize = struct.unpack_from(EVENT_FMT, data, pos)
 			pos += EVENT_SIZE + namesize
-
-			if mask & IN_IGNORED == IN_IGNORED:
-				if wd in self.WDs:
-					del self.WDs[wd]
-				continue
-
 			name = (data[pos - namesize: pos].split(b'\x00', 1)[0]).decode()
 
-			# Track disabled changes globally only (matches original provider behavior)
+			# Record events for aggregation (so _on_aggr_timer can publish changes)
+			self.AggrEvents.append((wd, mask, cookie, name))
+
+			if mask & IN_ISDIR == IN_ISDIR and ((mask & IN_CREATE == IN_CREATE) or (mask & IN_MOVED_TO == IN_MOVED_TO)):
+				subscribed_path, child_path = self.WDs[wd]
+				self._subscribe_recursive(subscribed_path, "/".join([child_path, name]))
+
+			if mask & IN_IGNORED == IN_IGNORED:
+				# cleanup
+				del self.WDs[wd]
+				continue
+
 			full_path = os.path.join(self.BasePath, name)
 			if os.path.normpath(full_path) == os.path.normpath(self.DisabledFilePath):
 				self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
 
 		self.AggrTimer.restart(0.2)
-
 
 	async def _on_aggr_timer(self):
 		to_advertise = set()
