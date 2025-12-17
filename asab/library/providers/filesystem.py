@@ -30,7 +30,7 @@ except OSError:
 L = logging.getLogger(__name__)
 
 
-class FileSystemLibraryProviderTarget(LibraryProviderABC):
+class FileSystemLibraryProvider(LibraryProviderABC):
 	"""
 	Filesystem provider with ZooKeeper-like target semantics:
 
