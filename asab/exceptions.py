@@ -1,4 +1,41 @@
 import aiohttp.web
+import aiohttp.hdrs
+import typing
+
+
+class _WWWAuthenticateMixin:
+	def update_www_authenticate(
+		self,
+		*,
+		realm: typing.Optional[str] = None,
+		scope: typing.Optional[typing.List[str]] = None,
+		error: typing.Optional[str] = None,
+		error_description: typing.Optional[str] = None,
+		error_uri: typing.Optional[str] = None,
+		resource_metadata: typing.Optional[str] = None,
+	):
+		if not hasattr(self, "WWWAuthenticate"):
+			self.WWWAuthenticate = {}
+		if realm is not None:
+			self.WWWAuthenticate["realm"] = realm
+		if scope is not None:
+			self.WWWAuthenticate["scope"] = scope
+		if error is not None:
+			self.WWWAuthenticate["error"] = error
+		if error_description is not None:
+			self.WWWAuthenticate["error_description"] = error_description
+		if error_uri is not None:
+			self.WWWAuthenticate["error_uri"] = error_uri
+		if resource_metadata is not None:
+			self.WWWAuthenticate["resource_metadata"] = resource_metadata
+
+		# Update the header
+		if hasattr(self, "headers"):
+			self.headers[aiohttp.hdrs.WWW_AUTHENTICATE] = "Bearer " + ", ".join(
+				"{}=\"{}\"".format(k, (" ".join(v) if k == "scope" else v))
+				for k, v in self.WWWAuthenticate.items()
+				if v is not None
+			)
 
 
 class ValidationError(Exception):
@@ -9,20 +46,78 @@ class ValidationError(Exception):
 	pass
 
 
-class NotAuthenticatedError(aiohttp.web.HTTPUnauthorized):
+class NotAuthenticatedError(_WWWAuthenticateMixin, aiohttp.web.HTTPUnauthorized):
 	"""
 	Request could not be authenticated
 	"""
-	def __init__(self):
-		# TODO: Optionally include "error", "realm" etc. (https://www.rfc-editor.org/rfc/rfc6750#section-3)
-		super().__init__(headers={"WWW-Authenticate": "Bearer scope=openid"})
+	def __init__(
+		self,
+		*args,
+		realm: typing.Optional[str] = "asab",
+		scope: typing.Optional[typing.List[str]] = None,
+		error: typing.Optional[str] = "invalid_token",
+		error_description: typing.Optional[str] = None,
+		error_uri: typing.Optional[str] = None,
+		resource_metadata: typing.Optional[str] = None,
+		**kwargs
+	):
+		"""
+		Args:
+			*args:
+			realm: Defines the protection space within the server being accessed (RFC2617)
+			scope: The scope required to access the resource (RFC6750)
+			error: ASCII error code (RFC6750)
+			error_description: Human-readable UTF-8 encoded text providing additional error information (RFC6750)
+			resource_metadata: The URL of the protected resource metadata (RFC9728)
+			**kwargs:
+		"""
+		super().__init__(*args, **kwargs)
+		self.WWWAuthenticate = {}
+		self.update_www_authenticate(
+			realm=realm,
+			scope=scope,
+			error=error,
+			error_description=error_description,
+			error_uri=error_uri,
+			resource_metadata=resource_metadata
+		)
 
 
-class AccessDeniedError(aiohttp.web.HTTPForbidden):
+class AccessDeniedError(_WWWAuthenticateMixin, aiohttp.web.HTTPForbidden):
 	"""
 	Authenticated subject does not have the rights to access requested resource
 	"""
-	pass
+	def __init__(
+		self,
+		*args,
+		realm: typing.Optional[str] = "asab",
+		scope: typing.Optional[typing.List[str]] = None,
+		error: typing.Optional[str] = "insufficient_scope",
+		error_description: typing.Optional[str] = None,
+		error_uri: typing.Optional[str] = None,
+		resource_metadata: typing.Optional[str] = None,
+		**kwargs
+	):
+		"""
+		Args:
+			*args:
+			realm: Defines the protection space within the server being accessed (RFC2617)
+			scope: The scope required to access the resource (RFC6750)
+			error: ASCII error code (RFC6750)
+			error_description: Human-readable UTF-8 encoded text providing additional error information (RFC6750)
+			resource_metadata: The URL of the protected resource metadata (RFC9728)
+			**kwargs:
+		"""
+		super().__init__(*args, **kwargs)
+		self.WWWAuthenticate = {}
+		self.update_www_authenticate(
+			realm=realm,
+			scope=scope,
+			error=error,
+			error_description=error_description,
+			error_uri=error_uri,
+			resource_metadata=resource_metadata
+		)
 
 
 class Conflict(Exception):
