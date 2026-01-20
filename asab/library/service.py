@@ -531,7 +531,7 @@ class LibraryService(Service):
 		if any subscribed path is affected for the specific subscription target.
 		"""
 
-		if not self.Libraries:
+		if len(self.Libraries) == 0:
 			return
 
 		# Only the first provider (layer 0) owns and manages '/.disabled.yaml',
