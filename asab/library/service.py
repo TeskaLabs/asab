@@ -86,7 +86,7 @@ class LibraryService(Service):
 		self.DisabledPaths: list = []
 		self.Favorites: dict = {}
 		self.FavoritePaths: list = []
-		self.__is_ready_last = False
+		self.__is_ready_last = False  # This is to ensure edge "not ready" -> "ready" to be published during initialization.
 
 
 		if paths is None:
