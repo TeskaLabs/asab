@@ -101,7 +101,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 		# Create a new Authorization object and store it
 		claims = await self._get_claims_from_id_token(id_token)
-		authz = Authorization(claims)
+		authz = Authorization(claims, id_token=id_token)
 
 		self.Authorizations[id_token] = authz
 		return authz

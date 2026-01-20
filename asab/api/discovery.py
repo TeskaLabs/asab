@@ -16,6 +16,7 @@ except ModuleNotFoundError:
 
 from .. import Service
 from ..contextvars import Request
+from ..web.auth.authorization import Authorization
 
 
 L = logging.getLogger(__name__)
@@ -333,6 +334,10 @@ class DiscoveryService(Service):
 			assert "Authorization" in auth.headers
 			_headers["Authorization"] = auth.headers["Authorization"]
 
+		elif isinstance(auth, Authorization):
+			if auth.IdToken is not None:
+				_headers["Authorization"] = f"Bearer {auth.IdToken}"
+
 		elif auth == "internal":
 			if self.InternalAuth is None:
 				raise ModuleNotFoundError(
@@ -396,13 +401,14 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 		for phostname, pport, pfamily in located_instances:
 			try:
 				resolved = await super().resolve(phostname, pport, pfamily)
-			except socket.gaierror:
+			except Exception:
 				# Skip unresolved hosts
+				# We receive different type of exceptions in different Python versions, so we just skip them
 				continue
 			hosts.extend(resolved)
 
 		if len(hosts) == 0:
-			raise NotDiscoveredError("Failed to resolve any of the hosts for '{}'.".format(hostname))
+			raise NotDiscoveredError("Failed to resolve any of the hosts for '{}' / '{}'.".format(hostname, ','.join(x[0] for x in set(x[0] for x in located_instances))))
 
 		return hosts
 

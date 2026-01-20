@@ -40,7 +40,19 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 
 	async def _authorize(self, request: aiohttp.web.Request) -> Authorization:
-		access_token = get_bearer_token_from_authorization_header(request)
+		access_token = None
+		if request.headers.get('connection').lower() == 'upgrade':
+			# Special handling for WebSocket connections
+			protocol = request.headers.get('sec-websocket-protocol')
+			if protocol is not None:
+				for p in protocol.split(', '):
+					if not p.startswith('access_token_'):
+						continue
+					access_token = p.split('access_token_')[1]
+					break
+
+		if access_token is None:
+			access_token = get_bearer_token_from_authorization_header(request)
 
 		# Try if the access token is already known
 		authz = self.Authorizations.get(access_token)
@@ -62,7 +74,7 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 		# Create a new Authorization object and store it
 		claims = await self._get_claims_from_id_token(id_token)
-		authz = Authorization(claims)
+		authz = Authorization(claims, id_token=id_token)
 
 		self.Authorizations[access_token] = authz
 		return authz
