@@ -395,8 +395,13 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 
 		hosts = []
 		located_instances = await self.DiscoveryService._locate({url_split[1]: url_split[0]})
+		# The content of located_instance is a set of tuples that looks like:
+		# {
+		#    ('asab-usvc-1', 8953, <AddressFamily.AF_INET: 2>),
+		#    ('asab-usvs-1', 8953, <AddressFamily.AF_INET6: 30>)
+		# }
 		if located_instances is None or len(located_instances) == 0:
-			raise NotDiscoveredError("Failed to discover '{}'.".format(hostname))
+			raise NotDiscoveredError("Failed to discover '{}'".format(hostname))
 
 		for phostname, pport, pfamily in located_instances:
 			try:
