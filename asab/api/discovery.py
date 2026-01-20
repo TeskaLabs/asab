@@ -408,6 +408,7 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 				resolved = await super().resolve(phostname, pport, pfamily)
 			except Exception:
 				# Skip unresolved hosts
+				L.debug("Error when resolving host '{}'".format(phostname))
 				# We receive different type of exceptions in different Python versions, so we just skip them
 				continue
 			hosts.extend(resolved)
