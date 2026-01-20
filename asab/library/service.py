@@ -173,17 +173,17 @@ class LibraryService(Service):
 			await self._read_disabled()
 			await self._read_favorites()
 
-		match (self.__is_ready_last, self.is_ready()):
+		edge = (self.__is_ready_last, self.is_ready())
 
-			case (False, True):  # The edge 'not ready' -> 'ready'
-				self.__is_ready_last = True
-				L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
-				self.App.PubSub.publish("Library.ready!", self)
+		if edge == (False, True):  # The edge 'not ready' -> 'ready'
+			self.__is_ready_last = True
+			L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
+			self.App.PubSub.publish("Library.ready!", self)
 
-			case (True, False):  # The edge 'ready' -> 'not ready'
-				self.__is_ready_last = False
-				L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
-				self.App.PubSub.publish("Library.not_ready!", self)
+		elif edge == (True, False):  # The edge 'ready' -> 'not ready'
+			self.__is_ready_last = False
+			L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
+			self.App.PubSub.publish("Library.not_ready!", self)
 
 
 	def _ensure_ready(self):
