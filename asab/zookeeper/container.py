@@ -135,9 +135,16 @@ class ZooKeeperContainer(Configurable):
 		* ZooKeeperContainer.state/LOST!
 		* ZooKeeperContainer.state/SUSPENDED!
 		'''
-		session_id = getattr(self.ZooKeeper.Client, '_session_id', None)
-		if session_id is not None:
-			session_id = hex(session_id)
+		session_id = None
+		client_id = getattr(self.ZooKeeper.Client, 'client_id', None)
+		if client_id:
+			try:
+				raw_session_id = client_id[0]
+				if raw_session_id is not None:
+					session_id = hex(raw_session_id)
+			except (TypeError, IndexError, ValueError):
+				# Unexpected client_id format; leave session_id as None
+				pass
 
 		connected_node = None
 		conn = self.ZooKeeper.Client._connection
