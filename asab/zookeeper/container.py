@@ -143,8 +143,12 @@ class ZooKeeperContainer(Configurable):
 		conn = self.ZooKeeper.Client._connection
 		sock = conn._socket if conn else None
 		if sock is not None:
-			peername = sock.getpeername()
-			connected_node = "{}:{}".format(peername[0], peername[1])
+			try:
+				peername = sock.getpeername()
+				connected_node = "{}:{}".format(peername[0], peername[1])
+			except OSError:
+				# Socket is not connected or has been closed
+				pass
 
 		if state == kazoo.protocol.states.KazooState.CONNECTED:
 			self.ProactorService.schedule_threadsafe(self._on_connected_at_proactor_thread)
