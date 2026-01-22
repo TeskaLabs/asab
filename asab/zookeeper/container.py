@@ -135,12 +135,12 @@ class ZooKeeperContainer(Configurable):
 		* ZooKeeperContainer.state/LOST!
 		* ZooKeeperContainer.state/SUSPENDED!
 		'''
-		session_id = getattr(self.Client, '_session_id', None)
+		session_id = getattr(self.ZooKeeper.Client, '_session_id', None)
 		if session_id is not None:
 			session_id = hex(session_id)
 
 		connected_node = None
-		conn = self.Client._connection
+		conn = self.ZooKeeper.Client._connection
 		sock = conn._socket if conn else None
 		if sock is not None:
 			peername = sock.getpeername()
