@@ -147,14 +147,19 @@ class ZooKeeperContainer(Configurable):
 				pass
 
 		connected_node = None
-		conn = self.ZooKeeper.Client._connection
-		sock = conn._socket if conn else None
+		# Access private kazoo internals defensively so changes in kazoo do not break us
+		try:
+			conn = self.ZooKeeper.Client._connection
+			sock = conn._socket if conn else None
+		except AttributeError:
+			sock = None
+
 		if sock is not None:
 			try:
 				peername = sock.getpeername()
 				connected_node = "{}:{}".format(peername[0], peername[1])
-			except OSError:
-				# Socket is not connected or has been closed
+			except (OSError, AttributeError):
+				# Socket is not connected, has been closed, or no longer exposes getpeername
 				pass
 
 		if state == kazoo.protocol.states.KazooState.CONNECTED:
