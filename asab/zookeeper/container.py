@@ -137,7 +137,7 @@ class ZooKeeperContainer(Configurable):
 		'''
 		session_id = None
 		client_id = getattr(self.ZooKeeper.Client, 'client_id', None)
-		if client_id:
+		if client_id is not None:
 			try:
 				raw_session_id = client_id[0]
 				if raw_session_id is not None:
