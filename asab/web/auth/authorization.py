@@ -27,7 +27,7 @@ class Authorization:
 		IssuedAt (datetime.datetime): Timestamp when the authorization was issued.
 		Expiration (datetime.datetime): Timestamp when the authorization expires.
 	"""
-	def __init__(self, claims: dict):
+	def __init__(self, claims: dict, id_token: str = None):
 		"""
 		Initialize Authorization object from authorization server claims.
 
@@ -56,6 +56,8 @@ class Authorization:
 		except KeyError:
 			L.error("ID token is missing the required 'exp' field.")
 			raise NotAuthenticatedError()
+
+		self.IdToken = id_token
 
 
 	def __repr__(self):

@@ -4,7 +4,7 @@ import aiohttp.web
 
 from .id_token import IdTokenAuthProvider
 from asab.web.auth.providers.key_providers.abc import PublicKeyProviderABC
-from ..utils import get_bearer_token_from_authorization_header
+from ..utils import get_bearer_token_from_authorization_header, get_bearer_token_from_websocket_request
 from ..authorization import Authorization
 from ....exceptions import NotAuthenticatedError
 
@@ -40,7 +40,13 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 
 	async def _authorize(self, request: aiohttp.web.Request) -> Authorization:
-		access_token = get_bearer_token_from_authorization_header(request)
+		access_token = None
+		if request.headers.get('connection', "").lower() == 'upgrade':
+			# Special handling for WebSocket connections
+			access_token = get_bearer_token_from_websocket_request(request)
+
+		if access_token is None:
+			access_token = get_bearer_token_from_authorization_header(request)
 
 		# Try if the access token is already known
 		authz = self.Authorizations.get(access_token)
@@ -62,7 +68,7 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 		# Create a new Authorization object and store it
 		claims = await self._get_claims_from_id_token(id_token)
-		authz = Authorization(claims)
+		authz = Authorization(claims, id_token=id_token)
 
 		self.Authorizations[access_token] = authz
 		return authz

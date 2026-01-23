@@ -15,7 +15,7 @@ except ModuleNotFoundError:
 	jwcrypto = None
 
 from .. import Service
-from ..contextvars import Request
+from ..contextvars import Request, Authz
 
 
 L = logging.getLogger(__name__)
@@ -324,10 +324,18 @@ class DiscoveryService(Service):
 		_headers = {}
 
 		if auth is None:
-			# By default, use the authorization from the incoming request
-			request = Request.get(None)
-			if request is not None and "Authorization" in request.headers:
-				_headers["Authorization"] = request.headers["Authorization"]
+			# By default, use the authorization from the actual authorization context, or the incoming request
+			try:
+				authz = Authz.get()
+			except LookupError:
+				authz = None
+			if authz is not None and authz.IdToken is not None:
+				_headers["Authorization"] = f"Bearer {authz.IdToken}"
+			else:
+				request = Request.get(None)
+				if request is not None and "Authorization" in request.headers:
+					# WARNING: Doesn't work for direct (non-intercepted by NGINX) WebSocket connections
+					_headers["Authorization"] = request.headers["Authorization"]
 
 		elif isinstance(auth, aiohttp.web.Request):
 			assert "Authorization" in auth.headers
@@ -390,19 +398,26 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 
 		hosts = []
 		located_instances = await self.DiscoveryService._locate({url_split[1]: url_split[0]})
+		# The content of located_instance is a set of tuples that looks like:
+		# {
+		#    ('asab-usvc-1', 8953, <AddressFamily.AF_INET: 2>),
+		#    ('asab-usvs-1', 8953, <AddressFamily.AF_INET6: 30>)
+		# }
 		if located_instances is None or len(located_instances) == 0:
-			raise NotDiscoveredError("Failed to discover '{}'.".format(hostname))
+			raise NotDiscoveredError("Failed to discover '{}'".format(hostname))
 
 		for phostname, pport, pfamily in located_instances:
 			try:
 				resolved = await super().resolve(phostname, pport, pfamily)
-			except socket.gaierror:
+			except Exception:
 				# Skip unresolved hosts
+				L.debug("Error when resolving host '{}'".format(phostname))
+				# We receive different type of exceptions in different Python versions, so we just skip them
 				continue
 			hosts.extend(resolved)
 
 		if len(hosts) == 0:
-			raise NotDiscoveredError("Failed to resolve any of the hosts for '{}'.".format(hostname))
+			raise NotDiscoveredError("Failed to resolve any of the hosts for '{}' / '{}'.".format(hostname, ','.join(x[0] for x in set(x[0] for x in located_instances))))
 
 		return hosts
 
