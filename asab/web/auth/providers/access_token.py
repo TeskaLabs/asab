@@ -4,7 +4,7 @@ import aiohttp.web
 
 from .id_token import IdTokenAuthProvider
 from asab.web.auth.providers.key_providers.abc import PublicKeyProviderABC
-from ..utils import get_bearer_token_from_authorization_header
+from ..utils import get_bearer_token_from_authorization_header, get_bearer_token_from_websocket_request
 from ..authorization import Authorization
 from ....exceptions import NotAuthenticatedError
 
@@ -43,13 +43,7 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 		access_token = None
 		if request.headers.get('connection', "").lower() == 'upgrade':
 			# Special handling for WebSocket connections
-			protocol = request.headers.get('sec-websocket-protocol')
-			if protocol is not None:
-				for p in protocol.split(', '):
-					if not p.startswith('access_token_'):
-						continue
-					access_token = p.split('access_token_')[1]
-					break
+			access_token = get_bearer_token_from_websocket_request(request)
 
 		if access_token is None:
 			access_token = get_bearer_token_from_authorization_header(request)

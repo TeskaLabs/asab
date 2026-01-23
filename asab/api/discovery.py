@@ -15,8 +15,7 @@ except ModuleNotFoundError:
 	jwcrypto = None
 
 from .. import Service
-from ..contextvars import Request
-from ..web.auth.authorization import Authorization
+from ..contextvars import Request, Authz
 
 
 L = logging.getLogger(__name__)
@@ -326,17 +325,20 @@ class DiscoveryService(Service):
 
 		if auth is None:
 			# By default, use the authorization from the incoming request
-			request = Request.get(None)
-			if request is not None and "Authorization" in request.headers:
-				_headers["Authorization"] = request.headers["Authorization"]
+			try:
+				authz = Authz.get()
+			except LookupError:
+				authz = None
+			if authz is not None and authz.IdToken is not None:
+				_headers["Authorization"] = f"Bearer {authz.IdToken}"
+			else:
+				request = Request.get(None)
+				if request is not None and "Authorization" in request.headers:
+					_headers["Authorization"] = request.headers["Authorization"]
 
 		elif isinstance(auth, aiohttp.web.Request):
 			assert "Authorization" in auth.headers
 			_headers["Authorization"] = auth.headers["Authorization"]
-
-		elif isinstance(auth, Authorization):
-			if auth.IdToken is not None:
-				_headers["Authorization"] = f"Bearer {auth.IdToken}"
 
 		elif auth == "internal":
 			if self.InternalAuth is None:

@@ -33,6 +33,21 @@ def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> 
 	return token_value
 
 
+def get_bearer_token_from_websocket_request(request: aiohttp.web.Request) -> str:
+	"""
+	Extract the Bearer token from the WebSocket protocol header.
+	This is a workaround used in ASAB to pass the access token to the WebSocket connection.
+	"""
+	protocol = request.headers.get('sec-websocket-protocol')
+	if protocol is not None:
+		for p in protocol.split(','):
+			p = p.strip()
+			if not p.startswith('access_token_'):
+				continue
+			return p[len('access_token_'):]
+	return None
+
+
 def get_id_token_claims(bearer_token: str, auth_server_public_key: jwcrypto.jwk.JWKSet):
 	"""
 	Parse and validate JWT ID token and extract the claims (user info)
