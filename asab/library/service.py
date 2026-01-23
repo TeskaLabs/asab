@@ -86,6 +86,7 @@ class LibraryService(Service):
 		self.DisabledPaths: list = []
 		self.Favorites: dict = {}
 		self.FavoritePaths: list = []
+		self.__is_ready_last = False  # This is to ensure edge "not ready" -> "ready" to be published during initialization.
 
 
 		if paths is None:
@@ -155,29 +156,35 @@ class LibraryService(Service):
 		Returns:
 			True if every provider is ready; if even one provider is not, returns False.
 		"""
-		if not self.Libraries:
+		if len(self.Libraries) == 0:
 			return False
 
-		for provider in self.Libraries:
-			if not provider.IsReady:
-				return False
-		return True
-
+		return all(provider.IsReady for provider in self.Libraries)
 
 	async def _set_ready(self, provider):
 		if len(self.Libraries) == 0:
+			if self.__is_ready_last:
+				self.__is_ready_last = False
+				L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
+				self.App.PubSub.publish("Library.not_ready!", self)
 			return
 
 		if (provider == self.Libraries[0]) and provider.IsReady:
 			await self._read_disabled()
 			await self._read_favorites()
 
-		if self.is_ready():
+		edge = (self.__is_ready_last, self.is_ready())
+
+		if edge == (False, True):  # The edge 'not ready' -> 'ready'
+			self.__is_ready_last = True
 			L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("Library.ready!", self)
-		elif not provider.IsReady:
+
+		elif edge == (True, False):  # The edge 'ready' -> 'not ready'
+			self.__is_ready_last = False
 			L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("Library.not_ready!", self)
+
 
 	def _ensure_ready(self):
 		if not self.is_ready():
@@ -524,7 +531,7 @@ class LibraryService(Service):
 		if any subscribed path is affected for the specific subscription target.
 		"""
 
-		if not self.Libraries:
+		if len(self.Libraries) == 0:
 			return
 
 		# Only the first provider (layer 0) owns and manages '/.disabled.yaml',
