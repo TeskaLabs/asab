@@ -324,7 +324,7 @@ class DiscoveryService(Service):
 		_headers = {}
 
 		if auth is None:
-			# By default, use the authorization from the incoming request
+			# By default, use the authorization from the actual authorization context, or the incoming request
 			try:
 				authz = Authz.get()
 			except LookupError:
@@ -334,6 +334,7 @@ class DiscoveryService(Service):
 			else:
 				request = Request.get(None)
 				if request is not None and "Authorization" in request.headers:
+					# WARNING: Doesn't work for direct (non-intercepted by NGINX) WebSocket connections
 					_headers["Authorization"] = request.headers["Authorization"]
 
 		elif isinstance(auth, aiohttp.web.Request):
