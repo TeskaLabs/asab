@@ -279,7 +279,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 				subscribed_path, child_path, tenant = self.WDs[wd]
 				self._subscribe_recursive(
 					subscribed_path,
-					"/".join([child_path, name]),
+					"{}/{}/".format(child_path.rstrip("/"), name),
 					tenant=tenant,
 				)
 			if mask & IN_IGNORED == IN_IGNORED:
