@@ -123,7 +123,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		except (FileNotFoundError, IsADirectoryError):
 			return None
 
-
 	async def list(self, path: str) -> list:
 		# Global
 		global_node_path = self.build_path(path, tenant_specific=False)
@@ -132,12 +131,15 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		# Tenant
 		tenant_node_path = self.build_path(path, tenant_specific=True)
 		if tenant_node_path != global_node_path:
-			tenant_items = self._list_from_node_path(tenant_node_path, path, target="tenant")
+			try:
+				tenant_items = self._list_from_node_path(tenant_node_path, path, target="tenant")
+			except KeyError:
+				# Tenant path does not exist → empty overlay (ZooKeeper semantics)
+				tenant_items = []
 		else:
 			tenant_items = []
 
 		return tenant_items + global_items
-
 
 	def _list_from_node_path(self, node_path: str, base_path: str, target="global"):
 		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
