@@ -237,7 +237,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			# internal key includes tenant namespace like ZooKeeper implementation
 			child_key = "/.tenants/{}{}".format(tenant, path_to_be_listed)
 
-		self.WDs[wd] = (subscribed_path, child_key)
+		self.WDs[wd] = (subscribed_path, child_key, tenant)
 
 		# Recursively watch subdirs
 		try:
@@ -279,9 +279,12 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			self.AggrEvents.append((wd, mask, cookie, name))
 
 			if mask & IN_ISDIR == IN_ISDIR and ((mask & IN_CREATE == IN_CREATE) or (mask & IN_MOVED_TO == IN_MOVED_TO)):
-				subscribed_path, child_path = self.WDs[wd]
-				self._subscribe_recursive(subscribed_path, "/".join([child_path, name]))
-
+				subscribed_path, child_path, tenant = self.WDs[wd]
+				self._subscribe_recursive(
+					subscribed_path,
+					"/".join([child_path, name]),
+					tenant=tenant,
+				)
 			if mask & IN_IGNORED == IN_IGNORED:
 				# cleanup
 				del self.WDs[wd]
@@ -297,7 +300,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		to_advertise = set()
 
 		for wd, mask, cookie, name in self.AggrEvents:
-			subscribed_path, _ = self.WDs.get(wd, (None, None))
+			subscribed_path, _, _ = self.WDs.get(wd, (None, None, None))
 			to_advertise.add(subscribed_path)
 
 		self.AggrEvents.clear()
