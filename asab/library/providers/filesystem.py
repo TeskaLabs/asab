@@ -233,13 +233,8 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			L.error("Error in inotify_add_watch")
 			return
 
-		# Store the "subscription key" as library path + tenant for correct change publish behavior.
-		child_key = path_to_be_listed
-		if tenant is not None:
-			# internal key includes tenant namespace like ZooKeeper implementation
-			child_key = "/.tenants/{}{}".format(tenant, path_to_be_listed)
-
-		self.WDs[wd] = (subscribed_path, child_key, tenant)
+		# Store logical library path only (no /.tenants prefix)
+		self.WDs[wd] = (subscribed_path, path_to_be_listed, tenant)
 
 		# Recursively watch subdirs
 		try:
