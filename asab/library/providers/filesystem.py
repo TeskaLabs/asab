@@ -51,7 +51,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 	def __init__(self, library, path, layer, *, set_ready=True):
 		super().__init__(library, layer)
-
+		# Check for `file://` prefix and strip it if present
 		if path.startswith('file://'):
 			path = path[7:]
 
