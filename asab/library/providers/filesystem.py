@@ -508,6 +508,13 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		]
 
 	async def find(self, filename: str) -> list:
+		"""
+		NOTE:
+		This is a global filesystem search helper.
+		It intentionally ignores tenant and personal scoping
+		and may return paths from all layers.
+		Do NOT expose results directly to untrusted users.
+		"""
 		results = []
 		self._recursive_find(self.BasePath, filename, results)
 		return results
