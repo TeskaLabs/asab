@@ -148,7 +148,10 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		items = []
 		for fname in glob.iglob(os.path.join(node_path, "*")):
-			fstat = os.stat(fname)
+			try:
+				fstat = os.stat(fname)
+			except FileNotFoundError:
+				continue
 
 			# Turn absolute filesystem path back into library path under base_path
 			rel_name = os.path.basename(fname)
