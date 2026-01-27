@@ -96,10 +96,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		assert path[:1] == '/'
 		if not tenant_id or not cred_id:
 			return None
-		return (
-				self.BasePath +
-				'/.personal/{}/{}{}'.format(tenant_id, cred_id, path)
-		).rstrip("/")
+		return (self.BasePath + '/.personal/{}/{}{}'.format(tenant_id, cred_id, path)).rstrip("/")
 
 	def build_path(self, path, tenant_specific=False, tenant=None):
 		assert path[:1] == '/'
@@ -172,10 +169,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		tenant_id = self._current_tenant_id()
 		cred_id = self._current_credentials_id()
 		if tenant_id and cred_id:
-			personal_node = (
-					self.BasePath +
-					'/.personal/{}/{}{}'.format(tenant_id, cred_id, path)
-			)
+			personal_node = (self.BasePath + '/.personal/{}/{}{}'.format(tenant_id, cred_id, path))
 			try:
 				personal_items = self._list_from_node_path(
 					personal_node,
@@ -278,13 +272,9 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			tenant_id = self._current_tenant_id()
 			cred_id = self._current_credentials_id()
 			if tenant_id and cred_id:
-				actual_dir = (
-						self.BasePath +
-						'/.personal/{}/{}{}'.format(tenant_id, cred_id, path)
-				)
+				actual_dir = (self.BasePath + '/.personal/{}/{}{}'.format(tenant_id, cred_id, path))
 				if os.path.isdir(actual_dir):
 					self._subscribe_recursive(path, path, tenant=("personal", tenant_id, cred_id))
-
 		else:
 			raise ValueError("Unexpected target: {!r}".format(target))
 
