@@ -140,6 +140,17 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 	def build_path(self, path, tenant_specific=False, tenant=None):
 		assert path[:1] == '/'
 
+		# SECURITY: prevent scope escape
+		if (
+			"/../" in path
+			or path.endswith("/..")
+			or path.startswith("/.tenants/")
+			or path.startswith("/.personal/")
+		):
+			raise ValueError("Invalid library path")
+
+		# existing logic continues...
+
 		if path != '/':
 			node_path = self.BasePath + path
 		else:
