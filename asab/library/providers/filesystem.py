@@ -51,11 +51,12 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		"personal"             -> watch all personal scopes
 		("personal", "<cred>") -> watch one personal credential scope
 	"""
+
 	def __init__(self, library, path, layer, *, set_ready=True):
 		super().__init__(library, layer)
 		# Check for `file://` prefix and strip it if present
 		if path.startswith('file://'):
-			path = path[7:]   # Strip "file://"
+			path = path[7:]  # Strip "file://"
 
 		path = os.path.abspath(path)
 		self.BasePath = path.rstrip("/")
@@ -67,7 +68,8 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		if inotify_init is not None:
 			init = inotify_init()
 			if init == -1:
-				L.warning("Subscribing to library changes in filesystem provider is not available. Inotify was not initialized.")
+				L.warning(
+					"Subscribing to library changes in filesystem provider is not available. Inotify was not initialized.")
 				self.FD = None
 			else:
 				self.FD = init
@@ -157,10 +159,10 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		# SECURITY: prevent scope escape
 		if (
-			"/../" in path
-			or path.endswith("/..")
-			or path.startswith("/.tenants/")
-			or path.startswith("/.personal/")
+				"/../" in path
+				or path.endswith("/..")
+				or path.startswith("/.tenants/")
+				or path.startswith("/.personal/")
 		):
 			raise ValueError("Invalid library path")
 
@@ -184,7 +186,8 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		node_path = node_path.rstrip("/")
 
 		assert '//' not in node_path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
-		assert node_path[0] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
+		assert node_path[
+				   0] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
 
 		return node_path
 
@@ -211,7 +214,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return io.FileIO(global_path, 'rb')
 		except (FileNotFoundError, IsADirectoryError):
 			return None
-
 
 	async def list(self, path: str) -> list:
 		# Global
@@ -291,7 +293,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 					layer_label = "0:{}".format(target)
 			else:
 				layer_label = self.Layer
-
 
 			items.append(LibraryItem(
 				name=lib_name,
@@ -377,13 +378,13 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			raise ValueError("Unexpected target: {!r}".format(target))
 
 	def _subscribe_recursive(
-		self,
-		subscribed_path,
-		path_to_be_listed,
-		*,
-		scope="global",
-		tenant_id=None,
-		cred_id=None,
+			self,
+			subscribed_path,
+			path_to_be_listed,
+			*,
+			scope="global",
+			tenant_id=None,
+			cred_id=None,
 	):
 		if scope == "global":
 			fs_dir = self.build_path(path_to_be_listed)
