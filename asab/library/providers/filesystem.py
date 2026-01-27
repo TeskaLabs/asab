@@ -125,7 +125,10 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return self.build_path(path, tenant_specific=True, tenant=tenant_id)
 
 		if scope == "personal":
-			return (self.BasePath + "/.personal/{}/{}{}".format(tenant_id, cred_id, path)).rstrip("/")
+			fs_path = self._personal_path(path, tenant_id, cred_id)
+			if fs_path is None:
+				raise RuntimeError("Personal scope path without tenant/cred")
+			return fs_path
 
 		raise RuntimeError("Unknown scope: {}".format(scope))
 
@@ -230,15 +233,20 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		tenant_id = self._current_tenant_id()
 		cred_id = self._current_credentials_id()
 		if tenant_id and cred_id:
-			personal_node = (self.BasePath + '/.personal/{}/{}{}'.format(tenant_id, cred_id, path))
 			try:
-				personal_items = self._list_from_node_path(
-					personal_node,
-					path,
-					target="personal",
-				)
-			except KeyError:
-				personal_items = []
+				personal_node = self._personal_path(path, tenant_id, cred_id)
+			except ValueError:
+				personal_node = None
+
+			if personal_node is not None:
+				try:
+					personal_items = self._list_from_node_path(
+						personal_node,
+						path,
+						target="personal",
+					)
+				except KeyError:
+					personal_items = []
 
 		return personal_items + tenant_items + global_items
 
@@ -360,7 +368,14 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		elif isinstance(target, tuple) and target[0] == "personal":
 			cred_id = target[1]
 			for tenant_id in await self._get_tenants():
-				actual = (self.BasePath + "/.personal/{}/{}{}".format(tenant_id, cred_id, path))
+				try:
+					actual = self._personal_path(path, tenant_id, cred_id)
+				except ValueError:
+					continue
+
+				if actual is None:
+					continue
+
 				if os.path.isdir(actual):
 					self._subscribe_recursive(
 						subscribed_path=path,
@@ -393,7 +408,12 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			)
 
 		elif scope == "personal":
-			fs_dir = (self.BasePath + "/.personal/{}/{}{}".format(tenant_id, cred_id, path_to_be_listed)).rstrip("/")
+			try:
+				fs_dir = self._personal_path(path_to_be_listed, tenant_id, cred_id)
+			except ValueError:
+				return
+			if fs_dir is None:
+				return
 
 		else:
 			return
@@ -446,7 +466,13 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			)
 
 		elif scope == "personal":
-			node_path = (self.BasePath + "/.personal/{}/{}{}".format(tenant_id, cred_id, path))
+			try:
+				node_path = self._personal_path(path, tenant_id, cred_id)
+			except ValueError:
+				raise KeyError(path)
+
+			if node_path is None:
+				raise KeyError(path)
 
 		else:
 			raise KeyError(path)
@@ -540,7 +566,11 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		# 1) PERSONAL
 		if tenant_id and cred_id:
-			root = self._personal_path("/", tenant_id, cred_id)
+			try:
+				root = self._personal_path("/", tenant_id, cred_id)
+			except ValueError:
+				root = None
+
 			if root and os.path.isdir(root):
 				self._recursive_find(root, filename, results, strip_prefix=root)
 
