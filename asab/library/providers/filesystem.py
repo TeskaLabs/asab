@@ -96,26 +96,21 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		except LookupError:
 			return None
 
-	def _personal_path(self, path: str, tenant_id, cred_id):
+	def _personal_path(self, path, tenant_id, cred_id):
 		assert path[:1] == '/'
 
 		if not tenant_id or not cred_id:
 			return None
 
-		full_path = os.path.normpath(
-			os.path.join(
-				self.BasePath,
-				'.personal',
-				tenant_id,
-				cred_id,
-				path.lstrip('/')
-			)
+		base = os.path.join(self.BasePath, '.personal')
+		full = os.path.normpath(
+			os.path.join(base, tenant_id, cred_id, path.lstrip('/'))
 		)
 
-		if not full_path.startswith(os.path.join(self.BasePath, '.personal')):
+		if not full.startswith(base + os.sep):
 			raise ValueError("Path traversal detected")
 
-		return full_path
+		return full
 
 	def _resolve_fs_path_from_info(self, info):
 		scope = info["scope"]
@@ -159,10 +154,10 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		# SECURITY: prevent scope escape
 		if (
-				"/../" in path
-				or path.endswith("/..")
-				or path.startswith("/.tenants/")
-				or path.startswith("/.personal/")
+			"/../" in path
+			or path.endswith("/..")
+			or path.startswith("/.tenants/")
+			or path.startswith("/.personal/")
 		):
 			raise ValueError("Invalid library path")
 
@@ -186,8 +181,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		node_path = node_path.rstrip("/")
 
 		assert '//' not in node_path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
-		assert node_path[
-				   0] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
+		assert node_path[0] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
 
 		return node_path
 
@@ -350,7 +344,9 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		# ---- PERSONAL (all credentials) ----
 		elif target == "personal":
 			for tenant_id, cred_id in await self._get_personal_scopes():
-				actual = (self.BasePath + "/.personal/{}/{}{}".format(tenant_id, cred_id, path))
+				actual = self._personal_path(path, tenant_id, cred_id)
+				if actual is None:
+					continue
 				if os.path.isdir(actual):
 					self._subscribe_recursive(
 						subscribed_path=path,
@@ -378,13 +374,13 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			raise ValueError("Unexpected target: {!r}".format(target))
 
 	def _subscribe_recursive(
-			self,
-			subscribed_path,
-			path_to_be_listed,
-			*,
-			scope="global",
-			tenant_id=None,
-			cred_id=None,
+		self,
+		subscribed_path,
+		path_to_be_listed,
+		*,
+		scope="global",
+		tenant_id=None,
+		cred_id=None,
 	):
 		if scope == "global":
 			fs_dir = self.build_path(path_to_be_listed)
