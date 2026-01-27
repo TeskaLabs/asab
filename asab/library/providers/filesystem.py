@@ -96,9 +96,24 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 	def _personal_path(self, path: str, tenant_id, cred_id):
 		assert path[:1] == '/'
+
 		if not tenant_id or not cred_id:
 			return None
-		return (self.BasePath + '/.personal/{}/{}{}'.format(tenant_id, cred_id, path)).rstrip("/")
+
+		full_path = os.path.normpath(
+			os.path.join(
+				self.BasePath,
+				'.personal',
+				tenant_id,
+				cred_id,
+				path.lstrip('/')
+			)
+		)
+
+		if not full_path.startswith(os.path.join(self.BasePath, '.personal')):
+			raise ValueError("Path traversal detected")
+
+		return full_path
 
 	def _resolve_fs_path_from_info(self, info):
 		scope = info["scope"]
