@@ -510,39 +510,50 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		]
 
 	async def find(self, filename: str) -> list:
-		"""
-		NOTE:
-		This is a global filesystem search helper.
-		It intentionally ignores tenant and personal scoping
-		and may return paths from all layers.
-		Do NOT expose results directly to untrusted users.
-		"""
 		results = []
-		self._recursive_find(self.BasePath, filename, results)
+
+		tenant_id = self._current_tenant_id()
+		cred_id = self._current_credentials_id()
+
+		# 1) PERSONAL
+		if tenant_id and cred_id:
+			root = self._personal_path("/", tenant_id, cred_id)
+			if root and os.path.isdir(root):
+				self._recursive_find(root, filename, results, strip_prefix=root)
+
+		# 2) TENANT
+		if tenant_id:
+			root = self.build_path("/", tenant_specific=True, tenant=tenant_id)
+			if os.path.isdir(root):
+				self._recursive_find(root, filename, results, strip_prefix=root)
+
+		# 3) GLOBAL
+		root = self.build_path("/", tenant_specific=False)
+		if os.path.isdir(root):
+			self._recursive_find(root, filename, results, strip_prefix=root)
+
 		return results
 
-
-	def _recursive_find(self, path, filename, results):
+	def _recursive_find(self, path, filename, results, *, strip_prefix):
 		if not os.path.exists(path):
 			return
 
 		if os.path.isfile(path) and path.endswith(filename):
-			item = LibraryItem(
-				name=path[len(self.BasePath):],
+			results.append(LibraryItem(
+				name=path[len(strip_prefix):],
 				type="item",
 				layers=[self.Layer],
 				providers=[self],
-			)
-			results.append(item)
+			))
 			return
 
 		if os.path.isdir(path):
 			for entry in os.listdir(path):
-				full_path = os.path.join(path, entry)
-				self._recursive_find(full_path, filename, results)
-
-
-	async def finalize(self, app):
-		if self.FD is not None:
-			self.App.Loop.remove_reader(self.FD)
-			os.close(self.FD)
+				if entry.startswith("."):
+					continue
+				self._recursive_find(
+					os.path.join(path, entry),
+					filename,
+					results,
+					strip_prefix=strip_prefix,
+				)
