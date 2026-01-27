@@ -10,7 +10,7 @@ import logging
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
 from ...timer import Timer
-from ...contextvars import Tenant
+from ...contextvars import Tenant, Authz
 
 try:
 	from .filesystem_inotify import (
@@ -79,6 +79,27 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		self.AggrEvents = []
 		self.WDs = {}  # wd -> (subscribed_path, child_path)
 
+	def _current_tenant_id(self):
+		try:
+			return Tenant.get()
+		except LookupError:
+			return None
+
+	def _current_credentials_id(self):
+		try:
+			authz = Authz.get()
+			return getattr(authz, "CredentialsId", None)
+		except LookupError:
+			return None
+
+	def _personal_path(self, path: str, tenant_id, cred_id):
+		assert path[:1] == '/'
+		if not tenant_id or not cred_id:
+			return None
+		return (
+				self.BasePath +
+				'/.personal/{}/{}{}'.format(tenant_id, cred_id, path)
+		).rstrip("/")
 
 	def build_path(self, path, tenant_specific=False, tenant=None):
 		assert path[:1] == '/'
@@ -105,23 +126,30 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		return node_path
 
-
 	async def read(self, path: str) -> typing.Optional[typing.IO]:
-		# Tenant first
+		tenant_id = self._current_tenant_id()
+		cred_id = self._current_credentials_id()
+
+		# personal
+		personal_path = self._personal_path(path, tenant_id, cred_id)
+		if personal_path and os.path.isfile(personal_path):
+			return io.FileIO(personal_path, 'rb')
+
+		# tenant
 		try:
-			tenant_node_path = self.build_path(path, tenant_specific=True)
-			if os.path.isfile(tenant_node_path):
-				return io.FileIO(tenant_node_path, 'rb')
+			tenant_path = self.build_path(path, tenant_specific=True)
+			if os.path.isfile(tenant_path):
+				return io.FileIO(tenant_path, 'rb')
 		except Exception:
-			# keep behavior similar to zk: just fall back
 			pass
 
-		# Global fallback
-		node_path = self.build_path(path, tenant_specific=False)
+		# global
 		try:
-			return io.FileIO(node_path, 'rb')
+			global_path = self.build_path(path, tenant_specific=False)
+			return io.FileIO(global_path, 'rb')
 		except (FileNotFoundError, IsADirectoryError):
 			return None
+
 
 	async def list(self, path: str) -> list:
 		# Global
@@ -139,7 +167,25 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		else:
 			tenant_items = []
 
-		return tenant_items + global_items
+		# personal
+		personal_items = []
+		tenant_id = self._current_tenant_id()
+		cred_id = self._current_credentials_id()
+		if tenant_id and cred_id:
+			personal_node = (
+					self.BasePath +
+					'/.personal/{}/{}{}'.format(tenant_id, cred_id, path)
+			)
+			try:
+				personal_items = self._list_from_node_path(
+					personal_node,
+					path,
+					target="personal",
+				)
+			except KeyError:
+				personal_items = []
+
+		return personal_items + tenant_items + global_items
 
 	def _list_from_node_path(self, node_path: str, base_path: str, target="global"):
 		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
@@ -176,9 +222,17 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 				continue
 
 			if self.Layer == 0:
-				layer_label = "0:global" if target == "global" else "0:tenant"
+				if target == "global":
+					layer_label = "0:global"
+				elif target == "tenant":
+					layer_label = "0:tenant"
+				elif target == "personal":
+					layer_label = "0:personal"
+				else:
+					layer_label = "0:{}".format(target)
 			else:
 				layer_label = self.Layer
+
 
 			items.append(LibraryItem(
 				name=lib_name,
@@ -219,6 +273,17 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			actual_dir = self.build_path(path, tenant_specific=True, tenant=tenant)
 			if os.path.isdir(actual_dir):
 				self._subscribe_recursive(path, path, tenant=tenant)
+
+		elif target == "personal":
+			tenant_id = self._current_tenant_id()
+			cred_id = self._current_credentials_id()
+			if tenant_id and cred_id:
+				actual_dir = (
+						self.BasePath +
+						'/.personal/{}/{}{}'.format(tenant_id, cred_id, path)
+				)
+				if os.path.isdir(actual_dir):
+					self._subscribe_recursive(path, path, tenant=("personal", tenant_id, cred_id))
 
 		else:
 			raise ValueError("Unexpected target: {!r}".format(target))

@@ -137,16 +137,42 @@ class ZooKeeperContainer(Configurable):
 		* ZooKeeperContainer.state/LOST!
 		* ZooKeeperContainer.state/SUSPENDED!
 		'''
+		session_id = None
+		client_id = getattr(self.ZooKeeper.Client, 'client_id', None)
+		if client_id is not None:
+			try:
+				raw_session_id = client_id[0]
+				if raw_session_id is not None:
+					session_id = hex(raw_session_id)
+			except (TypeError, IndexError, ValueError):
+				# Unexpected client_id format; leave session_id as None
+				pass
+
+		connected_node = None
+		# Access private kazoo internals defensively so changes in kazoo do not break us
+		try:
+			conn = self.ZooKeeper.Client._connection
+			sock = conn._socket if conn else None
+		except AttributeError:
+			sock = None
+
+		if sock is not None:
+			try:
+				peername = sock.getpeername()
+				connected_node = "{}:{}".format(peername[0], peername[1])
+			except (OSError, AttributeError):
+				# Socket is not connected, has been closed, or no longer exposes getpeername
+				pass
+
 		if state == kazoo.protocol.states.KazooState.CONNECTED:
 			self.ProactorService.schedule_threadsafe(self._on_connected_at_proactor_thread)
-			L.log(LOG_NOTICE, "Connected to ZooKeeper.")
+			L.log(LOG_NOTICE, "Connected to ZooKeeper", struct_data={"node": connected_node, "session_id": session_id})
 		else:
 			if state == kazoo.protocol.states.KazooState.LOST:
 				if not self.ZooKeeper.Stopped:
-					L.error("ZooKeeper connection LOST. Will try to reconnect.")
-
+					L.error("ZooKeeper connection LOST. Will try to reconnect.", struct_data={"node": connected_node, "session_id": session_id})
 			else:
-				L.warning("ZooKeeper connection state changed. Zookeeper calls are now blocking!", struct_data={"state": str(state)})
+				L.warning("ZooKeeper connection state changed. Zookeeper calls are now blocking!", struct_data={"state": str(state), "node": connected_node, "session_id": session_id})
 
 		self.App.PubSub.publish_threadsafe("ZooKeeperContainer.state/{}!".format(state), self)
 

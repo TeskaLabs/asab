@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## Release candidate
+
+### Features
+- Extend 401 and 403 responses with WWW-Authenticate header (#721)
+
+---
+
+
+## v25.47
+
+...
+
+---
+
+
 ## v25.46
 
 ### Features
