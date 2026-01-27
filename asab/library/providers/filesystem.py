@@ -36,19 +36,21 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 	- global path: <BasePath>/<path>
 	- tenant path: <BasePath>/.tenants/<tenant>/<path>
+	- personal path: <BasePath>/.personal/<tenant>/<credentials>/<path>
 
 	read():
-		tenant → global
+		personal → tenant → global
 
 	list():
-		tenant-items + global-items (no merging by name)
+		personal-items + tenant-items + global-items (no merging by name)
 
 	subscribe(path, target):
-		None/"global" -> watch global path
-		"tenant" -> watch in all tenants under /.tenants
+		None / "global"        -> watch global path
+		"tenant"               -> watch in all tenants under /.tenants
 		("tenant", "<tenant>") -> watch in one tenant
+		"personal"             -> watch all personal scopes
+		("personal", "<cred>") -> watch one personal credential scope
 	"""
-
 	def __init__(self, library, path, layer, *, set_ready=True):
 		super().__init__(library, layer)
 		# Check for `file://` prefix and strip it if present
