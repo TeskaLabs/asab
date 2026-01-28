@@ -188,7 +188,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.is_ssh = True
 			return
 
-		raise ValueError(f"Invalid git URL format: {path}")
+		raise ValueError("Invalid git URL format: {}".format(path))
 
 
 	def _create_callbacks(self):
@@ -201,17 +201,25 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		if self.is_ssh:
 			# Set up SSH credential callback
 			def credentials_cb(url, username_from_url, allowed_types):
-				L.debug("Git SSH authentication requested", struct_data={
-					"url": url,
-					"username": username_from_url,
-					"allowed_types": allowed_types
-				})
+				L.debug(
+					"Git SSH credentials requested",
+						struct_data={
+						"layer": self.Layer,
+						"url": url,
+						"username": username_from_url,
+						"allowed_types": allowed_types
+					}
+				)
 
 				# Warn if the allowed_types doesn't match what we expect
 				if not (allowed_types & GIT_CREDTYPE_SSH_KEY):
 					L.warning(
 						"SSH credentials requested but allowed_types ({}) ".format(allowed_types) +
-						"doesn't include SSH_KEY flag ({}). Attempting anyway.".format(GIT_CREDTYPE_SSH_KEY)
+						"doesn't include SSH_KEY flag ({}). Attempting anyway.".format(GIT_CREDTYPE_SSH_KEY),
+						struct_data={
+							"layer": self.Layer,
+							"url": url,
+						}
 					)
 
 				# Expand paths
@@ -220,13 +228,19 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 				# Check if key files exist
 				if not os.path.exists(key_path):
-					L.error("SSH private key not found", struct_data={"path": key_path})
+					L.error(
+						"SSH private key not found",
+						struct_data={"layer": self.Layer, "path": key_path}
+					)
 					return None
 				if not os.path.exists(pubkey_path):
-					L.warning("SSH public key not found", struct_data={"path": pubkey_path})
+					L.warning(
+						"SSH public key not found",
+						struct_data={"layer": self.Layer, "path": pubkey_path}
+					)
 					pubkey_path = ""
 
-				L.debug("Using SSH key", struct_data={"path": key_path})
+				L.debug("Using SSH key", struct_data={"layer": self.Layer, "path": key_path})
 
 				try:
 					return pygit2.Keypair(
@@ -236,7 +250,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 						self.SSHPassphrase or ""
 					)
 				except Exception as e:
-					L.exception("Failed to create SSH keypair", struct_data={"path": key_path, "error": str(e)})
+					L.exception(
+						"Failed to create SSH key-pair",
+						struct_data={"layer": self.Layer, "path": key_path, "error": str(e)}
+					)
 					return None
 
 			callbacks.credentials = credentials_cb
@@ -249,10 +266,13 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					L.warning(
 						"SSH fingerprint verification is enabled but not yet fully implemented. "
 						"Accepting host key.",
-						struct_data={"host": host}
+						struct_data={"layer": self.Layer, "host": host}
 					)
 				else:
-					L.debug("Auto-accepting SSH host key", struct_data={"host": host})
+					L.debug(
+						"Auto-accepting SSH host key",
+						struct_data={"layer": self.Layer, "host": host}
+					)
 				# Return True to accept the certificate
 				return True
 
@@ -281,7 +301,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			except pygit2.GitError as err:
 				L.exception(
 					"Periodic pull from the remote repository failed: {}".format(err),
-					struct_data={"url": self.URLPath}
+					struct_data={"layer": self.Layer, "url": self.URLPath}
 				)
 
 
@@ -303,7 +323,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 						callbacks=callbacks
 					)
 				except Exception as err:
-					L.exception("Error when cloning git repository", struct_data={"error": str(err)})
+					L.exception(
+						"Error when cloning git repository",
+						struct_data={"layer": self.Layer, "error": str(err)}
+					)
 			else:
 				# For existing repository, pull the latest changes
 				self.GitRepository = pygit2.Repository(self.RepoPath)
@@ -324,7 +347,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					}
 				)
 			else:
-				L.exception("Error when initializing git repository", struct_data={"error": pygit_message})
+				L.exception(
+					"Error when initializing git repository",
+					struct_data={"layer": self.Layer, "error": pygit_message}
+				)
 
 			return
 
@@ -332,13 +358,14 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			pygit_message = str(err).replace('\"', '')
 			if "unexpected http status code: 404" in pygit_message:
 				# repository not found
-				L.exception("Git repository not found.", struct_data={"url": self.URLPath})
+				L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
 			elif "remote authentication required but no callback set" in pygit_message:
 				# either repository not found or authentication failed
 				L.exception(
 					"Authentication failed when initializing git repository.\n"
 					"Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'",
 					struct_data={
+						"layer": self.Layer,
 						"url": self.URLPath,
 						"username": self.User,
 						"deploy_token": self.DeployToken
@@ -346,32 +373,45 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				)
 			elif 'cannot redirect from' in pygit_message:
 				# bad URL
-				L.exception("Git repository not found.",struct_data={"url": self.URLPath})
+				L.exception(
+					"Git repository not found.",
+					struct_data={"layer": self.Layer, "url": self.URLPath}
+				)
 			elif 'Temporary failure in name resolution' in pygit_message:
 				# Internet connection does not work
 				L.exception(
 					"Git repository not initialized: connection failed. Check your network connection.",
 					struct_data={
+						"layer": self.Layer,
 						"url": self.URLPath
 					}
 				)
 			else:
-				L.exception("Git repository not initialized", struct_data={"error": str(err)})
+				L.exception(
+					"Git repository not initialized",
+					struct_data={"layer": self.Layer, "error": str(err)}
+				)
 
 			return
 
 		except Exception as err:
-			L.exception("Git repository not initialized", struct_data={"error": str(err)})
+			L.exception(
+				"Git repository not initialized",
+				struct_data={"layer": self.Layer, "error": str(err)}
+			)
 			return
 
 		if not hasattr(self.GitRepository, "remotes"):
-			L.error("Git repository not initialized: remotes attribute missing", struct_data={"url": self.URLPath})
+			L.error(
+				"Git repository not initialized: remotes attribute missing",
+				struct_data={"layer": self.Layer, "url": self.URLPath}
+			)
 			return
 		
 		if self.GitRepository.remotes["origin"] is None:
 			L.error(
 				"Git repository not initialized: origin remote missing",
-				struct_data={"url": self.URLPath}
+				struct_data={"layer": self.Layer, "url": self.URLPath}
 			)
 			return
 
