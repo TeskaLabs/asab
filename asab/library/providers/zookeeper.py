@@ -639,7 +639,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					LibraryItem(
 						name=full_path[len(self.BasePath):],
 						type="item",
-						layers=[self.Layer if self.Layer != 0 else f"0:{target}"],
+						layers=[self.Layer if self.Layer != 0 else "0:{}".format(target)],
 						providers=[self],
 					)
 				)
