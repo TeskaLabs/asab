@@ -591,44 +591,64 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			tenants = []
 		return tenants
 
-
 	async def find(self, filename: str) -> list:
-		"""
-		Recursively search for files ending with a specific name in ZooKeeper nodes, starting from the base path.
-
-		:param filename: The filename to search for (e.g., '.setup.yaml')
-		:return: A list of LibraryItem objects for files ending with the specified name,
-				or an empty list if no matching files were found.
-		"""
 		results = []
-		await self._recursive_find(self.BasePath, filename, results)
+
+		tenant_id = self._current_tenant_id()
+		cred_id = self._current_credentials_id()
+
+		search_roots = []
+
+		# personal
+		personal = self._personal_node_path("/", tenant_id, cred_id)
+		if personal:
+			search_roots.append(("personal", personal))
+
+		# tenant
+		if tenant_id:
+			search_roots.append(("tenant", self.build_path("/", tenant_specific=True)))
+
+		# global
+		search_roots.append(("global", self.build_path("/", tenant_specific=False)))
+
+		for target, root in search_roots:
+			await self._recursive_find(
+				root,
+				filename,
+				results,
+				target=target,
+			)
+
 		return results
 
-	async def _recursive_find(self, path, filename, results):
-		"""
-		The recursive part of the find method.
-
-		:param path: The current path to search
-		:param filename: The filename to search for
-		:param results: The list where results are accumulated
-		"""
+	async def _recursive_find(self, path, filename, results, *, target):
 		try:
 			children = await self.Zookeeper.get_children(path)
-			for child in children:
-				full_path = "{}/{}".format(path, child).rstrip('/')
-				if full_path.endswith(filename):
-					item = LibraryItem(
+		except kazoo.exceptions.NoNodeError:
+			return
+
+		for child in children:
+			# ---- hard stop: never cross scopes ----
+			if child in {".tenants", ".personal"}:
+				continue
+
+			full_path = "{}/{}".format(path, child).rstrip("/")
+
+			if full_path.endswith(filename):
+				results.append(
+					LibraryItem(
 						name=full_path[len(self.BasePath):],
-						type="item",  # or "dir" if applicable
-						layers=[self.Layer],
+						type="item",
+						layers=[self.Layer if self.Layer != 0 else f"0:{target}"],
 						providers=[self],
 					)
-					results.append(item)
-				else:
-					# Continue searching if it's not the file we're looking for
-					if '.' not in child:  # Assuming directories don't have dots in their names
-						await self._recursive_find(full_path, filename, results)
-		except kazoo.exceptions.NoNodeError:
-			pass  # Node does not exist, skip
-		except Exception as e:
-			L.warning("Error accessing {}: {}".format(path, e))
+				)
+			else:
+				# recurse only into directories
+				if "." not in child:
+					await self._recursive_find(
+						full_path,
+						filename,
+						results,
+						target=target,
+					)
