@@ -66,10 +66,20 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	"""
 	def __init__(self, library, path, layer):
 
+		# Initialize attributes to avoid attribute errors
+		self.URLScheme = ""
+		self.UserInfo = ""
+		self.User = ""
+		self.DeployToken = ""
+		self.URLPath = ""
+		self.Branch = ""
+		self.URL = ""
+		self.is_ssh = False
+		self.GitRepository = None
+
 		# Parse URL - supports both HTTPS and SSH formats
 		self._parse_url(path)
-		self.Branch = self.Branch if self.Branch != '' else None
-
+		self.Branch = self.Branch if self.Branch != "" else None  # pygit2 expects None for default branch
 
 		repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
@@ -84,14 +94,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		super().__init__(library, self.RepoPath, layer, set_ready=False)
 
-		self.GitRepository = None
-
 		# Set custom SSL certificate locations if specified
-		if any((Config.get("library:git", "cert_file", fallback=None), Config.get("library:git", "cert_dir", fallback=None))):
-			pygit2.settings.set_ssl_cert_locations(
-				cert_file=Config.get("library:git", "cert_file", fallback=None),
-				cert_dir=Config.get("library:git", "cert_dir", fallback=None)
-			)
+		cert_file = Config.get("library:git", "cert_file", fallback=None)
+		cert_dir = Config.get("library:git", "cert_dir", fallback=None)
+		if (cert_file is not None) or (cert_dir is not None):
+			pygit2.settings.set_ssl_cert_locations(cert_file=cert_file,cert_dir=cert_dir)
 
 		from ...proactor import Module
 		self.App.add_module(Module)
