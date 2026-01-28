@@ -75,7 +75,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.Branch = ""
 		self.URL = ""
 		self.is_ssh = False
-		self.GitRepository = None
+		self.GitRepository: typing.Optional[pygit2.Repository] = None
 
 		# Parse URL - supports both HTTPS and SSH formats
 		self._parse_url(path)
@@ -265,10 +265,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 		Changes in remote repository are being pulled every minute. `PullLock` flag ensures that only if previous "pull" has finished, new one can start.
 		"""
-		if self.GitRepository is None:
+		if self.PullLock.locked():
 			return
 
-		if self.PullLock.locked():
+		if self.GitRepository is None:
+			self.App.TaskService.schedule(self.initialize_git_repository())
 			return
 
 		async with self.PullLock:
@@ -347,7 +348,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				# bad URL
 				L.exception("Git repository not found.",struct_data={"url": self.URLPath})
 			elif 'Temporary failure in name resolution' in pygit_message:
-				# Internet connection does
+				# Internet connection does not work
 				L.exception(
 					"Git repository not initialized: connection failed. Check your network connection.",
 					struct_data={
@@ -402,7 +403,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		if new_commit_id == self.GitRepository.head.target:
 			return []
 
-		# Before new head is set, check the diffs. If changes in subscribed directory occured, add path to "to_publish" list.
+		# Before new head is set, check the diffs.
+		# If changes in subscribed directory occurred, add path to "to_publish" list.
 		to_publish = []
 		for path in self.SubscribedPaths:
 			for i in self.GitRepository.diff(self.GitRepository.head.target, new_commit_id).deltas:
