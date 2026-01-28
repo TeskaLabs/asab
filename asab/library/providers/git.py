@@ -119,6 +119,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.VerifySSHFingerprint = Config.getboolean("library:git", "verify_ssh_fingerprint", fallback=False)
 
 		self.App.TaskService.schedule(self.initialize_git_repository())
+
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
 
@@ -209,8 +210,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				# Warn if the allowed_types doesn't match what we expect
 				if not (allowed_types & GIT_CREDTYPE_SSH_KEY):
 					L.warning(
-						f"SSH credentials requested but allowed_types ({allowed_types}) "
-						f"doesn't include SSH_KEY flag ({GIT_CREDTYPE_SSH_KEY}). Attempting anyway."
+						"SSH credentials requested but allowed_types ({}) ".format(allowed_types) +
+						"doesn't include SSH_KEY flag ({}). Attempting anyway.".format(GIT_CREDTYPE_SSH_KEY)
 					)
 
 				# Expand paths
@@ -219,13 +220,13 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 				# Check if key files exist
 				if not os.path.exists(key_path):
-					L.error(f"SSH private key not found: {key_path}")
+					L.error("SSH private key not found", struct_data={"path": key_path})
 					return None
 				if not os.path.exists(pubkey_path):
-					L.warning(f"SSH public key not found: {pubkey_path}, trying without it")
+					L.warning("SSH public key not found", struct_data={"path": pubkey_path})
 					pubkey_path = ""
 
-				L.debug(f"Using SSH key: {key_path}")
+				L.debug("Using SSH key", struct_data={"path": key_path})
 
 				try:
 					return pygit2.Keypair(
@@ -235,7 +236,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 						self.SSHPassphrase or ""
 					)
 				except Exception as e:
-					L.error(f"Failed to create SSH keypair: {e}")
+					L.exception("Failed to create SSH keypair", struct_data={"path": key_path, "error": str(e)})
 					return None
 
 			callbacks.credentials = credentials_cb
@@ -251,7 +252,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 						struct_data={"host": host}
 					)
 				else:
-					L.debug(f"Auto-accepting SSH host key for {host}")
+					L.debug("Auto-accepting SSH host key", struct_data={"host": host})
 				# Return True to accept the certificate
 				return True
 
@@ -277,14 +278,16 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				for path in to_publish:
 					self.App.PubSub.publish("Library.change!", self, path)
 			except pygit2.GitError as err:
-				L.warning(
+				L.exception(
 					"Periodic pull from the remote repository failed: {}".format(err),
 					struct_data={"url": self.URLPath}
 				)
 
 
-
 	async def initialize_git_repository(self):
+		"""
+		Initialize git repository by cloning or pulling latest changes.
+		"""
 
 		def init_task():
 			if pygit2.discover_repository(self.RepoPath) is None:
@@ -299,7 +302,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 						callbacks=callbacks
 					)
 				except Exception as err:
-					L.exception("Error when cloning git repository: {}".format(err))
+					L.exception("Error when cloning git repository", struct_data={"error": str(err)})
 			else:
 				# For existing repository, pull the latest changes
 				self.GitRepository = pygit2.Repository(self.RepoPath)
@@ -320,18 +323,15 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					}
 				)
 			else:
-				L.exception("Error when initializing git repository: {}".format(pygit_message))
+				L.exception("Error when initializing git repository", struct_data={"error": pygit_message})
+
+			return
 
 		except pygit2.GitError as err:
 			pygit_message = str(err).replace('\"', '')
 			if "unexpected http status code: 404" in pygit_message:
 				# repository not found
-				L.exception(
-					"Git repository not found.",
-					struct_data={
-						"url": self.URLPath
-					}
-				)
+				L.exception("Git repository not found.", struct_data={"url": self.URLPath})
 			elif "remote authentication required but no callback set" in pygit_message:
 				# either repository not found or authentication failed
 				L.exception(
@@ -345,12 +345,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				)
 			elif 'cannot redirect from' in pygit_message:
 				# bad URL
-				L.exception(
-					"Git repository not found.",
-					struct_data={
-						"url": self.URLPath
-					}
-				)
+				L.exception("Git repository not found.",struct_data={"url": self.URLPath})
 			elif 'Temporary failure in name resolution' in pygit_message:
 				# Internet connection does
 				L.exception(
@@ -360,14 +355,26 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					}
 				)
 			else:
-				L.exception("Git repository not initialized: {}".format(err))
-			self.App.stop()
+				L.exception("Git repository not initialized", struct_data={"error": str(err)})
+
+			return
 
 		except Exception as err:
-			L.exception(err)
+			L.exception("Git repository not initialized", struct_data={"error": str(err)})
+			return
 
-		assert hasattr(self.GitRepository, "remotes"), "Git repository not initialized."
-		assert self.GitRepository.remotes["origin"] is not None, "Git repository not initialized."
+		if not hasattr(self.GitRepository, "remotes"):
+			L.error("Git repository not initialized: remotes attribute missing", struct_data={"url": self.URLPath})
+			return
+		
+		if self.GitRepository.remotes["origin"] is None:
+			L.error(
+				"Git repository not initialized: origin remote missing",
+				struct_data={"url": self.URLPath}
+			)
+			return
+
+		# If everything went fine, set the provider as ready
 		await self._set_ready()
 
 
