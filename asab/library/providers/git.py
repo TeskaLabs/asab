@@ -1,3 +1,4 @@
+import asyncio
 import os
 import tempfile
 import logging
@@ -95,7 +96,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		from ...proactor import Module
 		self.App.add_module(Module)
 		self.ProactorService = self.App.get_service("asab.ProactorService")
-		self.PullLock = False
+		self.PullLock = asyncio.Lock()
 
 		self.SubscribedPaths = set()
 
@@ -259,23 +260,21 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		if self.GitRepository is None:
 			return
 
-		if self.PullLock:
+		if self.PullLock.locked():
 			return
 
-		self.PullLock = True
+		async with self.PullLock:
+			try:
+				to_publish = await self.ProactorService.execute(self._do_pull)
+				# Once reset of the head is finished, PubSub message about the change in the subscribed directory gets published.
+				for path in to_publish:
+					self.App.PubSub.publish("Library.change!", self, path)
+			except pygit2.GitError as err:
+				L.warning(
+					"Periodic pull from the remote repository failed: {}".format(err),
+					struct_data={"url": self.URLPath}
+				)
 
-		try:
-			to_publish = await self.ProactorService.execute(self._do_pull)
-			# Once reset of the head is finished, PubSub message about the change in the subscribed directory gets published.
-			for path in to_publish:
-				self.App.PubSub.publish("Library.change!", self, path)
-		except pygit2.GitError as err:
-			L.warning(
-				"Periodic pull from the remote repository failed: {}".format(err),
-				struct_data={"url": self.URLPath}
-			)
-		finally:
-			self.PullLock = False
 
 
 	async def initialize_git_repository(self):
@@ -315,7 +314,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				)
 			else:
 				L.exception("Error when initializing git repository: {}".format(pygit_message))
-			self.App.stop()  # NOTE: raising Exception doesn't exit the app
 
 		except pygit2.GitError as err:
 			pygit_message = str(err).replace('\"', '')
