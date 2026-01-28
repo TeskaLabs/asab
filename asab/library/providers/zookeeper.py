@@ -622,11 +622,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return results
 
 	async def _recursive_find(self, path, filename, results, *, target):
-		try:
-			children = await self.Zookeeper.get_children(path)
-		except kazoo.exceptions.NoNodeError:
-			return
-
+		children = await self.Zookeeper.get_children(path) or []
 		for child in children:
 			# ---- hard stop: never cross scopes ----
 			if child in {".tenants", ".personal"}:
