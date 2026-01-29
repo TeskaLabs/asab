@@ -625,11 +625,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				filename,
 				results,
 				target=target,
+				root=root,
 			)
-
 		return results
 
-	async def _recursive_find(self, path, filename, results, *, target):
+	async def _recursive_find(self, path, filename, results, *, target, root):
 		children = await self.Zookeeper.get_children(path) or []
 		for child in children:
 			# ---- hard stop: never cross scopes ----
@@ -641,12 +641,15 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			if full_path.endswith(filename):
 				results.append(
 					LibraryItem(
-						name=full_path[len(self.BasePath):],
+						name=(
+								"/" + full_path[len(root):].lstrip("/")
+						),
 						type="item",
 						layers=[self.Layer if self.Layer != 0 else "0:{}".format(target)],
 						providers=[self],
 					)
 				)
+
 			else:
 				# recurse only into directories
 				if "." not in child or child.endswith((".io", ".d")):
