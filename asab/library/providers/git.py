@@ -98,7 +98,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		cert_file = Config.get("library:git", "cert_file", fallback=None)
 		cert_dir = Config.get("library:git", "cert_dir", fallback=None)
 		if (cert_file is not None) or (cert_dir is not None):
-			pygit2.settings.set_ssl_cert_locations(cert_file=cert_file,cert_dir=cert_dir)
+			pygit2.settings.set_ssl_cert_locations(cert_file=cert_file, cert_dir=cert_dir)
 
 		from ...proactor import Module
 		self.App.add_module(Module)
@@ -203,7 +203,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			def credentials_cb(url, username_from_url, allowed_types):
 				L.debug(
 					"Git SSH credentials requested",
-						struct_data={
+					struct_data={
 						"layer": self.Layer,
 						"url": url,
 						"username": username_from_url,
@@ -214,8 +214,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				# Warn if the allowed_types doesn't match what we expect
 				if not (allowed_types & GIT_CREDTYPE_SSH_KEY):
 					L.warning(
-						"SSH credentials requested but allowed_types ({}) ".format(allowed_types) +
-						"doesn't include SSH_KEY flag ({}). Attempting anyway.".format(GIT_CREDTYPE_SSH_KEY),
+						"SSH credentials requested but allowed_types ({}) ".format(allowed_types)
+						+ "doesn't include SSH_KEY flag ({}). Attempting anyway.".format(GIT_CREDTYPE_SSH_KEY),
 						struct_data={
 							"layer": self.Layer,
 							"url": url,
@@ -407,7 +407,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				struct_data={"layer": self.Layer, "url": self.URLPath}
 			)
 			return
-		
+
 		if self.GitRepository.remotes["origin"] is None:
 			L.error(
 				"Git repository not initialized: origin remote missing",
