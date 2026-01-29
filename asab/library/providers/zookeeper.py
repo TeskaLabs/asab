@@ -658,4 +658,5 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 						filename,
 						results,
 						target=target,
+						root=root,
 					)
