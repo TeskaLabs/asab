@@ -642,7 +642,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				results.append(
 					LibraryItem(
 						name=(
-								"/" + full_path[len(root):].lstrip("/")
+							"/" + full_path[len(root):].lstrip("/")
 						),
 						type="item",
 						layers=[self.Layer if self.Layer != 0 else "0:{}".format(target)],
