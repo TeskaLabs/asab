@@ -649,7 +649,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				)
 			else:
 				# recurse only into directories
-				if "." not in child:
+				if "." not in child or child.endswith((".io", ".d")):
 					await self._recursive_find(
 						full_path,
 						filename,
