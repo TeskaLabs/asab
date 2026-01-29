@@ -311,22 +311,18 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 
 		def init_task():
+
 			if pygit2.discover_repository(self.RepoPath) is None:
 				# For a new repository, clone the remote bit
 				os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
-				try:
-					callbacks = self._create_callbacks()
-					self.GitRepository = pygit2.clone_repository(
-						url=self.URL,
-						path=self.RepoPath,
-						checkout_branch=self.Branch,
-						callbacks=callbacks
-					)
-				except Exception as err:
-					L.exception(
-						"Error when cloning git repository",
-						struct_data={"layer": self.Layer, "error": str(err)}
-					)
+				callbacks = self._create_callbacks()
+				self.GitRepository = pygit2.clone_repository(
+					url=self.URL,
+					path=self.RepoPath,
+					checkout_branch=self.Branch,
+					callbacks=callbacks
+				)
+
 			else:
 				# For existing repository, pull the latest changes
 				self.GitRepository = pygit2.Repository(self.RepoPath)
