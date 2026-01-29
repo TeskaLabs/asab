@@ -592,6 +592,14 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return tenants
 
 	async def find(self, filename: str) -> list:
+		"""
+		Recursively search for files ending with a specific name in ZooKeeper nodes, starting from the base path.
+
+		:param filename: The filename to search for (e.g., '.setup.yaml')
+		:return: A list of LibraryItem objects for files ending with the specified name,
+				or an empty list if no matching files were found.
+		"""
+
 		results = []
 
 		tenant_id = self._current_tenant_id()
