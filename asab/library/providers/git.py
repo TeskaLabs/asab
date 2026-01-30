@@ -288,11 +288,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		if self.PullLock.locked():
 			return
 
-		if self.GitRepository is None:
-			self.App.TaskService.schedule(self.initialize_git_repository())
-			return
-
 		async with self.PullLock:
+			if self.GitRepository is None:
+				self.App.TaskService.schedule(self.initialize_git_repository())
+				return
+
 			try:
 				to_publish = await self.ProactorService.execute(self._do_pull)
 				# Once reset of the head is finished, PubSub message about the change in the subscribed directory gets published.
