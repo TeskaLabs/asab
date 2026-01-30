@@ -74,7 +74,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.URLPath = ""
 		self.Branch = ""
 		self.URL = ""
-		self.is_ssh = False
+		self.UsesSSH = False
 		self.GitRepository: typing.Optional[pygit2.Repository] = None
 
 		# Parse URL - supports both HTTPS and SSH formats
@@ -112,7 +112,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.SSHPubkeyPath = None
 		self.SSHPassphrase = None
 		self.VerifySSHFingerprint = False
-		if self.is_ssh:
+		if self.UsesSSH:
 			self.SSHKeyPath = Config.get("library:git", "ssh_key_path", fallback=os.path.expanduser("~/.ssh/id_rsa"))
 			self.SSHPubkeyPath = Config.get("library:git", "ssh_pubkey_path", fallback=os.path.expanduser("~/.ssh/id_rsa.pub"))
 			self.SSHPassphrase = Config.get("library:git", "ssh_passphrase", fallback=None)
@@ -144,7 +144,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.URLPath = groups[4]
 			self.Branch = groups[5] or ""
 			self.URL = "".join([self.URLScheme, self.UserInfo, self.URLPath])
-			self.is_ssh = False
+			self.UsesSSH = False
 			return
 
 		# Try SSH URL pattern (git+ssh://user@host/path or git+user@host:path)
@@ -164,7 +164,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.DeployToken = ""
 			self.URLScheme = "ssh://"
 			self.UserInfo = user
-			self.is_ssh = True
+			self.UsesSSH = True
 			return
 
 		# Try SSH shorthand pattern: git+git@host:path
@@ -185,7 +185,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.DeployToken = ""
 			self.URLScheme = ""
 			self.UserInfo = user
-			self.is_ssh = True
+			self.UsesSSH = True
 			return
 
 		raise ValueError("Invalid git URL format: {}".format(path))
@@ -198,7 +198,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 		callbacks = pygit2.RemoteCallbacks()
 
-		if self.is_ssh:
+		if self.UsesSSH:
 			# Set up SSH credential callback
 			def credentials_cb(url, username_from_url, allowed_types):
 				L.debug(
