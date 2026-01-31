@@ -85,7 +85,7 @@ setup(
 	install_requires=[
 		'aiohttp>=3.8.3,<4',
 		'fastjsonschema>=2.16.2,<3',
-		'kazoo>=2.9.0,<3',
+		'git+https://github.com/TeskaLabs/kazoo.git',
 		'PyYAML>=6.0,<7',
 	],
 	extras_require={
