@@ -75,6 +75,9 @@ class DiscoveryService(Service):
 		if event.state != 'CONNECTED':
 			return
 
+		if event.path is None:
+			return
+
 		# Handle the change event in the thread-safe manner in the main event loop thread
 		self.App.TaskService.schedule_threadsafe(self._on_change(event.path[len(self.BasePath) + 1:], event.type))
 
@@ -85,7 +88,7 @@ class DiscoveryService(Service):
 			if event_type == 'CREATED' or event_type == 'CHANGED':
 				# The item is new or changed - read the data and update the cache
 				try:
-					data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get(self.BasePath + '/' + item)
+					data, _stat = self.ZooKeeperContainer.ZooKeeper.Client.get(self.BasePath + '/' + item)
 					self._advertised_raw[item] = json.loads(data)
 				except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
 					L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
@@ -266,7 +269,7 @@ class DiscoveryService(Service):
 					try:
 						ip = i[0]
 						port = i[1]
-					except KeyError:
+					except (IndexError, TypeError, KeyError):
 						L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
 						continue
 
@@ -314,7 +317,7 @@ class DiscoveryService(Service):
 
 			for item in items:
 				try:
-					data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get(self.BasePath + '/' + item)
+					data, _stat = self.ZooKeeperContainer.ZooKeeper.Client.get(self.BasePath + '/' + item)
 					result.append((item, json.loads(data)))
 				except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
 					L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
