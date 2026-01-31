@@ -62,17 +62,20 @@ class DiscoveryService(Service):
 			return
 
 		self.App.TaskService.schedule(self._rescan_advertised_instances())
+
+		# Install a persistent watch on the base path to detect changes in the advertised instances everytime the ZooKeeper connection is established
 		zkcontainer.ZooKeeper.Client.add_watch(
 			self.BasePath,
-			self._on_change_threadsafe,
+			self._on_change_zookeeper_thread,
 			kazoo.protocol.states.AddWatchMode.PERSISTENT_RECURSIVE
 		)
 
 
-	def _on_change_threadsafe(self, event):
+	def _on_change_zookeeper_thread(self, event):
 		if event.state != 'CONNECTED':
 			return
 
+		# Handle the change event in the thread-safe manner in the main event loop thread
 		self.App.TaskService.schedule_threadsafe(self._on_change(event.path[len(self.BasePath) + 1:], event.type))
 
 
