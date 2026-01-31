@@ -81,28 +81,27 @@ class DiscoveryService(Service):
 
 	async def _on_change(self, item, event_type):
 		async with self._cache_lock:
-			match event_type:
 
-				case 'CREATED' | 'CHANGED':
-					# The item is new or changed - read the data and update the cache
-					try:
-						data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get(self.BasePath + '/' + item)
-						self._advertised_raw[item] = json.loads(data)
-					except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
-						L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
-						return
-					except kazoo.exceptions.NoNodeError:
-						return
-
-				case 'DELETED':
-					# The item is deleted - remove it from the cache
-					prev = self._advertised_raw.pop(item, None)
-					if prev is None:
-						return
-
-				case _:
-					L.warning("Unexpected event type: {}".format(event_type))
+			if event_type == 'CREATED' or event_type == 'CHANGED':
+				# The item is new or changed - read the data and update the cache
+				try:
+					data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get(self.BasePath + '/' + item)
+					self._advertised_raw[item] = json.loads(data)
+				except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
+					L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
 					return
+				except kazoo.exceptions.NoNodeError:
+					return
+
+			elif event_type == 'DELETED':
+				# The item is deleted - remove it from the cache
+				prev = self._advertised_raw.pop(item, None)
+				if prev is None:
+					return
+
+			else:
+				L.warning("Unexpected event type: {}".format(event_type))
+				return
 
 		# Apply the changes to the cache
 		await self._apply_advertised_raw()
