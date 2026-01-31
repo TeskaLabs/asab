@@ -52,7 +52,7 @@ class DiscoveryService(Service):
 			await self.InternalAuth.initialize(app)
 
 
-	def _on_tick600(self, msg):
+	def _on_tick600(self, _msg):
 		# Full rescan of the advertised instances every 10 minutes
 		self.App.TaskService.schedule(self._rescan_advertised_instances())
 
@@ -231,6 +231,8 @@ class DiscoveryService(Service):
 					prev_keys.discard(item)
 				for item in prev_keys:
 					self._advertised_raw.pop(item, None)
+			except asyncio.CancelledError:
+				raise
 			except Exception:
 				L.exception("Error when scanning advertised instances")
 				return
