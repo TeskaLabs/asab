@@ -21,7 +21,7 @@ class LibraryItem:
     """
     name: str
     type: str
-    layers: typing.List[typing.Union[int, str]]
+    layers: typing.List[str]
     providers: list
     disabled: bool = False
     favorite: bool = False
