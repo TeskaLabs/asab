@@ -423,7 +423,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				else:
 					layer_label = "0:{}".format(target)
 			else:
-				layer_label = self.Layer
+				layer_label = str(self.Layer)
 
 			items.append(LibraryItem(
 				name=fname,
@@ -645,7 +645,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 							"/" + full_path[len(root):].lstrip("/")
 						),
 						type="item",
-						layers=[self.Layer if self.Layer != 0 else "0:{}".format(target)],
+						layers=[str(self.Layer) if self.Layer != 0 else "0:{}".format(target)],
 						providers=[self],
 					)
 				)
