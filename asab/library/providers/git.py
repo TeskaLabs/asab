@@ -399,7 +399,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		if not hasattr(self.GitRepository, "remotes"):
 			L.error(
-				"Git repository not initialized: remotes attribute missing",
+				"Git repository not initialized: Git repository object is in an invalid state (missing remote configuration)",
 				struct_data={"layer": self.Layer, "url": self.URLPath}
 			)
 			return
