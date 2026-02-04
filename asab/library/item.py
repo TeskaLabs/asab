@@ -10,7 +10,9 @@ class LibraryItem:
     Attributes:
         name (str): The absolute path of the Item. It can be directly fed into `LibraryService.read(...)`.
         type (str): Can be either `dir` if the Item is a directory or `item` if Item is of any other type.
-        layer (int): The number of highest layer in which this Item is found. The higher the number, the lower the layer is.
+            layers (list[int | str]): Identifiers of layers in which this item was found.
+        Values are provider-defined and treated as opaque identifiers.
+        Examples: 0, 1, "0:global", "0:tenant", "0:personal".
         providers (list): List of `LibraryProvider` objects containing this Item.
         disabled (bool): `True` if the Item is disabled, `False` otherwise. If the Item is disabled, `LibraryService.read(...)` will return `None`.
         favorite (bool): True if the Item is marked as a favorite.
@@ -19,7 +21,7 @@ class LibraryItem:
     """
     name: str
     type: str
-    layers: typing.List[int]  # Now stores multiple layers in ascending order
+    layers: typing.List[str]
     providers: list
     disabled: bool = False
     favorite: bool = False

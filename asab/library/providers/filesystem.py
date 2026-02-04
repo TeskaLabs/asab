@@ -154,7 +154,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			item = LibraryItem(
 				name=path[len(self.BasePath):],  # Store relative path
 				type="item",  # or "dir" if applicable
-				layers=[self.Layer],
+				layers=[str(self.Layer)],
 				providers=[self],
 			)
 			results.append(item)

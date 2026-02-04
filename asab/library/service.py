@@ -373,7 +373,7 @@ class LibraryService(Service):
 				item.disabled = self.check_disabled(item.name)
 				item.favorite = self.check_favorite(item.name)
 				# Use the layers as provided by the provider; if empty, fall back to outer_layer.
-				provider_layers = item.layers if item.layers else [outer_layer]
+				provider_layers = item.layers if item.layers else [str(outer_layer)]
 
 				if item.name in unique_items:
 					existing_item = unique_items[item.name]
