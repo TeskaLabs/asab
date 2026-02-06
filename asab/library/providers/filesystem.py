@@ -430,7 +430,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		if os.path.isdir(root):
 			self._recursive_find(root, filename, results, strip_prefix=root)
-		print(results)
 		return results
 
 	def _recursive_find(self, path, filename, results, *, strip_prefix):
