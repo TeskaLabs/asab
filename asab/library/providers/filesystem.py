@@ -152,13 +152,37 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 				scopes.append((tenant, cred))
 		return scopes
 
-	def build_path(self, path, tenant_specific=False, tenant=None):
-		assert path[:1] == '/'
+	def _validate_read_path(self, path: str) -> None:
+		"""
+		Validate a library item path for read().
 
-		if path != '/':
-			node_path = self.BasePath + path
-		else:
-			node_path = self.BasePath
+		Enforces:
+			- absolute path (starts with '/')
+			- file extension present
+			- no double slashes
+		"""
+		assert path[:1] == '/', "File path must start with '/' (e.g. /library/Templates/file.json)"
+		assert len(
+			os.path.splitext(path)[1]) > 0, "File path must end with an extension (e.g. /library/Templates/item.json)"
+		assert '//' not in path, "File path cannot contain double slashes (//)"
+
+	def build_path(self, path, tenant_specific=False, tenant=None):
+		"""
+		Build an absolute filesystem path under this provider base path.
+
+		Args:
+			path: Library path starting with '/'.
+			tenant_specific: If True, resolve into '/.tenants/<tenant>/' when tenant is available.
+			tenant: Explicit tenant ID override. If None, uses Tenant context.
+
+		Returns:
+			Absolute filesystem path.
+
+		Notes:
+			- This method is for both file and directory paths.
+			- It does not enforce file-extension rules.
+		"""
+		assert path[:1] == '/'
 
 		if tenant_specific:
 			if tenant is None:
@@ -169,15 +193,31 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 			if tenant:
 				node_path = self.BasePath + '/.tenants/' + tenant + path
+			else:
+				node_path = self.BasePath + path if path != '/' else self.BasePath
+		else:
+			node_path = self.BasePath + path if path != '/' else self.BasePath
 
 		node_path = node_path.rstrip("/")
 
 		assert '//' not in node_path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
-		assert node_path[0] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
+		assert node_path[0] == '/', "Directory path must start with '/'"
 
 		return node_path
 
 	async def read(self, path: str) -> typing.Optional[typing.IO]:
+		"""
+		Read a file from filesystem overlays in precedence order:
+
+		1) personal: '/.personal/<tenant>/<credentials>/<path>'
+		2) tenant:   '/.tenants/<tenant>/<path>'
+		3) global:   '<BasePath>/<path>'
+
+		Returns:
+			Binary file object, or None if not found.
+		"""
+		self._validate_read_path(path)
+
 		tenant_id = self._current_tenant_id()
 		cred_id = self._current_credentials_id()
 
@@ -202,6 +242,14 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return None
 
 	async def list(self, path: str) -> list:
+		"""
+		List directory items from overlays and concatenate in precedence order:
+
+		personal + tenant + global
+
+		Returns:
+			List[LibraryItem]
+		"""
 		# Global
 		global_node_path = self.build_path(path, tenant_specific=False)
 		global_items = self._list_from_node_path(global_node_path, path, target="global")
@@ -333,6 +381,13 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		return items
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
+		"""
+		Subscribe to filesystem changes under `path`.
+
+		Note:
+			`target` is accepted for API compatibility; current filesystem implementation
+			watches the resolved path without target-specific scoping.
+		"""
 		if not os.path.isdir(self.BasePath + path):
 			return
 		if self.FD is None:
