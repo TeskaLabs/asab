@@ -4,7 +4,7 @@
 
 ### Features
 - Extend 401 and 403 responses with WWW-Authenticate header (#721)
-
+- Filesystem supports reading from tenants(#722)
 ---
 
 
