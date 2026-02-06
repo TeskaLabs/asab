@@ -493,8 +493,11 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		if os.path.isdir(path):
 			for entry in os.listdir(path):
 				full_path = os.path.join(path, entry)
-				if os.path.isdir(full_path) and "." in entry:
+
+				# Skip dotted dirs except internal ones ending with .io or .d
+				if os.path.isdir(full_path) and '.' in entry and not entry.endswith(('.io', '.d')):
 					continue
+
 				self._recursive_find(full_path, filename, results)
 
 	async def finalize(self, app):
