@@ -493,4 +493,11 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		if os.path.isdir(path):
 			for entry in os.listdir(path):
 				full_path = os.path.join(path, entry)
+				if os.path.isdir(full_path) and "." in entry:
+					continue
 				self._recursive_find(full_path, filename, results)
+
+	async def finalize(self, app):
+		if self.FD is not None:
+			self.App.Loop.remove_reader(self.FD)
+			os.close(self.FD)
