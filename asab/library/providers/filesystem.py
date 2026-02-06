@@ -155,17 +155,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 	def build_path(self, path, tenant_specific=False, tenant=None):
 		assert path[:1] == '/'
 
-		# SECURITY: prevent scope escape
-		if (
-			"/../" in path
-			or path.endswith("/..")
-			or path.startswith("/.tenants/")
-			or path.startswith("/.personal/")
-		):
-			raise ValueError("Invalid library path")
-
-		# existing logic continues...
-
 		if path != '/':
 			node_path = self.BasePath + path
 		else:
@@ -306,187 +295,70 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		return items
 
+	def _list(self, path: str):
+		node_path = self.BasePath + path
+		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
+		if not exists:
+			raise KeyError("Path '{}' not found by FileSystemLibraryProvider.".format(path))
+
+		items = []
+		for fname in glob.iglob(os.path.join(node_path, "*")):
+			fstat = os.stat(fname)
+
+			assert fname.startswith(self.BasePath)
+			fname = fname[len(self.BasePath):]
+
+			if stat.S_ISREG(fstat.st_mode):
+				ftype = "item"
+				size = fstat.st_size
+			elif stat.S_ISDIR(fstat.st_mode):
+				ftype = "dir"
+				fname += '/'
+				size = None
+			else:
+				ftype = "?"
+				size = None
+
+			if any(x.startswith('.') for x in fname.split('/')):
+				continue
+
+			items.append(LibraryItem(
+				name=fname,
+				type=ftype,
+				layers=[self.Layer],
+				providers=[self],
+				size=size,
+			))
+
+		return items
+
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
+		if not os.path.isdir(self.BasePath + path):
+			return
 		if self.FD is None:
-			L.warning(
-				"Cannot subscribe to changes in the filesystem layer of the library: '{}'".format(
-					self.BasePath
-				)
-			)
+			L.warning("Cannot subscribe to changes in the filesystem layer of the library: '{}'".format(self.BasePath))
 			return
+		self._subscribe_recursive(path, path)
 
-		# ---- GLOBAL ----
-		if target is None or target == "global":
-			actual = self.build_path(path)
-			if os.path.isdir(actual):
-				self._subscribe_recursive(
-					subscribed_path=path,
-					path_to_be_listed=path,
-					scope="global",
-				)
 
-		# ---- TENANT (all) ----
-		elif target == "tenant":
-			for tenant in await self._get_tenants():
-				actual = self.build_path(path, tenant_specific=True, tenant=tenant)
-				if os.path.isdir(actual):
-					self._subscribe_recursive(
-						subscribed_path=path,
-						path_to_be_listed=path,
-						scope="tenant",
-						tenant_id=tenant,
-					)
-
-		# ---- TENANT (one) ----
-		elif isinstance(target, tuple) and target[0] == "tenant":
-			tenant = target[1]
-			actual = self.build_path(path, tenant_specific=True, tenant=tenant)
-			if os.path.isdir(actual):
-				self._subscribe_recursive(
-					subscribed_path=path,
-					path_to_be_listed=path,
-					scope="tenant",
-					tenant_id=tenant,
-				)
-
-		# ---- PERSONAL (all credentials) ----
-		elif target == "personal":
-			for tenant_id, cred_id in await self._get_personal_scopes():
-				actual = self._personal_path(path, tenant_id, cred_id)
-				if actual is None:
-					continue
-				if os.path.isdir(actual):
-					self._subscribe_recursive(
-						subscribed_path=path,
-						path_to_be_listed=path,
-						scope="personal",
-						tenant_id=tenant_id,
-						cred_id=cred_id,
-					)
-
-		# ---- PERSONAL (one credential) ----
-		elif isinstance(target, tuple) and target[0] == "personal":
-			cred_id = target[1]
-			for tenant_id in await self._get_tenants():
-				try:
-					actual = self._personal_path(path, tenant_id, cred_id)
-				except ValueError:
-					continue
-
-				if actual is None:
-					continue
-
-				if os.path.isdir(actual):
-					self._subscribe_recursive(
-						subscribed_path=path,
-						path_to_be_listed=path,
-						scope="personal",
-						tenant_id=tenant_id,
-						cred_id=cred_id,
-					)
-
-		else:
-			raise ValueError("Unexpected target: {!r}".format(target))
-
-	def _subscribe_recursive(
-		self,
-		subscribed_path,
-		path_to_be_listed,
-		*,
-		scope="global",
-		tenant_id=None,
-		cred_id=None,
-	):
-		if scope == "global":
-			fs_dir = self.build_path(path_to_be_listed)
-
-		elif scope == "tenant":
-			fs_dir = self.build_path(
-				path_to_be_listed,
-				tenant_specific=True,
-				tenant=tenant_id,
-			)
-
-		elif scope == "personal":
-			try:
-				fs_dir = self._personal_path(path_to_be_listed, tenant_id, cred_id)
-			except ValueError:
-				return
-			if fs_dir is None:
-				return
-
-		else:
-			return
-
-		if not os.path.isdir(fs_dir):
-			return
-
-		wd = inotify_add_watch(self.FD, fs_dir.encode(), IN_ALL_EVENTS)
+	def _subscribe_recursive(self, subscribed_path, path_to_be_listed):
+		binary = (self.BasePath + path_to_be_listed).encode()
+		wd = inotify_add_watch(self.FD, binary, IN_ALL_EVENTS)
 		if wd == -1:
 			L.error("Error in inotify_add_watch")
 			return
+		self.WDs[wd] = (subscribed_path, path_to_be_listed)
 
-		self.WDs[wd] = {
-			"subscribed_path": subscribed_path,
-			"path": path_to_be_listed,
-			"scope": scope,
-			"tenant_id": tenant_id,
-			"cred_id": cred_id,
-		}
-
-		# recurse
 		try:
-			items = self._list_subdirs_only(
-				path_to_be_listed,
-				scope=scope,
-				tenant_id=tenant_id,
-				cred_id=cred_id,
-			)
+			items = self._list(path_to_be_listed)
 		except KeyError:
+			# subscribing to non-existing directory is silent
 			return
 
 		for item in items:
-			self._subscribe_recursive(
-				subscribed_path,
-				item,
-				scope=scope,
-				tenant_id=tenant_id,
-				cred_id=cred_id,
-			)
+			if item.type == "dir":
+				self._subscribe_recursive(subscribed_path, item.name)
 
-	def _list_subdirs_only(self, path, *, scope, tenant_id=None, cred_id=None):
-		if scope == "global":
-			node_path = self.build_path(path)
-
-		elif scope == "tenant":
-			node_path = self.build_path(
-				path,
-				tenant_specific=True,
-				tenant=tenant_id,
-			)
-
-		elif scope == "personal":
-			try:
-				node_path = self._personal_path(path, tenant_id, cred_id)
-			except ValueError:
-				raise KeyError(path)
-
-			if node_path is None:
-				raise KeyError(path)
-
-		else:
-			raise KeyError(path)
-
-		if not os.path.isdir(node_path):
-			raise KeyError(path)
-
-		subdirs = []
-		for fname in glob.iglob(os.path.join(node_path, "*")):
-			if os.path.isdir(fname):
-				name = os.path.basename(fname)
-				if not name.startswith("."):
-					subdirs.append("{}/{}/".format(path.rstrip("/"), name))
-		return subdirs
 
 	def _on_inotify_read(self):
 		data = os.read(self.FD, 64 * 1024)
@@ -497,66 +369,38 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			pos += EVENT_SIZE + namesize
 			name = (data[pos - namesize: pos].split(b'\x00', 1)[0]).decode()
 
-			self.AggrEvents.append((wd, mask, cookie, name))
+			if mask & IN_ISDIR == IN_ISDIR and ((mask & IN_CREATE == IN_CREATE) or (mask & IN_MOVED_TO == IN_MOVED_TO)):
+				subscribed_path, child_path = self.WDs[wd]
+				self._subscribe_recursive(subscribed_path, "/".join([child_path, name]))
 
-			info = self.WDs.get(wd)
-			if not info:
-				continue
-
-			subscribed_path = info["subscribed_path"]
-			child_path = info["path"]
-			scope = info["scope"]
-			tenant_id = info["tenant_id"]
-			cred_id = info["cred_id"]
-
-			if (mask & IN_ISDIR) and (mask & (IN_CREATE | IN_MOVED_TO)):
-				self._subscribe_recursive(
-					subscribed_path,
-					"{}/{}/".format(child_path.rstrip("/"), name),
-					scope=scope,
-					tenant_id=tenant_id,
-					cred_id=cred_id,
-				)
-
-			if mask & IN_IGNORED:
+			if mask & IN_IGNORED == IN_IGNORED:
+				# cleanup
 				del self.WDs[wd]
 				continue
 
-			# resolve actual filesystem path correctly
-			fs_parent = self._resolve_fs_path_from_info(info)
-			full_path = os.path.join(fs_parent, name)
+			name = (data[pos - namesize: pos].split(b'\x00', 1)[0]).decode()
 
+			full_path = os.path.join(self.BasePath, name)
 			if os.path.normpath(full_path) == os.path.normpath(self.DisabledFilePath):
 				self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
 
 		self.AggrTimer.restart(0.2)
 
+
 	async def _on_aggr_timer(self):
 		to_advertise = set()
-
 		for wd, mask, cookie, name in self.AggrEvents:
-			info = self.WDs.get(wd)
-			if not info:
-				continue
-
-			to_advertise.add(info["subscribed_path"])
-
+			# When wathed directory is being removed, more than one inotify events are being produced.
+			# When IN_IGNORED event occurs, respective wd is removed from self.WDs,
+			# but some other events (like IN_DELETE_SELF) get to this point, without having its reference in self.WDs.
+			subscribed_path, _ = self.WDs.get(wd, (None, None))
+			to_advertise.add(subscribed_path)
 		self.AggrEvents.clear()
 
 		for path in to_advertise:
 			if path is None:
 				continue
 			self.App.PubSub.publish("Library.change!", self, path)
-
-	async def _get_tenants(self) -> typing.List[str]:
-		tenants_dir = os.path.join(self.BasePath, ".tenants")
-		if not os.path.isdir(tenants_dir):
-			return []
-
-		return [
-			name for name in os.listdir(tenants_dir)
-			if not name.startswith(".") and os.path.isdir(os.path.join(tenants_dir, name))
-		]
 
 	async def find(self, filename: str) -> list:
 		results = []
@@ -568,6 +412,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		if tenant_id and cred_id:
 			try:
 				root = self._personal_path("/", tenant_id, cred_id)
+				print(root)
 			except ValueError:
 				root = None
 
@@ -582,9 +427,10 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		# 3) GLOBAL
 		root = self.build_path("/", tenant_specific=False)
+
 		if os.path.isdir(root):
 			self._recursive_find(root, filename, results, strip_prefix=root)
-
+		print(results)
 		return results
 
 	def _recursive_find(self, path, filename, results, *, strip_prefix):
