@@ -5,6 +5,7 @@ import logging
 import hashlib
 import re
 import typing
+import time
 
 from .filesystem import FileSystemLibraryProvider
 from ...config import Config
@@ -309,18 +310,30 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 		Initialize git repository by cloning or pulling latest changes.
 		"""
+		init_start = time.time()
+		L.info("🐰 Initializing git repository", struct_data={"layer": self.Layer, "url": self.URLPath})
 
 		def init_task():
 
 			if pygit2.discover_repository(self.RepoPath) is None:
 				# For a new repository, clone the remote bit
 				os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
+
+				L.info("🐰 Cloning repository", struct_data={"layer": self.Layer, "url": self.URL})
+				clone_start = time.time()
+
 				callbacks = self._create_callbacks()
 				self.GitRepository = pygit2.clone_repository(
 					url=self.URL,
 					path=self.RepoPath,
 					checkout_branch=self.Branch,
 					callbacks=callbacks
+				)
+
+				clone_duration_ms = (time.time() - clone_start) * 1000
+				L.info(
+					"🐰 Clone completed in {:.1f}ms".format(clone_duration_ms),
+					struct_data={"layer": self.Layer, "duration_ms": round(clone_duration_ms, 1)}
 				)
 
 			else:
@@ -404,7 +417,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			)
 			return
 
-		if "origin" not in self.GitRepository.remotes:
+		if "origin" not in self.GitRepository.remotes.names():
 			L.error(
 				"Git repository not initialized: origin remote missing",
 				struct_data={"layer": self.Layer, "url": self.URLPath}
@@ -413,6 +426,12 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		# If everything went fine, set the provider as ready
 		await self._set_ready()
+		
+		init_duration_ms = (time.time() - init_start) * 1000
+		L.info(
+			"🐰 ✅ Git repository initialized successfully in {:.1f}ms".format(init_duration_ms),
+			struct_data={"layer": self.Layer, "total_duration_ms": round(init_duration_ms, 1)}
+		)
 
 
 	def _do_fetch(self):
@@ -424,8 +443,15 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		if self.GitRepository is None:
 			return None
 
+		fetch_start = time.time()
+		L.info("🐰 Fetching from remote", struct_data={"layer": self.Layer})
+		
 		callbacks = self._create_callbacks()
 		self.GitRepository.remotes["origin"].fetch(callbacks=callbacks)
+		
+		fetch_duration_ms = (time.time() - fetch_start) * 1000
+		L.info("🐰 Fetch completed in {:.1f}ms".format(fetch_duration_ms), struct_data={"layer": self.Layer, "duration_ms": round(fetch_duration_ms, 1)})
+		
 		if self.Branch is None:
 			reference = self.GitRepository.lookup_reference("refs/remotes/origin/HEAD")
 		else:
