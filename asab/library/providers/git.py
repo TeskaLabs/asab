@@ -404,13 +404,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			)
 			return
 
-		if "origin" not in self.GitRepository.remotes:
-			L.error(
-				"Git repository not initialized: origin remote missing",
-				struct_data={"layer": self.Layer, "url": self.URLPath}
-			)
-			return
-
 		# If everything went fine, set the provider as ready
 		await self._set_ready()
 
