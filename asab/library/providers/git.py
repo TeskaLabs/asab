@@ -147,7 +147,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			if hasattr(pygit2, 'Settings'):
 				# default settings
 				if hasattr(pygit2.Settings, 'server_timeout'):
-					L.info("🐰 ⏱️ Default libgit server timeout: {}".format(pygit2.Settings.server_timeout))
+					L.info("🐰 ⏱️ Default libgit server timeout: {}".format(int(pygit2.Settings.server_timeout)))
+					L.info("🐰 ⏱️ Default libgit server timeout: {}".format(int(pygit2.Settings.server_connect_timeout)))
 					pygit2.Settings.server_timeout = timeout_ms
 					L.info(
 						"🐰 ⏱️ Set server timeout via pygit2.Settings: {}ms ({}s)".format(timeout_ms, self.ServerTimeout),
