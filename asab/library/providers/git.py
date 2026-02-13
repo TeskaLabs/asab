@@ -125,10 +125,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		# Retry configuration for transient errors
 		self.MaxRetries = Config.getint("library:git", "max_retries", fallback=3)
 		self.RetryDelay = Config.getint("library:git", "retry_delay", fallback=2)
-		
+
 		# Timeout configuration (in seconds)
 		self.ServerTimeout = Config.getint("library:git", "server_timeout", fallback=30)
-		
+
 		# Set pygit2 server timeout
 		self._configure_timeout()
 
@@ -142,17 +142,19 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		try:
 			# Try different pygit2 API versions for setting timeout
 			timeout_ms = self.ServerTimeout * 1000  # Convert to milliseconds
-			
+
 			# Try pygit2.Settings (newer API)
 			if hasattr(pygit2, 'Settings'):
+				# default settings
 				if hasattr(pygit2.Settings, 'server_timeout'):
+					L.info("🐰 ⏱️ Default libgit server timeout: {}".format(pygit2.Settings.server_timeout))
 					pygit2.Settings.server_timeout = timeout_ms
 					L.info(
 						"🐰 ⏱️ Set server timeout via pygit2.Settings: {}ms ({}s)".format(timeout_ms, self.ServerTimeout),
 						struct_data={"layer": self.Layer, "timeout_ms": timeout_ms, "timeout_seconds": self.ServerTimeout}
 					)
 					return
-			
+
 			# Try pygit2.settings (older API)
 			if hasattr(pygit2, 'settings'):
 				if hasattr(pygit2.settings, 'server_timeout'):
@@ -162,7 +164,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 						struct_data={"layer": self.Layer, "timeout_ms": timeout_ms, "timeout_seconds": self.ServerTimeout}
 					)
 					return
-			
+
 			# Try pygit2.option (another API variant)
 			if hasattr(pygit2, 'option'):
 				# GIT_OPT_SET_SERVER_CONNECT_TIMEOUT = 37 (from libgit2)
@@ -173,14 +175,14 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 						struct_data={"layer": self.Layer, "timeout_ms": timeout_ms, "timeout_seconds": self.ServerTimeout}
 					)
 					return
-				except:
+				except Exception:
 					pass
-			
+
 			L.warning(
 				"🐰 ⚠️ Could not set server timeout - API not available in pygit2 version {}. Using system defaults.".format(pygit2.__version__),
 				struct_data={"layer": self.Layer, "pygit2_version": pygit2.__version__}
 			)
-			
+
 		except Exception as e:
 			L.warning(
 				"🐰 ⚠️ Failed to set server timeout: {}".format(str(e)),
@@ -393,7 +395,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			if pygit2.discover_repository(self.RepoPath) is None:
 				# For a new repository, clone the remote bit
 				os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
-				
+
 				# Retry clone on transient errors
 				last_error = None
 				for attempt in range(self.MaxRetries):
@@ -402,10 +404,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 							delay = self.RetryDelay * (attempt + 1)
 							L.info("🐰 Retry attempt {} after {}s".format(attempt + 1, delay))
 							time.sleep(delay)
-						
+
 						L.info("🐰 Cloning repository (attempt {}/{})".format(attempt + 1, self.MaxRetries), struct_data={"layer": self.Layer, "url": self.URL})
 						clone_start = time.time()
-						
+
 						callbacks = self._create_callbacks()
 						self.GitRepository = pygit2.clone_repository(
 							url=self.URL,
@@ -413,14 +415,14 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 							checkout_branch=self.Branch,
 							callbacks=callbacks
 						)
-						
+
 						clone_duration_ms = (time.time() - clone_start) * 1000
 						L.info(
 							"🐰 Clone completed in {:.1f}ms".format(clone_duration_ms),
 							struct_data={"layer": self.Layer, "duration_ms": round(clone_duration_ms, 1)}
 						)
 						break  # Success!
-						
+
 					except pygit2.GitError as e:
 						last_error = e
 						if self._is_transient_error(str(e)):
@@ -429,7 +431,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 								continue  # Retry
 						# Non-transient or last attempt - raise
 						raise
-				
+
 				if last_error and attempt + 1 >= self.MaxRetries:
 					L.error("🐰 Clone failed after {} attempts".format(self.MaxRetries))
 					raise last_error
@@ -524,7 +526,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		# If everything went fine, set the provider as ready
 		await self._set_ready()
-		
+
 		init_duration_ms = (time.time() - init_start) * 1000
 		L.info(
 			"🐰 ✅ Git repository initialized successfully in {:.1f}ms".format(init_duration_ms),
@@ -549,23 +551,23 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					delay = self.RetryDelay * (attempt + 1)
 					L.info("🐰 Retry fetch attempt {} after {}s".format(attempt + 1, delay))
 					time.sleep(delay)
-				
+
 				fetch_start = time.time()
 				L.info("🐰 Fetching from remote (attempt {}/{})".format(attempt + 1, self.MaxRetries), struct_data={"layer": self.Layer})
-				
+
 				callbacks = self._create_callbacks()
 				self.GitRepository.remotes["origin"].fetch(callbacks=callbacks)
-				
+
 				fetch_duration_ms = (time.time() - fetch_start) * 1000
 				L.info("🐰 Fetch completed in {:.1f}ms".format(fetch_duration_ms), struct_data={"layer": self.Layer, "duration_ms": round(fetch_duration_ms, 1)})
-				
+
 				if self.Branch is None:
 					reference = self.GitRepository.lookup_reference("refs/remotes/origin/HEAD")
 				else:
 					reference = self.GitRepository.lookup_reference("refs/remotes/origin/{}".format(self.Branch))
 				commit_id = reference.peel().id
 				return commit_id
-				
+
 			except pygit2.GitError as e:
 				last_error = e
 				if self._is_transient_error(str(e)):
@@ -575,7 +577,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				# Non-transient or last attempt - raise
 				L.error("🐰 Fetch failed after {} attempts".format(attempt + 1))
 				raise
-		
+
 		if last_error:
 			raise last_error
 
