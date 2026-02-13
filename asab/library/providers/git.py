@@ -64,6 +64,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		ssh_pubkey_path=<optional path to SSH public key, defaults to ~/.ssh/id_rsa.pub>
 		ssh_passphrase=<optional passphrase for SSH key>
 		verify_ssh_fingerprint=yes|no (default: no - auto-accepts host keys)
+		server_timeout=<timeout in seconds for git server operations, default: 30>
 		max_retries=<number of retry attempts for transient errors, default: 3>
 		retry_delay=<initial delay in seconds between retries, default: 2>
 	"""
@@ -124,11 +125,67 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		# Retry configuration for transient errors
 		self.MaxRetries = Config.getint("library:git", "max_retries", fallback=3)
 		self.RetryDelay = Config.getint("library:git", "retry_delay", fallback=2)
+		
+		# Timeout configuration (in seconds)
+		self.ServerTimeout = Config.getint("library:git", "server_timeout", fallback=30)
+		
+		# Set pygit2 server timeout
+		self._configure_timeout()
 
 		self.App.TaskService.schedule(self.initialize_git_repository())
 
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
+
+	def _configure_timeout(self):
+		"""Configure pygit2/libgit2 server timeout."""
+		try:
+			# Try different pygit2 API versions for setting timeout
+			timeout_ms = self.ServerTimeout * 1000  # Convert to milliseconds
+			
+			# Try pygit2.Settings (newer API)
+			if hasattr(pygit2, 'Settings'):
+				if hasattr(pygit2.Settings, 'server_timeout'):
+					pygit2.Settings.server_timeout = timeout_ms
+					L.info(
+						"🐰 ⏱️ Set server timeout via pygit2.Settings: {}ms ({}s)".format(timeout_ms, self.ServerTimeout),
+						struct_data={"layer": self.Layer, "timeout_ms": timeout_ms, "timeout_seconds": self.ServerTimeout}
+					)
+					return
+			
+			# Try pygit2.settings (older API)
+			if hasattr(pygit2, 'settings'):
+				if hasattr(pygit2.settings, 'server_timeout'):
+					pygit2.settings.server_timeout = timeout_ms
+					L.info(
+						"🐰 ⏱️ Set server timeout via pygit2.settings: {}ms ({}s)".format(timeout_ms, self.ServerTimeout),
+						struct_data={"layer": self.Layer, "timeout_ms": timeout_ms, "timeout_seconds": self.ServerTimeout}
+					)
+					return
+			
+			# Try pygit2.option (another API variant)
+			if hasattr(pygit2, 'option'):
+				# GIT_OPT_SET_SERVER_CONNECT_TIMEOUT = 37 (from libgit2)
+				try:
+					pygit2.option(37, timeout_ms)
+					L.info(
+						"🐰 ⏱️ Set server timeout via pygit2.option: {}ms ({}s)".format(timeout_ms, self.ServerTimeout),
+						struct_data={"layer": self.Layer, "timeout_ms": timeout_ms, "timeout_seconds": self.ServerTimeout}
+					)
+					return
+				except:
+					pass
+			
+			L.warning(
+				"🐰 ⚠️ Could not set server timeout - API not available in pygit2 version {}. Using system defaults.".format(pygit2.__version__),
+				struct_data={"layer": self.Layer, "pygit2_version": pygit2.__version__}
+			)
+			
+		except Exception as e:
+			L.warning(
+				"🐰 ⚠️ Failed to set server timeout: {}".format(str(e)),
+				struct_data={"layer": self.Layer, "error": str(e)}
+			)
 
 	def _parse_url(self, path):
 		"""
