@@ -64,6 +64,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		ssh_pubkey_path=<optional path to SSH public key, defaults to ~/.ssh/id_rsa.pub>
 		ssh_passphrase=<optional passphrase for SSH key>
 		verify_ssh_fingerprint=yes|no (default: no - auto-accepts host keys)
+		max_retries=<number of retry attempts for transient errors, default: 3>
+		retry_delay=<initial delay in seconds between retries, default: 2>
 	"""
 	def __init__(self, library, path, layer):
 
@@ -118,6 +120,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.SSHPubkeyPath = Config.get("library:git", "ssh_pubkey_path", fallback=os.path.expanduser("~/.ssh/id_rsa.pub"))
 			self.SSHPassphrase = Config.get("library:git", "ssh_passphrase", fallback=None)
 			self.VerifySSHFingerprint = Config.getboolean("library:git", "verify_ssh_fingerprint", fallback=False)
+
+		# Retry configuration for transient errors
+		self.MaxRetries = Config.getint("library:git", "max_retries", fallback=3)
+		self.RetryDelay = Config.getint("library:git", "retry_delay", fallback=2)
 
 		self.App.TaskService.schedule(self.initialize_git_repository())
 
@@ -229,11 +235,9 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 				# Check if key files exist
 				if not os.path.exists(key_path):
-					L.error(
-						"SSH private key not found",
-						struct_data={"layer": self.Layer, "path": key_path}
-					)
-					return None
+					error_msg = "SSH private key not found at: {}".format(key_path)
+					L.error(error_msg, struct_data={"layer": self.Layer, "path": key_path})
+					raise FileNotFoundError(error_msg)
 				if not os.path.exists(pubkey_path):
 					L.warning(
 						"SSH public key not found",
@@ -255,7 +259,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 						"Failed to create SSH key-pair",
 						struct_data={"layer": self.Layer, "path": key_path, "error": str(e)}
 					)
-					return None
+					# Re-raise instead of returning None - pygit2 requires valid credential or exception
+					raise
 
 			callbacks.credentials = credentials_cb
 
@@ -306,6 +311,19 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				)
 
 
+	def _is_transient_error(self, error_msg):
+		"""Check if error is transient and should be retried."""
+		transient_patterns = [
+			"Failed to retrieve list of SSH authentication methods",
+			"Failed getting response",
+			"Connection refused",
+			"Connection reset",
+			"Connection timed out",
+			"Network is unreachable",
+		]
+		error_str = str(error_msg).lower()
+		return any(pattern.lower() in error_str for pattern in transient_patterns)
+
 	async def initialize_git_repository(self):
 		"""
 		Initialize git repository by cloning or pulling latest changes.
@@ -318,23 +336,46 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			if pygit2.discover_repository(self.RepoPath) is None:
 				# For a new repository, clone the remote bit
 				os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
-
-				L.info("🐰 Cloning repository", struct_data={"layer": self.Layer, "url": self.URL})
-				clone_start = time.time()
-
-				callbacks = self._create_callbacks()
-				self.GitRepository = pygit2.clone_repository(
-					url=self.URL,
-					path=self.RepoPath,
-					checkout_branch=self.Branch,
-					callbacks=callbacks
-				)
-
-				clone_duration_ms = (time.time() - clone_start) * 1000
-				L.info(
-					"🐰 Clone completed in {:.1f}ms".format(clone_duration_ms),
-					struct_data={"layer": self.Layer, "duration_ms": round(clone_duration_ms, 1)}
-				)
+				
+				# Retry clone on transient errors
+				last_error = None
+				for attempt in range(self.MaxRetries):
+					try:
+						if attempt > 0:
+							delay = self.RetryDelay * (attempt + 1)
+							L.info("🐰 Retry attempt {} after {}s".format(attempt + 1, delay))
+							time.sleep(delay)
+						
+						L.info("🐰 Cloning repository (attempt {}/{})".format(attempt + 1, self.MaxRetries), struct_data={"layer": self.Layer, "url": self.URL})
+						clone_start = time.time()
+						
+						callbacks = self._create_callbacks()
+						self.GitRepository = pygit2.clone_repository(
+							url=self.URL,
+							path=self.RepoPath,
+							checkout_branch=self.Branch,
+							callbacks=callbacks
+						)
+						
+						clone_duration_ms = (time.time() - clone_start) * 1000
+						L.info(
+							"🐰 Clone completed in {:.1f}ms".format(clone_duration_ms),
+							struct_data={"layer": self.Layer, "duration_ms": round(clone_duration_ms, 1)}
+						)
+						break  # Success!
+						
+					except pygit2.GitError as e:
+						last_error = e
+						if self._is_transient_error(str(e)):
+							L.warning("🐰 Transient error: {}".format(str(e)))
+							if attempt + 1 < self.MaxRetries:
+								continue  # Retry
+						# Non-transient or last attempt - raise
+						raise
+				
+				if last_error and attempt + 1 >= self.MaxRetries:
+					L.error("🐰 Clone failed after {} attempts".format(self.MaxRetries))
+					raise last_error
 
 			else:
 				# For existing repository, pull the latest changes
@@ -443,21 +484,43 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		if self.GitRepository is None:
 			return None
 
-		fetch_start = time.time()
-		L.info("🐰 Fetching from remote", struct_data={"layer": self.Layer})
+		# Retry fetch on transient errors
+		last_error = None
+		for attempt in range(self.MaxRetries):
+			try:
+				if attempt > 0:
+					delay = self.RetryDelay * (attempt + 1)
+					L.info("🐰 Retry fetch attempt {} after {}s".format(attempt + 1, delay))
+					time.sleep(delay)
+				
+				fetch_start = time.time()
+				L.info("🐰 Fetching from remote (attempt {}/{})".format(attempt + 1, self.MaxRetries), struct_data={"layer": self.Layer})
+				
+				callbacks = self._create_callbacks()
+				self.GitRepository.remotes["origin"].fetch(callbacks=callbacks)
+				
+				fetch_duration_ms = (time.time() - fetch_start) * 1000
+				L.info("🐰 Fetch completed in {:.1f}ms".format(fetch_duration_ms), struct_data={"layer": self.Layer, "duration_ms": round(fetch_duration_ms, 1)})
+				
+				if self.Branch is None:
+					reference = self.GitRepository.lookup_reference("refs/remotes/origin/HEAD")
+				else:
+					reference = self.GitRepository.lookup_reference("refs/remotes/origin/{}".format(self.Branch))
+				commit_id = reference.peel().id
+				return commit_id
+				
+			except pygit2.GitError as e:
+				last_error = e
+				if self._is_transient_error(str(e)):
+					L.warning("🐰 Transient fetch error: {}".format(str(e)))
+					if attempt + 1 < self.MaxRetries:
+						continue  # Retry
+				# Non-transient or last attempt - raise
+				L.error("🐰 Fetch failed after {} attempts".format(attempt + 1))
+				raise
 		
-		callbacks = self._create_callbacks()
-		self.GitRepository.remotes["origin"].fetch(callbacks=callbacks)
-		
-		fetch_duration_ms = (time.time() - fetch_start) * 1000
-		L.info("🐰 Fetch completed in {:.1f}ms".format(fetch_duration_ms), struct_data={"layer": self.Layer, "duration_ms": round(fetch_duration_ms, 1)})
-		
-		if self.Branch is None:
-			reference = self.GitRepository.lookup_reference("refs/remotes/origin/HEAD")
-		else:
-			reference = self.GitRepository.lookup_reference("refs/remotes/origin/{}".format(self.Branch))
-		commit_id = reference.peel().id
-		return commit_id
+		if last_error:
+			raise last_error
 
 
 	def _do_pull(self):
