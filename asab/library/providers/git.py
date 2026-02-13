@@ -64,7 +64,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		ssh_pubkey_path=<optional path to SSH public key, defaults to ~/.ssh/id_rsa.pub>
 		ssh_passphrase=<optional passphrase for SSH key>
 		verify_ssh_fingerprint=yes|no (default: no - auto-accepts host keys)
-		server_timeout=<timeout in seconds for git server operations, default: 30>
+		server_timeout=<optional timeout in seconds for git server operations. Only applied if explicitly set.>
 		max_retries=<number of retry attempts for transient errors, default: 3>
 		retry_delay=<initial delay in seconds between retries, default: 2>
 	"""
@@ -126,11 +126,12 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.MaxRetries = Config.getint("library:git", "max_retries", fallback=3)
 		self.RetryDelay = Config.getint("library:git", "retry_delay", fallback=2)
 
-		# Timeout configuration (in seconds)
-		self.ServerTimeout = Config.getint("library:git", "server_timeout", fallback=30)
-
-		# Set pygit2 server timeout
-		self._configure_timeout()
+		# Timeout configuration (in seconds) - only if explicitly set in config
+		self.ServerTimeout = None
+		if Config.has_option("library:git", "server_timeout"):
+			self.ServerTimeout = Config.getint("library:git", "server_timeout")
+			# Set pygit2 server timeout only if configured
+			self._configure_timeout()
 
 		self.App.TaskService.schedule(self.initialize_git_repository())
 
