@@ -138,55 +138,96 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 
 	def _configure_timeout(self):
-		"""Configure pygit2/libgit2 server timeout."""
+		"""
+		Configure pygit2/libgit2 server timeouts.
+		
+		Two types of timeouts:
+		1. server_connect_timeout - timeout for establishing connection (HTTP/HTTPS only!)
+		2. server_timeout - timeout for read/write operations (may work for SSH in newer versions)
+		"""
 		try:
-			# Try different pygit2 API versions for setting timeout
 			timeout_ms = self.ServerTimeout * 1000  # Convert to milliseconds
+			timeout_set = False
+			
+			L.info("🐰 ⏱️ Attempting to configure timeouts: {}ms ({}s)".format(timeout_ms, self.ServerTimeout))
+
+			# Try to read default values first using pygit2.option (GET options)
+			try:
+				# GIT_OPT_GET_SERVER_TIMEOUT (option ID varies, try common ones)
+				# Usually GET options come before SET, so if SET_SERVER_TIMEOUT=38, GET might be lower
+				import ctypes
+				
+				# Try reading server_timeout (read/write timeout)
+				for get_opt_id in [36, 37, 38]:  # Try different possible IDs
+					try:
+						# Create a mutable integer to receive the value
+						default_val = ctypes.c_int()
+						pygit2.option(get_opt_id, ctypes.byref(default_val))
+						L.info("🐰 ⏱️ Default timeout via option({}): {}ms".format(get_opt_id, default_val.value))
+						break
+					except:
+						continue
+			except:
+				pass
 
 			# Try pygit2.Settings (newer API)
 			if hasattr(pygit2, 'Settings'):
-				# default settings
+				
+				# Set server_timeout (read/write timeout - may work for SSH!)
 				if hasattr(pygit2.Settings, 'server_timeout'):
-					L.info("🐰 ⏱️ Default libgit server timeout: {}".format(int(pygit2.Settings.server_timeout)))
-					L.info("🐰 ⏱️ Default libgit server timeout: {}".format(int(pygit2.Settings.server_connect_timeout)))
-					pygit2.Settings.server_timeout = timeout_ms
-					L.info(
-						"🐰 ⏱️ Set server timeout via pygit2.Settings: {}ms ({}s)".format(timeout_ms, self.ServerTimeout),
-						struct_data={"layer": self.Layer, "timeout_ms": timeout_ms, "timeout_seconds": self.ServerTimeout}
-					)
-					return
+					try:
+						pygit2.Settings.server_timeout = timeout_ms
+						L.info("🐰 ⏱️ ✅ Set server_timeout (read/write): {}ms - may help with SSH!".format(timeout_ms))
+						timeout_set = True
+					except Exception as e:
+						L.warning("🐰 ⚠️ Failed to set server_timeout: {}".format(e))
+				
+				# Set server_connect_timeout (connection timeout - HTTP/HTTPS only)
+				if hasattr(pygit2.Settings, 'server_connect_timeout'):
+					try:
+						pygit2.Settings.server_connect_timeout = timeout_ms
+						L.info("🐰 ⏱️ ✅ Set server_connect_timeout (connection): {}ms - HTTP/HTTPS only".format(timeout_ms))
+						timeout_set = True
+					except Exception as e:
+						L.warning("🐰 ⚠️ Failed to set server_connect_timeout: {}".format(e))
 
 			# Try pygit2.settings (older API)
-			if hasattr(pygit2, 'settings'):
+			if not timeout_set and hasattr(pygit2, 'settings'):
 				if hasattr(pygit2.settings, 'server_timeout'):
-					pygit2.settings.server_timeout = timeout_ms
-					L.info(
-						"🐰 ⏱️ Set server timeout via pygit2.settings: {}ms ({}s)".format(timeout_ms, self.ServerTimeout),
-						struct_data={"layer": self.Layer, "timeout_ms": timeout_ms, "timeout_seconds": self.ServerTimeout}
-					)
-					return
+					try:
+						pygit2.settings.server_timeout = timeout_ms
+						L.info("🐰 ⏱️ ✅ Set server_timeout via pygit2.settings: {}ms".format(timeout_ms))
+						timeout_set = True
+					except:
+						pass
 
-			# Try pygit2.option (another API variant)
-			if hasattr(pygit2, 'option'):
-				# GIT_OPT_SET_SERVER_CONNECT_TIMEOUT = 37 (from libgit2)
+			# Try pygit2.option (direct libgit2 API)
+			if not timeout_set and hasattr(pygit2, 'option'):
+				# GIT_OPT_SET_SERVER_TIMEOUT = 38 (read/write timeout)
+				try:
+					pygit2.option(38, timeout_ms)
+					L.info("🐰 ⏱️ ✅ Set server_timeout via option(38): {}ms".format(timeout_ms))
+					timeout_set = True
+				except:
+					pass
+				
+				# GIT_OPT_SET_SERVER_CONNECT_TIMEOUT = 37 (connection timeout, HTTP only)
 				try:
 					pygit2.option(37, timeout_ms)
-					L.info(
-						"🐰 ⏱️ Set server timeout via pygit2.option: {}ms ({}s)".format(timeout_ms, self.ServerTimeout),
-						struct_data={"layer": self.Layer, "timeout_ms": timeout_ms, "timeout_seconds": self.ServerTimeout}
-					)
-					return
-				except Exception:
+					L.info("🐰 ⏱️ ✅ Set server_connect_timeout via option(37): {}ms - HTTP/HTTPS only".format(timeout_ms))
+					timeout_set = True
+				except:
 					pass
 
-			L.warning(
-				"🐰 ⚠️ Could not set server timeout - API not available in pygit2 version {}. Using system defaults.".format(pygit2.__version__),
-				struct_data={"layer": self.Layer, "pygit2_version": pygit2.__version__}
-			)
-
+			if not timeout_set:
+				L.warning(
+					"🐰 ⚠️ Could not set any timeout - API not available in pygit2 {}. Using system defaults (~75s). SSH timeout NOT available!".format(pygit2.__version__),
+					struct_data={"layer": self.Layer, "pygit2_version": pygit2.__version__}
+				)
+			
 		except Exception as e:
 			L.warning(
-				"🐰 ⚠️ Failed to set server timeout: {}".format(str(e)),
+				"🐰 ⚠️ Failed to configure timeout: {}".format(str(e)),
 				struct_data={"layer": self.Layer, "error": str(e)}
 			)
 
