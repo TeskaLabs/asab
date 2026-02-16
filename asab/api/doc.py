@@ -211,6 +211,7 @@ class DocWebHandler(object):
 		"""
 		Take a route and return its path.
 		"""
+		path = "?"  # Unknown path placeholder
 		route_info = route.get_info()
 		if "path" in route_info:
 			path = route_info["path"]
