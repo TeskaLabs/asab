@@ -217,7 +217,7 @@ class DocWebHandler(object):
 		elif "formatter" in route_info:
 			path = route_info["formatter"]
 		else:
-			L.warning("Cannot obtain path info from route", struct_data=self.route_info)
+			L.warning("Cannot obtain path info from route:{}".format(route_info))
 		return path
 
 
