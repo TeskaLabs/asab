@@ -854,8 +854,18 @@ class LibraryService(Service):
 				continue
 			tar_name = self._build_export_tar_name(item.name, path, remove_path)
 			if tar_name in added_tar_names:
+				try:
+					item_data.close()
+				except Exception:
+					pass
 				continue
-			self._add_stream_to_tar(tarobj, tar_name, item_data)
+			try:
+				self._add_stream_to_tar(tarobj, tar_name, item_data)
+			finally:
+				try:
+					item_data.close()
+				except Exception:
+					pass
 			added_tar_names.add(tar_name)
 
 		tenant_id = Tenant.get(None)
@@ -872,8 +882,18 @@ class LibraryService(Service):
 					self._build_export_tar_name(item.name, path, remove_path).lstrip("/"),
 				)
 				if tar_name in added_tar_names:
+					try:
+						item_data.close()
+					except Exception:
+						pass
 					continue
-				self._add_stream_to_tar(tarobj, tar_name, item_data)
+				try:
+					self._add_stream_to_tar(tarobj, tar_name, item_data)
+				finally:
+					try:
+						item_data.close()
+					except Exception:
+						pass
 				added_tar_names.add(tar_name)
 
 		# 3) Personal export (all personal scopes for current tenant)
@@ -896,8 +916,18 @@ class LibraryService(Service):
 						self._build_export_tar_name(item.name, path, remove_path).lstrip("/"),
 					)
 					if tar_name in added_tar_names:
+						try:
+							item_data.close()
+						except Exception:
+							pass
 						continue
-					self._add_stream_to_tar(tarobj, tar_name, item_data)
+					try:
+						self._add_stream_to_tar(tarobj, tar_name, item_data)
+					finally:
+						try:
+							item_data.close()
+						except Exception:
+							pass
 					added_tar_names.add(tar_name)
 
 		tarobj.close()
