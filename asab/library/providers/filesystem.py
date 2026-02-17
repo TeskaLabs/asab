@@ -259,8 +259,11 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 				return None
 
 		if scope == "tenant":
+			tenant_id = self._current_tenant_id()
+			if not tenant_id:
+				return None
 			try:
-				tenant_path = self.build_path(path, tenant_specific=True)
+				tenant_path = self.build_path(path, tenant_specific=True, tenant=tenant_id)
 				if os.path.isfile(tenant_path):
 					return io.FileIO(tenant_path, "rb")
 				return None
@@ -289,12 +292,20 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		scopes = await self._get_personal_scopes()
 		results: typing.List[typing.Tuple[str, str, typing.IO]] = []
-		for scope_tenant, scope_cred in scopes:
-			if tenant_id is not None and scope_tenant != tenant_id:
-				continue
-			personal_path = self._personal_path(path, scope_tenant, scope_cred)
-			if personal_path and os.path.isfile(personal_path):
-				results.append((scope_tenant, scope_cred, io.FileIO(personal_path, "rb")))
+		try:
+			for scope_tenant, scope_cred in scopes:
+				if tenant_id is not None and scope_tenant != tenant_id:
+					continue
+				personal_path = self._personal_path(path, scope_tenant, scope_cred)
+				if personal_path and os.path.isfile(personal_path):
+					results.append((scope_tenant, scope_cred, io.FileIO(personal_path, "rb")))
+		except Exception:
+			for _, _, file_handle in results:
+				try:
+					file_handle.close()
+				except Exception:
+					pass
+			raise
 		return results
 
 	async def list(self, path: str) -> list:

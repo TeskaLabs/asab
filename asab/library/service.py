@@ -953,6 +953,12 @@ class LibraryService(Service):
 			except TypeError:
 				scopes = await get_scopes()
 			except Exception:
+				L.warning(
+					"Failed to collect personal scopes from provider '{}' for tenant '{}'.",
+					provider.__class__.__name__,
+					tenant_id,
+					exc_info=True,
+				)
 				continue
 
 			for scope in scopes:
