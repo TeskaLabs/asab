@@ -1060,7 +1060,11 @@ class LibraryService(Service):
 
 	def _build_export_tar_name(self, item_name: str, base_path: str, remove_path: bool) -> str:
 		if remove_path:
-			assert item_name.startswith(base_path)
+			if not item_name.startswith(base_path):
+				raise LibraryInvalidPathError(
+					message="Export item path '{}' is not under base path '{}'.".format(item_name, base_path),
+					path=item_name,
+				)
 			return item_name[len(base_path):]
 		return item_name
 
