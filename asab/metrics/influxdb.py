@@ -137,30 +137,24 @@ class InfluxDBTarget(asab.Configurable):
 
 		try:
 			conn.request("POST", self.WriteRequest, rb, self.Headers)
+			response = conn.getresponse()
+			if response.status != 204:
+				L.warning("Failed to send metrics to InfluxDB.", struct_data={"url": self.BaseURL, "response.status": response.status, "response": response.read().decode("utf-8")})
 		except (ConnectionError, socket.gaierror):
 			L.error("Failed to connect to InfluxDB.", struct_data={"url": self.BaseURL})
 			return
-		except Exception as err:
-			L.exception("Failed to send metrics to InfluxDB: {}".format(err), struct_data={"url": self.BaseURL})
-			return
-
-		try:
-			response = conn.getresponse()
-			if response.status != 204:
-				L.warning(
-					"Failed to send metrics to InfluxDB.",
-					struct_data={
-						"url": self.BaseURL,
-						"response.status": response.status,
-						"response": response.read().decode("utf-8")
-					}
-				)
 		except http.client.RemoteDisconnected:
 			L.error("Failed to send metrics to InfluxDB: Remote end closed connection without response.", struct_data={"url": self.BaseURL})
 			return
 		except Exception as err:
 			L.exception("Failed to send metrics to InfluxDB: {}".format(err), struct_data={"url": self.BaseURL})
 			return
+		finally:
+			try:
+				conn.close()
+			except Exception as e:
+				# TODO: If this is too noisy, we can make it a debug log instead of warning
+				L.warning("Exception while closing InfluxDB connection: {}".format(e))
 
 
 def get_field(fk, fv):
