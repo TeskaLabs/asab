@@ -162,6 +162,7 @@ class InfluxDBTarget(asab.Configurable):
 			L.exception("Failed to send metrics to InfluxDB: {}".format(err), struct_data={"url": self.BaseURL})
 			return
 
+
 def get_field(fk, fv):
 	if isinstance(fv, bool):
 		field = "{}={}".format(fk, 't' if fv else 'f')
