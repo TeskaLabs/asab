@@ -118,36 +118,48 @@ class LibraryService(Service):
 		await self._read_favorites()
 
 	def _create_library(self, path, layer):
-		library_provider = None
+		# Handle libsreg+ URIs (which may be comma-separated)
+		if path.startswith('libsreg+'):
+			from .providers.cache import CacheLibraryProvider
+			cachep = CacheLibraryProvider(self, path, layer)
+			# always register the cache wrapper (even if no snapshot yet)
+			self.Libraries.append(cachep)
+			from .providers.libsreg import LibsRegLibraryProvider
+			realp = LibsRegLibraryProvider(self, path, layer)
+			self.Libraries.append(realp)
+			return
+
+		# ZooKeeper (no cache support)
 		if path.startswith('zk://') or path.startswith('zookeeper://'):
 			from .providers.zookeeper import ZooKeeperLibraryProvider
-			library_provider = ZooKeeperLibraryProvider(self, path, layer)
+			provider = ZooKeeperLibraryProvider(self, path, layer)
+			self.Libraries.append(provider)
 
+		# Filesystem (no cache support)
 		elif path.startswith('./') or path.startswith('/') or path.startswith('file://'):
 			from .providers.filesystem import FileSystemLibraryProvider
-			library_provider = FileSystemLibraryProvider(self, path, layer)
+			provider = FileSystemLibraryProvider(self, path, layer)
+			self.Libraries.append(provider)
 
+		# Azure Storage
 		elif path.startswith('azure+https://'):
 			from .providers.azurestorage import AzureStorageLibraryProvider
-			library_provider = AzureStorageLibraryProvider(self, path, layer)
+			provider = AzureStorageLibraryProvider(self, path, layer)
+			self.Libraries.append(provider)
 
+		# Git
 		elif path.startswith('git+'):
 			from .providers.git import GitLibraryProvider
-			library_provider = GitLibraryProvider(self, path, layer)
+			provider = GitLibraryProvider(self, path, layer)
+			self.Libraries.append(provider)
 
-		elif path.startswith('libsreg+'):
-			from .providers.libsreg import LibsRegLibraryProvider
-			library_provider = LibsRegLibraryProvider(self, path, layer)
-
-		elif path == '' or path.startswith("#") or path.startswith(";"):
-			# This is empty or commented line
+		# comments or blanks
+		elif not path or path[0] in ('#', ';'):
 			return
 
 		else:
-			L.error("Incorrect/unknown provider for '{}'".format(path))
-			raise SystemExit("Exit due to a critical configuration error.")
-
-		self.Libraries.append(library_provider)
+			L.error("Incorrect provider for '{}'".format(path))
+			raise SystemExit(1)
 
 	def is_ready(self) -> bool:
 		"""
@@ -339,6 +351,7 @@ class LibraryService(Service):
 				recitems.extend(child_items)
 
 		return items
+
 
 	async def _list(self, path, providers):
 		"""
