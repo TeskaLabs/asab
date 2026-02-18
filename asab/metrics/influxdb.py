@@ -95,7 +95,7 @@ class InfluxDBTarget(asab.Configurable):
 		self.WriteURL = "{}{}".format(self.BaseURL, self.WriteRequest)
 
 		# Proactor service is used for alternative delivery of the metrics into the InfluxDB
-		# It is handly when a main loop can become very busy
+		# It is handy when a main loop can become very busy
 		if self.Config.getboolean('proactor'):
 			try:
 				from ..proactor import Module
