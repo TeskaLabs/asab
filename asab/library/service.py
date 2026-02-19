@@ -407,6 +407,10 @@ class LibraryService(Service):
 				- system
 		"""
 		fav_data = None
+		if len(self.Libraries) == 0:
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
 
 		try:
 			fav_file = await self.Libraries[0].read('/.favorites.yaml')
@@ -483,11 +487,21 @@ class LibraryService(Service):
 		self.FavoritePaths = folders
 
 	async def _read_disabled(self, publish_changes=False):
-
+		if len(self.Libraries) == 0:
+			self.Disabled = {}
+			self.DisabledPaths = []
+			return
 		old_disabled = self.Disabled.copy()
 		old_disabled_paths = list(self.DisabledPaths)
+
 		# Read the file
-		disabled_file = await self.Libraries[0].read('/.disabled.yaml')
+		try:
+			disabled_file = await self.Libraries[0].read('/.disabled.yaml')
+		except Exception as e:
+			L.warning("Failed to read '/.disabled.yaml': {}.".format(e))
+			self.Disabled = {}
+			self.DisabledPaths = []
+			return
 
 		if disabled_file is None:
 			self.Disabled = {}
