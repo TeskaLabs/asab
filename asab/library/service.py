@@ -863,6 +863,8 @@ class LibraryService(Service):
 		# 1) Global export (tenant=None)
 		global_items = await self._collect_export_items(path, tenant_id=None, cred_id=None)
 		for item in global_items:
+			if self._is_reserved_scope_root(item.name):
+				continue
 			item_data = await self._read_item_for_scope(item.name, scope="global", tenant_id=None, cred_id=None)
 			if item_data is None:
 				continue
@@ -882,10 +884,10 @@ class LibraryService(Service):
 					pass
 			added_tar_names.add(tar_name)
 
-		tenant_id = Tenant.get(None)
+		tenant_ids = await self._collect_export_tenant_ids()
 
-		# 2) Tenant export (current tenant)
-		if tenant_id:
+		# 2) Tenant export
+		for tenant_id in tenant_ids:
 			tenant_items = await self._collect_export_items(path, tenant_id=tenant_id, cred_id=None)
 			for item in tenant_items:
 				item_data = await self._read_item_for_scope(item.name, scope="tenant", tenant_id=tenant_id, cred_id=None)
@@ -910,8 +912,8 @@ class LibraryService(Service):
 						pass
 				added_tar_names.add(tar_name)
 
-		# 3) Personal export (all personal scopes for current tenant)
-		if tenant_id:
+		# 3) Personal export
+		for tenant_id in tenant_ids:
 			cred_ids = await self._collect_personal_credential_ids(tenant_id)
 			for cred_id in cred_ids:
 				personal_items = await self._collect_export_items(path, tenant_id=tenant_id, cred_id=cred_id)
@@ -955,9 +957,10 @@ class LibraryService(Service):
 		tenant_id: typing.Optional[str],
 		cred_id: typing.Optional[str],
 	) -> typing.List[LibraryItem]:
+		primary_provider = self.Libraries[0]
 		with tenant_context(tenant_id):
 			with self._export_authz_context(cred_id):
-				items = await self._list(path, providers=self.Libraries)
+				items = await self._list(path, providers=[primary_provider])
 				recitems = list(items[:])
 				visited_dirs: set[str] = set()
 				seen_items: set[str] = set(item.name for item in items if item.type == "item")
@@ -970,7 +973,7 @@ class LibraryService(Service):
 						continue
 					visited_dirs.add(item.name)
 
-					child_items = await self._list(item.name, providers=item.providers)
+					child_items = await self._list(item.name, providers=[primary_provider])
 					for child_item in child_items:
 						if child_item.type == "dir":
 							recitems.append(child_item)
@@ -984,14 +987,50 @@ class LibraryService(Service):
 		return [item for item in items if item.type == "item"]
 
 
+	async def _collect_export_tenant_ids(self) -> typing.List[str]:
+		provider = self.Libraries[0]
+
+		tenant_ids: set[str] = set()
+		current_tenant = Tenant.get(None)
+		if current_tenant:
+			tenant_ids.add(current_tenant)
+
+		get_tenants = getattr(provider, "_get_tenants", None)
+		if get_tenants is not None:
+			try:
+				for tenant in await get_tenants() or []:
+					if tenant:
+						tenant_ids.add(str(tenant))
+			except Exception:
+				L.warning(
+					"Failed to collect tenants from provider '{}'.",
+					provider.__class__.__name__,
+					exc_info=True,
+				)
+
+		get_personal_scopes = getattr(provider, "_get_personal_scopes", None)
+		if get_personal_scopes is not None:
+			try:
+				scopes = await get_personal_scopes()
+				for scope in scopes or []:
+					if isinstance(scope, tuple) and len(scope) >= 1 and scope[0]:
+						tenant_ids.add(str(scope[0]))
+			except Exception:
+				L.warning(
+					"Failed to collect personal scopes from provider '{}'.",
+					provider.__class__.__name__,
+					exc_info=True,
+				)
+
+		return sorted(tenant_ids)
+
+
 	async def _collect_personal_credential_ids(self, tenant_id: str) -> typing.List[str]:
 		cred_ids: set[str] = set()
 
-		for provider in self.Libraries:
-			get_scopes = getattr(provider, "_get_personal_scopes", None)
-			if get_scopes is None:
-				continue
-
+		provider = self.Libraries[0]
+		get_scopes = getattr(provider, "_get_personal_scopes", None)
+		if get_scopes is not None:
 			try:
 				scopes = await get_scopes(tenant_id=tenant_id)
 			except TypeError:
@@ -1003,7 +1042,7 @@ class LibraryService(Service):
 					tenant_id,
 					exc_info=True,
 				)
-				continue
+				scopes = []
 
 			for scope in scopes:
 				if isinstance(scope, tuple) and len(scope) >= 2:
@@ -1029,25 +1068,20 @@ class LibraryService(Service):
 		tenant_id: typing.Optional[str],
 		cred_id: typing.Optional[str],
 	) -> typing.Optional[typing.IO]:
+		provider = self.Libraries[0]
 		with tenant_context(tenant_id):
 			with self._export_authz_context(cred_id):
-				for provider in self.Libraries:
-					read_scoped = getattr(provider, "read_scoped", None)
+				read_scoped = getattr(provider, "read_scoped", None)
 
-					if scope == "global":
-						if read_scoped is not None:
-							data = await read_scoped(item_name, "global")
-						else:
-							data = await provider.read(item_name)
-					elif scope in {"tenant", "personal"}:
-						if read_scoped is None:
-							continue
-						data = await read_scoped(item_name, scope)
-					else:
-						continue
+				if scope == "global":
+					if read_scoped is not None:
+						return await read_scoped(item_name, "global")
+					return await provider.read(item_name)
 
-					if data is not None:
-						return data
+				if scope in {"tenant", "personal"}:
+					if read_scoped is None:
+						return None
+					return await read_scoped(item_name, scope)
 
 		return None
 
@@ -1081,6 +1115,11 @@ class LibraryService(Service):
 				)
 			return item_name[len(base_path):]
 		return item_name
+
+
+	def _is_reserved_scope_root(self, item_name: str) -> bool:
+		# Reserved scope roots must never be exported as plain global paths.
+		return item_name.startswith("/tenants/") or item_name.startswith("/personal/")
 
 
 	def _add_stream_to_tar(self, tarobj, tar_name: str, data_stream: typing.IO) -> None:
