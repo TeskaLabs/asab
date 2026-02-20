@@ -199,9 +199,11 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			node_path = self.BasePath + path if path != '/' else self.BasePath
 
 		node_path = node_path.rstrip("/")
+		if node_path == "":
+			node_path = "/"
 
 		assert '//' not in node_path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
-		assert node_path[0] == '/', "Directory path must start with '/'"
+		assert node_path.startswith('/'), "Directory path must start with '/'"
 
 		return node_path
 
@@ -240,6 +242,73 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return io.FileIO(global_path, 'rb')
 		except (FileNotFoundError, IsADirectoryError):
 			return None
+
+	async def read_scoped(self, path: str, scope: str) -> typing.Optional[typing.IO]:
+		"""
+		Read from a single scope only.
+
+		Args:
+			path: Library file path (absolute, with extension).
+			scope: One of "global", "tenant", "personal".
+		"""
+		self._validate_read_path(path)
+
+		if scope == "global":
+			try:
+				global_path = self.build_path(path, tenant_specific=False)
+				return io.FileIO(global_path, "rb")
+			except (FileNotFoundError, IsADirectoryError):
+				return None
+
+		if scope == "tenant":
+			tenant_id = self._current_tenant_id()
+			if not tenant_id:
+				return None
+			try:
+				tenant_path = self.build_path(path, tenant_specific=True, tenant=tenant_id)
+				if os.path.isfile(tenant_path):
+					return io.FileIO(tenant_path, "rb")
+				return None
+			except Exception:
+				return None
+
+		if scope == "personal":
+			tenant_id = self._current_tenant_id()
+			cred_id = self._current_credentials_id()
+			personal_path = self._personal_path(path, tenant_id, cred_id)
+			if personal_path and os.path.isfile(personal_path):
+				return io.FileIO(personal_path, "rb")
+			return None
+
+		return None
+
+	async def read_personal_scopes(
+		self,
+		path: str,
+		tenant_id: typing.Optional[str] = None,
+	) -> typing.List[typing.Tuple[str, str, typing.IO]]:
+		"""
+		Read personal variants for all credential scopes in a tenant.
+		"""
+		self._validate_read_path(path)
+
+		scopes = await self._get_personal_scopes()
+		results: typing.List[typing.Tuple[str, str, typing.IO]] = []
+		try:
+			for scope_tenant, scope_cred in scopes:
+				if tenant_id is not None and scope_tenant != tenant_id:
+					continue
+				personal_path = self._personal_path(path, scope_tenant, scope_cred)
+				if personal_path and os.path.isfile(personal_path):
+					results.append((scope_tenant, scope_cred, io.FileIO(personal_path, "rb")))
+		except Exception:
+			for _, _, file_handle in results:
+				try:
+					file_handle.close()
+				except Exception:
+					pass
+			raise
+		return results
 
 	async def list(self, path: str) -> list:
 		"""

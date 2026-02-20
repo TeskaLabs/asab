@@ -19,7 +19,7 @@ from .item import LibraryItem
 from ..application import Application
 from .providers.abc import LibraryProviderABC
 from ..exceptions import LibraryInvalidPathError, LibraryNotReadyError
-from ..contextvars import Tenant
+from ..contextvars import Tenant, Authz, tenant_context
 
 #
 
@@ -407,6 +407,10 @@ class LibraryService(Service):
 				- system
 		"""
 		fav_data = None
+		if len(self.Libraries) == 0:
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
 
 		try:
 			fav_file = await self.Libraries[0].read('/.favorites.yaml')
@@ -483,11 +487,21 @@ class LibraryService(Service):
 		self.FavoritePaths = folders
 
 	async def _read_disabled(self, publish_changes=False):
-
+		if len(self.Libraries) == 0:
+			self.Disabled = {}
+			self.DisabledPaths = []
+			return
 		old_disabled = self.Disabled.copy()
 		old_disabled_paths = list(self.DisabledPaths)
+
 		# Read the file
-		disabled_file = await self.Libraries[0].read('/.disabled.yaml')
+		try:
+			disabled_file = await self.Libraries[0].read('/.disabled.yaml')
+		except Exception as e:
+			L.warning("Failed to read '/.disabled.yaml': {}.".format(e))
+			self.Disabled = {}
+			self.DisabledPaths = []
+			return
 
 		if disabled_file is None:
 			self.Disabled = {}
@@ -844,39 +858,277 @@ class LibraryService(Service):
 
 		fileobj = tempfile.TemporaryFile()
 		tarobj = tarfile.open(name=None, mode='w:gz', fileobj=fileobj)
+		added_tar_names: set[str] = set()
 
-		items = await self._list(path, providers=self.Libraries[:1])
-		recitems = list(items[:])
-
-		while len(recitems) > 0:
-
-			item = recitems.pop(0)
-			if item.type != 'dir':
+		# 1) Global export (tenant=None)
+		global_items = await self._collect_export_items(path, tenant_id=None, cred_id=None)
+		for item in global_items:
+			if self._is_reserved_scope_root(item.name):
 				continue
-
-			child_items = await self._list(item.name, providers=item.providers)
-			items.extend(child_items)
-			recitems.extend(child_items)
-
-		for item in items:
-			if item.type != 'item':
+			item_data = await self._read_item_for_scope(item.name, scope="global", tenant_id=None, cred_id=None)
+			if item_data is None:
 				continue
-			my_data = await self.Libraries[0].read(item.name)
-			if remove_path:
-				assert item.name.startswith(path)
-				tar_name = item.name[len(path):]
-			else:
-				tar_name = item.name
-			info = tarfile.TarInfo(tar_name)
-			my_data.seek(0, io.SEEK_END)
-			info.size = my_data.tell()
-			my_data.seek(0, io.SEEK_SET)
-			info.mtime = time.time()
-			tarobj.addfile(tarinfo=info, fileobj=my_data)
+			tar_name = self._build_export_tar_name(item.name, path, remove_path)
+			if tar_name in added_tar_names:
+				try:
+					item_data.close()
+				except Exception:
+					pass
+				continue
+			try:
+				self._add_stream_to_tar(tarobj, tar_name, item_data)
+			finally:
+				try:
+					item_data.close()
+				except Exception:
+					pass
+			added_tar_names.add(tar_name)
+
+		tenant_ids = await self._collect_export_tenant_ids()
+
+		# 2) Tenant export
+		for tenant_id in tenant_ids:
+			tenant_items = await self._collect_export_items(path, tenant_id=tenant_id, cred_id=None)
+			for item in tenant_items:
+				item_data = await self._read_item_for_scope(item.name, scope="tenant", tenant_id=tenant_id, cred_id=None)
+				if item_data is None:
+					continue
+				tar_name = "/.tenants/{}/{}".format(
+					tenant_id,
+					self._build_export_tar_name(item.name, path, remove_path).lstrip("/"),
+				)
+				if tar_name in added_tar_names:
+					try:
+						item_data.close()
+					except Exception:
+						pass
+					continue
+				try:
+					self._add_stream_to_tar(tarobj, tar_name, item_data)
+				finally:
+					try:
+						item_data.close()
+					except Exception:
+						pass
+				added_tar_names.add(tar_name)
+
+		# 3) Personal export
+		for tenant_id in tenant_ids:
+			cred_ids = await self._collect_personal_credential_ids(tenant_id)
+			for cred_id in cred_ids:
+				personal_items = await self._collect_export_items(path, tenant_id=tenant_id, cred_id=cred_id)
+				for item in personal_items:
+					item_data = await self._read_item_for_scope(
+						item.name,
+						scope="personal",
+						tenant_id=tenant_id,
+						cred_id=cred_id,
+					)
+					if item_data is None:
+						continue
+					tar_name = "/.personal/{}/{}/{}".format(
+						tenant_id,
+						cred_id,
+						self._build_export_tar_name(item.name, path, remove_path).lstrip("/"),
+					)
+					if tar_name in added_tar_names:
+						try:
+							item_data.close()
+						except Exception:
+							pass
+						continue
+					try:
+						self._add_stream_to_tar(tarobj, tar_name, item_data)
+					finally:
+						try:
+							item_data.close()
+						except Exception:
+							pass
+					added_tar_names.add(tar_name)
 
 		tarobj.close()
 		fileobj.seek(0)
 		return fileobj
+
+
+	async def _collect_export_items(
+		self,
+		path: str,
+		tenant_id: typing.Optional[str],
+		cred_id: typing.Optional[str],
+	) -> typing.List[LibraryItem]:
+		primary_provider = self.Libraries[0]
+		with tenant_context(tenant_id):
+			with self._export_authz_context(cred_id):
+				items = await self._list(path, providers=[primary_provider])
+				recitems = list(items[:])
+				visited_dirs: set[str] = set()
+				seen_items: set[str] = set(item.name for item in items if item.type == "item")
+
+				while len(recitems) > 0:
+					item = recitems.pop(0)
+					if item.type != 'dir':
+						continue
+					if item.name in visited_dirs:
+						continue
+					visited_dirs.add(item.name)
+
+					child_items = await self._list(item.name, providers=[primary_provider])
+					for child_item in child_items:
+						if child_item.type == "dir":
+							recitems.append(child_item)
+							items.append(child_item)
+							continue
+						if child_item.name in seen_items:
+							continue
+						seen_items.add(child_item.name)
+						items.append(child_item)
+
+		return [item for item in items if item.type == "item"]
+
+
+	async def _collect_export_tenant_ids(self) -> typing.List[str]:
+		provider = self.Libraries[0]
+
+		tenant_ids: set[str] = set()
+		current_tenant = Tenant.get(None)
+		if current_tenant:
+			tenant_ids.add(current_tenant)
+
+		get_tenants = getattr(provider, "_get_tenants", None)
+		if get_tenants is not None:
+			try:
+				for tenant in await get_tenants() or []:
+					if tenant:
+						tenant_ids.add(str(tenant))
+			except Exception:
+				L.warning(
+					"Failed to collect tenants from provider '{}'.",
+					provider.__class__.__name__,
+					exc_info=True,
+				)
+
+		get_personal_scopes = getattr(provider, "_get_personal_scopes", None)
+		if get_personal_scopes is not None:
+			try:
+				scopes = await get_personal_scopes()
+				for scope in scopes or []:
+					if isinstance(scope, tuple) and len(scope) >= 1 and scope[0]:
+						tenant_ids.add(str(scope[0]))
+			except Exception:
+				L.warning(
+					"Failed to collect personal scopes from provider '{}'.",
+					provider.__class__.__name__,
+					exc_info=True,
+				)
+
+		return sorted(tenant_ids)
+
+
+	async def _collect_personal_credential_ids(self, tenant_id: str) -> typing.List[str]:
+		cred_ids: set[str] = set()
+
+		provider = self.Libraries[0]
+		get_scopes = getattr(provider, "_get_personal_scopes", None)
+		if get_scopes is not None:
+			try:
+				scopes = await get_scopes(tenant_id=tenant_id)
+			except TypeError:
+				scopes = await get_scopes()
+			except Exception:
+				L.warning(
+					"Failed to collect personal scopes from provider '{}' for tenant '{}'.",
+					provider.__class__.__name__,
+					tenant_id,
+					exc_info=True,
+				)
+				scopes = []
+
+			for scope in scopes:
+				if isinstance(scope, tuple) and len(scope) >= 2:
+					scope_tenant, scope_cred = scope[0], scope[1]
+					if scope_tenant == tenant_id and scope_cred:
+						cred_ids.add(str(scope_cred))
+				elif isinstance(scope, str):
+					cred_ids.add(scope)
+
+		if len(cred_ids) == 0:
+			authz = Authz.get(None)
+			current_cred = getattr(authz, "CredentialsId", None) if authz is not None else None
+			if current_cred:
+				cred_ids.add(current_cred)
+
+		return sorted(cred_ids)
+
+
+	async def _read_item_for_scope(
+		self,
+		item_name: str,
+		scope: str,
+		tenant_id: typing.Optional[str],
+		cred_id: typing.Optional[str],
+	) -> typing.Optional[typing.IO]:
+		provider = self.Libraries[0]
+		with tenant_context(tenant_id):
+			with self._export_authz_context(cred_id):
+				read_scoped = getattr(provider, "read_scoped", None)
+
+				if scope == "global":
+					if read_scoped is not None:
+						return await read_scoped(item_name, "global")
+					return await provider.read(item_name)
+
+				if scope in {"tenant", "personal"}:
+					if read_scoped is None:
+						return None
+					return await read_scoped(item_name, scope)
+
+		return None
+
+	@contextlib.contextmanager
+	def _export_authz_context(self, cred_id: typing.Optional[str]):
+		if cred_id is None:
+			ctx = Authz.set(None)
+			try:
+				yield None
+			finally:
+				Authz.reset(ctx)
+			return
+
+		class _ExportAuthz:
+			def __init__(self, credentials_id):
+				self.CredentialsId = credentials_id
+
+		ctx = Authz.set(_ExportAuthz(cred_id))
+		try:
+			yield None
+		finally:
+			Authz.reset(ctx)
+
+
+	def _build_export_tar_name(self, item_name: str, base_path: str, remove_path: bool) -> str:
+		if remove_path:
+			if not item_name.startswith(base_path):
+				raise LibraryInvalidPathError(
+					message="Export item path '{}' is not under base path '{}'.".format(item_name, base_path),
+					path=item_name,
+				)
+			return item_name[len(base_path):]
+		return item_name
+
+
+	def _is_reserved_scope_root(self, item_name: str) -> bool:
+		# Reserved scope roots must never be exported as plain global paths.
+		return item_name.startswith("/tenants/") or item_name.startswith("/personal/")
+
+
+	def _add_stream_to_tar(self, tarobj, tar_name: str, data_stream: typing.IO) -> None:
+		info = tarfile.TarInfo(tar_name)
+		data_stream.seek(0, io.SEEK_END)
+		info.size = data_stream.tell()
+		data_stream.seek(0, io.SEEK_SET)
+		info.mtime = time.time()
+		tarobj.addfile(tarinfo=info, fileobj=data_stream)
 
 
 	async def subscribe(
