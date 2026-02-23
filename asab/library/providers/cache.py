@@ -27,52 +27,42 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
 			raise RuntimeError("Missing [library:cache].dir configuration")
 		global_link = os.path.join(cache_root, "@global", master_hash)
 
-		# 3) Resolve link target, handling absolute and relative (from global_link's dir)
-		if os.path.islink(global_link):
-			target = os.readlink(global_link)
-			if os.path.isabs(target):
-				# absolute symlink
-				resolved = target
-			else:
-				# relative to the directory containing the symlink
-				base = os.path.dirname(global_link)
-				resolved = os.path.join(base, target)
-			cache_dir = os.path.realpath(resolved)
-
-		elif os.path.isdir(global_link):
-			# someone recreated the dir instead of symlink
-			cache_dir = global_link
-
-		else:
-			# not yet created → point at the expected symlink path
-			cache_dir = global_link
-
-		# 4) Remember for _cache_live()
+		# 3) Remember for _cache_live()
 		self.layer_hash = master_hash
-		self.cache_dir = cache_dir
+		self.cache_dir = global_link
 
-		# 5) Sanity‐check cache_root exists
+		# 4) Sanity-check cache_root exists
 		if not os.path.isdir(cache_root):
 			L.critical("Cache root '{}' not found, exiting.".format(cache_root))
 			raise SystemExit(1)
 
-		# 6) Warn if no snapshot directory is present yet
-		if not os.path.isdir(self.cache_dir):
+		# 5) Warn if no snapshot directory is present yet
+		if not self._cache_live():
 			L.warning(
 				"No cache snapshot for URI '{}' at '{}'.".format(uri, self.cache_dir)
 			)
 
-		# 7) Delegate to FileSystemLibraryProvider
+		# 6) Delegate to FileSystemLibraryProvider
 		cache_uri = "file://{}".format(self.cache_dir.rstrip("/"))
 		super().__init__(library, cache_uri, layer, set_ready=False)
-		library.App.TaskService.schedule(self._set_ready())
-		library.App.PubSub.subscribe("library.cache.ready", self._on_cache_ready)
+		library.App.TaskService.schedule(self._set_ready(self._cache_live()))
+		library.App.PubSub.subscribe("library.cache.ready!", self._on_cache_ready)
+		library.App.PubSub.subscribe("library.cache.not_ready!", self._on_cache_not_ready)
 
 
 	async def _on_cache_ready(self, *args):
-		await self._set_ready()
+		live = self._cache_live()
+		if live and not self.IsReady:
+			await self._set_ready(True)
+
+	async def _on_cache_not_ready(self, *args):
+		live = self._cache_live()
+		if (not live) and self.IsReady:
+			await self._set_ready(False)
 
 	def _cache_live(self):
+		if os.path.islink(self.cache_dir):
+			return os.path.isdir(os.path.realpath(self.cache_dir))
 		return os.path.isdir(self.cache_dir)
 
 	async def read(self, path):
