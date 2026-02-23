@@ -1,3 +1,4 @@
+import asyncio
 import os
 import tempfile
 import logging
@@ -20,6 +21,22 @@ except ImportError:
 	L.critical("Please install pygit2 package to enable Git Library Provider. >>> pip install pygit2")
 	raise SystemExit("Application exiting... .")
 
+# Try to get the SSH key credential type constant - location varies by pygit2 version
+try:
+	GIT_CREDTYPE_SSH_KEY = pygit2.GIT_CREDTYPE_SSH_KEY
+except AttributeError:
+	try:
+		GIT_CREDTYPE_SSH_KEY = pygit2.credentials.GIT_CREDTYPE_SSH_KEY
+	except (AttributeError, ImportError):
+		try:
+			GIT_CREDTYPE_SSH_KEY = pygit2.GIT_CREDENTIAL_SSH_KEY
+		except AttributeError:
+			try:
+				GIT_CREDTYPE_SSH_KEY = pygit2.credentials.GIT_CREDENTIAL_SSH_KEY
+			except (AttributeError, ImportError):
+				# Fall back to the numeric value if constant not found
+				GIT_CREDTYPE_SSH_KEY = 2  # Standard value across libgit2 versions
+
 
 class GitLibraryProvider(FileSystemLibraryProvider):
 	"""
@@ -28,24 +45,41 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	FileSystemLibraryProvider to read the files.
 	To read from local git repository, please use FileSystemProvider.
 
+	Supports both HTTPS and SSH authentication:
+
 	.. code::
 
+		# HTTPS with deploy token
 		[library]
-		providers=git+<URL or deploy token>#<branch name>
+		providers=git+https://<username>:<deploy token>@<url>#<branch name>
+
+		# SSH (uses default SSH keys from ~/.ssh/)
+		[library]
+		providers=git+ssh://git@<url>#<branch name>
 
 		[library:git]
 		repodir=<optional location of the repository cache>
+		ssh_key_path=<optional path to SSH private key, defaults to ~/.ssh/id_rsa>
+		ssh_pubkey_path=<optional path to SSH public key, defaults to ~/.ssh/id_rsa.pub>
+		ssh_passphrase=<optional passphrase for SSH key>
+		verify_ssh_fingerprint=yes|no (default: no - auto-accepts host keys)
 	"""
 	def __init__(self, library, path, layer):
 
-		# format: 'git+http[s]://[<username>:<deploy token>@]<url>[#<branch>]'
-		pattern = re.compile(r"git\+(https?://)((.*):(.*)@)?([^#]*)(?:#(.*))?$")
-		path_split = pattern.findall(path)[0]
-		L.debug(path_split)
-		self.URLScheme, self.UserInfo, self.User, self.DeployToken, self.URLPath, self.Branch = path_split
-		self.URL = "".join([self.URLScheme, self.UserInfo, self.URLPath])
-		self.Branch = self.Branch if self.Branch != '' else None
+		# Initialize attributes to avoid attribute errors
+		self.URLScheme = ""
+		self.UserInfo = ""
+		self.User = ""
+		self.DeployToken = ""
+		self.URLPath = ""
+		self.Branch = ""
+		self.URL = ""
+		self.UsesSSH = False
+		self.GitRepository: typing.Optional[pygit2.Repository] = None
 
+		# Parse URL - supports both HTTPS and SSH formats
+		self._parse_url(path)
+		self.Branch = self.Branch if self.Branch != "" else None  # pygit2 expects None for default branch
 
 		repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
@@ -60,66 +94,235 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		super().__init__(library, self.RepoPath, layer, set_ready=False)
 
-		self.GitRepository = None
-
 		# Set custom SSL certificate locations if specified
-		if any((Config.get("library:git", "cert_file", fallback=None), Config.get("library:git", "cert_dir", fallback=None))):
-			pygit2.settings.set_ssl_cert_locations(
-				cert_file=Config.get("library:git", "cert_file", fallback=None),
-				cert_dir=Config.get("library:git", "cert_dir", fallback=None)
-			)
+		cert_file = Config.get("library:git", "cert_file", fallback=None)
+		cert_dir = Config.get("library:git", "cert_dir", fallback=None)
+		if (cert_file is not None) or (cert_dir is not None):
+			pygit2.settings.set_ssl_cert_locations(cert_file=cert_file, cert_dir=cert_dir)
 
 		from ...proactor import Module
 		self.App.add_module(Module)
 		self.ProactorService = self.App.get_service("asab.ProactorService")
-		self.PullLock = False
+		self.PullLock = asyncio.Lock()
 
 		self.SubscribedPaths = set()
 
+		# SSH configuration
+		self.SSHKeyPath = None
+		self.SSHPubkeyPath = None
+		self.SSHPassphrase = None
+		self.VerifySSHFingerprint = False
+		if self.UsesSSH:
+			self.SSHKeyPath = Config.get("library:git", "ssh_key_path", fallback=os.path.expanduser("~/.ssh/id_rsa"))
+			self.SSHPubkeyPath = Config.get("library:git", "ssh_pubkey_path", fallback=os.path.expanduser("~/.ssh/id_rsa.pub"))
+			self.SSHPassphrase = Config.get("library:git", "ssh_passphrase", fallback=None)
+			self.VerifySSHFingerprint = Config.getboolean("library:git", "verify_ssh_fingerprint", fallback=False)
+
 		self.App.TaskService.schedule(self.initialize_git_repository())
+
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
+
+
+	def _parse_url(self, path):
+		"""
+		Parse git URL from various formats:
+		- git+https://[user:token@]host/path[#branch]
+		- git+ssh://[user@]host/path[#branch]  (e.g., git+ssh://git@github.com/user/repo.git)
+		- git+git@host:path[#branch]  (SSH shorthand, e.g., git+git@github.com:user/repo.git)
+		"""
+		# First, try HTTPS pattern
+		https_pattern = re.compile(r"git\+(https?://)((.*):(.*)@)?([^#]*)(?:#(.*))?$")
+		https_match = https_pattern.match(path)
+
+		if https_match:
+			# HTTPS URL with optional credentials
+			groups = https_match.groups()
+			self.URLScheme = groups[0]
+			self.UserInfo = groups[1] or ""
+			self.User = groups[2] or ""
+			self.DeployToken = groups[3] or ""
+			self.URLPath = groups[4]
+			self.Branch = groups[5] or ""
+			self.URL = "".join([self.URLScheme, self.UserInfo, self.URLPath])
+			self.UsesSSH = False
+			return
+
+		# Try SSH URL pattern (git+ssh://user@host/path or git+user@host:path)
+		ssh_pattern1 = re.compile(r"git\+ssh://([^@]+@)?([^/#]+)(/[^#]*)?(?:#(.*))?$")
+		ssh_match1 = ssh_pattern1.match(path)
+
+		if ssh_match1:
+			# SSH URL format: git+ssh://git@github.com/user/repo.git#branch
+			groups = ssh_match1.groups()
+			user = groups[0] or "git@"
+			host = groups[1]
+			repo_path = groups[2] or ""
+			self.Branch = groups[3] or ""
+			self.URL = f"ssh://{user}{host}{repo_path}"
+			self.URLPath = f"{host}{repo_path}"
+			self.User = user.rstrip("@")
+			self.DeployToken = ""
+			self.URLScheme = "ssh://"
+			self.UserInfo = user
+			self.UsesSSH = True
+			return
+
+		# Try SSH shorthand pattern: git+git@host:path
+		ssh_pattern2 = re.compile(r"git\+([^@]+@)?([^:]+):([^#]+)(?:#(.*))?$")
+		ssh_match2 = ssh_pattern2.match(path)
+
+		if ssh_match2:
+			# SSH shorthand format: git+git@github.com:user/repo.git#branch
+			groups = ssh_match2.groups()
+			user = groups[0] or "git@"
+			host = groups[1]
+			repo_path = groups[2]
+			self.Branch = groups[3] or ""
+			# Convert to full SSH URL for pygit2
+			self.URL = f"{user}{host}:{repo_path}"
+			self.URLPath = f"{host}:{repo_path}"
+			self.User = user.rstrip("@")
+			self.DeployToken = ""
+			self.URLScheme = ""
+			self.UserInfo = user
+			self.UsesSSH = True
+			return
+
+		raise ValueError("Invalid git URL format: {}".format(path))
+
+
+	def _create_callbacks(self):
+		"""
+		Create RemoteCallbacks for git operations.
+		This handles SSH authentication and fingerprint verification.
+		"""
+		callbacks = pygit2.RemoteCallbacks()
+
+		if self.UsesSSH:
+			# Set up SSH credential callback
+			def credentials_cb(url, username_from_url, allowed_types):
+				L.debug(
+					"Git SSH credentials requested",
+					struct_data={
+						"layer": self.Layer,
+						"url": url,
+						"username": username_from_url,
+						"allowed_types": allowed_types
+					}
+				)
+
+				# Warn if the allowed_types doesn't match what we expect
+				if not (allowed_types & GIT_CREDTYPE_SSH_KEY):
+					L.warning(
+						"SSH credentials requested but allowed_types ({}) ".format(allowed_types)
+						+ "doesn't include SSH_KEY flag ({}). Attempting anyway.".format(GIT_CREDTYPE_SSH_KEY),
+						struct_data={
+							"layer": self.Layer,
+							"url": url,
+						}
+					)
+
+				# Expand paths
+				key_path = os.path.expanduser(self.SSHKeyPath)
+				pubkey_path = os.path.expanduser(self.SSHPubkeyPath)
+
+				# Check if key files exist
+				if not os.path.exists(key_path):
+					L.error(
+						"SSH private key not found",
+						struct_data={"layer": self.Layer, "path": key_path}
+					)
+					return None
+				if not os.path.exists(pubkey_path):
+					L.warning(
+						"SSH public key not found",
+						struct_data={"layer": self.Layer, "path": pubkey_path}
+					)
+					pubkey_path = ""
+
+				L.debug("Using SSH key", struct_data={"layer": self.Layer, "path": key_path})
+
+				try:
+					return pygit2.Keypair(
+						username_from_url or self.User or "git",
+						pubkey_path,
+						key_path,
+						self.SSHPassphrase or ""
+					)
+				except Exception as e:
+					L.exception(
+						"Failed to create SSH key-pair",
+						struct_data={"layer": self.Layer, "path": key_path, "error": str(e)}
+					)
+					return None
+
+			callbacks.credentials = credentials_cb
+
+			# Set up certificate/fingerprint callback
+			# This prevents hanging on "Are you sure you want to continue connecting?" prompt
+			def certificate_check_cb(cert, valid, host):
+				if self.VerifySSHFingerprint:
+					# TODO: Could implement proper known_hosts verification here
+					L.warning(
+						"SSH fingerprint verification is enabled but not yet fully implemented. "
+						"Accepting host key.",
+						struct_data={"layer": self.Layer, "host": host}
+					)
+				else:
+					L.debug(
+						"Auto-accepting SSH host key",
+						struct_data={"layer": self.Layer, "host": host}
+					)
+				# Return True to accept the certificate
+				return True
+
+			callbacks.certificate_check = certificate_check_cb
+
+		return callbacks
 
 
 	async def _periodic_pull(self, event_name):
 		"""
 		Changes in remote repository are being pulled every minute. `PullLock` flag ensures that only if previous "pull" has finished, new one can start.
 		"""
-		if self.GitRepository is None:
+		if self.PullLock.locked():
 			return
 
-		if self.PullLock:
-			return
+		async with self.PullLock:
+			if self.GitRepository is None:
+				self.App.TaskService.schedule(self.initialize_git_repository())
+				return
 
-		self.PullLock = True
-
-		try:
-			to_publish = await self.ProactorService.execute(self._do_pull)
-			# Once reset of the head is finished, PubSub message about the change in the subscribed directory gets published.
-			for path in to_publish:
-				self.App.PubSub.publish("Library.change!", self, path)
-		except pygit2.GitError as err:
-			L.warning(
-				"Periodic pull from the remote repository failed: {}".format(err),
-				struct_data={"url": self.URLPath}
-			)
-		finally:
-			self.PullLock = False
+			try:
+				to_publish = await self.ProactorService.execute(self._do_pull)
+				# Once reset of the head is finished, PubSub message about the change in the subscribed directory gets published.
+				for path in to_publish:
+					self.App.PubSub.publish("Library.change!", self, path)
+			except pygit2.GitError as err:
+				L.exception(
+					"Periodic pull from the remote repository failed: {}".format(err),
+					struct_data={"layer": self.Layer, "url": self.URLPath}
+				)
 
 
 	async def initialize_git_repository(self):
+		"""
+		Initialize git repository by cloning or pulling latest changes.
+		"""
 
 		def init_task():
+
 			if pygit2.discover_repository(self.RepoPath) is None:
 				# For a new repository, clone the remote bit
 				os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
-				try:
-					self.GitRepository = pygit2.clone_repository(
-						url=self.URL,
-						path=self.RepoPath,
-						checkout_branch=self.Branch
-					)
-				except Exception as err:
-					L.exception("Error when cloning git repository: {}".format(err))
+				callbacks = self._create_callbacks()
+				self.GitRepository = pygit2.clone_repository(
+					url=self.URL,
+					path=self.RepoPath,
+					checkout_branch=self.Branch,
+					callbacks=callbacks
+				)
+
 			else:
 				# For existing repository, pull the latest changes
 				self.GitRepository = pygit2.Repository(self.RepoPath)
@@ -140,25 +343,25 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					}
 				)
 			else:
-				L.exception("Error when initializing git repository: {}".format(pygit_message))
-			self.App.stop()  # NOTE: raising Exception doesn't exit the app
+				L.exception(
+					"Error when initializing git repository",
+					struct_data={"layer": self.Layer, "error": pygit_message}
+				)
+
+			return
 
 		except pygit2.GitError as err:
 			pygit_message = str(err).replace('\"', '')
 			if "unexpected http status code: 404" in pygit_message:
 				# repository not found
-				L.exception(
-					"Git repository not found.",
-					struct_data={
-						"url": self.URLPath
-					}
-				)
+				L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
 			elif "remote authentication required but no callback set" in pygit_message:
 				# either repository not found or authentication failed
 				L.exception(
 					"Authentication failed when initializing git repository.\n"
 					"Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'",
 					struct_data={
+						"layer": self.Layer,
 						"url": self.URLPath,
 						"username": self.User,
 						"deploy_token": self.DeployToken
@@ -168,27 +371,40 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				# bad URL
 				L.exception(
 					"Git repository not found.",
-					struct_data={
-						"url": self.URLPath
-					}
+					struct_data={"layer": self.Layer, "url": self.URLPath}
 				)
 			elif 'Temporary failure in name resolution' in pygit_message:
-				# Internet connection does
+				# Internet connection does not work
 				L.exception(
 					"Git repository not initialized: connection failed. Check your network connection.",
 					struct_data={
+						"layer": self.Layer,
 						"url": self.URLPath
 					}
 				)
 			else:
-				L.exception("Git repository not initialized: {}".format(err))
-			self.App.stop()
+				L.exception(
+					"Git repository not initialized",
+					struct_data={"layer": self.Layer, "error": str(err)}
+				)
+
+			return
 
 		except Exception as err:
-			L.exception(err)
+			L.exception(
+				"Git repository not initialized",
+				struct_data={"layer": self.Layer, "error": str(err)}
+			)
+			return
 
-		assert hasattr(self.GitRepository, "remotes"), "Git repository not initialized."
-		assert self.GitRepository.remotes["origin"] is not None, "Git repository not initialized."
+		if not hasattr(self.GitRepository, "remotes"):
+			L.error(
+				"Git repository not initialized: Git repository object is in an invalid state (missing remote configuration)",
+				struct_data={"layer": self.Layer, "url": self.URLPath}
+			)
+			return
+
+		# If everything went fine, set the provider as ready
 		await self._set_ready()
 
 
@@ -201,7 +417,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		if self.GitRepository is None:
 			return None
 
-		self.GitRepository.remotes["origin"].fetch()
+		callbacks = self._create_callbacks()
+		self.GitRepository.remotes["origin"].fetch(callbacks=callbacks)
 		if self.Branch is None:
 			reference = self.GitRepository.lookup_reference("refs/remotes/origin/HEAD")
 		else:
@@ -215,7 +432,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		if new_commit_id == self.GitRepository.head.target:
 			return []
 
-		# Before new head is set, check the diffs. If changes in subscribed directory occured, add path to "to_publish" list.
+		# Before new head is set, check the diffs.
+		# If changes in subscribed directory occurred, add path to "to_publish" list.
 		to_publish = []
 		for path in self.SubscribedPaths:
 			for i in self.GitRepository.diff(self.GitRepository.head.target, new_commit_id).deltas:

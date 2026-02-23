@@ -90,6 +90,13 @@ class TestExpiredSuperuser(unittest.TestCase):
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			self.Authz.require_tenant_access()
 
+		# Explicit tenant param
+		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
+			self.Authz.has_tenant_access(TENANT_1)
+
+		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
+			self.Authz.require_tenant_access(TENANT_1)
+
 	def test_superuser_access(self):
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			self.Authz.has_superuser_access()
@@ -175,6 +182,26 @@ class TestTenantAuthorized(unittest.TestCase):
 			"Authorized access to TENANT_1 must succeed without return.",
 		)
 
+		# Explicit tenant param
+		self.assertTrue(
+			self.Authz.has_tenant_access(TENANT_1),
+			"Explicit tenant param: Access to TENANT_1 is authorized.",
+		)
+
+		self.assertIsNone(
+			self.Authz.require_tenant_access(TENANT_1),
+			"Explicit tenant param: Authorized access to TENANT_1 must succeed without return.",
+		)
+
+		# Negative: unauthorized tenant
+		self.assertFalse(
+			self.Authz.has_tenant_access(TENANT_2),
+			"Explicit tenant param: Access to TENANT_2 is not authorized.",
+		)
+
+		with self.assertRaises(asab.exceptions.AccessDeniedError):
+			self.Authz.require_tenant_access(TENANT_2)
+
 	def test_superuser_access(self):
 		self.assertFalse(
 			self.Authz.has_superuser_access(),
@@ -247,6 +274,26 @@ class TestTenantForbidden(unittest.TestCase):
 
 		with self.assertRaises(asab.exceptions.AccessDeniedError):
 			self.Authz.require_tenant_access()
+
+		# Explicit tenant param
+		self.assertTrue(
+			self.Authz.has_tenant_access(TENANT_1),
+			"Explicit tenant param: Access to TENANT_1 is authorized (overrides TENANT_2 context).",
+		)
+
+		self.assertIsNone(
+			self.Authz.require_tenant_access(TENANT_1),
+			"Explicit tenant param: Authorized access to TENANT_1 must succeed without return (overrides TENANT_2 context).",
+		)
+
+		# Negative: authorized tenant should be False in this context
+		self.assertFalse(
+			self.Authz.has_tenant_access(TENANT_2),
+			"Explicit tenant param: Access to TENANT_2 is not authorized.",
+		)
+
+		with self.assertRaises(asab.exceptions.AccessDeniedError):
+			self.Authz.require_tenant_access(TENANT_2)
 
 	def test_superuser_access(self):
 		self.assertFalse(
@@ -329,6 +376,22 @@ class TestGlobal(unittest.TestCase):
 
 		with self.assertRaises(ValueError):
 			self.Authz.require_tenant_access()
+
+		# Explicit tenant param: should use the provided tenant argument as the context
+		self.assertTrue(
+			self.Authz.has_tenant_access(TENANT_1),
+			"Explicit tenant param: Access to TENANT_1 is not authorized.",
+		)
+		self.assertIsNone(
+			self.Authz.require_tenant_access(TENANT_1),
+			"Explicit tenant param: Authorized access to TENANT_1 must succeed without return.",
+		)
+		self.assertFalse(
+			self.Authz.has_tenant_access(TENANT_2),
+			"Explicit tenant param: Access to TENANT_2 is not authorized.",
+		)
+		with self.assertRaises(asab.exceptions.AccessDeniedError):
+			self.Authz.require_tenant_access(TENANT_2)
 
 	def test_superuser_access(self):
 		self.assertFalse(

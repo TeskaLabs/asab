@@ -27,7 +27,7 @@ class Authorization:
 		IssuedAt (datetime.datetime): Timestamp when the authorization was issued.
 		Expiration (datetime.datetime): Timestamp when the authorization expires.
 	"""
-	def __init__(self, claims: dict):
+	def __init__(self, claims: dict, id_token: str = None):
 		"""
 		Initialize Authorization object from authorization server claims.
 
@@ -56,6 +56,8 @@ class Authorization:
 		except KeyError:
 			L.error("ID token is missing the required 'exp' field.")
 			raise NotAuthenticatedError()
+
+		self.IdToken = id_token
 
 
 	def __repr__(self):
@@ -121,9 +123,12 @@ class Authorization:
 		return has_resource_access(self._Resources, resources, tenant=Tenant.get(None))
 
 
-	def has_tenant_access(self) -> bool:
+	def has_tenant_access(self, tenant=None) -> bool:
 		"""
-		Check whether the agent has access to the tenant in context.
+		Check whether the agent has access to the tenant in context or the provided tenant.
+
+		Args:
+			tenant (str, optional): The tenant to check access for. If None, uses the tenant from context.
 
 		Returns:
 			bool: Is the agent authorized to access requested tenant?
@@ -132,23 +137,28 @@ class Authorization:
 			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 
 		Examples:
+			>>> # Using tenant context
 			>>> import asab.contextvars
 			>>> authz = asab.contextvars.Authz.get()
 			>>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
 			>>> try:
 			>>>     if authz.has_tenant_access():
-			>>>     	print("I have access to Big Corporation!")
+			>>>         print("I have access to Big Corporation!")
 			>>>     else:
 			>>>         print("Not much to do here.")
 			>>> finally:
 			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
+			>>>
+			>>> # Specifying tenant directly
+			>>> authz.has_tenant_access("big-corporation")
 		"""
 		self.require_valid()
 
-		try:
-			tenant = Tenant.get()
-		except LookupError as e:
-			raise ValueError("No tenant in context.") from e
+		if tenant is None:
+			try:
+				tenant = Tenant.get()
+			except LookupError as e:
+				raise ValueError("No tenant in context.") from e
 
 		return has_tenant_access(self._Resources, tenant)
 
@@ -206,18 +216,24 @@ class Authorization:
 		if not self.has_resource_access(*resources):
 			L.warning("Resource authorization required.", struct_data={
 				"resource": resources, "cid": self.CredentialsId})
-			raise AccessDeniedError()
+			scope = set()
+			_add_tenant_scope(scope)
+			raise AccessDeniedError(scope=scope)
 
 
-	def require_tenant_access(self):
+	def require_tenant_access(self, tenant=None):
 		"""
-		Ensures that the agent is authorized to access the tenant in the current context.
+		Ensures that the agent is authorized to access the tenant in the current context or the provided tenant.
+
+		Args:
+			tenant (str, optional): The tenant to check access for. If None, uses the tenant from context.
 
 		Raises:
 			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
 			AccessDeniedError: When the agent does not have access to the requested tenant.
 
 		Examples:
+			>>> # Using tenant context
 			>>> import asab.contextvars
 			>>> authz = asab.contextvars.Authz.get()
 			>>> tenant_ctx = asab.contextvars.Tenant.set("big-corporation")
@@ -226,11 +242,24 @@ class Authorization:
 			>>>     print("I have access to Big Corporation!")
 			>>> finally:
 			>>>     asab.contextvars.Tenant.reset(tenant_ctx)
+			>>>
+			>>> # Specifying tenant directly
+			>>> authz.require_tenant_access("big-corporation")
 		"""
-		if not self.has_tenant_access():
+		self.require_valid()
+
+		if tenant is None:
+			try:
+				tenant = Tenant.get()
+			except LookupError as e:
+				raise ValueError("No tenant in context.") from e
+
+		if not has_tenant_access(self._Resources, tenant):
 			L.warning("Tenant authorization required.", struct_data={
-				"tenant": Tenant.get(), "cid": self.CredentialsId})
-			raise AccessDeniedError()
+				"tenant": tenant, "cid": self.CredentialsId})
+			scope = set()
+			_add_tenant_scope(scope)
+			raise AccessDeniedError(scope=scope)
 
 
 	def user_info(self) -> typing.Dict[str, typing.Any]:
@@ -372,3 +401,15 @@ def _authorized_resources(resources_claim: typing.Mapping, tenant: typing.Union[
 		raise ValueError("Invalid tenant name: {}".format(tenant))
 
 	return set(resources_claim.get(tenant if tenant is not None else "*", []))
+
+
+def _add_tenant_scope(scope: typing.Set[str]):
+	"""
+	Add tenant scope to the provided scope set if tenant is present in context.
+
+	Args:
+		scope (typing.Set[str]): Set of scope strings to add tenant scope to.
+	"""
+	tenant = Tenant.get(None)
+	if tenant is not None:
+		scope.add("tenant:{}".format(tenant))

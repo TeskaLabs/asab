@@ -84,6 +84,10 @@ class LibraryService(Service):
 		self.Libraries: list[LibraryProviderABC] = []
 		self.Disabled: dict = {}
 		self.DisabledPaths: list = []
+		self.Favorites: dict = {}
+		self.FavoritePaths: list = []
+		self.__is_ready_last = False  # This is to ensure edge "not ready" -> "ready" to be published during initialization.
+
 
 		if paths is None:
 			# load them from configuration
@@ -111,6 +115,7 @@ class LibraryService(Service):
 
 	async def _on_tick60(self, message_type):
 		await self._read_disabled()
+		await self._read_favorites()
 
 	def _create_library(self, path, layer):
 		# Handle libsreg+ URIs (which may be comma-separated)
@@ -163,28 +168,35 @@ class LibraryService(Service):
 		Returns:
 			True if every provider is ready; if even one provider is not, returns False.
 		"""
-		if not self.Libraries:
+		if len(self.Libraries) == 0:
 			return False
 
-		for provider in self.Libraries:
-			if not provider.IsReady:
-				return False
-		return True
-
+		return all(provider.IsReady for provider in self.Libraries)
 
 	async def _set_ready(self, provider):
 		if len(self.Libraries) == 0:
+			if self.__is_ready_last:
+				self.__is_ready_last = False
+				L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
+				self.App.PubSub.publish("Library.not_ready!", self)
 			return
 
 		if (provider == self.Libraries[0]) and provider.IsReady:
 			await self._read_disabled()
+			await self._read_favorites()
 
-		if self.is_ready():
+		edge = (self.__is_ready_last, self.is_ready())
+
+		if edge == (False, True):  # The edge 'not ready' -> 'ready'
+			self.__is_ready_last = True
 			L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("Library.ready!", self)
-		elif not provider.IsReady:
+
+		elif edge == (True, False):  # The edge 'ready' -> 'not ready'
+			self.__is_ready_last = False
 			L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
 			self.App.PubSub.publish("Library.not_ready!", self)
+
 
 	def _ensure_ready(self):
 		if not self.is_ready():
@@ -290,8 +302,8 @@ class LibraryService(Service):
 
 	async def list(self, path: str = "/", recursive: bool = False) -> typing.List[LibraryItem]:
 		"""
-		List the directory of the library specified by the path that are enabled for the specified tenant.
-		This method can be used only after the Library is ready.
+		List the directory of the library specified by the path that are enabled for the
+		specified target (global, tenant, or personal).
 
 		**WARNING:** Tenant must be set in the context variable!
 		If it is not set automatically (e.g. from web request), it must be set manually.
@@ -372,6 +384,7 @@ class LibraryService(Service):
 			for item in provider_items:
 				# Check if the item is disabled.
 				item.disabled = self.check_disabled(item.name)
+				item.favorite = self.check_favorite(item.name)
 				# Use the layers as provided by the provider; if empty, fall back to outer_layer.
 				provider_layers = item.layers if item.layers else [outer_layer]
 
@@ -394,6 +407,93 @@ class LibraryService(Service):
 
 		# Do not sort items; return them in the order they were merged.
 		return items
+
+
+	async def _read_favorites(self):
+		"""
+		Load favorites from '/.favorites.yaml' into:
+			- self.Favorites: { '/path/file.ext': ['tenant', '*', ...] }
+			- self.FavoritePaths: [ ('/path/folder/', ['tenant', '*', ...]), ... ]
+		Expected YAML shape:
+			/path:
+				tenants:
+				- system
+		"""
+		fav_data = None
+
+		try:
+			fav_file = await self.Libraries[0].read('/.favorites.yaml')
+		except Exception as e:
+			L.warning("Failed to read '/.favorites.yaml': {}.".format(e))
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+
+		if fav_file is None:
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+
+		try:
+			fav_data = yaml.load(fav_file, Loader=yaml.CSafeLoader)
+		except Exception:
+			L.exception("Failed to parse '/.favorites.yaml'")
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+		finally:
+			if hasattr(fav_file, "close"):
+				try:
+					fav_file.close()
+				except Exception:
+					pass
+
+		if fav_data is None:
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+
+		if not isinstance(fav_data, dict):
+			L.warning("Unexpected favorites format ({}). Resetting.".format(type(fav_data).__name__))
+			self.Favorites = {}
+			self.FavoritePaths = []
+			return
+
+		files = {}
+		folders = []
+		for k, v in fav_data.items():
+			if not isinstance(k, str):
+				L.warning("Ignoring non-string favorite key: {}".format(k))
+				continue
+
+			# normalize tenants list
+			tenants = []
+			if isinstance(v, dict) and 'tenants' in v:
+				tv = v.get('tenants')
+				if isinstance(tv, list):
+					tenants = [str(t) for t in tv]
+				elif isinstance(tv, set):
+					tenants = [str(t) for t in list(tv)]
+				elif tv is None:
+					tenants = []
+				else:
+					tenants = [str(tv)]
+			elif isinstance(v, list):
+				# Back-compat: allow direct list
+				tenants = [str(t) for t in v]
+			else:
+				tenants = [str(v)]
+
+			if k.endswith('/'):
+				folders.append((k, tenants))
+			else:
+				files[k] = tenants
+
+		# Sort folders shortest→longest (consistent with DisabledPaths sort)
+		folders.sort(key=lambda x: len(x[0]))
+
+		self.Favorites = files
+		self.FavoritePaths = folders
 
 	async def _read_disabled(self, publish_changes=False):
 
@@ -444,7 +544,7 @@ class LibraryService(Service):
 		if any subscribed path is affected for the specific subscription target.
 		"""
 
-		if not self.Libraries:
+		if len(self.Libraries) == 0:
 			return
 
 		# Only the first provider (layer 0) owns and manages '/.disabled.yaml',
@@ -606,6 +706,85 @@ class LibraryService(Service):
 
 		return False
 
+	def check_favorite(self, path: str, inherit: bool = False) -> bool:
+		"""
+		Check if `path` is marked as favorite for the current tenant (or globally via '*').
+
+		If `inherit` is True and a parent *folder* is favorited for the tenant/'*',
+		any child path under that folder is considered favorited.
+
+		**WARNING:** Tenant must be set in the context variable before using this function
+		if you want tenant-aware behavior (same as check_disabled).
+
+		Examples:
+
+		1) Tenant-aware check:
+
+			```python
+			try:
+				tenant_ctx = asab.contextvars.Tenant.set(tenant)
+				is_fav = self.LibraryService.check_favorite(path)
+				...
+			finally:
+				asab.contextvars.Tenant.reset(tenant_ctx)
+			```
+
+		2) Global-only check (any tenant):
+
+			```python
+			is_fav = self.LibraryService.check_favorite(path)
+			```
+
+		Args:
+			path (str): Path to the item or folder to be checked.
+			inherit (bool): If True, a favorited folder marks all descendants as favorited.
+
+		Returns:
+			bool: True if favorited for current tenant or globally.
+		"""
+		if not isinstance(path, str) or not path:
+			raise LibraryInvalidPathError(
+				message="Argument 'path' must be a non-empty string.",
+				path=path,
+			)
+
+		try:
+			tenant = Tenant.get()
+		except LookupError:
+			tenant = None
+
+		# 1) Folder favorites
+		#    - Exact match if not inheriting
+		#    - Prefix match if inheriting (folder favorite applies to children)
+		if inherit:
+			for fp, fav_tenants in self.FavoritePaths:
+				if path.startswith(fp):
+					if '*' in fav_tenants:
+						return True
+					if tenant is not None and tenant in fav_tenants:
+						return True
+		else:
+			# exact folder favorite (no inheritance)
+			for fp, fav_tenants in self.FavoritePaths:
+				if path == fp:
+					if '*' in fav_tenants:
+						return True
+					if tenant is not None and tenant in fav_tenants:
+						return True
+
+		# 2) Exact item favorites
+		fav_tenants = self.Favorites.get(path)
+		if fav_tenants is None:
+			return False
+
+		if '*' in fav_tenants:
+			return True
+
+		if tenant is not None and tenant in fav_tenants:
+			return True
+
+		return False
+
 	async def get_item_metadata(self, path: str) -> typing.Optional[dict]:
 		"""
 		Retrieve metadata for a specific file in the library, including its `target`.
@@ -651,6 +830,7 @@ class LibraryService(Service):
 				"layers": item.layers,
 				"providers": item.providers,
 				"disabled": item.disabled,
+				"favorite": item.favorite,
 				"override": item.override,
 			}
 
@@ -728,6 +908,8 @@ class LibraryService(Service):
 				- "global" to watch global path changes
 				- "tenant" to watch path changes in tenants
 				- ("tenant", TENANT_ID) to watch path changes in one specified tenant TENANT_ID
+				- "personal" to watch path changes for all personal credential IDs
+				- ("personal", CREDENTIALS_ID) to watch in one specific personal scope
 
 		Examples:
 		```python

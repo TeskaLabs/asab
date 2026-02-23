@@ -1,5 +1,10 @@
 import ssl
+import logging
+
 from .config import Configurable
+
+
+L = logging.getLogger(__name__)
 
 
 class SSLContextBuilder(Configurable):
@@ -61,11 +66,14 @@ class SSLContextBuilder(Configurable):
 
 		cert = self.Config.get("cert")
 		if len(cert) != 0:
-			ctx.load_cert_chain(
-				cert,
-				keyfile=keyfile,
-				password=key_password,
-			)
+			try:
+				ctx.load_cert_chain(
+					cert,
+					keyfile=keyfile,
+					password=key_password,
+				)
+			except FileNotFoundError:
+				L.error("File not found", struct_data={'cert': cert})
 
 		cafile = self.Config.get("cafile")
 		if len(cafile) == 0:

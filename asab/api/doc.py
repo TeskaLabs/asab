@@ -211,13 +211,14 @@ class DocWebHandler(object):
 		"""
 		Take a route and return its path.
 		"""
+		path = "?"  # Unknown path placeholder
 		route_info = route.get_info()
 		if "path" in route_info:
 			path = route_info["path"]
 		elif "formatter" in route_info:
 			path = route_info["formatter"]
 		else:
-			L.warning("Cannot obtain path info from route", struct_data=self.route_info)
+			L.warning("Cannot obtain path info from route:{}".format(route_info))
 		return path
 
 

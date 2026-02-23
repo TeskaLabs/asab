@@ -11,10 +11,24 @@ class MyApplication(asab.Application):
 		# Specify the location of the library
 		# The branch can be optionally specified in the URL fragment (after '#')
 		# If the branch does not exist, KeyError is raised with the message: "reference 'refs/remotes/origin/...' not found"
-		asab.Config["library"]["providers"] = "git+https://github.com/TeskaLabs/asab.git"
+		asab.Config["library"]["providers"] = "git+git@github.com:TeskaLabs/asab.git"
 
-		# NOTE: If cloning from GitLab, use Deploy Tokens and specify the provider in format:
-		# git+https://<username>:<deploy_token>@gitlab.com/john/awesome_project.git
+		# === HTTPS Authentication with Deploy Tokens ===
+		# If cloning from GitLab, use Deploy Tokens and specify the provider in format:
+		# asab.Config["library"]["providers"] = "git+https://<username>:<deploy_token>@gitlab.com/john/awesome_project.git"
+
+		# === SSH Authentication ===
+		# You can also use SSH authentication (requires SSH keys to be set up):
+		# asab.Config["library"]["providers"] = "git+ssh://git@github.com/TeskaLabs/asab.git#master"
+		# or shorthand:
+		# asab.Config["library"]["providers"] = "git+git@github.com:TeskaLabs/asab.git#master"
+		#
+		# Optional SSH configuration (defaults shown):
+		asab.Config["library:git"] = {}
+		asab.Config["library:git"]["ssh_key_path"] = "./id_rsa"
+		asab.Config["library:git"]["ssh_pubkey_path"] = "./id_rsa.pub"
+		# asab.Config["library:git"]["ssh_passphrase"] = ""  # if your SSH key has a passphrase
+		# asab.Config["library:git"]["verify_ssh_fingerprint"] = "no"  # set to "yes" to enable verification
 
 		# The repository will be cloned to a temporary directory. You can optionally specify the path like this:
 		# asab.Config["library:git"]["repodir"] = "/tmp/asab.provider.git/awesome_project"
