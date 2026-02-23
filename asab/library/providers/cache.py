@@ -13,8 +13,8 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
 	A read-only cache wrapper that points at
 	[library:cache].dir/@global/<layer_hash>.
 
-	Any call to read()/list()/find()/subscribe() will serve from cache if present,
-	or raise KeyError if the cache is missing to trigger fallback.
+	Any call to read()/list()/find()/subscribe() will serve from cache if present.
+	When cache is missing, provider methods return fallback-safe empty values.
 	"""
 
 	def __init__(self, library, uri, layer):
@@ -67,20 +67,20 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
 
 	async def read(self, path):
 		if not self._cache_live():
-			raise KeyError("No cache for '{}'".format(path))
+			return None
 		return await super().read(path)
 
 	async def list(self, path):
 		if not self._cache_live():
-			raise KeyError("No cache for '{}'".format(path))
+			return []
 		return await super().list(path)
 
 	async def find(self, path):
 		if not self._cache_live():
-			raise KeyError("No cache for '{}'".format(path))
+			return []
 		return await super().find(path)
 
 	async def subscribe(self, path, target=None):
 		if not self._cache_live():
-			raise KeyError("No cache for '{}'".format(path))
+			return None
 		return await super().subscribe(path, target)
