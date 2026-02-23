@@ -68,6 +68,14 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
 	async def read(self, path):
 		if not self._cache_live():
 			return None
+		L.warning(
+			"Cache hit",
+			struct_data={
+				"path": path,
+				"provider": self.__class__.__name__,
+				"base": getattr(self, "global_link", getattr(self, "cache_dir", None)),
+			},
+		)
 		return await super().read(path)
 
 	async def list(self, path):
