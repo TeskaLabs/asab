@@ -70,7 +70,7 @@ class CacheLibraryProvider(FileSystemLibraryProvider):
 			return None
 
 		itemio = await super().read(path)
-		L.debug(
+		L.warning(
 			"Cache read %s",
 			"hit" if itemio is not None else "miss",
 			struct_data={
