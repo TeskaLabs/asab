@@ -276,10 +276,17 @@ class LibraryService(Service):
 
 
 	@contextlib.asynccontextmanager
-	async def open(self, path: str):
+	async def open(self, path: str, timeout: int = None):
 		"""
 		Read the content of the library item specified by `path` in a SAFE way, protected by a context manager/with statement.
 		This method can be used only after the Library is ready.
+
+		Args:
+			path (str): Path to the file, `LibraryItem.name` can be used directly.
+			timeout (int): The timeout how long to wait for the library to be ready in seconds. If not provided, the default timeout is used.
+
+		Returns:
+			Readable stream with the content of the library item. `None` is returned if the item is not found or if it is disabled (either globally or for the specified tenant).
 
 		Example:
 
@@ -290,7 +297,7 @@ class LibraryService(Service):
 			text = b.read().decode("utf-8")
 		```
 		"""
-		await self.wait_for_library_ready()
+		await self.wait_for_library_ready(timeout)
 
 		_validate_path_item(path)
 
@@ -312,7 +319,7 @@ class LibraryService(Service):
 				itemio.close()
 
 
-	async def list(self, path: str = "/", recursive: bool = False) -> typing.List[LibraryItem]:
+	async def list(self, path: str = "/", recursive: bool = False, timeout: int = None) -> typing.List[LibraryItem]:
 		"""
 		List the directory of the library specified by the path that are enabled for the
 		specified target (global, tenant, or personal).
@@ -334,11 +341,12 @@ class LibraryService(Service):
 		Args:
 			path (str): Path to the directory.
 			recursive (bool): If `True`, return a list of items located at `path` and its subdirectories.
+			timeout (int): The timeout how long to wait for the library to be ready in seconds. If not provided, the default timeout is used.
 
 		Returns:
 			List of items that are enabled for the tenant.
 		"""
-		await self.wait_for_library_ready()
+		await self.wait_for_library_ready(timeout)
 
 		_validate_path_directory(path)
 
