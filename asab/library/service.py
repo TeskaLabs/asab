@@ -107,6 +107,9 @@ class LibraryService(Service):
 
 		app.PubSub.subscribe("Application.tick/60!", self._on_tick60)
 
+		self.LibraryReadyEvent = asyncio.Event()
+		self.LibraryReadyTimeout = Config.getint('library', 'library_ready_timeout', fallback=30)
+
 
 	async def finalize(self, app):
 		while len(self.Libraries) > 0:
@@ -161,11 +164,30 @@ class LibraryService(Service):
 
 		return all(provider.IsReady for provider in self.Libraries)
 
+
+	async def wait_for_library_ready(self, timeout: int = None):
+		"""
+		Wait for the library to be ready.
+
+		Args:
+			timeout (int): The timeout in seconds. If not provided, the default timeout is used.
+
+		Raises:
+			LibraryNotReadyError: If the library is not ready within the timeout.
+		"""
+		if timeout is None:
+			timeout = self.LibraryReadyTimeout
+		try:
+			await asyncio.wait_for(self.LibraryReadyEvent.wait(), timeout=timeout)
+		except asyncio.TimeoutError:
+			raise LibraryNotReadyError("Library is not ready yet.")
+
 	async def _set_ready(self, provider):
 		if len(self.Libraries) == 0:
 			if self.__is_ready_last:
 				self.__is_ready_last = False
 				L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
+				self.LibraryReadyEvent.clear()
 				self.App.PubSub.publish("Library.not_ready!", self)
 			return
 
@@ -178,11 +200,13 @@ class LibraryService(Service):
 		if edge == (False, True):  # The edge 'not ready' -> 'ready'
 			self.__is_ready_last = True
 			L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
+			self.LibraryReadyEvent.set()
 			self.App.PubSub.publish("Library.ready!", self)
 
 		elif edge == (True, False):  # The edge 'ready' -> 'not ready'
 			self.__is_ready_last = False
 			L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
+			self.LibraryReadyEvent.clear()
 			self.App.PubSub.publish("Library.not_ready!", self)
 
 
@@ -252,10 +276,17 @@ class LibraryService(Service):
 
 
 	@contextlib.asynccontextmanager
-	async def open(self, path: str):
+	async def open(self, path: str, timeout: int = None):
 		"""
 		Read the content of the library item specified by `path` in a SAFE way, protected by a context manager/with statement.
 		This method can be used only after the Library is ready.
+
+		Args:
+			path (str): Path to the file, `LibraryItem.name` can be used directly.
+			timeout (int): The timeout how long to wait for the library to be ready in seconds. If not provided, the default timeout is used.
+
+		Returns:
+			Readable stream with the content of the library item. `None` is returned if the item is not found or if it is disabled (either globally or for the specified tenant).
 
 		Example:
 
@@ -266,7 +297,7 @@ class LibraryService(Service):
 			text = b.read().decode("utf-8")
 		```
 		"""
-		self._ensure_ready()
+		await self.wait_for_library_ready(timeout)
 
 		_validate_path_item(path)
 
@@ -288,7 +319,7 @@ class LibraryService(Service):
 				itemio.close()
 
 
-	async def list(self, path: str = "/", recursive: bool = False) -> typing.List[LibraryItem]:
+	async def list(self, path: str = "/", recursive: bool = False, timeout: int = None) -> typing.List[LibraryItem]:
 		"""
 		List the directory of the library specified by the path that are enabled for the
 		specified target (global, tenant, or personal).
@@ -310,11 +341,12 @@ class LibraryService(Service):
 		Args:
 			path (str): Path to the directory.
 			recursive (bool): If `True`, return a list of items located at `path` and its subdirectories.
+			timeout (int): The timeout how long to wait for the library to be ready in seconds. If not provided, the default timeout is used.
 
 		Returns:
 			List of items that are enabled for the tenant.
 		"""
-		self._ensure_ready()
+		await self.wait_for_library_ready(timeout)
 
 		_validate_path_directory(path)
 
