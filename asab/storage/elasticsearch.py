@@ -387,31 +387,36 @@ class StorageService(StorageServiceABC):
 			}
 
 		elif _filter:
-			# Apply case-insensitive filtering if _filter is provided
 			body = {'query': {}}
 			body['query']['wildcard'] = {
 				'_keys': {
-					'value': f"*{_filter.lower()}*",  # Case-insensitive wildcard search
-					'case_insensitive': True  # Requires ES 7.10+
+					'value': f"*{_filter.lower()}*",
+					'case_insensitive': True
 				}
 			}
 
+		# Initialize sort list
 		if sorts:
 			body['sort'] = []
-
 			for field, desc in sorts:
 				order = 'desc' if desc else 'asc'
 				body['sort'].append({field: {"order": order}})
+			
+			# TIE-BREAKER: Always add _doc to the end of user-defined sorts 
+			# to ensure consistent ordering for deep pagination (search_after).
+			body['sort'].append({"_doc": "asc"})
 
 		else:
+			# DEFAULT SORT: Use _doc instead of _id to avoid Fielddata errors in ES 8/9.
+			# _doc is the most efficient sort and requires zero extra memory.
+			body['sort'] = [{"_doc": "asc"}]
 
-			# https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#search-after
-			body['sort'] = [{'_id': 'asc'}]  # Always need a consistent sort order for deep pagination
-
-		# Use "search_after" for deep pagination when "_from" exceeds 10,000
+		# Use "search_after" for deep pagination
 		if last_hit_sort:
 			body['search_after'] = last_hit_sort
 
+		# Note: If size + _from > 10,000, ES will throw an error. 
+		# In ASAB/search_after patterns, _from should ideally remain 0 while using last_hit_sort.
 		async with self.request("GET", "{}/_search?size={}&from={}&version=true".format(index, size, _from), json=body) as resp:
 
 			if resp.status != 200:
