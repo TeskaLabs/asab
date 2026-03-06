@@ -390,7 +390,7 @@ class StorageService(StorageServiceABC):
 			body = {'query': {}}
 			body['query']['wildcard'] = {
 				'_keys': {
-					'value': f"*{_filter.lower()}*",
+					'value': "*{}*".format(_filter.lower()),
 					'case_insensitive': True
 				}
 			}
@@ -404,12 +404,12 @@ class StorageService(StorageServiceABC):
 			
 			# TIE-BREAKER: Always add _doc to the end of user-defined sorts 
 			# to ensure consistent ordering for deep pagination (search_after).
-			body['sort'].append({"_doc": "asc"})
+			body['sort'].append("_doc")
 
 		else:
 			# DEFAULT SORT: Use _doc instead of _id to avoid Fielddata errors in ES 8/9.
 			# _doc is the most efficient sort and requires zero extra memory.
-			body['sort'] = [{"_doc": "asc"}]
+			body['sort'] = ["_doc"]
 
 		# Use "search_after" for deep pagination
 		if last_hit_sort:
