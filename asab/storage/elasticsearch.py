@@ -407,7 +407,7 @@ class StorageService(StorageServiceABC):
 			body['sort'].append("_doc")
 
 		else:
-			# DEFAULT SORT: Use _doc instead of _id to avoid Fielddata errors in ES 8/9.
+			# DEFAULT SORT: Use _doc to avoid Fielddata errors in ES 8/9.
 			# _doc is the most efficient sort and requires zero extra memory.
 			body['sort'] = ["_doc"]
 
