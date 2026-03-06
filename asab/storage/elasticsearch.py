@@ -401,8 +401,8 @@ class StorageService(StorageServiceABC):
 			for field, desc in sorts:
 				order = 'desc' if desc else 'asc'
 				body['sort'].append({field: {"order": order}})
-			
-			# TIE-BREAKER: Always add _doc to the end of user-defined sorts 
+
+			# TIE-BREAKER: Always add _doc to the end of user-defined sorts
 			# to ensure consistent ordering for deep pagination (search_after).
 			body['sort'].append("_doc")
 
@@ -415,7 +415,7 @@ class StorageService(StorageServiceABC):
 		if last_hit_sort:
 			body['search_after'] = last_hit_sort
 
-		# Note: If size + _from > 10,000, ES will throw an error. 
+		# Note: If size + _from > 10,000, ES will throw an error.
 		# In ASAB/search_after patterns, _from should ideally remain 0 while using last_hit_sort.
 		async with self.request("GET", "{}/_search?size={}&from={}&version=true".format(index, size, _from), json=body) as resp:
 
