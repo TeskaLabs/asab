@@ -282,8 +282,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		watcher_type = getattr(kazoo.protocol.states, "WatcherType", None)
 		return getattr(watcher_type, "ANY", None) if watcher_type is not None else None
 
-	def _personal_node_path(self, path: str, tenant_id: typing.Optional[str], cred_id: typing.Optional[str]) -> \
-	typing.Optional[str]:
+	def _personal_node_path(self, path: str, tenant_id: typing.Optional[str], cred_id: typing.Optional[str]) -> typing.Optional[str]:
 		"""
 		Returns '/.personal/{tenant}/{cred}{path}' or None if tenant/cred are missing.
 		"""
