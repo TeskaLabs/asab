@@ -64,3 +64,8 @@ class LibraryProviderABC(object):
 			path: Absolute path to subscribe (starting with "/")
 		"""
 		raise NotImplementedError("{}.subscribe()".format(self.__class__.__name__))
+
+	@staticmethod
+	def _is_item_subscription(path: str) -> bool:
+		name = path.rstrip("/").rsplit("/", 1)[-1]
+		return "." in name and not name.endswith((".io", ".d"))

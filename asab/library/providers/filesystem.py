@@ -168,11 +168,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			os.path.splitext(path)[1]) > 0, "File path must end with an extension (e.g. /library/Templates/item.json)"
 		assert '//' not in path, "File path cannot contain double slashes (//)"
 
-	@staticmethod
-	def _is_item_subscription(path: str) -> bool:
-		name = path.rstrip("/").rsplit("/", 1)[-1]
-		return "." in name and not name.endswith((".io", ".d"))
-
 	def build_path(self, path, tenant_specific=False, tenant=None):
 		"""
 		Build an absolute filesystem path under this provider base path.
@@ -617,3 +612,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		if self.FD is not None:
 			self.App.Loop.remove_reader(self.FD)
 			os.close(self.FD)
+		self.AggrEvents.clear()
+		self.WDs.clear()
+		self.WDSubscriptions.clear()
+		self.WatchedPaths.clear()

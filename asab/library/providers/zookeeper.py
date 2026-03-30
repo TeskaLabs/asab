@@ -248,11 +248,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return None
 
 	@staticmethod
-	def _is_item_subscription(path: str) -> bool:
-		name = path.rstrip("/").rsplit("/", 1)[-1]
-		return "." in name and not name.endswith((".io", ".d"))
-
-	@staticmethod
 	def _normalize_subscription_path(path: str) -> str:
 		assert path[:1] == '/'
 		if path != '/':
