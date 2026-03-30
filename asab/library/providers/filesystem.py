@@ -81,7 +81,9 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		self.DisabledFilePath = os.path.join(self.BasePath, '.disabled.yaml')
 
 		self.AggrEvents = []
-		self.WDs = {}  # wd -> (subscribed_path, child_path)
+		self.WDs = {}  # wd -> watched directory path
+		self.WDSubscriptions = {}  # wd -> list of subscriptions attached to the watched directory
+		self.WatchedPaths = {}  # watched directory path -> wd
 
 	def _current_tenant_id(self):
 		try:
@@ -165,6 +167,11 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		assert len(
 			os.path.splitext(path)[1]) > 0, "File path must end with an extension (e.g. /library/Templates/item.json)"
 		assert '//' not in path, "File path cannot contain double slashes (//)"
+
+	@staticmethod
+	def _is_item_subscription(path: str) -> bool:
+		name = path.rstrip("/").rsplit("/", 1)[-1]
+		return "." in name and not name.endswith((".io", ".d"))
 
 	def build_path(self, path, tenant_specific=False, tenant=None):
 		"""
@@ -383,36 +390,134 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		"""
 		Subscribe to filesystem changes under `path`.
-
-		Note:
-			`target` is accepted for API compatibility; current filesystem implementation
-			watches the resolved path without target-specific scoping.
 		"""
-		if not os.path.isdir(self.BasePath + path):
-			return
 		if self.FD is None:
 			L.warning("Cannot subscribe to changes in the filesystem layer of the library: '{}'".format(self.BasePath))
 			return
-		self._subscribe_recursive(path, path)
+
+		for actual_path in self._iter_subscription_paths(path, target):
+			if os.path.isdir(actual_path):
+				self._subscribe_recursive(
+					subscription=self._build_directory_subscription(path, actual_path),
+					watched_path=actual_path,
+				)
+			elif os.path.isfile(actual_path):
+				self._subscribe_item(
+					subscription=self._build_item_subscription(path, actual_path),
+				)
 
 
-	def _subscribe_recursive(self, subscribed_path, path_to_be_listed):
-		binary = (self.BasePath + path_to_be_listed).encode()
-		wd = inotify_add_watch(self.FD, binary, IN_ALL_EVENTS)
-		if wd == -1:
-			L.error("Error in inotify_add_watch")
+	def _iter_subscription_paths(self, path, target: typing.Union[str, tuple, None]):
+		if target in {None, "global"}:
+			return [self.build_path(path, tenant_specific=False)]
+
+		if target == "tenant":
+			return [self.build_path(path, tenant_specific=True, tenant=tenant) for tenant in self._get_tenants()]
+
+		if isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
+			return [self.build_path(path, tenant_specific=True, tenant=target[1])]
+
+		if target == "personal":
+			tenant_id = self._current_tenant_id()
+			cred_id = self._current_credentials_id()
+			personal_path = self._personal_path(path, tenant_id, cred_id)
+			return [personal_path] if personal_path is not None else []
+
+		if isinstance(target, tuple) and len(target) == 2 and target[0] == "personal":
+			tenant_id = self._current_tenant_id()
+			personal_path = self._personal_path(path, tenant_id, target[1])
+			return [personal_path] if personal_path is not None else []
+
+		raise ValueError("Unexpected target: {!r}".format(target))
+
+
+	def _get_tenants(self) -> typing.List[str]:
+		root = os.path.join(self.BasePath, ".tenants")
+		if not os.path.isdir(root):
+			return []
+
+		tenants = []
+		for tenant in os.listdir(root):
+			tenant_path = os.path.join(root, tenant)
+			if tenant.startswith(".") or not os.path.isdir(tenant_path):
+				continue
+			tenants.append(tenant)
+		return tenants
+
+
+	def _build_directory_subscription(self, publish_path, actual_path):
+		return {
+			"kind": "dir",
+			"publish_path": publish_path,
+			"item_name": None,
+			"key": ("dir", publish_path, actual_path),
+		}
+
+
+	def _build_item_subscription(self, publish_path, actual_path):
+		return {
+			"kind": "item",
+			"publish_path": publish_path,
+			"item_name": os.path.basename(actual_path),
+			"key": ("item", publish_path, actual_path),
+		}
+
+
+	def _subscribe_item(self, subscription):
+		parent_path = os.path.dirname(subscription["key"][2])
+		wd = self._ensure_watch(parent_path)
+		if wd is None:
 			return
-		self.WDs[wd] = (subscribed_path, path_to_be_listed)
+		self._attach_subscription(wd, subscription)
+
+
+	def _subscribe_recursive(self, subscription, watched_path):
+		wd = self._ensure_watch(watched_path)
+		if wd is None:
+			return
+		self._attach_subscription(wd, subscription)
 
 		try:
-			items = self._list(path_to_be_listed)
-		except KeyError:
+			entries = list(os.scandir(watched_path))
+		except FileNotFoundError:
 			# subscribing to non-existing directory is silent
 			return
 
-		for item in items:
-			if item.type == "dir":
-				self._subscribe_recursive(subscribed_path, item.name)
+		for entry in entries:
+			if entry.name.startswith(".") or not entry.is_dir(follow_symlinks=False):
+				continue
+			self._subscribe_recursive(subscription, entry.path)
+
+
+	def _ensure_watch(self, watched_path):
+		wd = self.WatchedPaths.get(watched_path)
+		if wd is not None:
+			return wd
+
+		binary = watched_path.encode()
+		wd = inotify_add_watch(self.FD, binary, IN_ALL_EVENTS)
+		if wd == -1:
+			L.error("Error in inotify_add_watch")
+			return None
+
+		self.WatchedPaths[watched_path] = wd
+		self.WDs[wd] = watched_path
+		self.WDSubscriptions.setdefault(wd, [])
+		return wd
+
+
+	def _attach_subscription(self, wd, subscription):
+		subscriptions = self.WDSubscriptions.setdefault(wd, [])
+		if any(existing["key"] == subscription["key"] for existing in subscriptions):
+			return
+		subscriptions.append(subscription)
+
+
+	def _remove_watch(self, wd):
+		watched_path = self.WDs.pop(wd, None)
+		self.WDSubscriptions.pop(wd, None)
+		if watched_path is not None:
+			self.WatchedPaths.pop(watched_path, None)
 
 
 	def _on_inotify_read(self):
@@ -423,33 +528,41 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			wd, mask, cookie, namesize = struct.unpack_from(EVENT_FMT, data, pos)
 			pos += EVENT_SIZE + namesize
 			name = (data[pos - namesize: pos].split(b'\x00', 1)[0]).decode()
-
-			if mask & IN_ISDIR == IN_ISDIR and ((mask & IN_CREATE == IN_CREATE) or (mask & IN_MOVED_TO == IN_MOVED_TO)):
-				subscribed_path, child_path = self.WDs[wd]
-				self._subscribe_recursive(subscribed_path, "/".join([child_path, name]))
-
-			if mask & IN_IGNORED == IN_IGNORED:
-				# cleanup
-				del self.WDs[wd]
-				continue
-
-			name = (data[pos - namesize: pos].split(b'\x00', 1)[0]).decode()
-
-			full_path = os.path.join(self.BasePath, name)
-			if os.path.normpath(full_path) == os.path.normpath(self.DisabledFilePath):
-				self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
+			self._handle_inotify_event(wd, mask, name)
 
 		self.AggrTimer.restart(0.2)
 
 
+	def _handle_inotify_event(self, wd, mask, name):
+		watched_path = self.WDs.get(wd)
+		subscriptions = list(self.WDSubscriptions.get(wd, ()))
+
+		if mask & IN_ISDIR == IN_ISDIR and ((mask & IN_CREATE == IN_CREATE) or (mask & IN_MOVED_TO == IN_MOVED_TO)):
+			child_path = os.path.join(watched_path, name) if watched_path is not None else None
+			if child_path is not None:
+				for subscription in subscriptions:
+					if subscription["kind"] != "dir":
+						continue
+					self._subscribe_recursive(subscription, child_path)
+
+		self.AggrEvents.append((subscriptions, name))
+
+		full_path = os.path.join(watched_path, name) if watched_path is not None and len(name) > 0 else watched_path
+		if full_path is not None and os.path.normpath(full_path) == os.path.normpath(self.DisabledFilePath):
+			self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
+
+		if mask & IN_IGNORED == IN_IGNORED:
+			self._remove_watch(wd)
+
+
 	async def _on_aggr_timer(self):
 		to_advertise = set()
-		for wd, mask, cookie, name in self.AggrEvents:
-			# When wathed directory is being removed, more than one inotify events are being produced.
-			# When IN_IGNORED event occurs, respective wd is removed from self.WDs,
-			# but some other events (like IN_DELETE_SELF) get to this point, without having its reference in self.WDs.
-			subscribed_path, _ = self.WDs.get(wd, (None, None))
-			to_advertise.add(subscribed_path)
+		for subscriptions, name in self.AggrEvents:
+			for subscription in subscriptions:
+				if subscription["kind"] == "dir":
+					to_advertise.add(subscription["publish_path"])
+				elif name == subscription["item_name"]:
+					to_advertise.add(subscription["publish_path"])
 		self.AggrEvents.clear()
 
 		for path in to_advertise:
