@@ -18,11 +18,11 @@ from ...contextvars import Tenant, Authz
 
 L = logging.getLogger(__name__)
 
+
 #
 
 
 class ZooKeeperLibraryProvider(LibraryProviderABC):
-
 	"""
 
 	Configuration variant:
@@ -176,14 +176,14 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/SUSPENDED!", self._on_zk_lost)
 
 		self.Subscriptions: typing.Set[typing.Tuple[typing.Union[str, tuple, None], str]] = set()
-		self.SubscriptionActualPaths: typing.Dict[typing.Tuple[typing.Union[str, tuple, None], str], typing.List[str]] = {}
+		self.SubscriptionActualPaths: typing.Dict[
+			typing.Tuple[typing.Union[str, tuple, None], str], typing.List[str]] = {}
 		self.SubscriptionDescriptors: typing.Dict[
 			typing.Tuple[typing.Union[str, tuple, None], str],
 			typing.List[typing.Dict[str, typing.Any]],
 		] = {}
 		self.WatchSubscriptions: typing.Dict[str, typing.List[typing.Dict[str, typing.Any]]] = {}
 		self.PersistentWatches: typing.Set[str] = set()
-
 
 	async def finalize(self, app):
 		"""
@@ -197,7 +197,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.SubscriptionDescriptors = {}
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		await zksvc.remove(self.ZookeeperContainer)
-
 
 	async def _on_zk_connected(self, event_name, zkcontainer):
 		"""
@@ -221,7 +220,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			await self._restore_subscription_watches()
 
 		await self._set_ready()
-
 
 	async def _on_zk_lost(self, event_name, zkcontainer):
 		if zkcontainer != self.ZookeeperContainer:
@@ -284,7 +282,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		watcher_type = getattr(kazoo.protocol.states, "WatcherType", None)
 		return getattr(watcher_type, "ANY", None) if watcher_type is not None else None
 
-	def _personal_node_path(self, path: str, tenant_id: typing.Optional[str], cred_id: typing.Optional[str]) -> typing.Optional[str]:
+	def _personal_node_path(self, path: str, tenant_id: typing.Optional[str], cred_id: typing.Optional[str]) -> \
+	typing.Optional[str]:
 		"""
 		Returns '/.personal/{tenant}/{cred}{path}' or None if tenant/cred are missing.
 		"""
@@ -539,7 +538,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	async def _subscription_path_exists(self, actual_path: str) -> bool:
 		return (await self.Zookeeper.exists(self._zk_node_path(actual_path))) is not None
 
-	def _build_subscription_descriptor(self, target, publish_path: str, actual_path: str) -> typing.Dict[str, typing.Any]:
+	def _build_subscription_descriptor(self, target, publish_path: str, actual_path: str) -> typing.Dict[
+		str, typing.Any]:
 		actual_path = self._normalize_subscription_path(actual_path)
 		return {
 			"key": (target, publish_path, actual_path),
@@ -657,7 +657,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			cred_ids = []
 		return cred_ids
 
-
 	async def _get_tenants(self) -> typing.List[str]:
 		"""
 		List tenants that have custom content in the library (in the /.tenants directory).
@@ -670,7 +669,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		except kazoo.exceptions.NoNodeError:
 			tenants = []
 		return tenants
-
 
 	async def find(self, filename: str) -> list:
 		"""
