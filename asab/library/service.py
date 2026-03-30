@@ -169,18 +169,26 @@ class LibraryService(Service):
 		"""
 		Wait for the library to be ready.
 
+		After the ready edge event fires, re-checks `is_ready()`; if another task
+		moved the library back to not-ready before this coroutine resumed, raises
+		instead of waiting again.
+
 		Args:
 			timeout (int): The timeout in seconds. If not provided, the default timeout is used.
 
 		Raises:
-			LibraryNotReadyError: If the library is not ready within the timeout.
+			LibraryNotReadyError: If the library is not ready within the timeout, or if it is
+				not ready when this coroutine continues after the wait.
 		"""
 		if timeout is None:
 			timeout = self.LibraryReadyTimeout
+		if self.is_ready():
+			return
 		try:
 			await asyncio.wait_for(self.LibraryReadyEvent.wait(), timeout=timeout)
 		except asyncio.TimeoutError:
 			raise LibraryNotReadyError("Library is not ready yet.")
+		self._ensure_ready()
 
 	async def _set_ready(self, provider):
 		if len(self.Libraries) == 0:
@@ -922,7 +930,7 @@ class LibraryService(Service):
 		In order to notify on changes in the Library, this method must be used after the Library is ready.
 
 		Args:
-			paths (str | list[str]): Either single path or list of paths to be subscribed. All the paths must be absolute (start with '/').
+			paths (str | list[str]): Either a single path or list of paths to be subscribed. Paths can point to directories or items, and all paths must be absolute (start with '/').
 			target: In which target to watch the changes. Possible values:
 				- "global" to watch global path changes
 				- "tenant" to watch path changes in tenants
