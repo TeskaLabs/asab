@@ -468,7 +468,7 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 			hosts.extend(resolved)
 
 		if len(hosts) == 0:
-			raise NotDiscoveredError("Failed to resolve any of the hosts for '{}' / '{}'.".format(hostname, ','.join(x[0] for x in set(x[0] for x in located_instances))))
+			raise NotDiscoveredError("Failed to resolve any of the hosts for '{}' / '{}'.".format(hostname, ','.join(x for x in set(x[0] for x in located_instances))))
 
 		return hosts
 
