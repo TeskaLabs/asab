@@ -11,6 +11,7 @@ import kazoo.recipe.watchers
 
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
+from ...timer import Timer
 from ...zookeeper import ZooKeeperContainer
 from ...contextvars import Tenant, Authz
 
@@ -184,6 +185,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		] = {}
 		self.WatchSubscriptions: typing.Dict[str, typing.List[typing.Dict[str, typing.Any]]] = {}
 		self.PersistentWatches: typing.Set[str] = set()
+		self.AggrTimer = Timer(self.App, self._on_aggr_timer)
+		self.AggrEvents: typing.Set[str] = set()
 
 	async def finalize(self, app):
 		"""
@@ -191,6 +194,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		await self._remove_subscription_watches()
 		self.DisabledWatch = None
+		self.AggrTimer.stop()
+		self.AggrEvents.clear()
 		self.PersistentWatches = set()
 		self.WatchSubscriptions = {}
 		self.SubscriptionActualPaths = {}
@@ -226,6 +231,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return
 
 		self.DisabledWatch = None
+		self.AggrTimer.stop()
+		self.AggrEvents.clear()
 		self.PersistentWatches = set()
 		await self._set_ready(ready=False)
 
@@ -634,6 +641,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		for descriptor in list(self.WatchSubscriptions.get(zk_path, ())):
 			if self._subscription_matches_event(descriptor, event_path):
 				to_publish.add(descriptor["publish_path"])
+
+		if len(to_publish) == 0:
+			return
+
+		self.AggrEvents.update(to_publish)
+		self.AggrTimer.restart(0.2)
+
+	async def _on_aggr_timer(self) -> None:
+		to_publish = set(self.AggrEvents)
+		self.AggrEvents.clear()
 
 		for publish_path in to_publish:
 			self.App.PubSub.publish("Library.change!", self, publish_path)
