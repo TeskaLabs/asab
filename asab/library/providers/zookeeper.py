@@ -333,6 +333,69 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper library provider is not ready")
 			raise RuntimeError("Zookeeper library provider is not ready") from None
 
+	async def read_scoped(self, path: str, scope: str) -> typing.Optional[typing.IO]:
+		"""
+		Read from one explicit scope only.
+
+		Args:
+			path: Library file path (absolute).
+			scope: One of "global", "tenant", "personal".
+		"""
+		if self.Zookeeper is None:
+			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
+			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
+
+		try:
+			if scope == "global":
+				node_path = self.build_path(path, tenant_specific=False)
+			elif scope == "tenant":
+				node_path = self.build_path(path, tenant_specific=True)
+			elif scope == "personal":
+				tenant_id = self._current_tenant_id()
+				cred_id = self._current_credentials_id()
+				node_path = self._personal_node_path(path, tenant_id, cred_id)
+				if node_path is None:
+					return None
+			else:
+				return None
+
+			node_data = await self.Zookeeper.get_data(node_path)
+			if node_data is None:
+				return None
+			return io.BytesIO(initial_bytes=node_data)
+
+		except kazoo.exceptions.ConnectionClosedError:
+			L.warning("Zookeeper library provider is not ready")
+			raise RuntimeError("Zookeeper library provider is not ready") from None
+
+	async def read_personal_scopes(
+		self,
+		path: str,
+		tenant_id: typing.Optional[str] = None,
+	) -> typing.List[typing.Tuple[str, str, typing.IO]]:
+		"""
+		Read personal variants for all credential scopes in a tenant.
+		Returns tuples: (tenant_id, credentials_id, stream).
+		"""
+		if self.Zookeeper is None:
+			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
+			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
+
+		results: typing.List[typing.Tuple[str, str, typing.IO]] = []
+		scopes = await self._get_personal_scopes(tenant_id=tenant_id)
+		for scope_tenant, scope_cred in scopes:
+			node_path = self._personal_node_path(path, scope_tenant, scope_cred)
+			if node_path is None:
+				continue
+			try:
+				node_data = await self.Zookeeper.get_data(node_path)
+			except kazoo.exceptions.NoNodeError:
+				node_data = None
+			if node_data is None:
+				continue
+			results.append((scope_tenant, scope_cred, io.BytesIO(initial_bytes=node_data)))
+		return results
+
 	async def list(self, path: str) -> list:
 		if self.Zookeeper is None:
 			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
@@ -451,9 +514,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				node_path = self.BasePath + '/.tenants/' + tenant + path
 
 		node_path = node_path.rstrip("/")
+		if node_path == "":
+			node_path = "/"
 
 		assert '//' not in node_path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
-		assert node_path[0] == '/', "Directory path must start with a forward slash (/). For example: /library/Templates/"
+		assert node_path.startswith('/'), "Directory path must start with a forward slash (/). For example: /library/Templates/"
 
 		return node_path
 
@@ -564,18 +629,34 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			else:
 				raise ValueError("Unexpected target: {!r}".format((target, path)))
 
-	async def _get_personals(self) -> typing.List[str]:
+	async def _get_personal_scopes(self, tenant_id: typing.Optional[str] = None) -> typing.List[typing.Tuple[str, str]]:
 		"""
-		List CredentialsIds that have custom content (i.e., directories) under /.personal.
+		List (tenant_id, credentials_id) scopes that have personal content.
 		"""
+		personal_root = "{}/.personal".format(self.BasePath)
 		try:
-			cred_ids = [
-				c for c in await self.Zookeeper.get_children("{}/.personal".format(self.BasePath)) or []
-				if not c.startswith(".")
+			tenants = [
+				t for t in await self.Zookeeper.get_children(personal_root) or []
+				if not t.startswith(".")
 			]
 		except kazoo.exceptions.NoNodeError:
-			cred_ids = []
-		return cred_ids
+			return []
+
+		scopes: typing.List[typing.Tuple[str, str]] = []
+		for tenant in tenants:
+			if tenant_id is not None and tenant != tenant_id:
+				continue
+			tenant_root = "{}/{}".format(personal_root.rstrip("/"), tenant)
+			try:
+				creds = [
+					c for c in await self.Zookeeper.get_children(tenant_root) or []
+					if not c.startswith(".")
+				]
+			except kazoo.exceptions.NoNodeError:
+				creds = []
+			for cred in creds:
+				scopes.append((tenant, cred))
+		return scopes
 
 
 	async def _get_tenants(self) -> typing.List[str]:
