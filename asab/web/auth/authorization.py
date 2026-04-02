@@ -61,12 +61,15 @@ class Authorization:
 
 
 	def __repr__(self):
-		return "<Authorization [{}cid: {!r}, iat: {!r}, exp: {!r}]>".format(
-			"SUPERUSER, " if self.has_superuser_access() else "",
-			self.CredentialsId,
-			self.IssuedAt.isoformat(),
-			self.Expiration.isoformat(),
-		)
+		try:
+			return "<Authorization {}cid={!r}>".format(
+				"[SUPERUSER] " if self.has_superuser_access() else "",
+				self.CredentialsId,
+			)
+		except NotAuthenticatedError:
+			return "<Authorization [EXPIRED] cid={!r}>".format(
+				self.CredentialsId
+			)
 
 
 	def is_valid(self):

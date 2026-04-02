@@ -116,6 +116,9 @@ class TestExpiredSuperuser(unittest.TestCase):
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			self.Authz.user_info()
 
+	def test_repr(self):
+		self.assertEqual(self.Authz.__repr__(), "<Authorization [EXPIRED] cid=None>")
+
 
 class TestTenantAuthorized(unittest.TestCase):
 	"""
@@ -217,6 +220,9 @@ class TestTenantAuthorized(unittest.TestCase):
 			{RESOURCE_1, RESOURCE_2},
 			"Entity is authorized to access RESOURCE_1, RESOURCE_2 in TENANT_1.",
 		)
+
+	def test_repr(self):
+		self.assertEqual(self.Authz.__repr__(), "<Authorization cid=None>")
 
 
 class TestTenantForbidden(unittest.TestCase):
@@ -326,6 +332,7 @@ class TestGlobal(unittest.TestCase):
 		claims = {
 			"iat": time.time() - 60,
 			"exp": time.time() + 3600,
+			"sub": "asab:test:testuser",
 			"resources": {
 				"*": [RESOURCE_1],
 				TENANT_1: [RESOURCE_1, RESOURCE_2],
@@ -409,6 +416,9 @@ class TestGlobal(unittest.TestCase):
 			"Entity is globally authorized to access RESOURCE_1.",
 		)
 
+	def test_repr(self):
+		self.assertEqual(self.Authz.__repr__(), "<Authorization cid='asab:test:testuser'>")
+
 
 class TestSuperuserTenant(unittest.TestCase):
 	"""
@@ -421,6 +431,7 @@ class TestSuperuserTenant(unittest.TestCase):
 		claims = {
 			"iat": time.time() - 60,
 			"exp": time.time() + 3600,
+			"sub": "asab:test:testuser",
 			"resources": {
 				"*": [RESOURCE_SUPERUSER],
 			},
@@ -492,6 +503,9 @@ class TestSuperuserTenant(unittest.TestCase):
 			self.Authz._resources(),
 			{RESOURCE_SUPERUSER},
 		)
+
+	def test_repr(self):
+		self.assertEqual(self.Authz.__repr__(), "<Authorization [SUPERUSER] cid='asab:test:testuser'>")
 
 
 class TestSuperuserGlobal(unittest.TestCase):
