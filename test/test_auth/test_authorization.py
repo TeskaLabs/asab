@@ -77,29 +77,37 @@ class TestExpiredSuperuser(unittest.TestCase):
 			self.Authz.require_valid()
 
 	def test_resource_access(self):
-		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
-			self.Authz.has_resource_access(RESOURCE_1)
+		self.assertFalse(
+			self.Authz.has_resource_access(RESOURCE_1),
+			"Access to RESOURCE_1 is not authorized with expired authorization.",
+		)
 
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			self.Authz.require_resource_access(RESOURCE_1)
 
 	def test_tenant_access(self):
-		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
-			self.Authz.has_tenant_access()
+		self.assertFalse(
+			self.Authz.has_tenant_access(),
+			"Access to TENANT_1 is not authorized with expired authorization.",
+		)
 
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			self.Authz.require_tenant_access()
 
 		# Explicit tenant param
-		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
-			self.Authz.has_tenant_access(TENANT_1)
+		self.assertFalse(
+			self.Authz.has_tenant_access(TENANT_1),
+			"Access to TENANT_1 is not authorized with expired authorization.",
+		)
 
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			self.Authz.require_tenant_access(TENANT_1)
 
 	def test_superuser_access(self):
-		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
-			self.Authz.has_superuser_access()
+		self.assertFalse(
+			self.Authz.has_superuser_access(),
+			"Superuser access is not valid with expired authorization.",
+		)
 
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			self.Authz.require_superuser_access()
