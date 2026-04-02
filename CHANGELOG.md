@@ -3,8 +3,20 @@
 ## Release candidate
 
 ### Features
+...
+
+---
+
+
+## v26.12
+
+### Features
 - Extend 401 and 403 responses with WWW-Authenticate header (#721)
 - Filesystem supports reading from tenants(#722)
+- Pass ID token through Authorization object to microservices (#723)
+- Filesystem supports reading from tenants (#722)
+- asab.library.git.GitProvider: When the repository is not initialized during provider init, retry is triggered once per minute(#727)
+- Library service waits until it is ready or timeout (#737)
 ---
 
 
