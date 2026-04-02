@@ -118,7 +118,8 @@ class LibraryService(Service):
 		await self._read_favorites()
 
 	def _create_library(self, path, layer):
-		# Handle libsreg+ URIs (which may be comma-separated)
+		# Handle cacheable remote providers by inserting a published cache layer
+		# ahead of the real provider implementation.
 		if path.startswith('libsreg+'):
 			from .providers.cache import CacheLibraryProvider
 			cachep = CacheLibraryProvider(self, path, layer)
@@ -126,6 +127,14 @@ class LibraryService(Service):
 			self.Libraries.append(cachep)
 			from .providers.libsreg import LibsRegLibraryProvider
 			realp = LibsRegLibraryProvider(self, path, layer)
+			self.Libraries.append(realp)
+			return
+		elif path.startswith('git+'):
+			from .providers.cache import CacheLibraryProvider
+			cachep = CacheLibraryProvider(self, path, layer)
+			self.Libraries.append(cachep)
+			from .providers.git import GitLibraryProvider
+			realp = GitLibraryProvider(self, path, layer)
 			self.Libraries.append(realp)
 			return
 
@@ -145,12 +154,6 @@ class LibraryService(Service):
 		elif path.startswith('azure+https://'):
 			from .providers.azurestorage import AzureStorageLibraryProvider
 			provider = AzureStorageLibraryProvider(self, path, layer)
-			self.Libraries.append(provider)
-
-		# Git
-		elif path.startswith('git+'):
-			from .providers.git import GitLibraryProvider
-			provider = GitLibraryProvider(self, path, layer)
 			self.Libraries.append(provider)
 
 		# comments or blanks
