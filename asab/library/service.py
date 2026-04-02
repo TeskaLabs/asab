@@ -117,25 +117,29 @@ class LibraryService(Service):
 		await self._read_disabled()
 		await self._read_favorites()
 
+
 	def _create_library(self, path, layer):
-		# Handle cacheable remote providers by inserting a published cache layer
-		# ahead of the real provider implementation.
+
 		if path.startswith('libsreg+'):
-			from .providers.cache import CacheLibraryProvider
-			cachep = CacheLibraryProvider(self, path, layer)
-			# always register the cache wrapper (even if no snapshot yet)
-			self.Libraries.append(cachep)
 			from .providers.libsreg import LibsRegLibraryProvider
 			realp = LibsRegLibraryProvider(self, path, layer)
-			self.Libraries.append(realp)
+			if 'library:cache' in Config:
+				from .providers.cache import CacheLibraryProvider
+				cachep = CacheLibraryProvider(self, path, layer)
+				self.Libraries.append(cachep)
+			else:
+				self.Libraries.append(realp)
 			return
+
 		elif path.startswith('git+'):
-			from .providers.cache import CacheLibraryProvider
-			cachep = CacheLibraryProvider(self, path, layer)
-			self.Libraries.append(cachep)
 			from .providers.git import GitLibraryProvider
 			realp = GitLibraryProvider(self, path, layer)
-			self.Libraries.append(realp)
+			if 'library:cache' in Config:
+				from .providers.cache import CacheLibraryProvider
+				cachep = CacheLibraryProvider(self, path, layer)
+				self.Libraries.append(cachep)
+			else:
+				self.Libraries.append(realp)
 			return
 
 		# ZooKeeper (no cache support)
