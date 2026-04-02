@@ -180,7 +180,7 @@ class Authorization:
 			>>> print("I am a superuser and can do anything!")
 		"""
 		self.require_valid()
-		if not self.has_superuser_access():
+		if not is_superuser(self._Resources):
 			L.warning("Superuser authorization required.", struct_data={
 				"cid": self.CredentialsId})
 			raise AccessDeniedError()
@@ -204,7 +204,7 @@ class Authorization:
 			>>> print("I can read and write articles!")
 		"""
 		self.require_valid()
-		if not self.has_resource_access(*resources):
+		if not has_resource_access(self._Resources, resources, tenant=Tenant.get(None)):
 			L.warning("Resource authorization required.", struct_data={
 				"resource": resources, "cid": self.CredentialsId})
 			scope = set()
