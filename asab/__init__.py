@@ -11,6 +11,10 @@ For detailed documentation and examples, please refer to the ASAB documentation 
 
 import logging
 
+from ._teskalabs_kazoo import prefer_teskalabs_kazoo
+
+prefer_teskalabs_kazoo()
+
 from .abc.module import Module
 from .abc.service import Service
 from .abc.singleton import Singleton
