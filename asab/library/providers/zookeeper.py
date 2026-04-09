@@ -233,10 +233,14 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 	async def _get_version_counter(self, event_name=None):
-		if self.Zookeeper is None:
+		if self.Zookeeper is None or not self.IsReady:
 			return
 
-		version = await self.Zookeeper.get_data(self.VersionNodePath)
+		try:
+			version = await self.Zookeeper.get_data(self.VersionNodePath)
+		except kazoo.exceptions.ConnectionClosedError:
+			return
+
 		self._check_version_counter(version)
 
 
@@ -512,6 +516,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return digest.digest()
 
 	async def _on_library_changed(self, event_name=None):
+		if self.Zookeeper is None or not self.IsReady:
+			return
+
 		for (target, path) in list(self.Subscriptions):
 
 			async def do_check_path(actual_path):
@@ -526,13 +533,21 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			if target in {None, "global"}:
 				try:
 					await do_check_path(actual_path=path)
+				except kazoo.exceptions.ConnectionClosedError:
+					return
 				except Exception as e:
 					L.exception("Failed to process library changes: '{}'".format(e), struct_data={"path": path})
 
 			elif target == "tenant":
-				for tenant in await self._get_tenants():
+				try:
+					tenants = await self._get_tenants()
+				except kazoo.exceptions.ConnectionClosedError:
+					return
+				for tenant in tenants:
 					try:
 						await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
+					except kazoo.exceptions.ConnectionClosedError:
+						return
 					except Exception as e:
 						L.exception("Failed to process library changes: '{}'".format(e), struct_data={"path": path, "tenant": tenant})
 
@@ -540,6 +555,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				tenant = target[1]
 				try:
 					await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
+				except kazoo.exceptions.ConnectionClosedError:
+					return
 				except Exception as e:
 					L.exception("Failed to process library changes: '{}'".format(e), struct_data={"path": path, "tenant": tenant})
 
@@ -556,6 +573,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				if tenant_id and cred_id:
 					try:
 						await do_check_path(actual_path="/.personal/{}/{}{}".format(tenant_id, cred_id, path))
+					except kazoo.exceptions.ConnectionClosedError:
+						return
 					except Exception as e:
 						L.exception(
 							"Failed to process library changes: '{}'".format(e),
