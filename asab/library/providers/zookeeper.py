@@ -185,6 +185,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		self.Subscriptions: typing.Iterable[str] = set()
 		self.NodeDigests: typing.Dict[str, bytes] = {}
+		self.SubscriptionActualPaths: typing.Dict[typing.Tuple[typing.Union[str, tuple, None], str], typing.List[str]] = {}
 
 
 	async def finalize(self, app):
@@ -291,6 +292,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if not tenant_id or not cred_id:
 			return None
 		return "{}/.personal/{}/{}{}".format(self.BasePath, tenant_id, cred_id, path).rstrip("/")
+
+	def _subscription_personal_path(self, path: str, target: typing.Union[str, tuple, None]) -> typing.Optional[str]:
+		tenant_id = self._current_tenant_id()
+		if isinstance(target, tuple) and len(target) == 2 and target[0] == "personal":
+			cred_id = target[1]
+		else:
+			cred_id = self._current_credentials_id()
+		if not tenant_id or not cred_id:
+			return None
+		return "/.personal/{}/{}{}".format(tenant_id, cred_id, path)
 
 	async def read(self, path: str) -> typing.Optional[typing.IO]:
 		if self.Zookeeper is None:
@@ -463,34 +474,34 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		self.Subscriptions.add((target, path))
+		if not hasattr(self, "SubscriptionActualPaths"):
+			self.SubscriptionActualPaths = {}
 
 		if target in {None, "global"}:
+			self.SubscriptionActualPaths[(target, path)] = [path]
 			self.NodeDigests[path] = await self._get_directory_hash(path)
 
 		elif target == "tenant":
+			actual_paths = []
 			for tenant in await self._get_tenants():
 				actual_path = "/.tenants/{}{}".format(tenant, path)
+				actual_paths.append(actual_path)
 				self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
+			self.SubscriptionActualPaths[(target, path)] = actual_paths
 
 		elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
 			_, tenant = target
 			actual_path = "/.tenants/{}{}".format(tenant, path)
+			self.SubscriptionActualPaths[(target, path)] = [actual_path]
 			self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
 
-		elif target == "personal":
-			# current tenant + current credentials
-			try:
-				tenant_id = Tenant.get()
-			except LookupError:
-				tenant_id = None
-			try:
-				authz = Authz.get()
-				cred_id = getattr(authz, "CredentialsId", None)
-			except LookupError:
-				cred_id = None
-			if tenant_id and cred_id:
-				actual_path = "/.personal/{}/{}{}".format(tenant_id, cred_id, path)
+		elif target == "personal" or (isinstance(target, tuple) and len(target) == 2 and target[0] == "personal"):
+			actual_path = self._subscription_personal_path(path, target)
+			if actual_path is not None:
+				self.SubscriptionActualPaths[(target, path)] = [actual_path]
 				self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
+			else:
+				self.SubscriptionActualPaths[(target, path)] = []
 		else:
 			raise ValueError("Unexpected target: {!r}".format(target))
 
@@ -518,6 +529,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	async def _on_library_changed(self, event_name=None):
 		if self.Zookeeper is None or not self.IsReady:
 			return
+		subscription_actual_paths = getattr(self, "SubscriptionActualPaths", {})
 
 		for (target, path) in list(self.Subscriptions):
 
@@ -560,25 +572,20 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				except Exception as e:
 					L.exception("Failed to process library changes: '{}'".format(e), struct_data={"path": path, "tenant": tenant})
 
-			elif target == "personal":
-				try:
-					tenant_id = Tenant.get()
-				except LookupError:
-					tenant_id = None
-				try:
-					authz = Authz.get()
-					cred_id = getattr(authz, "CredentialsId", None)
-				except LookupError:
-					cred_id = None
-				if tenant_id and cred_id:
+			elif target == "personal" or (isinstance(target, tuple) and len(target) == 2 and target[0] == "personal"):
+				actual_paths = subscription_actual_paths.get((target, path))
+				if actual_paths is None:
+					actual_path = self._subscription_personal_path(path, target)
+					actual_paths = [actual_path] if actual_path is not None else []
+				for actual_path in actual_paths:
 					try:
-						await do_check_path(actual_path="/.personal/{}/{}{}".format(tenant_id, cred_id, path))
+						await do_check_path(actual_path=actual_path)
 					except kazoo.exceptions.ConnectionClosedError:
 						return
 					except Exception as e:
 						L.exception(
 							"Failed to process library changes: '{}'".format(e),
-							struct_data={"path": path, "tenant": tenant_id, "credentials_id": cred_id},
+							struct_data={"path": path},
 						)
 			else:
 				raise ValueError("Unexpected target: {!r}".format((target, path)))
