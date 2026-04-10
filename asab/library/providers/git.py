@@ -53,7 +53,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		# HTTPS with deploy token
 		[library]
 		providers=git+https://<username>:<deploy token>@<url>#<branch name>
-		# optional pull interval: fragment may be ``<branch>#pull=10h`` 
+		# optional pull interval: fragment may be ``<branch>#pull=10h``
 		# interval shorter than 1 minute defaults to 1 minute
 		providers=git+https://<username>:<deploy token>@<url>#main#pull=10h
 
