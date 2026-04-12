@@ -117,6 +117,9 @@ class LibraryService(Service):
 			await lib.finalize(self.App)
 
 	async def _on_tick60(self, message_type):
+		if len(self.Libraries) == 0 or not self.Libraries[0].IsReady:
+			return
+
 		await self._read_disabled()
 		await self._read_favorites()
 
@@ -227,6 +230,8 @@ class LibraryService(Service):
 		Returns:
 			typing.List[str]: A list of paths to the found files. If no files are found, the list will be empty.
 		"""
+		self._ensure_ready()
+
 		_validate_path_item(path)
 
 		results = []
@@ -434,18 +439,21 @@ class LibraryService(Service):
 			- self.Favorites: { '/path/file.ext': ['tenant', '*', ...] }
 			- self.FavoritePaths: [ ('/path/folder/', ['tenant', '*', ...]), ... ]
 		Expected YAML shape:
-			/path:
-				tenants:
-				- system
+				/path:
+					tenants:
+					- system
 		"""
+		if len(self.Libraries) == 0:
+			return
+
 		fav_data = None
+		fav_file = None
 
 		try:
 			fav_file = await self.Libraries[0].read('/.favorites.yaml')
 		except Exception as e:
-			L.warning("Failed to read '/.favorites.yaml': {}.".format(e))
-			self.Favorites = {}
-			self.FavoritePaths = []
+			if getattr(self.Libraries[0], "IsReady", False):
+				L.warning("Failed to read '/.favorites.yaml': {}.".format(e))
 			return
 
 		if fav_file is None:
@@ -515,41 +523,56 @@ class LibraryService(Service):
 		self.FavoritePaths = folders
 
 	async def _read_disabled(self, publish_changes=False):
+		if len(self.Libraries) == 0:
+			return
 
 		old_disabled = self.Disabled.copy()
 		old_disabled_paths = list(self.DisabledPaths)
-		# Read the file
-		disabled_file = await self.Libraries[0].read('/.disabled.yaml')
+		disabled_file = None
+		try:
+			# Read the file
+			disabled_file = await self.Libraries[0].read('/.disabled.yaml')
+		except Exception as e:
+			if getattr(self.Libraries[0], "IsReady", False):
+				L.warning("Failed to read '/.disabled.yaml': {}.".format(e))
+			return
 
-		if disabled_file is None:
-			self.Disabled = {}
-			self.DisabledPaths = []
-		else:
-			try:
-				disabled_data = yaml.load(disabled_file, Loader=yaml.CSafeLoader)
-			except Exception:
-				L.exception("Failed to parse '/.disabled.yaml'")
+		try:
+			if disabled_file is None:
 				self.Disabled = {}
-				self.DisabledPaths = []
-				return
-
-			if disabled_data is None:
-				self.Disabled = {}
-				self.DisabledPaths = []
-				return
-
-			if isinstance(disabled_data, set):
-				# Backward compatibility (August 2023)
-				self.Disabled = {key: '*' for key in disabled_data}
 				self.DisabledPaths = []
 			else:
-				self.Disabled = {}
-				self.DisabledPaths = []
-				for k, v in disabled_data.items():
-					if k.endswith('/'):
-						self.DisabledPaths.append((k, v))
-					else:
-						self.Disabled[k] = v
+				try:
+					disabled_data = yaml.load(disabled_file, Loader=yaml.CSafeLoader)
+				except Exception:
+					L.exception("Failed to parse '/.disabled.yaml'")
+					self.Disabled = {}
+					self.DisabledPaths = []
+					return
+
+				if disabled_data is None:
+					self.Disabled = {}
+					self.DisabledPaths = []
+					return
+
+				if isinstance(disabled_data, set):
+					# Backward compatibility (August 2023)
+					self.Disabled = {key: '*' for key in disabled_data}
+					self.DisabledPaths = []
+				else:
+					self.Disabled = {}
+					self.DisabledPaths = []
+					for k, v in disabled_data.items():
+						if k.endswith('/'):
+							self.DisabledPaths.append((k, v))
+						else:
+							self.Disabled[k] = v
+		finally:
+			if hasattr(disabled_file, "close"):
+				try:
+					disabled_file.close()
+				except Exception:
+					pass
 
 		self.DisabledPaths.sort(key=lambda x: len(x[0]))
 
