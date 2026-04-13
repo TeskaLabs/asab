@@ -947,13 +947,17 @@ class LibraryService(Service):
 		Args:
 			paths (str | list[str]): Either single path or list of paths to be subscribed. All the paths must be absolute (start with '/').
 			target: In which target to watch the changes. Possible values:
-				- "global" to watch global path changes
-				- "tenant" to watch path changes in tenants
+				- "global" (or None) to watch global path changes
+				- "tenant" to watch path changes in tenant scopes
 				- ("tenant", TENANT_ID) to watch path changes in one specified tenant TENANT_ID
-				- "personal" to watch path changes for all personal credential IDs
-				- ("personal", CREDENTIALS_ID) to watch in one specific personal scope
+				- "personal" to watch the current `(tenant, credentials)` personal scope from contextvars
+				- ("personal", CREDENTIALS_ID) to watch one specific personal scope under the current tenant
 
-		Examples:
+			Callers that need blocking bootstrap behavior should wait for `Library.ready!`
+			or call `wait_for_library_ready()` before subscribing. `subscribe()` itself
+			remains a fail-fast readiness gate.
+
+			Examples:
 		```python
 		class MyApplication(asab.Application):
 
