@@ -143,6 +143,43 @@ Every time the Library changes its state, `PubSub` message is published, with th
 | `Library.ready!` | all of the providers are ready. |
 | `Library.change!` | the content of the Library has changed. |
 
+## Readiness and Contract Notes
+
+The public read-side methods are not all gated in exactly the same way:
+
+- `read()` checks readiness immediately and raises `LibraryNotReadyError` when any provider is not ready.
+- `open()` and `list()` wait on `Library.ready!` and then raise `LibraryNotReadyError` on timeout.
+- `subscribe()` also requires the library to be ready before it fans out to providers, but it stays fail-fast rather than waiting internally.
+- `find()` also checks readiness immediately before it delegates to providers.
+
+The current merged `subscribe()` target contract is:
+
+- `target=None` or `target="global"` watches the global path.
+- `target="tenant"` watches tenant-scoped paths.
+- `target=("tenant", "<tenant-id>")` watches one explicit tenant scope.
+- `target="personal"` watches the current `(tenant, credentials)` context.
+- `target=("personal", "<credentials-id>")` watches one explicit personal scope under the current tenant.
+
+During bootstrap, services that must install subscriptions before continuing should wait for
+`Library.ready!` or call `wait_for_library_ready()` first and only then call `subscribe()`.
+That waiting policy lives at the call site; `subscribe()` itself remains a fail-fast registration call.
+
+The top-most provider owns the read-side metadata files:
+
+- `/.disabled.yaml`
+- `/.favorites.yaml`
+
+Those files are reloaded from the first provider on readiness transitions and on the periodic `Application.tick/60!` refresh.
+Changes in `/.disabled.yaml` may also trigger `Library.change!` when the disabled diff affects an active subscription path.
+
+### Current audit gaps
+
+The focused audit suite currently tracks several known contract risks that still require production fixes:
+
+- filesystem subscriptions still ignore `target`-specific scoping
+
+These are covered by regression tests so they stay visible during future changes.
+
 
 ## Notification on changes
 
