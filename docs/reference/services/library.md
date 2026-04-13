@@ -172,14 +172,6 @@ The top-most provider owns the read-side metadata files:
 Those files are reloaded from the first provider on readiness transitions and on the periodic `Application.tick/60!` refresh.
 Changes in `/.disabled.yaml` may also trigger `Library.change!` when the disabled diff affects an active subscription path.
 
-### Current audit gaps
-
-The focused audit suite currently tracks several known contract risks that still require production fixes:
-
-- filesystem subscriptions still ignore `target`-specific scoping
-
-These are covered by regression tests so they stay visible during future changes.
-
 
 ## Notification on changes
 
