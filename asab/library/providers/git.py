@@ -1,3 +1,4 @@
+import asyncio
 import os
 import tempfile
 import logging
@@ -112,7 +113,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		from ...proactor import Module
 		self.App.add_module(Module)
 		self.ProactorService = self.App.get_service("asab.ProactorService")
-		self.PullLock = False
+		self.PullLock = asyncio.Lock()
 
 		self.SubscribedPaths = set()
 
