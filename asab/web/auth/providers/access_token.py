@@ -41,9 +41,13 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 	async def _authorize(self, request: aiohttp.web.Request) -> Authorization:
 		access_token = None
-		if request.headers.get('connection', "").lower() == 'upgrade':
-			# Special handling for WebSocket connections
-			access_token = get_bearer_token_from_websocket_request(request)
+
+		# First, try to extract the access token from the WebSocket protocol header (if it's a WebSocket request)
+		if connection_header := request.headers.get(aiohttp.hdrs.CONNECTION):
+			for value in connection_header.casefold().split(","):
+				if value.strip() == "upgrade":
+					access_token = get_bearer_token_from_websocket_request(request)
+					break
 
 		if access_token is None:
 			access_token = get_bearer_token_from_authorization_header(request)
