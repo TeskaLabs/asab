@@ -2,8 +2,8 @@
 
 ## Release candidate
 
-### Features
-...
+### Fixes
+- Authenticate websocket requests with multivalued Upgrade header (#748)
 
 ---
 
@@ -17,6 +17,7 @@
 - Filesystem supports reading from tenants (#722)
 - asab.library.git.GitProvider: When the repository is not initialized during provider init, retry is triggered once per minute(#727)
 - Library service waits until it is ready or timeout (#737)
+
 ---
 
 
