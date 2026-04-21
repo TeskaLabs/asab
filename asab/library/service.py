@@ -7,6 +7,7 @@ import tarfile
 import asyncio
 import logging
 import tempfile
+import copy
 import configparser
 import contextlib
 
@@ -18,8 +19,8 @@ from ..log import LOG_NOTICE
 from .item import LibraryItem
 from ..application import Application
 from .providers.abc import LibraryProviderABC
-from ..exceptions import LibraryInvalidPathError, LibraryNotReadyError
-from ..contextvars import Tenant
+from ..exceptions import LibraryError, LibraryInvalidPathError, LibraryNotReadyError
+from ..contextvars import Authz, Tenant
 
 #
 
@@ -86,6 +87,7 @@ class LibraryService(Service):
 		self.DisabledPaths: list = []
 		self.Favorites: dict = {}
 		self.FavoritePaths: list = []
+		self.SchemaDiagnostics: dict = {}
 		self.__is_ready_last = False  # This is to ensure edge "not ready" -> "ready" to be published during initialization.
 
 
@@ -322,6 +324,379 @@ class LibraryService(Service):
 				yield itemio
 			finally:
 				itemio.close()
+
+	async def read_schema(
+		self,
+		schema: str = "ECS",
+		timeout: int = None,
+		include_diagnostics: bool = False,
+	):
+		"""
+		Read a global LMIO schema and merge its global schema extensions.
+
+		Schema reads intentionally ignore tenant and personal overlays. A schema is
+		a global contract, so `/Schemas/ECS.yaml` and `/Schemas/Extensions/` are
+		read as global library paths even when tenant context variables are set.
+
+		Extensions are expected to live next to the schema in the `Extensions`
+		directory and be named `<schema-name>-<extension-name>.yaml`, for example
+		`/Schemas/Extensions/ECS-Custom Fields.yaml`.
+
+		Args:
+			schema: Schema name (`"ECS"`) or absolute schema path (`"/Schemas/ECS.yaml"`).
+			timeout: Timeout for waiting until the library is ready.
+			include_diagnostics: If `True`, return `(schema, diagnostics)`.
+
+		Returns:
+			Merged schema dictionary, `None` when the base schema is not found, or
+			`(schema, diagnostics)` when `include_diagnostics` is enabled.
+		"""
+		await self.wait_for_library_ready(timeout)
+
+		schema_path, schema_name, extensions_path = _schema_path(schema)
+		diagnostics = []
+
+		with self._global_library_context():
+			try:
+				base_schema = await self._read_schema_yaml(schema_path)
+			except Exception as e:
+				raise LibraryError(
+					"Failed to parse schema '{}': {}".format(schema_path, e)
+				) from e
+
+			if base_schema is None:
+				diagnostics.append(_schema_diagnostic(
+					level="error",
+					code="schema_not_found",
+					message="Schema '{}' was not found.".format(schema_path),
+					path=schema_path,
+				))
+				return self._schema_result(schema_path, None, diagnostics, include_diagnostics)
+
+			self._validate_base_schema(schema_path, base_schema)
+			merged_schema = copy.deepcopy(base_schema)
+			base_fields = base_schema["fields"]
+			merged_fields = merged_schema["fields"]
+
+			extension_items, list_diagnostics = await self._list_global(extensions_path)
+			if list_diagnostics:
+				diagnostics.extend(list_diagnostics)
+				return self._schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
+
+			extension_items = sorted(
+				(
+					item for item in extension_items
+					if _is_schema_extension_item(item, schema_name)
+				),
+				key=lambda item: item.name,
+			)
+
+			fallback_to_plain_schema = False
+			for item in extension_items:
+				if item.disabled:
+					continue
+
+				try:
+					extension = await self._read_schema_yaml(item.name)
+				except Exception as e:
+					diagnostics.append(_schema_diagnostic(
+						level="error",
+						code="schema_extension_parse_error",
+						message=(
+							"Schema extension '{}' could not be parsed; using plain schema. "
+							"Reason: {}".format(item.name, e)
+						),
+						path=item.name,
+					))
+					fallback_to_plain_schema = True
+					break
+
+				if not self._validate_schema_extension(item.name, extension, diagnostics):
+					fallback_to_plain_schema = True
+					break
+
+				for field_name, field_definition in extension["fields"].items():
+					# Base ECS wins: extensions may add fields, but never alter ECS fields.
+					if field_name in base_fields:
+						diagnostics.append(_schema_diagnostic(
+							level="warning",
+							code="schema_extension_base_field_redefinition",
+							message=(
+								"Schema extension '{}' tried to redefine base field '{}'; "
+								"the base schema field was kept.".format(item.name, field_name)
+							),
+							path=item.name,
+							field=field_name,
+						))
+						continue
+
+					if field_name in merged_fields:
+						diagnostics.append(_schema_diagnostic(
+							level="warning",
+							code="schema_extension_duplicate_field",
+							message=(
+								"Schema extension '{}' tried to redefine extension field '{}'; "
+								"the first extension field was kept.".format(item.name, field_name)
+							),
+							path=item.name,
+							field=field_name,
+						))
+						continue
+
+					merged_fields[field_name] = copy.deepcopy(field_definition)
+
+			if fallback_to_plain_schema:
+				diagnostics.append(_schema_diagnostic(
+					level="warning",
+					code="schema_extensions_fallback",
+					message="Schema extensions were not applied; using plain schema.",
+					path=schema_path,
+				))
+				return self._schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
+
+			return self._schema_result(schema_path, merged_schema, diagnostics, include_diagnostics)
+
+	@contextlib.contextmanager
+	def _global_library_context(self):
+		"""
+		Temporarily clear tenant/auth context variables for global-only schema reads.
+
+		Provider `read()` and `list()` implementations normally honor tenant and
+		personal overlays. Schemas are intentionally global contracts, so
+		`read_schema()` uses this context manager to force global resolution while
+		restoring the caller's context afterwards.
+		"""
+		tenant_ctx = Tenant.set(None)
+		authz_ctx = Authz.set(None)
+		try:
+			yield
+		finally:
+			Authz.reset(authz_ctx)
+			Tenant.reset(tenant_ctx)
+
+	async def _read_schema_item(self, path: str) -> typing.Optional[typing.IO]:
+		"""
+		Read a schema-related library item.
+
+		This helper does not set global context itself. `read_schema()` calls it
+		while `_global_library_context()` is active, so providers resolve the
+		global library layer instead of tenant/personal overlays.
+		"""
+		_validate_path_item(path)
+
+		if self.check_disabled(path):
+			return None
+
+		for library in self.Libraries:
+			itemio = await library.read(path)
+			if itemio is not None:
+				return itemio
+
+		return None
+
+	async def _read_schema_yaml(self, path: str):
+		"""
+		Read and parse a schema-related YAML library item.
+
+		Returns `None` when the item does not exist or is disabled. YAML parser
+		errors are intentionally propagated to the caller so `read_schema()` can
+		decide whether to fail the base schema read or fall back from extensions.
+		"""
+		itemio = await self._read_schema_item(path)
+		if itemio is None:
+			return None
+
+		try:
+			return yaml.load(itemio, Loader=yaml.CSafeLoader)
+		finally:
+			if hasattr(itemio, "close"):
+				itemio.close()
+
+	async def _list_global(self, path: str) -> tuple[typing.List[LibraryItem], typing.List[dict]]:
+		"""
+		List a global directory and preserve provider errors as schema diagnostics.
+
+		The generic `_list()` method logs and skips provider failures, which is
+		useful for normal library listing but too quiet for schema extension loading:
+		the UI needs a diagnostic beacon when extensions cannot be inspected.
+		"""
+		_validate_path_directory(path)
+
+		items: list[LibraryItem] = []
+		unique_items: dict[str, LibraryItem] = {}
+		diagnostics = []
+
+		tasks = [
+			(self.Libraries.index(provider), asyncio.create_task(provider.list(path)))
+			for provider in self.Libraries
+		]
+
+		for outer_layer, task in tasks:
+			try:
+				provider_items: list[LibraryItem] = await task
+			except KeyError:
+				continue
+			except Exception as e:
+				diagnostics.append(_schema_diagnostic(
+					level="warning",
+					code="schema_extensions_unavailable",
+					message=(
+						"Failed to list schema extensions in '{}'; using plain schema. "
+						"Reason: {}".format(path, e)
+					),
+					path=path,
+				))
+				continue
+
+			for item in provider_items:
+				item.disabled = self.check_disabled(item.name)
+				item.favorite = self.check_favorite(item.name)
+				provider_layers = item.layers if item.layers else [outer_layer]
+
+				if item.name in unique_items:
+					existing_item = unique_items[item.name]
+					if existing_item.type == "dir" and item.type == "dir":
+						for provider in item.providers:
+							if provider not in existing_item.providers:
+								existing_item.providers.append(provider)
+					for layer_value in provider_layers:
+						if layer_value not in existing_item.layers:
+							existing_item.layers.append(layer_value)
+				else:
+					item.layers = provider_layers
+					unique_items[item.name] = item
+					items.append(item)
+
+		return items, diagnostics
+
+	def _validate_base_schema(self, path: str, schema: dict) -> None:
+		"""
+		Validate the minimum structure required for a base LMIO schema.
+
+		The base schema is authoritative. If it is malformed, callers cannot safely
+		continue, so validation errors raise `LibraryError` instead of producing a
+		fallback schema.
+		"""
+		if not isinstance(schema, dict):
+			raise LibraryError("Schema '{}' must be a YAML mapping.".format(path))
+
+		fields = schema.get("fields")
+		if not isinstance(fields, dict):
+			raise LibraryError("Schema '{}' must contain a 'fields' mapping.".format(path))
+
+		for field_name, field_definition in fields.items():
+			if not isinstance(field_name, str) or field_name == "":
+				raise LibraryError("Schema '{}' contains an invalid field name.".format(path))
+			if not isinstance(field_definition, dict):
+				raise LibraryError(
+					"Schema '{}' field '{}' must be a mapping.".format(path, field_name)
+				)
+
+	def _validate_schema_extension(self, path: str, extension, diagnostics: list) -> bool:
+		"""
+		Validate a schema extension and append user-facing diagnostics on failure.
+
+		Returns `True` when the extension can be merged. Returns `False` when the
+		extension shape is unusable and the caller should fall back to the plain
+		base schema.
+		"""
+		if extension is None:
+			diagnostics.append(_schema_diagnostic(
+				level="error",
+				code="schema_extension_empty",
+				message="Schema extension '{}' is empty; using plain schema.".format(path),
+				path=path,
+			))
+			return False
+
+		if not isinstance(extension, dict):
+			diagnostics.append(_schema_diagnostic(
+				level="error",
+				code="schema_extension_invalid_shape",
+				message="Schema extension '{}' must be a YAML mapping; using plain schema.".format(path),
+				path=path,
+			))
+			return False
+
+		define = extension.get("define")
+		if not isinstance(define, dict):
+			diagnostics.append(_schema_diagnostic(
+				level="error",
+				code="schema_extension_invalid_define",
+				message="Schema extension '{}' must contain a 'define' mapping; using plain schema.".format(path),
+				path=path,
+			))
+			return False
+
+		if define.get("type") != "lmio/schema-extension":
+			diagnostics.append(_schema_diagnostic(
+				level="error",
+				code="schema_extension_invalid_type",
+				message=(
+					"Schema extension '{}' must have define.type 'lmio/schema-extension'; "
+					"using plain schema."
+				).format(path),
+				path=path,
+			))
+			return False
+
+		fields = extension.get("fields")
+		if not isinstance(fields, dict):
+			diagnostics.append(_schema_diagnostic(
+				level="error",
+				code="schema_extension_invalid_fields",
+				message="Schema extension '{}' must contain a 'fields' mapping; using plain schema.".format(path),
+				path=path,
+			))
+			return False
+
+		for field_name, field_definition in fields.items():
+			if not isinstance(field_name, str) or field_name == "":
+				diagnostics.append(_schema_diagnostic(
+					level="error",
+					code="schema_extension_invalid_field_name",
+					message="Schema extension '{}' contains an invalid field name; using plain schema.".format(path),
+					path=path,
+				))
+				return False
+			if not isinstance(field_definition, dict):
+				diagnostics.append(_schema_diagnostic(
+					level="error",
+					code="schema_extension_invalid_field_definition",
+					message=(
+						"Schema extension '{}' field '{}' must be a mapping; using plain schema."
+					).format(path, field_name),
+					path=path,
+					field=field_name,
+				))
+				return False
+
+		return True
+
+	def _schema_result(self, schema_path: str, schema, diagnostics: list, include_diagnostics: bool):
+		"""
+		Store, publish, and return schema diagnostics with the selected result shape.
+
+		Diagnostics are stored for programmatic inspection and published through
+		PubSub so UI layers can show a validation beacon without reimplementing the
+		merge logic.
+		"""
+		if not hasattr(self, "SchemaDiagnostics"):
+			self.SchemaDiagnostics = {}
+
+		self.SchemaDiagnostics[schema_path] = copy.deepcopy(diagnostics)
+
+		if diagnostics:
+			app = getattr(self, "App", None)
+			pubsub = getattr(app, "PubSub", None)
+			publish = getattr(pubsub, "publish", None)
+			if publish is not None:
+				publish("Library.schema_validation!", self, schema_path, diagnostics)
+
+		if include_diagnostics:
+			return schema, diagnostics
+
+		return schema
 
 
 	async def list(self, path: str = "/", recursive: bool = False, timeout: int = None) -> typing.List[LibraryItem]:
@@ -985,6 +1360,76 @@ class LibraryService(Service):
 
 			for provider in self.Libraries:
 				await provider.subscribe(path, target)
+
+
+def _schema_path(schema: str) -> tuple[str, str, str]:
+	"""
+	Normalize a schema name or absolute schema path.
+
+	Returns `(schema_path, schema_name, extensions_path)`. For example, `"ECS"`
+	becomes `("/Schemas/ECS.yaml", "ECS", "/Schemas/Extensions/")`.
+	"""
+	if not isinstance(schema, str) or schema == "":
+		raise LibraryInvalidPathError(
+			message="Schema name must be a non-empty string.",
+			path=str(schema),
+		)
+
+	if schema.startswith("/"):
+		path = schema
+	else:
+		if "/" in schema or "\\" in schema or schema in (".", ".."):
+			raise LibraryInvalidPathError(
+				message="Schema name must not contain path separators.",
+				path=schema,
+			)
+		path = "/Schemas/{}.yaml".format(schema)
+
+	_validate_path_item(path)
+
+	directory, filename = os.path.split(path)
+	schema_name, _ = os.path.splitext(filename)
+	extensions_path = "{}/Extensions/".format(directory.rstrip("/"))
+	return path, schema_name, extensions_path
+
+
+def _is_schema_extension_item(item: LibraryItem, schema_name: str) -> bool:
+	"""
+	Decide whether a library item is an extension file for the requested schema.
+
+	Extension files use the `<schema-name>-<extension-name>.yaml` naming convention.
+	"""
+	if item.type != "item":
+		return False
+
+	filename = os.path.basename(item.name)
+	_, extension = os.path.splitext(filename)
+	if extension not in (".yaml", ".yml"):
+		return False
+
+	return filename.startswith("{}-".format(schema_name))
+
+
+def _schema_diagnostic(
+	level: str,
+	code: str,
+	message: str,
+	path: str = None,
+	field: str = None,
+) -> dict:
+	"""
+	Build a structured schema diagnostic for UI and backend consumers.
+	"""
+	diagnostic = {
+		"level": level,
+		"code": code,
+		"message": message,
+	}
+	if path is not None:
+		diagnostic["path"] = path
+	if field is not None:
+		diagnostic["field"] = field
+	return diagnostic
 
 
 def _validate_path_item(path: str) -> None:
