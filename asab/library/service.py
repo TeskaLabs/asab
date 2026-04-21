@@ -29,6 +29,8 @@ LogObsolete = logging.getLogger("OBSOLETE")
 
 #
 
+_SCHEMA_MISSING = object()
+
 
 class LibraryService(Service):
 	"""
@@ -364,7 +366,7 @@ class LibraryService(Service):
 					"Failed to parse schema '{}': {}".format(schema_path, e)
 				) from e
 
-			if base_schema is None:
+			if base_schema is _SCHEMA_MISSING:
 				diagnostics.append(_schema_diagnostic(
 					level="error",
 					code="schema_not_found",
@@ -498,13 +500,15 @@ class LibraryService(Service):
 		"""
 		Read and parse a schema-related YAML library item.
 
-		Returns `None` when the item does not exist or is disabled. YAML parser
-		errors are intentionally propagated to the caller so `read_schema()` can
-		decide whether to fail the base schema read or fall back from extensions.
+		Returns `_SCHEMA_MISSING` when the item does not exist or is disabled.
+		Parsed YAML values, including `None` from empty/null YAML files, are
+		returned as-is so schema validation can report the real problem. YAML
+		parser errors are intentionally propagated to the caller so `read_schema()`
+		can decide whether to fail the base schema read or fall back from extensions.
 		"""
 		itemio = await self._read_schema_item(path)
 		if itemio is None:
-			return None
+			return _SCHEMA_MISSING
 
 		try:
 			return yaml.load(itemio, Loader=yaml.CSafeLoader)
@@ -600,6 +604,15 @@ class LibraryService(Service):
 		extension shape is unusable and the caller should fall back to the plain
 		base schema.
 		"""
+		if extension is _SCHEMA_MISSING:
+			diagnostics.append(_schema_diagnostic(
+				level="error",
+				code="schema_extension_not_found",
+				message="Schema extension '{}' was not found; using plain schema.".format(path),
+				path=path,
+			))
+			return False
+
 		if extension is None:
 			diagnostics.append(_schema_diagnostic(
 				level="error",
