@@ -417,35 +417,13 @@ class LibraryService(Service):
 					fallback_to_plain_schema = True
 					break
 
-				for field_name, field_definition in extension["fields"].items():
-					# Base ECS wins: extensions may add fields, but never alter ECS fields.
-					if field_name in base_fields:
-						diagnostics.append(_schema_diagnostic(
-							level="warning",
-							code="schema_extension_base_field_redefinition",
-							message=(
-								"Schema extension '{}' tried to redefine base field '{}'; "
-								"the base schema field was kept.".format(item.name, field_name)
-							),
-							path=item.name,
-							field=field_name,
-						))
-						continue
-
-					if field_name in merged_fields:
-						diagnostics.append(_schema_diagnostic(
-							level="warning",
-							code="schema_extension_duplicate_field",
-							message=(
-								"Schema extension '{}' tried to redefine extension field '{}'; "
-								"the first extension field was kept.".format(item.name, field_name)
-							),
-							path=item.name,
-							field=field_name,
-						))
-						continue
-
-					merged_fields[field_name] = copy.deepcopy(field_definition)
+				self._merge_schema_extension_fields(
+					item.name,
+					extension,
+					base_fields,
+					merged_fields,
+					diagnostics,
+				)
 
 			if fallback_to_plain_schema:
 				diagnostics.append(_schema_diagnostic(
@@ -457,6 +435,100 @@ class LibraryService(Service):
 				return self._schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
 
 			return self._schema_result(schema_path, merged_schema, diagnostics, include_diagnostics)
+
+	async def validate_schema_candidate(
+		self,
+		path: str,
+		content: typing.Union[bytes, bytearray, str],
+		timeout: int = None,
+	) -> list[dict]:
+		"""
+		Validate a pending schema-related write without persisting it.
+
+		Non-schema paths are ignored and return an empty diagnostics list. For
+		schema paths, validation runs against the final global schema state that
+		would result from replacing `path` with `content`.
+		"""
+		await self.wait_for_library_ready(timeout)
+
+		candidate_details = _schema_candidate_details(path)
+		if candidate_details is None:
+			return []
+
+		schema_path, schema_name, extensions_path, is_base_schema = candidate_details
+		candidate_data = _load_schema_yaml_content(path, content)
+		diagnostics = []
+
+		with self._global_library_context():
+			if is_base_schema:
+				base_schema = candidate_data
+			else:
+				try:
+					base_schema = await self._read_schema_yaml(schema_path)
+				except Exception as e:
+					raise LibraryError(
+						"Failed to parse schema '{}': {}".format(schema_path, e)
+					) from e
+
+			if base_schema is _SCHEMA_MISSING:
+				raise LibraryError("Schema '{}' was not found.".format(schema_path))
+
+			self._validate_base_schema(schema_path, base_schema)
+			merged_schema = copy.deepcopy(base_schema)
+			base_fields = base_schema["fields"]
+			merged_fields = merged_schema["fields"]
+
+			extension_items, list_diagnostics = await self._list_global(extensions_path)
+			if list_diagnostics:
+				raise LibraryError(_schema_validation_message(list_diagnostics))
+
+			relevant_items = sorted(
+				(
+					item for item in extension_items
+					if _is_schema_extension_item(item, schema_name)
+				),
+				key=lambda item: item.name,
+			)
+
+			candidate_extension_included = False
+			for item in relevant_items:
+				if item.name == path:
+					extension = candidate_data
+					candidate_extension_included = True
+				else:
+					if item.disabled:
+						continue
+					try:
+						extension = await self._read_schema_yaml(item.name)
+					except Exception as e:
+						raise LibraryError(
+							"Failed to parse schema extension '{}': {}".format(item.name, e)
+						) from e
+
+				if not self._validate_schema_extension(item.name, extension, diagnostics):
+					raise LibraryError(_schema_validation_message(diagnostics))
+
+				self._merge_schema_extension_fields(
+					item.name,
+					extension,
+					base_fields,
+					merged_fields,
+					diagnostics,
+				)
+
+			if not is_base_schema and not candidate_extension_included:
+				if not self._validate_schema_extension(path, candidate_data, diagnostics):
+					raise LibraryError(_schema_validation_message(diagnostics))
+
+				self._merge_schema_extension_fields(
+					path,
+					candidate_data,
+					base_fields,
+					merged_fields,
+					diagnostics,
+				)
+
+		return diagnostics
 
 	@contextlib.contextmanager
 	def _global_library_context(self):
@@ -685,6 +757,51 @@ class LibraryService(Service):
 				return False
 
 		return True
+
+	def _merge_schema_extension_fields(
+		self,
+		path: str,
+		extension: dict,
+		base_fields: dict,
+		merged_fields: dict,
+		diagnostics: list,
+	) -> None:
+		"""
+		Merge extension fields while preserving the base-schema precedence rules.
+
+		Base schema fields always win. When multiple extensions define the same
+		custom field, the first one keeps ownership and later definitions are
+		recorded as diagnostics.
+		"""
+		for field_name, field_definition in extension["fields"].items():
+			# Base ECS wins: extensions may add fields, but never alter ECS fields.
+			if field_name in base_fields:
+				diagnostics.append(_schema_diagnostic(
+					level="warning",
+					code="schema_extension_base_field_redefinition",
+					message=(
+						"Schema extension '{}' tried to redefine base field '{}'; "
+						"the base schema field was kept.".format(path, field_name)
+					),
+					path=path,
+					field=field_name,
+				))
+				continue
+
+			if field_name in merged_fields:
+				diagnostics.append(_schema_diagnostic(
+					level="warning",
+					code="schema_extension_duplicate_field",
+					message=(
+						"Schema extension '{}' tried to redefine extension field '{}'; "
+						"the first extension field was kept.".format(path, field_name)
+					),
+					path=path,
+					field=field_name,
+				))
+				continue
+
+			merged_fields[field_name] = copy.deepcopy(field_definition)
 
 	def _schema_result(self, schema_path: str, schema, diagnostics: list, include_diagnostics: bool):
 		"""
@@ -1423,6 +1540,37 @@ def _is_schema_extension_item(item: LibraryItem, schema_name: str) -> bool:
 	return filename.startswith("{}-".format(schema_name))
 
 
+def _schema_candidate_details(path: str) -> typing.Optional[tuple[str, str, str, bool]]:
+	"""
+	Map a schema-related library item path to its base-schema context.
+
+	Returns `(schema_path, schema_name, extensions_path, is_base_schema)` for
+	paths under `/Schemas/` and `/Schemas/Extensions/`. Non-schema paths return
+	`None`.
+	"""
+	_validate_path_item(path)
+
+	if os.path.dirname(path) == "/Schemas":
+		schema_name, extension = os.path.splitext(os.path.basename(path))
+		if extension == ".yaml" and schema_name != "Extensions":
+			return path, schema_name, "/Schemas/Extensions/", True
+		return None
+
+	if os.path.dirname(path) == "/Schemas/Extensions":
+		filename = os.path.basename(path)
+		name, extension = os.path.splitext(filename)
+		if extension not in (".yaml", ".yml") or "-" not in name:
+			return None
+
+		schema_name, _extension_name = name.split("-", 1)
+		if schema_name == "":
+			return None
+
+		return "/Schemas/{}.yaml".format(schema_name), schema_name, "/Schemas/Extensions/", False
+
+	return None
+
+
 def _schema_diagnostic(
 	level: str,
 	code: str,
@@ -1443,6 +1591,42 @@ def _schema_diagnostic(
 	if field is not None:
 		diagnostic["field"] = field
 	return diagnostic
+
+
+def _schema_validation_message(diagnostics: list[dict]) -> str:
+	"""
+	Extract a user-facing validation message from structured schema diagnostics.
+	"""
+	for diagnostic in diagnostics:
+		message = diagnostic.get("message")
+		if not message:
+			continue
+		return (
+			message
+			.replace("; using plain schema.", ".")
+			.replace(" using plain schema.", "")
+		)
+
+	return "Schema validation failed."
+
+
+def _load_schema_yaml_content(path: str, content: typing.Union[bytes, bytearray, str]):
+	"""
+	Parse schema YAML bytes or text using the same loader as persisted schema reads.
+	"""
+	if isinstance(content, str):
+		content = content.encode("utf-8")
+	elif isinstance(content, bytearray):
+		content = bytes(content)
+	elif not isinstance(content, bytes):
+		raise LibraryError(
+			"Failed to parse schema '{}': expected bytes or string content.".format(path)
+		)
+
+	try:
+		return yaml.load(io.BytesIO(content), Loader=yaml.CSafeLoader)
+	except Exception as e:
+		raise LibraryError("Failed to parse schema '{}': {}".format(path, e)) from e
 
 
 def _validate_path_item(path: str) -> None:
