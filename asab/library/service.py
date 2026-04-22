@@ -373,17 +373,19 @@ class LibraryService(Service):
 					message="Schema '{}' was not found.".format(schema_path),
 					path=schema_path,
 				))
-				return self._schema_result(schema_path, None, diagnostics, include_diagnostics)
+				return self._finalize_schema_result(schema_path, None, diagnostics, include_diagnostics)
 
 			self._validate_base_schema(schema_path, base_schema)
 			merged_schema = copy.deepcopy(base_schema)
 			base_fields = base_schema["fields"]
 			merged_fields = merged_schema["fields"]
 
-			extension_items, list_diagnostics = await self._list_global(extensions_path)
+			# Schema extension discovery must preserve provider failures as
+			# diagnostics. The generic list() path only logs those failures.
+			extension_items, list_diagnostics = await self._list_schema_directory(extensions_path)
 			if list_diagnostics:
 				diagnostics.extend(list_diagnostics)
-				return self._schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
+				return self._finalize_schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
 
 			extension_items = sorted(
 				(
@@ -432,9 +434,9 @@ class LibraryService(Service):
 					message="Schema extensions were not applied; using plain schema.",
 					path=schema_path,
 				))
-				return self._schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
+				return self._finalize_schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
 
-			return self._schema_result(schema_path, merged_schema, diagnostics, include_diagnostics)
+			return self._finalize_schema_result(schema_path, merged_schema, diagnostics, include_diagnostics)
 
 	async def validate_schema_candidate(
 		self,
@@ -448,6 +450,12 @@ class LibraryService(Service):
 		Non-schema paths are ignored and return an empty diagnostics list. For
 		schema paths, validation runs against the final global schema state that
 		would result from replacing `path` with `content`.
+
+		Base-schema candidates are validated as the new authoritative schema.
+		Extension candidates are validated in combination with the current base
+		schema and the remaining visible extensions. Any error that would make the
+		final merged schema unusable is raised as `LibraryError` so write flows can
+		reject the save before persistence.
 		"""
 		await self.wait_for_library_ready(timeout)
 
@@ -478,7 +486,7 @@ class LibraryService(Service):
 			base_fields = base_schema["fields"]
 			merged_fields = merged_schema["fields"]
 
-			extension_items, list_diagnostics = await self._list_global(extensions_path)
+			extension_items, list_diagnostics = await self._list_schema_directory(extensions_path)
 			if list_diagnostics:
 				raise LibraryError(_schema_validation_message(list_diagnostics))
 
@@ -530,6 +538,12 @@ class LibraryService(Service):
 
 		return diagnostics
 
+	def is_schema_candidate_path(self, path: str) -> bool:
+		"""
+		Return `True` when `path` is a managed schema or schema-extension item.
+		"""
+		return _schema_candidate_details(path) is not None
+
 	@contextlib.contextmanager
 	def _global_library_context(self):
 		"""
@@ -548,26 +562,6 @@ class LibraryService(Service):
 			Authz.reset(authz_ctx)
 			Tenant.reset(tenant_ctx)
 
-	async def _read_schema_item(self, path: str) -> typing.Optional[typing.IO]:
-		"""
-		Read a schema-related library item.
-
-		This helper does not set global context itself. `read_schema()` calls it
-		while `_global_library_context()` is active, so providers resolve the
-		global library layer instead of tenant/personal overlays.
-		"""
-		_validate_path_item(path)
-
-		if self.check_disabled(path):
-			return None
-
-		for library in self.Libraries:
-			itemio = await library.read(path)
-			if itemio is not None:
-				return itemio
-
-		return None
-
 	async def _read_schema_yaml(self, path: str):
 		"""
 		Read and parse a schema-related YAML library item.
@@ -577,24 +571,23 @@ class LibraryService(Service):
 		returned as-is so schema validation can report the real problem. YAML
 		parser errors are intentionally propagated to the caller so `read_schema()`
 		can decide whether to fail the base schema read or fall back from extensions.
-		"""
-		itemio = await self._read_schema_item(path)
-		if itemio is None:
-			return _SCHEMA_MISSING
 
-		try:
+		This helper intentionally relies on `open()` and is expected to run inside
+		`_global_library_context()` so schema reads resolve against the global layer.
+		"""
+		async with self.open(path) as itemio:
+			if itemio is None:
+				return _SCHEMA_MISSING
 			return yaml.load(itemio, Loader=yaml.CSafeLoader)
-		finally:
-			if hasattr(itemio, "close"):
-				itemio.close()
 
-	async def _list_global(self, path: str) -> tuple[typing.List[LibraryItem], typing.List[dict]]:
+	async def _list_schema_directory(self, path: str) -> tuple[typing.List[LibraryItem], typing.List[dict]]:
 		"""
-		List a global directory and preserve provider errors as schema diagnostics.
+		List a schema directory and preserve provider errors as diagnostics.
 
-		The generic `_list()` method logs and skips provider failures, which is
-		useful for normal library listing but too quiet for schema extension loading:
-		the UI needs a diagnostic beacon when extensions cannot be inspected.
+		This helper is intended for use inside `_global_library_context()`. The
+		generic `_list()` method logs and skips provider failures, which is useful
+		for normal library listing but too quiet for schema extension loading: the
+		UI needs a structured diagnostic beacon when extensions cannot be inspected.
 		"""
 		_validate_path_directory(path)
 
@@ -803,7 +796,7 @@ class LibraryService(Service):
 
 			merged_fields[field_name] = copy.deepcopy(field_definition)
 
-	def _schema_result(self, schema_path: str, schema, diagnostics: list, include_diagnostics: bool):
+	def _finalize_schema_result(self, schema_path: str, schema, diagnostics: list, include_diagnostics: bool):
 		"""
 		Store, publish, and return schema diagnostics with the selected result shape.
 
