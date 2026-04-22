@@ -466,6 +466,7 @@ class LibraryService(Service):
 		schema_path, schema_name, extensions_path, is_base_schema = candidate_details
 		candidate_data = _load_schema_yaml_content(path, content)
 		diagnostics = []
+		candidate_extension_visible = is_base_schema or not self.check_disabled(path)
 
 		with self._global_library_context():
 			if is_base_schema:
@@ -500,12 +501,13 @@ class LibraryService(Service):
 
 			candidate_extension_included = False
 			for item in relevant_items:
+				if item.disabled:
+					continue
+
 				if item.name == path:
 					extension = candidate_data
 					candidate_extension_included = True
 				else:
-					if item.disabled:
-						continue
 					try:
 						extension = await self._read_schema_yaml(item.name)
 					except Exception as e:
@@ -524,7 +526,7 @@ class LibraryService(Service):
 					diagnostics,
 				)
 
-			if not is_base_schema and not candidate_extension_included:
+			if not is_base_schema and candidate_extension_visible and not candidate_extension_included:
 				if not self._validate_schema_extension(path, candidate_data, diagnostics):
 					raise LibraryError(_schema_validation_message(diagnostics))
 
