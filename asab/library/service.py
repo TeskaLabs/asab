@@ -352,6 +352,15 @@ class LibraryService(Service):
 		Returns:
 			Merged schema dictionary, `None` when the base schema is not found, or
 			`(schema, diagnostics)` when `include_diagnostics` is enabled.
+
+		Example:
+
+			```python
+			schema, diagnostics = await self.LibraryService.read_schema(
+				"ECS",
+				include_diagnostics=True,
+			)
+			```
 		"""
 		await self.wait_for_library_ready(timeout)
 
