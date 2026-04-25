@@ -334,7 +334,7 @@ class LibraryService(Service):
 		include_diagnostics: bool = False,
 	):
 		"""
-		Read a global LMIO schema and merge its global schema extensions.
+		Read a global LMIO schema and apply strict additive field extensions.
 
 		Schema reads intentionally ignore tenant and personal overlays. A schema is
 		a global contract, so `/Schemas/ECS.yaml` and `/Schemas/Extensions/` are
@@ -344,23 +344,10 @@ class LibraryService(Service):
 		directory and be named `<schema-name>-<extension-name>.yaml`, for example
 		`/Schemas/Extensions/ECS-Custom Fields.yaml`.
 
-		Args:
-			schema: Schema name (`"ECS"`) or absolute schema path (`"/Schemas/ECS.yaml"`).
-			timeout: Timeout for waiting until the library is ready.
-			include_diagnostics: If `True`, return `(schema, diagnostics)`.
-
-		Returns:
-			Merged schema dictionary, `None` when the base schema is not found, or
-			`(schema, diagnostics)` when `include_diagnostics` is enabled.
-
-		Example:
-
-			```python
-			schema, diagnostics = await self.LibraryService.read_schema(
-				"ECS",
-				include_diagnostics=True,
-			)
-			```
+		This is not a generic YAML merge. The base schema is authoritative and
+		immutable. Extensions may only add new fields. Read-time schema assembly is
+		tolerant: conflicting or invalid extension fields are skipped with
+		diagnostics while valid extension fields are still applied.
 		"""
 		await self.wait_for_library_ready(timeout)
 
@@ -388,6 +375,7 @@ class LibraryService(Service):
 			merged_schema = copy.deepcopy(base_schema)
 			base_fields = base_schema["fields"]
 			merged_fields = merged_schema["fields"]
+			field_sources = {}
 
 			# Schema extension discovery must preserve provider failures as
 			# diagnostics. The generic list() path only logs those failures.
@@ -404,7 +392,6 @@ class LibraryService(Service):
 				key=lambda item: item.name,
 			)
 
-			fallback_to_plain_schema = False
 			for item in extension_items:
 				if item.disabled:
 					continue
@@ -421,12 +408,22 @@ class LibraryService(Service):
 						),
 						path=item.name,
 					))
-					fallback_to_plain_schema = True
-					break
+					diagnostics.append(_schema_diagnostic(
+						level="warning",
+						code="schema_extensions_fallback",
+						message="Schema extensions were not applied; using plain schema.",
+						path=schema_path,
+					))
+					return self._finalize_schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
 
 				if not self._validate_schema_extension(item.name, extension, diagnostics):
-					fallback_to_plain_schema = True
-					break
+					diagnostics.append(_schema_diagnostic(
+						level="warning",
+						code="schema_extensions_fallback",
+						message="Schema extensions were not applied; using plain schema.",
+						path=schema_path,
+					))
+					return self._finalize_schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
 
 				self._merge_schema_extension_fields(
 					item.name,
@@ -434,15 +431,16 @@ class LibraryService(Service):
 					base_fields,
 					merged_fields,
 					diagnostics,
+					strict=False,
+					field_sources=field_sources,
 				)
 
-			if fallback_to_plain_schema:
-				diagnostics.append(_schema_diagnostic(
-					level="warning",
-					code="schema_extensions_fallback",
-					message="Schema extensions were not applied; using plain schema.",
-					path=schema_path,
-				))
+			if not self._validate_effective_schema_invariants(
+				schema_path,
+				base_fields,
+				merged_fields,
+				diagnostics,
+			):
 				return self._finalize_schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
 
 			return self._finalize_schema_result(schema_path, merged_schema, diagnostics, include_diagnostics)
@@ -462,9 +460,9 @@ class LibraryService(Service):
 
 		Base-schema candidates are validated as the new authoritative schema.
 		Extension candidates are validated in combination with the current base
-		schema and the remaining visible extensions. Any error that would make the
-		final merged schema unusable is raised as `LibraryError` so write flows can
-		reject the save before persistence.
+		schema and the remaining visible extensions. Validation is intentionally
+		strict: any invalid field definition or conflicting additive extension is
+		rejected before the write is persisted.
 		"""
 		await self.wait_for_library_ready(timeout)
 
@@ -495,6 +493,7 @@ class LibraryService(Service):
 			merged_schema = copy.deepcopy(base_schema)
 			base_fields = base_schema["fields"]
 			merged_fields = merged_schema["fields"]
+			field_sources = {}
 
 			extension_items, list_diagnostics = await self._list_schema_directory(extensions_path)
 			if list_diagnostics:
@@ -524,28 +523,40 @@ class LibraryService(Service):
 							"Failed to parse schema extension '{}': {}".format(item.name, e)
 						) from e
 
-				if not self._validate_schema_extension(item.name, extension, diagnostics):
+				if not self._validate_schema_extension(item.name, extension, diagnostics, validate_fields=True):
 					raise LibraryError(_schema_validation_message(diagnostics))
 
-				self._merge_schema_extension_fields(
+				if not self._merge_schema_extension_fields(
 					item.name,
 					extension,
 					base_fields,
 					merged_fields,
 					diagnostics,
-				)
-
-			if not is_base_schema and candidate_extension_visible and not candidate_extension_included:
-				if not self._validate_schema_extension(path, candidate_data, diagnostics):
+					field_sources=field_sources,
+				):
 					raise LibraryError(_schema_validation_message(diagnostics))
 
-				self._merge_schema_extension_fields(
+			if not is_base_schema and candidate_extension_visible and not candidate_extension_included:
+				if not self._validate_schema_extension(path, candidate_data, diagnostics, validate_fields=True):
+					raise LibraryError(_schema_validation_message(diagnostics))
+
+				if not self._merge_schema_extension_fields(
 					path,
 					candidate_data,
 					base_fields,
 					merged_fields,
 					diagnostics,
-				)
+					field_sources=field_sources,
+				):
+					raise LibraryError(_schema_validation_message(diagnostics))
+
+			if not self._validate_effective_schema_invariants(
+				schema_path,
+				base_fields,
+				merged_fields,
+				diagnostics,
+			):
+				raise LibraryError(_schema_validation_message(diagnostics))
 
 		return diagnostics
 
@@ -667,18 +678,31 @@ class LibraryService(Service):
 		for field_name, field_definition in fields.items():
 			if not isinstance(field_name, str) or field_name == "":
 				raise LibraryError("Schema '{}' contains an invalid field name.".format(path))
-			if not isinstance(field_definition, dict):
-				raise LibraryError(
-					"Schema '{}' field '{}' must be a mapping.".format(path, field_name)
-				)
 
-	def _validate_schema_extension(self, path: str, extension, diagnostics: list) -> bool:
+			diagnostics = []
+			if not self._validate_schema_field_definition(
+				path,
+				field_name,
+				field_definition,
+				diagnostics,
+				code_prefix="schema",
+				subject="Schema",
+			):
+				raise LibraryError(_schema_validation_message(diagnostics))
+
+	def _validate_schema_extension(
+		self,
+		path: str,
+		extension,
+		diagnostics: list,
+		validate_fields: bool = False,
+	) -> bool:
 		"""
-		Validate a schema extension and append user-facing diagnostics on failure.
+		Validate that a schema extension is structurally interpretable.
 
-		Returns `True` when the extension can be merged. Returns `False` when the
-		extension shape is unusable and the caller should fall back to the plain
-		base schema.
+		Read-time callers validate only the extension envelope, then let the
+		tolerant merge skip individual broken fields. Write-time callers pass
+		`validate_fields=True` so invalid field definitions reject the candidate.
 		"""
 		if extension is _SCHEMA_MISSING:
 			diagnostics.append(_schema_diagnostic(
@@ -739,26 +763,19 @@ class LibraryService(Service):
 			))
 			return False
 
-		for field_name, field_definition in fields.items():
-			if not isinstance(field_name, str) or field_name == "":
-				diagnostics.append(_schema_diagnostic(
-					level="error",
-					code="schema_extension_invalid_field_name",
-					message="Schema extension '{}' contains an invalid field name; using plain schema.".format(path),
-					path=path,
-				))
-				return False
-			if not isinstance(field_definition, dict):
-				diagnostics.append(_schema_diagnostic(
-					level="error",
-					code="schema_extension_invalid_field_definition",
-					message=(
-						"Schema extension '{}' field '{}' must be a mapping; using plain schema."
-					).format(path, field_name),
-					path=path,
-					field=field_name,
-				))
-				return False
+		if validate_fields:
+			for field_name, field_definition in fields.items():
+				if not isinstance(field_name, str) or field_name == "":
+					diagnostics.append(_schema_diagnostic(
+						level="error",
+						code="schema_extension_invalid_field_name",
+						message="Schema extension '{}' contains an invalid field name.".format(path),
+						path=path,
+					))
+					return False
+
+				if not self._validate_schema_field_definition(path, field_name, field_definition, diagnostics):
+					return False
 
 		return True
 
@@ -769,51 +786,210 @@ class LibraryService(Service):
 		base_fields: dict,
 		merged_fields: dict,
 		diagnostics: list,
-	) -> None:
+		strict: bool = True,
+		field_sources: typing.Optional[dict] = None,
+	) -> bool:
 		"""
-		Merge extension fields while preserving the base-schema precedence rules.
+		Apply additive field-extension semantics to a validated extension document.
 
-		Base schema fields always win. When multiple extensions define the same
-		custom field, the first one keeps ownership and later definitions are
-		recorded as diagnostics.
+		Base schema fields are immutable. Extensions may only add new fields.
+		Read-time callers pass `strict=False` to keep valid fields and skip only the
+		conflicting or invalid ones. Write-time validation passes `strict=True` so
+		any invalid field or conflicting addition rejects the candidate.
 		"""
+		if field_sources is None:
+			field_sources = {}
+
+		has_conflict = False
+
 		for field_name, field_definition in extension["fields"].items():
-			# Base ECS wins: extensions may add fields, but never alter ECS fields.
+			if not isinstance(field_name, str) or field_name == "":
+				diagnostics.append(_schema_diagnostic(
+					level="error",
+					code="schema_extension_invalid_field_name",
+					message="Schema extension '{}' contains an invalid field name.".format(path),
+					path=path,
+				))
+				if strict:
+					return False
+				has_conflict = True
+				continue
+
+			if not self._validate_schema_field_definition(path, field_name, field_definition, diagnostics):
+				if strict:
+					return False
+				has_conflict = True
+				continue
+
 			if field_name in base_fields:
 				diagnostics.append(_schema_diagnostic(
-					level="warning",
+					level="error",
 					code="schema_extension_base_field_redefinition",
 					message=(
-						"Schema extension '{}' tried to redefine base field '{}'; "
-						"the base schema field was kept.".format(path, field_name)
-					),
+						"Schema extension '{}' tried to redefine base field '{}'. "
+						"Schema extensions may only add new fields."
+					).format(path, field_name),
 					path=path,
 					field=field_name,
 				))
+				if strict:
+					return False
+				has_conflict = True
 				continue
 
 			if field_name in merged_fields:
+				source_path = field_sources.get(field_name)
+				if merged_fields[field_name] == field_definition:
+					diagnostics.append(_schema_diagnostic(
+						level="warning",
+						code="schema_extension_duplicate_field_idempotent",
+						message=(
+							"Schema extension '{}' repeated field '{}' with the same definition "
+							"already provided by '{}'; keeping the earlier definition."
+						).format(path, field_name, source_path),
+						path=path,
+						field=field_name,
+						source_path=source_path,
+					))
+					continue
+
 				diagnostics.append(_schema_diagnostic(
-					level="warning",
-					code="schema_extension_duplicate_field",
+					level="error",
+					code="schema_extension_duplicate_field_conflict",
 					message=(
-						"Schema extension '{}' tried to redefine extension field '{}'; "
-						"the first extension field was kept.".format(path, field_name)
-					),
+						"Schema extension '{}' tried to redefine field '{}', already defined by '{}'."
+					).format(path, field_name, source_path),
 					path=path,
 					field=field_name,
+					source_path=source_path,
 				))
+				if strict:
+					return False
+				has_conflict = True
 				continue
 
 			merged_fields[field_name] = copy.deepcopy(field_definition)
+			field_sources[field_name] = path
+
+		return not has_conflict
+
+	def _validate_schema_field_definition(
+		self,
+		path: str,
+		field_name: str,
+		field_definition,
+		diagnostics: list = None,
+		code_prefix: str = "schema_extension",
+		subject: str = "Schema extension",
+	) -> bool:
+		"""
+		Validate the minimum LMIO field-definition shape needed for safe merging.
+
+		The checks stay conservative on purpose. The extension system only enforces
+		universal structural guarantees that are already implied by the surrounding
+		schema format.
+		"""
+		if diagnostics is None:
+			diagnostics = []
+
+		if not isinstance(field_definition, dict):
+			diagnostics.append(_schema_diagnostic(
+				level="error",
+				code="{}_invalid_field_definition".format(code_prefix),
+				message="{} '{}' field '{}' must be a mapping.".format(subject, path, field_name),
+				path=path,
+				field=field_name,
+			))
+			return False
+
+		field_type = field_definition.get("type")
+		if "type" in field_definition and (not isinstance(field_type, str) or field_type == ""):
+			diagnostics.append(_schema_diagnostic(
+				level="error",
+				code="{}_invalid_field_type".format(code_prefix),
+				message="{} '{}' field '{}' must use a non-empty string 'type'.".format(subject, path, field_name),
+				path=path,
+				field=field_name,
+			))
+			return False
+
+		if "fields" in field_definition and not isinstance(field_definition["fields"], dict):
+			diagnostics.append(_schema_diagnostic(
+				level="error",
+				code="{}_invalid_nested_fields".format(code_prefix),
+				message="{} '{}' field '{}' must use a mapping for nested 'fields'.".format(subject, path, field_name),
+				path=path,
+				field=field_name,
+			))
+			return False
+
+		return True
+
+	def _validate_effective_schema_invariants(
+		self,
+		schema_path: str,
+		base_fields: dict,
+		merged_fields,
+		diagnostics: list,
+	) -> bool:
+		"""
+		Validate invariants of the effective schema produced by additive merging.
+		"""
+		if not isinstance(merged_fields, dict):
+			diagnostics.append(_schema_diagnostic(
+				level="error",
+				code="schema_effective_invalid_fields",
+				message="Effective schema '{}' must contain a 'fields' mapping.".format(schema_path),
+				path=schema_path,
+			))
+			return False
+
+		for field_name, base_definition in base_fields.items():
+			if field_name not in merged_fields:
+				diagnostics.append(_schema_diagnostic(
+					level="error",
+					code="schema_effective_missing_base_field",
+					message="Effective schema '{}' is missing base field '{}'.".format(schema_path, field_name),
+					path=schema_path,
+					field=field_name,
+				))
+				return False
+
+			if merged_fields[field_name] != base_definition:
+				diagnostics.append(_schema_diagnostic(
+					level="error",
+					code="schema_effective_changed_base_field",
+					message="Effective schema '{}' changed base field '{}'.".format(schema_path, field_name),
+					path=schema_path,
+					field=field_name,
+				))
+				return False
+
+		for field_name, field_definition in merged_fields.items():
+			if not isinstance(field_name, str) or field_name == "":
+				diagnostics.append(_schema_diagnostic(
+					level="error",
+					code="schema_effective_invalid_field_name",
+					message="Effective schema '{}' contains an invalid field name.".format(schema_path),
+					path=schema_path,
+				))
+				return False
+
+			if not isinstance(field_definition, dict):
+				diagnostics.append(_schema_diagnostic(
+					level="error",
+					code="schema_effective_invalid_field_definition",
+					message="Effective schema '{}' field '{}' must be a mapping.".format(schema_path, field_name),
+					path=schema_path,
+					field=field_name,
+				))
+				return False
+
+		return True
 
 	def _finalize_schema_result(self, schema_path: str, schema, diagnostics: list, include_diagnostics: bool):
 		"""
 		Store, publish, and return schema diagnostics with the selected result shape.
-
-		Diagnostics are stored for programmatic inspection and published through
-		PubSub so UI layers can show a validation beacon without reimplementing the
-		merge logic.
 		"""
 		if not hasattr(self, "SchemaDiagnostics"):
 			self.SchemaDiagnostics = {}
@@ -1581,6 +1757,7 @@ def _schema_diagnostic(
 	message: str,
 	path: str = None,
 	field: str = None,
+	**extra,
 ) -> dict:
 	"""
 	Build a structured schema diagnostic for UI and backend consumers.
@@ -1594,6 +1771,9 @@ def _schema_diagnostic(
 		diagnostic["path"] = path
 	if field is not None:
 		diagnostic["field"] = field
+	for key, value in extra.items():
+		if value is not None:
+			diagnostic[key] = value
 	return diagnostic
 
 
