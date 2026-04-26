@@ -334,7 +334,7 @@ class LibraryService(Service):
 		include_diagnostics: bool = False,
 	):
 		"""
-		Read a global LMIO schema and apply strict additive field extensions.
+		Read a global LMIO schema and compute its additive effective schema.
 
 		Schema reads intentionally ignore tenant and personal overlays. A schema is
 		a global contract, so `/Schemas/ECS.yaml` and `/Schemas/Extensions/` are
@@ -796,6 +796,8 @@ class LibraryService(Service):
 		Read-time callers pass `strict=False` to keep valid fields and skip only the
 		conflicting or invalid ones. Write-time validation passes `strict=True` so
 		any invalid field or conflicting addition rejects the candidate.
+		Identical duplicate extension fields are idempotent; duplicate fields with
+		different definitions are conflicts.
 		"""
 		if field_sources is None:
 			field_sources = {}
@@ -934,6 +936,10 @@ class LibraryService(Service):
 	) -> bool:
 		"""
 		Validate invariants of the effective schema produced by additive merging.
+
+		The final effective schema must preserve every base field exactly. Any
+		failure here means the merge produced an invalid schema shape or violated
+		base-schema immutability.
 		"""
 		if not isinstance(merged_fields, dict):
 			diagnostics.append(_schema_diagnostic(
@@ -1761,6 +1767,9 @@ def _schema_diagnostic(
 ) -> dict:
 	"""
 	Build a structured schema diagnostic for UI and backend consumers.
+
+	Extra keyword arguments are copied into the diagnostic when they are not
+	`None`; this is used for contextual fields such as `source_path`.
 	"""
 	diagnostic = {
 		"level": level,
