@@ -472,16 +472,17 @@ class LibraryService(Service):
 		"""
 		await self.wait_for_library_ready(timeout)
 
-		candidate_details = _schema_candidate_details(path)
-		if candidate_details is None:
-			return []
-
-		schema_path, schema_name, extensions_path, is_base_schema = candidate_details
 		candidate_data = _load_schema_yaml_content(path, content)
 		diagnostics = []
-		candidate_extension_visible = is_base_schema or not self.check_disabled(path)
 
 		with self._global_library_context():
+			candidate_details = await self._resolve_schema_candidate_details(path)
+			if candidate_details is None:
+				return []
+
+			schema_path, schema_name, extensions_path, is_base_schema = candidate_details
+			candidate_extension_visible = is_base_schema or not self.check_disabled(path)
+
 			if is_base_schema:
 				base_schema = candidate_data
 			else:
@@ -571,6 +572,41 @@ class LibraryService(Service):
 		Return `True` when `path` is a managed schema or schema-extension item.
 		"""
 		return _schema_candidate_details(path) is not None
+
+	async def _resolve_schema_candidate_details(
+		self,
+		path: str,
+	) -> typing.Optional[tuple[str, str, str, bool]]:
+		"""
+		Resolve schema candidate metadata against existing base schema files.
+
+		Extension names use `<schema-name>-<extension-name>.yaml`. Because schema
+		names may themselves contain hyphens, write validation resolves the longest
+		existing `/Schemas/<schema-name>.yaml` prefix instead of splitting on the
+		first hyphen.
+		"""
+		candidate_details = _schema_candidate_details(path)
+		if candidate_details is None:
+			return None
+
+		_schema_path_value, _schema_name, _extensions_path, is_base_schema = candidate_details
+		if is_base_schema:
+			return candidate_details
+
+		filename = os.path.basename(path)
+		name, _extension = os.path.splitext(filename)
+		name_parts = name.split("-")
+		for index in range(len(name_parts) - 1, 0, -1):
+			schema_name = "-".join(name_parts[:index])
+			schema_path = "/Schemas/{}.yaml".format(schema_name)
+			try:
+				base_schema = await self._read_schema_yaml(schema_path)
+			except Exception:
+				return schema_path, schema_name, "/Schemas/Extensions/", False
+			if base_schema is not _SCHEMA_MISSING:
+				return schema_path, schema_name, "/Schemas/Extensions/", False
+
+		return candidate_details
 
 	@contextlib.contextmanager
 	def _global_library_context(self):
