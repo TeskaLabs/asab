@@ -441,6 +441,12 @@ class LibraryService(Service):
 				merged_fields,
 				diagnostics,
 			):
+				diagnostics.append(_schema_diagnostic(
+					level="warning",
+					code="schema_effective_fallback",
+					message="Effective schema invariants failed; using plain schema.",
+					path=schema_path,
+				))
 				return self._finalize_schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
 
 			return self._finalize_schema_result(schema_path, merged_schema, diagnostics, include_diagnostics)
@@ -843,7 +849,7 @@ class LibraryService(Service):
 				source_path = field_sources.get(field_name)
 				if merged_fields[field_name] == field_definition:
 					diagnostics.append(_schema_diagnostic(
-						level="warning",
+						level="info",
 						code="schema_extension_duplicate_field_idempotent",
 						message=(
 							"Schema extension '{}' repeated field '{}' with the same definition "
