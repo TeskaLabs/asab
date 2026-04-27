@@ -309,8 +309,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 		Changes in remote repository are being pulled every minute. `PullLock` flag ensures that only if previous "pull" has finished, new one can start.
 		"""
-		if self.GitRepository is None:
-			return
 
 		if self.LastPull is not None and self.App.time() - self.LastPull < self.PullInterval:
 			# Do not pull if the last pull was done less than PullInterval ago
