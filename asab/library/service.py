@@ -348,6 +348,9 @@ class LibraryService(Service):
 		immutable. Extensions may only add new fields. Read-time schema assembly is
 		tolerant: conflicting or invalid extension fields are skipped with
 		diagnostics while valid extension fields are still applied.
+		This method constructs an effective schema under strict invariants. It is
+		not a YAML merge. The result is guaranteed to preserve base schema
+		semantics.
 		"""
 		await self.wait_for_library_ready(timeout)
 
@@ -403,27 +406,15 @@ class LibraryService(Service):
 						level="error",
 						code="schema_extension_parse_error",
 						message=(
-							"Schema extension '{}' could not be parsed; using plain schema. "
+							"Schema extension '{}' could not be parsed; skipping extension. "
 							"Reason: {}".format(item.name, e)
 						),
 						path=item.name,
 					))
-					diagnostics.append(_schema_diagnostic(
-						level="warning",
-						code="schema_extensions_fallback",
-						message="Schema extensions were not applied; using plain schema.",
-						path=schema_path,
-					))
-					return self._finalize_schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
+					continue
 
 				if not self._validate_schema_extension(item.name, extension, diagnostics):
-					diagnostics.append(_schema_diagnostic(
-						level="warning",
-						code="schema_extensions_fallback",
-						message="Schema extensions were not applied; using plain schema.",
-						path=schema_path,
-					))
-					return self._finalize_schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
+					continue
 
 				self._merge_schema_extension_fields(
 					item.name,
@@ -433,6 +424,7 @@ class LibraryService(Service):
 					diagnostics,
 					strict=False,
 					field_sources=field_sources,
+					base_source_path=schema_path,
 				)
 
 			if not self._validate_effective_schema_invariants(
@@ -469,6 +461,8 @@ class LibraryService(Service):
 		schema and the remaining visible extensions. Validation is intentionally
 		strict: any invalid field definition or conflicting additive extension is
 		rejected before the write is persisted.
+		This method enforces write-time correctness. Any violation of schema
+		invariants results in rejection.
 		"""
 		await self.wait_for_library_ready(timeout)
 
@@ -540,6 +534,7 @@ class LibraryService(Service):
 					merged_fields,
 					diagnostics,
 					field_sources=field_sources,
+					base_source_path=schema_path,
 				):
 					raise LibraryError(_schema_validation_message(diagnostics))
 
@@ -554,6 +549,7 @@ class LibraryService(Service):
 					merged_fields,
 					diagnostics,
 					field_sources=field_sources,
+					base_source_path=schema_path,
 				):
 					raise LibraryError(_schema_validation_message(diagnostics))
 
@@ -565,7 +561,7 @@ class LibraryService(Service):
 			):
 				raise LibraryError(_schema_validation_message(diagnostics))
 
-		return diagnostics
+		return _sort_schema_diagnostics(diagnostics)
 
 	def is_schema_candidate_path(self, path: str) -> bool:
 		"""
@@ -602,7 +598,7 @@ class LibraryService(Service):
 			try:
 				base_schema = await self._read_schema_yaml(schema_path)
 			except Exception:
-				return schema_path, schema_name, "/Schemas/Extensions/", False
+				continue
 			if base_schema is not _SCHEMA_MISSING:
 				return schema_path, schema_name, "/Schemas/Extensions/", False
 
@@ -674,7 +670,8 @@ class LibraryService(Service):
 					level="warning",
 					code="schema_extensions_unavailable",
 					message=(
-						"Failed to list schema extensions in '{}'; using plain schema. "
+						"Schema extensions in '{}' could not be fully listed; falling back "
+						"to base schema because extension set may be incomplete. "
 						"Reason: {}".format(path, e)
 					),
 					path=path,
@@ -750,7 +747,7 @@ class LibraryService(Service):
 			diagnostics.append(_schema_diagnostic(
 				level="error",
 				code="schema_extension_not_found",
-				message="Schema extension '{}' was not found; using plain schema.".format(path),
+				message="Schema extension '{}' was not found; skipping extension.".format(path),
 				path=path,
 			))
 			return False
@@ -759,7 +756,7 @@ class LibraryService(Service):
 			diagnostics.append(_schema_diagnostic(
 				level="error",
 				code="schema_extension_empty",
-				message="Schema extension '{}' is empty; using plain schema.".format(path),
+				message="Schema extension '{}' is empty; skipping extension.".format(path),
 				path=path,
 			))
 			return False
@@ -768,7 +765,7 @@ class LibraryService(Service):
 			diagnostics.append(_schema_diagnostic(
 				level="error",
 				code="schema_extension_invalid_shape",
-				message="Schema extension '{}' must be a YAML mapping; using plain schema.".format(path),
+				message="Schema extension '{}' must be a YAML mapping; skipping extension.".format(path),
 				path=path,
 			))
 			return False
@@ -778,7 +775,7 @@ class LibraryService(Service):
 			diagnostics.append(_schema_diagnostic(
 				level="error",
 				code="schema_extension_invalid_define",
-				message="Schema extension '{}' must contain a 'define' mapping; using plain schema.".format(path),
+				message="Schema extension '{}' must contain a 'define' mapping; skipping extension.".format(path),
 				path=path,
 			))
 			return False
@@ -789,7 +786,7 @@ class LibraryService(Service):
 				code="schema_extension_invalid_type",
 				message=(
 					"Schema extension '{}' must have define.type 'lmio/schema-extension'; "
-					"using plain schema."
+					"skipping extension."
 				).format(path),
 				path=path,
 			))
@@ -800,7 +797,7 @@ class LibraryService(Service):
 			diagnostics.append(_schema_diagnostic(
 				level="error",
 				code="schema_extension_invalid_fields",
-				message="Schema extension '{}' must contain a 'fields' mapping; using plain schema.".format(path),
+				message="Schema extension '{}' must contain a 'fields' mapping; skipping extension.".format(path),
 				path=path,
 			))
 			return False
@@ -830,6 +827,7 @@ class LibraryService(Service):
 		diagnostics: list,
 		strict: bool = True,
 		field_sources: typing.Optional[dict] = None,
+		base_source_path: str = None,
 	) -> bool:
 		"""
 		Apply additive field-extension semantics to a validated extension document.
@@ -875,6 +873,7 @@ class LibraryService(Service):
 					).format(path, field_name),
 					path=path,
 					field=field_name,
+					source_path=base_source_path,
 				))
 				if strict:
 					return False
@@ -982,54 +981,60 @@ class LibraryService(Service):
 		failure here means the merge produced an invalid schema shape or violated
 		base-schema immutability.
 		"""
+		# This is a postcondition check: ensures final effective schema is valid
+		# regardless of merge logic correctness.
 		if not isinstance(merged_fields, dict):
-			diagnostics.append(_schema_diagnostic(
-				level="error",
-				code="schema_effective_invalid_fields",
-				message="Effective schema '{}' must contain a 'fields' mapping.".format(schema_path),
-				path=schema_path,
-			))
+			if not _diagnostic_exists(diagnostics, "schema_effective_invalid_fields", schema_path, None):
+				diagnostics.append(_schema_diagnostic(
+					level="error",
+					code="schema_effective_invalid_fields",
+					message="Effective schema '{}' must contain a 'fields' mapping.".format(schema_path),
+					path=schema_path,
+				))
 			return False
 
 		for field_name, base_definition in base_fields.items():
 			if field_name not in merged_fields:
-				diagnostics.append(_schema_diagnostic(
-					level="error",
-					code="schema_effective_missing_base_field",
-					message="Effective schema '{}' is missing base field '{}'.".format(schema_path, field_name),
-					path=schema_path,
-					field=field_name,
-				))
+				if not _diagnostic_exists(diagnostics, "schema_effective_missing_base_field", schema_path, field_name):
+					diagnostics.append(_schema_diagnostic(
+						level="error",
+						code="schema_effective_missing_base_field",
+						message="Effective schema '{}' is missing base field '{}'.".format(schema_path, field_name),
+						path=schema_path,
+						field=field_name,
+					))
 				return False
 
 			if merged_fields[field_name] != base_definition:
-				diagnostics.append(_schema_diagnostic(
-					level="error",
-					code="schema_effective_changed_base_field",
-					message="Effective schema '{}' changed base field '{}'.".format(schema_path, field_name),
-					path=schema_path,
-					field=field_name,
-				))
+				if not _diagnostic_exists(diagnostics, "schema_effective_changed_base_field", schema_path, field_name):
+					diagnostics.append(_schema_diagnostic(
+						level="error",
+						code="schema_effective_changed_base_field",
+						message="Effective schema '{}' changed base field '{}'.".format(schema_path, field_name),
+						path=schema_path,
+						field=field_name,
+					))
 				return False
 
 		for field_name, field_definition in merged_fields.items():
 			if not isinstance(field_name, str) or field_name == "":
-				diagnostics.append(_schema_diagnostic(
-					level="error",
-					code="schema_effective_invalid_field_name",
-					message="Effective schema '{}' contains an invalid field name.".format(schema_path),
-					path=schema_path,
-				))
+				if not _diagnostic_exists(diagnostics, "schema_effective_invalid_field_name", schema_path, None):
+					diagnostics.append(_schema_diagnostic(
+						level="error",
+						code="schema_effective_invalid_field_name",
+						message="Effective schema '{}' contains an invalid field name.".format(schema_path),
+						path=schema_path,
+					))
 				return False
 
-			if not isinstance(field_definition, dict):
-				diagnostics.append(_schema_diagnostic(
-					level="error",
-					code="schema_effective_invalid_field_definition",
-					message="Effective schema '{}' field '{}' must be a mapping.".format(schema_path, field_name),
-					path=schema_path,
-					field=field_name,
-				))
+			if not self._validate_schema_field_definition(
+				schema_path,
+				field_name,
+				field_definition,
+				diagnostics,
+				code_prefix="schema_effective",
+				subject="Effective schema",
+			):
 				return False
 
 		return True
@@ -1038,6 +1043,8 @@ class LibraryService(Service):
 		"""
 		Store, publish, and return schema diagnostics with the selected result shape.
 		"""
+		diagnostics = _sort_schema_diagnostics(diagnostics)
+
 		if not hasattr(self, "SchemaDiagnostics"):
 			self.SchemaDiagnostics = {}
 
@@ -1773,7 +1780,9 @@ def _schema_candidate_details(path: str) -> typing.Optional[tuple[str, str, str,
 
 	Returns `(schema_path, schema_name, extensions_path, is_base_schema)` for
 	paths under `/Schemas/` and `/Schemas/Extensions/`. Non-schema paths return
-	`None`.
+	`None`. Extension paths are classified syntactically here; asynchronous
+	validation uses `_resolve_schema_candidate_details()` to disambiguate schema
+	names that contain hyphens against existing base schema files.
 	"""
 	_validate_path_item(path)
 
@@ -1825,6 +1834,34 @@ def _schema_diagnostic(
 		if value is not None:
 			diagnostic[key] = value
 	return diagnostic
+
+
+def _diagnostic_exists(diagnostics: list[dict], code: str, path: str, field: str) -> bool:
+	"""
+	Return `True` when an equivalent diagnostic is already present.
+	"""
+	for diagnostic in diagnostics:
+		if (
+			diagnostic.get("code") == code
+			and diagnostic.get("path") == path
+			and diagnostic.get("field") == field
+		):
+			return True
+	return False
+
+
+def _sort_schema_diagnostics(diagnostics: list[dict]) -> list[dict]:
+	"""
+	Return diagnostics in deterministic API order.
+	"""
+	return sorted(
+		diagnostics,
+		key=lambda diagnostic: (
+			diagnostic.get("path") or "",
+			diagnostic.get("field") or "",
+			diagnostic.get("code") or "",
+		),
+	)
 
 
 def _schema_validation_message(diagnostics: list[dict]) -> str:
