@@ -89,7 +89,6 @@ class LibraryService(Service):
 		self.DisabledPaths: list = []
 		self.Favorites: dict = {}
 		self.FavoritePaths: list = []
-		self.SchemaDiagnostics: dict = {}
 		self.__is_ready_last = False  # This is to ensure edge "not ready" -> "ready" to be published during initialization.
 
 
@@ -331,31 +330,21 @@ class LibraryService(Service):
 		self,
 		schema: str = "ECS",
 		timeout: int = None,
-		include_diagnostics: bool = False,
 	):
 		"""
-		Read a global LMIO schema and compute its additive effective schema.
+		Read a global LMIO schema and apply additive field extensions.
 
 		Schema reads intentionally ignore tenant and personal overlays. A schema is
 		a global contract, so `/Schemas/ECS.yaml` and `/Schemas/Extensions/` are
 		read as global library paths even when tenant context variables are set.
 
-		Extensions are expected to live next to the schema in the `Extensions`
-		directory and be named `<schema-name>-<extension-name>.yaml`, for example
-		`/Schemas/Extensions/ECS-Custom Fields.yaml`.
-
-		This is not a generic YAML merge. The base schema is authoritative and
-		immutable. Extensions may only add new fields. Read-time schema assembly is
-		tolerant: conflicting or invalid extension fields are skipped with
-		diagnostics while valid extension fields are still applied.
-		This method constructs an effective schema under strict invariants. It is
-		not a YAML merge. The result is guaranteed to preserve base schema
-		semantics.
+		This first iteration intentionally implements only the deterministic merge
+		algorithm: base schema fields win and extension fields are added only when
+		the field name does not already exist.
 		"""
 		await self.wait_for_library_ready(timeout)
 
 		schema_path, schema_name, extensions_path = _schema_path(schema)
-		diagnostics = []
 
 		with self._global_library_context():
 			try:
@@ -366,26 +355,16 @@ class LibraryService(Service):
 				) from e
 
 			if base_schema is _SCHEMA_MISSING:
-				diagnostics.append(_schema_diagnostic(
-					level="error",
-					code="schema_not_found",
-					message="Schema '{}' was not found.".format(schema_path),
-					path=schema_path,
-				))
-				return self._finalize_schema_result(schema_path, None, diagnostics, include_diagnostics)
+				return None
 
 			self._validate_base_schema(schema_path, base_schema)
 			merged_schema = copy.deepcopy(base_schema)
-			base_fields = base_schema["fields"]
 			merged_fields = merged_schema["fields"]
-			field_sources = {}
 
-			# Schema extension discovery must preserve provider failures as
-			# diagnostics. The generic list() path only logs those failures.
-			extension_items, list_diagnostics = await self._list_schema_directory(extensions_path)
-			if list_diagnostics:
-				diagnostics.extend(list_diagnostics)
-				return self._finalize_schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
+			try:
+				extension_items = await self.list(extensions_path)
+			except KeyError:
+				extension_items = []
 
 			extension_items = sorted(
 				(
@@ -398,211 +377,23 @@ class LibraryService(Service):
 			for item in extension_items:
 				if item.disabled:
 					continue
-
 				try:
 					extension = await self._read_schema_yaml(item.name)
-				except Exception as e:
-					diagnostics.append(_schema_diagnostic(
-						level="error",
-						code="schema_extension_parse_error",
-						message=(
-							"Schema extension '{}' could not be parsed; skipping extension. "
-							"Reason: {}".format(item.name, e)
-						),
-						path=item.name,
-					))
+				except Exception:
 					continue
 
-				if not self._validate_schema_extension(item.name, extension, diagnostics):
+				if not isinstance(extension, dict):
+					continue
+				extension_fields = extension.get("fields")
+				if not isinstance(extension_fields, dict):
 					continue
 
-				self._merge_schema_extension_fields(
-					item.name,
-					extension,
-					base_fields,
-					merged_fields,
-					diagnostics,
-					strict=False,
-					field_sources=field_sources,
-					base_source_path=schema_path,
-				)
+				for field_name, field_definition in extension_fields.items():
+					if field_name in merged_fields:
+						continue
+					merged_fields[field_name] = copy.deepcopy(field_definition)
 
-			if not self._validate_effective_schema_invariants(
-				schema_path,
-				base_fields,
-				merged_fields,
-				diagnostics,
-			):
-				diagnostics.append(_schema_diagnostic(
-					level="warning",
-					code="schema_effective_fallback",
-					message="Effective schema invariants failed; using plain schema.",
-					path=schema_path,
-				))
-				return self._finalize_schema_result(schema_path, base_schema, diagnostics, include_diagnostics)
-
-			return self._finalize_schema_result(schema_path, merged_schema, diagnostics, include_diagnostics)
-
-	async def validate_schema_candidate(
-		self,
-		path: str,
-		content: typing.Union[bytes, bytearray, str],
-		timeout: int = None,
-	) -> list[dict]:
-		"""
-		Validate a pending schema-related write without persisting it.
-
-		Non-schema paths are ignored and return an empty diagnostics list. For
-		schema paths, validation runs against the final global schema state that
-		would result from replacing `path` with `content`.
-
-		Base-schema candidates are validated as the new authoritative schema.
-		Extension candidates are validated in combination with the current base
-		schema and the remaining visible extensions. Validation is intentionally
-		strict: any invalid field definition or conflicting additive extension is
-		rejected before the write is persisted.
-		This method enforces write-time correctness. Any violation of schema
-		invariants results in rejection.
-		"""
-		await self.wait_for_library_ready(timeout)
-
-		candidate_data = _load_schema_yaml_content(path, content)
-		diagnostics = []
-
-		with self._global_library_context():
-			candidate_details = await self._resolve_schema_candidate_details(path)
-			if candidate_details is None:
-				return []
-
-			schema_path, schema_name, extensions_path, is_base_schema = candidate_details
-			candidate_extension_visible = is_base_schema or not self.check_disabled(path)
-
-			if is_base_schema:
-				base_schema = candidate_data
-			else:
-				try:
-					base_schema = await self._read_schema_yaml(schema_path)
-				except Exception as e:
-					raise LibraryError(
-						"Failed to parse schema '{}': {}".format(schema_path, e)
-					) from e
-
-			if base_schema is _SCHEMA_MISSING:
-				raise LibraryError("Schema '{}' was not found.".format(schema_path))
-
-			self._validate_base_schema(schema_path, base_schema)
-			merged_schema = copy.deepcopy(base_schema)
-			base_fields = base_schema["fields"]
-			merged_fields = merged_schema["fields"]
-			field_sources = {}
-
-			extension_items, list_diagnostics = await self._list_schema_directory(extensions_path)
-			if list_diagnostics:
-				raise LibraryError(_schema_validation_message(list_diagnostics))
-
-			relevant_items = sorted(
-				(
-					item for item in extension_items
-					if _is_schema_extension_item(item, schema_name)
-				),
-				key=lambda item: item.name,
-			)
-
-			candidate_extension_included = False
-			for item in relevant_items:
-				if item.disabled:
-					continue
-
-				if item.name == path:
-					extension = candidate_data
-					candidate_extension_included = True
-				else:
-					try:
-						extension = await self._read_schema_yaml(item.name)
-					except Exception as e:
-						raise LibraryError(
-							"Failed to parse schema extension '{}': {}".format(item.name, e)
-						) from e
-
-				if not self._validate_schema_extension(item.name, extension, diagnostics, validate_fields=True):
-					raise LibraryError(_schema_validation_message(diagnostics))
-
-				if not self._merge_schema_extension_fields(
-					item.name,
-					extension,
-					base_fields,
-					merged_fields,
-					diagnostics,
-					field_sources=field_sources,
-					base_source_path=schema_path,
-				):
-					raise LibraryError(_schema_validation_message(diagnostics))
-
-			if not is_base_schema and candidate_extension_visible and not candidate_extension_included:
-				if not self._validate_schema_extension(path, candidate_data, diagnostics, validate_fields=True):
-					raise LibraryError(_schema_validation_message(diagnostics))
-
-				if not self._merge_schema_extension_fields(
-					path,
-					candidate_data,
-					base_fields,
-					merged_fields,
-					diagnostics,
-					field_sources=field_sources,
-					base_source_path=schema_path,
-				):
-					raise LibraryError(_schema_validation_message(diagnostics))
-
-			if not self._validate_effective_schema_invariants(
-				schema_path,
-				base_fields,
-				merged_fields,
-				diagnostics,
-			):
-				raise LibraryError(_schema_validation_message(diagnostics))
-
-		return _sort_schema_diagnostics(diagnostics)
-
-	def is_schema_candidate_path(self, path: str) -> bool:
-		"""
-		Return `True` when `path` is a managed schema or schema-extension item.
-		"""
-		return _schema_candidate_details(path) is not None
-
-	async def _resolve_schema_candidate_details(
-		self,
-		path: str,
-	) -> typing.Optional[tuple[str, str, str, bool]]:
-		"""
-		Resolve schema candidate metadata against existing base schema files.
-
-		Extension names use `<schema-name>-<extension-name>.yaml`. Because schema
-		names may themselves contain hyphens, write validation resolves the longest
-		existing `/Schemas/<schema-name>.yaml` prefix instead of splitting on the
-		first hyphen.
-		"""
-		candidate_details = _schema_candidate_details(path)
-		if candidate_details is None:
-			return None
-
-		_schema_path_value, _schema_name, _extensions_path, is_base_schema = candidate_details
-		if is_base_schema:
-			return candidate_details
-
-		filename = os.path.basename(path)
-		name, _extension = os.path.splitext(filename)
-		name_parts = name.split("-")
-		for index in range(len(name_parts) - 1, 0, -1):
-			schema_name = "-".join(name_parts[:index])
-			schema_path = "/Schemas/{}.yaml".format(schema_name)
-			try:
-				base_schema = await self._read_schema_yaml(schema_path)
-			except Exception:
-				continue
-			if base_schema is not _SCHEMA_MISSING:
-				return schema_path, schema_name, "/Schemas/Extensions/", False
-
-		return candidate_details
+			return merged_schema
 
 	@contextlib.contextmanager
 	def _global_library_context(self):
@@ -640,65 +431,6 @@ class LibraryService(Service):
 				return _SCHEMA_MISSING
 			return yaml.load(itemio, Loader=yaml.CSafeLoader)
 
-	async def _list_schema_directory(self, path: str) -> tuple[typing.List[LibraryItem], typing.List[dict]]:
-		"""
-		List a schema directory and preserve provider errors as diagnostics.
-
-		This helper is intended for use inside `_global_library_context()`. The
-		generic `_list()` method logs and skips provider failures, which is useful
-		for normal library listing but too quiet for schema extension loading: the
-		UI needs a structured diagnostic beacon when extensions cannot be inspected.
-		"""
-		_validate_path_directory(path)
-
-		items: list[LibraryItem] = []
-		unique_items: dict[str, LibraryItem] = {}
-		diagnostics = []
-
-		tasks = [
-			(self.Libraries.index(provider), asyncio.create_task(provider.list(path)))
-			for provider in self.Libraries
-		]
-
-		for outer_layer, task in tasks:
-			try:
-				provider_items: list[LibraryItem] = await task
-			except KeyError:
-				continue
-			except Exception as e:
-				diagnostics.append(_schema_diagnostic(
-					level="warning",
-					code="schema_extensions_unavailable",
-					message=(
-						"Schema extensions in '{}' could not be fully listed; falling back "
-						"to base schema because extension set may be incomplete. "
-						"Reason: {}".format(path, e)
-					),
-					path=path,
-				))
-				continue
-
-			for item in provider_items:
-				item.disabled = self.check_disabled(item.name)
-				item.favorite = self.check_favorite(item.name)
-				provider_layers = item.layers if item.layers else [outer_layer]
-
-				if item.name in unique_items:
-					existing_item = unique_items[item.name]
-					if existing_item.type == "dir" and item.type == "dir":
-						for provider in item.providers:
-							if provider not in existing_item.providers:
-								existing_item.providers.append(provider)
-					for layer_value in provider_layers:
-						if layer_value not in existing_item.layers:
-							existing_item.layers.append(layer_value)
-				else:
-					item.layers = provider_layers
-					unique_items[item.name] = item
-					items.append(item)
-
-		return items, diagnostics
-
 	def _validate_base_schema(self, path: str, schema: dict) -> None:
 		"""
 		Validate the minimum structure required for a base LMIO schema.
@@ -713,355 +445,6 @@ class LibraryService(Service):
 		fields = schema.get("fields")
 		if not isinstance(fields, dict):
 			raise LibraryError("Schema '{}' must contain a 'fields' mapping.".format(path))
-
-		for field_name, field_definition in fields.items():
-			if not isinstance(field_name, str) or field_name == "":
-				raise LibraryError("Schema '{}' contains an invalid field name.".format(path))
-
-			diagnostics = []
-			if not self._validate_schema_field_definition(
-				path,
-				field_name,
-				field_definition,
-				diagnostics,
-				code_prefix="schema",
-				subject="Schema",
-			):
-				raise LibraryError(_schema_validation_message(diagnostics))
-
-	def _validate_schema_extension(
-		self,
-		path: str,
-		extension,
-		diagnostics: list,
-		validate_fields: bool = False,
-	) -> bool:
-		"""
-		Validate that a schema extension is structurally interpretable.
-
-		Read-time callers validate only the extension envelope, then let the
-		tolerant merge skip individual broken fields. Write-time callers pass
-		`validate_fields=True` so invalid field definitions reject the candidate.
-		"""
-		if extension is _SCHEMA_MISSING:
-			diagnostics.append(_schema_diagnostic(
-				level="error",
-				code="schema_extension_not_found",
-				message="Schema extension '{}' was not found; skipping extension.".format(path),
-				path=path,
-			))
-			return False
-
-		if extension is None:
-			diagnostics.append(_schema_diagnostic(
-				level="error",
-				code="schema_extension_empty",
-				message="Schema extension '{}' is empty; skipping extension.".format(path),
-				path=path,
-			))
-			return False
-
-		if not isinstance(extension, dict):
-			diagnostics.append(_schema_diagnostic(
-				level="error",
-				code="schema_extension_invalid_shape",
-				message="Schema extension '{}' must be a YAML mapping; skipping extension.".format(path),
-				path=path,
-			))
-			return False
-
-		define = extension.get("define")
-		if not isinstance(define, dict):
-			diagnostics.append(_schema_diagnostic(
-				level="error",
-				code="schema_extension_invalid_define",
-				message="Schema extension '{}' must contain a 'define' mapping; skipping extension.".format(path),
-				path=path,
-			))
-			return False
-
-		if define.get("type") != "lmio/schema-extension":
-			diagnostics.append(_schema_diagnostic(
-				level="error",
-				code="schema_extension_invalid_type",
-				message=(
-					"Schema extension '{}' must have define.type 'lmio/schema-extension'; "
-					"skipping extension."
-				).format(path),
-				path=path,
-			))
-			return False
-
-		fields = extension.get("fields")
-		if not isinstance(fields, dict):
-			diagnostics.append(_schema_diagnostic(
-				level="error",
-				code="schema_extension_invalid_fields",
-				message="Schema extension '{}' must contain a 'fields' mapping; skipping extension.".format(path),
-				path=path,
-			))
-			return False
-
-		if validate_fields:
-			for field_name, field_definition in fields.items():
-				if not isinstance(field_name, str) or field_name == "":
-					diagnostics.append(_schema_diagnostic(
-						level="error",
-						code="schema_extension_invalid_field_name",
-						message="Schema extension '{}' contains an invalid field name.".format(path),
-						path=path,
-					))
-					return False
-
-				if not self._validate_schema_field_definition(path, field_name, field_definition, diagnostics):
-					return False
-
-		return True
-
-	def _merge_schema_extension_fields(
-		self,
-		path: str,
-		extension: dict,
-		base_fields: dict,
-		merged_fields: dict,
-		diagnostics: list,
-		strict: bool = True,
-		field_sources: typing.Optional[dict] = None,
-		base_source_path: str = None,
-	) -> bool:
-		"""
-		Apply additive field-extension semantics to a validated extension document.
-
-		Base schema fields are immutable. Extensions may only add new fields.
-		Read-time callers pass `strict=False` to keep valid fields and skip only the
-		conflicting or invalid ones. Write-time validation passes `strict=True` so
-		any invalid field or conflicting addition rejects the candidate.
-		Identical duplicate extension fields are idempotent; duplicate fields with
-		different definitions are conflicts.
-		"""
-		if field_sources is None:
-			field_sources = {}
-
-		has_conflict = False
-
-		for field_name, field_definition in extension["fields"].items():
-			if not isinstance(field_name, str) or field_name == "":
-				diagnostics.append(_schema_diagnostic(
-					level="error",
-					code="schema_extension_invalid_field_name",
-					message="Schema extension '{}' contains an invalid field name.".format(path),
-					path=path,
-				))
-				if strict:
-					return False
-				has_conflict = True
-				continue
-
-			if not self._validate_schema_field_definition(path, field_name, field_definition, diagnostics):
-				if strict:
-					return False
-				has_conflict = True
-				continue
-
-			if field_name in base_fields:
-				diagnostics.append(_schema_diagnostic(
-					level="error",
-					code="schema_extension_base_field_redefinition",
-					message=(
-						"Schema extension '{}' tried to redefine base field '{}'. "
-						"Schema extensions may only add new fields."
-					).format(path, field_name),
-					path=path,
-					field=field_name,
-					source_path=base_source_path,
-				))
-				if strict:
-					return False
-				has_conflict = True
-				continue
-
-			if field_name in merged_fields:
-				source_path = field_sources.get(field_name)
-				if merged_fields[field_name] == field_definition:
-					diagnostics.append(_schema_diagnostic(
-						level="info",
-						code="schema_extension_duplicate_field_idempotent",
-						message=(
-							"Schema extension '{}' repeated field '{}' with the same definition "
-							"already provided by '{}'; keeping the earlier definition."
-						).format(path, field_name, source_path),
-						path=path,
-						field=field_name,
-						source_path=source_path,
-					))
-					continue
-
-				diagnostics.append(_schema_diagnostic(
-					level="error",
-					code="schema_extension_duplicate_field_conflict",
-					message=(
-						"Schema extension '{}' tried to redefine field '{}', already defined by '{}'."
-					).format(path, field_name, source_path),
-					path=path,
-					field=field_name,
-					source_path=source_path,
-				))
-				if strict:
-					return False
-				has_conflict = True
-				continue
-
-			merged_fields[field_name] = copy.deepcopy(field_definition)
-			field_sources[field_name] = path
-
-		return not has_conflict
-
-	def _validate_schema_field_definition(
-		self,
-		path: str,
-		field_name: str,
-		field_definition,
-		diagnostics: list = None,
-		code_prefix: str = "schema_extension",
-		subject: str = "Schema extension",
-	) -> bool:
-		"""
-		Validate the minimum LMIO field-definition shape needed for safe merging.
-
-		Every LMIO field definition must declare a non-empty string `type`; this
-		is the core field-definition attribute used by existing ECS schemas.
-		"""
-		if diagnostics is None:
-			diagnostics = []
-
-		if not isinstance(field_definition, dict):
-			diagnostics.append(_schema_diagnostic(
-				level="error",
-				code="{}_invalid_field_definition".format(code_prefix),
-				message="{} '{}' field '{}' must be a mapping.".format(subject, path, field_name),
-				path=path,
-				field=field_name,
-			))
-			return False
-
-		field_type = field_definition.get("type")
-		if not isinstance(field_type, str) or field_type == "":
-			diagnostics.append(_schema_diagnostic(
-				level="error",
-				code="{}_missing_field_type".format(code_prefix),
-				message="{} '{}' field '{}' must define a non-empty string 'type'.".format(subject, path, field_name),
-				path=path,
-				field=field_name,
-			))
-			return False
-
-		if "fields" in field_definition and not isinstance(field_definition["fields"], dict):
-			diagnostics.append(_schema_diagnostic(
-				level="error",
-				code="{}_invalid_nested_fields".format(code_prefix),
-				message="{} '{}' field '{}' must use a mapping for nested 'fields'.".format(subject, path, field_name),
-				path=path,
-				field=field_name,
-			))
-			return False
-
-		return True
-
-	def _validate_effective_schema_invariants(
-		self,
-		schema_path: str,
-		base_fields: dict,
-		merged_fields,
-		diagnostics: list,
-	) -> bool:
-		"""
-		Validate invariants of the effective schema produced by additive merging.
-
-		The final effective schema must preserve every base field exactly. Any
-		failure here means the merge produced an invalid schema shape or violated
-		base-schema immutability.
-		"""
-		# This is a postcondition check: ensures final effective schema is valid
-		# regardless of merge logic correctness.
-		if not isinstance(merged_fields, dict):
-			if not _diagnostic_exists(diagnostics, "schema_effective_invalid_fields", schema_path, None):
-				diagnostics.append(_schema_diagnostic(
-					level="error",
-					code="schema_effective_invalid_fields",
-					message="Effective schema '{}' must contain a 'fields' mapping.".format(schema_path),
-					path=schema_path,
-				))
-			return False
-
-		for field_name, base_definition in base_fields.items():
-			if field_name not in merged_fields:
-				if not _diagnostic_exists(diagnostics, "schema_effective_missing_base_field", schema_path, field_name):
-					diagnostics.append(_schema_diagnostic(
-						level="error",
-						code="schema_effective_missing_base_field",
-						message="Effective schema '{}' is missing base field '{}'.".format(schema_path, field_name),
-						path=schema_path,
-						field=field_name,
-					))
-				return False
-
-			if merged_fields[field_name] != base_definition:
-				if not _diagnostic_exists(diagnostics, "schema_effective_changed_base_field", schema_path, field_name):
-					diagnostics.append(_schema_diagnostic(
-						level="error",
-						code="schema_effective_changed_base_field",
-						message="Effective schema '{}' changed base field '{}'.".format(schema_path, field_name),
-						path=schema_path,
-						field=field_name,
-					))
-				return False
-
-		for field_name, field_definition in merged_fields.items():
-			if not isinstance(field_name, str) or field_name == "":
-				if not _diagnostic_exists(diagnostics, "schema_effective_invalid_field_name", schema_path, None):
-					diagnostics.append(_schema_diagnostic(
-						level="error",
-						code="schema_effective_invalid_field_name",
-						message="Effective schema '{}' contains an invalid field name.".format(schema_path),
-						path=schema_path,
-					))
-				return False
-
-			if not self._validate_schema_field_definition(
-				schema_path,
-				field_name,
-				field_definition,
-				diagnostics,
-				code_prefix="schema_effective",
-				subject="Effective schema",
-			):
-				return False
-
-		return True
-
-	def _finalize_schema_result(self, schema_path: str, schema, diagnostics: list, include_diagnostics: bool):
-		"""
-		Store, publish, and return schema diagnostics with the selected result shape.
-		"""
-		diagnostics = _sort_schema_diagnostics(diagnostics)
-
-		if not hasattr(self, "SchemaDiagnostics"):
-			self.SchemaDiagnostics = {}
-
-		self.SchemaDiagnostics[schema_path] = copy.deepcopy(diagnostics)
-
-		if diagnostics:
-			app = getattr(self, "App", None)
-			pubsub = getattr(app, "PubSub", None)
-			publish = getattr(pubsub, "publish", None)
-			if publish is not None:
-				publish("Library.schema_validation!", self, schema_path, diagnostics)
-
-		if include_diagnostics:
-			return schema, diagnostics
-
-		return schema
-
 
 	async def list(self, path: str = "/", recursive: bool = False, timeout: int = None) -> typing.List[LibraryItem]:
 		"""
@@ -1772,132 +1155,6 @@ def _is_schema_extension_item(item: LibraryItem, schema_name: str) -> bool:
 		return False
 
 	return filename.startswith("{}-".format(schema_name))
-
-
-def _schema_candidate_details(path: str) -> typing.Optional[tuple[str, str, str, bool]]:
-	"""
-	Map a schema-related library item path to its base-schema context.
-
-	Returns `(schema_path, schema_name, extensions_path, is_base_schema)` for
-	paths under `/Schemas/` and `/Schemas/Extensions/`. Non-schema paths return
-	`None`. Extension paths are classified syntactically here; asynchronous
-	validation uses `_resolve_schema_candidate_details()` to disambiguate schema
-	names that contain hyphens against existing base schema files.
-	"""
-	_validate_path_item(path)
-
-	if os.path.dirname(path) == "/Schemas":
-		schema_name, extension = os.path.splitext(os.path.basename(path))
-		if extension == ".yaml" and schema_name != "Extensions":
-			return path, schema_name, "/Schemas/Extensions/", True
-		return None
-
-	if os.path.dirname(path) == "/Schemas/Extensions":
-		filename = os.path.basename(path)
-		name, extension = os.path.splitext(filename)
-		if extension not in (".yaml", ".yml") or "-" not in name:
-			return None
-
-		schema_name, extension_name = name.split("-", 1)
-		if schema_name == "" or extension_name == "":
-			return None
-
-		return "/Schemas/{}.yaml".format(schema_name), schema_name, "/Schemas/Extensions/", False
-
-	return None
-
-
-def _schema_diagnostic(
-	level: str,
-	code: str,
-	message: str,
-	path: str = None,
-	field: str = None,
-	**extra,
-) -> dict:
-	"""
-	Build a structured schema diagnostic for UI and backend consumers.
-
-	Extra keyword arguments are copied into the diagnostic when they are not
-	`None`; this is used for contextual fields such as `source_path`.
-	"""
-	diagnostic = {
-		"level": level,
-		"code": code,
-		"message": message,
-	}
-	if path is not None:
-		diagnostic["path"] = path
-	if field is not None:
-		diagnostic["field"] = field
-	for key, value in extra.items():
-		if value is not None:
-			diagnostic[key] = value
-	return diagnostic
-
-
-def _diagnostic_exists(diagnostics: list[dict], code: str, path: str, field: str) -> bool:
-	"""
-	Return `True` when an equivalent diagnostic is already present.
-	"""
-	for diagnostic in diagnostics:
-		if (
-			diagnostic.get("code") == code
-			and diagnostic.get("path") == path
-			and diagnostic.get("field") == field
-		):
-			return True
-	return False
-
-
-def _sort_schema_diagnostics(diagnostics: list[dict]) -> list[dict]:
-	"""
-	Return diagnostics in deterministic API order.
-	"""
-	return sorted(
-		diagnostics,
-		key=lambda diagnostic: (
-			diagnostic.get("path") or "",
-			diagnostic.get("field") or "",
-			diagnostic.get("code") or "",
-		),
-	)
-
-
-def _schema_validation_message(diagnostics: list[dict]) -> str:
-	"""
-	Extract a user-facing validation message from structured schema diagnostics.
-	"""
-	for diagnostic in diagnostics:
-		message = diagnostic.get("message")
-		if not message:
-			continue
-		return (
-			message
-			.replace("; using plain schema.", ".")
-			.replace(" using plain schema.", "")
-		)
-
-	return "Schema validation failed."
-
-
-def _load_schema_yaml_content(path: str, content: typing.Union[bytes, bytearray, str]):
-	"""
-	Parse schema YAML bytes or text using the same loader as persisted schema reads.
-	"""
-	if isinstance(content, str):
-		content = content.encode("utf-8")
-	elif isinstance(content, bytearray):
-		content = bytes(content)
-	elif not isinstance(content, bytes):
-		raise LibraryError(
-			"Failed to parse schema '{}': expected bytes or string content.".format(path)
-		)
-
-	try:
-		return yaml.load(io.BytesIO(content), Loader=yaml.CSafeLoader)
-	except Exception as e:
-		raise LibraryError("Failed to parse schema '{}': {}".format(path, e)) from e
 
 
 def _validate_path_item(path: str) -> None:
