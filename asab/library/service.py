@@ -929,9 +929,8 @@ class LibraryService(Service):
 		"""
 		Validate the minimum LMIO field-definition shape needed for safe merging.
 
-		The checks stay conservative on purpose. The extension system only enforces
-		universal structural guarantees that are already implied by the surrounding
-		schema format.
+		Every LMIO field definition must declare a non-empty string `type`; this
+		is the core field-definition attribute used by existing ECS schemas.
 		"""
 		if diagnostics is None:
 			diagnostics = []
@@ -947,11 +946,11 @@ class LibraryService(Service):
 			return False
 
 		field_type = field_definition.get("type")
-		if "type" in field_definition and (not isinstance(field_type, str) or field_type == ""):
+		if not isinstance(field_type, str) or field_type == "":
 			diagnostics.append(_schema_diagnostic(
 				level="error",
-				code="{}_invalid_field_type".format(code_prefix),
-				message="{} '{}' field '{}' must use a non-empty string 'type'.".format(subject, path, field_name),
+				code="{}_missing_field_type".format(code_prefix),
+				message="{} '{}' field '{}' must define a non-empty string 'type'.".format(subject, path, field_name),
 				path=path,
 				field=field_name,
 			))
@@ -1790,8 +1789,8 @@ def _schema_candidate_details(path: str) -> typing.Optional[tuple[str, str, str,
 		if extension not in (".yaml", ".yml") or "-" not in name:
 			return None
 
-		schema_name, _extension_name = name.split("-", 1)
-		if schema_name == "":
+		schema_name, extension_name = name.split("-", 1)
+		if schema_name == "" or extension_name == "":
 			return None
 
 		return "/Schemas/{}.yaml".format(schema_name), schema_name, "/Schemas/Extensions/", False
