@@ -126,7 +126,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		self.App.TaskService.schedule(self.initialize_git_repository())
 
-		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
+		self.App.PubSub.subscribe("Application.tick/600!", self._periodic_pull) # 10 minutes
 
 
 	def _parse_url_fragment(self, fragment):
@@ -354,6 +354,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 	async def initialize_git_repository(self):
 		"""
 		Initialize git repository by cloning or pulling latest changes.
+		Retries with exponential backoff on failure, starting at 30 seconds.
 		"""
 
 		def init_task():
@@ -374,84 +375,103 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				self.GitRepository = pygit2.Repository(self.RepoPath)
 				self._do_pull()
 
-		try:
-			await self.ProactorService.execute(init_task)
+			# Verify the repository is valid
+			if not hasattr(self.GitRepository, "remotes"):
+				raise RuntimeError("Git repository object is in an invalid state (missing remote configuration)")
 
-		except KeyError as err:
-			pygit_message = str(err).replace('\"', '')
-			if "'refs/remotes/origin/{}'".format(self.Branch) in pygit_message:
-				# branch does not exist
-				L.exception(
-					"Branch does not exist.",
-					struct_data={
-						"url": self.URLPath,
-						"branch": self.Branch
-					}
-				)
-			else:
-				L.exception(
-					"Error when initializing git repository",
-					struct_data={"layer": self.Layer, "error": pygit_message}
-				)
+		# Exponential backoff retry loop
+		retry_delay = 30  # Start with 30 seconds
 
-			return
+		while True:
+			success = False
+			try:
+				await self.ProactorService.execute(init_task)
+				success = True
 
-		except pygit2.GitError as err:
-			pygit_message = str(err).replace('\"', '')
-			if "unexpected http status code: 404" in pygit_message:
-				# repository not found
-				L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
-			elif "remote authentication required but no callback set" in pygit_message:
-				# either repository not found or authentication failed
-				L.exception(
-					"Authentication failed when initializing git repository.\n"
-					"Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'",
-					struct_data={
-						"layer": self.Layer,
-						"url": self.URLPath,
-						"username": self.User,
-						"deploy_token": self.DeployToken
-					}
-				)
-			elif 'cannot redirect from' in pygit_message:
-				# bad URL
-				L.exception(
-					"Git repository not found.",
+			except KeyError as err:
+				pygit_message = str(err).replace('\"', '')
+				if "'refs/remotes/origin/{}'".format(self.Branch) in pygit_message:
+					# branch does not exist - this is a permanent error, don't retry
+					L.exception(
+						"Branch does not exist.",
+						struct_data={
+							"url": self.URLPath,
+							"branch": self.Branch
+						}
+					)
+					return
+				else:
+					L.exception(
+						"Error when initializing git repository",
+						struct_data={"layer": self.Layer, "error": pygit_message}
+					)
+
+			except pygit2.GitError as err:
+				pygit_message = str(err).replace('\"', '')
+				if "unexpected http status code: 404" in pygit_message:
+					# repository not found - permanent error, don't retry
+					L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
+					return
+				elif "remote authentication required but no callback set" in pygit_message:
+					# either repository not found or authentication failed - permanent error, don't retry
+					L.exception(
+						"Authentication failed when initializing git repository.\n"
+						"Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'",
+						struct_data={
+							"layer": self.Layer,
+							"url": self.URLPath,
+							"username": self.User,
+							"deploy_token": self.DeployToken
+						}
+					)
+					return
+				elif 'cannot redirect from' in pygit_message:
+					# bad URL - permanent error, don't retry
+					L.exception(
+						"Git repository not found.",
+						struct_data={"layer": self.Layer, "url": self.URLPath}
+					)
+					return
+				elif 'Temporary failure in name resolution' in pygit_message:
+					# Internet connection does not work
+					L.exception(
+						"Git repository not initialized: connection failed. Check your network connection.",
+						struct_data={
+							"layer": self.Layer,
+							"url": self.URLPath
+						}
+					)
+				else:
+					L.exception(
+						"Git repository not initialized",
+						struct_data={"layer": self.Layer, "error": str(err)}
+					)
+
+			except RuntimeError as err:
+				# Repository object is invalid
+				L.error(
+					"Git repository not initialized: {}".format(str(err)),
 					struct_data={"layer": self.Layer, "url": self.URLPath}
 				)
-			elif 'Temporary failure in name resolution' in pygit_message:
-				# Internet connection does not work
-				L.exception(
-					"Git repository not initialized: connection failed. Check your network connection.",
-					struct_data={
-						"layer": self.Layer,
-						"url": self.URLPath
-					}
-				)
-			else:
+
+			except Exception as err:
 				L.exception(
 					"Git repository not initialized",
 					struct_data={"layer": self.Layer, "error": str(err)}
 				)
 
-			return
+			if success:
+				# If everything went fine, set the provider as ready
+				await self._set_ready()
+				return
 
-		except Exception as err:
-			L.exception(
-				"Git repository not initialized",
-				struct_data={"layer": self.Layer, "error": str(err)}
+			# Retry with exponential backoff
+			L.warning(
+				"Retrying git repository initialization in {} seconds...".format(retry_delay),
+				struct_data={"layer": self.Layer, "url": self.URLPath, "retry_delay": retry_delay}
 			)
-			return
-
-		if not hasattr(self.GitRepository, "remotes"):
-			L.error(
-				"Git repository not initialized: Git repository object is in an invalid state (missing remote configuration)",
-				struct_data={"layer": self.Layer, "url": self.URLPath}
-			)
-			return
-
-		# If everything went fine, set the provider as ready
-		await self._set_ready()
+			await asyncio.sleep(retry_delay)
+			retry_delay = min(retry_delay * 2, 3600)  # Exponential backoff, capped at 1 hour
 
 
 	def _do_fetch(self):
