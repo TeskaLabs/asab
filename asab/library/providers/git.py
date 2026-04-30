@@ -124,9 +124,9 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.SSHPassphrase = Config.get("library:git", "ssh_passphrase", fallback=None)
 			self.VerifySSHFingerprint = Config.getboolean("library:git", "verify_ssh_fingerprint", fallback=False)
 
-		self.App.TaskService.schedule(self.initialize_git_repository_with_retry())
+		self.App.TaskService.schedule(self.initialize_git_repository())
 
-		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
+		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_check)
 
 
 	def _parse_url_fragment(self, fragment):
@@ -322,10 +322,17 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		return callbacks
 
 
-	async def _periodic_pull(self, event_name):
+	async def _periodic_check(self, event_name):
 		"""
-		Changes in remote repository are being pulled every minute. `PullLock` flag ensures that only if previous "pull" has finished, new one can start.
+		Periodic check that runs every 60 seconds.
+		If the git repository is not initialized, attempts to initialize it.
+		If initialized and PullInterval has passed, performs a pull.
 		"""
+		if self.GitRepository is None:
+			# Repository not initialized yet - try to init. Retry happens on next tick (60s).
+			self.App.TaskService.schedule(self.initialize_git_repository())
+			return
+
 		if self.PullLock.locked():
 			return
 
@@ -333,12 +340,15 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			# Do not pull if the last pull was done less than PullInterval ago
 			return
 
-		async with self.PullLock:
-			if self.GitRepository is None:
-				# Simple init without retries - retry logic is handled by the scheduled task
-				self.App.TaskService.schedule(self.initialize_git_repository())
-				return
+		await self._periodic_pull()
 
+
+	async def _periodic_pull(self):
+		"""
+		Perform the actual pull from the remote repository.
+		This should only be called when all conditions are met (initialized, not locked, interval passed).
+		"""
+		async with self.PullLock:
 			try:
 				to_publish = await self.ProactorService.execute(self._do_pull)
 				self.LastPull = self.App.time()
@@ -357,6 +367,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		The actual git repository initialization task.
 		This is the core logic without any retry handling.
 		This is a synchronous method that runs in the proactor thread.
+		Only clones/opens the repository - does NOT pull (that's handled by _periodic_pull).
 		"""
 		if pygit2.discover_repository(self.RepoPath) is None:
 			# For a new repository, clone the remote bit
@@ -446,33 +457,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				"Unexpected error during git repository initialization",
 				struct_data={"layer": self.Layer, "url": self.URLPath, "error": str(err)}
 			)
-
-
-	async def initialize_git_repository_with_retry(self):
-		"""
-		Initialize git repository with exponential backoff retry.
-		Retries with delays starting at 30 seconds and growing up to 1 hour.
-		Permanent errors (404, auth failure, bad URL, branch not found) don't retry.
-		"""
-		retry_delay = 30  # Start with 30 seconds
-
-		while True:
-			# Store current state to detect if init succeeded
-			was_ready = self.IsReady
-
-			await self.initialize_git_repository()
-
-			# Check if initialization succeeded (provider became ready)
-			if self.IsReady and not was_ready:
-				return
-
-			# If we get here, initialization failed - retry with backoff
-			L.warning(
-				"Retrying git repository initialization in {} seconds...".format(retry_delay),
-				struct_data={"layer": self.Layer, "url": self.URLPath, "retry_delay": retry_delay}
-			)
-			await asyncio.sleep(retry_delay)
-			retry_delay = min(retry_delay * 1.5, 3600)  # Exponential backoff, capped at 1 hour
 
 
 	def _do_fetch(self):
