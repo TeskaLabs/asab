@@ -124,9 +124,9 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.SSHPassphrase = Config.get("library:git", "ssh_passphrase", fallback=None)
 			self.VerifySSHFingerprint = Config.getboolean("library:git", "verify_ssh_fingerprint", fallback=False)
 
-		self.App.TaskService.schedule(self.initialize_git_repository())
+		self.App.TaskService.schedule(self.initialize_git_repository_with_retry())
 
-		self.App.PubSub.subscribe("Application.tick/600!", self._periodic_pull) # 10 minutes
+		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
 
 	def _parse_url_fragment(self, fragment):
@@ -335,6 +335,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		async with self.PullLock:
 			if self.GitRepository is None:
+				# Simple init without retries - retry logic is handled by the scheduled task
 				self.App.TaskService.schedule(self.initialize_git_repository())
 				return
 
@@ -351,127 +352,127 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				)
 
 
+	def _init_task(self):
+		"""
+		The actual git repository initialization task.
+		This is the core logic without any retry handling.
+		This is a synchronous method that runs in the proactor thread.
+		"""
+		if pygit2.discover_repository(self.RepoPath) is None:
+			# For a new repository, clone the remote bit
+			os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
+			callbacks = self._create_callbacks()
+			self.GitRepository = pygit2.clone_repository(
+				url=self.URL,
+				path=self.RepoPath,
+				checkout_branch=self.Branch,
+				callbacks=callbacks
+			)
+		else:
+			# For existing repository, pull the latest changes
+			self.GitRepository = pygit2.Repository(self.RepoPath)
+			self._do_pull()
+
+		# Verify the repository is valid
+		if not hasattr(self.GitRepository, "remotes"):
+			raise RuntimeError("Git repository object is in an invalid state (missing remote configuration)")
+
+
 	async def initialize_git_repository(self):
 		"""
 		Initialize git repository by cloning or pulling latest changes.
-		Retries with exponential backoff on failure, starting at 30 seconds.
+		This is a single attempt without retries. Callers should handle retries if needed.
+		On failure, logs the error but does not retry.
+		All exceptions are caught and logged to prevent unhandled exceptions in scheduled tasks.
 		"""
-
-		def init_task():
-
-			if pygit2.discover_repository(self.RepoPath) is None:
-				# For a new repository, clone the remote bit
-				os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
-				callbacks = self._create_callbacks()
-				self.GitRepository = pygit2.clone_repository(
-					url=self.URL,
-					path=self.RepoPath,
-					checkout_branch=self.Branch,
-					callbacks=callbacks
-				)
-
-			else:
-				# For existing repository, pull the latest changes
-				self.GitRepository = pygit2.Repository(self.RepoPath)
-				self._do_pull()
-
-			# Verify the repository is valid
-			if not hasattr(self.GitRepository, "remotes"):
-				raise RuntimeError("Git repository object is in an invalid state (missing remote configuration)")
-
-		# Exponential backoff retry loop
-		retry_delay = 30  # Start with 30 seconds
-
-		while True:
-			success = False
+		try:
 			try:
-				await self.ProactorService.execute(init_task)
-				success = True
-
+				await self.ProactorService.execute(self._init_task)
 			except KeyError as err:
 				pygit_message = str(err).replace('\"', '')
 				if "'refs/remotes/origin/{}'".format(self.Branch) in pygit_message:
-					# branch does not exist - this is a permanent error, don't retry
 					L.exception(
 						"Branch does not exist.",
-						struct_data={
-							"url": self.URLPath,
-							"branch": self.Branch
-						}
+						struct_data={"url": self.URLPath, "branch": self.Branch}
 					)
-					return
 				else:
 					L.exception(
 						"Error when initializing git repository",
 						struct_data={"layer": self.Layer, "error": pygit_message}
 					)
-
+				return
 			except pygit2.GitError as err:
 				pygit_message = str(err).replace('\"', '')
 				if "unexpected http status code: 404" in pygit_message:
-					# repository not found - permanent error, don't retry
 					L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
-					return
 				elif "remote authentication required but no callback set" in pygit_message:
-					# either repository not found or authentication failed - permanent error, don't retry
 					L.exception(
 						"Authentication failed when initializing git repository.\n"
 						"Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'",
-						struct_data={
-							"layer": self.Layer,
-							"url": self.URLPath,
-							"username": self.User,
-							"deploy_token": self.DeployToken
-						}
+						struct_data={"layer": self.Layer, "url": self.URLPath, "username": self.User, "deploy_token": self.DeployToken}
 					)
-					return
 				elif 'cannot redirect from' in pygit_message:
-					# bad URL - permanent error, don't retry
-					L.exception(
-						"Git repository not found.",
-						struct_data={"layer": self.Layer, "url": self.URLPath}
-					)
-					return
+					L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
 				elif 'Temporary failure in name resolution' in pygit_message:
-					# Internet connection does not work
 					L.exception(
 						"Git repository not initialized: connection failed. Check your network connection.",
-						struct_data={
-							"layer": self.Layer,
-							"url": self.URLPath
-						}
+						struct_data={"layer": self.Layer, "url": self.URLPath}
 					)
 				else:
 					L.exception(
 						"Git repository not initialized",
 						struct_data={"layer": self.Layer, "error": str(err)}
 					)
-
+				return
 			except RuntimeError as err:
-				# Repository object is invalid
 				L.error(
 					"Git repository not initialized: {}".format(str(err)),
 					struct_data={"layer": self.Layer, "url": self.URLPath}
 				)
-
+				return
 			except Exception as err:
 				L.exception(
 					"Git repository not initialized",
 					struct_data={"layer": self.Layer, "error": str(err)}
 				)
-
-			if success:
-				# If everything went fine, set the provider as ready
-				await self._set_ready()
 				return
 
-			# Retry with exponential backoff
+			# If everything went fine, set the provider as ready
+			await self._set_ready()
+
+		except Exception as err:
+			# Catch-all for any unexpected errors (e.g., in _set_ready)
+			L.exception(
+				"Unexpected error during git repository initialization",
+				struct_data={"layer": self.Layer, "url": self.URLPath, "error": str(err)}
+			)
+
+
+	async def initialize_git_repository_with_retry(self):
+		"""
+		Initialize git repository with exponential backoff retry.
+		Retries with delays starting at 30 seconds and growing up to 1 hour.
+		Permanent errors (404, auth failure, bad URL, branch not found) don't retry.
+		"""
+		retry_delay = 30  # Start with 30 seconds
+
+		while True:
+			# Store current state to detect if init succeeded
+			was_ready = self.IsReady
+
+			await self.initialize_git_repository()
+
+			# Check if initialization succeeded (provider became ready)
+			if self.IsReady and not was_ready:
+				return
+
+			# If we get here, initialization failed - retry with backoff
 			L.warning(
 				"Retrying git repository initialization in {} seconds...".format(retry_delay),
 				struct_data={"layer": self.Layer, "url": self.URLPath, "retry_delay": retry_delay}
 			)
 			await asyncio.sleep(retry_delay)
-			retry_delay = min(retry_delay * 2, 3600)  # Exponential backoff, capped at 1 hour
+			retry_delay = min(retry_delay * 1.5, 3600)  # Exponential backoff, capped at 1 hour
 
 
 	def _do_fetch(self):
