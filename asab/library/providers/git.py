@@ -371,6 +371,9 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		The actual git repository initialization task.
 		This is the core logic without any retry handling.
 		This is a synchronous method that runs in the proactor thread.
+
+		For new repositories, clones the remote repository.
+		For existing repositories, pulls the latest changes.
 		"""
 		if pygit2.discover_repository(self.RepoPath) is None:
 			# For a new repository, clone the remote bit
@@ -386,6 +389,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			# For existing repository, pull the latest changes
 			self.GitRepository = pygit2.Repository(self.RepoPath)
 			self._do_pull()
+			self.LastPull = self.App.time()
 
 		# Verify the repository is valid
 		if not hasattr(self.GitRepository, "remotes"):
