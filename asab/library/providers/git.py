@@ -69,6 +69,22 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		ssh_passphrase=<optional passphrase for SSH key>
 		verify_ssh_fingerprint=yes|no (default: no - auto-accepts host keys)
 	"""
+# Initialization and periodic pull flow:
+#     [UNINITIALIZED] ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+#           │                                                                          │
+#           │  _periodic_check() every 60s                                             │
+#           ▼                                                                          │
+#     [INIT_IN_PROGRESS] ──fail──→ (wait next tick) ──────────────────────────────────┘
+#           │
+#           └──success──→ [INITIALIZED] ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+#                              │                                                        │
+#                              │  _periodic_check() every 60s, PullInterval gate        │
+#                              ▼                                                        │
+#                        [PULL_IN_PROGRESS] ──fail──→ (wait next tick) ────────────────┘
+#                              │
+#                              └──success──→ [INITIALIZED] (with updated LastPull)
+#
+
 	def __init__(self, library, path, layer):
 
 		# Initialize attributes to avoid attribute errors
@@ -131,25 +147,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_check)
 
 
-	def _parse_url_fragment(self, fragment):
-		"""
-		Parse the URL fragment for checkout branch and optional ``pull=`` interval.
-
-		There is only one ``#`` in a URL; further ``#`` appear inside the fragment
-		(e.g. ``#main#pull=10h``), matching the libsreg provider convention.
-
-		:return: ``(branch, pull_interval)`` where ``pull_interval`` is the raw value
-			after ``pull=``, or ``None`` if absent.
-		"""
-		branch = ""
-		pull_interval = None
-		if fragment:
-			for part in fragment.split("#"):
-				if part.startswith("pull="):
-					pull_interval = part[5:]
-				elif "=" not in part:
-					branch = part
-		return branch, pull_interval
 
 
 	def _parse_url(self, path):
@@ -179,7 +176,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.User = groups[2] or ""
 			self.DeployToken = groups[3] or ""
 			self.URLPath = groups[4]
-			self.Branch, pull_interval = self._parse_url_fragment(groups[5] or "")
+			self.Branch, pull_interval = _parse_url_fragment(groups[5] or "")
 			if pull_interval is not None:
 				self.PullInterval = convert_to_seconds(pull_interval)
 			self.URL = "".join([self.URLScheme, self.UserInfo, self.URLPath])
@@ -196,7 +193,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			user = groups[0] or "git@"
 			host = groups[1]
 			repo_path = groups[2] or ""
-			self.Branch, pull_interval = self._parse_url_fragment(groups[3] or "")
+			self.Branch, pull_interval = _parse_url_fragment(groups[3] or "")
 			if pull_interval is not None:
 				self.PullInterval = convert_to_seconds(pull_interval)
 			self.URL = "ssh://{}{}{}".format(user, host, repo_path)
@@ -218,7 +215,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			user = groups[0] or "git@"
 			host = groups[1]
 			repo_path = groups[2]
-			self.Branch, pull_interval = self._parse_url_fragment(groups[3] or "")
+			self.Branch, pull_interval = _parse_url_fragment(groups[3] or "")
 			if pull_interval is not None:
 				self.PullInterval = convert_to_seconds(pull_interval)
 			# Convert to full SSH URL for pygit2
@@ -542,3 +539,25 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		self.SubscribedPaths.add(path)
+
+
+def _parse_url_fragment(fragment):
+	"""
+	Parse the URL fragment for checkout branch and optional ``pull=`` interval.
+
+	There is only one ``#`` in a URL; further ``#`` appear inside the fragment
+	(e.g. ``#main#pull=10h``), matching the libsreg provider convention.
+
+	:param fragment: The URL fragment string (without the leading ``#``).
+	:return: ``(branch, pull_interval)`` where ``pull_interval`` is the raw value
+		after ``pull=``, or ``None`` if absent.
+	"""
+	branch = ""
+	pull_interval = None
+	if fragment:
+		for part in fragment.split("#"):
+			if part.startswith("pull="):
+				pull_interval = part[5:]
+			elif "=" not in part:
+				branch = part
+	return branch, pull_interval
