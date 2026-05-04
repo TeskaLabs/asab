@@ -112,6 +112,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.PullLock = asyncio.Lock()
 
 		self.SubscribedPaths = set()
+		self.InitInProgress = False
 
 		# SSH configuration
 		self.SSHKeyPath = None
@@ -330,6 +331,9 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 		if self.GitRepository is None:
 			# Repository not initialized yet - try to init. Retry happens on next tick (60s).
+			if self.InitInProgress:
+				# Initialization already in progress, skip scheduling
+				return
 			self.App.TaskService.schedule(self.initialize_git_repository())
 			return
 
@@ -413,6 +417,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		On failure, logs the error but does not retry.
 		All exceptions are caught and logged to prevent unhandled exceptions in scheduled tasks.
 		"""
+		self.InitInProgress = True
 		try:
 			try:
 				await self.ProactorService.execute(self._init_task)
@@ -474,6 +479,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				"Unexpected error during git repository initialization",
 				struct_data={"layer": self.Layer, "url": self.URLPath, "error": str(err)}
 			)
+		finally:
+			self.InitInProgress = False
 
 
 	def _do_fetch(self):
