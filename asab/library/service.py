@@ -332,15 +332,23 @@ class LibraryService(Service):
 		timeout: int = None,
 	):
 		"""
-		Read a global LMIO schema and apply additive field extensions.
+		Build the effective global LMIO schema for `schema`.
 
-		Schema reads intentionally ignore tenant and personal overlays. A schema is
-		a global contract, so `/Schemas/ECS.yaml` and `/Schemas/Extensions/` are
-		read as global library paths even when tenant context variables are set.
+		The effective schema is computed from one authoritative base schema and zero
+		or more extension schemas:
 
-		This first iteration intentionally implements only the deterministic merge
-		algorithm: base schema fields win and extension fields are added only when
-		the field name does not already exist.
+		`/Schemas/<schema>.yaml`
+		`/Schemas/Extensions/<schema>-*.yaml`
+
+		This is not a generic YAML merge. It is a deterministic, additive merge of
+		the top-level `fields` mapping. The base schema is left-biased: existing
+		fields are never overwritten, so extensions can only contribute fields that
+		do not already exist in the accumulated result.
+
+		Schema reads intentionally ignore tenant and personal overlays. Schemas are
+		global contracts, so base and extension files are resolved from the global
+		library layer even when tenant context variables are set.
+
 		"""
 		await self.wait_for_library_ready(timeout)
 
@@ -393,6 +401,15 @@ class LibraryService(Service):
 						continue
 					merged_fields[field_name] = copy.deepcopy(field_definition)
 
+			# Final check: the merge above must preserve every
+			# authoritative base field exactly. This is not full schema validation.
+			base_fields = base_schema["fields"]
+			for field_name, field_definition in base_fields.items():
+				if field_name not in merged_fields:
+					return copy.deepcopy(base_schema)
+				if merged_fields[field_name] != field_definition:
+					return copy.deepcopy(base_schema)
+
 			return merged_schema
 
 	@contextlib.contextmanager
@@ -403,7 +420,7 @@ class LibraryService(Service):
 		Provider `read()` and `list()` implementations normally honor tenant and
 		personal overlays. Schemas are intentionally global contracts, so
 		`read_schema()` uses this context manager to force global resolution while
-		restoring the caller's context afterwards.
+		restoring the caller's context afterward.
 		"""
 		tenant_ctx = Tenant.set(None)
 		authz_ctx = Authz.set(None)
@@ -421,7 +438,7 @@ class LibraryService(Service):
 		Parsed YAML values, including `None` from empty/null YAML files, are
 		returned as-is so schema validation can report the real problem. YAML
 		parser errors are intentionally propagated to the caller so `read_schema()`
-		can decide whether to fail the base schema read or fall back from extensions.
+		can decide whether to fail the base schema read or skip an extension.
 
 		This helper intentionally relies on `open()` and is expected to run inside
 		`_global_library_context()` so schema reads resolve against the global layer.
@@ -433,11 +450,12 @@ class LibraryService(Service):
 
 	def _validate_base_schema(self, path: str, schema: dict) -> None:
 		"""
-		Validate the minimum structure required for a base LMIO schema.
+		Validate the minimum structure needed before additive merging.
 
-		The base schema is authoritative. If it is malformed, callers cannot safely
-		continue, so validation errors raise `LibraryError` instead of producing a
-		fallback schema.
+		The base schema is the fixed point of the merge: all returned schemas must
+		preserve its fields exactly. For this first iteration we only require the
+		shape needed by the merge algorithm: a YAML mapping with a top-level
+		`fields` mapping.
 		"""
 		if not isinstance(schema, dict):
 			raise LibraryError("Schema '{}' must be a YAML mapping.".format(path))
@@ -1111,7 +1129,7 @@ class LibraryService(Service):
 
 def _schema_path(schema: str) -> tuple[str, str, str]:
 	"""
-	Normalize a schema name or absolute schema path.
+	Normalize a schema name or absolute schema path into schema locations.
 
 	Returns `(schema_path, schema_name, extensions_path)`. For example, `"ECS"`
 	becomes `("/Schemas/ECS.yaml", "ECS", "/Schemas/Extensions/")`.
@@ -1142,9 +1160,11 @@ def _schema_path(schema: str) -> tuple[str, str, str]:
 
 def _is_schema_extension_item(item: LibraryItem, schema_name: str) -> bool:
 	"""
-	Decide whether a library item is an extension file for the requested schema.
+	Return `True` when a listed library item is a leaf extension candidate.
 
-	Extension files use the `<schema-name>-<extension-name>.yaml` naming convention.
+	Extension files use the `<schema-name>-<extension-name>.yaml` naming
+	convention. Directory entries and non-YAML files are ignored before any read is
+	attempted.
 	"""
 	if item.type != "item":
 		return False
