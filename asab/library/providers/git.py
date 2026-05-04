@@ -373,10 +373,13 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		This is a synchronous method that runs in the proactor thread.
 
 		For new repositories, clones the remote repository.
-		For existing repositories, pulls the latest changes.
+		For existing repositories, opens the existing repository.
+
+		Returns:
+			bool: True if a fresh clone was performed, False if using existing repo
 		"""
 		if pygit2.discover_repository(self.RepoPath) is None:
-			# For a new repository, clone the remote bit
+			# For a new repository, clone the remote
 			os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
 			callbacks = self._create_callbacks()
 			self.GitRepository = pygit2.clone_repository(
@@ -385,11 +388,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				checkout_branch=self.Branch,
 				callbacks=callbacks
 			)
+			is_fresh_clone = True
 		else:
-			# For existing repository, pull the latest changes
+			# For existing repository, just open it (pull happens separately after init)
 			self.GitRepository = pygit2.Repository(self.RepoPath)
-			self._do_pull()
-			self.LastPull = self.App.time()
+			is_fresh_clone = False
 
 		# Verify the repository is valid
 		if not hasattr(self.GitRepository, "remotes"):
@@ -413,18 +416,22 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.GitRepository = None
 			raise RuntimeError("Git repository working tree is empty - removed for retry")
 
+		return is_fresh_clone
+
 
 	async def initialize_git_repository(self):
 		"""
-		Initialize git repository by cloning or pulling latest changes.
+		Initialize git repository by cloning or opening existing.
 		This is a single attempt without retries. Callers should handle retries if needed.
 		On failure, logs the error but does not retry.
 		All exceptions are caught and logged to prevent unhandled exceptions in scheduled tasks.
+		After successful init, if using existing repo (not fresh clone), performs immediate pull.
 		"""
 		self.InitInProgress = True
+		fresh_clone = False
 		try:
 			try:
-				await self.ProactorService.execute(self._init_task)
+				fresh_clone = await self.ProactorService.execute(self._init_task)
 			except KeyError as err:
 				pygit_message = str(err).replace('\"', '')
 				if "'refs/remotes/origin/{}'".format(self.Branch) in pygit_message:
@@ -477,8 +484,12 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			# If everything went fine, set the provider as ready
 			await self._set_ready()
 
+			# If using existing repo (not fresh clone), pull immediately to update
+			if not fresh_clone:
+				await self._periodic_pull()
+
 		except Exception as err:
-			# Catch-all for any unexpected errors (e.g., in _set_ready)
+			# Catch-all for any unexpected errors (e.g., in _set_ready or _periodic_pull)
 			L.exception(
 				"Unexpected error during git repository initialization",
 				struct_data={"layer": self.Layer, "url": self.URLPath, "error": str(err)}
