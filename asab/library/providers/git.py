@@ -9,6 +9,7 @@ import typing
 from .filesystem import FileSystemLibraryProvider
 from ...config import Config
 from ...utils import convert_to_seconds
+from ...log import LOG_NOTICE
 
 #
 
@@ -112,6 +113,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.PullLock = asyncio.Lock()
 
 		self.SubscribedPaths = set()
+		self.InitInProgress = False
 
 		# SSH configuration
 		self.SSHKeyPath = None
@@ -126,7 +128,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		self.App.TaskService.schedule(self.initialize_git_repository())
 
-		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
+		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_check)
 
 
 	def _parse_url_fragment(self, fragment):
@@ -322,10 +324,20 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		return callbacks
 
 
-	async def _periodic_pull(self, event_name):
+	async def _periodic_check(self, event_name):
 		"""
-		Changes in remote repository are being pulled every minute. `PullLock` flag ensures that only if previous "pull" has finished, new one can start.
+		Periodic check that runs every 60 seconds.
+		If the git repository is not initialized, attempts to initialize it.
+		If initialized and PullInterval has passed, performs a pull.
 		"""
+		if self.GitRepository is None:
+			# Repository not initialized yet - try to init. Retry happens on next tick (60s).
+			if self.InitInProgress:
+				# Initialization already in progress, skip scheduling
+				return
+			self.App.TaskService.schedule(self.initialize_git_repository())
+			return
+
 		if self.PullLock.locked():
 			return
 
@@ -333,14 +345,19 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			# Do not pull if the last pull was done less than PullInterval ago
 			return
 
-		async with self.PullLock:
-			if self.GitRepository is None:
-				self.App.TaskService.schedule(self.initialize_git_repository())
-				return
+		await self._periodic_pull()
 
+
+	async def _periodic_pull(self):
+		"""
+		Perform the actual pull from the remote repository.
+		This should only be called when all conditions are met (initialized, not locked, interval passed).
+		"""
+		async with self.PullLock:
 			try:
 				to_publish = await self.ProactorService.execute(self._do_pull)
 				self.LastPull = self.App.time()
+				L.log(LOG_NOTICE, "Periodic pull from the remote repository succeeded", struct_data={"layer": self.Layer, "url": self.URLPath})
 				# Once reset of the head is finished, PubSub message about the change in the subscribed directory gets published.
 				for path in to_publish:
 					self.App.PubSub.publish("Library.change!", self, path)
@@ -351,107 +368,136 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				)
 
 
+	def _init_task(self):
+		"""
+		The actual git repository initialization task.
+		This is the core logic without any retry handling.
+		This is a synchronous method that runs in the proactor thread.
+
+		For new repositories, clones the remote repository.
+		For existing repositories, opens the existing repository.
+
+		Returns:
+			bool: True if a fresh clone was performed, False if using existing repo
+		"""
+		if pygit2.discover_repository(self.RepoPath) is None:
+			# For a new repository, clone the remote
+			os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
+			callbacks = self._create_callbacks()
+			self.GitRepository = pygit2.clone_repository(
+				url=self.URL,
+				path=self.RepoPath,
+				checkout_branch=self.Branch,
+				callbacks=callbacks
+			)
+			is_fresh_clone = True
+		else:
+			# For existing repository, just open it (pull happens separately after init)
+			self.GitRepository = pygit2.Repository(self.RepoPath)
+			is_fresh_clone = False
+
+		# Verify the repository is valid
+		if not hasattr(self.GitRepository, "remotes"):
+			raise RuntimeError("Git repository object is in an invalid state (missing remote configuration)")
+
+		# Check that the working tree is not empty (has actual files)
+		# Walk the RepoPath and check for any files (not just .git directory)
+		has_files = False
+		for root, dirs, files in os.walk(self.RepoPath):
+			# Skip the .git directory
+			if '.git' in dirs:
+				dirs.remove('.git')
+			if files:
+				has_files = True
+				break
+		if not has_files:
+			# Remove the repo directory to force fresh clone on next retry
+			# This handles transient issues where clone didn't populate working tree
+			import shutil
+			shutil.rmtree(self.RepoPath, ignore_errors=True)
+			self.GitRepository = None
+			raise RuntimeError("Git repository working tree is empty - removed for retry")
+
+		return is_fresh_clone
+
+
 	async def initialize_git_repository(self):
 		"""
-		Initialize git repository by cloning or pulling latest changes.
+		Initialize git repository by cloning or opening existing.
+		This is a single attempt without retries. Callers should handle retries if needed.
+		On failure, logs the error but does not retry.
+		All exceptions are caught and logged to prevent unhandled exceptions in scheduled tasks.
+		After successful init, if using existing repo (not fresh clone), performs immediate pull.
 		"""
-
-		def init_task():
-
-			if pygit2.discover_repository(self.RepoPath) is None:
-				# For a new repository, clone the remote bit
-				os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
-				callbacks = self._create_callbacks()
-				self.GitRepository = pygit2.clone_repository(
-					url=self.URL,
-					path=self.RepoPath,
-					checkout_branch=self.Branch,
-					callbacks=callbacks
-				)
-
-			else:
-				# For existing repository, pull the latest changes
-				self.GitRepository = pygit2.Repository(self.RepoPath)
-				self._do_pull()
-
+		self.InitInProgress = True
+		fresh_clone = False
 		try:
-			await self.ProactorService.execute(init_task)
-
-		except KeyError as err:
-			pygit_message = str(err).replace('\"', '')
-			if "'refs/remotes/origin/{}'".format(self.Branch) in pygit_message:
-				# branch does not exist
-				L.exception(
-					"Branch does not exist.",
-					struct_data={
-						"url": self.URLPath,
-						"branch": self.Branch
-					}
-				)
-			else:
-				L.exception(
-					"Error when initializing git repository",
-					struct_data={"layer": self.Layer, "error": pygit_message}
-				)
-
-			return
-
-		except pygit2.GitError as err:
-			pygit_message = str(err).replace('\"', '')
-			if "unexpected http status code: 404" in pygit_message:
-				# repository not found
-				L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
-			elif "remote authentication required but no callback set" in pygit_message:
-				# either repository not found or authentication failed
-				L.exception(
-					"Authentication failed when initializing git repository.\n"
-					"Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'",
-					struct_data={
-						"layer": self.Layer,
-						"url": self.URLPath,
-						"username": self.User,
-						"deploy_token": self.DeployToken
-					}
-				)
-			elif 'cannot redirect from' in pygit_message:
-				# bad URL
-				L.exception(
-					"Git repository not found.",
+			try:
+				fresh_clone = await self.ProactorService.execute(self._init_task)
+			except KeyError as err:
+				pygit_message = str(err).replace('\"', '')
+				if "'refs/remotes/origin/{}'".format(self.Branch) in pygit_message:
+					L.exception(
+						"Branch does not exist.",
+						struct_data={"url": self.URLPath, "branch": self.Branch}
+					)
+				else:
+					L.exception(
+						"Error when initializing git repository",
+						struct_data={"layer": self.Layer, "error": pygit_message}
+					)
+				return
+			except pygit2.GitError as err:
+				pygit_message = str(err).replace('\"', '')
+				if "unexpected http status code: 404" in pygit_message:
+					L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
+				elif "remote authentication required but no callback set" in pygit_message:
+					L.exception(
+						"Authentication failed when initializing git repository.\n"
+						"Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'",
+						struct_data={"layer": self.Layer, "url": self.URLPath, "username": self.User}
+					)
+				elif 'cannot redirect from' in pygit_message:
+					L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
+				elif 'Temporary failure in name resolution' in pygit_message:
+					L.exception(
+						"Git repository not initialized: connection failed. Check your network connection.",
+						struct_data={"layer": self.Layer, "url": self.URLPath}
+					)
+				else:
+					L.exception(
+						"Git repository not initialized",
+						struct_data={"layer": self.Layer, "error": str(err)}
+					)
+				return
+			except RuntimeError as err:
+				L.error(
+					"Git repository not initialized: {}".format(str(err)),
 					struct_data={"layer": self.Layer, "url": self.URLPath}
 				)
-			elif 'Temporary failure in name resolution' in pygit_message:
-				# Internet connection does not work
-				L.exception(
-					"Git repository not initialized: connection failed. Check your network connection.",
-					struct_data={
-						"layer": self.Layer,
-						"url": self.URLPath
-					}
-				)
-			else:
+				return
+			except Exception as err:
 				L.exception(
 					"Git repository not initialized",
 					struct_data={"layer": self.Layer, "error": str(err)}
 				)
+				return
 
-			return
+			# If everything went fine, set the provider as ready
+			await self._set_ready()
+
+			# If using existing repo (not fresh clone), pull immediately to update
+			if not fresh_clone:
+				await self._periodic_pull()
 
 		except Exception as err:
+			# Catch-all for any unexpected errors (e.g., in _set_ready or _periodic_pull)
 			L.exception(
-				"Git repository not initialized",
-				struct_data={"layer": self.Layer, "error": str(err)}
+				"Unexpected error during git repository initialization",
+				struct_data={"layer": self.Layer, "url": self.URLPath, "error": str(err)}
 			)
-			return
-
-		if not hasattr(self.GitRepository, "remotes"):
-			L.error(
-				"Git repository not initialized: Git repository object is in an invalid state (missing remote configuration)",
-				struct_data={"layer": self.Layer, "url": self.URLPath}
-			)
-			return
-
-		# If everything went fine, set the provider as ready
-		await self._set_ready()
+		finally:
+			self.InitInProgress = False
 
 
 	def _do_fetch(self):
