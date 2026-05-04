@@ -446,7 +446,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					L.exception(
 						"Authentication failed when initializing git repository.\n"
 						"Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'",
-						struct_data={"layer": self.Layer, "url": self.URLPath, "username": self.User, "deploy_token": self.DeployToken}
+						struct_data={"layer": self.Layer, "url": self.URLPath, "username": self.User}
 					)
 				elif 'cannot redirect from' in pygit_message:
 					L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
