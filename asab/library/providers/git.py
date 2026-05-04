@@ -367,7 +367,6 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		The actual git repository initialization task.
 		This is the core logic without any retry handling.
 		This is a synchronous method that runs in the proactor thread.
-		Only clones/opens the repository - does NOT pull (that's handled by _periodic_pull).
 		"""
 		if pygit2.discover_repository(self.RepoPath) is None:
 			# For a new repository, clone the remote bit
@@ -387,6 +386,24 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		# Verify the repository is valid
 		if not hasattr(self.GitRepository, "remotes"):
 			raise RuntimeError("Git repository object is in an invalid state (missing remote configuration)")
+
+		# Check that the working tree is not empty (has actual files)
+		# Walk the RepoPath and check for any files (not just .git directory)
+		has_files = False
+		for root, dirs, files in os.walk(self.RepoPath):
+			# Skip the .git directory
+			if '.git' in dirs:
+				dirs.remove('.git')
+			if files:
+				has_files = True
+				break
+		if not has_files:
+			# Remove the repo directory to force fresh clone on next retry
+			# This handles transient issues where clone didn't populate working tree
+			import shutil
+			shutil.rmtree(self.RepoPath, ignore_errors=True)
+			self.GitRepository = None
+			raise RuntimeError("Git repository working tree is empty - removed for retry")
 
 
 	async def initialize_git_repository(self):
