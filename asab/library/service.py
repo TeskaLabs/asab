@@ -1142,12 +1142,12 @@ def _schema_path(schema: str) -> tuple[str, str, str]:
 
 	if schema.startswith("/"):
 		path = schema
+	elif "/" in schema or "\\" in schema or schema in (".", ".."):
+		raise LibraryInvalidPathError(
+			message="Schema name must not contain path separators.",
+			path=schema,
+		)
 	else:
-		if "/" in schema or "\\" in schema or schema in (".", ".."):
-			raise LibraryInvalidPathError(
-				message="Schema name must not contain path separators.",
-				path=schema,
-			)
 		path = "/Schemas/{}.yaml".format(schema)
 
 	_validate_path_item(path)
