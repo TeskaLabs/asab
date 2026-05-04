@@ -1170,11 +1170,12 @@ def _is_schema_extension_item(item: LibraryItem, schema_name: str) -> bool:
 		return False
 
 	filename = os.path.basename(item.name)
-	_, extension = os.path.splitext(filename)
+	name, extension = os.path.splitext(filename)
 	if extension not in (".yaml", ".yml"):
 		return False
 
-	return filename.startswith("{}-".format(schema_name))
+	prefix = "{}-".format(schema_name)
+	return name.startswith(prefix) and len(name) > len(prefix)
 
 
 def _validate_path_item(path: str) -> None:
