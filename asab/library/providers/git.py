@@ -431,56 +431,13 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		try:
 			try:
 				fresh_clone = await self.ProactorService.execute(self._init_task)
-			except KeyError as err:
-				pygit_message = str(err).replace('\"', '')
-				if "'refs/remotes/origin/{}'".format(self.Branch) in pygit_message:
-					L.exception(
-						"Branch does not exist.",
-						struct_data={"url": self.URLPath, "branch": self.Branch}
-					)
-				else:
-					L.exception(
-						"Error when initializing git repository",
-						struct_data={"layer": self.Layer, "error": pygit_message}
-					)
-				return
-			except pygit2.GitError as err:
-				pygit_message = str(err).replace('\"', '')
-				if "unexpected http status code: 404" in pygit_message:
-					L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
-				elif "remote authentication required but no callback set" in pygit_message:
-					L.exception(
-						"Authentication failed when initializing git repository.\n"
-						"Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'",
-						struct_data={"layer": self.Layer, "url": self.URLPath, "username": self.User}
-					)
-				elif 'cannot redirect from' in pygit_message:
-					L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
-				elif 'Temporary failure in name resolution' in pygit_message:
-					L.exception(
-						"Git repository not initialized: connection failed. Check your network connection.",
-						struct_data={"layer": self.Layer, "url": self.URLPath}
-					)
-				else:
-					L.exception(
-						"Git repository not initialized",
-						struct_data={"layer": self.Layer, "error": str(err)}
-					)
-				return
-			except RuntimeError as err:
-				L.error(
-					"Git repository not initialized: {}".format(str(err)),
-					struct_data={"layer": self.Layer, "url": self.URLPath}
-				)
-				return
 			except Exception as err:
-				L.exception(
-					"Git repository not initialized",
-					struct_data={"layer": self.Layer, "error": str(err)}
-				)
+				msg, struct_data = self._translate_init_error(err)
+				L.exception(msg, struct_data=struct_data)
 				return
 
-			# If everything went fine, set the provider as ready
+			# If everything went fine, log success and set the provider as ready
+			L.log(LOG_NOTICE, "Git repository initialized", struct_data={"layer": self.Layer, "url": self.URLPath})
 			await self._set_ready()
 
 			# If using existing repo (not fresh clone), pull immediately to update
@@ -495,6 +452,44 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			)
 		finally:
 			self.InitInProgress = False
+
+
+	def _translate_init_error(self, err: Exception) -> tuple[str, dict]:
+		"""
+		Translate initialization exceptions into user-friendly log messages.
+
+		:param err: The exception that occurred during initialization.
+		:return: Tuple of (message, struct_data) to log.
+		"""
+		pygit_message = str(err).replace('"', '')
+
+		if isinstance(err, KeyError):
+			if "'refs/remotes/origin/{}'".format(self.Branch) in pygit_message:
+				return "Branch does not exist.", {"url": self.URLPath, "branch": self.Branch}
+			return "Error when initializing git repository", {"layer": self.Layer, "error": pygit_message}
+
+		if isinstance(err, pygit2.GitError):
+			if "unexpected http status code: 404" in pygit_message:
+				return "Git repository not found.", {"layer": self.Layer, "url": self.URLPath}
+			if "remote authentication required but no callback set" in pygit_message:
+				return (
+					"Authentication failed when initializing git repository.\n"
+					"Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'",
+					{"layer": self.Layer, "url": self.URLPath, "username": self.User}
+				)
+			if "cannot redirect from" in pygit_message:
+				return "Git repository not found.", {"layer": self.Layer, "url": self.URLPath}
+			if "Temporary failure in name resolution" in pygit_message:
+				return (
+					"Git repository not initialized: connection failed. Check your network connection.",
+					{"layer": self.Layer, "url": self.URLPath}
+				)
+			return "Git repository not initialized", {"layer": self.Layer, "error": str(err)}
+
+		if isinstance(err, RuntimeError):
+			return "Git repository not initialized: {}".format(str(err)), {"layer": self.Layer, "url": self.URLPath}
+
+		return "Git repository not initialized", {"layer": self.Layer, "error": str(err)}
 
 
 	def _do_fetch(self):
