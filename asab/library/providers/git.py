@@ -9,6 +9,7 @@ import typing
 from .filesystem import FileSystemLibraryProvider
 from ...config import Config
 from ...utils import convert_to_seconds
+from ...log import LOG_NOTICE
 
 #
 
@@ -356,6 +357,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			try:
 				to_publish = await self.ProactorService.execute(self._do_pull)
 				self.LastPull = self.App.time()
+				L.log(LOG_NOTICE, "Periodic pull from the remote repository succeeded", struct_data={"layer": self.Layer, "url": self.URLPath})
 				# Once reset of the head is finished, PubSub message about the change in the subscribed directory gets published.
 				for path in to_publish:
 					self.App.PubSub.publish("Library.change!", self, path)
