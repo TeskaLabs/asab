@@ -85,8 +85,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		# Parse URL - supports both HTTPS and SSH formats
 		self._parse_url(path)
-		self.Branch = self.Branch if self.Branch != '' else None
-
+		self.Branch = self.Branch if self.Branch != "" else None  # pygit2 expects None for default branch
 
 		repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
@@ -101,14 +100,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 		super().__init__(library, self.RepoPath, layer, set_ready=False)
 
-		self.GitRepository = None
-
 		# Set custom SSL certificate locations if specified
-		if any((Config.get("library:git", "cert_file", fallback=None), Config.get("library:git", "cert_dir", fallback=None))):
-			pygit2.settings.set_ssl_cert_locations(
-				cert_file=Config.get("library:git", "cert_file", fallback=None),
-				cert_dir=Config.get("library:git", "cert_dir", fallback=None)
-			)
+		cert_file = Config.get("library:git", "cert_file", fallback=None)
+		cert_dir = Config.get("library:git", "cert_dir", fallback=None)
+		if (cert_file is not None) or (cert_dir is not None):
+			pygit2.settings.set_ssl_cert_locations(cert_file=cert_file, cert_dir=cert_dir)
 
 		from ...proactor import Module
 		self.App.add_module(Module)
@@ -122,7 +118,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.SSHPubkeyPath = None
 		self.SSHPassphrase = None
 		self.VerifySSHFingerprint = False
-		if self.is_ssh:
+		if self.UsesSSH:
 			self.SSHKeyPath = Config.get("library:git", "ssh_key_path", fallback=os.path.expanduser("~/.ssh/id_rsa"))
 			self.SSHPubkeyPath = Config.get("library:git", "ssh_pubkey_path", fallback=os.path.expanduser("~/.ssh/id_rsa.pub"))
 			self.SSHPassphrase = Config.get("library:git", "ssh_passphrase", fallback=None)
@@ -184,7 +180,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			if pull_interval is not None:
 				self.PullInterval = convert_to_seconds(pull_interval)
 			self.URL = "".join([self.URLScheme, self.UserInfo, self.URLPath])
-			self.is_ssh = False
+			self.UsesSSH = False
 			return
 
 		# Try SSH URL pattern (git+ssh://user@host/path or git+user@host:path)
@@ -206,7 +202,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.DeployToken = ""
 			self.URLScheme = "ssh://"
 			self.UserInfo = user
-			self.is_ssh = True
+			self.UsesSSH = True
 			return
 
 		# Try SSH shorthand pattern: git+git@host:path
@@ -229,10 +225,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.DeployToken = ""
 			self.URLScheme = ""
 			self.UserInfo = user
-			self.is_ssh = True
+			self.UsesSSH = True
 			return
 
-		raise ValueError(f"Invalid git URL format: {path}")
+		raise ValueError("Invalid git URL format: {}".format(path))
 
 
 	def _create_callbacks(self):
@@ -242,20 +238,28 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 		callbacks = pygit2.RemoteCallbacks()
 
-		if self.is_ssh:
+		if self.UsesSSH:
 			# Set up SSH credential callback
 			def credentials_cb(url, username_from_url, allowed_types):
-				L.debug("Git SSH authentication requested", struct_data={
-					"url": url,
-					"username": username_from_url,
-					"allowed_types": allowed_types
-				})
+				L.debug(
+					"Git SSH credentials requested",
+					struct_data={
+						"layer": self.Layer,
+						"url": url,
+						"username": username_from_url,
+						"allowed_types": allowed_types
+					}
+				)
 
 				# Warn if the allowed_types doesn't match what we expect
 				if not (allowed_types & GIT_CREDTYPE_SSH_KEY):
 					L.warning(
-						f"SSH credentials requested but allowed_types ({allowed_types}) "
-						f"doesn't include SSH_KEY flag ({GIT_CREDTYPE_SSH_KEY}). Attempting anyway."
+						"SSH credentials requested but allowed_types ({}) ".format(allowed_types)
+						+ "doesn't include SSH_KEY flag ({}). Attempting anyway.".format(GIT_CREDTYPE_SSH_KEY),
+						struct_data={
+							"layer": self.Layer,
+							"url": url,
+						}
 					)
 
 				# Expand paths
@@ -264,13 +268,19 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 				# Check if key files exist
 				if not os.path.exists(key_path):
-					L.error(f"SSH private key not found: {key_path}")
+					L.error(
+						"SSH private key not found",
+						struct_data={"layer": self.Layer, "path": key_path}
+					)
 					return None
 				if not os.path.exists(pubkey_path):
-					L.warning(f"SSH public key not found: {pubkey_path}, trying without it")
+					L.warning(
+						"SSH public key not found",
+						struct_data={"layer": self.Layer, "path": pubkey_path}
+					)
 					pubkey_path = ""
 
-				L.debug(f"Using SSH key: {key_path}")
+				L.debug("Using SSH key", struct_data={"layer": self.Layer, "path": key_path})
 
 				try:
 					return pygit2.Keypair(
@@ -280,7 +290,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 						self.SSHPassphrase or ""
 					)
 				except Exception as e:
-					L.error(f"Failed to create SSH keypair: {e}")
+					L.exception(
+						"Failed to create SSH key-pair",
+						struct_data={"layer": self.Layer, "path": key_path, "error": str(e)}
+					)
 					return None
 
 			callbacks.credentials = credentials_cb
@@ -293,10 +306,13 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					L.warning(
 						"SSH fingerprint verification is enabled but not yet fully implemented. "
 						"Accepting host key.",
-						struct_data={"host": host}
+						struct_data={"layer": self.Layer, "host": host}
 					)
 				else:
-					L.debug(f"Auto-accepting SSH host key for {host}")
+					L.debug(
+						"Auto-accepting SSH host key",
+						struct_data={"layer": self.Layer, "host": host}
+					)
 				# Return True to accept the certificate
 				return True
 
@@ -309,7 +325,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		"""
 		Changes in remote repository are being pulled every minute. `PullLock` flag ensures that only if previous "pull" has finished, new one can start.
 		"""
-		if self.GitRepository is None:
+		if self.PullLock.locked():
 			return
 
 		if self.LastPull is not None and self.App.time() - self.LastPull < self.PullInterval:
@@ -335,25 +351,27 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 
 	async def initialize_git_repository(self):
+		"""
+		Initialize git repository by cloning or opening existing.
+		Pull is NOT performed during init - it happens separately via _periodic_pull.
+		This ensures the library becomes ready as soon as the repo is accessible.
+		"""
 
 		def init_task():
 			if pygit2.discover_repository(self.RepoPath) is None:
-				# For a new repository, clone the remote bit
+				# For a new repository, clone the remote
 				os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
-				try:
-					callbacks = self._create_callbacks()
-					self.GitRepository = pygit2.clone_repository(
-						url=self.URL,
-						path=self.RepoPath,
-						checkout_branch=self.Branch,
-						callbacks=callbacks
-					)
-				except Exception as err:
-					L.exception("Error when cloning git repository: {}".format(err))
+				callbacks = self._create_callbacks()
+				self.GitRepository = pygit2.clone_repository(
+					url=self.URL,
+					path=self.RepoPath,
+					checkout_branch=self.Branch,
+					callbacks=callbacks
+				)
 			else:
-				# For existing repository, pull the latest changes
+				# For existing repository, just open it
+				# Do NOT pull here - pull happens via _periodic_pull
 				self.GitRepository = pygit2.Repository(self.RepoPath)
-				self._do_pull()
 
 		try:
 			await self.ProactorService.execute(init_task)
@@ -370,25 +388,25 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					}
 				)
 			else:
-				L.exception("Error when initializing git repository: {}".format(pygit_message))
-			self.App.stop()  # NOTE: raising Exception doesn't exit the app
+				L.exception(
+					"Error when initializing git repository",
+					struct_data={"layer": self.Layer, "error": pygit_message}
+				)
+
+			return
 
 		except pygit2.GitError as err:
 			pygit_message = str(err).replace('\"', '')
 			if "unexpected http status code: 404" in pygit_message:
 				# repository not found
-				L.exception(
-					"Git repository not found.",
-					struct_data={
-						"url": self.URLPath
-					}
-				)
+				L.exception("Git repository not found.", struct_data={"layer": self.Layer, "url": self.URLPath})
 			elif "remote authentication required but no callback set" in pygit_message:
 				# either repository not found or authentication failed
 				L.exception(
 					"Authentication failed when initializing git repository.\n"
 					"Check if the 'providers' option satisfies the format: 'git+<username>:<deploy token>@<URL>#<branch name>'",
 					struct_data={
+						"layer": self.Layer,
 						"url": self.URLPath,
 						"username": self.User,
 						"deploy_token": self.DeployToken
@@ -398,27 +416,41 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				# bad URL
 				L.exception(
 					"Git repository not found.",
-					struct_data={
-						"url": self.URLPath
-					}
+					struct_data={"layer": self.Layer, "url": self.URLPath}
 				)
 			elif 'Temporary failure in name resolution' in pygit_message:
-				# Internet connection does
+				# Internet connection does not work
 				L.exception(
 					"Git repository not initialized: connection failed. Check your network connection.",
 					struct_data={
+						"layer": self.Layer,
 						"url": self.URLPath
 					}
 				)
 			else:
-				L.exception("Git repository not initialized: {}".format(err))
-			self.App.stop()
+				L.exception(
+					"Git repository not initialized",
+					struct_data={"layer": self.Layer, "error": str(err)}
+				)
+
+			return
 
 		except Exception as err:
-			L.exception(err)
+			L.exception(
+				"Git repository not initialized",
+				struct_data={"layer": self.Layer, "error": str(err)}
+			)
+			return
 
-		assert hasattr(self.GitRepository, "remotes"), "Git repository not initialized."
-		assert self.GitRepository.remotes["origin"] is not None, "Git repository not initialized."
+		if not hasattr(self.GitRepository, "remotes"):
+			L.error(
+				"Git repository not initialized: Git repository object is in an invalid state (missing remote configuration)",
+				struct_data={"layer": self.Layer, "url": self.URLPath}
+			)
+			return
+
+		# If everything went fine, set the provider as ready
+		# This has to be atomic. There must be no other code between the init task and setting the library ready.
 		await self._set_ready()
 
 
@@ -446,7 +478,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		if new_commit_id == self.GitRepository.head.target:
 			return []
 
-		# Before new head is set, check the diffs. If changes in subscribed directory occured, add path to "to_publish" list.
+		# Before new head is set, check the diffs.
+		# If changes in subscribed directory occurred, add path to "to_publish" list.
 		to_publish = []
 		for path in self.SubscribedPaths:
 			for i in self.GitRepository.diff(self.GitRepository.head.target, new_commit_id).deltas:
