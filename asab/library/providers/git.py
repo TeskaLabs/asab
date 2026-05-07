@@ -353,13 +353,14 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 	async def initialize_git_repository(self):
 		"""
-		Initialize git repository by cloning or pulling latest changes.
+		Initialize git repository by cloning or opening existing.
+		Pull is NOT performed during init - it happens separately via _periodic_pull.
+		This ensures the library becomes ready as soon as the repo is accessible.
 		"""
 
 		def init_task():
-
 			if pygit2.discover_repository(self.RepoPath) is None:
-				# For a new repository, clone the remote bit
+				# For a new repository, clone the remote
 				os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
 				callbacks = self._create_callbacks()
 				self.GitRepository = pygit2.clone_repository(
@@ -368,11 +369,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					checkout_branch=self.Branch,
 					callbacks=callbacks
 				)
-
 			else:
-				# For existing repository, pull the latest changes
+				# For existing repository, just open it
+				# Do NOT pull here - pull happens via _periodic_pull
 				self.GitRepository = pygit2.Repository(self.RepoPath)
-				self._do_pull()
 
 		try:
 			await self.ProactorService.execute(init_task)
@@ -451,6 +451,25 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			return
 
 		# If everything went fine, set the provider as ready
+
+		# Check that the working tree is not empty (has actual files)
+		# Walk the RepoPath and check for any files (not just .git directory)
+		has_files = False
+		for root, dirs, files in os.walk(self.RepoPath):
+			# Skip the .git directory
+			if '.git' in dirs:
+				dirs.remove('.git')
+			if files:
+				has_files = True
+				break
+		if not has_files:
+			# Remove the repo directory to force fresh clone on next retry
+			# This handles transient issues where clone didn't populate working tree
+			import shutil
+			shutil.rmtree(self.RepoPath, ignore_errors=True)
+			self.GitRepository = None
+			raise RuntimeError("Git repository working tree is empty - removed for retry")
+
 		await self._set_ready()
 
 
