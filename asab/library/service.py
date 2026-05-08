@@ -401,15 +401,6 @@ class LibraryService(Service):
 						continue
 					merged_fields[field_name] = copy.deepcopy(field_definition)
 
-			# Final check: the merge above must preserve every
-			# authoritative base field exactly. This is not full schema validation.
-			base_fields = base_schema["fields"]
-			for field_name, field_definition in base_fields.items():
-				if field_name not in merged_fields:
-					return copy.deepcopy(base_schema)
-				if merged_fields[field_name] != field_definition:
-					return copy.deepcopy(base_schema)
-
 			return merged_schema
 
 	@contextlib.contextmanager
