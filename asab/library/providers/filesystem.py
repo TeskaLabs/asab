@@ -1,5 +1,6 @@
 import io
 import os
+import ctypes
 import os.path
 import stat
 import glob
@@ -68,8 +69,11 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		if inotify_init is not None:
 			init = inotify_init()
 			if init == -1:
+				err = ctypes.get_errno()
 				L.warning(
-					"Subscribing to library changes in filesystem provider is not available. Inotify was not initialized.")
+					"Subscribing to library changes in filesystem provider is not available. Inotify was not initialized.",
+					struct_data={'errno': err},
+				)
 				self.FD = None
 			else:
 				self.FD = init
