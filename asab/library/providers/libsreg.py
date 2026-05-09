@@ -12,7 +12,7 @@ import urllib.parse
 
 import aiohttp
 
-from .filesystem import FileSystemLibraryProvider
+from .filesystem import SimpleFileSystemLibraryProvider
 from ..dirsync import synchronize_dirs
 from ...utils import convert_to_seconds
 
@@ -23,7 +23,7 @@ L = logging.getLogger(__name__)
 #
 
 
-class LibsRegLibraryProvider(FileSystemLibraryProvider):
+class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 	"""
 	Read-only provider to read from remote "library repository".
 

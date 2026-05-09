@@ -6,7 +6,7 @@ import hashlib
 import re
 import typing
 
-from .filesystem import FileSystemLibraryProvider
+from .filesystem import SimpleFileSystemLibraryProvider
 from ...config import Config
 from ...utils import convert_to_seconds
 
@@ -39,7 +39,7 @@ except AttributeError:
 				GIT_CREDTYPE_SSH_KEY = 2  # Standard value across libgit2 versions
 
 
-class GitLibraryProvider(FileSystemLibraryProvider):
+class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 	"""
 	Read-only git provider to read from remote repository.
 	It clones a remote git repository to a temporary directory and then uses the
