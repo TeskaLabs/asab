@@ -54,6 +54,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 	def __init__(self, library, path, layer, *, set_ready=True):
 		super().__init__(library, layer)
+
 		# Check for `file://` prefix and strip it if present
 		if path.startswith('file://'):
 			path = path[7:]  # Strip "file://"
@@ -83,6 +84,13 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		self.AggrEvents = []
 		self.WDs = {}  # wd -> (subscribed_path, child_path)
 
+
+	async def finalize(self, app):
+		if self.FD is not None:
+			self.App.Loop.remove_reader(self.FD)
+			os.close(self.FD)
+
+
 	def _current_tenant_id(self):
 		try:
 			return Tenant.get()
@@ -95,6 +103,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return getattr(authz, "CredentialsId", None)
 		except LookupError:
 			return None
+
 
 	def _personal_path(self, path, tenant_id, cred_id):
 		assert path[:1] == '/'
@@ -111,6 +120,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			raise ValueError("Path traversal detected")
 
 		return full
+
 
 	def _resolve_fs_path_from_info(self, info):
 		scope = info["scope"]
@@ -132,6 +142,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		raise RuntimeError("Unknown scope: {}".format(scope))
 
+
 	async def _get_personal_scopes(self) -> typing.List[tuple[str, str]]:
 		"""
 		Return list of (tenant_id, cred_id) that exist under /.personal
@@ -152,6 +163,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 				scopes.append((tenant, cred))
 		return scopes
 
+
 	def _validate_read_path(self, path: str) -> None:
 		"""
 		Validate a library item path for read().
@@ -165,6 +177,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		assert len(
 			os.path.splitext(path)[1]) > 0, "File path must end with an extension (e.g. /library/Templates/item.json)"
 		assert '//' not in path, "File path cannot contain double slashes (//)"
+
 
 	def build_path(self, path, tenant_specific=False, tenant=None):
 		"""
@@ -205,6 +218,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		return node_path
 
+
 	async def read(self, path: str) -> typing.Optional[typing.IO]:
 		"""
 		Read a file from filesystem overlays in precedence order:
@@ -240,6 +254,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return io.FileIO(global_path, 'rb')
 		except (FileNotFoundError, IsADirectoryError):
 			return None
+
 
 	async def list(self, path: str) -> list:
 		"""
@@ -286,6 +301,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 					personal_items = []
 
 		return personal_items + tenant_items + global_items
+
 
 	def _list_from_node_path(self, node_path: str, base_path: str, target="global"):
 		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
@@ -343,6 +359,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		return items
 
+
 	def _list(self, path: str):
 		node_path = self.BasePath + path
 		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
@@ -379,6 +396,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			))
 
 		return items
+
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		"""
@@ -457,6 +475,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 				continue
 			self.App.PubSub.publish("Library.change!", self, path)
 
+
 	async def find(self, filename: str) -> list:
 		"""
 		Recursively search for files ending with a specific name in the file system, starting from the base path.
@@ -468,6 +487,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		results = []
 		self._recursive_find(self.BasePath, filename, results)
 		return results
+
 
 	def _recursive_find(self, path, filename, results):
 		"""
@@ -500,7 +520,3 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 				self._recursive_find(full_path, filename, results)
 
-	async def finalize(self, app):
-		if self.FD is not None:
-			self.App.Loop.remove_reader(self.FD)
-			os.close(self.FD)

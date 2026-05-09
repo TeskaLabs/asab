@@ -60,7 +60,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 	"""
 
 
-	def __init__(self, library, path, layer):
+	def __init__(self, library, path, layer, *, repodir=None):
 
 		url = urllib.parse.urlparse(path)
 		assert url.scheme.startswith("libsreg+")
@@ -100,18 +100,20 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		# TODO: Read this for `[general]` config
 		self.TrustEnv = True
 
-		tempdir = tempfile.gettempdir()
-		self.RootPath = os.path.join(
-			tempdir,
-			"asab.library.libsreg",
-			hashlib.sha256(path.encode("utf-8")).hexdigest()
-		)
+		if repodir is None:
+			tempdir = tempfile.gettempdir()
+			self.RootPath = os.path.join(
+				tempdir,
+				"asab.library.libsreg",
+				hashlib.sha256(path.encode("utf-8")).hexdigest()
+			)
+		else:
+			self.RootPath = repodir
 
 		self.RepoPath = os.path.join(
 			self.RootPath,
 			"content"
 		)
-
 
 		os.makedirs(os.path.join(self.RepoPath), exist_ok=True)
 
@@ -145,6 +147,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 		async with self.PullLock:
 			await self._do_pull()
 			self.LastPull = self.App.time()
+
 
 	async def _do_pull(self):
 		headers = {}
@@ -231,6 +234,8 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 							# Synchronize the temp_extract_dir into the library
 							synchronize_dirs(self.RepoPath, temp_extract_dir)
 							if not self.IsReady:
+								with open(os.path.join(self.RootPath, ".ready"), "w") as f:
+									f.write("yes")
 								await self._set_ready()
 
 							if etag_incoming is not None:
@@ -251,6 +256,8 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 						elif response.status == 304:
 							# The repository has not changed ...
 							if not self.IsReady:
+								with open(os.path.join(self.RootPath, ".ready"), "w") as f:
+									f.write("yes")
 								await self._set_ready()
 
 							return  # We are done, leaving the loop
@@ -269,6 +276,7 @@ class LibsRegLibraryProvider(FileSystemLibraryProvider):
 
 			except Exception:
 				L.exception("Error when fetching the library content from a registry")
+
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		self.SubscribedPaths.add(path)

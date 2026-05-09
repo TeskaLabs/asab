@@ -68,7 +68,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		ssh_passphrase=<optional passphrase for SSH key>
 		verify_ssh_fingerprint=yes|no (default: no - auto-accepts host keys)
 	"""
-	def __init__(self, library, path, layer):
+	def __init__(self, library, path, layer, *, repodir=None):
 
 		# Initialize attributes to avoid attribute errors
 		self.URLScheme = ""
@@ -87,7 +87,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self._parse_url(path)
 		self.Branch = self.Branch if self.Branch != "" else None  # pygit2 expects None for default branch
 
-		repodir = Config.get("library:git", "repodir", fallback=None)
+		if repodir is None:
+			repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
 			self.RepoPath = os.path.abspath(repodir)
 		else:
@@ -453,6 +454,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		# If everything went fine, set the provider as ready
 		# This has to be atomic. There must be no other code between the init task and setting the library ready.
 		await self._set_ready()
+		with open(os.path.join(self.RepoPath, ".ready"), "w") as f:
+			f.write("yes")
 
 
 	def _do_fetch(self):
