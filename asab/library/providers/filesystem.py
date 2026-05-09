@@ -519,4 +519,3 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 					continue
 
 				self._recursive_find(full_path, filename, results)
-
