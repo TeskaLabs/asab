@@ -61,7 +61,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 					if upgrade_header == "websocket":
 						bearer_token = get_bearer_token_from_websocket_request(request)
 						break
-	
+
 		# If not, try to extract the token from the Authorization header
 		if bearer_token is None:
 			bearer_token = get_bearer_token_from_authorization_header(request)
