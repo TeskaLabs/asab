@@ -63,7 +63,9 @@ class IdTokenAuthProvider(AuthProviderABC):
 		if bearer_token is None:
 			bearer_token = get_bearer_token_from_authorization_header(request)
 
-		try:			
+		assert bearer_token is not None, "No bearer token found"
+
+		try:
 			authz = await self._build_authorization(bearer_token)
 			return authz
 		except NotAuthenticatedError as e:
