@@ -1,4 +1,3 @@
-import pprint
 import re
 import io
 import time
@@ -369,8 +368,6 @@ class LibraryService(Service):
 			self._validate_base_schema(schema_path, base_schema)
 			merged_schema = copy.deepcopy(base_schema)
 			merged_fields = merged_schema["fields"]
-			print("State beore merge")
-			pprint.pprint(merged_schema)
 			try:
 				extension_items = await self.list(extensions_path)
 			except KeyError:
@@ -383,7 +380,6 @@ class LibraryService(Service):
 				),
 				key=lambda item: item.name,
 			)
-			print("Extention items", extension_items)
 
 			for item in extension_items:
 				if item.disabled:
@@ -422,8 +418,7 @@ class LibraryService(Service):
 						)
 						continue
 					merged_fields[field_name] = copy.deepcopy(field_definition)
-			print("State of schema after merge")
-			pprint.pprint(merged_schema)
+
 			return merged_schema
 
 	@contextlib.contextmanager
