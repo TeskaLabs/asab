@@ -31,7 +31,7 @@ class MyApplication(asab.Application):
 
 	async def on_library_ready(self, event_name, library):
 		schema = await self.LibraryService.read_schema("ECS")
-		print("Printing effective schema ")
+		print("Printing effective schema..")
 		pprint.pprint(schema)
 		self.stop()
 
