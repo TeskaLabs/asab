@@ -23,4 +23,5 @@ class CacheLibraryProvider(SimpleFileSystemLibraryProvider):
 			if cnt > 20 and cnt % 10 == 0:
 				L.warning("Waiting for the cache to be ready...", struct_data={'path': self.ReadyFile})
 			await asyncio.sleep(1)
+			cnt += 1
 		await self._set_ready()
