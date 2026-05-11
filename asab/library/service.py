@@ -1,3 +1,4 @@
+import pprint
 import re
 import io
 import time
@@ -351,12 +352,12 @@ class LibraryService(Service):
 
 		"""
 		await self.wait_for_library_ready(timeout)
-
 		schema_path, schema_name, extensions_path = _schema_path(schema)
 
 		with self._global_library_context():
 			try:
 				base_schema = await self._read_schema_yaml(schema_path)
+				print(base_schema)
 			except Exception as e:
 				raise LibraryError(
 					"Failed to parse schema '{}': {}".format(schema_path, e)
@@ -368,7 +369,8 @@ class LibraryService(Service):
 			self._validate_base_schema(schema_path, base_schema)
 			merged_schema = copy.deepcopy(base_schema)
 			merged_fields = merged_schema["fields"]
-
+			print("State beore merge")
+			pprint.pprint(merged_schema)
 			try:
 				extension_items = await self.list(extensions_path)
 			except KeyError:
@@ -381,6 +383,7 @@ class LibraryService(Service):
 				),
 				key=lambda item: item.name,
 			)
+			print("Extention items", extension_items)
 
 			for item in extension_items:
 				if item.disabled:
@@ -391,16 +394,36 @@ class LibraryService(Service):
 					continue
 
 				if not isinstance(extension, dict):
+					L.warning(
+						"Skipping schema extension: File is not a dictionary.",
+						struct_data={
+							"path": item.name,
+						},
+					)
 					continue
 				extension_fields = extension.get("fields")
 				if not isinstance(extension_fields, dict):
+					L.warning(
+						"Skipping schema extension: 'fields' section is not a dictionary.",
+						struct_data={
+							"path": item.name,
+						},
+					)
 					continue
 
 				for field_name, field_definition in extension_fields.items():
 					if field_name in merged_fields:
+						L.warning(
+							"Skipping field: Duplicate.",
+							struct_data={
+								"path": item.name,
+								"field": field_name,
+							},
+						)
 						continue
 					merged_fields[field_name] = copy.deepcopy(field_definition)
-
+			print("State of schema after merge")
+			pprint.pprint(merged_schema)
 			return merged_schema
 
 	@contextlib.contextmanager
