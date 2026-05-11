@@ -451,7 +451,25 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			return
 
 		# If everything went fine, set the provider as ready
-		# This has to be atomic. There must be no other code between the init task and setting the library ready.
+
+		# Check that the working tree is not empty (has actual files)
+		# Walk the RepoPath and check for any files (not just .git directory)
+		has_files = False
+		for root, dirs, files in os.walk(self.RepoPath):
+			# Skip the .git directory
+			if '.git' in dirs:
+				dirs.remove('.git')
+			if files:
+				has_files = True
+				break
+		if not has_files:
+			# Remove the repo directory to force fresh clone on next retry
+			# This handles transient issues where clone didn't populate working tree
+			import shutil
+			shutil.rmtree(self.RepoPath, ignore_errors=True)
+			self.GitRepository = None
+			raise RuntimeError("Git repository working tree is empty - removed for retry")
+
 		await self._set_ready()
 
 
