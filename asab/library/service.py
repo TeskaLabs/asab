@@ -356,7 +356,6 @@ class LibraryService(Service):
 		with self._global_library_context():
 			try:
 				base_schema = await self._read_schema_yaml(schema_path)
-				print(base_schema)
 			except Exception as e:
 				raise LibraryError(
 					"Failed to parse schema '{}': {}".format(schema_path, e)
