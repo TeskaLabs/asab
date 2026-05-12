@@ -26,7 +26,7 @@ def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> 
 		L.warning("Cannot parse Authorization header.")
 		raise NotAuthenticatedError()
 
-	if auth_type != "Bearer":
+	if auth_type not in {"Bearer", "ApiKey"}:
 		L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
 		raise NotAuthenticatedError()
 
