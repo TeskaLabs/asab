@@ -453,9 +453,9 @@ class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 
 		# If everything went fine, set the provider as ready
 		# This has to be atomic. There must be no other code between the init task and setting the library ready.
-		await self._set_ready()
 		with open(os.path.join(self.RepoPath, ".ready"), "w") as f:
 			f.write("yes")
+		await self._set_ready()
 
 
 	def _do_fetch(self):
