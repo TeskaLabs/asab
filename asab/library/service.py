@@ -28,6 +28,7 @@ LogObsolete = logging.getLogger("OBSOLETE")
 
 #
 
+
 class LibraryService(Service):
 	"""
 	Configuration:
@@ -321,6 +322,7 @@ class LibraryService(Service):
 				yield itemio
 			finally:
 				itemio.close()
+
 
 	async def list(self, path: str = "/", recursive: bool = False, timeout: int = None) -> typing.List[LibraryItem]:
 		"""
