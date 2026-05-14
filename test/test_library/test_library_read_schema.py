@@ -5,7 +5,7 @@ read_schema() unit test intent:
 - Invalid schema names and paths are rejected before provider reads.
 - Empty and non-string schema inputs are rejected.
 - A valid base schema is returned unchanged when no extensions are available.
-- Valid YAML/YML extensions add only new fields to the effective schema.
+- Valid `.yaml` extensions add only new fields to the effective schema.
 - Malformed, non-mapping, non-YAML, directory, empty-name, and wrong-schema
   extension candidates are ignored.
 - The requested schema name selects only matching `<schema>-*.yaml` extension files.
@@ -183,17 +183,6 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 			schema = await service.read_schema("ECS")
 
 			self.assertEqual(schema["fields"]["custom.foo"]["type"], "str")
-
-	async def test_yml_extension_adds_new_field(self):
-		"""A matching .yml extension contributes a new field."""
-		with tempfile.TemporaryDirectory() as root:
-			_write(root, "/Schemas/ECS.yaml", BASE_SCHEMA)
-			_write(root, "/Schemas/Extensions/ECS-Custom.yml", _extension_schema("custom.yml", "str"))
-			service = _make_service(_make_filesystem_provider(root))
-
-			schema = await service.read_schema("ECS")
-
-			self.assertEqual(schema["fields"]["custom.yml"]["type"], "str")
 
 	async def test_malformed_extension_is_skipped(self):
 		"""A malformed extension is skipped while later valid extensions still merge."""

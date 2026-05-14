@@ -1161,7 +1161,12 @@ def _schema_path(schema: str) -> tuple[str, str, str]:
 	_validate_path_item(path)
 
 	directory, filename = os.path.split(path)
-	schema_name, _ = os.path.splitext(filename)
+	schema_name, extension = os.path.splitext(filename)
+	if extension != ".yaml":
+		raise LibraryInvalidPathError(
+			message="Schema path must use the '.yaml' extension.",
+			path=path,
+		)
 	extensions_path = "{}/Extensions/".format(directory.rstrip("/"))
 	return path, schema_name, extensions_path
 
@@ -1179,7 +1184,7 @@ def _is_schema_extension_item(item: LibraryItem, schema_name: str) -> bool:
 
 	filename = os.path.basename(item.name)
 	name, extension = os.path.splitext(filename)
-	if extension not in (".yaml", ".yml"):
+	if extension != ".yaml":
 		return False
 
 	prefix = "{}-".format(schema_name)
