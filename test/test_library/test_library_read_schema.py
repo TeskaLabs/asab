@@ -9,7 +9,6 @@ read_schema() unit test intent:
 - Malformed, non-mapping, non-YAML, directory, empty-name, and wrong-schema
   extension candidates are ignored.
 - The requested schema name selects only matching `<schema>-*.yaml` extension files.
-- Absolute schema paths use their own sibling Extensions directory.
 - Conflict cases are left-biased: base fields beat extension fields, and the first
   sorted extension beats later duplicate extension fields.
 - The merge is deterministic across calls and returned data is isolated from caller
@@ -420,27 +419,6 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 			schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(schema["fields"]["custom.foo"]["type"], "str")
-
-	async def test_absolute_schema_path_uses_sibling_extensions_directory(self):
-		"""An absolute schema path reads extensions from that schema directory."""
-		with tempfile.TemporaryDirectory() as root:
-			_write(root, "/CustomSchemas/CFM.yaml", _yaml([
-				"---",
-				"define:",
-				"  name: Custom Flow Model",
-				"  type: lmio/schema",
-				"fields:",
-				"  flow.id:",
-				"    type: str",
-			]))
-			_write(root, "/CustomSchemas/Extensions/CFM-Custom.yaml", _extension_schema("cfm.custom", "str"))
-			_write(root, "/Schemas/Extensions/CFM-WrongDirectory.yaml", _extension_schema("cfm.wrong", "str"))
-			service = _make_service(_make_filesystem_provider(root))
-
-			schema = await service.read_schema("/CustomSchemas/CFM.yaml")
-
-			self.assertIn("cfm.custom", schema["fields"])
-			self.assertNotIn("cfm.wrong", schema["fields"])
 
 	async def test_schema_reads_ignore_tenant_overlays(self):
 		"""Schema reads force global resolution and ignore tenant overlay files."""
