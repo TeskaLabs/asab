@@ -5,6 +5,7 @@ import pprint
 import asab
 import asab.library
 import asab.zookeeper
+from asab.library.schema import LibrarySchemaService
 
 asab.Config.add_defaults({
 	"zookeeper": {
@@ -26,11 +27,16 @@ class MyApplication(asab.Application):
 		])
 
 		self.LibraryService = asab.library.LibraryService(self, "LibraryService")
+		self.LibrarySchemaService = LibrarySchemaService(
+			self,
+			"LibrarySchemaService",
+			self.LibraryService,
+		)
 
 		self.PubSub.subscribe("Library.ready!", self.on_library_ready)
 
 	async def on_library_ready(self, event_name, library):
-		schema = await self.LibraryService.read_schema("ECS")
+		schema = await self.LibrarySchemaService.read_schema("ECS")
 		print("Printing effective schema..")
 		pprint.pprint(schema)
 		self.stop()

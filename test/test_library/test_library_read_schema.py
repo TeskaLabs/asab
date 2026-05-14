@@ -4,6 +4,7 @@ read_schema() unit test intent:
 - Missing, malformed, and structurally invalid base schemas are handled explicitly.
 - Invalid schema names and paths are rejected before provider reads.
 - Empty and non-string schema inputs are rejected.
+- Absolute schema paths outside `/Schemas/<name>.yaml` are rejected.
 - A valid base schema is returned unchanged when no extensions are available.
 - Valid `.yaml` extensions add only new fields to the effective schema.
 - Malformed, non-mapping, non-YAML, directory, empty-name, and wrong-schema
@@ -25,6 +26,7 @@ import asab.contextvars
 from asab.exceptions import LibraryError, LibraryInvalidPathError
 from asab.library.item import LibraryItem
 from asab.library.providers.filesystem import FileSystemLibraryProvider
+from asab.library.schema import LibrarySchemaService
 from asab.library.service import LibraryService
 
 
@@ -94,16 +96,19 @@ def _make_vanishing_extension_provider(root):
 
 
 def _make_service(provider):
-	service = LibraryService.__new__(LibraryService)
-	service.Libraries = [provider]
-	service.Disabled = {}
-	service.DisabledPaths = []
-	service.Favorites = {}
-	service.FavoritePaths = []
-	service.LibraryReadyEvent = asyncio.Event()
-	service.LibraryReadyEvent.set()
-	service.LibraryReadyTimeout = 0.01
-	return service
+	library_service = LibraryService.__new__(LibraryService)
+	library_service.Libraries = [provider]
+	library_service.Disabled = {}
+	library_service.DisabledPaths = []
+	library_service.Favorites = {}
+	library_service.FavoritePaths = []
+	library_service.LibraryReadyEvent = asyncio.Event()
+	library_service.LibraryReadyEvent.set()
+	library_service.LibraryReadyTimeout = 0.01
+
+	schema_service = LibrarySchemaService.__new__(LibrarySchemaService)
+	schema_service.LibraryService = library_service
+	return schema_service
 
 
 class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
@@ -162,6 +167,22 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 
 			with self.assertRaises(LibraryInvalidPathError):
 				await service.read_schema(None)
+
+	async def test_absolute_schema_path_outside_schemas_is_rejected(self):
+		"""An absolute schema path must stay under /Schemas/."""
+		with tempfile.TemporaryDirectory() as root:
+			service = _make_service(_make_filesystem_provider(root))
+
+			with self.assertRaises(LibraryInvalidPathError):
+				await service.read_schema("/CustomSchemas/CFM.yaml")
+
+	async def test_nested_absolute_schema_path_is_rejected(self):
+		"""An absolute schema path must be a direct /Schemas/<name>.yaml file."""
+		with tempfile.TemporaryDirectory() as root:
+			service = _make_service(_make_filesystem_provider(root))
+
+			with self.assertRaises(LibraryInvalidPathError):
+				await service.read_schema("/Schemas/Extensions/CFM.yaml")
 
 	async def test_base_schema_only_returns_base_schema(self):
 		"""When no extensions exist, the effective schema contains only base fields."""
