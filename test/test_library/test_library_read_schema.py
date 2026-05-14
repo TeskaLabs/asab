@@ -266,7 +266,11 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 
 			schema = await service.read_schema("ECS")
 
-			self.assertEqual(schema["fields"]["host.name"]["type"], "str")
+			self.assertEqual(
+				schema["fields"]["host.name"]["type"],
+				"str",
+				"Extension must not overwrite the base host.name field.",
+			)
 
 	async def test_extension_with_multiple_conflicts_only_adds_non_conflicting_fields(self):
 		"""Conflicting extension fields are skipped, but safe fields from the same file merge."""
@@ -288,9 +292,21 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 
 			schema = await service.read_schema("ECS")
 
-			self.assertEqual(schema["fields"]["host.name"]["type"], "str")
-			self.assertEqual(schema["fields"]["event.created"]["type"], "datetime")
-			self.assertEqual(schema["fields"]["custom.safe"]["type"], "bool")
+			self.assertEqual(
+				schema["fields"]["host.name"]["type"],
+				"str",
+				"Conflicting extension field host.name must keep the base definition.",
+			)
+			self.assertEqual(
+				schema["fields"]["event.created"]["type"],
+				"datetime",
+				"Conflicting extension field event.created must keep the base definition.",
+			)
+			self.assertEqual(
+				schema["fields"]["custom.safe"]["type"],
+				"bool",
+				"Non-conflicting field from the same extension should still be merged.",
+			)
 
 	async def test_extension_for_other_schema_is_ignored(self):
 		"""Extensions for a different schema name are ignored."""
@@ -322,10 +338,26 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 
 			schema = await service.read_schema("CFM")
 
-			self.assertIn("flow.id", schema["fields"])
-			self.assertIn("cfm.only", schema["fields"])
-			self.assertNotIn("ecs.only", schema["fields"])
-			self.assertNotIn("cfmx.only", schema["fields"])
+			self.assertIn(
+				"flow.id",
+				schema["fields"],
+				"CFM base schema field should be present.",
+			)
+			self.assertIn(
+				"cfm.only",
+				schema["fields"],
+				"CFM-* extension should be merged for CFM schema reads.",
+			)
+			self.assertNotIn(
+				"ecs.only",
+				schema["fields"],
+				"ECS-* extension must not be merged into CFM schema reads.",
+			)
+			self.assertNotIn(
+				"cfmx.only",
+				schema["fields"],
+				"CFMX-* extension must not match the CFM-* prefix.",
+			)
 
 	async def test_non_yaml_extension_file_is_ignored(self):
 		"""Matching schema extension candidates must use a YAML file extension."""
@@ -361,7 +393,11 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 
 			schema = await service.read_schema("ECS")
 
-			self.assertEqual(schema["fields"]["custom.order"]["type"], "str")
+			self.assertEqual(
+				schema["fields"]["custom.order"]["type"],
+				"str",
+				"First extension by sorted filename should win duplicate field conflicts.",
+			)
 
 	async def test_duplicate_extension_keeps_first_field_and_merges_later_unique_fields(self):
 		"""A later duplicate extension can still contribute fields that do not conflict."""
@@ -389,8 +425,16 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 
 			schema = await service.read_schema("ECS")
 
-			self.assertEqual(schema["fields"]["custom.shared"]["type"], "str")
-			self.assertEqual(schema["fields"]["custom.unique"]["type"], "long")
+			self.assertEqual(
+				schema["fields"]["custom.shared"]["type"],
+				"str",
+				"Later duplicate extension field should not overwrite the first definition.",
+			)
+			self.assertEqual(
+				schema["fields"]["custom.unique"]["type"],
+				"long",
+				"Later extension should still merge fields that do not conflict.",
+			)
 
 	async def test_read_schema_returns_same_result_across_calls(self):
 		"""Repeated reads of unchanged schema files return the same effective schema."""
@@ -452,10 +496,26 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 			finally:
 				asab.contextvars.Tenant.reset(tenant_ctx)
 
-			self.assertIn("host.name", schema["fields"])
-			self.assertIn("global.field", schema["fields"])
-			self.assertNotIn("tenant.base", schema["fields"])
-			self.assertNotIn("tenant.field", schema["fields"])
+			self.assertIn(
+				"host.name",
+				schema["fields"],
+				"Global base schema field should be present even with tenant context set.",
+			)
+			self.assertIn(
+				"global.field",
+				schema["fields"],
+				"Global schema extension should be merged even with tenant context set.",
+			)
+			self.assertNotIn(
+				"tenant.base",
+				schema["fields"],
+				"Tenant overlay base schema must be ignored by schema reads.",
+			)
+			self.assertNotIn(
+				"tenant.field",
+				schema["fields"],
+				"Tenant overlay schema extension must be ignored by schema reads.",
+			)
 
 	async def test_extension_directory_is_not_read(self):
 		"""Directory entries that look like extension files are ignored before reading."""
