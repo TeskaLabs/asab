@@ -229,9 +229,14 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 			_write(root, "/Schemas/Extensions/ECS-Good.yaml", _extension_schema("custom.good", "str"))
 			service = _make_service(_make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
+				schema = await service.read_schema("ECS")
 
 			self.assertEqual(schema["fields"]["custom.good"]["type"], "str")
+			self.assertTrue(
+				any("'fields' section is not a dictionary" in message for message in logs.output),
+				"Extension without fields mapping should log why it was skipped.",
+			)
 
 	async def test_non_mapping_extension_is_skipped(self):
 		"""An extension YAML document that is not a mapping is skipped."""
@@ -241,9 +246,14 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 			_write(root, "/Schemas/Extensions/ECS-Good.yaml", _extension_schema("custom.good", "str"))
 			service = _make_service(_make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
+				schema = await service.read_schema("ECS")
 
 			self.assertEqual(schema["fields"]["custom.good"]["type"], "str")
+			self.assertTrue(
+				any("File is not a dictionary" in message for message in logs.output),
+				"Non-mapping extension should log why it was skipped.",
+			)
 
 	async def test_unreadable_extension_candidate_is_skipped(self):
 		"""A listed extension that cannot be opened is skipped while valid extensions merge."""
@@ -264,12 +274,17 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 			_write(root, "/Schemas/Extensions/ECS-Custom.yaml", _extension_schema("host.name", "keyword"))
 			service = _make_service(_make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
+				schema = await service.read_schema("ECS")
 
 			self.assertEqual(
 				schema["fields"]["host.name"]["type"],
 				"str",
 				"Extension must not overwrite the base host.name field.",
+			)
+			self.assertTrue(
+				any("Skipping field: Duplicate." in message for message in logs.output),
+				"Duplicate extension field should log that it was skipped.",
 			)
 
 	async def test_extension_with_multiple_conflicts_only_adds_non_conflicting_fields(self):
@@ -290,7 +305,8 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 			]))
 			service = _make_service(_make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
+				schema = await service.read_schema("ECS")
 
 			self.assertEqual(
 				schema["fields"]["host.name"]["type"],
@@ -306,6 +322,11 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 				schema["fields"]["custom.safe"]["type"],
 				"bool",
 				"Non-conflicting field from the same extension should still be merged.",
+			)
+			self.assertEqual(
+				sum("Skipping field: Duplicate." in message for message in logs.output),
+				2,
+				"Both conflicting extension fields should log duplicate skips.",
 			)
 
 	async def test_extension_for_other_schema_is_ignored(self):
@@ -391,12 +412,17 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 			_write(root, "/Schemas/Extensions/ECS-A-first.yaml", _extension_schema("custom.order", "str"))
 			service = _make_service(_make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
+				schema = await service.read_schema("ECS")
 
 			self.assertEqual(
 				schema["fields"]["custom.order"]["type"],
 				"str",
 				"First extension by sorted filename should win duplicate field conflicts.",
+			)
+			self.assertTrue(
+				any("Skipping field: Duplicate." in message for message in logs.output),
+				"Later duplicate field should log that it was skipped.",
 			)
 
 	async def test_duplicate_extension_keeps_first_field_and_merges_later_unique_fields(self):
@@ -423,7 +449,8 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 			]))
 			service = _make_service(_make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
+				schema = await service.read_schema("ECS")
 
 			self.assertEqual(
 				schema["fields"]["custom.shared"]["type"],
@@ -434,6 +461,10 @@ class TestLibraryReadSchema(unittest.IsolatedAsyncioTestCase):
 				schema["fields"]["custom.unique"]["type"],
 				"long",
 				"Later extension should still merge fields that do not conflict.",
+			)
+			self.assertTrue(
+				any("Skipping field: Duplicate." in message for message in logs.output),
+				"Later duplicate field should log that it was skipped.",
 			)
 
 	async def test_read_schema_returns_same_result_across_calls(self):

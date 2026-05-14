@@ -91,6 +91,9 @@ class LibrarySchemaService(Service):
 				except Exception:
 					continue
 
+				if extension is _SCHEMA_MISSING:
+					continue
+
 				if not isinstance(extension, dict):
 					L.warning(
 						"Skipping schema extension: File is not a dictionary.",
