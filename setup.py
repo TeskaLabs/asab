@@ -58,7 +58,6 @@ class CustomBuildPy(build_py):
 			f.write("__build__ = '{}'\n".format(build))
 			f.write("\n")
 
-
 setup(
 	name='asab',
 	version=version,
@@ -92,7 +91,8 @@ setup(
 		'git': ['pygit2<1.12'],
 		'encryption': ['cryptography'],
 		'authz': ['jwcrypto==1.5.6'],
-		'monitoring': ['sentry-sdk==1.45.0']
+		'monitoring': ['sentry-sdk==1.45.0'],
+		'mcp': ['aiohttp-rpc'],
 	},
 	cmdclass={
 		'build_py': CustomBuildPy,
