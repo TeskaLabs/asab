@@ -8,8 +8,7 @@ import asab.zookeeper
 
 asab.Config.add_defaults({
 	"zookeeper": {
-		# "servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
-		"servers": "zookeeper-1:2181"
+		"servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
 	},
 
 	"library": {
@@ -27,8 +26,9 @@ class MyApplication(asab.Application):
 		# Specify a locations of the default library
 		asab.Config["library"]["providers"] = '\n'.join([
 			os.path.join(os.path.dirname(__file__), "library"),
-			# "zk:///library",
-			"git+https://github.com/TeskaLabs/asab.git",
+			"zk:///library",
+			"git+https://github.com/TeskaLabs/asab-maestro-library.git",
+			"libsreg+https://libsreg.z6.web.core.windows.net,libsreg-secondary.z6.web.core.windows.net/lmio-common-library#v25.01.01",
 		])
 
 		self.LibraryService = asab.library.LibraryService(

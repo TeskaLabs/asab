@@ -6,7 +6,7 @@ import hashlib
 import re
 import typing
 
-from .filesystem import FileSystemLibraryProvider
+from .filesystem import SimpleFileSystemLibraryProvider
 from ...config import Config
 from ...utils import convert_to_seconds
 
@@ -39,7 +39,7 @@ except AttributeError:
 				GIT_CREDTYPE_SSH_KEY = 2  # Standard value across libgit2 versions
 
 
-class GitLibraryProvider(FileSystemLibraryProvider):
+class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 	"""
 	Read-only git provider to read from remote repository.
 	It clones a remote git repository to a temporary directory and then uses the
@@ -68,7 +68,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		ssh_passphrase=<optional passphrase for SSH key>
 		verify_ssh_fingerprint=yes|no (default: no - auto-accepts host keys)
 	"""
-	def __init__(self, library, path, layer):
+	def __init__(self, library, path, layer, *, repodir=None):
 
 		# Initialize attributes to avoid attribute errors
 		self.URLScheme = ""
@@ -87,7 +87,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self._parse_url(path)
 		self.Branch = self.Branch if self.Branch != "" else None  # pygit2 expects None for default branch
 
-		repodir = Config.get("library:git", "repodir", fallback=None)
+		if repodir is None:
+			repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
 			self.RepoPath = os.path.abspath(repodir)
 		else:
@@ -451,6 +452,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			return
 
 		# If everything went fine, set the provider as ready
+		# This has to be atomic. There must be no other code between the init task and setting the library ready.
 
 		# Check that the working tree is not empty (has actual files)
 		# Walk the RepoPath and check for any files (not just .git directory)
@@ -470,6 +472,8 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.GitRepository = None
 			raise RuntimeError("Git repository working tree is empty - removed for retry")
 
+		with open(os.path.join(self.RepoPath, ".ready"), "w") as f:
+			f.write("yes")
 		await self._set_ready()
 
 

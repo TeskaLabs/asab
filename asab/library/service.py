@@ -3,6 +3,7 @@ import io
 import time
 import os.path
 import typing
+import hashlib
 import tarfile
 import asyncio
 import logging
@@ -62,7 +63,7 @@ class LibraryService(Service):
 		self,
 		app: Application,
 		service_name: str,
-		paths: typing.Union[str, typing.List[str], None] = None
+		paths: typing.Union[str, typing.List[str], None] = None,
 	):
 		"""
 		Initialize the LibraryService.
@@ -86,8 +87,8 @@ class LibraryService(Service):
 		self.DisabledPaths: list = []
 		self.Favorites: dict = {}
 		self.FavoritePaths: list = []
+		self.CacheDir = Config.get("library", "cache_dir", fallback="")
 		self.__is_ready_last = False  # This is to ensure edge "not ready" -> "ready" to be published during initialization.
-
 
 		if paths is None:
 			# load them from configuration
@@ -123,8 +124,10 @@ class LibraryService(Service):
 		await self._read_disabled()
 		await self._read_favorites()
 
+
 	def _create_library(self, path, layer):
 		library_provider = None
+
 		if path.startswith('zk://') or path.startswith('zookeeper://'):
 			from .providers.zookeeper import ZooKeeperLibraryProvider
 			library_provider = ZooKeeperLibraryProvider(self, path, layer)
@@ -138,12 +141,22 @@ class LibraryService(Service):
 			library_provider = AzureStorageLibraryProvider(self, path, layer)
 
 		elif path.startswith('git+'):
-			from .providers.git import GitLibraryProvider
-			library_provider = GitLibraryProvider(self, path, layer)
+			if len(self.CacheDir) > 0:
+				repodir = self._get_repodir(path)
+				from .providers.cache import CacheLibraryProvider
+				library_provider = CacheLibraryProvider(self, path, layer, repodir=repodir, ready_file=os.path.join(repodir, ".ready"))
+			else:
+				from .providers.git import GitLibraryProvider
+				library_provider = GitLibraryProvider(self, path, layer)
 
 		elif path.startswith('libsreg+'):
-			from .providers.libsreg import LibsRegLibraryProvider
-			library_provider = LibsRegLibraryProvider(self, path, layer)
+			if len(self.CacheDir) > 0:
+				repodir = self._get_repodir(path)
+				from .providers.cache import CacheLibraryProvider
+				library_provider = CacheLibraryProvider(self, path, layer, repodir=os.path.join(repodir, "content"), ready_file=os.path.join(repodir, ".ready"))
+			else:
+				from .providers.libsreg import LibsRegLibraryProvider
+				library_provider = LibsRegLibraryProvider(self, path, layer)
 
 		elif path == '' or path.startswith("#") or path.startswith(";"):
 			# This is empty or commented line
@@ -154,6 +167,7 @@ class LibraryService(Service):
 			raise SystemExit("Exit due to a critical configuration error.")
 
 		self.Libraries.append(library_provider)
+
 
 	def is_ready(self) -> bool:
 		"""
@@ -985,6 +999,9 @@ class LibraryService(Service):
 
 			for provider in self.Libraries:
 				await provider.subscribe(path, target)
+
+	def _get_repodir(self, path: str) -> str:
+		return os.path.join(self.CacheDir, hashlib.sha256(path.encode('utf-8')).hexdigest())
 
 
 def _validate_path_item(path: str) -> None:
