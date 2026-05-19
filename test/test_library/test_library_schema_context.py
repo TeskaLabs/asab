@@ -1,3 +1,10 @@
+"""
+Context and repeatability tests for LibrarySchemaService.
+
+These tests cover repeated reads, caller mutation isolation, and global-only
+schema resolution when tenant context is set.
+"""
+
 import sys
 import tempfile
 import unittest

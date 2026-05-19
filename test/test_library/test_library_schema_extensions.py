@@ -1,3 +1,10 @@
+"""
+Extension merge tests for LibrarySchemaService.
+
+These tests cover extension discovery, malformed extension handling, schema
+prefix filtering, duplicate-field precedence, and deterministic merge order.
+"""
+
 import os
 import sys
 import tempfile

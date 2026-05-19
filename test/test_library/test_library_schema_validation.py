@@ -1,3 +1,10 @@
+"""
+Validation tests for LibrarySchemaService.
+
+These tests cover base schema presence, base schema structure, schema-name
+validation, and absolute path constraints for `/Schemas/<name>.yaml`.
+"""
+
 import sys
 import tempfile
 import unittest
