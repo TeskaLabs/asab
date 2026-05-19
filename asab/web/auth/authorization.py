@@ -96,12 +96,13 @@ class Authorization:
 		return self.is_valid() and is_superuser(self._Resources)
 
 
-	def has_resource_access(self, *resources: str) -> bool:
+	def has_resource_access(self, *resources: str, match: typing.Literal["all", "any"] = "all") -> bool:
 		"""
 		Check whether the agent is authorized to access requested resources.
 
 		Args:
 			*resources (str): A variable number of resource IDs whose authorization is requested.
+			match (str, optional): Whether to require "all" (default) or "any" of the resources.
 
 		Returns:
 			bool: Is the subject authorized to access requested resources?
@@ -114,7 +115,7 @@ class Authorization:
 			>>> else:
 			>>>     print("Not much to do here.")
 		"""
-		return self.is_valid() and has_resource_access(self._Resources, resources, tenant=Tenant.get(None))
+		return self.is_valid() and has_resource_access(self._Resources, resources, tenant=Tenant.get(None), match=match)
 
 
 	def has_tenant_access(self, tenant=None) -> bool:
@@ -186,12 +187,13 @@ class Authorization:
 			raise AccessDeniedError()
 
 
-	def require_resource_access(self, *resources: str):
+	def require_resource_access(self, *resources: str, match: typing.Literal["all", "any"] = "all"):
 		"""
 		Ensure that the agent is authorized to access the specified resources.
 
 		Args:
 			*resources (str): A variable number of resource IDs whose authorization is requested.
+			match (str, optional): Whether to require "all" (default) or "any" of the resources.
 
 		Raises:
 			NotAuthenticatedError: When the authorization is expired or otherwise invalid.
@@ -204,7 +206,7 @@ class Authorization:
 			>>> print("I can read and write articles!")
 		"""
 		self.require_valid()
-		if not has_resource_access(self._Resources, resources, tenant=Tenant.get(None)):
+		if not has_resource_access(self._Resources, resources, tenant=Tenant.get(None), match=match):
 			L.warning("Resource authorization required.", struct_data={
 				"resource": resources, "cid": self.CredentialsId})
 			scope = set()
@@ -325,6 +327,8 @@ def has_resource_access(
 	resources_claim: typing.Mapping,
 	resources: typing.Collection[str],
 	tenant: typing.Union[str, None],
+	*,
+	match: typing.Literal["all", "any"] = "all",
 ) -> bool:
 	"""
 	Check if the requested resources or the superuser resource are present in the authorized resource list.
@@ -333,10 +337,14 @@ def has_resource_access(
 		resources_claim (typing.Mapping): The "resources" field from authorization server claims (aka UserInfo).
 		resources (typing.Collection[str]): A list of resource IDs whose authorization is requested.
 		tenant (str): Tenant context of the authorization (or `None` for global context).
+		match (str): Whether to require "all" (default) or "any" of the resources to be authorized.
 
 	Returns:
 		bool: Am I authorized to access requested resources?
 	"""
+	if match not in {"all", "any"}:
+		raise ValueError("match must be either 'all' or 'any'")
+
 	if len(resources) == 0:
 		raise ValueError("Resources must not be empty")
 
@@ -345,11 +353,18 @@ def has_resource_access(
 	if is_superuser(resources_claim):
 		return True
 
-	for resource in resources:
-		if resource not in authorized_resources:
-			return False
-
-	return True
+	if match == "all":
+		# All resources must be authorized
+		for resource in resources:
+			if resource not in authorized_resources:
+				return False
+		return True
+	elif match == "any":
+		# At least one resource must be authorized
+		for resource in resources:
+			if resource in authorized_resources:
+				return True
+		return False
 
 
 def has_tenant_access(resources_claim: typing.Mapping, tenant: str) -> bool:
