@@ -21,17 +21,11 @@ class MyApplication(asab.Application):
 	def __init__(self):
 		super().__init__(modules=[asab.zookeeper.Module])
 
-		# Specify a locations of the default library
-		asab.Config["library"]["providers"] = '\n'.join([
-			"/asab-library/library",
-		])
+		# Specify a location of the example library
+		asab.Config["library"]["providers"] = os.path.join(os.path.dirname(__file__), "library")
 
 		self.LibraryService = asab.library.LibraryService(self, "LibraryService")
-		self.LibrarySchemaService = LibrarySchemaService(
-			self,
-			"LibrarySchemaService",
-			self.LibraryService,
-		)
+		self.LibrarySchemaService = LibrarySchemaService(self, "LibrarySchemaService", self.LibraryService)
 
 		self.PubSub.subscribe("Library.ready!", self.on_library_ready)
 

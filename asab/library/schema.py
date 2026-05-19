@@ -14,8 +14,6 @@ from .service import _validate_path_item
 
 L = logging.getLogger(__name__)
 
-_SCHEMA_MISSING = object()
-
 
 class LibrarySchemaService(Service):
 	"""
@@ -64,8 +62,8 @@ class LibrarySchemaService(Service):
 					"Failed to parse schema '{}': {}".format(schema_path, e)
 				) from e
 
-			if base_schema is _SCHEMA_MISSING:
-				return None
+			if base_schema is None:
+				raise LibraryError("Schema '{}' not found.".format(schema_path))
 
 			self._validate_base_schema(schema_path, base_schema)
 			merged_schema = copy.deepcopy(base_schema)
@@ -91,7 +89,7 @@ class LibrarySchemaService(Service):
 				except Exception:
 					continue
 
-				if extension is _SCHEMA_MISSING:
+				if extension is None:
 					continue
 
 				if not isinstance(extension, dict):
@@ -115,7 +113,7 @@ class LibrarySchemaService(Service):
 				for field_name, field_definition in extension_fields.items():
 					if field_name in merged_fields:
 						L.warning(
-							"Skipping field: Duplicate.",
+							"Skipping field: Field found in base schema or other schema extension.",
 							struct_data={
 								"path": item.name,
 								"field": field_name,
@@ -148,7 +146,7 @@ class LibrarySchemaService(Service):
 		"""
 		Read and parse a schema-related YAML library item.
 
-		Returns `_SCHEMA_MISSING` when the item does not exist or is disabled.
+		Returns `None` when the item does not exist or is disabled.
 		Parsed YAML values, including `None` from empty/null YAML files, are
 		returned as-is so schema validation can report the real problem. YAML
 		parser errors are intentionally propagated to the caller so `read_schema()`
@@ -159,7 +157,7 @@ class LibrarySchemaService(Service):
 		"""
 		async with self.LibraryService.open(path) as itemio:
 			if itemio is None:
-				return _SCHEMA_MISSING
+				return None
 			return yaml.load(itemio, Loader=yaml.CSafeLoader)
 
 	def _validate_base_schema(self, path: str, schema: dict) -> None:
