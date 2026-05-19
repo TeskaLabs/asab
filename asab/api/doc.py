@@ -89,11 +89,17 @@ class DocWebHandler(object):
 				# TODO: once/if there is graphql, its method name is probably `*`
 				continue
 
+			route_path = self.get_route_path(route)
+			try:
+				route_data = self.parse_route_data(route)
+			except Exception as e:
+				raise ValueError("Failed to parse OpenAPI data for {} {}".format(route.method, route_path)) from e
+
 			# Determine which routes are asab-based
-			if re.search("(asab|doc|oauth2-redirect.html|bspump)", self.get_route_path(route)):
-				asab_routes.append(self.parse_route_data(route))
+			if re.search("(asab|doc|oauth2-redirect.html|bspump)", route_path):
+				asab_routes.append(route_data)
 			else:
-				routes.append(self.parse_route_data(route))
+				routes.append(route_data)
 
 		routes.sort(key=get_first_tag)
 
