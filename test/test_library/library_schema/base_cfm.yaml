@@ -1,0 +1,7 @@
+---
+define:
+  name: Custom Flow Model
+  type: lmio/schema
+fields:
+  flow.id:
+    type: str
