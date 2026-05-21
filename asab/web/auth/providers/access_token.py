@@ -56,7 +56,7 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 			token = get_bearer_token_from_authorization_header(request)
 
 		token_type, token_value = token
-		if token_type.casefold() not in {"bearer", "apikey"}:
+		if token_type not in {"bearer", "apikey"}:
 			L.warning("Unsupported Authorization header type: {!r}".format(token_type))
 			raise NotAuthenticatedError()
 
@@ -77,7 +77,7 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 					L.warning("Access token introspection failed.")
 					raise NotAuthenticatedError()
 				token_type, id_token = get_bearer_token_from_authorization_header(response)
-				if token_type.casefold() != "bearer":
+				if token_type != "bearer":
 					L.warning("Unsupported Authorization header type: {!r}".format(token_type))
 					raise NotAuthenticatedError()
 
