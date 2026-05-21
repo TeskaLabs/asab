@@ -3,7 +3,11 @@
 ## Release candidate
 
 ### Fixes
+- Treat HTTP authentication scheme as case-insensitive (#759)
 - Authenticate websocket requests with multivalued Upgrade header (#748)
+
+### Features
+- Support ApiKey tokens in development auth mode (#759)
 
 ---
 
