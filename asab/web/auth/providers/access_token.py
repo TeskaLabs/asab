@@ -55,9 +55,9 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 		if token is None:
 			token = get_bearer_token_from_authorization_header(request)
 
-		token_type, token_value = token
-		if token_type not in {"bearer", "apikey"}:
-			L.warning("Unsupported Authorization header type: {!r}".format(token_type))
+		auth_scheme, token_value = token
+		if auth_scheme not in {"bearer", "apikey"}:
+			L.warning("Unsupported Authorization header scheme: {!r}".format(auth_scheme))
 			raise NotAuthenticatedError()
 
 		# Try if the access token is already known
@@ -76,9 +76,9 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 				if response.status != 200:
 					L.warning("Access token introspection failed.")
 					raise NotAuthenticatedError()
-				token_type, id_token = get_bearer_token_from_authorization_header(response)
-				if token_type != "bearer":
-					L.warning("Unsupported Authorization header type: {!r}".format(token_type))
+				auth_scheme, id_token = get_bearer_token_from_authorization_header(response)
+				if auth_scheme != "bearer":
+					L.warning("Unsupported Authorization header scheme: {!r}".format(auth_scheme))
 					raise NotAuthenticatedError()
 
 		# Create a new Authorization object and store it

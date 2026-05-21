@@ -102,14 +102,14 @@ class IdTokenAuthProvider(AuthProviderABC):
 		Build authorization from ID token.
 
 		Args:
-			token: Tuple of token type (must be "Bearer") and token value (Base64-encoded ID token)
+			token: Tuple of authentication scheme (must be Bearer) and token value (Base64-encoded ID token)
 
 		Returns:
 			Valid asab.web.auth.Authorization object
 		"""
-		token_type, token_value = token
-		if token_type != "bearer":
-			L.warning("Unsupported Authorization header type: {!r}".format(token_type))
+		auth_scheme, token_value = token
+		if auth_scheme != "bearer":
+			L.warning("Unsupported Authorization header scheme: {!r}".format(auth_scheme))
 			raise NotAuthenticatedError()
 
 		# Try if the object already exists
