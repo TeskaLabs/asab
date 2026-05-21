@@ -32,7 +32,7 @@ def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> 
 		raise NotAuthenticatedError()
 
 	try:
-		auth_scheme, token_value = authorization_header.split(" ", 1)
+		auth_scheme, token_value = authorization_header.split(None, 1)
 	except ValueError:
 		L.warning("Cannot parse Authorization header.")
 		raise NotAuthenticatedError()
