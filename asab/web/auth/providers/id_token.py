@@ -29,7 +29,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 		for provider in public_key_providers:
 			self.register_key_provider(provider)
 
-		self.Authorizations = {}
+		self.Authorizations: typing.Dict[typing.Tuple[str, str], Authorization] = {}
 
 		self.App.PubSub.subscribe("PublicKey.updated!", self.collect_keys)
 		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
@@ -50,7 +50,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 			L.warning("No public key providers registered for ID token authentication.")
 			raise NotAuthenticatedError(resource_metadata=self.ResourceMatadataUrl)
 
-		bearer_token = None
+		token = None
 
 		# First, try to extract the token from the WebSocket protocol header (if it's a WebSocket request)
 		if connection_header := request.headers.get(aiohttp.hdrs.CONNECTION):
@@ -59,18 +59,18 @@ class IdTokenAuthProvider(AuthProviderABC):
 					# Verify it's actually a WebSocket upgrade by checking the Upgrade header
 					upgrade_header = request.headers.get(aiohttp.hdrs.UPGRADE, "").casefold()
 					if upgrade_header == "websocket":
-						bearer_token = get_bearer_token_from_websocket_request(request)
+						token = get_bearer_token_from_websocket_request(request)
 						break
 
 		# If not, try to extract the token from the Authorization header
-		if bearer_token is None:
-			bearer_token = get_bearer_token_from_authorization_header(request)
+		if token is None:
+			token = get_bearer_token_from_authorization_header(request)
 
-		if bearer_token is None:
+		if token is None:
 			raise NotAuthenticatedError(error="invalid_token", error_description="Token not found", resource_metadata=self.ResourceMatadataUrl)
 
 		try:
-			authz = await self._build_authorization(bearer_token)
+			authz = await self._build_authorization(token)
 			return authz
 		except NotAuthenticatedError as e:
 			e.update_www_authenticate(resource_metadata=self.ResourceMatadataUrl)
@@ -97,31 +97,36 @@ class IdTokenAuthProvider(AuthProviderABC):
 		self.collect_keys()
 
 
-	async def _build_authorization(self, id_token: str) -> Authorization:
+	async def _build_authorization(self, token: typing.Tuple[str, str]) -> Authorization:
 		"""
 		Build authorization from ID token.
 
 		Args:
-			id_token: Base64-encoded JWToken from Authorization header
+			token: Tuple of authentication scheme (must be Bearer) and token value (Base64-encoded ID token)
 
 		Returns:
 			Valid asab.web.auth.Authorization object
 		"""
+		auth_scheme, token_value = token
+		if auth_scheme != "bearer":
+			L.warning("Unsupported Authorization header scheme: {!r}".format(auth_scheme))
+			raise NotAuthenticatedError()
+
 		# Try if the object already exists
-		authz = self.Authorizations.get(id_token)
+		authz = self.Authorizations.get(token)
 		if authz is not None:
 			try:
 				authz.require_valid()
 			except NotAuthenticatedError as e:
-				del self.Authorizations[id_token]
+				del self.Authorizations[token]
 				raise e
 			return authz
 
 		# Create a new Authorization object and store it
-		claims = await self._get_claims_from_id_token(id_token)
-		authz = Authorization(claims, id_token=id_token)
+		claims = await self._get_claims_from_id_token(token_value)
+		authz = Authorization(claims, id_token=token_value)
 
-		self.Authorizations[id_token] = authz
+		self.Authorizations[token] = authz
 		return authz
 
 

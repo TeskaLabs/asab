@@ -1,3 +1,4 @@
+import typing
 import aiohttp
 import aiohttp.web
 import jwcrypto.jwk
@@ -11,9 +12,19 @@ from ...exceptions import NotAuthenticatedError
 L = logging.getLogger(__name__)
 
 
-def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> str:
+def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> typing.Tuple[str, str]:
 	"""
-	Validate the Authorization header and extract the Bearer token value
+	Validate the Authorization header and extract the authentication scheme and token value
+
+	Args:
+		request: The aiohttp request object containing the Authorization header.
+
+	Returns:
+		A tuple containing the authentication scheme and the token value.
+
+	Raises:
+		NotAuthenticatedError: If the Authorization header is missing, cannot be parsed,
+			or uses an unsupported authentication scheme.
 	"""
 	authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
 	if authorization_header is None:
@@ -21,22 +32,29 @@ def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> 
 		raise NotAuthenticatedError()
 
 	try:
-		auth_type, token_value = authorization_header.split(" ", 1)
+		auth_scheme, token_value = authorization_header.split(None, 1)
 	except ValueError:
+		L.warning("Cannot parse Authorization header.")
+		raise NotAuthenticatedError() from None
+
+	if not token_value:
 		L.warning("Cannot parse Authorization header.")
 		raise NotAuthenticatedError()
 
-	if auth_type != "Bearer":
-		L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
-		raise NotAuthenticatedError()
-
-	return token_value
+	return auth_scheme.casefold(), token_value
 
 
-def get_bearer_token_from_websocket_request(request: aiohttp.web.Request) -> str:
+def get_bearer_token_from_websocket_request(request: aiohttp.web.Request) -> typing.Tuple[str, str] | None:
 	"""
-	Extract the Bearer token from the WebSocket protocol header.
+	Extract the authentication scheme and token value from the WebSocket protocol header.
 	This is a workaround used in ASAB to pass the access token to the WebSocket connection.
+
+	Args:
+		request: The aiohttp request object containing the WebSocket protocol header.
+
+	Returns:
+		A tuple containing the authentication scheme ("bearer") and the token value,
+		or None if no access token protocol is found.
 	"""
 	protocol = request.headers.get('sec-websocket-protocol')
 	if protocol is not None:
@@ -44,13 +62,25 @@ def get_bearer_token_from_websocket_request(request: aiohttp.web.Request) -> str
 			p = p.strip()
 			if not p.startswith('access_token_'):
 				continue
-			return p[len('access_token_'):]
+			return "bearer", p[len('access_token_'):]
 	return None
 
 
 def get_id_token_claims(bearer_token: str, auth_server_public_key: jwcrypto.jwk.JWKSet):
 	"""
 	Parse and validate JWT ID token and extract the claims (user info)
+
+	Args:
+		bearer_token: The JWT token string to parse and validate.
+		auth_server_public_key: The JWKSet containing the public key used to verify the token signature.
+
+	Returns:
+		A dictionary containing the token claims (user information).
+
+	Raises:
+		NotAuthenticatedError: If the token is expired, cannot be parsed, or signature verification fails.
+		JWTMissingKey: If the key required to verify the token is missing from the JWKSet.
+		InvalidJWSSignature: If the token signature is invalid.
 	"""
 	assert jwcrypto is not None
 	try:
