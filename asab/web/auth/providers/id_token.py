@@ -7,7 +7,7 @@ import asab
 
 from .abc import AuthProviderABC
 from .key_providers import PublicKeyProviderABC
-from ..utils import get_bearer_token_from_authorization_header, get_id_token_claims
+from ..utils import get_bearer_token_from_authorization_header, get_bearer_token_from_websocket_request, get_id_token_claims
 from ..authorization import Authorization
 from ....exceptions import NotAuthenticatedError
 
@@ -50,8 +50,26 @@ class IdTokenAuthProvider(AuthProviderABC):
 			L.warning("No public key providers registered for ID token authentication.")
 			raise NotAuthenticatedError(resource_metadata=self.ResourceMatadataUrl)
 
-		try:
+		token = None
+
+		# First, try to extract the token from the WebSocket protocol header (if it's a WebSocket request)
+		if connection_header := request.headers.get(aiohttp.hdrs.CONNECTION):
+			for value in connection_header.casefold().split(","):
+				if value.strip() == "upgrade":
+					# Verify it's actually a WebSocket upgrade by checking the Upgrade header
+					upgrade_header = request.headers.get(aiohttp.hdrs.UPGRADE, "").casefold()
+					if upgrade_header == "websocket":
+						token = get_bearer_token_from_websocket_request(request)
+						break
+
+		# If not, try to extract the token from the Authorization header
+		if token is None:
 			token = get_bearer_token_from_authorization_header(request)
+
+		if token is None:
+			raise NotAuthenticatedError(error="invalid_token", error_description="Token not found", resource_metadata=self.ResourceMatadataUrl)
+
+		try:
 			authz = await self._build_authorization(token)
 			return authz
 		except NotAuthenticatedError as e:
