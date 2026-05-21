@@ -35,6 +35,10 @@ def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> 
 		auth_scheme, token_value = authorization_header.split(None, 1)
 	except ValueError:
 		L.warning("Cannot parse Authorization header.")
+		raise NotAuthenticatedError() from None
+
+	if not token_value:
+		L.warning("Cannot parse Authorization header.")
 		raise NotAuthenticatedError()
 
 	return auth_scheme.casefold(), token_value
