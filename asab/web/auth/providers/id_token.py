@@ -29,7 +29,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 		for provider in public_key_providers:
 			self.register_key_provider(provider)
 
-		self.Authorizations = {}
+		self.Authorizations: typing.Dict[typing.Tuple[str, str], Authorization] = {}
 
 		self.App.PubSub.subscribe("PublicKey.updated!", self.collect_keys)
 		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
@@ -51,8 +51,8 @@ class IdTokenAuthProvider(AuthProviderABC):
 			raise NotAuthenticatedError(resource_metadata=self.ResourceMatadataUrl)
 
 		try:
-			bearer_token = get_bearer_token_from_authorization_header(request)
-			authz = await self._build_authorization(bearer_token)
+			token = get_bearer_token_from_authorization_header(request)
+			authz = await self._build_authorization(token)
 			return authz
 		except NotAuthenticatedError as e:
 			e.update_www_authenticate(resource_metadata=self.ResourceMatadataUrl)
@@ -79,31 +79,36 @@ class IdTokenAuthProvider(AuthProviderABC):
 		self.collect_keys()
 
 
-	async def _build_authorization(self, id_token: str) -> Authorization:
+	async def _build_authorization(self, token: typing.Tuple[str, str]) -> Authorization:
 		"""
 		Build authorization from ID token.
 
 		Args:
-			id_token: Base64-encoded JWToken from Authorization header
+			token: Tuple of token type (must be "Bearer") and token value (Base64-encoded ID token)
 
 		Returns:
 			Valid asab.web.auth.Authorization object
 		"""
+		token_type, token_value = token
+		if token_type.casefold() != "bearer":
+			L.warning("Unsupported Authorization header type: {!r}".format(token_type))
+			raise NotAuthenticatedError()
+
 		# Try if the object already exists
-		authz = self.Authorizations.get(id_token)
+		authz = self.Authorizations.get(token)
 		if authz is not None:
 			try:
 				authz.require_valid()
 			except NotAuthenticatedError as e:
-				del self.Authorizations[id_token]
+				del self.Authorizations[token]
 				raise e
 			return authz
 
 		# Create a new Authorization object and store it
-		claims = await self._get_claims_from_id_token(id_token)
-		authz = Authorization(claims, id_token=id_token)
+		claims = await self._get_claims_from_id_token(token_value)
+		authz = Authorization(claims, id_token=token_value)
 
-		self.Authorizations[id_token] = authz
+		self.Authorizations[token] = authz
 		return authz
 
 
