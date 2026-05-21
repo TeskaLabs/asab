@@ -14,7 +14,7 @@ L = logging.getLogger(__name__)
 
 def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> typing.Tuple[str, str]:
 	"""
-	Validate the Authorization header and extract the Bearer token value
+	Validate the Authorization header and extract the authentication scheme and token value
 	"""
 	authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
 	if authorization_header is None:
@@ -22,21 +22,22 @@ def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> 
 		raise NotAuthenticatedError()
 
 	try:
-		auth_type, token_value = authorization_header.split(" ", 1)
+		auth_scheme, token_value = authorization_header.split(" ", 1)
 	except ValueError:
 		L.warning("Cannot parse Authorization header.")
 		raise NotAuthenticatedError()
 
-	if auth_type.casefold() not in {"bearer", "apikey"}:
-		L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
+	auth_scheme = auth_scheme.casefold()
+	if auth_scheme not in {"bearer", "apikey"}:
+		L.warning("Unsupported Authorization header type: {!r}".format(auth_scheme))
 		raise NotAuthenticatedError()
 
-	return auth_type, token_value
+	return auth_scheme, token_value
 
 
 def get_bearer_token_from_websocket_request(request: aiohttp.web.Request) -> typing.Tuple[str, str] | None:
 	"""
-	Extract the Bearer token from the WebSocket protocol header.
+	Extract the authentication scheme and token value from the WebSocket protocol header.
 	This is a workaround used in ASAB to pass the access token to the WebSocket connection.
 	"""
 	protocol = request.headers.get('sec-websocket-protocol')
@@ -45,7 +46,7 @@ def get_bearer_token_from_websocket_request(request: aiohttp.web.Request) -> typ
 			p = p.strip()
 			if not p.startswith('access_token_'):
 				continue
-			return "Bearer", p[len('access_token_'):]
+			return "bearer", p[len('access_token_'):]
 	return None
 
 
