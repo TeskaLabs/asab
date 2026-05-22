@@ -2,7 +2,5 @@
 define:
   type: lmio/schema-extension
 fields:
-  custom.example:
-    type: str
-  custom.counter:
-    type: long
+  custom.ip:
+    type: ip
