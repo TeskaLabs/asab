@@ -4,22 +4,13 @@ import pprint
 
 import asab
 import asab.library
-import asab.zookeeper
 from asab.library.schema import LibrarySchemaService
-
-asab.Config.add_defaults({
-	"zookeeper": {
-		# "servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
-		"servers": "zookeeper-1:2181"
-	},
-
-})
 
 
 class MyApplication(asab.Application):
 
 	def __init__(self):
-		super().__init__(modules=[asab.zookeeper.Module])
+		super().__init__()
 
 		# Specify a location of the example library
 		asab.Config["library"]["providers"] = os.path.join(os.path.dirname(__file__), "library")
