@@ -1,0 +1,6 @@
+---
+define:
+  type: lmio/schema-extension
+fields:
+  custom.foo:
+    type: str
