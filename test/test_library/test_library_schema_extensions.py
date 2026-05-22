@@ -16,7 +16,6 @@ from library_schema_test_utils import (
 	make_filesystem_provider,
 	make_schema_service,
 	make_vanishing_extension_provider,
-	write_extension,
 	write_fixture,
 )
 
@@ -30,7 +29,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		"""A matching .yaml extension contributes a new field."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
-			write_extension(root, "/Schemas/Extensions/ECS-Custom.yaml", {"custom.foo": "str"})
+			write_fixture(root, "/Schemas/Extensions/ECS-Custom.yaml", "extension_custom_foo.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			schema = await service.read_schema("ECS")
@@ -42,7 +41,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
 			write_fixture(root, "/Schemas/Extensions/ECS-Bad.yaml", "malformed.yaml")
-			write_extension(root, "/Schemas/Extensions/ECS-Good.yaml", {"custom.good": "str"})
+			write_fixture(root, "/Schemas/Extensions/ECS-Good.yaml", "extension_custom_good.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			schema = await service.read_schema("ECS")
@@ -54,7 +53,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
 			write_fixture(root, "/Schemas/Extensions/ECS-Bad.yaml", "extension_no_fields.yaml")
-			write_extension(root, "/Schemas/Extensions/ECS-Good.yaml", {"custom.good": "str"})
+			write_fixture(root, "/Schemas/Extensions/ECS-Good.yaml", "extension_custom_good.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
@@ -71,7 +70,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
 			write_fixture(root, "/Schemas/Extensions/ECS-Bad.yaml", "document_list.yaml")
-			write_extension(root, "/Schemas/Extensions/ECS-Good.yaml", {"custom.good": "str"})
+			write_fixture(root, "/Schemas/Extensions/ECS-Good.yaml", "extension_custom_good.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
@@ -87,7 +86,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		"""A listed extension that cannot be opened is skipped while valid extensions merge."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
-			write_extension(root, "/Schemas/Extensions/ECS-Good.yaml", {"custom.good": "str"})
+			write_fixture(root, "/Schemas/Extensions/ECS-Good.yaml", "extension_custom_good.yaml")
 			service = make_schema_service(make_vanishing_extension_provider(root))
 
 			schema = await service.read_schema("ECS")
@@ -99,7 +98,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		"""An extension cannot overwrite an existing base field."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
-			write_extension(root, "/Schemas/Extensions/ECS-Custom.yaml", {"host.name": "keyword"})
+			write_fixture(root, "/Schemas/Extensions/ECS-Custom.yaml", "extension_host_name_keyword.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
@@ -119,11 +118,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		"""Conflicting extension fields are skipped, but safe fields from the same file merge."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
-			write_extension(root, "/Schemas/Extensions/ECS-Conflict.yaml", {
-				"host.name": "keyword",
-				"event.created": "str",
-				"custom.safe": "bool",
-			})
+			write_fixture(root, "/Schemas/Extensions/ECS-Conflict.yaml", "extension_multiple_conflicts.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
@@ -154,7 +149,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		"""Extensions for a different schema name are ignored."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
-			write_extension(root, "/Schemas/Extensions/CEF-Custom.yaml", {"cef.only": "str"})
+			write_fixture(root, "/Schemas/Extensions/CEF-Custom.yaml", "extension_cef_only.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			schema = await service.read_schema("ECS")
@@ -165,9 +160,9 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		"""Reading CFM picks only CFM-* extensions, not ECS-* or CFMX-*."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/CFM.yaml", "base_cfm.yaml")
-			write_extension(root, "/Schemas/Extensions/CFM-Custom.yaml", {"cfm.only": "str"})
-			write_extension(root, "/Schemas/Extensions/ECS-Custom.yaml", {"ecs.only": "str"})
-			write_extension(root, "/Schemas/Extensions/CFMX-Custom.yaml", {"cfmx.only": "str"})
+			write_fixture(root, "/Schemas/Extensions/CFM-Custom.yaml", "extension_cfm_only.yaml")
+			write_fixture(root, "/Schemas/Extensions/ECS-Custom.yaml", "extension_ecs_only.yaml")
+			write_fixture(root, "/Schemas/Extensions/CFMX-Custom.yaml", "extension_cfmx_only.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			schema = await service.read_schema("CFM")
@@ -181,7 +176,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		"""Matching schema extension candidates must use a YAML file extension."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
-			write_extension(root, "/Schemas/Extensions/ECS-Custom.json", {"custom.json": "str"})
+			write_fixture(root, "/Schemas/Extensions/ECS-Custom.json", "extension_custom_json.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			schema = await service.read_schema("ECS")
@@ -192,8 +187,8 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		"""The extension naming convention requires a non-empty suffix after schema-."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
-			write_extension(root, "/Schemas/Extensions/ECS-.yaml", {"custom.empty": "str"})
-			write_extension(root, "/Schemas/Extensions/ECS-Custom.yaml", {"custom.good": "str"})
+			write_fixture(root, "/Schemas/Extensions/ECS-.yaml", "extension_custom_empty.yaml")
+			write_fixture(root, "/Schemas/Extensions/ECS-Custom.yaml", "extension_custom_good.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			schema = await service.read_schema("ECS")
@@ -205,8 +200,8 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		"""Extension merge order is deterministic even when files are created out of order."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
-			write_extension(root, "/Schemas/Extensions/ECS-Z-last.yaml", {"custom.order": "keyword"})
-			write_extension(root, "/Schemas/Extensions/ECS-A-first.yaml", {"custom.order": "str"})
+			write_fixture(root, "/Schemas/Extensions/ECS-Z-last.yaml", "extension_order_keyword.yaml")
+			write_fixture(root, "/Schemas/Extensions/ECS-A-first.yaml", "extension_order_str.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
@@ -226,11 +221,8 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		"""A later duplicate extension can still contribute fields that do not conflict."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
-			write_extension(root, "/Schemas/Extensions/ECS-A.yaml", {"custom.shared": "str"})
-			write_extension(root, "/Schemas/Extensions/ECS-B.yaml", {
-				"custom.shared": "keyword",
-				"custom.unique": "long",
-			})
+			write_fixture(root, "/Schemas/Extensions/ECS-A.yaml", "extension_shared_str.yaml")
+			write_fixture(root, "/Schemas/Extensions/ECS-B.yaml", "extension_shared_keyword_unique.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
@@ -256,7 +248,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
 			os.makedirs(os.path.join(root, "Schemas", "Extensions", "ECS-Directory.yaml"))
-			write_extension(root, "/Schemas/Extensions/ECS-Good.yaml", {"custom.good": "str"})
+			write_fixture(root, "/Schemas/Extensions/ECS-Good.yaml", "extension_custom_good.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			schema = await service.read_schema("ECS")

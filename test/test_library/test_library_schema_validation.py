@@ -13,7 +13,7 @@ from pathlib import Path
 from asab.exceptions import LibraryError, LibraryInvalidPathError
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from library_schema_test_utils import make_filesystem_provider, make_schema_service, write_extension, write_fixture
+from library_schema_test_utils import make_filesystem_provider, make_schema_service, write_fixture
 
 
 class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
@@ -98,7 +98,7 @@ class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
 		"""An absolute schema path still derives the correct extension prefix."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
-			write_extension(root, "/Schemas/Extensions/ECS-Custom.yaml", {"custom.foo": "str"})
+			write_fixture(root, "/Schemas/Extensions/ECS-Custom.yaml", "extension_custom_foo.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			schema = await service.read_schema("/Schemas/ECS.yaml")
