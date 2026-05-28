@@ -17,7 +17,7 @@ from test.test_library.library_schema_test_utils import (
 )
 
 
-DUPLICATE_FIELD_WARNING = "Skipping field: Field found in base schema or other schema extension."
+DUPLICATE_FIELD_WARNING = "Skipping schema extension field: field already exists."
 
 
 class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
