@@ -1,4 +1,3 @@
-import contextlib
 import copy
 import logging
 import os.path
@@ -6,7 +5,6 @@ import os.path
 import yaml
 
 from ..abc import Service
-from ..contextvars import Authz, Tenant
 from ..exceptions import LibraryError, LibraryInvalidPathError
 from .item import LibraryItem
 from .service import _validate_path_item
@@ -30,11 +28,10 @@ class LibrarySchemaService(Service):
 
 	async def read_schema(
 		self,
-		schema: str = "ECS",
-		timeout: int = None,
+		schema_path: str,
 	):
 		"""
-		Build the effective global LMIO schema for `schema`.
+		Build the effective LMIO schema for `schema_path`.
 
 		The effective schema is computed from one authoritative base schema and zero
 		or more extension schemas:
@@ -47,118 +44,95 @@ class LibrarySchemaService(Service):
 		fields are never overwritten, so extensions can only contribute fields that
 		do not already exist in the accumulated result.
 
-		Schema reads intentionally ignore tenant and personal overlays. Schemas are
-		global contracts, so base and extension files are resolved from the global
-		library layer even when tenant context variables are set.
+		The base schema path must be provided explicitly as `/Schemas/<schema>.yaml`.
 		"""
-		await self.LibraryService.wait_for_library_ready(timeout)
-		schema_path, schema_name, extensions_path = _schema_path(schema)
+		await self.LibraryService.wait_for_library_ready()
+		schema_path, schema_name, extensions_path = _schema_path(schema_path)
 
-		with self._global_library_context():
-			try:
-				base_schema = await self._read_schema_yaml(schema_path)
-			except Exception as e:
-				raise LibraryError(
-					"Failed to parse schema '{}': {}".format(schema_path, e)
-				) from e
-
-			if base_schema is None:
-				raise LibraryError("Schema '{}' not found.".format(schema_path))
-
-			self._validate_base_schema(schema_path, base_schema)
-			merged_schema = copy.deepcopy(base_schema)
-			merged_fields = merged_schema["fields"]
-			try:
-				extension_items = await self.LibraryService.list(extensions_path)
-			except KeyError:
-				extension_items = []
-
-			extension_items = sorted(
-				(
-					item for item in extension_items
-					if _is_schema_extension_item(item, schema_name)
-				),
-				key=lambda item: item.name,
-			)
-
-			for item in extension_items:
-				if item.disabled:
-					continue
-				try:
-					extension = await self._read_schema_yaml(item.name)
-				except Exception:
-					continue
-
-				if extension is None:
-					continue
-
-				if not isinstance(extension, dict):
-					L.warning(
-						"Skipping schema extension: File is not a dictionary.",
-						struct_data={
-							"path": item.name,
-						},
-					)
-					continue
-				extension_fields = extension.get("fields")
-				if not isinstance(extension_fields, dict):
-					L.warning(
-						"Skipping schema extension: 'fields' section is not a dictionary.",
-						struct_data={
-							"path": item.name,
-						},
-					)
-					continue
-
-				for field_name, field_definition in extension_fields.items():
-					if field_name in merged_fields:
-						L.warning(
-							"Skipping field: Field found in base schema or other schema extension.",
-							struct_data={
-								"path": item.name,
-								"field": field_name,
-							},
-						)
-						continue
-					merged_fields[field_name] = copy.deepcopy(field_definition)
-
-			return merged_schema
-
-	@contextlib.contextmanager
-	def _global_library_context(self):
-		"""
-		Temporarily clear tenant/auth context variables for global-only schema reads.
-
-		Provider `read()` and `list()` implementations normally honor tenant and
-		personal overlays. Schemas are intentionally global contracts, so
-		`read_schema()` uses this context manager to force global resolution while
-		restoring the caller's context afterward.
-		"""
-		tenant_ctx = Tenant.set(None)
-		authz_ctx = Authz.set(None)
 		try:
-			yield
-		finally:
-			Authz.reset(authz_ctx)
-			Tenant.reset(tenant_ctx)
+			async with self.LibraryService.open(schema_path) as itemio:
+				if itemio is None:
+					base_schema = None
+				else:
+					base_schema = yaml.load(itemio, Loader=yaml.CSafeLoader)
+		except Exception as e:
+			raise LibraryError(
+				"Failed to parse schema '{}': {}".format(schema_path, e)
+			) from e
 
-	async def _read_schema_yaml(self, path: str):
-		"""
-		Read and parse a schema-related YAML library item.
+		if base_schema is None:
+			raise LibraryError("Schema '{}' not found.".format(schema_path))
 
-		Returns `None` when the item does not exist or is disabled.
-		Parsed YAML values, including `None` from empty/null YAML files, are
-		returned as-is so schema validation can report the real problem. YAML
-		parser errors are intentionally propagated to the caller so `read_schema()`
-		can decide whether to fail the base schema read or skip an extension.
+		self._validate_base_schema(schema_path, base_schema)
+		merged_schema = copy.deepcopy(base_schema)
+		merged_fields = merged_schema["fields"]
+		try:
+			extension_items = await self.LibraryService.list(extensions_path)
+		except KeyError:
+			extension_items = []
 
-		This helper intentionally relies on `open()` and is expected to run inside
-		`_global_library_context()` so schema reads resolve against the global layer.
-		"""
-		async with self.LibraryService.open(path) as itemio:
-			if itemio is None:
-				return None
-			return yaml.load(itemio, Loader=yaml.CSafeLoader)
+		extension_items = sorted(
+			(
+				item for item in extension_items
+				if _is_schema_extension_item(item, schema_name)
+			),
+			key=lambda item: item.name,
+		)
+
+		for item in extension_items:
+			if item.disabled:
+				continue
+			try:
+				async with self.LibraryService.open(item.name) as itemio:
+					if itemio is None:
+						extension = None
+					else:
+						extension = yaml.load(itemio, Loader=yaml.CSafeLoader)
+			except Exception:
+				continue
+
+			if extension is None:
+				continue
+
+			if not isinstance(extension, dict):
+				L.warning(
+					"Skipping schema extension: File is not a dictionary.",
+					struct_data={
+						"path": item.name,
+					},
+				)
+				continue
+			if not _has_schema_type(extension, "lmio/schema-extension"):
+				L.warning(
+					"Skipping schema extension: Invalid define/type.",
+					struct_data={
+						"path": item.name,
+					},
+				)
+				continue
+			extension_fields = extension.get("fields")
+			if not isinstance(extension_fields, dict):
+				L.warning(
+					"Skipping schema extension: 'fields' section is not a dictionary.",
+					struct_data={
+						"path": item.name,
+					},
+				)
+				continue
+
+			for field_name, field_definition in extension_fields.items():
+				if field_name in merged_fields:
+					L.warning(
+						"Skipping field: Field found in base schema or other schema extension.",
+						struct_data={
+							"path": item.name,
+							"field": field_name,
+						},
+					)
+					continue
+				merged_fields[field_name] = copy.deepcopy(field_definition)
+
+		return merged_schema
 
 	def _validate_base_schema(self, path: str, schema: dict) -> None:
 		"""
@@ -172,6 +146,9 @@ class LibrarySchemaService(Service):
 		if not isinstance(schema, dict):
 			raise LibraryError("Schema '{}' must be a YAML mapping.".format(path))
 
+		if not _has_schema_type(schema, "lmio/schema"):
+			raise LibraryError("Schema '{}' must have define/type 'lmio/schema'.".format(path))
+
 		fields = schema.get("fields")
 		if not isinstance(fields, dict):
 			raise LibraryError("Schema '{}' must contain a 'fields' mapping.".format(path))
@@ -179,26 +156,24 @@ class LibrarySchemaService(Service):
 
 def _schema_path(schema: str) -> tuple[str, str, str]:
 	"""
-	Normalize a schema name or `/Schemas/<name>.yaml` path into schema locations.
+	Validate a `/Schemas/<name>.yaml` path and derive schema locations.
 
-	Returns `(schema_path, schema_name, extensions_path)`. For example, `"ECS"`
-	becomes `("/Schemas/ECS.yaml", "ECS", "/Schemas/Extensions/")`.
+	Returns `(schema_path, schema_name, extensions_path)`. For example,
+	`"/Schemas/ECS.yaml"` becomes `("/Schemas/ECS.yaml", "ECS",
+	"/Schemas/Extensions/")`.
 	"""
 	if not isinstance(schema, str) or schema == "":
 		raise LibraryInvalidPathError(
-			message="Schema name must be a non-empty string.",
+			message="Schema path must be a non-empty string.",
 			path=str(schema),
 		)
 
-	if schema.startswith("/"):
-		path = schema
-	elif "/" in schema or "\\" in schema or schema in (".", ".."):
+	if not schema.startswith("/Schemas/"):
 		raise LibraryInvalidPathError(
-			message="Schema name must not contain path separators.",
+			message="Schema path must be under '/Schemas/'.",
 			path=schema,
 		)
-	else:
-		path = "/Schemas/{}.yaml".format(schema)
+	path = schema
 
 	_validate_path_item(path)
 
@@ -217,6 +192,13 @@ def _schema_path(schema: str) -> tuple[str, str, str]:
 		)
 	extensions_path = "{}/Extensions/".format(directory.rstrip("/"))
 	return path, schema_name, extensions_path
+
+
+def _has_schema_type(schema: dict, expected_type: str) -> bool:
+	define = schema.get("define")
+	if not isinstance(define, dict):
+		return False
+	return define.get("type") == expected_type
 
 
 def _is_schema_extension_item(item: LibraryItem, schema_name: str) -> bool:
