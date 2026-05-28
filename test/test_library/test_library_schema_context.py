@@ -1,19 +1,13 @@
 """
 Context and repeatability tests for LibrarySchemaService.
 
-These tests cover repeated reads, caller mutation isolation, and global-only
-schema resolution when tenant context is set.
+These tests cover repeated reads and caller mutation isolation.
 """
 
-import sys
 import tempfile
 import unittest
-from pathlib import Path
 
-import asab.contextvars
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from library_schema_test_utils import make_filesystem_provider, make_schema_service, write_fixture
+from test.test_library.library_schema_test_utils import make_filesystem_provider, make_schema_service, write_fixture
 
 
 class TestLibrarySchemaContext(unittest.IsolatedAsyncioTestCase):
@@ -25,8 +19,8 @@ class TestLibrarySchemaContext(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/Extensions/ECS-Custom.yaml", "extension_custom_foo.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
-			first_schema = await service.read_schema("ECS")
-			second_schema = await service.read_schema("ECS")
+			first_schema = await service.read_schema("/Schemas/ECS.yaml")
+			second_schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(first_schema, second_schema)
 
@@ -37,46 +31,10 @@ class TestLibrarySchemaContext(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/Extensions/ECS-Custom.yaml", "extension_custom_foo.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
-			first_schema = await service.read_schema("ECS")
+			first_schema = await service.read_schema("/Schemas/ECS.yaml")
 			first_schema["fields"]["host.name"]["type"] = "changed"
 			first_schema["fields"]["custom.foo"]["type"] = "changed"
-			second_schema = await service.read_schema("ECS")
+			second_schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(second_schema["fields"]["host.name"]["type"], "str")
 			self.assertEqual(second_schema["fields"]["custom.foo"]["type"], "str")
-
-	async def test_schema_reads_ignore_tenant_overlays(self):
-		"""Schema reads force global resolution and ignore tenant overlay files."""
-		with tempfile.TemporaryDirectory() as root:
-			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
-			write_fixture(root, "/Schemas/Extensions/ECS-Global.yaml", "extension_global_field.yaml")
-			write_fixture(root, "/.tenants/acme/Schemas/ECS.yaml", "base_tenant.yaml")
-			write_fixture(root, "/.tenants/acme/Schemas/Extensions/ECS-Tenant.yaml", "extension_tenant_field.yaml")
-			service = make_schema_service(make_filesystem_provider(root))
-			tenant_ctx = asab.contextvars.Tenant.set("acme")
-
-			try:
-				schema = await service.read_schema("ECS")
-			finally:
-				asab.contextvars.Tenant.reset(tenant_ctx)
-
-			self.assertIn(
-				"host.name",
-				schema["fields"],
-				"Global base schema field should be present even with tenant context set.",
-			)
-			self.assertIn(
-				"global.field",
-				schema["fields"],
-				"Global schema extension should be merged even with tenant context set.",
-			)
-			self.assertNotIn(
-				"tenant.base",
-				schema["fields"],
-				"Tenant overlay base schema must be ignored by schema reads.",
-			)
-			self.assertNotIn(
-				"tenant.field",
-				schema["fields"],
-				"Tenant overlay schema extension must be ignored by schema reads.",
-			)

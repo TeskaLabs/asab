@@ -1,19 +1,15 @@
 """
 Validation tests for LibrarySchemaService.
 
-These tests cover base schema presence, base schema structure, schema-name
-validation, and absolute path constraints for `/Schemas/<name>.yaml`.
+These tests cover base schema presence, base schema structure, and schema path
+constraints for `/Schemas/<name>.yaml`.
 """
 
-import sys
 import tempfile
 import unittest
-from pathlib import Path
 
 from asab.exceptions import LibraryError, LibraryInvalidPathError
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from library_schema_test_utils import make_filesystem_provider, make_schema_service, write_fixture
+from test.test_library.library_schema_test_utils import make_filesystem_provider, make_schema_service, write_fixture
 
 
 class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
@@ -24,7 +20,7 @@ class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertRaises(LibraryError):
-				await service.read_schema("ECS")
+				await service.read_schema("/Schemas/ECS.yaml")
 
 	async def test_malformed_base_schema_raises_library_error(self):
 		"""A base schema with the wrong YAML shape fails the whole schema read."""
@@ -33,7 +29,7 @@ class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertRaises(LibraryError):
-				await service.read_schema("ECS")
+				await service.read_schema("/Schemas/ECS.yaml")
 
 	async def test_base_schema_without_fields_mapping_raises_library_error(self):
 		"""A base schema must provide a top-level fields mapping."""
@@ -42,9 +38,26 @@ class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertRaises(LibraryError):
+				await service.read_schema("/Schemas/ECS.yaml")
+
+	async def test_base_schema_without_lmio_schema_type_raises_library_error(self):
+		"""A base schema must identify itself as an LMIO schema."""
+		with tempfile.TemporaryDirectory() as root:
+			write_fixture(root, "/Schemas/ECS.yaml", "base_wrong_type.yaml")
+			service = make_schema_service(make_filesystem_provider(root))
+
+			with self.assertRaises(LibraryError):
+				await service.read_schema("/Schemas/ECS.yaml")
+
+	async def test_short_schema_name_is_rejected(self):
+		"""Schemas must be requested by full /Schemas/<name>.yaml path."""
+		with tempfile.TemporaryDirectory() as root:
+			service = make_schema_service(make_filesystem_provider(root))
+
+			with self.assertRaises(LibraryInvalidPathError):
 				await service.read_schema("ECS")
 
-	async def test_invalid_schema_name_is_rejected(self):
+	async def test_relative_schema_path_is_rejected(self):
 		"""Relative schema paths are rejected before any provider access."""
 		with tempfile.TemporaryDirectory() as root:
 			service = make_schema_service(make_filesystem_provider(root))
@@ -52,16 +65,16 @@ class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
 			with self.assertRaises(LibraryInvalidPathError):
 				await service.read_schema("../ECS")
 
-	async def test_empty_schema_name_is_rejected(self):
-		"""An empty schema name is rejected before any provider access."""
+	async def test_empty_schema_path_is_rejected(self):
+		"""An empty schema path is rejected before any provider access."""
 		with tempfile.TemporaryDirectory() as root:
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertRaises(LibraryInvalidPathError):
 				await service.read_schema("")
 
-	async def test_non_string_schema_name_is_rejected(self):
-		"""A non-string schema identifier is rejected before any provider access."""
+	async def test_non_string_schema_path_is_rejected(self):
+		"""A non-string schema path is rejected before any provider access."""
 		with tempfile.TemporaryDirectory() as root:
 			service = make_schema_service(make_filesystem_provider(root))
 
@@ -90,7 +103,7 @@ class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(set(schema["fields"]), {"host.name", "event.created"})
 

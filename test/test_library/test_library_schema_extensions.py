@@ -6,13 +6,10 @@ prefix filtering, duplicate-field precedence, and deterministic merge order.
 """
 
 import os
-import sys
 import tempfile
 import unittest
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from library_schema_test_utils import (
+from test.test_library.library_schema_test_utils import (
 	make_filesystem_provider,
 	make_schema_service,
 	make_vanishing_extension_provider,
@@ -32,7 +29,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/Extensions/ECS-Custom.yaml", "extension_custom_foo.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(schema["fields"]["custom.foo"]["type"], "str")
 
@@ -44,7 +41,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/Extensions/ECS-Good.yaml", "extension_custom_good.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(schema["fields"]["custom.good"]["type"], "str")
 
@@ -57,12 +54,30 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
-				schema = await service.read_schema("ECS")
+				schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(schema["fields"]["custom.good"]["type"], "str")
 			self.assertTrue(
 				any("'fields' section is not a dictionary" in message for message in logs.output),
 				"Extension without fields mapping should log why it was skipped.",
+			)
+
+	async def test_extension_without_lmio_extension_type_is_skipped(self):
+		"""An extension must identify itself as an LMIO schema extension."""
+		with tempfile.TemporaryDirectory() as root:
+			write_fixture(root, "/Schemas/ECS.yaml", "base_ecs.yaml")
+			write_fixture(root, "/Schemas/Extensions/ECS-Bad.yaml", "extension_wrong_type.yaml")
+			write_fixture(root, "/Schemas/Extensions/ECS-Good.yaml", "extension_custom_good.yaml")
+			service = make_schema_service(make_filesystem_provider(root))
+
+			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
+				schema = await service.read_schema("/Schemas/ECS.yaml")
+
+			self.assertEqual(schema["fields"]["custom.good"]["type"], "str")
+			self.assertNotIn("custom.wrong_type", schema["fields"])
+			self.assertTrue(
+				any("Invalid define/type" in message for message in logs.output),
+				"Extension with invalid define/type should log why it was skipped.",
 			)
 
 	async def test_non_mapping_extension_is_skipped(self):
@@ -74,7 +89,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
-				schema = await service.read_schema("ECS")
+				schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(schema["fields"]["custom.good"]["type"], "str")
 			self.assertTrue(
@@ -89,7 +104,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/Extensions/ECS-Good.yaml", "extension_custom_good.yaml")
 			service = make_schema_service(make_vanishing_extension_provider(root))
 
-			schema = await service.read_schema("ECS")
+			schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(schema["fields"]["custom.good"]["type"], "str")
 			self.assertNotIn("custom.vanished", schema["fields"])
@@ -102,7 +117,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
-				schema = await service.read_schema("ECS")
+				schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(
 				schema["fields"]["host.name"]["type"],
@@ -122,7 +137,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
-				schema = await service.read_schema("ECS")
+				schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(
 				schema["fields"]["host.name"]["type"],
@@ -152,7 +167,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/Extensions/CEF-Custom.yaml", "extension_cef_only.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertNotIn("cef.only", schema["fields"])
 
@@ -165,7 +180,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/Extensions/CFMX-Custom.yaml", "extension_cfmx_only.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
-			schema = await service.read_schema("CFM")
+			schema = await service.read_schema("/Schemas/CFM.yaml")
 
 			self.assertIn("flow.id", schema["fields"], "CFM base schema field should be present.")
 			self.assertIn("cfm.only", schema["fields"], "CFM-* extension should be merged for CFM schema reads.")
@@ -179,7 +194,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/Extensions/ECS-Custom.json", "extension_custom_json.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertNotIn("custom.json", schema["fields"])
 
@@ -191,7 +206,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/Extensions/ECS-Custom.yaml", "extension_custom_good.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertNotIn("custom.empty", schema["fields"])
 			self.assertEqual(schema["fields"]["custom.good"]["type"], "str")
@@ -205,7 +220,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
-				schema = await service.read_schema("ECS")
+				schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(
 				schema["fields"]["custom.order"]["type"],
@@ -226,7 +241,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
-				schema = await service.read_schema("ECS")
+				schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(
 				schema["fields"]["custom.shared"]["type"],
@@ -251,6 +266,6 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/Extensions/ECS-Good.yaml", "extension_custom_good.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
-			schema = await service.read_schema("ECS")
+			schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(schema["fields"]["custom.good"]["type"], "str")
