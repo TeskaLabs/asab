@@ -123,7 +123,7 @@ class LibrarySchemaService(Service):
 			for field_name, field_definition in extension_fields.items():
 				if field_name in merged_fields:
 					L.warning(
-						"Skipping field: Field found in base schema or other schema extension.",
+						"Skipping schema extension field: field already exists.",
 						struct_data={
 							"path": item.name,
 							"field": field_name,
