@@ -88,7 +88,14 @@ class LibrarySchemaService(Service):
 						extension = None
 					else:
 						extension = yaml.load(itemio, Loader=yaml.CSafeLoader)
-			except Exception:
+			except Exception as e:
+				L.warning(
+					"Skipping schema extension: Failed to read or parse YAML.",
+					struct_data={
+						"path": item.name,
+						"error": str(e),
+					},
+				)
 				continue
 
 			if extension is None:

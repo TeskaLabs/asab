@@ -41,9 +41,14 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/Extensions/ECS-Good.yaml", "extension_custom_good.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
-			schema = await service.read_schema("/Schemas/ECS.yaml")
+			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
+				schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(schema["fields"]["custom.good"]["type"], "str")
+			self.assertTrue(
+				any("Failed to read or parse YAML" in message for message in logs.output),
+				"Malformed extension should log why it was skipped.",
+			)
 
 	async def test_extension_without_fields_mapping_is_skipped(self):
 		"""An extension without a fields mapping is skipped without blocking valid ones."""
