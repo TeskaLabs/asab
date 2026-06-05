@@ -2,6 +2,7 @@ import re
 import io
 import time
 import os.path
+import errno
 import typing
 import hashlib
 import tarfile
@@ -1007,8 +1008,13 @@ class LibraryService(Service):
 
 	def _write_cache_url(self, repodir: str, path: str) -> None:
 		os.makedirs(repodir, exist_ok=True)
-		with open(os.path.join(repodir, ".url"), "w") as f:
-			f.write(path)
+		try:
+			with open(os.path.join(repodir, ".url"), "w") as f:
+				f.write(path)
+		except OSError as e:
+			if e.errno != errno.EROFS:
+				raise
+			L.warning("Cannot write library cache URL metadata: read-only filesystem.")
 
 
 def _validate_path_item(path: str) -> None:
