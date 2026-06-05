@@ -2,7 +2,6 @@ import re
 import io
 import time
 import os.path
-import errno
 import typing
 import hashlib
 import tarfile
@@ -144,7 +143,6 @@ class LibraryService(Service):
 		elif path.startswith('git+'):
 			if len(self.CacheDir) > 0:
 				repodir = self._get_repodir(path)
-				self._write_cache_url(repodir, path)
 				from .providers.cache import CacheLibraryProvider
 				library_provider = CacheLibraryProvider(self, path, layer, repodir=repodir, ready_file=os.path.join(repodir, ".ready"))
 			else:
@@ -154,7 +152,6 @@ class LibraryService(Service):
 		elif path.startswith('libsreg+'):
 			if len(self.CacheDir) > 0:
 				repodir = self._get_repodir(path)
-				self._write_cache_url(repodir, path)
 				from .providers.cache import CacheLibraryProvider
 				library_provider = CacheLibraryProvider(self, path, layer, repodir=os.path.join(repodir, "content"), ready_file=os.path.join(repodir, ".ready"))
 			else:
@@ -1005,16 +1002,6 @@ class LibraryService(Service):
 
 	def _get_repodir(self, path: str) -> str:
 		return os.path.join(self.CacheDir, hashlib.sha256(path.encode('utf-8')).hexdigest())
-
-	def _write_cache_url(self, repodir: str, path: str) -> None:
-		os.makedirs(repodir, exist_ok=True)
-		try:
-			with open(os.path.join(repodir, ".url"), "w") as f:
-				f.write(path)
-		except OSError as e:
-			if e.errno != errno.EROFS:
-				raise
-			L.warning("Cannot write library cache URL metadata: read-only filesystem.")
 
 
 def _validate_path_item(path: str) -> None:
