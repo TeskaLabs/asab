@@ -1,5 +1,4 @@
 import hashlib
-import os
 import typing
 
 
@@ -18,13 +17,6 @@ class LibraryProviderABC(object):
 
 	async def finalize(self, app):
 		pass
-
-
-	def _write_cache_source(self, path):
-		if self.Source is None:
-			return
-		with open(os.path.join(path, ".url"), "w") as f:
-			f.write(self.Source)
 
 
 	async def read(self, path: str) -> typing.IO:

@@ -472,7 +472,9 @@ class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 			self.GitRepository = None
 			raise RuntimeError("Git repository working tree is empty - removed for retry")
 
-		self._write_cache_source(self.RepoPath)
+		if self.Source is not None:
+			with open(os.path.join(self.RepoPath, ".url"), "w") as f:
+				f.write(self.Source)
 		with open(os.path.join(self.RepoPath, ".ready"), "w") as f:
 			f.write("yes")
 		await self._set_ready()
