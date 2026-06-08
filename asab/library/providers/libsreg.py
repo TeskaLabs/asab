@@ -117,7 +117,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 
 		os.makedirs(os.path.join(self.RepoPath), exist_ok=True)
 
-		super().__init__(library, self.RepoPath, layer, set_ready=False)
+		super().__init__(library, self.RepoPath, layer, set_ready=False, provider_source=path)
 
 		self.PullLock = asyncio.Lock()
 		self.LastPull = None
@@ -234,6 +234,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 							# Synchronize the temp_extract_dir into the library
 							synchronize_dirs(self.RepoPath, temp_extract_dir)
 							if not self.IsReady:
+								self._write_cache_source(self.RootPath)
 								with open(os.path.join(self.RootPath, ".ready"), "w") as f:
 									f.write("yes")
 								await self._set_ready()
@@ -256,6 +257,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 						elif response.status == 304:
 							# The repository has not changed ...
 							if not self.IsReady:
+								self._write_cache_source(self.RootPath)
 								with open(os.path.join(self.RootPath, ".ready"), "w") as f:
 									f.write("yes")
 								await self._set_ready()

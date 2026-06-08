@@ -40,11 +40,10 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 	'''
 
 	def __init__(self, library, path, layer):
-		super().__init__(library, layer)
+		super().__init__(library, layer, path)
 		assert path[:6] == "azure+"
 		self.URL = urllib.parse.urlparse(path[6:])
 		self.Model = None  # Will be set by `_load_model` method
-		self.Path = path
 
 		self.CacheDir = Config.get("library", "azure_cache")
 		if self.CacheDir == 'false':

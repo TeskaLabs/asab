@@ -99,7 +99,7 @@ class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 				hashlib.sha256(path.encode('utf-8')).hexdigest()
 			)
 
-		super().__init__(library, self.RepoPath, layer, set_ready=False)
+		super().__init__(library, self.RepoPath, layer, set_ready=False, provider_source=path)
 
 		# Set custom SSL certificate locations if specified
 		cert_file = Config.get("library:git", "cert_file", fallback=None)
@@ -472,6 +472,7 @@ class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 			self.GitRepository = None
 			raise RuntimeError("Git repository working tree is empty - removed for retry")
 
+		self._write_cache_source(self.RepoPath)
 		with open(os.path.join(self.RepoPath, ".ready"), "w") as f:
 			f.write("yes")
 		await self._set_ready()

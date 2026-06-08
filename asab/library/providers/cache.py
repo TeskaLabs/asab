@@ -12,6 +12,8 @@ class CacheLibraryProvider(SimpleFileSystemLibraryProvider):
 	def __init__(self, library, path, layer, *, repodir, ready_file):
 		self.ReadyFile = ready_file
 		super().__init__(library, repodir, layer, set_ready=False)
+		self.Source = None
+		self.ID = None
 
 		# Wait for the ready file to be created by the asab-library service, indicating that the cache folder is ready.
 		self.App.TaskService.schedule(self.wait_for_ready())

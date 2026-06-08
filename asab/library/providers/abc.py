@@ -1,19 +1,30 @@
+import hashlib
+import os
 import typing
 
 
 class LibraryProviderABC(object):
 
 
-	def __init__(self, library, layer):
+	def __init__(self, library, layer, source=None):
 		super().__init__()
 		self.App = library.App
 		self.Library = library
 		self.Layer = layer
+		self.Source = source
+		self.ID = hashlib.sha256(source.encode("utf-8")).hexdigest() if source is not None else None
 		self.IsReady = False
 
 
 	async def finalize(self, app):
 		pass
+
+
+	def _write_cache_source(self, path):
+		if self.Source is None:
+			return
+		with open(os.path.join(path, ".url"), "w") as f:
+			f.write(self.Source)
 
 
 	async def read(self, path: str) -> typing.IO:
