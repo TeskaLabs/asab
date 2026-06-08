@@ -12,6 +12,7 @@ class CacheLibraryProvider(SimpleFileSystemLibraryProvider):
 	def __init__(self, library, path, layer, *, repodir, ready_file):
 		self.ReadyFile = ready_file
 		super().__init__(library, repodir, layer, set_ready=False)
+		self.Path = None
 		self.Source = None
 		self.ID = None
 
