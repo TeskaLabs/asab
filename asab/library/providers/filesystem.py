@@ -41,8 +41,8 @@ class SimpleFileSystemLibraryProvider(LibraryProviderABC):
 	- global path: <BasePath>/<path>
 	"""
 
-	def __init__(self, library, path, layer, *, set_ready=True, provider_source=None):
-		super().__init__(library, layer, path if provider_source is None else provider_source)
+	def __init__(self, library, path, layer, *, source, set_ready=True):
+		super().__init__(library, layer, source)
 
 		# Check for `file://` prefix and strip it if present
 		if path.startswith('file://'):
@@ -368,8 +368,8 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 		("personal", "<cred>") -> watch one personal credential scope
 	"""
 
-	def __init__(self, library, path, layer, *, set_ready=True, provider_source=None):
-		super().__init__(library, path, layer, set_ready=False, provider_source=provider_source)
+	def __init__(self, library, path, layer, *, source, set_ready=True):
+		super().__init__(library, path, layer, source=source, set_ready=False)
 
 		# Set up disabled file path
 		self.DisabledFilePath = os.path.join(self.BasePath, '.disabled.yaml')

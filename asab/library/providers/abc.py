@@ -5,14 +5,13 @@ import typing
 class LibraryProviderABC(object):
 
 
-	def __init__(self, library, layer, source=None):
+	def __init__(self, library, layer, source):
 		super().__init__()
 		self.App = library.App
 		self.Library = library
 		self.Layer = layer
-		self.Path = source
 		self.Source = source
-		self.ID = hashlib.sha256(source.encode("utf-8")).hexdigest() if source is not None else None
+		self.ID = hashlib.sha256(source.encode("utf-8")).hexdigest()
 		self.IsReady = False
 
 

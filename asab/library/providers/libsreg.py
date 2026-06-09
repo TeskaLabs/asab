@@ -117,7 +117,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 
 		os.makedirs(os.path.join(self.RepoPath), exist_ok=True)
 
-		super().__init__(library, self.RepoPath, layer, set_ready=False, provider_source=path)
+		super().__init__(library, self.RepoPath, layer, source=path, set_ready=False)
 
 		self.PullLock = asyncio.Lock()
 		self.LastPull = None

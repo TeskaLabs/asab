@@ -99,7 +99,7 @@ class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 				hashlib.sha256(path.encode('utf-8')).hexdigest()
 			)
 
-		super().__init__(library, self.RepoPath, layer, set_ready=False, provider_source=path)
+		super().__init__(library, self.RepoPath, layer, source=path, set_ready=False)
 
 		# Set custom SSL certificate locations if specified
 		cert_file = Config.get("library:git", "cert_file", fallback=None)
