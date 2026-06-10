@@ -123,8 +123,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	"""
 
-	def __init__(self, library, path, layer):
-		super().__init__(library, layer, path)
+	def __init__(self, library, path, layer, *, source):
+		super().__init__(library, layer, source)
 
 		url_pieces = urllib.parse.urlparse(path)
 
