@@ -130,33 +130,33 @@ class LibraryService(Service):
 
 		if path.startswith('zk://') or path.startswith('zookeeper://'):
 			from .providers.zookeeper import ZooKeeperLibraryProvider
-			library_provider = ZooKeeperLibraryProvider(self, path, layer)
+			library_provider = ZooKeeperLibraryProvider(self, path, layer, source=path)
 
 		elif path.startswith('./') or path.startswith('/') or path.startswith('file://'):
 			from .providers.filesystem import FileSystemLibraryProvider
-			library_provider = FileSystemLibraryProvider(self, path, layer)
+			library_provider = FileSystemLibraryProvider(self, path, layer, source=path)
 
 		elif path.startswith('azure+https://'):
 			from .providers.azurestorage import AzureStorageLibraryProvider
-			library_provider = AzureStorageLibraryProvider(self, path, layer)
+			library_provider = AzureStorageLibraryProvider(self, path, layer, source=path)
 
 		elif path.startswith('git+'):
 			if len(self.CacheDir) > 0:
 				repodir = self._get_repodir(path)
 				from .providers.cache import CacheLibraryProvider
-				library_provider = CacheLibraryProvider(self, path, layer, repodir=repodir, ready_file=os.path.join(repodir, ".ready"))
+				library_provider = CacheLibraryProvider(self, path, layer, source=path, repodir=repodir, ready_file=os.path.join(repodir, ".ready"))
 			else:
 				from .providers.git import GitLibraryProvider
-				library_provider = GitLibraryProvider(self, path, layer)
+				library_provider = GitLibraryProvider(self, path, layer, source=path)
 
 		elif path.startswith('libsreg+'):
 			if len(self.CacheDir) > 0:
 				repodir = self._get_repodir(path)
 				from .providers.cache import CacheLibraryProvider
-				library_provider = CacheLibraryProvider(self, path, layer, repodir=os.path.join(repodir, "content"), ready_file=os.path.join(repodir, ".ready"))
+				library_provider = CacheLibraryProvider(self, path, layer, source=path, repodir=os.path.join(repodir, "content"), ready_file=os.path.join(repodir, ".ready"))
 			else:
 				from .providers.libsreg import LibsRegLibraryProvider
-				library_provider = LibsRegLibraryProvider(self, path, layer)
+				library_provider = LibsRegLibraryProvider(self, path, layer, source=path)
 
 		elif path == '' or path.startswith("#") or path.startswith(";"):
 			# This is empty or commented line
