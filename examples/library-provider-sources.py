@@ -20,7 +20,11 @@ class MyApplication(asab.Application):
 	async def main(self):
 		print("# Library provider sources\n")
 		for provider in self.LibraryService.Libraries:
-			print("{} {}".format(provider.ID, provider.Source))
+			print("{} source ID '{}' for source '{}'".format(
+				provider.__class__.__name__,
+				provider.ID,
+				provider.Source,
+			))
 
 		self.stop()
 
