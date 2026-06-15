@@ -40,21 +40,33 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 
 	async def _authorize(self, request: aiohttp.web.Request) -> Authorization:
-		access_token = None
-		if request.headers.get('connection', "").lower() == 'upgrade':
-			# Special handling for WebSocket connections
-			access_token = get_bearer_token_from_websocket_request(request)
+		token = None
 
-		if access_token is None:
-			access_token = get_bearer_token_from_authorization_header(request)
+		# First, try to extract the access token from the WebSocket protocol header (if it's a WebSocket request)
+		if connection_header := request.headers.get(aiohttp.hdrs.CONNECTION):
+			for value in connection_header.casefold().split(","):
+				if value.strip() == "upgrade":
+					# Verify it's actually a WebSocket upgrade by checking the Upgrade header
+					upgrade_header = request.headers.get(aiohttp.hdrs.UPGRADE, "").casefold()
+					if upgrade_header == "websocket":
+						token = get_bearer_token_from_websocket_request(request)
+						break
+
+		if token is None:
+			token = get_bearer_token_from_authorization_header(request)
+
+		auth_scheme, token_value = token
+		if auth_scheme not in {"bearer", "apikey"}:
+			L.warning("Unsupported Authorization header scheme: {!r}".format(auth_scheme))
+			raise NotAuthenticatedError()
 
 		# Try if the access token is already known
-		authz = self.Authorizations.get(access_token)
+		authz = self.Authorizations.get(token)
 		if authz is not None:
 			try:
 				authz.require_valid()
 			except NotAuthenticatedError as e:
-				del self.Authorizations[access_token]
+				del self.Authorizations[token]
 				raise e
 			return authz
 
@@ -64,11 +76,14 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 				if response.status != 200:
 					L.warning("Access token introspection failed.")
 					raise NotAuthenticatedError()
-				id_token = get_bearer_token_from_authorization_header(response)
+				auth_scheme, id_token = get_bearer_token_from_authorization_header(response)
+				if auth_scheme != "bearer":
+					L.warning("Unsupported Authorization header scheme: {!r}".format(auth_scheme))
+					raise NotAuthenticatedError()
 
 		# Create a new Authorization object and store it
 		claims = await self._get_claims_from_id_token(id_token)
 		authz = Authorization(claims, id_token=id_token)
 
-		self.Authorizations[access_token] = authz
+		self.Authorizations[token] = authz
 		return authz

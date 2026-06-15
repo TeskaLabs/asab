@@ -6,8 +6,9 @@ import hashlib
 import re
 import typing
 
-from .filesystem import FileSystemLibraryProvider
+from .filesystem import SimpleFileSystemLibraryProvider
 from ...config import Config
+from ...utils import convert_to_seconds
 
 #
 
@@ -38,7 +39,7 @@ except AttributeError:
 				GIT_CREDTYPE_SSH_KEY = 2  # Standard value across libgit2 versions
 
 
-class GitLibraryProvider(FileSystemLibraryProvider):
+class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 	"""
 	Read-only git provider to read from remote repository.
 	It clones a remote git repository to a temporary directory and then uses the
@@ -52,6 +53,9 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		# HTTPS with deploy token
 		[library]
 		providers=git+https://<username>:<deploy token>@<url>#<branch name>
+		# optional pull interval: fragment may be ``<branch>#pull=10h``
+		# interval shorter than 1 minute defaults to 1 minute
+		providers=git+https://<username>:<deploy token>@<url>#main#pull=10h
 
 		# SSH (uses default SSH keys from ~/.ssh/)
 		[library]
@@ -64,7 +68,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		ssh_passphrase=<optional passphrase for SSH key>
 		verify_ssh_fingerprint=yes|no (default: no - auto-accepts host keys)
 	"""
-	def __init__(self, library, path, layer):
+	def __init__(self, library, path, layer, *, repodir=None):
 
 		# Initialize attributes to avoid attribute errors
 		self.URLScheme = ""
@@ -76,12 +80,15 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.URL = ""
 		self.UsesSSH = False
 		self.GitRepository: typing.Optional[pygit2.Repository] = None
+		self.LastPull = None
+		self.PullInterval = 43200  # default 12 h; overridden by ``#pull=`` in URL fragment
 
 		# Parse URL - supports both HTTPS and SSH formats
 		self._parse_url(path)
 		self.Branch = self.Branch if self.Branch != "" else None  # pygit2 expects None for default branch
 
-		repodir = Config.get("library:git", "repodir", fallback=None)
+		if repodir is None:
+			repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
 			self.RepoPath = os.path.abspath(repodir)
 		else:
@@ -123,12 +130,41 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.App.PubSub.subscribe("Application.tick/60!", self._periodic_pull)
 
 
+	def _parse_url_fragment(self, fragment):
+		"""
+		Parse the URL fragment for checkout branch and optional ``pull=`` interval.
+
+		There is only one ``#`` in a URL; further ``#`` appear inside the fragment
+		(e.g. ``#main#pull=10h``), matching the libsreg provider convention.
+
+		:return: ``(branch, pull_interval)`` where ``pull_interval`` is the raw value
+			after ``pull=``, or ``None`` if absent.
+		"""
+		branch = ""
+		pull_interval = None
+		if fragment:
+			for part in fragment.split("#"):
+				if part.startswith("pull="):
+					pull_interval = part[5:]
+				elif "=" not in part:
+					branch = part
+		return branch, pull_interval
+
+
 	def _parse_url(self, path):
 		"""
 		Parse git URL from various formats:
-		- git+https://[user:token@]host/path[#branch]
-		- git+ssh://[user@]host/path[#branch]  (e.g., git+ssh://git@github.com/user/repo.git)
-		- git+git@host:path[#branch]  (SSH shorthand, e.g., git+git@github.com:user/repo.git)
+		- git+https://[user:token@]host/path[#branch[#pull=<interval>]]
+		- git+ssh://[user@]host/path[#branch[#pull=<interval>]]  (e.g., git+ssh://git@github.com/user/repo.git)
+		- git+git@host:path[#branch[#pull=<interval>]]  (SSH shorthand, e.g., git+git@github.com:user/repo.git)
+
+		Full example (branch ``main``, pull interval 10 hours; only one ``#`` starts the URL fragment,
+		the second ``#`` separates ``main`` and ``pull=10h`` inside that fragment)::
+
+			git+https://deploy:token@git.example.com/org/repo.git#main#pull=10h
+
+		That yields clone URL ``https://deploy:token@git.example.com/org/repo.git``, branch ``main``,
+		and ``pull=10h`` is applied to ``PullInterval`` (not part of the clone URL).
 		"""
 		# First, try HTTPS pattern
 		https_pattern = re.compile(r"git\+(https?://)((.*):(.*)@)?([^#]*)(?:#(.*))?$")
@@ -142,7 +178,9 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			self.User = groups[2] or ""
 			self.DeployToken = groups[3] or ""
 			self.URLPath = groups[4]
-			self.Branch = groups[5] or ""
+			self.Branch, pull_interval = self._parse_url_fragment(groups[5] or "")
+			if pull_interval is not None:
+				self.PullInterval = convert_to_seconds(pull_interval)
 			self.URL = "".join([self.URLScheme, self.UserInfo, self.URLPath])
 			self.UsesSSH = False
 			return
@@ -157,9 +195,11 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			user = groups[0] or "git@"
 			host = groups[1]
 			repo_path = groups[2] or ""
-			self.Branch = groups[3] or ""
-			self.URL = f"ssh://{user}{host}{repo_path}"
-			self.URLPath = f"{host}{repo_path}"
+			self.Branch, pull_interval = self._parse_url_fragment(groups[3] or "")
+			if pull_interval is not None:
+				self.PullInterval = convert_to_seconds(pull_interval)
+			self.URL = "ssh://{}{}{}".format(user, host, repo_path)
+			self.URLPath = "{}{}".format(host, repo_path)
 			self.User = user.rstrip("@")
 			self.DeployToken = ""
 			self.URLScheme = "ssh://"
@@ -177,10 +217,12 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			user = groups[0] or "git@"
 			host = groups[1]
 			repo_path = groups[2]
-			self.Branch = groups[3] or ""
+			self.Branch, pull_interval = self._parse_url_fragment(groups[3] or "")
+			if pull_interval is not None:
+				self.PullInterval = convert_to_seconds(pull_interval)
 			# Convert to full SSH URL for pygit2
-			self.URL = f"{user}{host}:{repo_path}"
-			self.URLPath = f"{host}:{repo_path}"
+			self.URL = "{}{}:{}".format(user, host, repo_path)
+			self.URLPath = "{}:{}".format(host, repo_path)
 			self.User = user.rstrip("@")
 			self.DeployToken = ""
 			self.URLScheme = ""
@@ -288,6 +330,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		if self.PullLock.locked():
 			return
 
+		if self.LastPull is not None and self.App.time() - self.LastPull < self.PullInterval:
+			# Do not pull if the last pull was done less than PullInterval ago
+			return
+
 		async with self.PullLock:
 			if self.GitRepository is None:
 				self.App.TaskService.schedule(self.initialize_git_repository())
@@ -295,6 +341,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 			try:
 				to_publish = await self.ProactorService.execute(self._do_pull)
+				self.LastPull = self.App.time()
 				# Once reset of the head is finished, PubSub message about the change in the subscribed directory gets published.
 				for path in to_publish:
 					self.App.PubSub.publish("Library.change!", self, path)
@@ -307,13 +354,14 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 
 	async def initialize_git_repository(self):
 		"""
-		Initialize git repository by cloning or pulling latest changes.
+		Initialize git repository by cloning or opening existing.
+		Pull is NOT performed during init - it happens separately via _periodic_pull.
+		This ensures the library becomes ready as soon as the repo is accessible.
 		"""
 
 		def init_task():
-
 			if pygit2.discover_repository(self.RepoPath) is None:
-				# For a new repository, clone the remote bit
+				# For a new repository, clone the remote
 				os.makedirs(self.RepoPath, mode=0o700, exist_ok=True)
 				callbacks = self._create_callbacks()
 				self.GitRepository = pygit2.clone_repository(
@@ -322,11 +370,10 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 					checkout_branch=self.Branch,
 					callbacks=callbacks
 				)
-
 			else:
-				# For existing repository, pull the latest changes
+				# For existing repository, just open it
+				# Do NOT pull here - pull happens via _periodic_pull
 				self.GitRepository = pygit2.Repository(self.RepoPath)
-				self._do_pull()
 
 		try:
 			await self.ProactorService.execute(init_task)
@@ -405,6 +452,28 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 			return
 
 		# If everything went fine, set the provider as ready
+		# This has to be atomic. There must be no other code between the init task and setting the library ready.
+
+		# Check that the working tree is not empty (has actual files)
+		# Walk the RepoPath and check for any files (not just .git directory)
+		has_files = False
+		for root, dirs, files in os.walk(self.RepoPath):
+			# Skip the .git directory
+			if '.git' in dirs:
+				dirs.remove('.git')
+			if files:
+				has_files = True
+				break
+		if not has_files:
+			# Remove the repo directory to force fresh clone on next retry
+			# This handles transient issues where clone didn't populate working tree
+			import shutil
+			shutil.rmtree(self.RepoPath, ignore_errors=True)
+			self.GitRepository = None
+			raise RuntimeError("Git repository working tree is empty - removed for retry")
+
+		with open(os.path.join(self.RepoPath, ".ready"), "w") as f:
+			f.write("yes")
 		await self._set_ready()
 
 
@@ -444,6 +513,7 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 		self.GitRepository.head.set_target(new_commit_id)
 		self.GitRepository.reset(new_commit_id, pygit2.GIT_RESET_HARD)
 
+		L.info("Pulled repository", struct_data={"layer": self.Layer, "url": self.URLPath, "commit_id": new_commit_id})
 		return to_publish
 
 

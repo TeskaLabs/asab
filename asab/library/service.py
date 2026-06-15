@@ -3,6 +3,7 @@ import io
 import time
 import os.path
 import typing
+import hashlib
 import tarfile
 import asyncio
 import logging
@@ -62,7 +63,7 @@ class LibraryService(Service):
 		self,
 		app: Application,
 		service_name: str,
-		paths: typing.Union[str, typing.List[str], None] = None
+		paths: typing.Union[str, typing.List[str], None] = None,
 	):
 		"""
 		Initialize the LibraryService.
@@ -86,8 +87,8 @@ class LibraryService(Service):
 		self.DisabledPaths: list = []
 		self.Favorites: dict = {}
 		self.FavoritePaths: list = []
+		self.CacheDir = Config.get("library", "cache_dir", fallback="")
 		self.__is_ready_last = False  # This is to ensure edge "not ready" -> "ready" to be published during initialization.
-
 
 		if paths is None:
 			# load them from configuration
@@ -107,6 +108,9 @@ class LibraryService(Service):
 
 		app.PubSub.subscribe("Application.tick/60!", self._on_tick60)
 
+		self.LibraryReadyEvent = asyncio.Event()
+		self.LibraryReadyTimeout = Config.getint('library', 'library_ready_timeout', fallback=30)
+
 
 	async def finalize(self, app):
 		while len(self.Libraries) > 0:
@@ -114,11 +118,16 @@ class LibraryService(Service):
 			await lib.finalize(self.App)
 
 	async def _on_tick60(self, message_type):
+		if len(self.Libraries) == 0 or not self.Libraries[0].IsReady:
+			return
+
 		await self._read_disabled()
 		await self._read_favorites()
 
+
 	def _create_library(self, path, layer):
 		library_provider = None
+
 		if path.startswith('zk://') or path.startswith('zookeeper://'):
 			from .providers.zookeeper import ZooKeeperLibraryProvider
 			library_provider = ZooKeeperLibraryProvider(self, path, layer)
@@ -132,12 +141,22 @@ class LibraryService(Service):
 			library_provider = AzureStorageLibraryProvider(self, path, layer)
 
 		elif path.startswith('git+'):
-			from .providers.git import GitLibraryProvider
-			library_provider = GitLibraryProvider(self, path, layer)
+			if len(self.CacheDir) > 0:
+				repodir = self._get_repodir(path)
+				from .providers.cache import CacheLibraryProvider
+				library_provider = CacheLibraryProvider(self, path, layer, repodir=repodir, ready_file=os.path.join(repodir, ".ready"))
+			else:
+				from .providers.git import GitLibraryProvider
+				library_provider = GitLibraryProvider(self, path, layer)
 
 		elif path.startswith('libsreg+'):
-			from .providers.libsreg import LibsRegLibraryProvider
-			library_provider = LibsRegLibraryProvider(self, path, layer)
+			if len(self.CacheDir) > 0:
+				repodir = self._get_repodir(path)
+				from .providers.cache import CacheLibraryProvider
+				library_provider = CacheLibraryProvider(self, path, layer, repodir=os.path.join(repodir, "content"), ready_file=os.path.join(repodir, ".ready"))
+			else:
+				from .providers.libsreg import LibsRegLibraryProvider
+				library_provider = LibsRegLibraryProvider(self, path, layer)
 
 		elif path == '' or path.startswith("#") or path.startswith(";"):
 			# This is empty or commented line
@@ -148,6 +167,7 @@ class LibraryService(Service):
 			raise SystemExit("Exit due to a critical configuration error.")
 
 		self.Libraries.append(library_provider)
+
 
 	def is_ready(self) -> bool:
 		"""
@@ -161,11 +181,30 @@ class LibraryService(Service):
 
 		return all(provider.IsReady for provider in self.Libraries)
 
+
+	async def wait_for_library_ready(self, timeout: int = None):
+		"""
+		Wait for the library to be ready.
+
+		Args:
+			timeout (int): The timeout in seconds. If not provided, the default timeout is used.
+
+		Raises:
+			LibraryNotReadyError: If the library is not ready within the timeout.
+		"""
+		if timeout is None:
+			timeout = self.LibraryReadyTimeout
+		try:
+			await asyncio.wait_for(self.LibraryReadyEvent.wait(), timeout=timeout)
+		except asyncio.TimeoutError:
+			raise LibraryNotReadyError("Library is not ready yet.")
+
 	async def _set_ready(self, provider):
 		if len(self.Libraries) == 0:
 			if self.__is_ready_last:
 				self.__is_ready_last = False
 				L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
+				self.LibraryReadyEvent.clear()
 				self.App.PubSub.publish("Library.not_ready!", self)
 			return
 
@@ -178,11 +217,13 @@ class LibraryService(Service):
 		if edge == (False, True):  # The edge 'not ready' -> 'ready'
 			self.__is_ready_last = True
 			L.log(LOG_NOTICE, "is ready.", struct_data={'name': self.Name})
+			self.LibraryReadyEvent.set()
 			self.App.PubSub.publish("Library.ready!", self)
 
 		elif edge == (True, False):  # The edge 'ready' -> 'not ready'
 			self.__is_ready_last = False
 			L.log(LOG_NOTICE, "is NOT ready.", struct_data={'name': self.Name})
+			self.LibraryReadyEvent.clear()
 			self.App.PubSub.publish("Library.not_ready!", self)
 
 
@@ -203,6 +244,8 @@ class LibraryService(Service):
 		Returns:
 			typing.List[str]: A list of paths to the found files. If no files are found, the list will be empty.
 		"""
+		self._ensure_ready()
+
 		_validate_path_item(path)
 
 		results = []
@@ -252,10 +295,17 @@ class LibraryService(Service):
 
 
 	@contextlib.asynccontextmanager
-	async def open(self, path: str):
+	async def open(self, path: str, timeout: int = None):
 		"""
 		Read the content of the library item specified by `path` in a SAFE way, protected by a context manager/with statement.
 		This method can be used only after the Library is ready.
+
+		Args:
+			path (str): Path to the file, `LibraryItem.name` can be used directly.
+			timeout (int): The timeout how long to wait for the library to be ready in seconds. If not provided, the default timeout is used.
+
+		Returns:
+			Readable stream with the content of the library item. `None` is returned if the item is not found or if it is disabled (either globally or for the specified tenant).
 
 		Example:
 
@@ -266,7 +316,7 @@ class LibraryService(Service):
 			text = b.read().decode("utf-8")
 		```
 		"""
-		self._ensure_ready()
+		await self.wait_for_library_ready(timeout)
 
 		_validate_path_item(path)
 
@@ -288,7 +338,7 @@ class LibraryService(Service):
 				itemio.close()
 
 
-	async def list(self, path: str = "/", recursive: bool = False) -> typing.List[LibraryItem]:
+	async def list(self, path: str = "/", recursive: bool = False, timeout: int = None) -> typing.List[LibraryItem]:
 		"""
 		List the directory of the library specified by the path that are enabled for the
 		specified target (global, tenant, or personal).
@@ -310,11 +360,12 @@ class LibraryService(Service):
 		Args:
 			path (str): Path to the directory.
 			recursive (bool): If `True`, return a list of items located at `path` and its subdirectories.
+			timeout (int): The timeout how long to wait for the library to be ready in seconds. If not provided, the default timeout is used.
 
 		Returns:
 			List of items that are enabled for the tenant.
 		"""
-		self._ensure_ready()
+		await self.wait_for_library_ready(timeout)
 
 		_validate_path_directory(path)
 
@@ -402,22 +453,21 @@ class LibraryService(Service):
 			- self.Favorites: { '/path/file.ext': ['tenant', '*', ...] }
 			- self.FavoritePaths: [ ('/path/folder/', ['tenant', '*', ...]), ... ]
 		Expected YAML shape:
-			/path:
-				tenants:
-				- system
+				/path:
+					tenants:
+					- system
 		"""
-		fav_data = None
 		if len(self.Libraries) == 0:
-			self.Favorites = {}
-			self.FavoritePaths = []
 			return
+
+		fav_data = None
+		fav_file = None
 
 		try:
 			fav_file = await self.Libraries[0].read('/.favorites.yaml')
 		except Exception as e:
-			L.warning("Failed to read '/.favorites.yaml': {}.".format(e))
-			self.Favorites = {}
-			self.FavoritePaths = []
+			if getattr(self.Libraries[0], "IsReady", False):
+				L.warning("Failed to read '/.favorites.yaml': {}.".format(e))
 			return
 
 		if fav_file is None:
@@ -488,50 +538,55 @@ class LibraryService(Service):
 
 	async def _read_disabled(self, publish_changes=False):
 		if len(self.Libraries) == 0:
-			self.Disabled = {}
-			self.DisabledPaths = []
 			return
+
 		old_disabled = self.Disabled.copy()
 		old_disabled_paths = list(self.DisabledPaths)
-
-		# Read the file
+		disabled_file = None
 		try:
+			# Read the file
 			disabled_file = await self.Libraries[0].read('/.disabled.yaml')
 		except Exception as e:
-			L.warning("Failed to read '/.disabled.yaml': {}.".format(e))
-			self.Disabled = {}
-			self.DisabledPaths = []
+			if getattr(self.Libraries[0], "IsReady", False):
+				L.warning("Failed to read '/.disabled.yaml': {}.".format(e))
 			return
 
-		if disabled_file is None:
-			self.Disabled = {}
-			self.DisabledPaths = []
-		else:
-			try:
-				disabled_data = yaml.load(disabled_file, Loader=yaml.CSafeLoader)
-			except Exception:
-				L.exception("Failed to parse '/.disabled.yaml'")
+		try:
+			if disabled_file is None:
 				self.Disabled = {}
-				self.DisabledPaths = []
-				return
-
-			if disabled_data is None:
-				self.Disabled = {}
-				self.DisabledPaths = []
-				return
-
-			if isinstance(disabled_data, set):
-				# Backward compatibility (August 2023)
-				self.Disabled = {key: '*' for key in disabled_data}
 				self.DisabledPaths = []
 			else:
-				self.Disabled = {}
-				self.DisabledPaths = []
-				for k, v in disabled_data.items():
-					if k.endswith('/'):
-						self.DisabledPaths.append((k, v))
-					else:
-						self.Disabled[k] = v
+				try:
+					disabled_data = yaml.load(disabled_file, Loader=yaml.CSafeLoader)
+				except Exception:
+					L.exception("Failed to parse '/.disabled.yaml'")
+					self.Disabled = {}
+					self.DisabledPaths = []
+					return
+
+				if disabled_data is None:
+					self.Disabled = {}
+					self.DisabledPaths = []
+					return
+
+				if isinstance(disabled_data, set):
+					# Backward compatibility (August 2023)
+					self.Disabled = {key: '*' for key in disabled_data}
+					self.DisabledPaths = []
+				else:
+					self.Disabled = {}
+					self.DisabledPaths = []
+					for k, v in disabled_data.items():
+						if k.endswith('/'):
+							self.DisabledPaths.append((k, v))
+						else:
+							self.Disabled[k] = v
+		finally:
+			if hasattr(disabled_file, "close"):
+				try:
+					disabled_file.close()
+				except Exception:
+					pass
 
 		self.DisabledPaths.sort(key=lambda x: len(x[0]))
 
@@ -1144,13 +1199,17 @@ class LibraryService(Service):
 		Args:
 			paths (str | list[str]): Either single path or list of paths to be subscribed. All the paths must be absolute (start with '/').
 			target: In which target to watch the changes. Possible values:
-				- "global" to watch global path changes
-				- "tenant" to watch path changes in tenants
+				- "global" (or None) to watch global path changes
+				- "tenant" to watch path changes in tenant scopes
 				- ("tenant", TENANT_ID) to watch path changes in one specified tenant TENANT_ID
-				- "personal" to watch path changes for all personal credential IDs
-				- ("personal", CREDENTIALS_ID) to watch in one specific personal scope
+				- "personal" to watch the current `(tenant, credentials)` personal scope from contextvars
+				- ("personal", CREDENTIALS_ID) to watch one specific personal scope under the current tenant
 
-		Examples:
+			Callers that need blocking bootstrap behavior should wait for `Library.ready!`
+			or call `wait_for_library_ready()` before subscribing. `subscribe()` itself
+			remains a fail-fast readiness gate.
+
+			Examples:
 		```python
 		class MyApplication(asab.Application):
 
@@ -1178,6 +1237,9 @@ class LibraryService(Service):
 
 			for provider in self.Libraries:
 				await provider.subscribe(path, target)
+
+	def _get_repodir(self, path: str) -> str:
+		return os.path.join(self.CacheDir, hashlib.sha256(path.encode('utf-8')).hexdigest())
 
 
 def _validate_path_item(path: str) -> None:
