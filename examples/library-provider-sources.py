@@ -10,7 +10,10 @@ class MyApplication(asab.Application):
 	def __init__(self):
 		super().__init__()
 
-		asab.Config["library"]["providers"] = os.path.join(os.path.dirname(__file__), "library")
+		asab.Config["library"]["providers"] = "\n".join([
+			os.path.join(os.path.dirname(__file__), "library"),
+			"git+https://github.com/TeskaLabs/asab.git",
+		])
 
 		self.LibraryService = asab.library.LibraryService(
 			self,
