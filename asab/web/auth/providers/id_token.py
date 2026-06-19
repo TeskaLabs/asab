@@ -51,7 +51,10 @@ class IdTokenAuthProvider(AuthProviderABC):
 			raise NotAuthenticatedError(resource_metadata=self.ResourceMatadataUrl)
 
 		# First, try to extract the token from the Authorization header
-		token = get_bearer_token_from_authorization_header(request)
+		try:
+			token = get_bearer_token_from_authorization_header(request)
+		except NotAuthenticatedError:
+			token = None
 
 		# If there is none, try to extract the token from the WebSocket protocol header (if it's a WebSocket request)
 		# TODO: This may be unnecessary since the websocket request has passed the introspection and has been enriched
