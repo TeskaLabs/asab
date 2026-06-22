@@ -141,7 +141,7 @@ async def JsonExceptionMiddleware(request, handler):
 			"status": 404,
 			**_filter_logging_headers(request.headers)
 		}
-		Lex.warning("KeyError when handling web request", exc_info=True, struct_data=struct_data)
+		Lex.warning("Requested resource was not found while handling web request.", exc_info=True, struct_data=struct_data)
 
 		if len(e.args) > 1:
 			message = e.args[0].format(*e.args[1:])
@@ -169,7 +169,7 @@ async def JsonExceptionMiddleware(request, handler):
 			"status": 400,
 			**_filter_logging_headers(request.headers)
 		}
-		Lex.warning("ValidationError when handling web request", exc_info=True, struct_data=struct_data)
+		Lex.warning("Request validation failed while handling web request.", exc_info=True, struct_data=struct_data)
 
 		if len(e.args) > 1:
 			message = e.args[0].format(*e.args[1:])
@@ -196,7 +196,7 @@ async def JsonExceptionMiddleware(request, handler):
 			"status": 409,
 			**_filter_logging_headers(request.headers)
 		}
-		Lex.warning("Conflict when handling web request", exc_info=True, struct_data=struct_data)
+		Lex.warning("Resource conflict detected while handling web request.", exc_info=True, struct_data=struct_data)
 
 		if len(e.args) > 1:
 			message = e.args[0].format(*e.args[1:])
@@ -224,7 +224,7 @@ async def JsonExceptionMiddleware(request, handler):
 			"status": 500,
 			**_filter_logging_headers(request.headers)
 		}
-		Lex.exception("Exception when handling web request", exc_info=True, struct_data=struct_data)
+		Lex.exception("Unhandled exception while handling web request.", exc_info=True, struct_data=struct_data)
 		return json_response(
 			request,
 			data={
@@ -304,8 +304,11 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 				kwargs['json_data'] = data
 			except fastjsonschema.exceptions.JsonSchemaException as e:
 				raise aiohttp.web.HTTPBadRequest(reason=str(e))
-			except Exception as e:
-				Lex.error("JSON validation error. Reason: {}".format(e), struct_data={"path": request.path, "method": request.method})
+			except Exception:
+				Lex.error(
+					"JSON request body failed schema validation.",
+					struct_data={"path": request.path, "method": request.method},
+				)
 				raise e
 
 			return await func(*args, **kwargs)

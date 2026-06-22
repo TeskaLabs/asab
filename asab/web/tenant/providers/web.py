@@ -38,23 +38,32 @@ class WebTenantProvider(TenantProviderABC):
 					if resp.status == 200:
 						external_tenants = await resp.json()
 					elif 400 <= resp.status < 500:
-						L.warning("Failed to load tenants: Client error.", struct_data={
-							"url": self.TenantUrl,
-							"status": resp.status,
-							"reason": resp.reason,
-						})
+						L.warning(
+							"Tenant server rejected the tenant list request (client error).",
+							struct_data={
+								"url": self.TenantUrl,
+								"status": resp.status,
+								"reason": resp.reason,
+							},
+						)
 						self._set_ready(False)
 						return
 					else:
-						L.warning("Failed to load tenants: Server error.", struct_data={
-							"url": self.TenantUrl,
-							"status": resp.status,
-							"reason": resp.reason,
-						})
+						L.warning(
+							"Tenant server failed to return the tenant list (server error).",
+							struct_data={
+								"url": self.TenantUrl,
+								"status": resp.status,
+								"reason": resp.reason,
+							},
+						)
 						self._set_ready(False)
 						return
 		except aiohttp.client_exceptions.ClientConnectorError:
-			L.warning("Failed to connect to tenant server.")
+			L.warning(
+				"Cannot reach tenant server to load tenant list.",
+				struct_data={"url": self.TenantUrl},
+			)
 			self._set_ready(False)
 			return
 

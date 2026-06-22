@@ -57,7 +57,10 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 		auth_scheme, token_value = token
 		if auth_scheme not in {"bearer", "apikey"}:
-			L.warning("Unsupported Authorization header scheme: {!r}".format(auth_scheme))
+			L.warning(
+				"Unsupported Authorization header scheme; only Bearer is accepted.",
+				struct_data={"scheme": auth_scheme},
+			)
 			raise NotAuthenticatedError()
 
 		# Try if the access token is already known
@@ -74,11 +77,17 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 		async with aiohttp.ClientSession() as session:
 			async with session.post(self.IntrospectionUrl, headers=request.headers) as response:
 				if response.status != 200:
-					L.warning("Access token introspection failed.")
+					L.warning(
+						"Access token introspection rejected the token.",
+						struct_data={"introspection_url": self.IntrospectionUrl},
+					)
 					raise NotAuthenticatedError()
 				auth_scheme, id_token = get_bearer_token_from_authorization_header(response)
 				if auth_scheme != "bearer":
-					L.warning("Unsupported Authorization header scheme: {!r}".format(auth_scheme))
+					L.warning(
+						"Unsupported Authorization header scheme; only Bearer is accepted.",
+						struct_data={"scheme": auth_scheme},
+					)
 					raise NotAuthenticatedError()
 
 		# Create a new Authorization object and store it

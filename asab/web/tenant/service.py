@@ -59,8 +59,7 @@ class TenantService(Service):
 	async def initialize(self, app):
 		if len(self.Providers) == 0:
 			L.error(
-				"TenantService requires at least one provider. "
-				"Specify either `tenant_url` or `ids` in the [tenants] config section."
+				"TenantService has no providers configured; set tenant_url or ids in [tenants].",
 			)
 
 		await self.update_tenants()
@@ -130,7 +129,9 @@ class TenantService(Service):
 		if tenant is None:
 			return False
 		if len(self.Providers) == 0:
-			L.warning("No tenant provider registered.")
+			L.warning(
+				"No tenant provider is registered; tenant resolution will fail.",
+			)
 			return False
 		for provider in self.Providers:
 			if await provider.is_tenant_known(tenant):
