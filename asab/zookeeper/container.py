@@ -76,7 +76,9 @@ class ZooKeeperContainer(Configurable):
 
 		if url_netloc == "":
 			# if server entry is missing exit
-			L.critical("Cannot connect to Zookeeper, the configuration of the server address is not available.")
+			L.critical(
+				"ZooKeeper server address is not configured; set [zookeeper] servers or ASAB_ZOOKEEPER_SERVERS.",
+			)
 			raise SystemExit("Exit due to a critical configuration error.")
 
 		assert url_netloc is not None
@@ -170,9 +172,15 @@ class ZooKeeperContainer(Configurable):
 		else:
 			if state == kazoo.protocol.states.KazooState.LOST:
 				if not self.ZooKeeper.Stopped:
-					L.error("ZooKeeper connection LOST. Will try to reconnect.", struct_data={"node": connected_node, "session_id": session_id})
+					L.error(
+						"ZooKeeper session lost; client will attempt to reconnect.",
+						struct_data={"node": connected_node, "session_id": session_id},
+					)
 			else:
-				L.warning("ZooKeeper connection state changed. Zookeeper calls are now blocking!", struct_data={"state": str(state), "node": connected_node, "session_id": session_id})
+				L.warning(
+					"ZooKeeper connection state changed; ZooKeeper calls may block until the session is restored.",
+					struct_data={"state": str(state), "node": connected_node, "session_id": session_id},
+				)
 
 		self.App.PubSub.publish_threadsafe("ZooKeeperContainer.state/{}!".format(state), self)
 
@@ -266,7 +274,10 @@ class ZooKeeperContainer(Configurable):
 					break
 
 		except Exception:
-			L.exception("Error when publishing advertisement")
+			L.exception(
+				"Failed to publish service advertisement to ZooKeeper.",
+				struct_data={"advertisement_count": len(self.Advertisments)},
+			)
 
 		finally:
 			self.AdvertismentsLock.release()

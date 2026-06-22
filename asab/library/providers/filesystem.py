@@ -63,7 +63,9 @@ class SimpleFileSystemLibraryProvider(LibraryProviderABC):
 			init = inotify_init()
 			if init == -1:
 				L.warning(
-					"Subscribing to library changes in filesystem provider is not available. Inotify was not initialized.")
+					"Filesystem library change notifications are unavailable; inotify initialization failed.",
+					struct_data={"base_path": self.BasePath},
+				)
 				self.FD = None
 			else:
 				self.FD = init
@@ -240,7 +242,10 @@ class SimpleFileSystemLibraryProvider(LibraryProviderABC):
 		if not os.path.isdir(self.BasePath + path):
 			return
 		if self.FD is None:
-			L.warning("Cannot subscribe to changes in the filesystem layer of the library: '{}'".format(self.BasePath))
+			L.warning(
+				"Filesystem library change notifications are unavailable; inotify is not initialized.",
+				struct_data={"base_path": self.BasePath, "path": path},
+			)
 			return
 		self._subscribe_recursive(path, path)
 
@@ -249,7 +254,10 @@ class SimpleFileSystemLibraryProvider(LibraryProviderABC):
 		binary = (self.BasePath + path_to_be_listed).encode()
 		wd = inotify_add_watch(self.FD, binary, IN_ALL_EVENTS)
 		if wd == -1:
-			L.error("Error in inotify_add_watch")
+			L.error(
+				"Cannot watch library directory for changes; inotify_add_watch failed.",
+				struct_data={"path": self.BasePath + path_to_be_listed, "layer": self.Layer},
+			)
 			return
 		self.WDs[wd] = (subscribed_path, path_to_be_listed)
 
