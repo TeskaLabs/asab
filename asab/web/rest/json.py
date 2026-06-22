@@ -304,12 +304,12 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 				kwargs['json_data'] = data
 			except fastjsonschema.exceptions.JsonSchemaException as e:
 				raise aiohttp.web.HTTPBadRequest(reason=str(e))
-			except Exception:
+			except Exception as exc:
 				Lex.error(
 					"JSON request body failed schema validation.",
 					struct_data={"path": request.path, "method": request.method},
 				)
-				raise e
+				raise exc
 
 			return await func(*args, **kwargs)
 
