@@ -43,7 +43,7 @@ class WebTenantProvider(TenantProviderABC):
 							struct_data={
 								"url": self.TenantUrl,
 								"status": resp.status,
-								"reason": resp.reason,
+								"body": await resp.text(),
 							},
 						)
 						self._set_ready(False)
@@ -54,7 +54,7 @@ class WebTenantProvider(TenantProviderABC):
 							struct_data={
 								"url": self.TenantUrl,
 								"status": resp.status,
-								"reason": resp.reason,
+								"body": await resp.text(),
 							},
 						)
 						self._set_ready(False)
