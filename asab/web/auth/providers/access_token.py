@@ -58,7 +58,7 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 		auth_scheme, token_value = token
 		if auth_scheme not in {"bearer", "apikey"}:
 			L.warning(
-				"Unsupported Authorization header scheme; only Bearer is accepted.",
+				"Unsupported Authorization header scheme; only Bearer or ApiKey is accepted.",
 				struct_data={"scheme": auth_scheme},
 			)
 			raise NotAuthenticatedError()
