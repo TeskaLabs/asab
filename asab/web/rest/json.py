@@ -141,7 +141,7 @@ async def JsonExceptionMiddleware(request, handler):
 			"status": 404,
 			**_filter_logging_headers(request.headers)
 		}
-		Lex.warning("Requested resource was not found while handling web request.", exc_info=True, struct_data=struct_data)
+		Lex.warning("KeyError was raised while handling web request.", exc_info=True, struct_data=struct_data)
 
 		if len(e.args) > 1:
 			message = e.args[0].format(*e.args[1:])
