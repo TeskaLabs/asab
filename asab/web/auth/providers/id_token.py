@@ -47,7 +47,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 	async def authorize(self, request: aiohttp.web.Request) -> Authorization:
 		if not self._KeyProviders:
-			L.warning("No public key providers registered for ID token authentication.")
+			L.warning("No public key providers are registered; ID token authentication cannot verify signatures.")
 			raise NotAuthenticatedError(resource_metadata=self.ResourceMatadataUrl)
 
 		# First, try to extract the token from the Authorization header
@@ -111,7 +111,10 @@ class IdTokenAuthProvider(AuthProviderABC):
 		"""
 		auth_scheme, token_value = token
 		if auth_scheme != "bearer":
-			L.warning("Unsupported Authorization header scheme: {!r}".format(auth_scheme))
+			L.warning(
+				"Unsupported Authorization header scheme for ID token authentication.",
+				struct_data={"scheme": auth_scheme},
+			)
 			raise NotAuthenticatedError()
 
 		# Try if the object already exists

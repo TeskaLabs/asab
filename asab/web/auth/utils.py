@@ -34,11 +34,17 @@ def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> 
 	try:
 		auth_scheme, token_value = authorization_header.split(None, 1)
 	except ValueError:
-		L.warning("Cannot parse Authorization header.")
+		L.warning(
+			"Authorization header is present but malformed; expected '<scheme> <token>'.",
+			struct_data={"path": request.path},
+		)
 		raise NotAuthenticatedError() from None
 
 	if not token_value:
-		L.warning("Cannot parse Authorization header.")
+		L.warning(
+			"Authorization header is present but contains no token value.",
+			struct_data={"path": request.path},
+		)
 		raise NotAuthenticatedError()
 
 	return auth_scheme.casefold(), token_value
@@ -86,7 +92,7 @@ def get_id_token_claims(bearer_token: str, auth_server_public_key: jwcrypto.jwk.
 	try:
 		token = jwcrypto.jwt.JWT(jwt=bearer_token, key=auth_server_public_key)
 	except jwcrypto.jwt.JWTExpired:
-		L.warning("ID token expired.")
+		L.warning("ID token has expired; request authentication rejected.")
 		raise NotAuthenticatedError()
 	except jwcrypto.jwt.JWTMissingKey as e:
 		raise e
@@ -106,7 +112,7 @@ def get_id_token_claims(bearer_token: str, auth_server_public_key: jwcrypto.jwk.
 	try:
 		token_claims = json.loads(token.claims)
 	except Exception:
-		L.error("Failed to parse JWT token claims.")
+		L.error("ID token claims could not be decoded as JSON; token may be corrupted.")
 		raise NotAuthenticatedError()
 
 	return token_claims

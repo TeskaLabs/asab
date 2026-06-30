@@ -48,13 +48,13 @@ class Authorization:
 		try:
 			self.IssuedAt = datetime.datetime.fromtimestamp(int(self._Claims["iat"]), datetime.timezone.utc)
 		except KeyError:
-			L.error("ID token is missing the required 'iat' field.")
+			L.error("ID token is missing the required 'iat' (issued-at) claim.")
 			raise NotAuthenticatedError()
 
 		try:
 			self.Expiration = datetime.datetime.fromtimestamp(int(self._Claims["exp"]), datetime.timezone.utc)
 		except KeyError:
-			L.error("ID token is missing the required 'exp' field.")
+			L.error("ID token is missing the required 'exp' (expiration) claim.")
 			raise NotAuthenticatedError()
 
 		self.IdToken = id_token
