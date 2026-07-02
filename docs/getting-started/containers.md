@@ -10,7 +10,7 @@ ASAB is designed for deployment into containers such as LXC/LXD or Docker. ASAB 
     lxc launch images:alpine/3.10 asab
     ```
 
-2.  Swich into a container
+2.  Switch into a container
 
     ``` bash
     lxc exec asab -- /bin/ash
