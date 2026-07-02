@@ -185,4 +185,4 @@ You should see some differences:
 - Logging is set to another level and it is stored in a file `log.txt`
 
 
-Finally, go to the [next tutorial](../how-tos/03_rest_api.md) where we create a microservice with REST API.
+Finally, go to the [next tutorial](./rest_api.md) where we create a microservice with REST API.
