@@ -3,6 +3,7 @@
 ## Release candidate
 
 ### Fixes
+- Cache ZooKeeper session id and connected node for structured logging when the client is suspended or lost (#775)
 - Fix the order of WebSocket authentication (#770)
 - Treat HTTP authentication scheme as case-insensitive (#759)
 - Authenticate websocket requests with multivalued Upgrade header (#748)

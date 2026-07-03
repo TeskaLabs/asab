@@ -106,6 +106,10 @@ class ZooKeeperContainer(Configurable):
 		self.Advertisments = dict()
 		self.AdvertismentsLock = threading.Lock()
 
+		# Last known session id and ZooKeeper node for structured logging when disconnected.
+		self._last_session_id = None
+		self._last_connected_node = None
+
 		self.App.PubSub.subscribe("Application.tick/300!", self._on_tick300)
 		self.App.PubSub.subscribe("Application.tick/60!", self._on_tick60)
 
@@ -165,6 +169,17 @@ class ZooKeeperContainer(Configurable):
 			except (OSError, AttributeError):
 				# Socket is not connected, has been closed, or no longer exposes getpeername
 				pass
+
+		if state == kazoo.protocol.states.KazooState.CONNECTED:
+			if session_id is not None:
+				self._last_session_id = session_id
+			if connected_node is not None:
+				self._last_connected_node = connected_node
+		else:
+			if session_id is None:
+				session_id = self._last_session_id
+			if connected_node is None:
+				connected_node = self._last_connected_node
 
 		if state == kazoo.protocol.states.KazooState.CONNECTED:
 			self.ProactorService.schedule_threadsafe(self._on_connected_at_proactor_thread)
