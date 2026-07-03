@@ -228,7 +228,10 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 								with tarfile.open(newtarfname, mode='r:xz') as tar:
 									tar.extractall(temp_extract_dir)
 							except lzma.LZMAError:
-								L.exception("LZMAError", struct_data={'size': dwnld_size})
+								L.exception(
+									"Downloaded library archive is corrupted or not valid XZ data.",
+									struct_data={"url": url, "size": dwnld_size},
+								)
 								continue
 
 							# Synchronize the temp_extract_dir into the library
@@ -264,18 +267,30 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 
 						else:
 							if last_try:
-								L.error("Failed to download the library.", struct_data={"url": url, 'status': response.status})
+								L.error(
+									"Library registry returned an unexpected HTTP status while downloading content.",
+									struct_data={"url": url, "status": response.status},
+								)
 
 			except aiohttp.ClientError as e:
 				if last_try:
-					L.error("Failed to download the library (ClientError).", struct_data={"url": url, 'error': e, 'exception': e.__class__.__name__})
+					L.error(
+						"Library registry download failed due to a client connection error.",
+						struct_data={"url": url, "exception": e.__class__.__name__},
+					)
 
-			except asyncio.TimeoutError as e:
+			except asyncio.TimeoutError:
 				if last_try:
-					L.error("Failed to download the library (TimeoutError).", struct_data={"url": url, 'error': e, 'exception': e.__class__.__name__})
+					L.error(
+						"Library registry download timed out.",
+						struct_data={"url": url},
+					)
 
 			except Exception:
-				L.exception("Error when fetching the library content from a registry")
+				L.exception(
+					"Library registry download failed.",
+					struct_data={"url": url},
+				)
 
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
