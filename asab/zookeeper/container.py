@@ -111,6 +111,12 @@ class ZooKeeperContainer(Configurable):
 
 		self.ZooKeeper = KazooWrapper(self, url_netloc, self.Config.getseconds("timeout"))
 
+		# Cache last-known session_id and connected_node so that
+		# SUSPENDED / LOST log lines still carry the identifiers
+		# instead of showing "None".
+		self._cached_session_id = None
+		self._cached_connected_node = None
+
 		zookeeper_service.Containers.append(self)
 		self.ZooKeeper.Client.start_async()
 
@@ -167,15 +173,30 @@ class ZooKeeperContainer(Configurable):
 				pass
 
 		if state == kazoo.protocol.states.KazooState.CONNECTED:
+			# Update cached identifiers on successful connection
+			self._cached_session_id = session_id
+			self._cached_connected_node = connected_node
 			self.ProactorService.schedule_threadsafe(self._on_connected_at_proactor_thread)
 			L.log(LOG_NOTICE, "Connected to ZooKeeper", struct_data={"node": connected_node, "session_id": session_id})
 		else:
+			# Use cached values when the connection is not active, since
+			# client_id and the socket are already gone by the time the
+			# listener fires for SUSPENDED / LOST.
+			if session_id is None:
+				session_id = self._cached_session_id
+			if connected_node is None:
+				connected_node = self._cached_connected_node
+
 			if state == kazoo.protocol.states.KazooState.LOST:
 				if not self.ZooKeeper.Stopped:
 					L.error(
 						"ZooKeeper session lost; client will attempt to reconnect.",
 						struct_data={"node": connected_node, "session_id": session_id},
 					)
+					# Session is gone; clear the cache so the next CONNECTED
+					# starts fresh.
+					self._cached_session_id = None
+					self._cached_connected_node = None
 			else:
 				L.warning(
 					"ZooKeeper connection state changed; ZooKeeper calls may block until the session is restored.",
