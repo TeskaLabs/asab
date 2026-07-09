@@ -282,6 +282,8 @@ class SimpleFileSystemLibraryProvider(LibraryProviderABC):
 				del self.WDs[wd]
 				continue
 
+			self.AggrEvents.append((wd, mask, cookie, name))
+
 		self.AggrTimer.restart(0.2)
 
 
