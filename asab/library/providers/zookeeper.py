@@ -7,6 +7,7 @@ import os.path
 import urllib.parse
 
 import kazoo.exceptions
+import kazoo.protocol.states
 import kazoo.recipe.watchers
 
 from .abc import LibraryProviderABC
@@ -186,14 +187,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.Subscriptions: typing.Set[typing.Tuple[typing.Union[str, tuple, None], str]] = set()
 		self.NodeDigests: typing.Dict[str, bytes] = {}
 		self.SubscriptionActualPaths: typing.Dict[typing.Tuple[typing.Union[str, tuple, None], str], typing.List[str]] = {}
-		self.SubscriptionDescriptors: typing.Dict[
-			typing.Tuple[typing.Union[str, tuple, None], str],
-			typing.List[typing.Dict[str, typing.Any]],
-		] = {}
 		self.WatchSubscriptions: typing.Dict[str, typing.List[typing.Dict[str, typing.Any]]] = {}
 		self.PersistentWatches: typing.Set[str] = set()
-		self.AggrTimer = Timer(self.App, self._on_aggr_timer)
-		self.AggrEvents: typing.Set[str] = set()
 
 
 	async def finalize(self, app):
@@ -202,12 +197,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		await self._remove_subscription_watches()
 		self.DisabledWatch = None
-		self.AggrTimer.stop()
-		self.AggrEvents.clear()
 		self.PersistentWatches = set()
 		self.WatchSubscriptions = {}
 		self.SubscriptionActualPaths = {}
-		self.SubscriptionDescriptors = {}
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		await zksvc.remove(self.ZookeeperContainer)
 
@@ -533,11 +525,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		key = (target, path)
+		if key in self.Subscriptions:
+			return
 		self.Subscriptions.add(key)
 		if not hasattr(self, "SubscriptionActualPaths"):
 			self.SubscriptionActualPaths = {}
-		if key in self.SubscriptionDescriptors:
-			return
 
 		if target in {None, "global"}:
 			self.SubscriptionActualPaths[key] = [path]
@@ -568,16 +560,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			raise ValueError("Unexpected target: {!r}".format(target))
 
 		self._persistent_recursive_watch_mode()
-		descriptors = []
 		for actual_path in self.SubscriptionActualPaths[key]:
 			actual_path = self._normalize_subscription_path(actual_path)
-			if not await self._subscription_path_exists(actual_path):
-				continue
 			descriptor = self._build_subscription_descriptor(target, path, actual_path)
-			descriptors.append(descriptor)
 			self._attach_watch_subscription(descriptor)
 			await self._ensure_subscription_watch(descriptor["zk_path"])
-		self.SubscriptionDescriptors[key] = descriptors
 
 	async def _get_directory_hash(self, path):
 		path = self.BasePath + path
@@ -599,9 +586,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		digest = hashlib.sha1()
 		await self.Zookeeper.ProactorService.execute(recursive_traversal, path, digest)
 		return digest.digest()
-
-	async def _subscription_path_exists(self, actual_path: str) -> bool:
-		return (await self.Zookeeper.exists(self._zk_node_path(actual_path))) is not None
 
 	def _build_subscription_descriptor(self, target, publish_path: str, actual_path: str) -> typing.Dict[
 		str, typing.Any]:
@@ -694,13 +678,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		if len(to_publish) == 0:
 			return
-
-		self.AggrEvents.update(to_publish)
-		self.AggrTimer.restart(0.2)
-
-	async def _on_aggr_timer(self) -> None:
-		to_publish = set(self.AggrEvents)
-		self.AggrEvents.clear()
 
 		for publish_path in to_publish:
 			self.App.PubSub.publish("Library.change!", self, publish_path)
