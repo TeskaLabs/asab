@@ -95,7 +95,9 @@ class LibraryService(Service):
 			try:
 				paths = Config.getmultiline("library", "providers")
 			except configparser.NoOptionError:
-				L.critical("'providers' option is not present in configuration section 'library'.")
+				L.critical(
+					"Library providers are not configured; set [library] providers in configuration.",
+				)
 				raise SystemExit("Exit due to a critical configuration error.")
 
 		# paths can be string if specified as argument
@@ -163,7 +165,10 @@ class LibraryService(Service):
 			return
 
 		else:
-			L.error("Incorrect/unknown provider for '{}'".format(path))
+			L.error(
+				"Unknown library provider URL scheme; check [library] providers configuration.",
+				struct_data={"provider_url": path, "layer": layer},
+			)
 			raise SystemExit("Exit due to a critical configuration error.")
 
 		self.Libraries.append(library_provider)
@@ -416,7 +421,10 @@ class LibraryService(Service):
 				# The path doesn't exist in this provider.
 				continue
 			except Exception:
-				L.exception("Unexpected error when listing path '{}' on layer {}.".format(path, outer_layer))
+				L.exception(
+					"Failed to list library path on provider layer.",
+					struct_data={"path": path, "layer": outer_layer},
+				)
 				continue
 
 			for item in provider_items:
@@ -467,7 +475,10 @@ class LibraryService(Service):
 			fav_file = await self.Libraries[0].read('/.favorites.yaml')
 		except Exception as e:
 			if getattr(self.Libraries[0], "IsReady", False):
-				L.warning("Failed to read '/.favorites.yaml': {}.".format(e))
+				L.warning(
+					"Failed to read '/.favorites.yaml' from the library.",
+					struct_data={"error": str(e)},
+				)
 			return
 
 		if fav_file is None:
@@ -478,7 +489,7 @@ class LibraryService(Service):
 		try:
 			fav_data = yaml.load(fav_file, Loader=yaml.CSafeLoader)
 		except Exception:
-			L.exception("Failed to parse '/.favorites.yaml'")
+			L.exception("Failed to parse '/.favorites.yaml'; favorites were reset.")
 			self.Favorites = {}
 			self.FavoritePaths = []
 			return
@@ -495,7 +506,10 @@ class LibraryService(Service):
 			return
 
 		if not isinstance(fav_data, dict):
-			L.warning("Unexpected favorites format ({}). Resetting.".format(type(fav_data).__name__))
+			L.warning(
+				"Unexpected format in '/.favorites.yaml'; favorites were reset.",
+				struct_data={"format": type(fav_data).__name__},
+			)
 			self.Favorites = {}
 			self.FavoritePaths = []
 			return
@@ -504,7 +518,10 @@ class LibraryService(Service):
 		folders = []
 		for k, v in fav_data.items():
 			if not isinstance(k, str):
-				L.warning("Ignoring non-string favorite key: {}".format(k))
+				L.warning(
+					"Ignoring non-string favorite key in '/.favorites.yaml'.",
+					struct_data={"key": repr(k)},
+				)
 				continue
 
 			# normalize tenants list
@@ -548,7 +565,10 @@ class LibraryService(Service):
 			disabled_file = await self.Libraries[0].read('/.disabled.yaml')
 		except Exception as e:
 			if getattr(self.Libraries[0], "IsReady", False):
-				L.warning("Failed to read '/.disabled.yaml': {}.".format(e))
+				L.warning(
+					"Failed to read '/.disabled.yaml' from the library.",
+					struct_data={"error": str(e)},
+				)
 			return
 
 		try:
@@ -559,7 +579,7 @@ class LibraryService(Service):
 				try:
 					disabled_data = yaml.load(disabled_file, Loader=yaml.CSafeLoader)
 				except Exception:
-					L.exception("Failed to parse '/.disabled.yaml'")
+					L.exception("Failed to parse '/.disabled.yaml'; disabled paths were reset.")
 					self.Disabled = {}
 					self.DisabledPaths = []
 					return
@@ -860,7 +880,10 @@ class LibraryService(Service):
 		directory, filename = os.path.split(path)
 
 		if not directory or not filename:
-			L.warning("Invalid path '{}': missing directory or filename.".format(path))
+			L.warning(
+				"Invalid library metadata path; directory or filename is missing.",
+				struct_data={"path": path},
+			)
 			return None
 		# Ensure directory ends with '/'
 		if not directory.endswith('/'):
@@ -870,7 +893,10 @@ class LibraryService(Service):
 			# Fetch all items in the directory
 			items = await self.list(directory)
 		except Exception as e:
-			L.warning("Failed to list items in directory '{}': {}".format(directory, e))
+			L.warning(
+				"Failed to list library directory while reading item metadata.",
+				struct_data={"directory": directory, "error": str(e)},
+			)
 			return None
 
 		# Use dictionary for faster lookup

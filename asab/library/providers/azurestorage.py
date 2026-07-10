@@ -85,7 +85,10 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 					content = await resp.text()
 				else:
 					err = await resp.text()
-					L.warning("Failed to list blobs from `{}`:\n{}".format(url, err))
+					L.warning(
+						"Azure Storage blob listing failed.",
+						struct_data={"url": url, "status": resp.status, "response": err},
+					)
 					return
 
 		model = AzureDirectory("/", sub=dict())
@@ -126,7 +129,10 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 	async def list(self, path: str) -> list:
 		if self.Model is None:
-			L.warning("Azure Storage library provider is not ready. Cannot list {}".format(path))
+			L.warning(
+				"Azure Storage library provider is not ready; list operation rejected.",
+				struct_data={"path": path},
+			)
 			raise RuntimeError("Not ready")
 
 		assert path[:1] == '/'
@@ -214,7 +220,10 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 					output = open(cachefname, "r+b")
 
 				else:
-					L.warning("Failed to get blob:\n{}".format(await resp.text()), struct_data={'status': resp.status})
+					L.warning(
+						"Azure Storage blob read failed.",
+						struct_data={"status": resp.status, "response": await resp.text()},
+					)
 					return None
 
 		# Rewind the file so the reader can start consuming from the beginning

@@ -141,7 +141,9 @@ class AuthService(Service):
 				# L.debug("Authorization failed.", struct_data={"auth_provider": provider.Type})
 				error = e
 
-		L.warning("Cannot authenticate request: No valid authorization provider found.")
+		L.warning(
+			"No authorization provider accepted the request; authentication failed.",
+		)
 		if error:
 			# Re-raise the last error, preserve the original error response headers
 			raise error
@@ -183,8 +185,8 @@ class AuthService(Service):
 				)
 
 			L.warning(
-				"AuthService is in development mode. "
-				"Web requests will be authorized with introspection call to {}.".format(introspection_url)
+				"AuthService is running in development mode; requests are authorized via token introspection.",
+				struct_data={"introspection_url": introspection_url},
 			)
 			from .providers import AccessTokenAuthProvider
 			provider = AccessTokenAuthProvider(self.App, introspection_url=introspection_url)
@@ -310,7 +312,9 @@ class AuthService(Service):
 		"""
 		web_service = self.App.get_service("asab.WebService")
 		if web_service is None or len(web_service.Containers) == 0:
-			L.warning("Authorization is not installed: There are no web containers.")
+			L.warning(
+				"Authorization middleware is not installed because no web containers are configured.",
+			)
 			return
 
 		tenant_service = self.App.get_service("asab.TenantService")

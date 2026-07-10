@@ -305,7 +305,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def read(self, path: str) -> typing.Optional[typing.IO]:
 		if self.Zookeeper is None:
-			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
+			L.warning(
+				"ZooKeeper library provider is not connected yet; read operation rejected.",
+				struct_data={"path": path},
+			)
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
 		# Build candidates in precedence order
@@ -345,7 +348,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return None
 
 		except kazoo.exceptions.ConnectionClosedError:
-			L.warning("Zookeeper library provider is not ready")
+			L.warning(
+				"ZooKeeper library provider lost connection; operation rejected until reconnected.",
+			)
 			raise RuntimeError("Zookeeper library provider is not ready") from None
 
 	async def read_scoped(self, path: str, scope: str) -> typing.Optional[typing.IO]:
@@ -413,7 +418,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def list(self, path: str) -> list:
 		if self.Zookeeper is None:
-			L.warning("Zookeeper Client has not been established (yet). Cannot list {}".format(path))
+			L.warning(
+				"ZooKeeper library provider is not connected yet; list operation rejected.",
+				struct_data={"path": path},
+			)
 			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
 
 		# global
@@ -484,7 +492,10 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				except kazoo.exceptions.NoNodeError:
 					size = None
 				except Exception as e:
-					L.warning("Failed to retrieve size for node {}: {}".format(fname, e))
+					L.warning(
+						"Failed to read ZooKeeper node size for library item.",
+						struct_data={"path": fname, "error": str(e)},
+					)
 					size = None
 			else:
 				fname = "{}/{}/".format(base_path.rstrip("/"), node)
@@ -612,8 +623,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					await do_check_path(actual_path=path)
 				except kazoo.exceptions.ConnectionClosedError:
 					return
-				except Exception as e:
-					L.exception("Failed to process library changes: '{}'".format(e), struct_data={"path": path})
+				except Exception:
+					L.exception(
+						"Failed to detect library changes on global ZooKeeper path.",
+						struct_data={"path": path},
+					)
 
 			elif target == "tenant":
 				try:
@@ -625,8 +639,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 						await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 					except kazoo.exceptions.ConnectionClosedError:
 						return
-					except Exception as e:
-						L.exception("Failed to process library changes: '{}'".format(e), struct_data={"path": path, "tenant": tenant})
+					except Exception:
+						L.exception(
+							"Failed to detect library changes on tenant ZooKeeper path.",
+							struct_data={"path": path, "tenant": tenant},
+						)
 
 			elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
 				tenant = target[1]
@@ -634,8 +651,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
 				except kazoo.exceptions.ConnectionClosedError:
 					return
-				except Exception as e:
-					L.exception("Failed to process library changes: '{}'".format(e), struct_data={"path": path, "tenant": tenant})
+				except Exception:
+					L.exception(
+						"Failed to detect library changes on tenant-specific ZooKeeper path.",
+						struct_data={"path": path, "tenant": tenant},
+					)
 
 			elif target == "personal" or (isinstance(target, tuple) and len(target) == 2 and target[0] == "personal"):
 				actual_paths = subscription_actual_paths.get((target, path))
@@ -647,9 +667,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 						await do_check_path(actual_path=actual_path)
 					except kazoo.exceptions.ConnectionClosedError:
 						return
-					except Exception as e:
+					except Exception:
 						L.exception(
-							"Failed to process library changes: '{}'".format(e),
+							"Failed to detect library changes on personal ZooKeeper path.",
 							struct_data={"path": path},
 						)
 			else:
@@ -738,4 +758,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		except kazoo.exceptions.NoNodeError:
 			pass  # Node does not exist, skip
 		except Exception as e:
-			L.warning("Error accessing {}: {}".format(path, e))
+			L.warning(
+				"Failed to traverse ZooKeeper path while searching the library.",
+				struct_data={"path": path, "error": str(e)},
+			)
