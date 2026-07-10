@@ -1,0 +1,7 @@
+---
+define:
+  name: Tenant Schema
+  type: lmio/schema
+fields:
+  tenant.base:
+    type: str

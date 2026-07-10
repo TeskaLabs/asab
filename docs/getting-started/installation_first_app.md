@@ -40,31 +40,28 @@ ASAB is distributed via [pypi](https://pypi.org/project/asab/). There are three 
 
 1.  Create a file called `main.py` with the following code:
 
-        
     ``` python title="main.py" linenums="1"
+    #!/usr/bin/env python3
+    # (1)!
+    import asab # (2)!
 
-        #!/usr/bin/env python3 
-        # (1)!
-        import asab # (2)!
+    class MyApplication(asab.Application): # (3)!
+        async def main(self): # (4)!
+            print("Hello world!") # (5)!
 
-        class MyApplication(asab.Application): # (3)!
-            async def main(self): # (4)!
-                print("Hello world") # (5)!
-
-        if __name__ == '__main__': # (6)!
-            app = MyApplication()
-            app.run()
+    if __name__ == '__main__': # (6)!
+        app = MyApplication()
+        app.run()
     ```
 
-    1. All ASAB applications use Python 3.7+. This is specified by a "hashbang" line at the very beginning of the file.
+    1. All ASAB applications use Python 3.9+. This is specified by a "hashbang" line at the very beginning of the file.
 
-    2. ASAB is included from as `asab` module via an import
-    statement.
+    2. ASAB is imported as the `asab` module via an import statement.
 
     3. Every ASAB Application needs to have an application object. It is a
     **singleton**: the application must create and operate
     precisely one instance of the application. ASAB provides the base
-    [asab.Application][#TODO] class that you need to
+    [asab.Application](../../reference/application.md) class that you need to
     inherit from to implement your custom application class.
 
     4. The `#!python Application.main()` method is one of

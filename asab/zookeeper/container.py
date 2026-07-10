@@ -76,7 +76,9 @@ class ZooKeeperContainer(Configurable):
 
 		if url_netloc == "":
 			# if server entry is missing exit
-			L.critical("Cannot connect to Zookeeper, the configuration of the server address is not available.")
+			L.critical(
+				"ZooKeeper server address is not configured; set [zookeeper] servers or ASAB_ZOOKEEPER_SERVERS.",
+			)
 			raise SystemExit("Exit due to a critical configuration error.")
 
 		assert url_netloc is not None
@@ -108,6 +110,12 @@ class ZooKeeperContainer(Configurable):
 		self.App.PubSub.subscribe("Application.tick/60!", self._on_tick60)
 
 		self.ZooKeeper = KazooWrapper(self, url_netloc, self.Config.getseconds("timeout"))
+
+		# Cache last-known session_id and connected_node so that
+		# SUSPENDED / LOST log lines still carry the identifiers
+		# instead of showing "None".
+		self._cached_session_id = None
+		self._cached_connected_node = None
 
 		zookeeper_service.Containers.append(self)
 		self.ZooKeeper.Client.start_async()
@@ -165,14 +173,35 @@ class ZooKeeperContainer(Configurable):
 				pass
 
 		if state == kazoo.protocol.states.KazooState.CONNECTED:
+			# Update cached identifiers on successful connection
+			self._cached_session_id = session_id
+			self._cached_connected_node = connected_node
 			self.ProactorService.schedule_threadsafe(self._on_connected_at_proactor_thread)
 			L.log(LOG_NOTICE, "Connected to ZooKeeper", struct_data={"node": connected_node, "session_id": session_id})
 		else:
+			# Use cached values when the connection is not active, since
+			# client_id and the socket are already gone by the time the
+			# listener fires for SUSPENDED / LOST.
+			if session_id is None:
+				session_id = self._cached_session_id
+			if connected_node is None:
+				connected_node = self._cached_connected_node
+
 			if state == kazoo.protocol.states.KazooState.LOST:
 				if not self.ZooKeeper.Stopped:
-					L.error("ZooKeeper connection LOST. Will try to reconnect.", struct_data={"node": connected_node, "session_id": session_id})
+					L.error(
+						"ZooKeeper session lost; client will attempt to reconnect.",
+						struct_data={"node": connected_node, "session_id": session_id},
+					)
+					# Session is gone; clear the cache so the next CONNECTED
+					# starts fresh.
+					self._cached_session_id = None
+					self._cached_connected_node = None
 			else:
-				L.warning("ZooKeeper connection state changed. Zookeeper calls are now blocking!", struct_data={"state": str(state), "node": connected_node, "session_id": session_id})
+				L.warning(
+					"ZooKeeper connection state changed; ZooKeeper calls may block until the session is restored.",
+					struct_data={"state": str(state), "node": connected_node, "session_id": session_id},
+				)
 
 		self.App.PubSub.publish_threadsafe("ZooKeeperContainer.state/{}!".format(state), self)
 
@@ -266,7 +295,10 @@ class ZooKeeperContainer(Configurable):
 					break
 
 		except Exception:
-			L.exception("Error when publishing advertisement")
+			L.exception(
+				"Failed to publish service advertisement to ZooKeeper.",
+				struct_data={"advertisement_count": len(self.Advertisments)},
+			)
 
 		finally:
 			self.AdvertismentsLock.release()

@@ -116,20 +116,12 @@ class StorageService(StorageServiceABC):
 		return ret['_id']
 
 
-	async def list(self, collection_name: str, _from: int = 0, size: int = 0, _filter=None, sorts=None):
+	async def list(self, collection_name: str, _from: int = 0, size: int = 0, sorts=None):
 		"""
 		Lists all the elements in the collection starting from _from and ending with size (unless the size is 0).
 		"""
 		collection = self.Database[collection_name]
-
-		# Build filter
-		if _filter is None:
-			query = {}
-
-		else:
-			query = {"_id": {"$regex": f"^{_filter}"}}
-
-		items_cursor = collection.find(query)
+		items_cursor = collection.find({})
 
 		# Apply sorting if needed
 		if sorts:
@@ -162,13 +154,12 @@ class StorageService(StorageServiceABC):
 		return await self.Database[previous_collection_name].rename(new_collection_name)
 
 
-	async def count(self, collection_name, _filter=None) -> int:
+	async def count(self, collection_name) -> int:
 		"""
 		Counts all the elements in the collection.
 		"""
 		coll = self.Database[collection_name]
-		count = await coll.count()
-		return count
+		return await coll.count_documents({})
 
 
 	async def collections(self, search_string=None):
