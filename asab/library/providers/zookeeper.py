@@ -388,34 +388,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			L.warning("Zookeeper library provider is not ready")
 			raise RuntimeError("Zookeeper library provider is not ready") from None
 
-	async def read_personal_scopes(
-		self,
-		path: str,
-		tenant_id: typing.Optional[str] = None,
-	) -> typing.List[typing.Tuple[str, str, typing.IO]]:
-		"""
-		Read personal variants for all credential scopes in a tenant.
-		Returns tuples: (tenant_id, credentials_id, stream).
-		"""
-		if self.Zookeeper is None:
-			L.warning("Zookeeper Client has not been established (yet). Cannot read {}".format(path))
-			raise RuntimeError("Zookeeper Client has not been established (yet). Not ready.")
-
-		results: typing.List[typing.Tuple[str, str, typing.IO]] = []
-		scopes = await self._get_personal_scopes(tenant_id=tenant_id)
-		for scope_tenant, scope_cred in scopes:
-			node_path = self._personal_node_path(path, scope_tenant, scope_cred)
-			if node_path is None:
-				continue
-			try:
-				node_data = await self.Zookeeper.get_data(node_path)
-			except kazoo.exceptions.NoNodeError:
-				node_data = None
-			if node_data is None:
-				continue
-			results.append((scope_tenant, scope_cred, io.BytesIO(initial_bytes=node_data)))
-		return results
-
 	async def list(self, path: str) -> list:
 		if self.Zookeeper is None:
 			L.warning(

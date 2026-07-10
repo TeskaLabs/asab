@@ -577,34 +577,6 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 
 		return None
 
-	async def read_personal_scopes(
-		self,
-		path: str,
-		tenant_id: typing.Optional[str] = None,
-	) -> typing.List[typing.Tuple[str, str, typing.IO]]:
-		"""
-		Read personal variants for all credential scopes in a tenant.
-		"""
-		self._validate_read_path(path)
-
-		scopes = await self._get_personal_scopes()
-		results: typing.List[typing.Tuple[str, str, typing.IO]] = []
-		try:
-			for scope_tenant, scope_cred in scopes:
-				if tenant_id is not None and scope_tenant != tenant_id:
-					continue
-				personal_path = self._personal_path(path, scope_tenant, scope_cred)
-				if personal_path and os.path.isfile(personal_path):
-					results.append((scope_tenant, scope_cred, io.FileIO(personal_path, "rb")))
-		except Exception:
-			for _, _, file_handle in results:
-				try:
-					file_handle.close()
-				except Exception:
-					pass
-			raise
-		return results
-
 	async def list(self, path: str) -> list:
 		"""
 		List directory items from overlays and concatenate in precedence order:
