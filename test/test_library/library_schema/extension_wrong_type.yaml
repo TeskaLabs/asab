@@ -1,0 +1,6 @@
+---
+define:
+  type: wrong/schema-extension
+fields:
+  custom.wrong_type:
+    type: str

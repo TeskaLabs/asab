@@ -1,0 +1,9 @@
+---
+define:
+  name: Elastic Common Schema
+  type: lmio/schema
+fields:
+  host.name:
+    type: str
+  event.created:
+    type: datetime

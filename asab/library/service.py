@@ -3,6 +3,7 @@ import io
 import time
 import os.path
 import typing
+import hashlib
 import tarfile
 import asyncio
 import logging
@@ -62,7 +63,7 @@ class LibraryService(Service):
 		self,
 		app: Application,
 		service_name: str,
-		paths: typing.Union[str, typing.List[str], None] = None
+		paths: typing.Union[str, typing.List[str], None] = None,
 	):
 		"""
 		Initialize the LibraryService.
@@ -86,15 +87,17 @@ class LibraryService(Service):
 		self.DisabledPaths: list = []
 		self.Favorites: dict = {}
 		self.FavoritePaths: list = []
+		self.CacheDir = Config.get("library", "cache_dir", fallback="")
 		self.__is_ready_last = False  # This is to ensure edge "not ready" -> "ready" to be published during initialization.
-
 
 		if paths is None:
 			# load them from configuration
 			try:
 				paths = Config.getmultiline("library", "providers")
 			except configparser.NoOptionError:
-				L.critical("'providers' option is not present in configuration section 'library'.")
+				L.critical(
+					"Library providers are not configured; set [library] providers in configuration.",
+				)
 				raise SystemExit("Exit due to a critical configuration error.")
 
 		# paths can be string if specified as argument
@@ -117,11 +120,16 @@ class LibraryService(Service):
 			await lib.finalize(self.App)
 
 	async def _on_tick60(self, message_type):
+		if len(self.Libraries) == 0 or not self.Libraries[0].IsReady:
+			return
+
 		await self._read_disabled()
 		await self._read_favorites()
 
+
 	def _create_library(self, path, layer):
 		library_provider = None
+
 		if path.startswith('zk://') or path.startswith('zookeeper://'):
 			from .providers.zookeeper import ZooKeeperLibraryProvider
 			library_provider = ZooKeeperLibraryProvider(self, path, layer)
@@ -135,22 +143,36 @@ class LibraryService(Service):
 			library_provider = AzureStorageLibraryProvider(self, path, layer)
 
 		elif path.startswith('git+'):
-			from .providers.git import GitLibraryProvider
-			library_provider = GitLibraryProvider(self, path, layer)
+			if len(self.CacheDir) > 0:
+				repodir = self._get_repodir(path)
+				from .providers.cache import CacheLibraryProvider
+				library_provider = CacheLibraryProvider(self, path, layer, repodir=repodir, ready_file=os.path.join(repodir, ".ready"))
+			else:
+				from .providers.git import GitLibraryProvider
+				library_provider = GitLibraryProvider(self, path, layer)
 
 		elif path.startswith('libsreg+'):
-			from .providers.libsreg import LibsRegLibraryProvider
-			library_provider = LibsRegLibraryProvider(self, path, layer)
+			if len(self.CacheDir) > 0:
+				repodir = self._get_repodir(path)
+				from .providers.cache import CacheLibraryProvider
+				library_provider = CacheLibraryProvider(self, path, layer, repodir=os.path.join(repodir, "content"), ready_file=os.path.join(repodir, ".ready"))
+			else:
+				from .providers.libsreg import LibsRegLibraryProvider
+				library_provider = LibsRegLibraryProvider(self, path, layer)
 
 		elif path == '' or path.startswith("#") or path.startswith(";"):
 			# This is empty or commented line
 			return
 
 		else:
-			L.error("Incorrect/unknown provider for '{}'".format(path))
+			L.error(
+				"Unknown library provider URL scheme; check [library] providers configuration.",
+				struct_data={"provider_url": path, "layer": layer},
+			)
 			raise SystemExit("Exit due to a critical configuration error.")
 
 		self.Libraries.append(library_provider)
+
 
 	def is_ready(self) -> bool:
 		"""
@@ -235,6 +257,8 @@ class LibraryService(Service):
 		Returns:
 			typing.List[str]: A list of paths to the found files. If no files are found, the list will be empty.
 		"""
+		self._ensure_ready()
+
 		_validate_path_item(path)
 
 		results = []
@@ -405,7 +429,10 @@ class LibraryService(Service):
 				# The path doesn't exist in this provider.
 				continue
 			except Exception:
-				L.exception("Unexpected error when listing path '{}' on layer {}.".format(path, outer_layer))
+				L.exception(
+					"Failed to list library path on provider layer.",
+					struct_data={"path": path, "layer": outer_layer},
+				)
 				continue
 
 			for item in provider_items:
@@ -442,18 +469,24 @@ class LibraryService(Service):
 			- self.Favorites: { '/path/file.ext': ['tenant', '*', ...] }
 			- self.FavoritePaths: [ ('/path/folder/', ['tenant', '*', ...]), ... ]
 		Expected YAML shape:
-			/path:
-				tenants:
-				- system
+				/path:
+					tenants:
+					- system
 		"""
+		if len(self.Libraries) == 0:
+			return
+
 		fav_data = None
+		fav_file = None
 
 		try:
 			fav_file = await self.Libraries[0].read('/.favorites.yaml')
 		except Exception as e:
-			L.warning("Failed to read '/.favorites.yaml': {}.".format(e))
-			self.Favorites = {}
-			self.FavoritePaths = []
+			if getattr(self.Libraries[0], "IsReady", False):
+				L.warning(
+					"Failed to read '/.favorites.yaml' from the library.",
+					struct_data={"error": str(e)},
+				)
 			return
 
 		if fav_file is None:
@@ -464,7 +497,7 @@ class LibraryService(Service):
 		try:
 			fav_data = yaml.load(fav_file, Loader=yaml.CSafeLoader)
 		except Exception:
-			L.exception("Failed to parse '/.favorites.yaml'")
+			L.exception("Failed to parse '/.favorites.yaml'; favorites were reset.")
 			self.Favorites = {}
 			self.FavoritePaths = []
 			return
@@ -481,7 +514,10 @@ class LibraryService(Service):
 			return
 
 		if not isinstance(fav_data, dict):
-			L.warning("Unexpected favorites format ({}). Resetting.".format(type(fav_data).__name__))
+			L.warning(
+				"Unexpected format in '/.favorites.yaml'; favorites were reset.",
+				struct_data={"format": type(fav_data).__name__},
+			)
 			self.Favorites = {}
 			self.FavoritePaths = []
 			return
@@ -490,7 +526,10 @@ class LibraryService(Service):
 		folders = []
 		for k, v in fav_data.items():
 			if not isinstance(k, str):
-				L.warning("Ignoring non-string favorite key: {}".format(k))
+				L.warning(
+					"Ignoring non-string favorite key in '/.favorites.yaml'.",
+					struct_data={"key": repr(k)},
+				)
 				continue
 
 			# normalize tenants list
@@ -523,41 +562,59 @@ class LibraryService(Service):
 		self.FavoritePaths = folders
 
 	async def _read_disabled(self, publish_changes=False):
+		if len(self.Libraries) == 0:
+			return
 
 		old_disabled = self.Disabled.copy()
 		old_disabled_paths = list(self.DisabledPaths)
-		# Read the file
-		disabled_file = await self.Libraries[0].read('/.disabled.yaml')
+		disabled_file = None
+		try:
+			# Read the file
+			disabled_file = await self.Libraries[0].read('/.disabled.yaml')
+		except Exception as e:
+			if getattr(self.Libraries[0], "IsReady", False):
+				L.warning(
+					"Failed to read '/.disabled.yaml' from the library.",
+					struct_data={"error": str(e)},
+				)
+			return
 
-		if disabled_file is None:
-			self.Disabled = {}
-			self.DisabledPaths = []
-		else:
-			try:
-				disabled_data = yaml.load(disabled_file, Loader=yaml.CSafeLoader)
-			except Exception:
-				L.exception("Failed to parse '/.disabled.yaml'")
+		try:
+			if disabled_file is None:
 				self.Disabled = {}
-				self.DisabledPaths = []
-				return
-
-			if disabled_data is None:
-				self.Disabled = {}
-				self.DisabledPaths = []
-				return
-
-			if isinstance(disabled_data, set):
-				# Backward compatibility (August 2023)
-				self.Disabled = {key: '*' for key in disabled_data}
 				self.DisabledPaths = []
 			else:
-				self.Disabled = {}
-				self.DisabledPaths = []
-				for k, v in disabled_data.items():
-					if k.endswith('/'):
-						self.DisabledPaths.append((k, v))
-					else:
-						self.Disabled[k] = v
+				try:
+					disabled_data = yaml.load(disabled_file, Loader=yaml.CSafeLoader)
+				except Exception:
+					L.exception("Failed to parse '/.disabled.yaml'; disabled paths were reset.")
+					self.Disabled = {}
+					self.DisabledPaths = []
+					return
+
+				if disabled_data is None:
+					self.Disabled = {}
+					self.DisabledPaths = []
+					return
+
+				if isinstance(disabled_data, set):
+					# Backward compatibility (August 2023)
+					self.Disabled = {key: '*' for key in disabled_data}
+					self.DisabledPaths = []
+				else:
+					self.Disabled = {}
+					self.DisabledPaths = []
+					for k, v in disabled_data.items():
+						if k.endswith('/'):
+							self.DisabledPaths.append((k, v))
+						else:
+							self.Disabled[k] = v
+		finally:
+			if hasattr(disabled_file, "close"):
+				try:
+					disabled_file.close()
+				except Exception:
+					pass
 
 		self.DisabledPaths.sort(key=lambda x: len(x[0]))
 
@@ -831,7 +888,10 @@ class LibraryService(Service):
 		directory, filename = os.path.split(path)
 
 		if not directory or not filename:
-			L.warning("Invalid path '{}': missing directory or filename.".format(path))
+			L.warning(
+				"Invalid library metadata path; directory or filename is missing.",
+				struct_data={"path": path},
+			)
 			return None
 		# Ensure directory ends with '/'
 		if not directory.endswith('/'):
@@ -841,7 +901,10 @@ class LibraryService(Service):
 			# Fetch all items in the directory
 			items = await self.list(directory)
 		except Exception as e:
-			L.warning("Failed to list items in directory '{}': {}".format(directory, e))
+			L.warning(
+				"Failed to list library directory while reading item metadata.",
+				struct_data={"directory": directory, "error": str(e)},
+			)
 			return None
 
 		# Use dictionary for faster lookup
@@ -932,13 +995,17 @@ class LibraryService(Service):
 		Args:
 			paths (str | list[str]): Either a single path or list of paths to be subscribed. Paths can point to directories or items, and all paths must be absolute (start with '/').
 			target: In which target to watch the changes. Possible values:
-				- "global" to watch global path changes
-				- "tenant" to watch path changes in tenants
+				- "global" (or None) to watch global path changes
+				- "tenant" to watch path changes in tenant scopes
 				- ("tenant", TENANT_ID) to watch path changes in one specified tenant TENANT_ID
-				- "personal" to watch path changes for all personal credential IDs
-				- ("personal", CREDENTIALS_ID) to watch in one specific personal scope
+				- "personal" to watch the current `(tenant, credentials)` personal scope from contextvars
+				- ("personal", CREDENTIALS_ID) to watch one specific personal scope under the current tenant
 
-		Examples:
+			Callers that need blocking bootstrap behavior should wait for `Library.ready!`
+			or call `wait_for_library_ready()` before subscribing. `subscribe()` itself
+			remains a fail-fast readiness gate.
+
+			Examples:
 		```python
 		class MyApplication(asab.Application):
 
@@ -966,6 +1033,9 @@ class LibraryService(Service):
 
 			for provider in self.Libraries:
 				await provider.subscribe(path, target)
+
+	def _get_repodir(self, path: str) -> str:
+		return os.path.join(self.CacheDir, hashlib.sha256(path.encode('utf-8')).hexdigest())
 
 
 def _validate_path_item(path: str) -> None:

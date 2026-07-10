@@ -2,8 +2,13 @@
 
 ## Release candidate
 
+### Fixes
+- Fix the order of WebSocket authentication (#770)
+- Treat HTTP authentication scheme as case-insensitive (#759)
+- Authenticate websocket requests with multivalued Upgrade header (#748)
+
 ### Features
-...
+- Support ApiKey tokens in development auth mode (#759)
 
 ---
 
@@ -17,6 +22,7 @@
 - Filesystem supports reading from tenants (#722)
 - asab.library.git.GitProvider: When the repository is not initialized during provider init, retry is triggered once per minute(#727)
 - Library service waits until it is ready or timeout (#737)
+
 ---
 
 

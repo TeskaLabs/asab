@@ -10,6 +10,8 @@ import logging
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
 from ...timer import Timer
+
+# Only import context vars in the full provider, not base
 from ...contextvars import Tenant, Authz
 
 try:
@@ -30,7 +32,329 @@ except OSError:
 L = logging.getLogger(__name__)
 
 
-class FileSystemLibraryProvider(LibraryProviderABC):
+class SimpleFileSystemLibraryProvider(LibraryProviderABC):
+	"""
+	Simple filesystem provider with only global path support.
+	Serves as a base class for other providers that don't need
+	multi-tenancy or disabled file functionality.
+
+	- global path: <BasePath>/<path>
+	"""
+
+	def __init__(self, library, path, layer, *, set_ready=True):
+		super().__init__(library, layer)
+
+		# Check for `file://` prefix and strip it if present
+		if path.startswith('file://'):
+			path = path[7:]  # Strip "file://"
+
+		path = os.path.abspath(path)
+		self.BasePath = path.rstrip("/")
+
+		L.info("is connected.", struct_data={'path': path})
+		if set_ready:
+			self.App.TaskService.schedule(self._set_ready())
+
+		self.AggrEvents = []
+		self.WDs = {}  # wd -> (subscribed_path, child_path)
+
+		# Initialize inotify for subscription support (optional in base class)
+		if inotify_init is not None:
+			init = inotify_init()
+			if init == -1:
+				L.warning(
+					"Filesystem library change notifications are unavailable; inotify initialization failed.",
+					struct_data={"base_path": self.BasePath},
+				)
+				self.FD = None
+			else:
+				self.FD = init
+				self.App.Loop.add_reader(self.FD, self._on_inotify_read)
+				self.AggrTimer = Timer(self.App, self._on_aggr_timer)
+		else:
+			self.FD = None
+
+
+	async def finalize(self, app):
+		if self.FD is not None:
+			self.App.Loop.remove_reader(self.FD)
+			os.close(self.FD)
+
+
+	def _validate_read_path(self, path: str) -> None:
+		"""
+		Validate a library item path for read().
+
+		Enforces:
+			- absolute path (starts with '/')
+			- file extension present
+			- no double slashes
+		"""
+		assert path[:1] == '/', "File path must start with '/' (e.g. /library/Templates/file.json)"
+		assert len(
+			os.path.splitext(path)[1]) > 0, "File path must end with an extension (e.g. /library/Templates/item.json)"
+		assert '//' not in path, "File path cannot contain double slashes (//)"
+
+
+	def build_path(self, path):
+		"""
+		Build an absolute filesystem path under this provider base path.
+
+		Args:
+			path: Library path starting with '/'.
+
+		Returns:
+			Absolute filesystem path.
+
+		Notes:
+			- This method is for both file and directory paths.
+			- It does not enforce file-extension rules.
+		"""
+		assert path[:1] == '/'
+
+		node_path = self.BasePath + path if path != '/' else self.BasePath
+		node_path = node_path.rstrip("/")
+
+		assert '//' not in node_path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
+		assert node_path[0] == '/', "Directory path must start with '/'"
+
+		return node_path
+
+
+	async def read(self, path: str) -> typing.Optional[typing.IO]:
+		"""
+		Read a file from global filesystem path.
+
+		Returns:
+			Binary file object, or None if not found.
+		"""
+		self._validate_read_path(path)
+
+		global_path = self.build_path(path)
+		try:
+			return io.FileIO(global_path, 'rb')
+		except (FileNotFoundError, IsADirectoryError):
+			return None
+
+
+	async def list(self, path: str) -> list:
+		"""
+		List directory items from global path only.
+
+		Returns:
+			List[LibraryItem]
+		"""
+		global_node_path = self.build_path(path)
+		return self._list_from_node_path(global_node_path, path)
+
+
+	def _list_from_node_path(self, node_path: str, base_path: str):
+		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
+		if not exists:
+			raise KeyError("Path '{}' not found by FileSystemLibraryProvider.".format(base_path))
+
+		items = []
+		for fname in glob.iglob(os.path.join(node_path, "*")):
+			try:
+				fstat = os.stat(fname)
+			except FileNotFoundError:
+				continue
+
+			# Turn absolute filesystem path back into library path under base_path
+			rel_name = os.path.basename(fname)
+			if rel_name.startswith('.'):
+				continue
+
+			if stat.S_ISREG(fstat.st_mode):
+				ftype = "item"
+				size = fstat.st_size
+				lib_name = "{}/{}".format(base_path.rstrip("/"), rel_name)
+			elif stat.S_ISDIR(fstat.st_mode):
+				ftype = "dir"
+				size = None
+				lib_name = "{}/{}/".format(base_path.rstrip("/"), rel_name)
+			else:
+				ftype = "?"
+				size = None
+				lib_name = "{}/{}".format(base_path.rstrip("/"), rel_name)
+
+			# Remove any component that starts with '.'
+			if any(x.startswith('.') for x in lib_name.split('/')):
+				continue
+
+			items.append(LibraryItem(
+				name=lib_name,
+				type=ftype,
+				layers=[self.Layer],
+				providers=[self],
+				size=size,
+			))
+
+		return items
+
+
+	def _list(self, path: str):
+		node_path = self.BasePath + path
+		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
+		if not exists:
+			raise KeyError("Path '{}' not found by FileSystemLibraryProvider.".format(path))
+
+		items = []
+		for fname in glob.iglob(os.path.join(node_path, "*")):
+			fstat = os.stat(fname)
+
+			assert fname.startswith(self.BasePath)
+			fname = fname[len(self.BasePath):]
+
+			if stat.S_ISREG(fstat.st_mode):
+				ftype = "item"
+				size = fstat.st_size
+			elif stat.S_ISDIR(fstat.st_mode):
+				ftype = "dir"
+				fname += '/'
+				size = None
+			else:
+				ftype = "?"
+				size = None
+
+			if any(x.startswith('.') for x in fname.split('/')):
+				continue
+
+			items.append(LibraryItem(
+				name=fname,
+				type=ftype,
+				layers=[self.Layer],
+				providers=[self],
+				size=size,
+			))
+
+		return items
+
+
+	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
+		"""
+		Subscribe to filesystem changes under `path`.
+
+		Note:
+			`target` is accepted for API compatibility; current filesystem implementation
+			watches the resolved path without target-specific scoping.
+		"""
+		if not os.path.isdir(self.BasePath + path):
+			return
+		if self.FD is None:
+			L.warning(
+				"Filesystem library change notifications are unavailable; inotify is not initialized.",
+				struct_data={"base_path": self.BasePath, "path": path},
+			)
+			return
+		self._subscribe_recursive(path, path)
+
+
+	def _subscribe_recursive(self, subscribed_path, path_to_be_listed):
+		binary = (self.BasePath + path_to_be_listed).encode()
+		wd = inotify_add_watch(self.FD, binary, IN_ALL_EVENTS)
+		if wd == -1:
+			L.error(
+				"Cannot watch library directory for changes; inotify_add_watch failed.",
+				struct_data={"path": self.BasePath + path_to_be_listed, "layer": self.Layer},
+			)
+			return
+		self.WDs[wd] = (subscribed_path, path_to_be_listed)
+
+		try:
+			items = self._list(path_to_be_listed)
+		except KeyError:
+			# subscribing to non-existing directory is silent
+			return
+
+		for item in items:
+			if item.type == "dir":
+				self._subscribe_recursive(subscribed_path, item.name)
+
+
+	def _on_inotify_read(self):
+		data = os.read(self.FD, 64 * 1024)
+
+		pos = 0
+		while pos < len(data):
+			wd, mask, cookie, namesize = struct.unpack_from(EVENT_FMT, data, pos)
+			pos += EVENT_SIZE + namesize
+			name = (data[pos - namesize: pos].split(b'\x00', 1)[0]).decode()
+
+			if mask & IN_ISDIR == IN_ISDIR and ((mask & IN_CREATE == IN_CREATE) or (mask & IN_MOVED_TO == IN_MOVED_TO)):
+				subscribed_path, child_path = self.WDs[wd]
+				self._subscribe_recursive(subscribed_path, "/".join([child_path, name]))
+
+			if mask & IN_IGNORED == IN_IGNORED:
+				# cleanup
+				del self.WDs[wd]
+				continue
+
+		self.AggrTimer.restart(0.2)
+
+
+	async def _on_aggr_timer(self):
+		to_advertise = set()
+		for wd, mask, cookie, name in self.AggrEvents:
+			# When wathed directory is being removed, more than one inotify events are being produced.
+			# When IN_IGNORED event occurs, respective wd is removed from self.WDs,
+			# but some other events (like IN_DELETE_SELF) get to this point, without having its reference in self.WDs.
+			subscribed_path, _ = self.WDs.get(wd, (None, None))
+			to_advertise.add(subscribed_path)
+		self.AggrEvents.clear()
+
+		for path in to_advertise:
+			if path is None:
+				continue
+			self.App.PubSub.publish("Library.change!", self, path)
+
+
+	async def find(self, filename: str) -> list:
+		"""
+		Recursively search for files ending with a specific name in the file system, starting from the base path.
+
+		:param filename: The filename to search for (e.g., '.setup.yaml')
+		:return: A list of LibraryItem objects for files ending with the specified name,
+				or an empty list if no matching files were found.
+		"""
+		results = []
+		self._recursive_find(self.BasePath, filename, results)
+		return results
+
+
+	def _recursive_find(self, path, filename, results):
+		"""
+		The recursive part of the find method.
+
+		:param path: The current path to search
+		:param filename: The filename to search for
+		:param results: The list where results are accumulated
+		"""
+		if not os.path.exists(path):
+			return
+
+		if os.path.isfile(path) and path.endswith(filename):
+			item = LibraryItem(
+				name=path[len(self.BasePath):],  # Store relative path
+				type="item",  # or "dir" if applicable
+				layers=[self.Layer],
+				providers=[self],
+			)
+			results.append(item)
+			return
+
+		if os.path.isdir(path):
+			for entry in os.listdir(path):
+				full_path = os.path.join(path, entry)
+
+				# Skip dotted dirs except internal ones ending with .io or .d
+				if os.path.isdir(full_path) and '.' in entry and not entry.endswith(('.io', '.d')):
+					continue
+
+				self._recursive_find(full_path, filename, results)
+
+
+class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 	"""
 	Filesystem provider with ZooKeeper-like target semantics:
 
@@ -53,37 +377,18 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 	"""
 
 	def __init__(self, library, path, layer, *, set_ready=True):
-		super().__init__(library, layer)
-		# Check for `file://` prefix and strip it if present
-		if path.startswith('file://'):
-			path = path[7:]  # Strip "file://"
+		super().__init__(library, path, layer, set_ready=False)
 
-		path = os.path.abspath(path)
-		self.BasePath = path.rstrip("/")
-
-		L.info("is connected.", struct_data={'path': path})
-		if set_ready:
-			self.App.TaskService.schedule(self._set_ready())
-
-		if inotify_init is not None:
-			init = inotify_init()
-			if init == -1:
-				L.warning(
-					"Subscribing to library changes in filesystem provider is not available. Inotify was not initialized.")
-				self.FD = None
-			else:
-				self.FD = init
-				self.App.Loop.add_reader(self.FD, self._on_inotify_read)
-				self.AggrTimer = Timer(self.App, self._on_aggr_timer)
-		else:
-			self.FD = None
-
+		# Set up disabled file path
 		self.DisabledFilePath = os.path.join(self.BasePath, '.disabled.yaml')
-
 		self.AggrEvents = []
 		self.WDs = {}  # wd -> watched directory path
 		self.WDSubscriptions = {}  # wd -> list of subscriptions attached to the watched directory
 		self.WatchedPaths = {}  # watched directory path -> wd
+
+		if set_ready:
+			self.App.TaskService.schedule(self._set_ready())
+
 
 	def _current_tenant_id(self):
 		try:
@@ -91,12 +396,14 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		except LookupError:
 			return None
 
+
 	def _current_credentials_id(self):
 		try:
 			authz = Authz.get()
 			return getattr(authz, "CredentialsId", None)
 		except LookupError:
 			return None
+
 
 	def _personal_path(self, path, tenant_id, cred_id):
 		assert path[:1] == '/'
@@ -113,6 +420,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			raise ValueError("Path traversal detected")
 
 		return full
+
 
 	def _resolve_fs_path_from_info(self, info):
 		scope = info["scope"]
@@ -134,6 +442,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		raise RuntimeError("Unknown scope: {}".format(scope))
 
+
 	async def _get_personal_scopes(self) -> typing.List[tuple[str, str]]:
 		"""
 		Return list of (tenant_id, cred_id) that exist under /.personal
@@ -154,19 +463,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 				scopes.append((tenant, cred))
 		return scopes
 
-	def _validate_read_path(self, path: str) -> None:
-		"""
-		Validate a library item path for read().
-
-		Enforces:
-			- absolute path (starts with '/')
-			- file extension present
-			- no double slashes
-		"""
-		assert path[:1] == '/', "File path must start with '/' (e.g. /library/Templates/file.json)"
-		assert len(
-			os.path.splitext(path)[1]) > 0, "File path must end with an extension (e.g. /library/Templates/item.json)"
-		assert '//' not in path, "File path cannot contain double slashes (//)"
 
 	def build_path(self, path, tenant_specific=False, tenant=None):
 		"""
@@ -207,6 +503,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		return node_path
 
+
 	async def read(self, path: str) -> typing.Optional[typing.IO]:
 		"""
 		Read a file from filesystem overlays in precedence order:
@@ -242,6 +539,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 			return io.FileIO(global_path, 'rb')
 		except (FileNotFoundError, IsADirectoryError):
 			return None
+
 
 	async def list(self, path: str) -> list:
 		"""
@@ -288,6 +586,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 					personal_items = []
 
 		return personal_items + tenant_items + global_items
+
 
 	def _list_from_node_path(self, node_path: str, base_path: str, target="global"):
 		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
@@ -345,47 +644,12 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 		return items
 
-	def _list(self, path: str):
-		node_path = self.BasePath + path
-		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
-		if not exists:
-			raise KeyError("Path '{}' not found by FileSystemLibraryProvider.".format(path))
-
-		items = []
-		for fname in glob.iglob(os.path.join(node_path, "*")):
-			fstat = os.stat(fname)
-
-			assert fname.startswith(self.BasePath)
-			fname = fname[len(self.BasePath):]
-
-			if stat.S_ISREG(fstat.st_mode):
-				ftype = "item"
-				size = fstat.st_size
-			elif stat.S_ISDIR(fstat.st_mode):
-				ftype = "dir"
-				fname += '/'
-				size = None
-			else:
-				ftype = "?"
-				size = None
-
-			if any(x.startswith('.') for x in fname.split('/')):
-				continue
-
-			items.append(LibraryItem(
-				name=fname,
-				type=ftype,
-				layers=[self.Layer],
-				providers=[self],
-				size=size,
-			))
-
-		return items
-
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
-		"""Translate a logical subscription into filesystem watches."""
 		if self.FD is None:
-			L.warning("Cannot subscribe to changes in the filesystem layer of the library: '{}'".format(self.BasePath))
+			L.warning(
+				"Filesystem library change notifications are unavailable; inotify is not initialized.",
+				struct_data={"base_path": self.BasePath, "path": path},
+			)
 			return
 
 		for actual_path in self._iter_subscription_paths(path, target):
@@ -439,7 +703,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	def _build_directory_subscription(self, publish_path, actual_path):
-		"""Create a descriptor for a directory-style logical subscription."""
 		return {
 			"kind": "dir",
 			"publish_path": publish_path,
@@ -449,7 +712,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	def _build_item_subscription(self, publish_path, actual_path):
-		"""Create a descriptor for an item-style logical subscription."""
 		return {
 			"kind": "item",
 			"publish_path": publish_path,
@@ -475,7 +737,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		try:
 			entries = list(os.scandir(watched_path))
 		except FileNotFoundError:
-			# subscribing to non-existing directory is silent
 			return
 
 		for entry in entries:
@@ -485,15 +746,16 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	def _ensure_watch(self, watched_path):
-		"""Create or reuse the inotify watch for one concrete directory path."""
 		wd = self.WatchedPaths.get(watched_path)
 		if wd is not None:
 			return wd
 
-		binary = watched_path.encode()
-		wd = inotify_add_watch(self.FD, binary, IN_ALL_EVENTS)
+		wd = inotify_add_watch(self.FD, watched_path.encode(), IN_ALL_EVENTS)
 		if wd == -1:
-			L.error("Error in inotify_add_watch")
+			L.error(
+				"Cannot watch library directory for changes; inotify_add_watch failed.",
+				struct_data={"path": watched_path, "layer": self.Layer},
+			)
 			return None
 
 		self.WatchedPaths[watched_path] = wd
@@ -503,7 +765,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	def _attach_subscription(self, wd, subscription):
-		"""Attach a logical subscription descriptor to one watched directory."""
 		subscriptions = self.WDSubscriptions.setdefault(wd, [])
 		if any(existing["key"] == subscription["key"] for existing in subscriptions):
 			return
@@ -518,13 +779,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	def _on_inotify_read(self):
-		"""
-		Read and decode one batch of packed ``inotify_event`` records.
-
-		A single ``os.read`` call may return many concatenated records, so the
-		buffer is walked record by record and each decoded event is handed to the
-		provider-level event interpreter.
-		"""
 		data = os.read(self.FD, 64 * 1024)
 
 		pos = 0
@@ -542,8 +796,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		subscriptions = list(self.WDSubscriptions.get(wd, ()))
 
 		if mask & IN_ISDIR == IN_ISDIR and ((mask & IN_CREATE == IN_CREATE) or (mask & IN_MOVED_TO == IN_MOVED_TO)):
-			# Extend recursive coverage when a new directory appears under an
-			# already subscribed directory subtree.
 			child_path = os.path.join(watched_path, name) if watched_path is not None else None
 			if child_path is not None:
 				for subscription in subscriptions:
@@ -576,53 +828,9 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 				continue
 			self.App.PubSub.publish("Library.change!", self, path)
 
-	async def find(self, filename: str) -> list:
-		"""
-		Recursively search for files ending with a specific name in the file system, starting from the base path.
-
-		:param filename: The filename to search for (e.g., '.setup.yaml')
-		:return: A list of LibraryItem objects for files ending with the specified name,
-				or an empty list if no matching files were found.
-		"""
-		results = []
-		self._recursive_find(self.BasePath, filename, results)
-		return results
-
-	def _recursive_find(self, path, filename, results):
-		"""
-		The recursive part of the find method.
-
-		:param path: The current path to search
-		:param filename: The filename to search for
-		:param results: The list where results are accumulated
-		"""
-		if not os.path.exists(path):
-			return
-
-		if os.path.isfile(path) and path.endswith(filename):
-			item = LibraryItem(
-				name=path[len(self.BasePath):],  # Store relative path
-				type="item",  # or "dir" if applicable
-				layers=[self.Layer],
-				providers=[self],
-			)
-			results.append(item)
-			return
-
-		if os.path.isdir(path):
-			for entry in os.listdir(path):
-				full_path = os.path.join(path, entry)
-
-				# Skip dotted dirs except internal ones ending with .io or .d
-				if os.path.isdir(full_path) and '.' in entry and not entry.endswith(('.io', '.d')):
-					continue
-
-				self._recursive_find(full_path, filename, results)
 
 	async def finalize(self, app):
-		if self.FD is not None:
-			self.App.Loop.remove_reader(self.FD)
-			os.close(self.FD)
+		await super().finalize(app)
 		self.AggrEvents.clear()
 		self.WDs.clear()
 		self.WDSubscriptions.clear()

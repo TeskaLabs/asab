@@ -1,0 +1,10 @@
+---
+define:
+  type: lmio/schema-extension
+fields:
+  host.name:
+    type: keyword
+  event.created:
+    type: str
+  custom.safe:
+    type: bool

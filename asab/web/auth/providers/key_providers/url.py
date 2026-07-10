@@ -40,46 +40,50 @@ async def _fetch_jwks(session: aiohttp.ClientSession, url: str):
 	try:
 		async with session.get(url) as response:
 			if response.status != 200:
-				L.error("HTTP error while loading public keys.", struct_data={
-					"status": response.status,
-					"url": url,
-					"text": await response.text(),
-				})
+				L.error(
+					"Auth server JWKS endpoint returned a non-200 HTTP status.",
+					struct_data={
+						"status": response.status,
+						"url": url,
+						"text": await response.text(),
+					},
+				)
 				return
 
 			try:
 				data = await response.json()
 			except json.JSONDecodeError:
-				L.error("JSON decoding error while loading public keys.", struct_data={
-					"url": url,
-					"data": data,
-				})
+				L.error(
+					"Auth server JWKS endpoint returned a response that is not valid JSON.",
+					struct_data={"url": url},
+				)
 				return
 
-	except aiohttp.client_exceptions.ClientConnectorError as e:
-		L.error("Connection error while loading public keys: {}".format(e), struct_data={
-			"url": url,
-		})
+	except aiohttp.client_exceptions.ClientConnectorError:
+		L.error(
+			"Cannot reach auth server JWKS endpoint to load public keys.",
+			struct_data={"url": url},
+		)
 		return
 
 	try:
 		keys = data["keys"]
 	except (IndexError, KeyError):
-		L.error("Error while loading public keys: No public keys in server response.", struct_data={
-			"url": url,
-			"data": data,
-		})
+		L.error(
+			"Auth server JWKS response does not contain any public keys.",
+			struct_data={"url": url},
+		)
 		return
 
 	jwks = jwcrypto.jwk.JWKSet()
 	for key in keys:
 		try:
 			jwks.add(jwcrypto.jwk.JWK(**key))
-		except Exception as e:
-			L.error("JWK decoding error while loading public keys: {}.".format(e), struct_data={
-				"url": url,
-				"data": data,
-			})
+		except Exception:
+			L.error(
+				"Auth server JWKS response contains a key that could not be decoded.",
+				struct_data={"url": url},
+			)
 			return
 
 	return jwks
