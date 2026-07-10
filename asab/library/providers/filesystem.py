@@ -383,25 +383,7 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 		return items
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
-		"""
-		Translate a logical library subscription into one or more filesystem watches.
-
-		Directories are expanded recursively into watched directory boundaries,
-		while items are implemented by watching their parent directory and later
-		filtering low-level events by child filename.
-
-		Examples:
-			``subscribe("/Schemas/")``
-				Recursively watches ``<BasePath>/Schemas`` and its existing
-				subdirectories. Any later change under that subtree publishes
-				``/Schemas/``.
-
-			``subscribe("/Correlations/Microsoft/Windows/Account Created.yaml")``
-				Watches the parent directory
-				``<BasePath>/Correlations/Microsoft/Windows`` and publishes the
-				item path only when the low-level event name is
-				``"Account Created.yaml"``.
-		"""
+		"""Translate a logical subscription into filesystem watches."""
 		if self.FD is None:
 			L.warning("Cannot subscribe to changes in the filesystem layer of the library: '{}'".format(self.BasePath))
 			return
@@ -419,17 +401,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	def _iter_subscription_paths(self, path, target: typing.Union[str, tuple, None]):
-		"""
-		Resolve a logical subscription path into concrete filesystem paths.
-
-		The returned paths are scope-specific filesystem locations under the
-		global, tenant, or personal library trees.
-
-		Examples:
-			``("/Schemas/", "global")`` -> ``["<BasePath>/Schemas"]``
-			``("/Schemas/", ("tenant", "acme"))`` ->
-				``["<BasePath>/.tenants/acme/Schemas"]``
-		"""
 		if target in {None, "global"}:
 			return [self.build_path(path, tenant_specific=False)]
 
@@ -488,18 +459,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	def _subscribe_item(self, subscription):
-		"""
-		Attach an item subscription to its parent directory watch.
-
-		Inotify delivers child-name events relative to watched directories, so
-		exact item semantics are recovered later by comparing the event name with
-		the descriptor's ``item_name``.
-
-		Example:
-			For ``/Correlations/Microsoft/Windows/Account Created.yaml`` the
-			provider watches ``.../Windows`` and later checks whether the decoded
-			inotify child name equals ``"Account Created.yaml"``.
-		"""
 		parent_path = os.path.dirname(subscription["key"][2])
 		wd = self._ensure_watch(parent_path)
 		if wd is None:
@@ -508,18 +467,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	def _subscribe_recursive(self, subscription, watched_path):
-		"""
-		Ensure a directory subscription covers ``watched_path`` and all descendants.
-
-		Filesystem recursion is not native to inotify, so the provider expands the
-		current directory tree in user space by registering one watch per existing
-		subdirectory.
-
-		Example:
-			A subscription for ``/Schemas/`` results in watches for
-			``.../Schemas``, ``.../Schemas/nested``, ``.../Schemas/nested/deeper``,
-			and so on for the current subtree snapshot.
-		"""
 		wd = self._ensure_watch(watched_path)
 		if wd is None:
 			return
@@ -591,18 +538,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	def _handle_inotify_event(self, wd, mask, name):
-		"""
-		Interpret one decoded inotify event against attached subscription descriptors.
-
-		Newly created or moved-in directories are expanded into fresh recursive
-		watches so directory subscriptions keep covering the subtree as it grows.
-
-		Example:
-			If a watched ``.../Schemas`` directory reports a new child directory
-			named ``nested``, the provider adds recursive watches under
-			``.../Schemas/nested`` before aggregating the logical change
-			publication.
-		"""
 		watched_path = self.WDs.get(wd)
 		subscriptions = list(self.WDSubscriptions.get(wd, ()))
 
@@ -627,17 +562,6 @@ class FileSystemLibraryProvider(LibraryProviderABC):
 
 
 	async def _on_aggr_timer(self):
-		"""
-		Collapse low-level inotify bursts into deduplicated logical publications.
-
-		This keeps filesystem notification multiplicity from leaking into the
-		``Library.change!`` contract.
-
-		Example:
-			Several low-level write-related events for
-			``Account Created.yaml`` collapse into one logical publication of
-			``/Correlations/Microsoft/Windows/Account Created.yaml``.
-		"""
 		to_advertise = set()
 		for subscriptions, name in self.AggrEvents:
 			for subscription in subscriptions:

@@ -463,23 +463,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return node_path
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
-		"""
-		Translate a logical library subscription into ZooKeeper watch state.
-
-		The logical request may expand into multiple concrete scoped paths. Each
-		existing concrete path is converted into a descriptor, attached to a watch
-		root, and backed by a persistent recursive ZooKeeper watch.
-
-		Examples:
-			``subscribe("/Schemas/", "global")``
-				Builds a directory descriptor for ``/library/Schemas`` and installs
-				a persistent recursive watch rooted there.
-
-			``subscribe("/Schemas/", "tenant")``
-				Expands into one concrete path per tenant, builds one descriptor per
-				path, and installs one persistent recursive watch per resulting
-				``zk_path``.
-		"""
+		"""Translate a logical subscription into ZooKeeper watch state."""
 		if not hasattr(self, "SubscriptionDescriptors"):
 			self.SubscriptionDescriptors = {}
 		if not hasattr(self, "WatchSubscriptions"):
@@ -530,19 +514,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return actual_paths
 
 	async def _iter_subscription_paths(self, path, target: typing.Union[str, tuple, None]):
-		"""
-		Resolve a logical subscription path into one or more scoped ZooKeeper paths.
-
-		Global paths stay unchanged, tenant paths expand under ``/.tenants``, and
-		personal paths expand under ``/.personal`` using the current context.
-
-		Examples:
-			``("/Schemas/", "global")`` -> ``["/Schemas/"]``
-			``("/Schemas/", ("tenant", "acme"))`` ->
-				``["/.tenants/acme/Schemas/"]``
-			``("/Schemas/", ("personal", "cred-1"))`` with tenant context ``acme``
-				-> ``["/.personal/acme/cred-1/Schemas/"]``
-		"""
 		if target in {None, "global"}:
 			return [path]
 
@@ -573,14 +544,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	def _build_subscription_descriptor(self, target, publish_path: str, actual_path: str) -> typing.Dict[
 		str, typing.Any]:
-		"""
-		Build the semantic record that bridges watch callbacks back to logical paths.
-
-		Example:
-			A logical ``/Schemas/`` subscription may become:
-			``{"kind": "dir", "publish_path": "/Schemas/", "actual_path":
-			"/.tenants/acme/Schemas", "zk_path": "/library/.tenants/acme/Schemas"}``
-		"""
 		actual_path = self._normalize_subscription_path(actual_path)
 		return {
 			"key": (target, publish_path, actual_path),
@@ -613,18 +576,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.SubscriptionActualPaths.pop(key, None)
 
 	async def _ensure_subscription_watch(self, zk_path: str) -> None:
-		"""
-		Install the persistent recursive watch for one concrete ZooKeeper root.
-
-		The callback only schedules ASAB's own event handler; semantic filtering
-		remains in the provider rather than in the raw Kazoo callback.
-
-		Example:
-			A directory subscription for ``/Schemas/`` installs a watch on
-			``/library/Schemas``. A later event for
-			``/library/Schemas/nested/deeper/account-created.schema.json`` is
-			delivered through that same persistent recursive watch.
-		"""
 		if zk_path in self.PersistentWatches:
 			return
 
@@ -683,19 +634,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			await self._ensure_subscription_watch(zk_path)
 
 	def _subscription_matches_event(self, descriptor: typing.Dict[str, typing.Any], event_path: str) -> bool:
-		"""
-		Apply the provider's semantic predicate for one descriptor.
-
-		Item subscriptions require exact path equality; directory subscriptions
-		require the event path to stay within the watched subtree.
-
-		Examples:
-			Item:
-				``event_path == "/library/.../Account Created.yaml"``
-
-			Directory:
-				``event_path.startswith("/library/Schemas/")``
-		"""
 		subscription_path = descriptor["zk_path"]
 		if descriptor["kind"] == "item":
 			return event_path == subscription_path
@@ -704,18 +642,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return event_path == subscription_path or event_path.startswith(subscription_path + "/")
 
 	async def _handle_watch_event(self, zk_path: str, event) -> None:
-		"""
-		Interpret one ZooKeeper callback against descriptors attached to ``zk_path``.
-
-		Matching logical publish paths are buffered so repeated backend callbacks
-		can be deduplicated before ``Library.change!`` is published.
-
-		Example:
-			An event for ``/library/.tenants/acme/Schemas/account-created.schema.json``
-			matches the directory descriptor rooted at
-			``/library/.tenants/acme/Schemas`` and buffers the logical publish path
-			``/Schemas/``.
-		"""
 		event_path = getattr(event, "path", None)
 		if event_path is None:
 			return
