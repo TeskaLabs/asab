@@ -48,15 +48,12 @@ class IdTokenAuthProvider(AuthProviderABC):
 	async def authorize(self, request: aiohttp.web.Request) -> Authorization:
 		if not self._KeyProviders:
 			L.warning("No public key providers are registered; ID token authentication cannot verify signatures.")
-			raise NotAuthenticatedError(resource_metadata=self.ResourceMatadataUrl)
+			raise NotAuthenticatedError(
+				resource_metadata=self.ResourceMatadataUrl,
+				message="No public key providers registered",
+			)
 
-		# First, try to extract the token from the Authorization header
-		try:
-			token = get_bearer_token_from_authorization_header(request)
-		except NotAuthenticatedError:
-			token = None
-
-		# If there is none, try to extract the token from the WebSocket protocol header (if it's a WebSocket request)
+		# Try to extract the token from the WebSocket protocol header (if it's a WebSocket request)
 		# TODO: This may be unnecessary since the websocket request has passed the introspection and has been enriched
 		#  with Authorization header
 		if token is None and (connection_header := request.headers.get(aiohttp.hdrs.CONNECTION)):
@@ -69,7 +66,8 @@ class IdTokenAuthProvider(AuthProviderABC):
 						break
 
 		if token is None:
-			raise NotAuthenticatedError(error="invalid_token", error_description="Token not found", resource_metadata=self.ResourceMatadataUrl)
+			# Try to extract the token from the Authorization header
+			token = get_bearer_token_from_authorization_header(request)
 
 		try:
 			authz = await self._build_authorization(token)
@@ -115,7 +113,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 				"Unsupported Authorization header scheme for ID token authentication.",
 				struct_data={"scheme": auth_scheme},
 			)
-			raise NotAuthenticatedError()
+			raise NotAuthenticatedError(message="Unsupported Authorization scheme (expected Bearer)")
 
 		# Try if the object already exists
 		authz = self.Authorizations.get(token)
@@ -149,7 +147,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 			return get_id_token_claims(id_token, self.TrustedJwkSet)
 		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
 			L.debug("Cannot authenticate request: {}".format(str(e)))
-			raise NotAuthenticatedError()
+			raise NotAuthenticatedError(message="ID token signature verification failed")
 
 
 	def _delete_invalid_authorizations(self, *args, **kwargs):

@@ -61,9 +61,7 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 				"Unsupported Authorization header scheme; only Bearer or ApiKey is accepted.",
 				struct_data={"scheme": auth_scheme},
 			)
-			raise NotAuthenticatedError()
-
-		# Try if the access token is already known
+			raise NotAuthenticatedError(message="Unsupported Authorization scheme (expected Bearer or ApiKey)")
 		authz = self.Authorizations.get(token)
 		if authz is not None:
 			try:
@@ -81,16 +79,14 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 						"Access token introspection rejected the token.",
 						struct_data={"introspection_url": self.IntrospectionUrl},
 					)
-					raise NotAuthenticatedError()
+					raise NotAuthenticatedError(message="Access token introspection failed")
 				auth_scheme, id_token = get_bearer_token_from_authorization_header(response)
 				if auth_scheme != "bearer":
 					L.warning(
 						"Unsupported Authorization header scheme; only Bearer is accepted.",
 						struct_data={"scheme": auth_scheme},
 					)
-					raise NotAuthenticatedError()
-
-		# Create a new Authorization object and store it
+					raise NotAuthenticatedError(message="Introspection response has unsupported Authorization scheme")
 		claims = await self._get_claims_from_id_token(id_token)
 		authz = Authorization(claims, id_token=id_token)
 
