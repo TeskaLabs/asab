@@ -150,9 +150,8 @@ class AuthService(Service):
 				failures.append({provider.Type: "{}: {}".format(e.__class__.__name__, e)})
 				L.exception("Request authentication failed.", struct_data={"provider_type": provider.Type})
 
-		provider_types = ", ".join(failures.keys())
 		L.warning(
-			"Request authentication failed: All authorization providers rejected the request ({}).".format(provider_types),
+			"Request authentication failed: All authorization providers rejected the request.",
 			struct_data={"reason": failures},
 		)
 		if auth_error:

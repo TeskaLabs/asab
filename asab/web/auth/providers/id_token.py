@@ -47,16 +47,17 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 	async def authorize(self, request: aiohttp.web.Request) -> Authorization:
 		if not self._KeyProviders:
-			L.warning("No public key providers are registered; ID token authentication cannot verify signatures.")
+			L.debug("No public key providers are registered; ID token authentication cannot verify signatures.")
 			raise NotAuthenticatedError(
 				resource_metadata=self.ResourceMatadataUrl,
 				message="No public key providers registered",
 			)
 
+		token = None
 		# Try to extract the token from the WebSocket protocol header (if it's a WebSocket request)
 		# TODO: This may be unnecessary since the websocket request has passed the introspection and has been enriched
 		#  with Authorization header
-		if token is None and (connection_header := request.headers.get(aiohttp.hdrs.CONNECTION)):
+		if connection_header := request.headers.get(aiohttp.hdrs.CONNECTION):
 			for value in connection_header.casefold().split(","):
 				if value.strip() == "upgrade":
 					# Verify it's actually a WebSocket upgrade by checking the Upgrade header
@@ -109,7 +110,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 		"""
 		auth_scheme, token_value = token
 		if auth_scheme != "bearer":
-			L.warning(
+			L.debug(
 				"Unsupported Authorization header scheme for ID token authentication.",
 				struct_data={"scheme": auth_scheme},
 			)
