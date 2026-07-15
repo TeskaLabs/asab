@@ -36,14 +36,12 @@ def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> 
 	except ValueError:
 		L.debug(
 			"Authorization header is present but malformed; expected '<scheme> <token>'.",
-			struct_data={"path": request.path},
 		)
 		raise NotAuthenticatedError(message="Malformed Authorization header") from None
 
 	if not token_value:
 		L.debug(
 			"Authorization header is present but contains no token value.",
-			struct_data={"path": request.path},
 		)
 		raise NotAuthenticatedError(message="Authorization header has no token value")
 
