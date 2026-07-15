@@ -370,8 +370,19 @@ class GitLibraryProvider(FileSystemLibraryProvider):
 				)
 			else:
 				# For existing repository, just open it
-				# Do NOT pull here - pull happens via _periodic_pull
 				self.GitRepository = pygit2.Repository(self.RepoPath)
+				try:
+					self._do_pull()
+				except pygit2.GitError:
+					L.error(
+						"Git pull failed during repository initialization. Library is ready but may not be up to date.",
+						struct_data={"layer": self.Layer, "url": self.URLPath, "branch": self.Branch},
+					)
+				except Exception:
+					L.error(
+						"Git pull failed during repository initialization. Library is ready but may not be up to date.",
+						struct_data={"layer": self.Layer, "url": self.URLPath, "branch": self.Branch},
+					)
 
 		try:
 			await self.ProactorService.execute(init_task)
