@@ -49,8 +49,6 @@ class AccessLogger(aiohttp.abc.AbstractAccessLogger):
 		if sid := request.get("az.sid"):
 			struct_data["az.sid"] = sid
 
-		print(dict(request))
-
 		self.logger.log(LOG_NOTICE, '', struct_data=struct_data)
 
 		# Metrics
