@@ -2,7 +2,6 @@ import aiohttp.abc
 
 from ..log import LOG_NOTICE
 from .. import Config
-from ..contextvars import Tenant, Authz
 
 
 class AccessLogger(aiohttp.abc.AbstractAccessLogger):
