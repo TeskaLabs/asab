@@ -122,7 +122,6 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 		self.PullLock = asyncio.Lock()
 		self.LastPull = None
 
-		# TODO: Subscription to changes in the library
 		self.SubscribedPaths = set()
 
 		self.App.TaskService.schedule(self._periodic_pull(None))
@@ -145,25 +144,31 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 			return
 
 		async with self.PullLock:
-			await self._do_pull()
+			changed = await self._do_pull()
+			if changed is None:
+				return
 			self.LastPull = self.App.time()
+			if changed:
+				for path in self.SubscribedPaths:
+					self.App.PubSub.publish("Library.change!", self, path)
 
 
 	async def _do_pull(self):
 		headers = {}
+		old_etag = None
 
 		# Check for existing E-Tag
 		etag_fname = os.path.join(self.RootPath, "etag")
 		if os.path.exists(etag_fname):
+			with open(etag_fname, "r") as f:
+				old_etag = f.read().strip()
 
 			# Count number of files in self.RootPath recursively
 			file_count = sum([len(files) for _, _, files in os.walk(self.RootPath)])
 
 			# If less than 5 files, we ignore the E-Tag and re-download everything
 			if file_count > 5:
-				with open(etag_fname, "r") as f:
-					etag = f.read().strip()
-					headers["If-None-Match"] = etag
+				headers["If-None-Match"] = old_etag
 
 		# Prepare a list of URLs to try
 		# Randomize the order of the URLs (there might be more than one server to try)
@@ -254,7 +259,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 								os.remove(newtarfname)
 
 							L.debug("Library updated from remote repository.", struct_data={"url": url, 'size': dwnld_size, 'etag': etag_incoming})
-							return  # We are done, leaving the loop
+							return etag_incoming != old_etag  # We are done, leaving the loop
 
 						elif response.status == 304:
 							# The repository has not changed ...
@@ -263,7 +268,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 									f.write("yes")
 								await self._set_ready()
 
-							return  # We are done, leaving the loop
+							return False  # We are done, leaving the loop
 
 						else:
 							if last_try:
