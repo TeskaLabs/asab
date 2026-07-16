@@ -145,6 +145,8 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 
 		async with self.PullLock:
 			changed = await self._do_pull()
+			if changed is None:
+				return
 			self.LastPull = self.App.time()
 			if changed:
 				for path in self.SubscribedPaths:
@@ -294,8 +296,6 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 					"Library registry download failed.",
 					struct_data={"url": url},
 				)
-
-		return False
 
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
