@@ -115,6 +115,7 @@ class TenantWebWrapperInstaller:
 		async def _tenant_context_from_url_query_wrapper(*args, **kwargs):
 			request = args[-1]
 			tenant = request.query.get("tenant")
+			request["t"] = tenant
 
 			if tenant is None:
 				if not (hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True):
@@ -153,6 +154,7 @@ class TenantWebWrapperInstaller:
 		async def _tenant_context_from_url_path_wrapper(*args, **kwargs):
 			request = args[-1]
 			tenant = request.match_info["tenant"]
+			request["t"] = tenant
 
 			if "tenant" in request.query:
 				L.warning(

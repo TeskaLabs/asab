@@ -223,6 +223,10 @@ class AuthService(Service):
 			# Authenticate and authorize request with first valid provider
 			authz = await self.authorize_request(request)
 
+			# Enrich the request for access log
+			request["az.cid"] = authz.CredentialsId
+			request["az.sid"] = authz.SessionId
+
 			# Authorize tenant context
 			tenant = Tenant.get(None)
 			if tenant is not None:
