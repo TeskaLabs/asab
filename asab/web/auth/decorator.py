@@ -35,7 +35,7 @@ def require(*resources):
 		async def _require_resource_access_wrapper(*args, **kwargs):
 			authz = Authz.get()
 			if authz is None:
-				raise AccessDeniedError()
+				raise AccessDeniedError(message="Authorization context is not set")
 
 			authz.require_resource_access(*resources)
 
@@ -64,7 +64,7 @@ def require_superuser(handler):
 	async def _require_superuser_access_wrapper(*args, **kwargs):
 		authz = Authz.get()
 		if authz is None:
-			raise AccessDeniedError()
+			raise AccessDeniedError(message="Authorization context is not set")
 
 		authz.require_superuser_access()
 

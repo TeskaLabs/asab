@@ -49,13 +49,13 @@ class Authorization:
 			self.IssuedAt = datetime.datetime.fromtimestamp(int(self._Claims["iat"]), datetime.timezone.utc)
 		except KeyError:
 			L.error("ID token is missing the required 'iat' (issued-at) claim.")
-			raise NotAuthenticatedError()
+			raise NotAuthenticatedError(message="ID token missing 'iat' claim")
 
 		try:
 			self.Expiration = datetime.datetime.fromtimestamp(int(self._Claims["exp"]), datetime.timezone.utc)
 		except KeyError:
 			L.error("ID token is missing the required 'exp' (expiration) claim.")
-			raise NotAuthenticatedError()
+			raise NotAuthenticatedError(message="ID token missing 'exp' claim")
 
 		self.IdToken = id_token
 
@@ -163,7 +163,7 @@ class Authorization:
 		if not self.is_valid():
 			L.warning("Authorization expired.", struct_data={
 				"cid": self.CredentialsId, "exp": self.Expiration.isoformat()})
-			raise NotAuthenticatedError()
+			raise NotAuthenticatedError(message="Authorization expired")
 
 
 	def require_superuser_access(self):
@@ -184,7 +184,7 @@ class Authorization:
 		if not is_superuser(self._Resources):
 			L.warning("Superuser authorization required.", struct_data={
 				"cid": self.CredentialsId})
-			raise AccessDeniedError()
+			raise AccessDeniedError(message="Superuser access required")
 
 
 	def require_resource_access(self, *resources: str, match: typing.Literal["all", "any"] = "all"):
@@ -211,7 +211,7 @@ class Authorization:
 				"resource": resources, "cid": self.CredentialsId})
 			scope = set()
 			_add_tenant_scope(scope)
-			raise AccessDeniedError(scope=scope)
+			raise AccessDeniedError(scope=scope, message="Missing required resources: {}".format(", ".join(resources)))
 
 
 	def require_tenant_access(self, tenant=None):
@@ -252,7 +252,7 @@ class Authorization:
 				"tenant": tenant, "cid": self.CredentialsId})
 			scope = set()
 			_add_tenant_scope(scope)
-			raise AccessDeniedError(scope=scope)
+			raise AccessDeniedError(scope=scope, message="Missing tenant access: {}".format(tenant))
 
 
 	def user_info(self) -> typing.Dict[str, typing.Any]:

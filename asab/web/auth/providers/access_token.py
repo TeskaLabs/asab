@@ -57,13 +57,11 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 
 		auth_scheme, token_value = token
 		if auth_scheme not in {"bearer", "apikey"}:
-			L.warning(
+			L.debug(
 				"Unsupported Authorization header scheme; only Bearer or ApiKey is accepted.",
 				struct_data={"scheme": auth_scheme},
 			)
-			raise NotAuthenticatedError()
-
-		# Try if the access token is already known
+			raise NotAuthenticatedError(message="Unsupported Authorization scheme (expected Bearer or ApiKey)")
 		authz = self.Authorizations.get(token)
 		if authz is not None:
 			try:
@@ -77,20 +75,18 @@ class AccessTokenAuthProvider(IdTokenAuthProvider):
 		async with aiohttp.ClientSession() as session:
 			async with session.post(self.IntrospectionUrl, headers=request.headers) as response:
 				if response.status != 200:
-					L.warning(
+					L.debug(
 						"Access token introspection rejected the token.",
 						struct_data={"introspection_url": self.IntrospectionUrl},
 					)
-					raise NotAuthenticatedError()
+					raise NotAuthenticatedError(message="Access token introspection failed")
 				auth_scheme, id_token = get_bearer_token_from_authorization_header(response)
 				if auth_scheme != "bearer":
-					L.warning(
+					L.debug(
 						"Unsupported Authorization header scheme; only Bearer is accepted.",
 						struct_data={"scheme": auth_scheme},
 					)
-					raise NotAuthenticatedError()
-
-		# Create a new Authorization object and store it
+					raise NotAuthenticatedError(message="Introspection response has unsupported Authorization scheme")
 		claims = await self._get_claims_from_id_token(id_token)
 		authz = Authorization(claims, id_token=id_token)
 
