@@ -59,6 +59,7 @@ class NotAuthenticatedError(_WWWAuthenticateMixin, aiohttp.web.HTTPUnauthorized)
 		error_description: typing.Optional[str] = None,
 		error_uri: typing.Optional[str] = None,
 		resource_metadata: typing.Optional[str] = None,
+		message: typing.Optional[str] = None,
 		**kwargs
 	):
 		"""
@@ -69,8 +70,10 @@ class NotAuthenticatedError(_WWWAuthenticateMixin, aiohttp.web.HTTPUnauthorized)
 			error: ASCII error code (RFC6750)
 			error_description: Human-readable UTF-8 encoded text providing additional error information (RFC6750)
 			resource_metadata: The URL of the protected resource metadata (RFC9728)
+			message: Internal message for logging and debugging; not exposed in the HTTP response
 			**kwargs:
 		"""
+		self.Message = message
 		super().__init__(*args, **kwargs)
 		self.WWWAuthenticate = {}
 		self.update_www_authenticate(
@@ -96,6 +99,7 @@ class AccessDeniedError(_WWWAuthenticateMixin, aiohttp.web.HTTPForbidden):
 		error_description: typing.Optional[str] = None,
 		error_uri: typing.Optional[str] = None,
 		resource_metadata: typing.Optional[str] = None,
+		message: typing.Optional[str] = None,
 		**kwargs
 	):
 		"""
@@ -106,8 +110,10 @@ class AccessDeniedError(_WWWAuthenticateMixin, aiohttp.web.HTTPForbidden):
 			error: ASCII error code (RFC6750)
 			error_description: Human-readable UTF-8 encoded text providing additional error information (RFC6750)
 			resource_metadata: The URL of the protected resource metadata (RFC9728)
+			message: Internal message for logging and debugging; not exposed in the HTTP response
 			**kwargs:
 		"""
+		self.Message = message
 		super().__init__(*args, **kwargs)
 		self.WWWAuthenticate = {}
 		self.update_www_authenticate(

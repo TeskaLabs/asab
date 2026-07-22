@@ -8,6 +8,7 @@
 - Authenticate websocket requests with multivalued Upgrade header (#748)
 
 ### Features
+- Log authentication failure reasons (#788)
 - Support ApiKey tokens in development auth mode (#759)
 
 ---
