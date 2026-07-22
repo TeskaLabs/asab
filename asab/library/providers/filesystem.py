@@ -441,27 +441,6 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 		raise RuntimeError("Unknown scope: {}".format(scope))
 
 
-	async def _get_personal_scopes(self) -> typing.List[tuple[str, str]]:
-		"""
-		Return list of (tenant_id, cred_id) that exist under /.personal
-		"""
-		root = os.path.join(self.BasePath, ".personal")
-		if not os.path.isdir(root):
-			return []
-
-		scopes = []
-		for tenant in os.listdir(root):
-			tpath = os.path.join(root, tenant)
-			if tenant.startswith(".") or not os.path.isdir(tpath):
-				continue
-			for cred in os.listdir(tpath):
-				cpath = os.path.join(tpath, cred)
-				if cred.startswith(".") or not os.path.isdir(cpath):
-					continue
-				scopes.append((tenant, cred))
-		return scopes
-
-
 	def build_path(self, path, tenant_specific=False, tenant=None):
 		"""
 		Build an absolute filesystem path under this provider base path.
