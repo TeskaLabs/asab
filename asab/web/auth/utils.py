@@ -114,3 +114,18 @@ def get_id_token_claims(bearer_token: str, auth_server_public_key: jwcrypto.jwk.
 		raise NotAuthenticatedError(message="ID token claims are not valid JSON")
 
 	return token_claims
+
+
+def is_websocket_request(request) -> bool:
+	if request.headers.get(aiohttp.hdrs.UPGRADE, "").casefold() != "websocket":
+		return False
+
+	connection_header = request.headers.get(aiohttp.hdrs.CONNECTION)
+	if not connection_header:
+		return False
+
+	for value in connection_header.casefold().split(","):
+		if value.strip() == "upgrade":
+			return True
+
+	return False

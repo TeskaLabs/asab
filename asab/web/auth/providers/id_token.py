@@ -7,7 +7,12 @@ import asab
 
 from .abc import AuthProviderABC
 from .key_providers import PublicKeyProviderABC
-from ..utils import get_bearer_token_from_authorization_header, get_bearer_token_from_websocket_request, get_id_token_claims
+from ..utils import (
+	get_bearer_token_from_authorization_header,
+	get_bearer_token_from_websocket_request,
+	get_id_token_claims,
+	is_websocket_request,
+)
 from ..authorization import Authorization
 from ....exceptions import NotAuthenticatedError
 
@@ -53,21 +58,15 @@ class IdTokenAuthProvider(AuthProviderABC):
 				message="No public key providers registered",
 			)
 
-		token = None
-		# Try to extract the token from the WebSocket protocol header (if it's a WebSocket request)
-		# TODO: This may be unnecessary since the websocket request has passed the introspection and has been enriched
-		#  with Authorization header
-		if connection_header := request.headers.get(aiohttp.hdrs.CONNECTION):
-			for value in connection_header.casefold().split(","):
-				if value.strip() == "upgrade":
-					# Verify it's actually a WebSocket upgrade by checking the Upgrade header
-					upgrade_header = request.headers.get(aiohttp.hdrs.UPGRADE, "").casefold()
-					if upgrade_header == "websocket":
-						token = get_bearer_token_from_websocket_request(request)
-						break
 
-		if token is None:
-			# Try to extract the token from the Authorization header
+		if is_websocket_request(request):
+			try:
+				# Post-introspection WS request has an Authorization header
+				token = get_bearer_token_from_authorization_header(request)
+			except NotAuthenticatedError as e:
+				# Internal network WS request
+				token = get_bearer_token_from_websocket_request(request)
+		else:
 			token = get_bearer_token_from_authorization_header(request)
 
 		try:
