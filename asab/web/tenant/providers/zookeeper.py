@@ -9,6 +9,10 @@ L = logging.getLogger(__name__)
 
 
 class ZookeeperTenantProvider(TenantProviderABC):
+
+	Type = "zookeeper"
+
+
 	def __init__(self, app, tenant_service, config):
 		super().__init__(app, tenant_service, config)
 		self.Tenants: typing.Set[str] = set()
