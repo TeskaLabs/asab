@@ -1,0 +1,7 @@
+---
+define:
+  name: Others Schema
+  type: lmio/schema/others
+fields:
+  event.original:
+    type: str
