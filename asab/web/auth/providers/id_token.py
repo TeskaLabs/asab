@@ -63,9 +63,11 @@ class IdTokenAuthProvider(AuthProviderABC):
 			try:
 				# Post-introspection WS request has an Authorization header
 				token = get_bearer_token_from_authorization_header(request)
-			except NotAuthenticatedError as e:
+			except NotAuthenticatedError:
 				# Internal network WS request
 				token = get_bearer_token_from_websocket_request(request)
+			if token is None:
+				raise NotAuthenticatedError(message="WebSocket authentication failed")
 		else:
 			token = get_bearer_token_from_authorization_header(request)
 
