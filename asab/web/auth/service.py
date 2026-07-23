@@ -138,25 +138,21 @@ class AuthService(Service):
 		Raises:
 			NotAuthenticatedError: When no provider is able to authorize the request
 		"""
-		failures = []
+		failure_reasons = {}
 		auth_error = None
 		for provider in self.Providers:
 			try:
 				return await provider.authorize(request)
 			except NotAuthenticatedError as e:
-				failures.append({provider.Type: _authentication_failure_reason(e)})
+				failure_reasons["reason_" + provider.Type] = _authentication_failure_reason(e)
 				auth_error = e
 			except Exception as e:
-				failures.append({provider.Type: "{}: {}".format(e.__class__.__name__, e)})
+				failure_reasons["reason_" + provider.Type] = "{}: {}".format(e.__class__.__name__, e)
 				L.exception("Request authentication failed.", struct_data={"provider_type": provider.Type})
 
 		L.warning(
 			"Request authentication failed: All authorization providers rejected the request.",
-			struct_data={
-				"reason": failures,
-				"path": request.path,
-				"method": request.method,
-			},
+			struct_data=failure_reasons,
 		)
 		if auth_error:
 			# Re-raise the last error, preserve the original error response headers
