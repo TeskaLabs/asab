@@ -1,0 +1,7 @@
+---
+define:
+  name: Empty Schema Subtype
+  type: lmio/schema/
+fields:
+  host.name:
+    type: str

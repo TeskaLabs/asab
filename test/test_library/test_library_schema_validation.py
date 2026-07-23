@@ -88,6 +88,15 @@ class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
 			with self.assertRaises(LibraryError):
 				await service.read_schema("/Schemas/ECS.yaml")
 
+	async def test_base_schema_type_with_empty_subtype_is_rejected(self):
+		"""The subtype namespace separator must be followed by a subtype."""
+		with tempfile.TemporaryDirectory() as root:
+			write_fixture(root, "/Schemas/ECS.yaml", "base_empty_subtype.yaml")
+			service = make_schema_service(make_filesystem_provider(root))
+
+			with self.assertRaises(LibraryError):
+				await service.read_schema("/Schemas/ECS.yaml")
+
 	async def test_short_schema_name_is_rejected(self):
 		"""Schemas must be requested by full /Schemas/<name>.yaml path."""
 		with tempfile.TemporaryDirectory() as root:
