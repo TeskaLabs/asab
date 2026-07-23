@@ -20,8 +20,26 @@ class HTTPTarget(asab.Configurable):
 
 	async def process(self, metrics, now):
 		metrics_to_send = copy.deepcopy(metrics)
-		async with aiohttp.ClientSession() as session:
-			async with session.post(self.URL, json=metrics_to_send) as resp:
-				response = await resp.text()
-				if resp.status != 200:
-					L.warning("Error when sending metrics by HTTPTarget: {}\n{}".format(resp.status, response))
+		try:
+			async with aiohttp.ClientSession() as session:
+				async with session.post(self.URL, json=metrics_to_send) as resp:
+					response = await resp.text()
+					if resp.status != 200:
+						L.warning(
+							"HTTP metrics target rejected the metrics write request.",
+							struct_data={
+								"url": self.URL,
+								"status": resp.status,
+								"response": response,
+							},
+						)
+		except aiohttp.client_exceptions.ClientConnectorError:
+			L.error(
+				"Cannot reach HTTP metrics target; metrics were not delivered.",
+				struct_data={"url": self.URL},
+			)
+		except Exception:
+			L.exception(
+				"Unexpected error while sending metrics to HTTP target.",
+				struct_data={"url": self.URL},
+			)

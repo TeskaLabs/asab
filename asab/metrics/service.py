@@ -75,6 +75,10 @@ class MetricsService(Service):
 					target = HTTPTarget(self, 'asab:metrics:{}'.format(target))
 
 				else:
+					L.error(
+						"Unknown metrics target type in configuration.",
+						struct_data={"target": target, "target_type": target_type},
+					)
 					raise RuntimeError("Unknown target type {}".format(target_type))
 
 				self.Targets.append(target)
@@ -116,7 +120,10 @@ class MetricsService(Service):
 			try:
 				metric.flush(now)
 			except Exception:
-				L.exception("Exception during metric.flush()")
+				L.exception(
+					"Metric flush failed; this metric may be missing from the next export.",
+					struct_data={"metric": type(metric).__name__},
+				)
 
 		return now
 
@@ -131,6 +138,19 @@ class MetricsService(Service):
 			await self._on_flushing_event()
 
 
+	async def _send_to_target(self, target, now):
+		try:
+			await target.process(self.Storage.Metrics, now)
+		except Exception:
+			L.exception(
+				"Metrics flush to a target failed; metrics for this interval may be missing on that target.",
+				struct_data={
+					"target_type": type(target).__name__,
+					"url": getattr(target, "URL", None) or getattr(target, "BaseURL", None),
+				},
+			)
+
+
 	async def _on_flushing_event(self, event_type=None):
 		if len(self.Metrics) == 0:
 			return
@@ -140,7 +160,7 @@ class MetricsService(Service):
 		pending = set()
 		for target in self.Targets:
 			pending.add(
-				asyncio.ensure_future(target.process(self.Storage.Metrics, now))
+				asyncio.ensure_future(self._send_to_target(target, now))
 			)
 
 		while len(pending) > 0:
