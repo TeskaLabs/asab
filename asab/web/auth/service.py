@@ -152,11 +152,7 @@ class AuthService(Service):
 
 		L.warning(
 			"Request authentication failed: All authorization providers rejected the request.",
-			struct_data={
-				"path": request.path,
-				"method": request.method,
-				**failure_reasons
-			},
+			struct_data=failure_reasons,
 		)
 		if auth_error:
 			# Re-raise the last error, preserve the original error response headers
