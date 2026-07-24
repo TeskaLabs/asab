@@ -45,6 +45,7 @@ class LibrarySchemaService(Service):
 		do not already exist in the accumulated result.
 
 		The base schema path must be provided explicitly as `/Schemas/<schema>.yaml`.
+		Returns `None` when the requested base schema does not exist.
 		"""
 		await self.LibraryService.wait_for_library_ready()
 		schema_path, schema_name, extensions_path = _schema_path(schema_path)
@@ -52,16 +53,12 @@ class LibrarySchemaService(Service):
 		try:
 			async with self.LibraryService.open(schema_path) as itemio:
 				if itemio is None:
-					base_schema = None
-				else:
-					base_schema = yaml.load(itemio, Loader=yaml.CSafeLoader)
+					return None
+				base_schema = yaml.load(itemio, Loader=yaml.CSafeLoader)
 		except Exception as e:
 			raise LibraryError(
 				"Failed to parse schema '{}': {}".format(schema_path, e)
 			) from e
-
-		if base_schema is None:
-			raise LibraryError("Schema '{}' not found.".format(schema_path))
 
 		self._validate_base_schema(schema_path, base_schema)
 		merged_schema = copy.deepcopy(base_schema)
@@ -153,8 +150,11 @@ class LibrarySchemaService(Service):
 		if not isinstance(schema, dict):
 			raise LibraryError("Schema '{}' must be a YAML mapping.".format(path))
 
-		if not _has_schema_type(schema, "lmio/schema"):
-			raise LibraryError("Schema '{}' must have define/type 'lmio/schema'.".format(path))
+		if not _has_base_schema_type(schema):
+			raise LibraryError(
+				"Schema '{}' must have define/type 'lmio/schema' or "
+				"'lmio/schema/<subtype>'.".format(path)
+			)
 
 		fields = schema.get("fields")
 		if not isinstance(fields, dict):
@@ -206,6 +206,24 @@ def _has_schema_type(schema: dict, expected_type: str) -> bool:
 	if not isinstance(define, dict):
 		return False
 	return define.get("type") == expected_type
+
+
+def _has_base_schema_type(schema: dict) -> bool:
+	define = schema.get("define")
+	if not isinstance(define, dict):
+		return False
+	schema_type = define.get("type")
+	if not isinstance(schema_type, str):
+		return False
+	base_type = "lmio/schema"
+	subtype_prefix = "{}/".format(base_type)
+	return (
+		schema_type == base_type
+		or (
+			schema_type.startswith(subtype_prefix)
+			and len(schema_type) > len(subtype_prefix)
+		)
+	)
 
 
 def _is_schema_extension_item(item: LibraryItem, schema_name: str) -> bool:

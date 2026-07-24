@@ -14,18 +14,28 @@ from test.test_library.library_schema_test_utils import make_filesystem_provider
 
 class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
 
-	async def test_missing_base_schema_raises_library_error(self):
-		"""A missing base schema fails the schema read."""
+	async def test_missing_base_schema_returns_none(self):
+		"""A missing base schema is reported as an absent optional result."""
 		with tempfile.TemporaryDirectory() as root:
 			service = make_schema_service(make_filesystem_provider(root))
 
-			with self.assertRaises(LibraryError):
-				await service.read_schema("/Schemas/ECS.yaml")
+			schema = await service.read_schema("/Schemas/ECS.yaml")
+
+			self.assertIsNone(schema)
 
 	async def test_malformed_base_schema_raises_library_error(self):
 		"""A base schema with the wrong YAML shape fails the whole schema read."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "document_list.yaml")
+			service = make_schema_service(make_filesystem_provider(root))
+
+			with self.assertRaises(LibraryError):
+				await service.read_schema("/Schemas/ECS.yaml")
+
+	async def test_empty_base_schema_raises_library_error(self):
+		"""An existing empty base schema is invalid rather than missing."""
+		with tempfile.TemporaryDirectory() as root:
+			write_fixture(root, "/Schemas/ECS.yaml", "empty.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertRaises(LibraryError):
@@ -44,6 +54,44 @@ class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
 		"""A base schema must identify itself as an LMIO schema."""
 		with tempfile.TemporaryDirectory() as root:
 			write_fixture(root, "/Schemas/ECS.yaml", "base_wrong_type.yaml")
+			service = make_schema_service(make_filesystem_provider(root))
+
+			with self.assertRaises(LibraryError):
+				await service.read_schema("/Schemas/ECS.yaml")
+
+	async def test_base_schema_with_lmio_schema_subtype_is_accepted(self):
+		"""A namespaced LMIO schema subtype is a valid base schema type."""
+		with tempfile.TemporaryDirectory() as root:
+			write_fixture(root, "/Schemas/Others.yaml", "base_others.yaml")
+			service = make_schema_service(make_filesystem_provider(root))
+
+			schema = await service.read_schema("/Schemas/Others.yaml")
+
+			self.assertEqual(schema["define"]["type"], "lmio/schema/others")
+			self.assertIn("event.original", schema["fields"])
+
+	async def test_schema_extension_type_is_rejected_for_base_schema(self):
+		"""An extension document cannot be used as a base schema."""
+		with tempfile.TemporaryDirectory() as root:
+			write_fixture(root, "/Schemas/ECS.yaml", "base_extension_type.yaml")
+			service = make_schema_service(make_filesystem_provider(root))
+
+			with self.assertRaises(LibraryError):
+				await service.read_schema("/Schemas/ECS.yaml")
+
+	async def test_base_schema_type_without_namespace_separator_is_rejected(self):
+		"""A similar prefix without the subtype separator is not a base type."""
+		with tempfile.TemporaryDirectory() as root:
+			write_fixture(root, "/Schemas/ECS.yaml", "base_invalid_lmio_prefix.yaml")
+			service = make_schema_service(make_filesystem_provider(root))
+
+			with self.assertRaises(LibraryError):
+				await service.read_schema("/Schemas/ECS.yaml")
+
+	async def test_base_schema_type_with_empty_subtype_is_rejected(self):
+		"""The subtype namespace separator must be followed by a subtype."""
+		with tempfile.TemporaryDirectory() as root:
+			write_fixture(root, "/Schemas/ECS.yaml", "base_empty_subtype.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
 			with self.assertRaises(LibraryError):
