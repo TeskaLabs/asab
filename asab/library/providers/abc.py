@@ -48,7 +48,7 @@ class LibraryProviderABC(object):
 
 	async def subscribe(self, path: str, target: typing.Union[str, tuple, None] = None):
 		"""
-		Take a path and subscribe to changes in this directory.
+		Take a path and subscribe to changes in this directory or item.
 		When change occurs, publish PubSub signal "Library.change!"
 
 		Note:
@@ -56,7 +56,7 @@ class LibraryProviderABC(object):
 		These might vary in lag between change if the library and its propagation.
 
 		Mind following when implementing this method:
-		- user can subscribe only on existing directory. -> Check whether subscribed path is a directory,
+		- user can subscribe only on an existing directory or item -> Check the subscribed path
 			specifically in the provider
 		- subscribing to nonexisting directory or file should lead to silent error
 
@@ -64,3 +64,8 @@ class LibraryProviderABC(object):
 			path: Absolute path to subscribe (starting with "/")
 		"""
 		raise NotImplementedError("{}.subscribe()".format(self.__class__.__name__))
+
+	@staticmethod
+	def _is_item_subscription(path: str) -> bool:
+		name = path.rstrip("/").rsplit("/", 1)[-1]
+		return "." in name and not name.endswith((".io", ".d"))

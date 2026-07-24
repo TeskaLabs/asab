@@ -7,6 +7,7 @@ import os.path
 import urllib.parse
 
 import kazoo.exceptions
+import kazoo.protocol.states
 import kazoo.recipe.watchers
 
 from .abc import LibraryProviderABC
@@ -183,16 +184,22 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		# This is a contingency check for changes for subscribed folders in library even without version counter change.
 		self.App.PubSub.subscribe("Application.tick/600!", self._on_library_changed)
 
-		self.Subscriptions: typing.Iterable[str] = set()
+		self.Subscriptions: typing.Set[typing.Tuple[typing.Union[str, tuple, None], str]] = set()
 		self.NodeDigests: typing.Dict[str, bytes] = {}
 		self.SubscriptionActualPaths: typing.Dict[typing.Tuple[typing.Union[str, tuple, None], str], typing.List[str]] = {}
+		self.WatchSubscriptions: typing.Dict[str, typing.List[typing.Dict[str, typing.Any]]] = {}
+		self.PersistentWatches: typing.Set[str] = set()
 
 
 	async def finalize(self, app):
 		"""
 		The `finalize` function is called when the application is shutting down
 		"""
+		await self._remove_subscription_watches()
 		self.DisabledWatch = None
+		self.PersistentWatches = set()
+		self.WatchSubscriptions = {}
+		self.SubscriptionActualPaths = {}
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		await zksvc.remove(self.ZookeeperContainer)
 
@@ -222,6 +229,9 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.DisabledNodePath, on_disabled_changed)
 
 		self.DisabledWatch = await self.Zookeeper.ProactorService.execute(install_disabled_watcher)
+
+		if len(self.WatchSubscriptions) > 0:
+			await self._restore_subscription_watches()
 
 		await self._set_ready()
 
@@ -302,6 +312,36 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		if not tenant_id or not cred_id:
 			return None
 		return "/.personal/{}/{}{}".format(tenant_id, cred_id, path)
+
+	@staticmethod
+	def _normalize_subscription_path(path: str) -> str:
+		assert path[:1] == '/'
+		if path != '/':
+			path = path.rstrip('/')
+			if path == '':
+				return '/'
+		return path
+
+	def _zk_node_path(self, path: str) -> str:
+		path = self._normalize_subscription_path(path)
+		if self.BasePath == '':
+			return path
+		if path == '/':
+			return self.BasePath
+		return "{}{}".format(self.BasePath, path)
+
+	def _persistent_recursive_watch_mode(self):
+		add_watch_mode = getattr(kazoo.protocol.states, "AddWatchMode", None)
+		mode = getattr(add_watch_mode, "PERSISTENT_RECURSIVE", None) if add_watch_mode is not None else None
+		if mode is None or not hasattr(self.Zookeeper.Client, "add_watch"):
+			raise RuntimeError(
+				"ZooKeeper subscriptions require vendored kazoo with persistent recursive watch support."
+			)
+		return mode
+
+	def _watcher_type_any(self):
+		watcher_type = getattr(kazoo.protocol.states, "WatcherType", None)
+		return getattr(watcher_type, "ANY", None) if watcher_type is not None else None
 
 	async def read(self, path: str) -> typing.Optional[typing.IO]:
 		if self.Zookeeper is None:
@@ -484,12 +524,15 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return node_path
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
-		self.Subscriptions.add((target, path))
+		key = (target, path)
+		if key in self.Subscriptions:
+			return
+		self.Subscriptions.add(key)
 		if not hasattr(self, "SubscriptionActualPaths"):
 			self.SubscriptionActualPaths = {}
 
 		if target in {None, "global"}:
-			self.SubscriptionActualPaths[(target, path)] = [path]
+			self.SubscriptionActualPaths[key] = [path]
 			self.NodeDigests[path] = await self._get_directory_hash(path)
 
 		elif target == "tenant":
@@ -498,23 +541,30 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				actual_path = "/.tenants/{}{}".format(tenant, path)
 				actual_paths.append(actual_path)
 				self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
-			self.SubscriptionActualPaths[(target, path)] = actual_paths
+			self.SubscriptionActualPaths[key] = actual_paths
 
 		elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
 			_, tenant = target
 			actual_path = "/.tenants/{}{}".format(tenant, path)
-			self.SubscriptionActualPaths[(target, path)] = [actual_path]
+			self.SubscriptionActualPaths[key] = [actual_path]
 			self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
 
 		elif target == "personal" or (isinstance(target, tuple) and len(target) == 2 and target[0] == "personal"):
 			actual_path = self._subscription_personal_path(path, target)
 			if actual_path is not None:
-				self.SubscriptionActualPaths[(target, path)] = [actual_path]
+				self.SubscriptionActualPaths[key] = [actual_path]
 				self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
 			else:
-				self.SubscriptionActualPaths[(target, path)] = []
+				self.SubscriptionActualPaths[key] = []
 		else:
 			raise ValueError("Unexpected target: {!r}".format(target))
+
+		self._persistent_recursive_watch_mode()
+		for actual_path in self.SubscriptionActualPaths[key]:
+			actual_path = self._normalize_subscription_path(actual_path)
+			descriptor = self._build_subscription_descriptor(target, path, actual_path)
+			self._attach_watch_subscription(descriptor)
+			await self._ensure_subscription_watch(descriptor["zk_path"])
 
 	async def _get_directory_hash(self, path):
 		path = self.BasePath + path
@@ -536,6 +586,101 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		digest = hashlib.sha1()
 		await self.Zookeeper.ProactorService.execute(recursive_traversal, path, digest)
 		return digest.digest()
+
+	def _build_subscription_descriptor(self, target, publish_path: str, actual_path: str) -> typing.Dict[
+		str, typing.Any]:
+		actual_path = self._normalize_subscription_path(actual_path)
+		return {
+			"key": (target, publish_path, actual_path),
+			"kind": "item" if self._is_item_subscription(publish_path) else "dir",
+			"publish_path": publish_path,
+			"actual_path": actual_path,
+			"zk_path": self._zk_node_path(actual_path),
+		}
+
+	def _attach_watch_subscription(self, descriptor: typing.Dict[str, typing.Any]) -> None:
+		subscriptions = self.WatchSubscriptions.setdefault(descriptor["zk_path"], [])
+		if any(existing["key"] == descriptor["key"] for existing in subscriptions):
+			return
+		subscriptions.append(descriptor)
+
+	async def _ensure_subscription_watch(self, zk_path: str) -> None:
+		if zk_path in self.PersistentWatches:
+			return
+
+		mode = self._persistent_recursive_watch_mode()
+
+		def on_watch_event(event, watch_path=zk_path):
+			if event is None or getattr(event, "path", None) is None:
+				return
+			self.App.TaskService.schedule_threadsafe(
+				self._handle_watch_event(watch_path, event)
+			)
+
+		def install_watch():
+			return self.Zookeeper.Client.add_watch(zk_path, on_watch_event, mode)
+
+		try:
+			await self.Zookeeper.ProactorService.execute(install_watch)
+		except kazoo.exceptions.NoNodeError:
+			return
+
+		self.PersistentWatches.add(zk_path)
+
+	async def _remove_subscription_watch(self, zk_path: str) -> None:
+		if zk_path not in self.PersistentWatches:
+			return
+
+		self.PersistentWatches.discard(zk_path)
+		watcher_type_any = self._watcher_type_any()
+		remove_all_watches = getattr(self.Zookeeper.Client, "remove_all_watches", None)
+		if watcher_type_any is None or remove_all_watches is None:
+			return
+
+		def remove_watch():
+			try:
+				remove_all_watches(zk_path, watcher_type_any)
+			except (kazoo.exceptions.NoNodeError, kazoo.exceptions.NoWatcherError):
+				return
+
+		try:
+			await self.Zookeeper.ProactorService.execute(remove_watch)
+		except kazoo.exceptions.ConnectionClosedError:
+			return
+
+	async def _remove_subscription_watches(self) -> None:
+		for zk_path in list(self.PersistentWatches):
+			await self._remove_subscription_watch(zk_path)
+
+	async def _restore_subscription_watches(self) -> None:
+		self._persistent_recursive_watch_mode()
+		for zk_path in list(self.WatchSubscriptions.keys()):
+			await self._ensure_subscription_watch(zk_path)
+
+	def _subscription_matches_event(self, descriptor: typing.Dict[str, typing.Any], event_path: str) -> bool:
+		subscription_path = descriptor["zk_path"]
+		if descriptor["kind"] == "item":
+			return event_path == subscription_path
+		if subscription_path == '/':
+			return event_path.startswith('/')
+		return event_path == subscription_path or event_path.startswith(subscription_path + "/")
+
+	async def _handle_watch_event(self, zk_path: str, event) -> None:
+		event_path = getattr(event, "path", None)
+		if event_path is None:
+			return
+
+		event_path = self._normalize_subscription_path(event_path)
+		to_publish = set()
+		for descriptor in list(self.WatchSubscriptions.get(zk_path, ())):
+			if self._subscription_matches_event(descriptor, event_path):
+				to_publish.add(descriptor["publish_path"])
+
+		if len(to_publish) == 0:
+			return
+
+		for publish_path in to_publish:
+			self.App.PubSub.publish("Library.change!", self, publish_path)
 
 	async def _on_library_changed(self, event_name=None):
 		if self.Zookeeper is None or not self.IsReady:
