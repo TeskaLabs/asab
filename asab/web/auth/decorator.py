@@ -92,8 +92,6 @@ def noauth(handler):
 		if arg in args:
 			raise Exception(
 				"{}(): Handler with @noauth cannot have {!r} in its arguments.".format(handler.__qualname__, arg))
-	# Mark the handler in place — no wrapper needed. Extra wraps would turn a
-	# later bound method into a plain function once auth/tenant installers wrap
-	# the route again, breaking inspect.ismethod() in OpenAPI generation.
+
 	handler.NoAuth = True
 	return handler
