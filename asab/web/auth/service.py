@@ -277,9 +277,14 @@ class AuthService(Service):
 		# Extract the actual unwrapped handler method for signature inspection
 		handler_method = route.handler
 
-		# Exclude endpoints with @noauth decorator
-		if hasattr(handler_method, "NoAuth") and handler_method.NoAuth is True:
-			return
+		# Exclude endpoints with @noauth decorator (attribute may sit on any wrap layer)
+		probe = handler_method
+		seen = set()
+		while probe is not None and id(probe) not in seen:
+			seen.add(id(probe))
+			if getattr(probe, "NoAuth", False) is True:
+				return
+			probe = getattr(probe, "__wrapped__", None)
 
 		while hasattr(handler_method, "__wrapped__"):
 			# While loop unwraps handlers wrapped in multiple decorators.
