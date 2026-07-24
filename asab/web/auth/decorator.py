@@ -92,10 +92,6 @@ def noauth(handler):
 		if arg in args:
 			raise Exception(
 				"{}(): Handler with @noauth cannot have {!r} in its arguments.".format(handler.__qualname__, arg))
+
 	handler.NoAuth = True
-
-	@functools.wraps(handler)
-	async def _noauth_wrapper(*args, **kwargs):
-		return await handler(*args, **kwargs)
-
-	return _noauth_wrapper
+	return handler

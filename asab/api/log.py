@@ -91,9 +91,11 @@ class WebApiLoggingHandler(logging.Handler):
 	@allow_no_tenant
 	async def get_logs(self, request):
 		"""
-		Get logs.
+		Get recent application logs
+
+		Returns a JSON array of buffered log entries.
 		---
-		tags: ['asab.log']
+		tags: ["ASAB"]
 
 		responses:
 			"200":
@@ -142,9 +144,10 @@ class WebApiLoggingHandler(logging.Handler):
 	@allow_no_tenant
 	async def ws(self, request):
 		'''
-		# Live feed of logs over websocket
+		Stream application logs over WebSocket
 
-		Usable with e.g. with React Lazylog
+		Sends historical buffered logs first, then live log entries as they occur.
+		Compatible with React Lazylog.
 
 		```
 		<LazyLog
@@ -168,7 +171,7 @@ class WebApiLoggingHandler(logging.Handler):
 		```
 
 		---
-		tags: ['asab.log']
+		tags: ["ASAB"]
 		externalDocs:
 			description: React Lazylog
 			url: https://github.com/mozilla-frontend-infra/react-lazylog#readme

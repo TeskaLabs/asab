@@ -1,6 +1,3 @@
-import functools
-
-
 def allow_no_tenant(handler):
 	"""
 	Allow receiving requests without tenant parameter.
@@ -9,7 +6,7 @@ def allow_no_tenant(handler):
 		handler: Web handler method
 
 	Returns:
-		Wrapped web handler that allows requests with undefined tenant.
+		The same handler, marked so tenant middleware permits missing tenant.
 
 	Examples:
 		>>> import asab.web.rest
@@ -25,9 +22,4 @@ def allow_no_tenant(handler):
 		>>> 		print("The request has tenant {!r}.".format(tenant))
 	"""
 	handler.AllowNoTenant = True
-
-	@functools.wraps(handler)
-	async def _allow_no_tenant_wrapper(*args, **kwargs):
-		return await handler(*args, **kwargs)
-
-	return _allow_no_tenant_wrapper
+	return handler

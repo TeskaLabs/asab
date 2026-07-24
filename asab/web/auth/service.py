@@ -274,17 +274,18 @@ class AuthService(Service):
 		"""
 		Inspect handler and apply suitable auth wrappers.
 		"""
-		# Extract the actual unwrapped handler method for signature inspection
+		# Unwrap decorator chain for signature inspection; also detect @noauth on any layer.
+		# NOTE: Decorators that participate in this chain should use @functools.wraps().
 		handler_method = route.handler
-
-		# Exclude endpoints with @noauth decorator
-		if hasattr(handler_method, "NoAuth") and handler_method.NoAuth is True:
-			return
-
-		while hasattr(handler_method, "__wrapped__"):
-			# While loop unwraps handlers wrapped in multiple decorators.
-			# NOTE: This requires all the decorators to use @functools.wraps().
-			handler_method = handler_method.__wrapped__
+		seen = set()
+		while handler_method is not None and id(handler_method) not in seen:
+			seen.add(id(handler_method))
+			if getattr(handler_method, "NoAuth", False) is True:
+				return
+			wrapped = getattr(handler_method, "__wrapped__", None)
+			if wrapped is None:
+				break
+			handler_method = wrapped
 
 		if hasattr(handler_method, "__func__"):
 			handler_method = handler_method.__func__
