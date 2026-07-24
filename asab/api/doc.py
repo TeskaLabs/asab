@@ -226,9 +226,11 @@ class DocWebHandler(object):
 	# This is the web request handler
 	async def doc(self, request):
 		"""
-		Access the API documentation using a browser.
+		Browse interactive API documentation
+
+		Opens Swagger UI for exploring and trying the service REST API.
 		---
-		tags: ['asab.doc']
+		tags: ["ASAB"]
 		"""
 
 		swagger_js_url: str = "https://unpkg.com/swagger-ui-dist@4/swagger-ui-bundle.js"
@@ -249,9 +251,11 @@ class DocWebHandler(object):
 	@noauth
 	async def oauth2_redirect(self, request):
 		"""
-		Required for the authorization to work.
+		Complete OAuth2 login for the API documentation UI
+
+		Redirect target used by Swagger UI after authorization.
 		---
-		tags: ['asab.doc']
+		tags: ["ASAB"]
 		"""
 
 		return aiohttp.web.Response(text=SWAGGER_OAUTH_PAGE, content_type="text/html")
@@ -260,9 +264,11 @@ class DocWebHandler(object):
 	@noauth
 	async def openapi(self, request):
 		"""
-		Download OpenAPI (version 3) API documentation (aka Swagger) in YAML.
+		Download the OpenAPI 3 specification
+
+		Returns the generated API specification as YAML.
 		---
-		tags: ['asab.doc']
+		tags: ["ASAB"]
 		externalDocs:
 			description: OpenAPI Specification
 			url: https://swagger.io/specification/

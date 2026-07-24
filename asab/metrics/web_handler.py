@@ -28,9 +28,9 @@ class MetricWebHandler(object):
 	@allow_no_tenant
 	async def metrics_json(self, request):
 		'''
-		Get metrics in a JSON.
+		Get application metrics as JSON
 		---
-		tags: ['asab.metrics']
+		tags: ["ASAB"]
 		'''
 		metrics_to_send = copy.deepcopy(self.MetricsService.Storage.Metrics)
 		return json_response(request, metrics_to_send)
@@ -40,9 +40,11 @@ class MetricWebHandler(object):
 	@allow_no_tenant
 	async def metrics(self, request):
 		'''
-		Produce the OpenMetrics output.
+		Get application metrics in OpenMetrics format
+
+		Suitable for Prometheus and other OpenMetrics scrapers.
 		---
-		tags: ['asab.metrics']
+		tags: ["ASAB"]
 		'''
 		lines = []
 
@@ -67,7 +69,9 @@ class MetricWebHandler(object):
 	@allow_no_tenant
 	async def watch(self, request):
 		"""
-		Endpoint to list ASAB metrics in the command line.
+		Watch application metrics as a text table
+
+		Useful from the command line with tools like `watch` and `curl`.
 
 		Example commands:
 		* watch curl localhost:8080/asab/v1/watch_metrics -> all metrics
@@ -87,7 +91,7 @@ class MetricWebHandler(object):
 		* watch curl localhost:8080/asab/v1/watch_metrics?filter=-*web* -> metrics that contain "web"
 
 		---
-		tags: ['asab.metrics']
+		tags: ["ASAB"]
 		"""
 
 		filter = request.query.get("filter")
