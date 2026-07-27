@@ -146,6 +146,14 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		# Initialize ZooKeeper client
 		zksvc = self.App.get_service("asab.ZooKeeperService")
+		if zksvc is None:
+			L.critical(
+				"ZooKeeper library provider requires asab.zookeeper.Module to be initialized; "
+				"add asab.zookeeper.Module to Application modules.",
+				struct_data={"provider_url": path},
+			)
+			raise SystemExit("Exit due to a critical configuration error.")
+
 		self.ZookeeperContainer = ZooKeeperContainer(
 			zksvc,
 			config_section_name=config_section_name,
