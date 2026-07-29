@@ -1,5 +1,6 @@
 import os
 import logging
+import threading
 
 import kazoo.protocol.states
 
@@ -77,6 +78,13 @@ class LeaderService(Service):
 		self._leader_zxid = None  # Can be True, False or None (for initialization)
 		self.LeaderInfo = None
 
+		# Serializes CONNECTED / watch / tick election attempts. LOST (and
+		# SUSPENDED for in-flight attempts) invalidate `_election_key` without
+		# acquiring this lock (avoids blocking the event loop on ZooKeeper I/O);
+		# in-flight elections observe the stale key before publishing LEADER!.
+		self._election_lock = threading.Lock()
+		self._election_key = None
+
 
 	def IsLeader(self):
 		"""
@@ -89,6 +97,15 @@ class LeaderService(Service):
 		if self._leader_zxid is None:
 			return False
 		return True
+
+
+	def _capture_election_key(self):
+		"""Return (session_id, last_zxid) for the current ZK connection, or None."""
+		client = self.ZkContainer.ZooKeeper.Client
+		client_id = client.client_id
+		if client_id is None:
+			return None
+		return (client_id[0], client.last_zxid)
 
 
 	async def _on_zk_ready(self, event_name, zkcontainer):
@@ -108,11 +125,9 @@ class LeaderService(Service):
 			# Start the election thread to become leader or follower
 			self._election_thread()
 
-		if self._leader_zxid is not None:
-			self._leader_zxid = None
-			self.LeaderInfo = None
-			self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.LeaderName)
-
+		# Keep `_leader_zxid` / LeaderInfo across reconnect: a still-valid
+		# session retains the ephemeral election node, and NodeExistsError
+		# handling must compare stats.czxid with the prior zxid.
 		zkcontainer.ProactorService.schedule(setup)
 
 
@@ -120,10 +135,10 @@ class LeaderService(Service):
 		if zkcontainer != self.ZkContainer:
 			return
 
-		self._leader_zxid = None
-		self.LeaderInfo = None
-		self.App.PubSub.publish("LeaderService.state/FOLLOWER!", self.LeaderName)
-		L.warning("ZooKeeper connection suspended. Leader service will become follower. THIS MUST BE TESTED!")
+		# Connection is down but the session may still be valid; do not clear
+		# leadership identity. Only invalidate in-flight elections.
+		self._election_key = None
+		L.warning("ZooKeeper connection suspended; leadership state preserved until session is lost.")
 
 
 	async def _on_zk_lost(self, event_name, zkcontainer):
@@ -132,6 +147,8 @@ class LeaderService(Service):
 		if zkcontainer != self.ZkContainer:
 			return
 
+		# Confirmed session loss: invalidate in-flight elections and clear leadership.
+		self._election_key = None
 		self._leader_zxid = None
 		self.LeaderInfo = None
 		self.App.PubSub.publish("LeaderService.state/FOLLOWER!", self.LeaderName)
@@ -149,35 +166,54 @@ class LeaderService(Service):
 
 
 	def _election_thread(self):
-		instance_id = os.environ.get("INSTANCE_ID")
-		service_id = os.environ.get("SERVICE_ID")
-		node_id = os.environ.get("NODE_ID")
-
-		leader_data = b""
-		if instance_id is not None:
-			leader_data += (f"instance_id: {instance_id}\n").encode("utf-8")
-		if service_id is not None:
-			leader_data += (f"service_id: {service_id}\n").encode("utf-8")
-		if node_id is not None:
-			leader_data += (f"node_id: {node_id}\n").encode("utf-8")
-
-		# Try to become leader
-		try:
-			_, stats = self.ZkContainer.ZooKeeper.Client.create(
-				self.ElectionPath + "/" + self.LeaderName,
-				leader_data,
-				ephemeral=True,  # We want this to disappear when the instance is stopped
-				include_data=True,
-			)
-		except kazoo.exceptions.NodeExistsError:
-			leader_data, stats = self.ZkContainer.ZooKeeper.Client.get(self.ElectionPath + "/" + self.LeaderName)
-			if stats.czxid == self._leader_zxid:
-				# I'm still the leader, no need to become leader again.
+		with self._election_lock:
+			election_key = self._capture_election_key()
+			if election_key is None:
 				return
-			self._leader_zxid = None
-			self.LeaderInfo = leader_data
-			self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.LeaderName)
-		else:
-			self._leader_zxid = stats.czxid
-			self.LeaderInfo = leader_data
-			self.App.PubSub.publish_threadsafe("LeaderService.state/LEADER!", self.LeaderName)
+			self._election_key = election_key
+
+			instance_id = os.environ.get("INSTANCE_ID")
+			service_id = os.environ.get("SERVICE_ID")
+			node_id = os.environ.get("NODE_ID")
+
+			leader_data = b""
+			if instance_id is not None:
+				leader_data += (f"instance_id: {instance_id}\n").encode("utf-8")
+			if service_id is not None:
+				leader_data += (f"service_id: {service_id}\n").encode("utf-8")
+			if node_id is not None:
+				leader_data += (f"node_id: {node_id}\n").encode("utf-8")
+
+			# Try to become leader
+			try:
+				_, stats = self.ZkContainer.ZooKeeper.Client.create(
+					self.ElectionPath + "/" + self.LeaderName,
+					leader_data,
+					ephemeral=True,  # We want this to disappear when the instance is stopped
+					include_data=True,
+				)
+			except kazoo.exceptions.NodeExistsError:
+				leader_data, stats = self.ZkContainer.ZooKeeper.Client.get(self.ElectionPath + "/" + self.LeaderName)
+				if self._election_key != election_key:
+					# Session was lost/invalidated while we ran; do not overwrite state.
+					return
+				if stats.czxid == self._leader_zxid:
+					# I'm still the leader, no need to become leader again.
+					return
+				self._leader_zxid = None
+				self.LeaderInfo = leader_data
+				self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.LeaderName)
+			else:
+				if self._election_key != election_key:
+					# Stale election result (e.g. session lost): become follower without
+					# overwriting LeaderInfo / _leader_zxid already cleared by LOST.
+					self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.LeaderName)
+					return
+				self._leader_zxid = stats.czxid
+				self.LeaderInfo = leader_data
+				# Re-check after writing: LOST may have invalidated concurrently.
+				if self._election_key != election_key:
+					self._leader_zxid = None
+					self.LeaderInfo = None
+					return
+				self.App.PubSub.publish_threadsafe("LeaderService.state/LEADER!", self.LeaderName)
