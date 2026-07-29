@@ -91,28 +91,19 @@ class DiscoveryService(Service):
 			return
 
 		# Handle the change event in the thread-safe manner in the main event loop thread
-		self.App.TaskService.schedule_threadsafe(self._on_change(item, event.type))
+		if event.type == 'CREATED' or event.type == 'CHANGED':
+			# We are on the zookeeper thread, so we can directly get the data
+			data, _ = self.ZooKeeperContainer.ZooKeeper.Client.get(self.BasePath + '/' + item)
+		else:
+			data = None
+
+		self.App.TaskService.schedule_threadsafe(self._on_change(item, event.type, data))
 
 
-	async def _on_change(self, item, event_type):
+	async def _on_change(self, item, event_type, data):
 		if event_type == 'CREATED' or event_type == 'CHANGED':
-
-			def get():
-				return self.ZooKeeperContainer.ZooKeeper.Client.get(self.BasePath + '/' + item)
-
 			# Read ZooKeeper outside the cache lock to avoid blocking other updates
-			try:
-				data, _stat = await self.ProactorService.execute(get)
-				item_data = json.loads(data)
-			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
-				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
-				return
-			except kazoo.exceptions.NoNodeError:
-				return
-			except json.JSONDecodeError:
-				L.exception("Failed to decode advertised data for '{}'".format(item))
-				return
-
+			item_data = json.loads(data)
 			async with self._cache_lock:
 				self._advertised_raw[item] = item_data
 
