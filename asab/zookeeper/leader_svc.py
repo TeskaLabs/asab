@@ -102,6 +102,8 @@ class LeaderService(Service):
 				ephemeral=True,  # We want this to disappear when the instance is stopped
 			)
 		except kazoo.exceptions.NodeExistsError:
+			# If we lost the election due to our own node,
+			# The on-tick recovery process will try to become leader again.
 			self._leader_status = False
 			self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.LeaderName)
 		else:
