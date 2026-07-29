@@ -13,14 +13,54 @@ L = logging.getLogger(__name__)
 
 
 class LeaderService(Service):
+	"""
+	ZooKeeper-based leader election service.
+
+	Creates an ephemeral znode under `{zkcontainer.Path}/election/{leader_name}`.
+	The instance that successfully creates the node becomes the leader; others
+	become followers. Leadership is released automatically when the ZooKeeper
+	session ends (process stop, disconnect, or session expiry).
+
+	PubSub events:
+
+	- `LeaderService.state/LEADER!` — this instance became the leader.
+	- `LeaderService.state/FOLLOWER!` — this instance is (or became) a follower.
+
+	Both events carry `leader_name` as the sole argument after the event name.
+	`LeaderInfo` holds the current leader znode payload (bytes), typically
+	lines with `instance_id`, `service_id`, and/or `node_id` from the environment.
+
+	Examples:
+
+	```python
+	self.LeaderService = asab.zookeeper.LeaderService(
+		self, self.ZkContainer, "example-leader"
+	)
+	self.PubSub.subscribe("LeaderService.state/LEADER!", self._on_leader)
+	self.PubSub.subscribe("LeaderService.state/FOLLOWER!", self._on_follower)
+	```
+	"""
 
 	def __init__(self, app, zkcontainer, leader_name):
+		"""
+		Register the service and subscribe to ZooKeeper connectivity events.
+
+		Args:
+			app (asab.Application): Reference to the ASAB application.
+			zkcontainer (asab.zookeeper.ZooKeeperContainer): ZooKeeper container
+				used for the election path and client.
+			leader_name (str): Election identity; must not contain `/`.
+				Registered as service name `asab.LeaderService:{leader_name}`.
+		"""
 		super().__init__(app, "asab.LeaderService:{}".format(leader_name))
 		self.ZkContainer = zkcontainer
+		"""ZooKeeper container used for election."""
 		self.ElectionPath = zkcontainer.Path + "/election"
+		"""Parent path of election znodes (`{Path}/election`)."""
 
 		assert "/" not in leader_name, "Leader name must not contain '/' character"
 		self.LeaderName = leader_name
+		"""Election identity; also the ephemeral znode name under `ElectionPath`."""
 
 		# Subscribe to the event that indicated the successful connection to the Zookeeper server(s)
 		app.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
@@ -29,9 +69,17 @@ class LeaderService(Service):
 
 		self._leader_zxid = None  # Can be True, False or None (for initialization)
 		self.LeaderInfo = None
+		"""Payload of the current leader znode (`bytes`), or `None` if unknown."""
 
 
 	def IsLeader(self):
+		"""
+		Return whether this instance currently holds leadership.
+
+		Returns:
+			bool: `True` if this instance is the leader, otherwise `False`
+				(including while leadership is unknown after connect/loss).
+		"""
 		if self._leader_zxid is None:
 			return False
 		return True
