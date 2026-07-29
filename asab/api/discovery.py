@@ -93,7 +93,7 @@ class DiscoveryService(Service):
 		# Handle the change event in the thread-safe manner in the main event loop thread
 		if event.type == 'CREATED' or event.type == 'CHANGED':
 			# We are on the zookeeper thread, so we can directly get the data
-			data, _ = self.ZooKeeperContainer.ZooKeeper.Client.get(self.BasePath + '/' + item)
+			data, _ = self.ZooKeeperContainer.ZooKeeper.Client.get(event.path)
 		else:
 			data = None
 
