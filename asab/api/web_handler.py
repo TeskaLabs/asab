@@ -30,9 +30,11 @@ class APIWebHandler(object):
 	@noauth
 	async def changelog(self, request):
 		"""
-		Get changelog file.
+		Get the application changelog
+
+		Returns the changelog file as Markdown when available.
 		---
-		tags: ['asab.api']
+		tags: ["ASAB"]
 		"""
 
 		if self.ApiService.ChangeLog is None:
@@ -47,14 +49,12 @@ class APIWebHandler(object):
 	@noauth
 	async def manifest(self, request):
 		"""
-		Get manifest of the ASAB service.
+		Get the application build manifest
 
-		The manifest is a JSON object loaded from `MANIFEST.json` file.
-		The manifest contains the creation (build) time and the version of the ASAB service.
-		The `MANIFEST.json` is produced during the creation of docker image by `asab-manifest.py` script.
+		Returns creation time and version from `MANIFEST.json` when available.
 
 		---
-		tags: ['asab.api']
+		tags: ["ASAB"]
 
 		responses:
 			"200":
@@ -81,12 +81,12 @@ class APIWebHandler(object):
 	@require_superuser
 	async def environ(self, request):
 		"""
-		Get environment variables.
+		Get process environment variables.
 
-		Get JSON response containing the contents of the environment variables.
+		Returns the current environment as JSON. Requires superuser access.
 
 		---
-		tags: ['asab.api']
+		tags: ["ASAB"]
 
 		responses:
 			"200":
@@ -112,11 +112,9 @@ class APIWebHandler(object):
 	@require_superuser
 	async def config(self, request):
 		"""
-		Get configuration of the service.
+		Get the application configuration.
 
-		Return configuration of the ASAB service in JSON format.
-
-		**IMPORTANT: All passwords are erased.**
+		Returns configuration as JSON with password values redacted. Requires superuser access.
 
 		Example:
 
@@ -136,7 +134,7 @@ class APIWebHandler(object):
 		```
 
 		---
-		tags: ['asab.api']
+		tags: ["ASAB"]
 
 		responses:
 			"200":

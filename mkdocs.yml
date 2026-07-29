@@ -157,7 +157,7 @@ nav:
     - Installation and first application: how-tos/installing-asab.md
     - Creating a web server: getting-started/web_server.md
     - Containerization: getting-started/containers.md
-    - Creating a microservice with REST API: how-tos/03_rest_api.md
+    - Creating a microservice with REST API: getting-started/rest_api.md
 
   - Reference:
     - Application: reference/application.md

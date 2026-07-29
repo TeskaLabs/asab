@@ -1,0 +1,8 @@
+---
+define:
+  type: lmio/schema-extension
+fields:
+  custom.shared:
+    type: keyword
+  custom.unique:
+    type: long

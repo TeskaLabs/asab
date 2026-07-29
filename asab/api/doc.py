@@ -211,13 +211,14 @@ class DocWebHandler(object):
 		"""
 		Take a route and return its path.
 		"""
+		path = "?"  # Unknown path placeholder
 		route_info = route.get_info()
 		if "path" in route_info:
 			path = route_info["path"]
 		elif "formatter" in route_info:
 			path = route_info["formatter"]
 		else:
-			L.warning("Cannot obtain path info from route", struct_data=self.route_info)
+			L.warning("Cannot obtain path info from route:{}".format(route_info))
 		return path
 
 
@@ -225,9 +226,11 @@ class DocWebHandler(object):
 	# This is the web request handler
 	async def doc(self, request):
 		"""
-		Access the API documentation using a browser.
+		Browse interactive API documentation
+
+		Opens Swagger UI for exploring and trying the service REST API.
 		---
-		tags: ['asab.doc']
+		tags: ["ASAB"]
 		"""
 
 		swagger_js_url: str = "https://unpkg.com/swagger-ui-dist@4/swagger-ui-bundle.js"
@@ -248,9 +251,11 @@ class DocWebHandler(object):
 	@noauth
 	async def oauth2_redirect(self, request):
 		"""
-		Required for the authorization to work.
+		Complete OAuth2 login for the API documentation UI
+
+		Redirect target used by Swagger UI after authorization.
 		---
-		tags: ['asab.doc']
+		tags: ["ASAB"]
 		"""
 
 		return aiohttp.web.Response(text=SWAGGER_OAUTH_PAGE, content_type="text/html")
@@ -259,9 +264,11 @@ class DocWebHandler(object):
 	@noauth
 	async def openapi(self, request):
 		"""
-		Download OpenAPI (version 3) API documentation (aka Swagger) in YAML.
+		Download the OpenAPI 3 specification
+
+		Returns the generated API specification as YAML.
 		---
-		tags: ['asab.doc']
+		tags: ["ASAB"]
 		externalDocs:
 			description: OpenAPI Specification
 			url: https://swagger.io/specification/
@@ -314,26 +321,53 @@ def get_path_parameters(route) -> list:
 	return parameters
 
 
+def unwrap_route_handler(handler):
+	"""
+	Walk the ``__wrapped__`` chain produced by ``@functools.wraps``.
+
+	Auth and tenant installers replace bound methods on routes with plain
+	wrapper functions. The original bound method (if any) remains reachable
+	via ``__wrapped__`` and is preferred for introspection.
+	"""
+	seen = set()
+	bound_method = None
+	while True:
+		if inspect.ismethod(handler):
+			bound_method = handler
+		wrapped = getattr(handler, "__wrapped__", None)
+		if wrapped is None or id(handler) in seen:
+			break
+		seen.add(id(handler))
+		handler = wrapped
+	return bound_method if bound_method is not None else handler
+
+
 def get_handler_name(route) -> str:
-	if inspect.ismethod(route.handler):
-		handler_name = "{}.{}()".format(route.handler.__self__.__class__.__name__, route.handler.__name__)
+	handler = unwrap_route_handler(route.handler)
+	if inspect.ismethod(handler):
+		handler_name = "{}.{}()".format(handler.__self__.__class__.__name__, handler.__name__)
 	else:
-		handler_name = "{}()".format(route.handler.__qualname__)
+		handler_name = "{}()".format(handler.__qualname__)
 	return handler_name
 
 
 def get_class_name(route) -> str:
-	if inspect.ismethod(route.handler):
-		class_name = str(route.handler.__self__.__class__.__name__)
+	handler = unwrap_route_handler(route.handler)
+	if inspect.ismethod(handler):
+		class_name = str(handler.__self__.__class__.__name__)
 	else:
-		class_name = str(route.handler.__qualname__.split(".")[0])
+		class_name = str(handler.__qualname__.split(".")[0])
 	return class_name
 
 
 def get_class_tags(route) -> typing.Optional[list]:
-	if not inspect.ismethod(route.handler):
+	handler = unwrap_route_handler(route.handler)
+	if not inspect.ismethod(handler):
 		return None
-	return get_docstring_yaml(route.handler.__self__.__class__).get("tags")
+	doc = get_docstring_yaml(handler.__self__.__class__)
+	if not doc:
+		return None
+	return doc.get("tags")
 
 
 def get_module_name(route) -> str:
@@ -342,13 +376,19 @@ def get_module_name(route) -> str:
 
 def get_json_schema(route) -> dict:
 		method_dict = {}
-		try:
-			json_schema = route.handler.__getattribute__("json_schema")
+		handler = route.handler
+		json_schema = None
+		seen = set()
+		while handler is not None and id(handler) not in seen:
+			seen.add(id(handler))
+			json_schema = getattr(handler, "json_schema", None)
+			if json_schema is not None:
+				break
+			handler = getattr(handler, "__wrapped__", None)
+		if json_schema is not None:
 			method_dict["requestBody"] = {
 				"content": {"application/json": {"schema": json_schema}},
 			}
-		except AttributeError:
-			pass
 		return method_dict
 
 

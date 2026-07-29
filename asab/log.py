@@ -184,7 +184,7 @@ class Logging(object):
 				# line starts with a comment
 				continue
 			try:
-				logger_name, level_name = level_line.split(' ', 1)
+				logger_name, level_name = level_line.split(None, 1)
 			except ValueError:
 				L.error("Cannot read line '{}' in '[logging] levels' section, expected format: 'logger_name level_name'.".format(level_line))
 				continue

@@ -1,0 +1,7 @@
+---
+define:
+  name: Not LMIO Schema
+  type: wrong/schema
+fields:
+  host.name:
+    type: str

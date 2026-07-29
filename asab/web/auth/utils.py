@@ -1,3 +1,4 @@
+import typing
 import aiohttp
 import aiohttp.web
 import jwcrypto.jwk
@@ -11,32 +12,53 @@ from ...exceptions import NotAuthenticatedError
 L = logging.getLogger(__name__)
 
 
-def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> str:
+def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> typing.Tuple[str, str]:
 	"""
-	Validate the Authorization header and extract the Bearer token value
+	Validate the Authorization header and extract the authentication scheme and token value
+
+	Args:
+		request: The aiohttp request object containing the Authorization header.
+
+	Returns:
+		A tuple containing the authentication scheme and the token value.
+
+	Raises:
+		NotAuthenticatedError: If the Authorization header is missing, cannot be parsed,
+			or uses an unsupported authentication scheme.
 	"""
 	authorization_header = request.headers.get(aiohttp.hdrs.AUTHORIZATION)
 	if authorization_header is None:
 		L.debug("No Authorization header.")
-		raise NotAuthenticatedError()
+		raise NotAuthenticatedError(message="Missing Authorization header")
 
 	try:
-		auth_type, token_value = authorization_header.split(" ", 1)
+		auth_scheme, token_value = authorization_header.split(None, 1)
 	except ValueError:
-		L.warning("Cannot parse Authorization header.")
-		raise NotAuthenticatedError()
+		L.debug(
+			"Authorization header is present but malformed; expected '<scheme> <token>'.",
+		)
+		raise NotAuthenticatedError(message="Malformed Authorization header") from None
 
-	if auth_type != "Bearer":
-		L.warning("Unsupported Authorization header type: {!r}".format(auth_type))
-		raise NotAuthenticatedError()
+	if not token_value:
+		L.debug(
+			"Authorization header is present but contains no token value.",
+		)
+		raise NotAuthenticatedError(message="Authorization header has no token value")
 
-	return token_value
+	return auth_scheme.casefold(), token_value
 
 
-def get_bearer_token_from_websocket_request(request: aiohttp.web.Request) -> str:
+def get_bearer_token_from_websocket_request(request: aiohttp.web.Request) -> typing.Tuple[str, str] | None:
 	"""
-	Extract the Bearer token from the WebSocket protocol header.
+	Extract the authentication scheme and token value from the WebSocket protocol header.
 	This is a workaround used in ASAB to pass the access token to the WebSocket connection.
+
+	Args:
+		request: The aiohttp request object containing the WebSocket protocol header.
+
+	Returns:
+		A tuple containing the authentication scheme ("bearer") and the token value,
+		or None if no access token protocol is found.
 	"""
 	protocol = request.headers.get('sec-websocket-protocol')
 	if protocol is not None:
@@ -44,39 +66,66 @@ def get_bearer_token_from_websocket_request(request: aiohttp.web.Request) -> str
 			p = p.strip()
 			if not p.startswith('access_token_'):
 				continue
-			return p[len('access_token_'):]
+			return "bearer", p[len('access_token_'):]
 	return None
 
 
 def get_id_token_claims(bearer_token: str, auth_server_public_key: jwcrypto.jwk.JWKSet):
 	"""
 	Parse and validate JWT ID token and extract the claims (user info)
+
+	Args:
+		bearer_token: The JWT token string to parse and validate.
+		auth_server_public_key: The JWKSet containing the public key used to verify the token signature.
+
+	Returns:
+		A dictionary containing the token claims (user information).
+
+	Raises:
+		NotAuthenticatedError: If the token is expired, cannot be parsed, or signature verification fails.
+		JWTMissingKey: If the key required to verify the token is missing from the JWKSet.
+		InvalidJWSSignature: If the token signature is invalid.
 	"""
 	assert jwcrypto is not None
 	try:
 		token = jwcrypto.jwt.JWT(jwt=bearer_token, key=auth_server_public_key)
 	except jwcrypto.jwt.JWTExpired:
-		L.warning("ID token expired.")
-		raise NotAuthenticatedError()
+		L.debug("ID token has expired; request authentication rejected.")
+		raise NotAuthenticatedError(message="ID token expired")
 	except jwcrypto.jwt.JWTMissingKey as e:
 		raise e
 	except jwcrypto.jws.InvalidJWSSignature as e:
 		raise e
 	except ValueError:
 		L.debug("Authentication failed: Bearer token is likely not a JWT ID token.")
-		raise NotAuthenticatedError()
+		raise NotAuthenticatedError(message="Bearer token is not a JWT")
 	except jwcrypto.jws.InvalidJWSObject:
 		L.debug("Authentication failed: Bearer token contains an invalid JWT object.")
-		raise NotAuthenticatedError()
+		raise NotAuthenticatedError(message="Invalid JWT object")
 	except Exception as e:
 		L.debug(
 			"Failed to parse JWT ID token ({}). Please check if the Authorization header contains ID token.".format(e))
-		raise NotAuthenticatedError()
+		raise NotAuthenticatedError(message="Failed to parse JWT ID token")
 
 	try:
 		token_claims = json.loads(token.claims)
 	except Exception:
-		L.error("Failed to parse JWT token claims.")
-		raise NotAuthenticatedError()
+		L.debug("ID token claims could not be decoded as JSON; token may be corrupted.")
+		raise NotAuthenticatedError(message="ID token claims are not valid JSON")
 
 	return token_claims
+
+
+def is_websocket_request(request) -> bool:
+	if request.headers.get(aiohttp.hdrs.UPGRADE, "").casefold() != "websocket":
+		return False
+
+	connection_header = request.headers.get(aiohttp.hdrs.CONNECTION)
+	if not connection_header:
+		return False
+
+	for value in connection_header.casefold().split(","):
+		if value.strip() == "upgrade":
+			return True
+
+	return False

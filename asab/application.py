@@ -124,8 +124,12 @@ class Application(metaclass=Singleton):
 		random.seed()
 
 		# Obtain the event loop
-		self.Loop = asyncio.get_event_loop()
-		if self.Loop.is_closed():
+		try:
+			self.Loop = asyncio.get_event_loop()
+		except RuntimeError:
+			self.Loop = None
+
+		if self.Loop is None or self.Loop.is_closed():
 			self.Loop = asyncio.new_event_loop()
 			asyncio.set_event_loop(self.Loop)
 

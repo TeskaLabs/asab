@@ -7,7 +7,12 @@ import asab
 
 from .abc import AuthProviderABC
 from .key_providers import PublicKeyProviderABC
-from ..utils import get_bearer_token_from_authorization_header, get_id_token_claims
+from ..utils import (
+	get_bearer_token_from_authorization_header,
+	get_bearer_token_from_websocket_request,
+	get_id_token_claims,
+	is_websocket_request,
+)
 from ..authorization import Authorization
 from ....exceptions import NotAuthenticatedError
 
@@ -29,7 +34,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 		for provider in public_key_providers:
 			self.register_key_provider(provider)
 
-		self.Authorizations = {}
+		self.Authorizations: typing.Dict[typing.Tuple[str, str], Authorization] = {}
 
 		self.App.PubSub.subscribe("PublicKey.updated!", self.collect_keys)
 		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
@@ -47,12 +52,27 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 	async def authorize(self, request: aiohttp.web.Request) -> Authorization:
 		if not self._KeyProviders:
-			L.warning("No public key providers registered for ID token authentication.")
-			raise NotAuthenticatedError(resource_metadata=self.ResourceMatadataUrl)
+			L.debug("No public key providers are registered; ID token authentication cannot verify signatures.")
+			raise NotAuthenticatedError(
+				resource_metadata=self.ResourceMatadataUrl,
+				message="No public key providers registered",
+			)
+
+
+		if is_websocket_request(request):
+			try:
+				# Post-introspection WS request has an Authorization header
+				token = get_bearer_token_from_authorization_header(request)
+			except NotAuthenticatedError:
+				# Internal network WS request
+				token = get_bearer_token_from_websocket_request(request)
+			if token is None:
+				raise NotAuthenticatedError(message="WebSocket authentication failed")
+		else:
+			token = get_bearer_token_from_authorization_header(request)
 
 		try:
-			bearer_token = get_bearer_token_from_authorization_header(request)
-			authz = await self._build_authorization(bearer_token)
+			authz = await self._build_authorization(token)
 			return authz
 		except NotAuthenticatedError as e:
 			e.update_www_authenticate(resource_metadata=self.ResourceMatadataUrl)
@@ -79,31 +99,39 @@ class IdTokenAuthProvider(AuthProviderABC):
 		self.collect_keys()
 
 
-	async def _build_authorization(self, id_token: str) -> Authorization:
+	async def _build_authorization(self, token: typing.Tuple[str, str]) -> Authorization:
 		"""
 		Build authorization from ID token.
 
 		Args:
-			id_token: Base64-encoded JWToken from Authorization header
+			token: Tuple of authentication scheme (must be Bearer) and token value (Base64-encoded ID token)
 
 		Returns:
 			Valid asab.web.auth.Authorization object
 		"""
+		auth_scheme, token_value = token
+		if auth_scheme != "bearer":
+			L.debug(
+				"Unsupported Authorization header scheme for ID token authentication.",
+				struct_data={"scheme": auth_scheme},
+			)
+			raise NotAuthenticatedError(message="Unsupported Authorization scheme (expected Bearer)")
+
 		# Try if the object already exists
-		authz = self.Authorizations.get(id_token)
+		authz = self.Authorizations.get(token)
 		if authz is not None:
 			try:
 				authz.require_valid()
 			except NotAuthenticatedError as e:
-				del self.Authorizations[id_token]
+				del self.Authorizations[token]
 				raise e
 			return authz
 
 		# Create a new Authorization object and store it
-		claims = await self._get_claims_from_id_token(id_token)
-		authz = Authorization(claims, id_token=id_token)
+		claims = await self._get_claims_from_id_token(token_value)
+		authz = Authorization(claims, id_token=token_value)
 
-		self.Authorizations[id_token] = authz
+		self.Authorizations[token] = authz
 		return authz
 
 
@@ -121,7 +149,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 			return get_id_token_claims(id_token, self.TrustedJwkSet)
 		except (jwcrypto.jws.InvalidJWSSignature, jwcrypto.jwt.JWTMissingKey) as e:
 			L.debug("Cannot authenticate request: {}".format(str(e)))
-			raise NotAuthenticatedError()
+			raise NotAuthenticatedError(message="ID token signature verification failed")
 
 
 	def _delete_invalid_authorizations(self, *args, **kwargs):

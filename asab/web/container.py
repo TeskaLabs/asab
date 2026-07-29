@@ -104,7 +104,10 @@ class WebContainer(Configurable):
 				self._listen.append((addr, port, ssl_context))
 
 		if len(self._listen) == 0:
-			L.warning("Missing configuration.")
+			L.warning(
+				"Web container has no listen address configured; HTTP server will not start.",
+				struct_data={"config_section": config_section_name},
+			)
 
 		client_max_size = int(self.Config.get("body_max_size"))
 		self.WebApp: aiohttp.web.Application = aiohttp.web.Application(client_max_size=client_max_size)
@@ -158,7 +161,10 @@ class WebContainer(Configurable):
 			try:
 				await site.start()
 			except OSError as err:
-				L.error("Cannot start web server: {}".format(err), struct_data={'address': addr, 'port': port})
+				L.error(
+					"Web server failed to bind to the configured listen address.",
+					struct_data={"address": addr, "port": port, "error": str(err)},
+				)
 
 			if isinstance(site, aiohttp.web_runner.TCPSite):
 				for address in site._runner.addresses:

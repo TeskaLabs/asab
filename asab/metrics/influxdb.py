@@ -95,7 +95,7 @@ class InfluxDBTarget(asab.Configurable):
 		self.WriteURL = "{}{}".format(self.BaseURL, self.WriteRequest)
 
 		# Proactor service is used for alternative delivery of the metrics into the InfluxDB
-		# It is handly when a main loop can become very busy
+		# It is handy when a main loop can become very busy
 		if self.Config.getboolean('proactor'):
 			try:
 				from ..proactor import Module
@@ -120,13 +120,23 @@ class InfluxDBTarget(asab.Configurable):
 						response = await resp.text()
 						if resp.status != 204:
 							L.warning(
-								"Error when sending metrics to Influx: {}\n{}".format(resp.status, response),
-								struct_data={"url": self.BaseURL}
+								"InfluxDB rejected the metrics write request.",
+								struct_data={
+									"url": self.BaseURL,
+									"status": resp.status,
+									"response": response,
+								},
 							)
 			except aiohttp.client_exceptions.ClientConnectorError:
-				L.error("Failed to connect to InfluxDB.", struct_data={"url": self.BaseURL})
-			except Exception as err:
-				L.exception("Failed to send metrics to InfluxDB: {}".format(err), struct_data={"url": self.BaseURL})
+				L.error(
+					"InfluxDB connection error; metrics were not delivered.",
+					struct_data={"url": self.BaseURL},
+				)
+			except Exception:
+				L.exception(
+					"Unexpected error while sending metrics to InfluxDB.",
+					struct_data={"url": self.BaseURL},
+				)
 
 
 	def _worker_upload(self, m_tree, rb):
@@ -137,23 +147,42 @@ class InfluxDBTarget(asab.Configurable):
 
 		try:
 			conn.request("POST", self.WriteRequest, rb, self.Headers)
-		except (ConnectionError, socket.gaierror):
-			L.error("Failed to connect to InfluxDB.", struct_data={"url": self.BaseURL})
-			return
-		except Exception as err:
-			L.exception("Failed to send metrics to InfluxDB: {}".format(err), struct_data={"url": self.BaseURL})
-			return
-
-		response = conn.getresponse()
-		if response.status != 204:
-			L.warning(
-				"Sending metrics to InfluxDB failed.",
-				struct_data={
-					"url": self.BaseURL,
-					"response.status": response.status,
-					"response": response.read().decode("utf-8")
-				}
+			response = conn.getresponse()
+			if response.status != 204:
+				L.warning(
+					"InfluxDB rejected the metrics write request.",
+					struct_data={
+						"url": self.BaseURL,
+						"status": response.status,
+						"response": response.read().decode("utf-8"),
+					},
+				)
+		except http.client.RemoteDisconnected:
+			L.error(
+				"InfluxDB closed the connection before responding; metrics were not delivered.",
+				struct_data={"url": self.BaseURL},
 			)
+			return
+		except (ConnectionError, socket.gaierror):
+			L.error(
+				"Cannot reach InfluxDB; metrics were not delivered.",
+				struct_data={"url": self.BaseURL},
+			)
+			return
+		except Exception:
+			L.exception(
+				"Unexpected error while sending metrics to InfluxDB.",
+				struct_data={"url": self.BaseURL},
+			)
+			return
+		finally:
+			try:
+				conn.close()
+			except Exception as e:
+				L.warning(
+					"Failed to close InfluxDB HTTP connection cleanly.",
+					struct_data={"url": self.BaseURL, "error": str(e)},
+				)
 
 
 def get_field(fk, fv):

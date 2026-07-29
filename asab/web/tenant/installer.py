@@ -98,7 +98,10 @@ class TenantWebWrapperInstaller:
 					pass
 
 			elif not await self.TenantService.is_tenant_known(tenant):
-				L.warning("Tenant not found.", struct_data={"tenant": tenant})
+				L.warning(
+					"Unknown tenant in request; tenant is not registered.",
+					struct_data={"tenant": tenant},
+				)
 				raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 			return await handler(*args, tenant=tenant, **kwargs)
 		return _pass_tenant_wrapper
@@ -113,16 +116,25 @@ class TenantWebWrapperInstaller:
 			request = args[-1]
 			tenant = request.query.get("tenant")
 
+			# Enrich the request for access log
+			request["t"] = tenant
+
 			if tenant is None:
 				if not (hasattr(handler, "AllowNoTenant") and handler.AllowNoTenant is True):
-					L.warning("URL contains no `tenant` parameter.")
+					L.warning(
+						"Required tenant query parameter is missing from the request URL.",
+						struct_data={"path": request.path},
+					)
 					raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 				else:
 					# `None` is allowed: Tenant is optional at this endpoint.
 					pass
 
 			elif not await self.TenantService.is_tenant_known(tenant):
-				L.warning("Tenant not found.", struct_data={"tenant": tenant})
+				L.warning(
+					"Unknown tenant in request; tenant is not registered.",
+					struct_data={"tenant": tenant},
+				)
 				raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 
 			tenant_ctx = Tenant.set(tenant)
@@ -145,12 +157,21 @@ class TenantWebWrapperInstaller:
 			request = args[-1]
 			tenant = request.match_info["tenant"]
 
+			# Enrich the request for access log
+			request["t"] = tenant
+
 			if "tenant" in request.query:
-				L.warning("Parameter `tenant` cannot be present in URL path and query at the same time.")
+				L.warning(
+					"Tenant cannot be specified in both URL path and query parameters.",
+					struct_data={"path": request.path},
+				)
 				raise aiohttp.web.HTTPBadRequest(reason="Tenant query parameter not allowed.")
 
 			if not await self.TenantService.is_tenant_known(tenant):
-				L.warning("Tenant not found.", struct_data={"tenant": tenant})
+				L.warning(
+					"Unknown tenant in request; tenant is not registered.",
+					struct_data={"tenant": tenant},
+				)
 				raise aiohttp.web.HTTPNotFound(reason="Tenant not found.")
 
 			tenant_ctx = Tenant.set(tenant)

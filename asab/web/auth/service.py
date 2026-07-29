@@ -26,6 +26,12 @@ from .authorization import Authorization
 L = logging.getLogger(__name__)
 
 
+def _authentication_failure_reason(error: NotAuthenticatedError) -> str:
+	if message := getattr(error, "Message", None):
+		return message
+	return "authentication failed"
+
+
 class AuthService(Service):
 	"""
 	Provides authentication and authorization of incoming requests.
@@ -132,21 +138,27 @@ class AuthService(Service):
 		Raises:
 			NotAuthenticatedError: When no provider is able to authorize the request
 		"""
-		error = None
+		failure_reasons = {}
+		auth_error = None
 		for provider in self.Providers:
 			try:
 				return await provider.authorize(request)
 			except NotAuthenticatedError as e:
-				# Provider was unable to authenticate request
-				# L.debug("Authorization failed.", struct_data={"auth_provider": provider.Type})
-				error = e
+				failure_reasons["reason_" + provider.Type] = _authentication_failure_reason(e)
+				auth_error = e
+			except Exception as e:
+				failure_reasons["reason_" + provider.Type] = "{}: {}".format(e.__class__.__name__, e)
+				L.exception("Request authentication failed.", struct_data={"provider_type": provider.Type})
 
-		L.warning("Cannot authenticate request: No valid authorization provider found.")
-		if error:
+		L.warning(
+			"Request authentication failed: All authorization providers rejected the request.",
+			struct_data=failure_reasons,
+		)
+		if auth_error:
 			# Re-raise the last error, preserve the original error response headers
-			raise error
+			raise auth_error
 
-		raise NotAuthenticatedError()
+		raise NotAuthenticatedError(message="No authorization provider accepted the request")
 
 
 	def _set_up_providers(self):
@@ -183,8 +195,8 @@ class AuthService(Service):
 				)
 
 			L.warning(
-				"AuthService is in development mode. "
-				"Web requests will be authorized with introspection call to {}.".format(introspection_url)
+				"AuthService is running in development mode; requests are authorized via token introspection.",
+				struct_data={"introspection_url": introspection_url},
 			)
 			from .providers import AccessTokenAuthProvider
 			provider = AccessTokenAuthProvider(self.App, introspection_url=introspection_url)
@@ -220,6 +232,10 @@ class AuthService(Service):
 
 			# Authenticate and authorize request with first valid provider
 			authz = await self.authorize_request(request)
+
+			# Enrich the request for access log
+			request["az.cid"] = authz.CredentialsId
+			request["az.sid"] = authz.SessionId
 
 			# Authorize tenant context
 			tenant = Tenant.get(None)
@@ -258,17 +274,18 @@ class AuthService(Service):
 		"""
 		Inspect handler and apply suitable auth wrappers.
 		"""
-		# Extract the actual unwrapped handler method for signature inspection
+		# Unwrap decorator chain for signature inspection; also detect @noauth on any layer.
+		# NOTE: Decorators that participate in this chain should use @functools.wraps().
 		handler_method = route.handler
-
-		# Exclude endpoints with @noauth decorator
-		if hasattr(handler_method, "NoAuth") and handler_method.NoAuth is True:
-			return
-
-		while hasattr(handler_method, "__wrapped__"):
-			# While loop unwraps handlers wrapped in multiple decorators.
-			# NOTE: This requires all the decorators to use @functools.wraps().
-			handler_method = handler_method.__wrapped__
+		seen = set()
+		while handler_method is not None and id(handler_method) not in seen:
+			seen.add(id(handler_method))
+			if getattr(handler_method, "NoAuth", False) is True:
+				return
+			wrapped = getattr(handler_method, "__wrapped__", None)
+			if wrapped is None:
+				break
+			handler_method = wrapped
 
 		if hasattr(handler_method, "__func__"):
 			handler_method = handler_method.__func__
@@ -310,7 +327,9 @@ class AuthService(Service):
 		"""
 		web_service = self.App.get_service("asab.WebService")
 		if web_service is None or len(web_service.Containers) == 0:
-			L.warning("Authorization is not installed: There are no web containers.")
+			L.warning(
+				"Authorization middleware is not installed because no web containers are configured.",
+			)
 			return
 
 		tenant_service = self.App.get_service("asab.TenantService")

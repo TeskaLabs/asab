@@ -412,7 +412,7 @@ class StorageService(StorageServiceABC):
 		if last_hit_sort:
 			body['search_after'] = last_hit_sort
 
-		async with self.request("GET", "{}/_search?size={}&from={}&version=true".format(index, size, _from), json=body) as resp:
+		async with self.request("POST", "{}/_search?size={}&from={}&version=true".format(index, size, _from), json=body) as resp:
 
 			if resp.status != 200:
 				raise Exception("Unexpected response code: {}: '{}'".format(resp.status, await resp.text()))

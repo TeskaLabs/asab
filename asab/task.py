@@ -159,11 +159,12 @@ class TaskService(asab.Service):
 				for task in done:
 					try:
 						await task
-					except Exception as e:
-						msg = str(e)
-						if len(msg) == 0:
-							msg = e.__class__.__name__
-						L.exception("Error '{}' during task:".format(msg))
+					except Exception:
+						try:
+							exc = task.exception()
+							L.exception("Error during task:", exc_info=exc)
+						except Exception:
+							L.exception("Error during task (no stack trace available)")
 					self.App.PubSub.publish("TaskService.task_done!", task)
 
 

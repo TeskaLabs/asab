@@ -1,0 +1,6 @@
+---
+define:
+  type: lmio/schema-extension
+fields:
+  custom.order:
+    type: keyword

@@ -73,7 +73,10 @@ class WebService(Service):
 			for alias in self.ConfigSectionAliases:
 				if alias in Config.sections():
 					config_section = alias
-					L.warning("Using obsolete config section [{}]. Preferred section name is [web]. ".format(alias))
+					L.warning(
+						"Using obsolete web configuration section; migrate to [web].",
+						struct_data={"section": alias},
+					)
 					break
 			else:
 				raise RuntimeError("No [web] section configured.")

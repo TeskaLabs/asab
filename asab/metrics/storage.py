@@ -41,7 +41,10 @@ class Storage(object):
 			# It means that the existing metrics will diapear from output and will be replaced by a new one.
 			# It is designed to support e.g. dynamic prebuilds of the classes with the same metrics.
 			# In other cases, this path should be avoided by e.g. creation of metrics in init time, not during runtime
-			L.debug("The metrics storage '{}/{}' is overriden".format(metric_name, tags))
+			L.debug(
+				"Existing metrics storage entry is being overridden.",
+				struct_data={"metric": metric_name, "tags": tags},
+			)
 			del self.Metrics[i]
 
 		metric = dict()

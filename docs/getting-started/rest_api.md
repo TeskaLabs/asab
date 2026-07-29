@@ -1,81 +1,78 @@
-Creating a microservice with REST API
-=====================================
+# Creating a microservice with REST API
 
 !!! warning
     Under construction!
 
-In the [previous tutorial](../getting-started/web_server.md), you learned how to create a web server.
+In the [previous tutorial](./web_server.md), you learned how to create a web server.
 
-In this tutorial, you'll learn how to create a basic ASAB microservice that provides a REST HTTP API. This microservice will implement **CREATE**, **READ**, **UPDATE** and **DELETE** functionality, in another words: **CRUD**.
+In this tutorial, you'll learn how to create a basic ASAB microservice that provides a REST HTTP API. This microservice will implement **CREATE**, **READ**, **UPDATE** and **DELETE** functionality, in other words: **CRUD**.
 
 We will also use [MongoDB](https://www.mongodb.com/) as a database running on [Docker](https://docs.docker.com/). If you're not familiar with CRUD, MongoDB, or Docker, take the time to learn the basics, because they are the foundations of backend programming with ASAB.
 
-Set up the project with Docker and MongoDB
-------------------------------------------
-
+## Set up the project with Docker and MongoDB
 
 1. **Install Docker** if you don't have it already. Go to [the official website](https://docs.docker.com/get-docker/), choose your operating system, and follow the guide.
-    
+
     !!! tip
         Based on our experience, we recommend installing just the Docker engine - there's no need to install Docker Desktop in most cases. In some cases, installing Docker Desktop might even cause problems when interacting with Docker in the terminal.
-    
+
     You can always check if you have Docker installed successfully:
+
     ``` bash
     docker --version
     ```
 
 2. **Pull the MongoDB image** from Docker Hub.
-``` bash
-docker pull mongo
-```
-Start the container:
-``` bash
-docker run -d -p 27017:27017 \
-    -e MONGO_INITDB_ROOT_USERNAME=user \
-    -e MONGO_INITDB_ROOT_PASSWORD=secret \
-    mongo
-```
+
+    ``` bash
+    docker pull mongo
+    ```
+
+    Start the container:
+
+    ``` bash
+    docker run -d -p 27017:27017 \
+        -e MONGO_INITDB_ROOT_USERNAME=user \
+        -e MONGO_INITDB_ROOT_PASSWORD=secret \
+        mongo
+    ```
 
 3. **Install Postman** in case you do not have it ([download here on the official website](https://www.postman.com/downloads/)). We will use Postman to test the webservice REST API. In Postman, you can create your collection of HTTP requests, save the HTTPs requests as templates, or automatically generate documentation.
 
 4. **Prepare the structure of the project.** Every ASAB microservice consists of several Python modules.
-Create the following file structure in your repository:
+    Create the following file structure in your repository:
 
-    ```
+    ``` text
     .
-    └── my_rest_api.py
-    ─── my_rest_api
-        └── __init__.py
-        ─── app.py
-        ─── tutorial
-            └── handler.py
-            └── service.py
-    ─── conf
+    ├── my_rest_api.py
+    ├── my_rest_api/
+    │   ├── __init__.py
+    │   ├── app.py
+    │   └── tutorial/
+    │       ├── handler.py
+    │       └── service.py
+    └── conf/
         └── config.ini
     ```
 
-
-Build a microservice
---------------------
+## Build a microservice
 
 Now that you've prepared the modules, we move on to actual coding. Here is the code for every module with explanations.
-
 
 ``` python title="my_rest_api.py"
 #!/usr/bin/env python3  # (1)!
 from my_rest_api import TutorialApp  # (2)!
 
 if __name__ == '__main__':  # (3)!
-    app = TutorialApp()   
+    app = TutorialApp()
     app.run()
 ```
 
 1. This is the executable file used to run the application via `python my_rest_api.py` command.
 2. The asab application will be stored in `my_rest_api` module.
-3. As always, we start the application by creating it's singleton and executing the  `run()` method.
+3. As always, we start the application by creating its singleton and executing the `run()` method.
 
-```python title="my_rest_api/app.py"
-
+``` python title="my_rest_api/app.py"
 import asab # (1)!
 import asab.web
 import asab.web.rest
@@ -90,7 +87,7 @@ class TutorialApp(asab.Application):
         self.add_module(asab.web.Module) # (4)!
         self.add_module(asab.storage.Module)
 
-        # Locate the web service  
+        # Locate the web service
         self.WebService = self.get_service("asab.WebService") # (5)!
         self.WebContainer = asab.web.WebContainer(
             self.WebService, "web" # (6)!
@@ -118,12 +115,12 @@ class TutorialApp(asab.Application):
 
 5. To access the web service, use the `get_service()` method. It is common to have all the services stored as attributes on the `asab.Application` object.
 
-6. TODO
-7. TODO
+6. `asab.web.WebContainer` creates a web container bound to the `[web]` configuration section. It holds the [`aiohttp.web.Application`](https://docs.aiohttp.org/en/stable/web_reference.html#application) object (`WebApp`) and its settings, such as the listen address. The container is registered with `WebService`, which starts the HTTP server during application initialization.
 
-8. ASAB microservices consist of two parts: **services** and **handlers**. 
-When HTTP request is sent to the web server, the **handler** identifies the HTTP request type and calls the corresponding **service**. The service performs its specified operations and returns data back to the handler, which sends it back to the client.
+7. `JsonExceptionMiddleware` is an aiohttp middleware that catches errors raised by request handlers and converts them into JSON error responses. This ensures that REST clients always receive structured JSON instead of plain HTML error pages.
 
+8. ASAB microservices consist of two parts: **services** and **handlers**.
+    When HTTP request is sent to the web server, the **handler** identifies the HTTP request type and calls the corresponding **service**. The service performs its specified operations and returns data back to the handler, which sends it back to the client.
 
 Continue with the init file, so that the directory `my_rest_api` will work as a module.
 
@@ -137,8 +134,7 @@ __all__ = [
 
 1. The list of strings that define what variables have to be imported to another file. If you don't know what that means, [this explanation](https://www.geeksforgeeks.org/python-__all__/) might help. In this case, we only want to import `TutorialApp` class.
 
-Create a handler
-----------------
+## Create a handler
 
 The handler is where HTTP REST calls are handled and transformed into
 the actual (internal) service calls. From another perspective, the
@@ -146,9 +142,19 @@ handler should contain only translation between REST calls and the
 service interface. No actual 'business logic' should be here. We strongly recommend building these CRUD methods one by one and testing each one immediately.
 
 ``` python title="my_rest_api/tutorial/handler.py" linenums="1"
-
 import asab
 import asab.web.rest
+
+
+CREATE_JSON_SCHEMA = { # (3)!
+    'type': 'object',
+    'properties': {
+        '_id': {'type': 'string'},
+        'name': {'type': 'string'},
+        'age': {'type': 'number'},
+        'job': {'type': 'string'}
+    }
+}
 
 
 class CRUDWebHandler(object):
@@ -166,30 +172,19 @@ class CRUDWebHandler(object):
             self.read
         )
 
-        self.JSONSchema = { # (3)!
-        'type': 'object',
-            'properties': {
-                '_id': {'type': 'string'},
-                'name': {'type': 'string'},
-                'age': {'type': 'number'},
-                'job': {'type': 'string'}
-            }
-        }
-
-
-    @asab.web.rest.json_schema_handler(self.JSONSchema) # (4)!
+    @asab.web.rest.json_schema_handler(CREATE_JSON_SCHEMA) # (4)!
     async def create(self, request, *, json_data):
         collection = request.match_info['collection'] # (5)!
 
         result = await self.CRUDService.create(
             collection, json_data # (6)!
         )
-        if result:  
+        if result:
             return asab.web.rest.json_response(
                 request, {"result": "OK"} # (7)!
             )
         else:
-            asab.web.rest.json_response(
+            return asab.web.rest.json_response(
                 request, {"result": "FAILED"} # (8)!
             )
 
@@ -207,11 +202,11 @@ class CRUDWebHandler(object):
 
 1. This is a reference to the microservice itself. In this app, we will create a service which uses the MongoDB Storage.
 
-2. Methods `add_put`, `add_get` take arguments `path`, which specifies the endpoint, and `handler`, which is a coroutine that is called after the request is received from the client. In fact, these methods are performed on [aiohttp web handler](https://docs.aiohttp.org/en/stable/web_reference.html#aiohttp.web.UrlDispatcher) and are special cases of the `add_route` method. In this case, the the path is `/crud-myrestapi/{collection}`, where collection is a variable name.
+2. Methods `add_put`, `add_get` take arguments `path`, which specifies the endpoint, and `handler`, which is a coroutine that is called after the request is received from the client. In fact, these methods are performed on [aiohttp web handler](https://docs.aiohttp.org/en/stable/web_reference.html#aiohttp.web.UrlDispatcher) and are special cases of the `add_route` method. In this case, the path is `/crud-myrestapi/{collection}`, where collection is a variable name.
 
-3. In order to prevent storing arbitrary data, we define a [JSON schema](https://json-schema.org/). Now if the request data does not satisfy the format, the data cannot be posted to the database.
+3. In order to prevent storing arbitrary data, we define a [JSON schema](https://json-schema.org/) as a module-level constant. The schema must be available when the class is defined, because decorators are evaluated at import time.
 
-4. The JSON schema handler is used as a decorator and validates JSON documents by [JSON schema](https://json-schema.org/). It takes either a dictionary with the schema itself (as in this example), or a string with the path for the JSON file to look at.
+4. The JSON schema handler is used as a decorator and validates JSON documents by [JSON schema](https://json-schema.org/). It takes either a dictionary with the schema itself (as in this example), or a string with the path for the JSON file to look at. You cannot use `self.JSONSchema` here — `self` does not exist yet when Python applies the decorator.
 
 5. This method is used for matching data from the URI. They must be listed in the brackets such as `{collection}` on line 12.
 
@@ -235,12 +230,9 @@ responses. All of the "logic", be it the specifics of the database
 connection, additional validations, or other operations, take place in
 the CRUDService.
 
-
-Create a service
-----------------
+## Create a service
 
 ``` python title="my_rest_api/tutorial/service.py"
-
 import asab
 import asab.storage.exceptions
 import logging
@@ -282,71 +274,63 @@ class CRUDService(asab.Service):
             collection, obj_id
         )
         return response
-
 ```
 
 As mentioned above, this is where the inner workings of the microservice
 request processing are. Let's start, as usual, by importing the desired
 modules:
 
-
 Now define the CRUDService class which inherits from the
-`[asab.Service]{.title-ref}` class.
+`asab.Service` class.
 
-
-
-`[asab.Service]{.title-ref}` is a lightweight yet powerful abstract class
+`asab.Service` is a lightweight yet powerful abstract class
 providing your object with 3 functionalities:
 
--   Name of the `[asab.Service]{.title-ref}` is registered in the app and
-    can be called from the `[app]{.title-ref}` object anywhere in your
+- Name of the `asab.Service` is registered in the app and
+    can be called from the `app` object anywhere in your
     code.
--   `[asab.Service]{.title-ref}` class implements
-    `[initialize()]{.title-ref}` and `[finalize()]{.title-ref}` coroutines
+- `asab.Service` class implements
+    `initialize()` and `finalize()` coroutines
     which help you to handle asynchronous operations in init and exit
     time of your application.
--   `[asab.Service]{.title-ref}` registers application object as
-    `[self.App]{.title-ref}` for you.
+- `asab.Service` registers application object as
+    `self.App` for you.
 
-
-`[asab.StorageService]{.title-ref}` initialized in `[app.py]{.title-ref}` as
-part of the `[asab.storage.Module]{.title-ref}` enables connection to
+`asab.StorageService` initialized in `app.py` as
+part of the `asab.storage.Module` enables connection to
 MongoDB. Further on, two methods provide the handler with the desired
 functionalities.
 
-Create a configuration file
----------------------------
-
+## Create a configuration file
 
 ``` ini title="conf/config.ini"
 [asab:storage]
 type=mongodb
-mongodb_uri='mongodb://mongouser:mongopassword@mongoipaddress:27017'
-mongodb_database=mongodatabase
+mongodb_uri=mongodb://user:secret@localhost:27017
+mongodb_database=my_rest_api
 ```
 
-
-Testing the app
----------------
+## Testing the app
 
 Now everything is prepared and we can test our application using Postman. Let's create a new collection named `celebrities` provided with some information.
 
 1. Start the application
-    ```
+
+    ``` bash
     python my_rest_api.py -c conf/config.ini
     ```
 
-    The application is implicitly running on an [http://localhost:8080/](http://localhost:8080/) port. 
+    The application is implicitly running on an [http://localhost:8080/](http://localhost:8080/) port.
 
 2. Open Postman and set a new request.
    First, try to add some data using the `PUT` method to the `localhost:8080/crud-myrestapi/celebrities` endpoint. Insert this JSON document into the request body:
 
     ``` json
     {
-    "_id": "1",
-    "name": "Johnny Depp",
-    "age": 60,
-    "job": "actor"
+        "_id": "1",
+        "name": "Johnny Depp",
+        "age": 60,
+        "job": "actor"
     }
     ```
 
@@ -354,10 +338,10 @@ Now everything is prepared and we can test our application using Postman. Let's 
 
     ``` json
     {
-    "_id": "2",
-    "name": "Lady Gaga",
-    "age": 37,
-    "job": "singer"
+        "_id": "2",
+        "name": "Lady Gaga",
+        "age": 37,
+        "job": "singer"
     }
     ```
 
@@ -399,7 +383,7 @@ Now everything is prepared and we can test our application using Postman. Let's 
         or
 
         ``` bash
-        lsof | grep localhost:8000
+        lsof | grep localhost:8080
         ```
 
         If you something similar to the following output:
@@ -408,13 +392,14 @@ Now everything is prepared and we can test our application using Postman. Let's 
         python3   103203    user    7u     IPv4  1059624 0t0 TCP *:bbs (LISTEN)
         ```
 
-        This output means there's a running process using the port with ID 103203. 
-        
+        This output means there's a running process using the port with ID 103203.
+
         The first option is simply to stop the process:
 
-        ```
+        ``` bash
         kill -9 103203
         ```
+
         (Replace the ID with the corresponding ID from the previous output.)
 
         The second option is to add these lines into the configuration file:
@@ -424,7 +409,7 @@ Now everything is prepared and we can test our application using Postman. Let's 
         listen=0.0.0.0:8081
         ```
 
-        If you run the app again, it should be running on [http://localhost:8081/](http://localhost:8081/) port. 
+        If you run the app again, it should be running on [http://localhost:8081/](http://localhost:8081/) port.
 
     !!! question
 
@@ -432,35 +417,26 @@ Now everything is prepared and we can test our application using Postman. Let's 
 
         Try to check the Mongo database credentials. Do your credentials in the config file fit the ones you entered when running the Mongo Docker image?
 
-
-Summary
--------
+## Summary
 
 In this tutorial, you learned how to create a simple **microservice** provided with **REST API**.
 
-
-Exercise 0: Store JSON schema in the file
------------------------------------------
+## Exercise 0: Store JSON schema in the file
 
 In order to get used to the `asab.web.rest.json_schema_handler()` decorator, store the JSON schema in a separate file. Then, pass its path as an argument to the decorator.
 
-
-Exercise 1: Implement `POST` and `DELETE` methods
--------------------------------------------------
+## Exercise 1: Implement `POST` and `DELETE` methods
 
 For updating and deleting data from the database, implement the methods `POST` and `DELETE`.
 
-1. Implement `update()` and `delete()` methods to the `CRUDService` class. Use 
+1. Implement `update()` and `delete()` methods to the `CRUDService` class.
 
+Solution:
 
-**handler.py**
-
-`[./myrestapi/tutorial/handler.py]{.title-ref}`
-
-``` {.python}
+``` python title="my_rest_api/tutorial/handler.py"
 import asab
 import asab.web.rest
-
+import asab.storage # (2)!
 
 class CRUDWebHandler(object):
     def __init__(self, app, mongo_svc):
@@ -503,7 +479,7 @@ class CRUDWebHandler(object):
                 request, {"result": "OK"}
             )
         else:
-            asab.web.rest.json_response(
+            return asab.web.rest.json_response(
                 request, {"result": "FAILED"}
             )
 
@@ -539,7 +515,7 @@ class CRUDWebHandler(object):
                 request, {"result": "OK"}
             )
         else:
-            asab.web.rest.json_response(
+            return asab.web.rest.json_response(
                 request, {"result": "FAILED"}
             )
 
@@ -556,25 +532,18 @@ class CRUDWebHandler(object):
                 request, {"result": "OK"}
             )
         else:
-            asab.web.rest.json_response(
+            return asab.web.rest.json_response(
                 request, {"result": "FAILED"}
             )
 ```
 
-**service.py**
-
-`[./myrestapi/tutorial/service.py]{.title-ref}`
-
-``` {.python}
+``` python title="my_rest_api/tutorial/service.py"
 import asab
 import asab.storage.exceptions
 
 import logging
-#
 
 L = logging.getLogger(__name__)
-
-#
 
 
 class CRUDService(asab.Service):

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os.path
-import asyncio
 
 import asab
 import asab.exceptions
@@ -9,8 +8,7 @@ import asab.zookeeper
 
 asab.Config.add_defaults({
 	"zookeeper": {
-		# "servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
-		"servers": "zookeeper-1:2181"
+		"servers": "zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181",
 	},
 
 	"library": {
@@ -28,8 +26,9 @@ class MyApplication(asab.Application):
 		# Specify a locations of the default library
 		asab.Config["library"]["providers"] = '\n'.join([
 			os.path.join(os.path.dirname(__file__), "library"),
-			# "zk:///library",
-			"git+https://github.com/TeskaLabs/asab.git"
+			"zk:///library",
+			"git+https://github.com/TeskaLabs/asab-maestro-library.git",
+			"libsreg+https://libsreg.z6.web.core.windows.net,libsreg-secondary.z6.web.core.windows.net/lmio-common-library#v25.01.01",
 		])
 
 		self.LibraryService = asab.library.LibraryService(
@@ -37,19 +36,8 @@ class MyApplication(asab.Application):
 			"LibraryService",
 		)
 
-		# Continue only if the library is ready
-		# We need to wait till eg. Zookeeper is connected
-		self.PubSub.subscribe("Library.ready!", self.on_library_ready)
-
-		self.Event = asyncio.Event()
-
-
-	async def on_library_ready(self, event_name, library):
-		try:
-			items = await self.LibraryService.list("/", recursive=False)
-		except asab.exceptions.LibraryNotReadyError:
-			return
-
+	async def main(self):
+		items = await self.LibraryService.list("/", recursive=False)
 		print("# Library\n")
 		for item in items:
 			print(" *", item)
@@ -67,11 +55,7 @@ class MyApplication(asab.Application):
 					print("  - !!! Cannot open {} (not ready): {}".format(item.name, err))
 
 		print("\n===")
-		self.Event.set()
 
-
-	async def main(self):
-		await self.Event.wait()
 		self.stop()
 
 

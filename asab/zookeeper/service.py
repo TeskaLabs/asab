@@ -33,5 +33,7 @@ class ZooKeeperService(Service):
 			self.Containers.remove(container)
 			await container._stop()
 		except ValueError:
-			L.warning("Zookeeper not found in the list, check your initialization/finalization order")
+			L.warning(
+				"ZooKeeper container was not found during service finalization; check module initialization order.",
+			)
 			return

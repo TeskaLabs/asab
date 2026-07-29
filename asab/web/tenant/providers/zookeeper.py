@@ -46,12 +46,11 @@ class ZookeeperTenantProvider(TenantProviderABC):
 		except Exception as e:
 			self._set_ready(False)  # Failed to check the provider
 			L.exception(
-				"Failed to load tenants",
+				"Failed to load tenant list from ZooKeeper.",
 				struct_data={
-					"class": e.__class__.__name__.__str__(),
-					"reason": str(e),
-					"path": self.ZKPath
-				}
+					"path": self.ZKPath,
+					"exception": e.__class__.__name__,
+				},
 			)
 			return
 

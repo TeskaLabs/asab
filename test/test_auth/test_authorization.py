@@ -77,29 +77,37 @@ class TestExpiredSuperuser(unittest.TestCase):
 			self.Authz.require_valid()
 
 	def test_resource_access(self):
-		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
-			self.Authz.has_resource_access(RESOURCE_1)
+		self.assertFalse(
+			self.Authz.has_resource_access(RESOURCE_1),
+			"Access to RESOURCE_1 is not authorized with expired authorization.",
+		)
 
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			self.Authz.require_resource_access(RESOURCE_1)
 
 	def test_tenant_access(self):
-		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
-			self.Authz.has_tenant_access()
+		self.assertFalse(
+			self.Authz.has_tenant_access(),
+			"Access to TENANT_1 is not authorized with expired authorization.",
+		)
 
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			self.Authz.require_tenant_access()
 
 		# Explicit tenant param
-		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
-			self.Authz.has_tenant_access(TENANT_1)
+		self.assertFalse(
+			self.Authz.has_tenant_access(TENANT_1),
+			"Access to TENANT_1 is not authorized with expired authorization.",
+		)
 
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			self.Authz.require_tenant_access(TENANT_1)
 
 	def test_superuser_access(self):
-		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
-			self.Authz.has_superuser_access()
+		self.assertFalse(
+			self.Authz.has_superuser_access(),
+			"Superuser access is not valid with expired authorization.",
+		)
 
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			self.Authz.require_superuser_access()
@@ -115,6 +123,9 @@ class TestExpiredSuperuser(unittest.TestCase):
 	def test_user_info(self):
 		with self.assertRaises(asab.exceptions.NotAuthenticatedError):
 			self.Authz.user_info()
+
+	def test_repr(self):
+		self.assertEqual(self.Authz.__repr__(), "<Authorization [EXPIRED] cid=None>")
 
 
 class TestTenantAuthorized(unittest.TestCase):
@@ -217,6 +228,9 @@ class TestTenantAuthorized(unittest.TestCase):
 			{RESOURCE_1, RESOURCE_2},
 			"Entity is authorized to access RESOURCE_1, RESOURCE_2 in TENANT_1.",
 		)
+
+	def test_repr(self):
+		self.assertEqual(self.Authz.__repr__(), "<Authorization cid=None>")
 
 
 class TestTenantForbidden(unittest.TestCase):
@@ -326,6 +340,7 @@ class TestGlobal(unittest.TestCase):
 		claims = {
 			"iat": time.time() - 60,
 			"exp": time.time() + 3600,
+			"sub": "asab:test:testuser",
 			"resources": {
 				"*": [RESOURCE_1],
 				TENANT_1: [RESOURCE_1, RESOURCE_2],
@@ -409,6 +424,9 @@ class TestGlobal(unittest.TestCase):
 			"Entity is globally authorized to access RESOURCE_1.",
 		)
 
+	def test_repr(self):
+		self.assertEqual(self.Authz.__repr__(), "<Authorization cid='asab:test:testuser'>")
+
 
 class TestSuperuserTenant(unittest.TestCase):
 	"""
@@ -421,6 +439,7 @@ class TestSuperuserTenant(unittest.TestCase):
 		claims = {
 			"iat": time.time() - 60,
 			"exp": time.time() + 3600,
+			"sub": "asab:test:testuser",
 			"resources": {
 				"*": [RESOURCE_SUPERUSER],
 			},
@@ -492,6 +511,9 @@ class TestSuperuserTenant(unittest.TestCase):
 			self.Authz._resources(),
 			{RESOURCE_SUPERUSER},
 		)
+
+	def test_repr(self):
+		self.assertEqual(self.Authz.__repr__(), "<Authorization [SUPERUSER] cid='asab:test:testuser'>")
 
 
 class TestSuperuserGlobal(unittest.TestCase):
@@ -575,4 +597,167 @@ class TestSuperuserGlobal(unittest.TestCase):
 		self.assertEqual(
 			self.Authz._resources(),
 			{RESOURCE_SUPERUSER},
+		)
+
+
+class TestResourceMatchAny(unittest.TestCase):
+	"""
+	Test the 'match' parameter for 'any' matching mode on Authorization class.
+
+	Entity is authorized to access RESOURCE_1 in TENANT_1.
+	With match="any", has_resource_access and require_resource_access
+	should pass if at least one resource is authorized.
+	"""
+	def setUp(self):
+		super().setUp()
+		claims = {
+			"iat": time.time() - 60,
+			"exp": time.time() + 3600,
+			"resources": {
+				TENANT_1: [RESOURCE_1],
+			},
+		}
+		self.Authz = Authorization(claims)
+		self.TenantCtx = asab.contextvars.Tenant.set(TENANT_1)
+
+	def tearDown(self):
+		super().tearDown()
+		asab.contextvars.Tenant.reset(self.TenantCtx)
+		self.Authz = None
+
+	def test_has_resource_access_any_one_authorized(self):
+		# One authorized, one not - should pass with match="any"
+		self.assertTrue(
+			self.Authz.has_resource_access(RESOURCE_1, RESOURCE_2, match="any"),
+			"At least one resource is authorized with match='any'.",
+		)
+
+	def test_has_resource_access_any_none_authorized(self):
+		# None authorized - should fail with match="any"
+		self.assertFalse(
+			self.Authz.has_resource_access(RESOURCE_2, RESOURCE_3, match="any"),
+			"None of the resources are authorized.",
+		)
+
+	def test_require_resource_access_any_success(self):
+		# One authorized - should succeed with match="any"
+		self.assertIsNone(
+			self.Authz.require_resource_access(RESOURCE_1, RESOURCE_2, match="any"),
+			"Authorized access to at least one resource must succeed without return.",
+		)
+
+	def test_require_resource_access_any_failure(self):
+		# None authorized - should raise AccessDeniedError
+		with self.assertRaises(asab.exceptions.AccessDeniedError):
+			self.Authz.require_resource_access(RESOURCE_2, RESOURCE_3, match="any")
+
+
+class TestResourceMatchAll(unittest.TestCase):
+	"""
+	Test the 'match' parameter for 'all' matching mode on Authorization class.
+
+	Entity is authorized to access RESOURCE_1 and RESOURCE_2 in TENANT_1.
+	With match="all", all resources must be authorized.
+	"""
+	def setUp(self):
+		super().setUp()
+		claims = {
+			"iat": time.time() - 60,
+			"exp": time.time() + 3600,
+			"resources": {
+				TENANT_1: [RESOURCE_1, RESOURCE_2],
+			},
+		}
+		self.Authz = Authorization(claims)
+		self.TenantCtx = asab.contextvars.Tenant.set(TENANT_1)
+
+	def tearDown(self):
+		super().tearDown()
+		asab.contextvars.Tenant.reset(self.TenantCtx)
+		self.Authz = None
+
+	def test_has_resource_access_all_all_authorized(self):
+		# All authorized - should pass with match="all"
+		self.assertTrue(
+			self.Authz.has_resource_access(RESOURCE_1, RESOURCE_2, match="all"),
+			"All resources are authorized with match='all'.",
+		)
+
+	def test_has_resource_access_all_one_unauthorized(self):
+		# Not all authorized - should fail with match="all"
+		self.assertFalse(
+			self.Authz.has_resource_access(RESOURCE_1, RESOURCE_3, match="all"),
+			"RESOURCE_3 is not authorized, should fail with match='all'.",
+		)
+
+	def test_require_resource_access_all_success(self):
+		# All authorized - should succeed with match="all"
+		self.assertIsNone(
+			self.Authz.require_resource_access(RESOURCE_1, RESOURCE_2, match="all"),
+			"All resources authorized, must succeed without return.",
+		)
+
+	def test_require_resource_access_all_failure(self):
+		# Not all authorized - should raise AccessDeniedError
+		with self.assertRaises(asab.exceptions.AccessDeniedError):
+			self.Authz.require_resource_access(RESOURCE_1, RESOURCE_3, match="all")
+
+	def test_has_resource_access_default_is_all(self):
+		# Default behavior should match match="all"
+		self.assertEqual(
+			self.Authz.has_resource_access(RESOURCE_1, RESOURCE_2),
+			self.Authz.has_resource_access(RESOURCE_1, RESOURCE_2, match="all"),
+			"Default behavior should be same as match='all'.",
+		)
+
+
+class TestResourceMatchAnySuperuser(unittest.TestCase):
+	"""
+	Test the 'match' parameter with superuser authorization on Authorization class.
+
+	Superuser should have unrestricted access regardless of match mode.
+	"""
+	def setUp(self):
+		super().setUp()
+		claims = {
+			"iat": time.time() - 60,
+			"exp": time.time() + 3600,
+			"resources": {
+				"*": [RESOURCE_SUPERUSER],
+			},
+		}
+		self.Authz = Authorization(claims)
+		self.TenantCtx = asab.contextvars.Tenant.set(TENANT_1)
+
+	def tearDown(self):
+		super().tearDown()
+		asab.contextvars.Tenant.reset(self.TenantCtx)
+		self.Authz = None
+
+	def test_has_resource_access_superuser_match_any(self):
+		# Superuser should have access to any resources with match="any"
+		self.assertTrue(
+			self.Authz.has_resource_access(RESOURCE_1, RESOURCE_2, RESOURCE_3, match="any"),
+			"Superuser must have unrestricted resource access with match='any'.",
+		)
+
+	def test_has_resource_access_superuser_match_all(self):
+		# Superuser should have access to all resources with match="all"
+		self.assertTrue(
+			self.Authz.has_resource_access(RESOURCE_1, RESOURCE_2, RESOURCE_3, match="all"),
+			"Superuser must have unrestricted resource access with match='all'.",
+		)
+
+	def test_require_resource_access_superuser_match_any(self):
+		# Superuser should succeed with any resources and match="any"
+		self.assertIsNone(
+			self.Authz.require_resource_access(RESOURCE_1, RESOURCE_2, RESOURCE_3, match="any"),
+			"Superuser access must succeed without return with match='any'.",
+		)
+
+	def test_require_resource_access_superuser_match_all(self):
+		# Superuser should succeed with all resources and match="all"
+		self.assertIsNone(
+			self.Authz.require_resource_access(RESOURCE_1, RESOURCE_2, RESOURCE_3, match="all"),
+			"Superuser access must succeed without return with match='all'.",
 		)

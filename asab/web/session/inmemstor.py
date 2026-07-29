@@ -30,7 +30,10 @@ class InMemorySessionStorage(SessionStorage, CookieSessionMixIn):
 				else:
 					return session
 
-			L.warning("Invalid session id '{}'".format(session_id))
+			L.warning(
+				"Invalid session ID format; session lookup rejected.",
+				struct_data={"session_id": session_id},
+			)
 
 		return await self.create(request)
 

@@ -19,6 +19,7 @@ class NativeMetrics(Service):
 
 	def __init__(self, app, metrics_svc):
 		self.MemoryGauge = metrics_svc.create_gauge("memory")
+		self._MemoryMetricsAvailable = True
 
 		# Injecting logging metrics into MetricsHandler and MetricsHandler into Root Logger
 		self.MetricsLoggingHandler = MetricsLoggingHandler()
@@ -30,6 +31,9 @@ class NativeMetrics(Service):
 
 
 	def _on_flushing_event(self, event_name=None):
+		if not self._MemoryMetricsAvailable:
+			return
+
 		try:
 			with open("/proc/self/status", "r") as file:
 				proc_status = file.read()
@@ -45,8 +49,12 @@ class NativeMetrics(Service):
 							pass
 
 		except FileNotFoundError:
-			pass
-			# L.warning("File '/proc/self/status' was not found, skipping reading native metrics.")
+			# Typical on non-Linux platforms; log once to avoid spam on every flush.
+			self._MemoryMetricsAvailable = False
+			L.warning(
+				"Native memory metrics are unavailable because '/proc/self/status' was not found; skipping memory gauge updates.",
+				struct_data={"path": "/proc/self/status"},
+			)
 
 
 class MetricsLoggingHandler(logging.Handler):
