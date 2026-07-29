@@ -86,9 +86,13 @@ class DiscoveryService(Service):
 		async with self._cache_lock:
 
 			if event_type == 'CREATED' or event_type == 'CHANGED':
+
+				def get():
+					return self.ZooKeeperContainer.ZooKeeper.Client.get(self.BasePath + '/' + item)
+
 				# The item is new or changed - read the data and update the cache
 				try:
-					data, _stat = self.ZooKeeperContainer.ZooKeeper.Client.get(self.BasePath + '/' + item)
+					data, _stat = self.ProactorService.execute(get)
 					self._advertised_raw[item] = json.loads(data)
 				except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
 					L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
