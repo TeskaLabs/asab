@@ -53,7 +53,10 @@ class LeaderService(Service):
 			# Start the election thread to become leader or follower
 			self._election_thread()
 
-		self._leader_status = None
+		if self._leader_status is not None:
+			self._leader_status = None
+			self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.LeaderName)
+
 		zkcontainer.ProactorService.schedule(setup)
 
 
@@ -64,6 +67,7 @@ class LeaderService(Service):
 			return
 
 		self._leader_status = None
+		self.App.PubSub.publish("LeaderService.state/FOLLOWER!", self.LeaderName)
 
 
 	def _on_change_zookeeper_thread(self, event):
