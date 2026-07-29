@@ -49,18 +49,28 @@ class LeaderService(Service):
 			app (asab.Application): Reference to the ASAB application.
 			zkcontainer (asab.zookeeper.ZooKeeperContainer): ZooKeeper container
 				used for the election path and client.
-			leader_name (str): Election identity; must not contain `/`.
+			leader_name (str): Election identity; must be a non-empty string
+				and must not contain `/`.
 				Registered as service name `asab.LeaderService:{leader_name}`.
+
+		Raises:
+			ValueError: If `leader_name` is not a non-empty string or contains `/`.
 		"""
+		if not isinstance(leader_name, str):
+			raise ValueError("Leader name must be a string")
+		if not leader_name:
+			raise ValueError("Leader name must not be empty")
+		if "/" in leader_name:
+			raise ValueError("Leader name must not contain '/' character")
+
 		super().__init__(app, "asab.LeaderService:{}".format(leader_name))
 		self.ZkContainer = zkcontainer
 		self.ElectionPath = zkcontainer.Path + "/election"
-
-		assert "/" not in leader_name, "Leader name must not contain '/' character"
 		self.LeaderName = leader_name
 
 		# Subscribe to the event that indicated the successful connection to the Zookeeper server(s)
 		app.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
+		app.PubSub.subscribe("ZooKeeperContainer.state/SUSPENDED!", self._on_zk_suspended)
 		app.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
 		app.PubSub.subscribe("Application.tick60!", self._on_tick60)
 
@@ -104,6 +114,16 @@ class LeaderService(Service):
 			self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.LeaderName)
 
 		zkcontainer.ProactorService.schedule(setup)
+
+
+	def _on_zk_suspended(self, event_name, zkcontainer):
+		if zkcontainer != self.ZkContainer:
+			return
+
+		self._leader_zxid = None
+		self.LeaderInfo = None
+		self.App.PubSub.publish("LeaderService.state/FOLLOWER!", self.LeaderName)
+		L.warning("ZooKeeper connection suspended. Leader service will become follower. THIS MUST BE TESTED!")
 
 
 	async def _on_zk_lost(self, event_name, zkcontainer):
