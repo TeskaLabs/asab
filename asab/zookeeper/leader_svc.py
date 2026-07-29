@@ -17,7 +17,7 @@ class LeaderService(Service):
 	def __init__(self, app, zkcontainer, leader_name):
 		super().__init__(app, "asab.LeaderService:{}".format(leader_name))
 		self.ZkContainer = zkcontainer
-		self.ElectionPath = zkcontainer.Path + "/election/"
+		self.ElectionPath = zkcontainer.Path + "/election"
 
 		assert "/" not in leader_name, "Leader name must not contain '/' character"
 		self.LeaderName = leader_name
