@@ -54,13 +54,10 @@ class LeaderService(Service):
 		"""
 		super().__init__(app, "asab.LeaderService:{}".format(leader_name))
 		self.ZkContainer = zkcontainer
-		"""ZooKeeper container used for election."""
 		self.ElectionPath = zkcontainer.Path + "/election"
-		"""Parent path of election znodes (`{Path}/election`)."""
 
 		assert "/" not in leader_name, "Leader name must not contain '/' character"
 		self.LeaderName = leader_name
-		"""Election identity; also the ephemeral znode name under `ElectionPath`."""
 
 		# Subscribe to the event that indicated the successful connection to the Zookeeper server(s)
 		app.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
@@ -69,7 +66,6 @@ class LeaderService(Service):
 
 		self._leader_zxid = None  # Can be True, False or None (for initialization)
 		self.LeaderInfo = None
-		"""Payload of the current leader znode (`bytes`), or `None` if unknown."""
 
 
 	def IsLeader(self):
