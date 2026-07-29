@@ -27,13 +27,14 @@ class LeaderService(Service):
 		app.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
 		app.PubSub.subscribe("Application.tick60!", self._on_tick60)
 
-		self._leader_status = None  # Can be True, False or None (for initialization)
+		self._leader_zxid = None  # Can be True, False or None (for initialization)
+		self.LeaderInfo = None
 
 
 	def IsLeader(self):
-		if self._leader_status is None:
+		if self._leader_zxid is None:
 			return False
-		return self._leader_status
+		return True
 
 
 	async def _on_zk_ready(self, event_name, zkcontainer):
@@ -53,8 +54,9 @@ class LeaderService(Service):
 			# Start the election thread to become leader or follower
 			self._election_thread()
 
-		if self._leader_status is not None:
-			self._leader_status = None
+		if self._leader_zxid is not None:
+			self._leader_zxid = None
+			self.LeaderInfo = None
 			self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.LeaderName)
 
 		zkcontainer.ProactorService.schedule(setup)
@@ -66,7 +68,8 @@ class LeaderService(Service):
 		if zkcontainer != self.ZkContainer:
 			return
 
-		self._leader_status = None
+		self._leader_zxid = None
+		self.LeaderInfo = None
 		self.App.PubSub.publish("LeaderService.state/FOLLOWER!", self.LeaderName)
 
 
@@ -96,16 +99,21 @@ class LeaderService(Service):
 
 		# Try to become leader
 		try:
-			self.ZkContainer.ZooKeeper.Client.create(
+			_, stats = self.ZkContainer.ZooKeeper.Client.create(
 				self.ElectionPath + "/" + self.LeaderName,
 				leader_data,
 				ephemeral=True,  # We want this to disappear when the instance is stopped
+				include_data=True,
 			)
 		except kazoo.exceptions.NodeExistsError:
-			# If we lost the election due to our own node,
-			# The on-tick recovery process will try to become leader again.
-			self._leader_status = False
+			leader_data, stats = self.ZkContainer.ZooKeeper.Client.get(self.ElectionPath + "/" + self.LeaderName)
+			if stats.czxid == self._leader_zxid:
+				# I'm still the leader, no need to become leader again.
+				return
+			self._leader_zxid = None
+			self.LeaderInfo = leader_data
 			self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.LeaderName)
 		else:
-			self._leader_status = True
+			self._leader_zxid = stats.czxid
+			self.LeaderInfo = leader_data
 			self.App.PubSub.publish_threadsafe("LeaderService.state/LEADER!", self.LeaderName)
