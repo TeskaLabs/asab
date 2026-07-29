@@ -44,12 +44,10 @@ class DiscoveryService(Service):
 		self._cache_lock = asyncio.Lock()
 		self._rescan_lock = asyncio.Lock()
 		self._ready_event = asyncio.Event()
-		self._watch_installed = False
 		self._rescan_requested = False
 
 		self.App.PubSub.subscribe("Application.tick/600!", self._on_tick600)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
-		self.App.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
 
 
 	async def initialize(self, app):
@@ -70,19 +68,11 @@ class DiscoveryService(Service):
 
 		# Persistent watches survive reconnect of the same session, but are
 		# cleared on session loss. Re-install only when needed.
-		if not self._watch_installed:
-			zkcontainer.ZooKeeper.Client.add_watch(
-				self.BasePath,
-				self._on_change_zookeeper_thread,
-				kazoo.protocol.states.AddWatchMode.PERSISTENT_RECURSIVE
-			)
-			self._watch_installed = True
-
-
-	def _on_zk_lost(self, msg, zkcontainer):
-		if zkcontainer != self.ZooKeeperContainer:
-			return
-		self._watch_installed = False
+		zkcontainer.ZooKeeper.Client.add_watch(
+			self.BasePath,
+			self._on_change_zookeeper_thread,
+			kazoo.protocol.states.AddWatchMode.PERSISTENT_RECURSIVE
+		)
 
 
 	def _on_change_zookeeper_thread(self, event):
