@@ -43,7 +43,7 @@ class LeaderService(Service):
 			return
 
 		def setup():
-			zkcontainer.ZooKeeper.Client.ensure_path_async(self.ElectionPath)
+			zkcontainer.ZooKeeper.Client.ensure_path(self.ElectionPath)
 			zkcontainer.ZooKeeper.Client.add_watch(
 				self.ElectionPath,
 				self._on_change_zookeeper_thread,
