@@ -66,8 +66,6 @@ class DiscoveryService(Service):
 
 		self.App.TaskService.schedule(self._rescan_advertised_instances())
 
-		# Persistent watches survive reconnect of the same session, but are
-		# cleared on session loss. Re-install only when needed.
 		zkcontainer.ZooKeeper.Client.add_watch(
 			self.BasePath,
 			self._on_change_zookeeper_thread,
