@@ -92,7 +92,7 @@ setup(
 		'git': ['pygit2<1.12'],
 		'encryption': ['cryptography'],
 		'authz': ['jwcrypto==1.5.6'],
-		'monitoring': ['sentry-sdk==1.45.0']
+		'monitoring': ['sentry-sdk==1.45.1']
 	},
 	cmdclass={
 		'build_py': CustomBuildPy,
