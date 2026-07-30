@@ -91,7 +91,7 @@ setup(
 	extras_require={
 		'git': ['pygit2<1.12'],
 		'encryption': ['cryptography'],
-		'authz': ['jwcrypto==1.5.6'],
+		'authz': ['jwcrypto==1.5.7'],
 		'monitoring': ['sentry-sdk==1.45.0']
 	},
 	cmdclass={
