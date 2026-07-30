@@ -1,5 +1,6 @@
 from .container import ZooKeeperContainer
 from ..abc.module import Module
+from .leader_svc import LeaderService
 
 
 class Module(Module):
@@ -14,4 +15,5 @@ class Module(Module):
 __all__ = [
 	"ZooKeeperContainer",
 	"Module",
+	"LeaderService",
 ]
