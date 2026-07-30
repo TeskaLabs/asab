@@ -91,8 +91,8 @@ setup(
 	extras_require={
 		'git': ['pygit2<1.12'],
 		'encryption': ['cryptography'],
-		'monitoring': ['sentry-sdk==1.45.1']
-		'authz': ['jwcrypto==1.5.7'],
+		'monitoring': ['sentry-sdk==1.45.1'],
+		'authz': ['jwcrypto==1.5.7']
 	},
 	cmdclass={
 		'build_py': CustomBuildPy,
