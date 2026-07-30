@@ -1,3 +1,4 @@
+import copy
 import json
 import socket
 import typing
@@ -19,6 +20,7 @@ from ..contextvars import Request, Authz
 
 
 L = logging.getLogger(__name__)
+LogObsolete = logging.getLogger('OBSOLETE')
 
 
 class DiscoveryService(Service):
@@ -34,13 +36,17 @@ class DiscoveryService(Service):
 			from .internal_auth import InternalAuth
 			self.InternalAuth = InternalAuth(app, zkc)
 
+		self.BasePath = "/" + self.ZooKeeperContainer.Path + "/run"
+
 		self._advertised_cache = dict()
 		self._advertised_raw = dict()
 
 		self._cache_lock = asyncio.Lock()
+		self._rescan_lock = asyncio.Lock()
 		self._ready_event = asyncio.Event()
+		self._rescan_requested = False
 
-		self.App.PubSub.subscribe("Application.tick/300!", self._on_tick)
+		self.App.PubSub.subscribe("Application.tick/600!", self._on_tick600)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 
 
@@ -49,16 +55,71 @@ class DiscoveryService(Service):
 			await self.InternalAuth.initialize(app)
 
 
-	def _on_tick(self, msg):
+	def _on_tick600(self, _msg):
+		# Full rescan of the advertised instances every 10 minutes
 		self.App.TaskService.schedule(self._rescan_advertised_instances())
 
 
-	def _on_zk_ready(self, msg, zkc):
-		if zkc == self.ZooKeeperContainer:
-			self.App.TaskService.schedule(self._rescan_advertised_instances())
+	def _on_zk_ready(self, msg, zkcontainer):
+		if zkcontainer != self.ZooKeeperContainer:
+			return
+
+		self.App.TaskService.schedule(self._rescan_advertised_instances())
+
+		zkcontainer.ZooKeeper.Client.add_watch(
+			self.BasePath,
+			self._on_change_zookeeper_thread,
+			kazoo.protocol.states.AddWatchMode.PERSISTENT_RECURSIVE
+		)
 
 
-	async def locate(self, instance_id: str = None, **kwargs) -> set:
+	def _on_change_zookeeper_thread(self, event):
+		if event.state != 'CONNECTED':
+			return
+
+		if event.path is None:
+			return
+
+		# Strip the base path prefix; ignore events on the base path itself
+		prefix = self.BasePath + '/'
+		if not event.path.startswith(prefix):
+			return
+		item = event.path[len(prefix):]
+		if not item:
+			return
+
+		# Handle the change event in the thread-safe manner in the main event loop thread
+		if event.type == 'CREATED' or event.type == 'CHANGED':
+			# We are on the zookeeper thread, so we can directly get the data
+			data, _ = self.ZooKeeperContainer.ZooKeeper.Client.get(event.path)
+		else:
+			data = None
+
+		self.App.TaskService.schedule_threadsafe(self._on_change(item, event.type, data))
+
+
+	async def _on_change(self, item, event_type, data):
+		if event_type == 'CREATED' or event_type == 'CHANGED':
+			# Read ZooKeeper outside the cache lock to avoid blocking other updates
+			item_data = json.loads(data)
+			async with self._cache_lock:
+				self._advertised_raw[item] = item_data
+
+		elif event_type == 'DELETED':
+			async with self._cache_lock:
+				prev = self._advertised_raw.pop(item, None)
+				if prev is None:
+					return
+
+		else:
+			L.warning("Unexpected event type: {}".format(event_type))
+			return
+
+		# Apply the changes to the cache
+		await self._apply_advertised_raw()
+
+
+	async def locate(self, instance_id: str = None, **kwargs) -> typing.Optional[set]:
 		"""
 		Return a list of URLs for a given instance or service ID.
 
@@ -87,6 +148,7 @@ class DiscoveryService(Service):
 			in await self._locate(locate_params)
 		])
 
+
 	async def _locate(self, locate_params) -> typing.Set[typing.Tuple]:
 		"""
 		Locate service instances based on their instance ID or service ID.
@@ -101,7 +163,7 @@ class DiscoveryService(Service):
 
 		await asyncio.wait_for(self._ready_event.wait(), 600)
 
-		if len(self._advertised_cache) == 0:
+		if not self._has_advertised_endpoints():
 			L.warning("No instances to discover. Make sure [zookeeper] configuration is identical for all the ASAB services in the cluster.")
 			return res
 
@@ -113,15 +175,28 @@ class DiscoveryService(Service):
 		return res
 
 
+	def _has_advertised_endpoints(self) -> bool:
+		return any(
+			endpoints
+			for ids in self._advertised_cache.values()
+			for endpoints in ids.values()
+		)
+
+
 	async def discover(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple]]]:
-		# We need to make a copy of the cache so that the caller can't modify our cache.
 		await asyncio.wait_for(self._ready_event.wait(), 600)
-		return self._advertised_cache
+		return {
+			id_type: {
+				identifier: set(endpoints)
+				for identifier, endpoints in ids.items()
+			}
+			for id_type, ids in self._advertised_cache.items()
+		}
 
 
-	async def discover_raw(self) -> typing.Dict[str, typing.Dict[str, typing.Set[typing.Tuple]]]:
+	async def discover_raw(self) -> typing.Dict[str, typing.Any]:
 		await asyncio.wait_for(self._ready_event.wait(), 600)
-		return self._advertised_raw
+		return copy.deepcopy(self._advertised_raw)
 
 
 	async def get_advertised_instances(self) -> typing.List[typing.Dict]:
@@ -130,7 +205,7 @@ class DiscoveryService(Service):
 		Returns a list of dictionaries. Each dictionary represents an advertised instance
 		obtained by iterating over the items in the `/run` path in ZooKeeper.
 		"""
-		# TODO: an obsolete log for this method
+		LogObsolete.warning("get_advertised_instances() is deprecated. Use discover() method instead. This method will be removed after Sep 2026")
 		advertised = []
 		for item, item_data in await self._iter_zk_items():
 			item_data['ephemeral_id'] = item
@@ -141,10 +216,9 @@ class DiscoveryService(Service):
 
 	async def _rescan_advertised_instances(self):
 		"""
-		Returns structured dataset of identifier types, identifiers of instances and hosts and ports where they can be found.
-		It is a dict of identifier types as keys and dict as values. The second-layer dict has identifiers as keys an a set of tuples as a value. Each tuple contains host and port.
+		Rebuild the advertised cache from a full ZooKeeper scan of `/run`.
 
-		Example of the data structure:
+		Resulting cache structure:
 			{
 				"instance_id": {
 					"lmio-receiver-1": {("node1", 1234, socket.AF_INET)},
@@ -159,99 +233,108 @@ class DiscoveryService(Service):
 					"myid123": {("node1", 5678, socket.AF_INET), ("node2", 5678, socket.AF_INET6)},
 					...
 				},
-				"custom2_id": {
-					"myid123": {("node1", 5678, socket.AF_INET), ("node2", 5678, socket.AF_INET)},
-					...
-				},
 				...
 			}
 		"""
-		if self._cache_lock.locked():
-			# Only one rescan / cache update at a time
+
+		# Coalesce overlapping rescans into one in-flight scan (+ one follow-up).
+		self._rescan_requested = True
+		if self._rescan_lock.locked():
 			return
 
+		async with self._rescan_lock:
+			while self._rescan_requested:
+				self._rescan_requested = False
+
+				try:
+					# Fetch outside the cache lock so watch updates can proceed;
+					# the subsequent swap is atomic under the cache lock.
+					items = await self._iter_zk_items()
+				except asyncio.CancelledError:
+					raise
+				except Exception:
+					L.exception("Error when scanning advertised instances")
+					return
+
+				async with self._cache_lock:
+					prev_keys = set(self._advertised_raw.keys())
+					for item, item_data in items:
+						self._advertised_raw[item] = item_data
+						prev_keys.discard(item)
+					for item in prev_keys:
+						self._advertised_raw.pop(item, None)
+
+				await self._apply_advertised_raw()
+
+
+	async def _apply_advertised_raw(self):
+		advertised = {
+			"instance_id": {},
+			"service_id": {},
+		}
 
 		async with self._cache_lock:
+			for item_data in self._advertised_raw.values():
+				instance_id = item_data.get("instance_id")
+				service_id = item_data.get("service_id")
+				# Copy so we do not mutate the advertised raw payload
+				discovery = dict(item_data.get("discovery") or {})
 
-			advertised = {
-				"instance_id": {},
-				"service_id": {},
-			}
+				if instance_id is not None:
+					discovery["instance_id"] = [instance_id]
 
-			advertised_raw = {}
+				if service_id is not None:
+					discovery["service_id"] = [service_id]
 
-			try:
-				for item, item_data in await self._iter_zk_items():
+				host = item_data.get("host")
+				if host is None:
+					continue
 
-					advertised_raw[item] = item_data
+				web = item_data.get("web")
+				if web is None:
+					continue
 
-					instance_id = item_data.get("instance_id")
-					service_id = item_data.get("service_id")
-					discovery: typing.Dict[str, list] = item_data.get("discovery", {})
+				for i in web:
 
-					if instance_id is not None:
-						discovery["instance_id"] = [instance_id]
-
-					if service_id is not None:
-						discovery["service_id"] = [service_id]
-
-					host = item_data.get("host")
-					if host is None:
+					try:
+						ip = i[0]
+						port = i[1]
+					except (IndexError, TypeError, KeyError):
+						L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
 						continue
 
-					web = item_data.get("web")
-					if web is None:
+					if ip == "0.0.0.0":
+						family = socket.AF_INET
+					elif ip == "::":
+						family = socket.AF_INET6
+					else:
 						continue
 
-					for i in web:
+					for id_type, ids in discovery.items():
+						if advertised.get(id_type) is None:
+							advertised[id_type] = {}
 
-						try:
-							ip = i[0]
-							port = i[1]
-						except KeyError:
-							L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
-							continue
+						for identifier in ids:
+							if identifier is not None:
+								if advertised[id_type].get(identifier) is None:
+									advertised[id_type][identifier] = {(host, port, family)}
+								else:
+									advertised[id_type][identifier].add((host, port, family))
 
-						if ip == "0.0.0.0":
-							family = socket.AF_INET
-						elif ip == "::":
-							family = socket.AF_INET6
-						else:
-							continue
-
-						if discovery is not None:
-							for id_type, ids in discovery.items():
-								if advertised.get(id_type) is None:
-									advertised[id_type] = {}
-
-								for identifier in ids:
-									if identifier is not None:
-										if advertised[id_type].get(identifier) is None:
-											advertised[id_type][identifier] = {(host, port, family)}
-										else:
-											advertised[id_type][identifier].add((host, port, family))
-			except Exception:
-				L.exception("Error when scanning advertised instances")
-				return
-
-			# TODO: Transform _advertised_cache and _advertised_raw into read-only structures
 			self._advertised_cache = advertised
-			self._advertised_raw = advertised_raw
 
-			self._ready_event.set()
+		self._ready_event.set()
 
 
 	async def _iter_zk_items(self):
-		base_path = self.ZooKeeperContainer.Path + "/run"
-
 		def get_items():
 			result = []
 			try:
 				# Create the base path if it does not exist
-				if not self.ZooKeeperContainer.ZooKeeper.Client.exists(base_path):
-					self.ZooKeeperContainer.ZooKeeper.Client.create(base_path, b'', makepath=True)
+				if not self.ZooKeeperContainer.ZooKeeper.Client.exists(self.BasePath):
+					self.ZooKeeperContainer.ZooKeeper.Client.create(self.BasePath, b'', makepath=True)
 
-				items = self.ZooKeeperContainer.ZooKeeper.Client.get_children(base_path, watch=self._on_change_threadsafe)
+				items = self.ZooKeeperContainer.ZooKeeper.Client.get_children(self.BasePath)
 
 			except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
 				L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
@@ -263,7 +346,7 @@ class DiscoveryService(Service):
 
 			for item in items:
 				try:
-					data, stat = self.ZooKeeperContainer.ZooKeeper.Client.get(base_path + '/' + item, watch=self._on_change_threadsafe)
+					data, _stat = self.ZooKeeperContainer.ZooKeeper.Client.get(self.BasePath + '/' + item)
 					result.append((item, json.loads(data)))
 				except (kazoo.exceptions.SessionExpiredError, kazoo.exceptions.ConnectionLoss):
 					L.warning("Connection to ZooKeeper lost. Discovery Service could not fetch up-to-date state of the cluster services.")
@@ -280,15 +363,10 @@ class DiscoveryService(Service):
 		return result
 
 
-	def _on_change_threadsafe(self, watched_event):
-		# Runs on a thread, returns the process back to the main thread
-		self.App.TaskService.schedule_threadsafe(self._rescan_advertised_instances())
-
-
 	def session(
 		self,
 		base_url: typing.Optional[str] = None,
-		auth: typing.Union[str, aiohttp.ClientRequest, None] = None,
+		auth: typing.Union[str, aiohttp.web.Request, None] = None,
 		headers: typing.Optional[typing.Mapping[str, str]] = None,
 		**kwargs
 	) -> aiohttp.ClientSession:
@@ -417,7 +495,7 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 			hosts.extend(resolved)
 
 		if len(hosts) == 0:
-			raise NotDiscoveredError("Failed to resolve any of the hosts for '{}' / '{}'.".format(hostname, ','.join(x[0] for x in set(x[0] for x in located_instances))))
+			raise NotDiscoveredError("Failed to resolve any of the hosts for '{}' / '{}'.".format(hostname, ','.join(x for x in set(x[0] for x in located_instances))))
 
 		return hosts
 
