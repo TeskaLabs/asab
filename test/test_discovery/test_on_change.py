@@ -52,8 +52,9 @@ class TestOnChange(DiscoveryTestCase):
 	def test_on_change_created_and_deleted(self):
 		item = "ASABConfigApplication.01"
 		self._set_zk_node(item, ADVERTISED_NODE)
+		data = json.dumps(ADVERTISED_NODE).encode("utf-8")
 
-		self.App.Loop.run_until_complete(self.DiscoveryService._on_change(item, "CREATED"))
+		self.App.Loop.run_until_complete(self.DiscoveryService._on_change(item, "CREATED", data))
 
 		located = self.App.Loop.run_until_complete(
 			self.DiscoveryService.locate(instance_id="asab-config-1")
@@ -71,7 +72,7 @@ class TestOnChange(DiscoveryTestCase):
 		)
 
 		self._delete_zk_node(item)
-		self.App.Loop.run_until_complete(self.DiscoveryService._on_change(item, "DELETED"))
+		self.App.Loop.run_until_complete(self.DiscoveryService._on_change(item, "DELETED", None))
 
 		located = self.App.Loop.run_until_complete(
 			self.DiscoveryService.locate(instance_id="asab-config-1")
@@ -81,12 +82,14 @@ class TestOnChange(DiscoveryTestCase):
 	def test_on_change_changed(self):
 		item = "ASABConfigApplication.01"
 		self._set_zk_node(item, ADVERTISED_NODE)
-		self.App.Loop.run_until_complete(self.DiscoveryService._on_change(item, "CREATED"))
+		data = json.dumps(ADVERTISED_NODE).encode("utf-8")
+		self.App.Loop.run_until_complete(self.DiscoveryService._on_change(item, "CREATED", data))
 
 		updated = copy.deepcopy(ADVERTISED_NODE)
 		updated["web"] = [["0.0.0.0", 9000]]
 		self._set_zk_node(item, updated)
-		self.App.Loop.run_until_complete(self.DiscoveryService._on_change(item, "CHANGED"))
+		updated_data = json.dumps(updated).encode("utf-8")
+		self.App.Loop.run_until_complete(self.DiscoveryService._on_change(item, "CHANGED", updated_data))
 
 		located = self.App.Loop.run_until_complete(
 			self.DiscoveryService.locate(instance_id="asab-config-1")
@@ -96,7 +99,8 @@ class TestOnChange(DiscoveryTestCase):
 	def test_apply_does_not_mutate_raw_discovery(self):
 		item = "ASABConfigApplication.01"
 		self._set_zk_node(item, ADVERTISED_NODE)
-		self.App.Loop.run_until_complete(self.DiscoveryService._on_change(item, "CREATED"))
+		data = json.dumps(ADVERTISED_NODE).encode("utf-8")
+		self.App.Loop.run_until_complete(self.DiscoveryService._on_change(item, "CREATED", data))
 
 		raw = self.App.Loop.run_until_complete(self.DiscoveryService.discover_raw())
 		self.assertEqual(raw[item]["discovery"], {"tenant": ["default"]})
@@ -106,7 +110,8 @@ class TestOnChange(DiscoveryTestCase):
 	def test_discover_returns_copy(self):
 		item = "ASABConfigApplication.01"
 		self._set_zk_node(item, ADVERTISED_NODE)
-		self.App.Loop.run_until_complete(self.DiscoveryService._on_change(item, "CREATED"))
+		data = json.dumps(ADVERTISED_NODE).encode("utf-8")
+		self.App.Loop.run_until_complete(self.DiscoveryService._on_change(item, "CREATED", data))
 
 		discovered = self.App.Loop.run_until_complete(self.DiscoveryService.discover())
 		discovered["instance_id"].clear()
