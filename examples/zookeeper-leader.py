@@ -37,12 +37,12 @@ class MyApplication(asab.Application):
 		self.PubSub.subscribe("LeaderService.state/FOLLOWER!", self._on_follower)
 
 
-	def _on_leader(self, event_name, leader_name):
-		print("I am the leader at {} election".format(leader_name))
+	def _on_leader(self, event_name, scope):
+		print("I am the leader at {} election".format(scope))
 		print("Leader info: {}".format(self.LeaderService.LeaderInfo))
 
-	def _on_follower(self, event_name, leader_name):
-		print("I am a follower at '{}' election".format(leader_name))
+	def _on_follower(self, event_name, scope):
+		print("I am a follower at '{}' election".format(scope))
 		print("Leader info: {}".format(self.LeaderService.LeaderInfo))
 
 

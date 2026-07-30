@@ -17,17 +17,21 @@ class LeaderService(Service):
 	"""
 	ZooKeeper-based leader election service.
 
-	Creates an ephemeral znode under `{zkcontainer.Path}/election/{leader_name}`.
+	Creates an ephemeral znode under `{zkcontainer.Path}/election/{scope}`.
 	The instance that successfully creates the node becomes the leader; others
 	become followers. Leadership is released automatically when the ZooKeeper
 	session ends (process stop, disconnect, or session expiry).
+
+	Different `scope` values allow multiple LeaderService instances to run in
+	parallel on the same ZooKeeper container, each electing a leader within its
+	own election namespace.
 
 	PubSub events:
 
 	- `LeaderService.state/LEADER!` — this instance became the leader.
 	- `LeaderService.state/FOLLOWER!` — this instance is (or became) a follower.
 
-	Both events carry `leader_name` as the sole argument after the event name.
+	Both events carry `scope` as the sole argument after the event name.
 	`LeaderInfo` holds the current leader znode payload (bytes), typically
 	lines with `instance_id`, `service_id`, and/or `node_id` from the environment.
 
@@ -42,7 +46,7 @@ class LeaderService(Service):
 	```
 	"""
 
-	def __init__(self, app, zkcontainer, leader_name):
+	def __init__(self, app, zkcontainer, scope):
 		"""
 		Register the service and subscribe to ZooKeeper connectivity events.
 
@@ -50,24 +54,25 @@ class LeaderService(Service):
 			app (asab.Application): Reference to the ASAB application.
 			zkcontainer (asab.zookeeper.ZooKeeperContainer): ZooKeeper container
 				used for the election path and client.
-			leader_name (str): Election identity; must be a non-empty string
-				and must not contain `/`.
-				Registered as service name `asab.LeaderService:{leader_name}`.
+			scope (str): Election namespace; must be a non-empty string
+				and must not contain `/`. Distinct scopes elect leaders
+				independently.
+				Registered as service name `asab.LeaderService:{scope}`.
 
 		Raises:
-			ValueError: If `leader_name` is not a non-empty string or contains `/`.
+			ValueError: If `scope` is not a non-empty string or contains `/`.
 		"""
-		if not isinstance(leader_name, str):
-			raise ValueError("Leader name must be a string")
-		if not leader_name:
-			raise ValueError("Leader name must not be empty")
-		if "/" in leader_name:
-			raise ValueError("Leader name must not contain '/' character")
+		if not isinstance(scope, str):
+			raise ValueError("Scope must be a string")
+		if not scope:
+			raise ValueError("Scope must not be empty")
+		if "/" in scope:
+			raise ValueError("Scope must not contain '/' character")
 
-		super().__init__(app, "asab.LeaderService:{}".format(leader_name))
+		super().__init__(app, "asab.LeaderService:{}".format(scope))
 		self.ZkContainer = zkcontainer
 		self.ElectionPath = zkcontainer.Path + "/election"
-		self.LeaderName = leader_name
+		self.Scope = scope
 
 		# Subscribe to the event that indicated the successful connection to the Zookeeper server(s)
 		app.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
@@ -151,7 +156,7 @@ class LeaderService(Service):
 		self._election_key = None
 		self._leader_zxid = None
 		self.LeaderInfo = None
-		self.App.PubSub.publish("LeaderService.state/FOLLOWER!", self.LeaderName)
+		self.App.PubSub.publish("LeaderService.state/FOLLOWER!", self.Scope)
 
 
 	def _on_change_zookeeper_thread(self, event):
@@ -187,13 +192,13 @@ class LeaderService(Service):
 			# Try to become leader
 			try:
 				_, stats = self.ZkContainer.ZooKeeper.Client.create(
-					self.ElectionPath + "/" + self.LeaderName,
+					self.ElectionPath + "/" + self.Scope,
 					leader_data,
 					ephemeral=True,  # We want this to disappear when the instance is stopped
 					include_data=True,
 				)
 			except kazoo.exceptions.NodeExistsError:
-				leader_data, stats = self.ZkContainer.ZooKeeper.Client.get(self.ElectionPath + "/" + self.LeaderName)
+				leader_data, stats = self.ZkContainer.ZooKeeper.Client.get(self.ElectionPath + "/" + self.Scope)
 				if self._election_key != election_key:
 					# Session was lost/invalidated while we ran; do not overwrite state.
 					return
@@ -202,12 +207,12 @@ class LeaderService(Service):
 					return
 				self._leader_zxid = None
 				self.LeaderInfo = leader_data
-				self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.LeaderName)
+				self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.Scope)
 			else:
 				if self._election_key != election_key:
 					# Stale election result (e.g. session lost): become follower without
 					# overwriting LeaderInfo / _leader_zxid already cleared by LOST.
-					self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.LeaderName)
+					self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.Scope)
 					return
 				self._leader_zxid = stats.czxid
 				self.LeaderInfo = leader_data
@@ -216,4 +221,4 @@ class LeaderService(Service):
 					self._leader_zxid = None
 					self.LeaderInfo = None
 					return
-				self.App.PubSub.publish_threadsafe("LeaderService.state/LEADER!", self.LeaderName)
+				self.App.PubSub.publish_threadsafe("LeaderService.state/LEADER!", self.Scope)
