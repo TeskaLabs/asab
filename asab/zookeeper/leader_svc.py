@@ -75,7 +75,7 @@ class LeaderService(Service):
 		app.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
 		app.PubSub.subscribe("Application.tick60!", self._on_tick60)
 
-		self._leader_zxid = None  # Can be True, False or None (for initialization)
+		self._leader_zxid = None
 		self.LeaderInfo = None
 
 		# Serializes CONNECTED / watch / tick election attempts. LOST (and
