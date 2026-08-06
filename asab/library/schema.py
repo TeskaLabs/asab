@@ -217,13 +217,12 @@ def _has_base_schema_type(schema: dict) -> bool:
 		return False
 	base_type = "lmio/schema"
 	subtype_prefix = "{}/".format(base_type)
-	return (
-		schema_type == base_type
-		or (
-			schema_type.startswith(subtype_prefix)
-			and len(schema_type) > len(subtype_prefix)
-		)
-	)
+	if schema_type == base_type:
+		return True
+	elif schema_type.startswith(subtype_prefix):
+		return len(schema_type) > len(subtype_prefix)
+	else:
+		return False
 
 
 def _is_schema_extension_item(item: LibraryItem, schema_name: str) -> bool:
