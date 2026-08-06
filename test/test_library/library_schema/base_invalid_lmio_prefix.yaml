@@ -1,0 +1,7 @@
+---
+define:
+  name: Invalid LMIO Schema Prefix
+  type: lmio/schema-other
+fields:
+  host.name:
+    type: str
