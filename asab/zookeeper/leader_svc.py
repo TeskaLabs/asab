@@ -35,6 +35,14 @@ class LeaderService(Service):
 	`LeaderInfo` holds the current leader znode payload (bytes), typically
 	lines with `instance_id`, `service_id`, and/or `node_id` from the environment.
 
+	Participation can be controlled with `StepDown()` / `SetUp()`:
+
+	- `StepDown()` leaves the election. If this instance is the leader, the
+	  ephemeral election znode is deleted so other participants can elect a
+	  new leader; this instance becomes a follower and will not re-contend
+	  until `SetUp()` is called.
+	- `SetUp()` resumes participation and runs an election attempt.
+
 	Examples:
 
 	```python
@@ -43,6 +51,11 @@ class LeaderService(Service):
 	)
 	self.PubSub.subscribe("LeaderService.state/LEADER!", self._on_leader)
 	self.PubSub.subscribe("LeaderService.state/FOLLOWER!", self._on_follower)
+
+	# Voluntarily resign and leave the election:
+	self.LeaderService.StepDown()
+	# Later rejoin and contend again:
+	self.LeaderService.SetUp()
 	```
 	"""
 
@@ -83,10 +96,14 @@ class LeaderService(Service):
 		self._leader_zxid = None
 		self.LeaderInfo = None
 
-		# Serializes CONNECTED / watch / tick election attempts. LOST (and
-		# SUSPENDED for in-flight attempts) invalidate `_election_key` without
-		# acquiring this lock (avoids blocking the event loop on ZooKeeper I/O);
-		# in-flight elections observe the stale key before publishing LEADER!.
+		# When False, this instance does not contend for leadership (after StepDown).
+		# Starts True so the first CONNECTED event joins the election automatically.
+		self._participating = True
+
+		# Serializes CONNECTED / watch / tick / StepDown / SetUp election work.
+		# LOST (and SUSPENDED for in-flight attempts) invalidate `_election_key`
+		# without acquiring this lock (avoids blocking the event loop on ZooKeeper
+		# I/O); in-flight elections observe the stale key before publishing LEADER!.
 		self._election_lock = threading.Lock()
 		self._election_key = None
 
@@ -104,6 +121,37 @@ class LeaderService(Service):
 		return True
 
 
+	def StepDown(self):
+		"""
+		Leave the election and resign leadership if held.
+
+		Schedules work on the ZooKeeper proactor thread: stops contending for
+		leadership, deletes this instance's ephemeral election znode when it is
+		the leader (so a new election can proceed among remaining participants),
+		clears local leadership state, and publishes `LeaderService.state/FOLLOWER!`.
+
+		This instance remains a non-participating follower until `SetUp()` is
+		called. Safe to call when already a follower or already stepped down.
+
+		If the election znode cannot be deleted (e.g. transient ZooKeeper error),
+		local leadership is retained and `Application.tick60!` retries the release.
+		"""
+		self.ZkContainer.ProactorService.schedule(self._step_down_thread)
+
+
+	def SetUp(self):
+		"""
+		Resume participation in the election.
+
+		Schedules an election attempt on the ZooKeeper proactor thread. If no
+		leader currently holds the election znode, this instance may become the
+		leader; otherwise it becomes (or remains) a follower.
+
+		Safe to call when already participating.
+		"""
+		self.ZkContainer.ProactorService.schedule(self._set_up_thread)
+
+
 	def _capture_election_key(self):
 		"""Return (session_id, last_zxid) for the current ZK connection, or None."""
 		client = self.ZkContainer.ZooKeeper.Client
@@ -111,6 +159,52 @@ class LeaderService(Service):
 		if client_id is None:
 			return None
 		return (client_id[0], client.last_zxid)
+
+
+	def _election_node_path(self):
+		return self.ElectionPath + "/" + self.Scope
+
+
+	def _step_down_thread(self):
+		with self._election_lock:
+			self._participating = False
+			# Invalidate any in-flight election so it cannot publish LEADER! after we resign.
+			self._election_key = None
+
+			leader_zxid = self._leader_zxid
+			if leader_zxid is None:
+				return
+
+			released = False
+			path = self._election_node_path()
+			try:
+				_, stats = self.ZkContainer.ZooKeeper.Client.get(path)
+				if stats.czxid == leader_zxid:
+					# Deleting the ephemeral node triggers watches on other
+					# participants so they can elect a new leader.
+					self.ZkContainer.ZooKeeper.Client.delete(path)
+					released = True
+				else:
+					# Another instance holds the node; our leadership claim is obsolete.
+					released = True
+			except kazoo.exceptions.NoNodeError:
+				released = True
+			except kazoo.exceptions.KazooException as e:
+				# Keep `_leader_zxid` so tick60 can retry the release.
+				L.warning("Failed to delete election node during StepDown: {}", e)
+
+			if not released:
+				return
+
+			self._leader_zxid = None
+			self.LeaderInfo = None
+			self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.Scope)
+
+
+	def _set_up_thread(self):
+		with self._election_lock:
+			self._participating = True
+		self._election_thread()
 
 
 	async def _on_zk_ready(self, event_name, zkcontainer):
@@ -128,7 +222,8 @@ class LeaderService(Service):
 			)
 
 			# Start the election thread to become leader or follower
-			self._election_thread()
+			if self._participating:
+				self._election_thread()
 
 		# Keep `_leader_zxid` / LeaderInfo across reconnect: a still-valid
 		# session retains the ephemeral election node, and NodeExistsError
@@ -160,11 +255,18 @@ class LeaderService(Service):
 
 
 	def _on_change_zookeeper_thread(self, event):
+		if not self._participating:
+			return
 		if not self.IsLeader():
 			self._election_thread()
 
 
 	def _on_tick60(self, event_name):
+		if not self._participating:
+			if self.IsLeader():
+				# Stepped down but still hold leadership (e.g. prior delete failed); finish resigning.
+				return self.ZkContainer.ProactorService.schedule(self._step_down_thread)
+			return
 		if not self.IsLeader():
 			# Speculatively run the election thread to become leader - this is a last resort recovery mechanism
 			return self.ZkContainer.ProactorService.schedule(self._election_thread)
@@ -172,6 +274,9 @@ class LeaderService(Service):
 
 	def _election_thread(self):
 		with self._election_lock:
+			if not self._participating:
+				return
+
 			election_key = self._capture_election_key()
 			if election_key is None:
 				return
@@ -192,13 +297,13 @@ class LeaderService(Service):
 			# Try to become leader
 			try:
 				_, stats = self.ZkContainer.ZooKeeper.Client.create(
-					self.ElectionPath + "/" + self.Scope,
+					self._election_node_path(),
 					leader_data,
 					ephemeral=True,  # We want this to disappear when the instance is stopped
 					include_data=True,
 				)
 			except kazoo.exceptions.NodeExistsError:
-				leader_data, stats = self.ZkContainer.ZooKeeper.Client.get(self.ElectionPath + "/" + self.Scope)
+				leader_data, stats = self.ZkContainer.ZooKeeper.Client.get(self._election_node_path())
 				if self._election_key != election_key:
 					# Session was lost/invalidated while we ran; do not overwrite state.
 					return
