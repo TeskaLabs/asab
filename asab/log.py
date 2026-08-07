@@ -454,6 +454,11 @@ class JSONFormatter(logging.Formatter):
 	def format(self, record):
 		r_copy = record.__dict__.copy()
 		r_copy.update(self.Enricher)
+
+		# Emit UTC ISO8601 timestamp (e.g. 2026-08-07T12:20:25.598569Z)
+		ct = datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc)
+		r_copy["asctime"] = ct.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
 		return json.dumps(r_copy, default=self._default)
 
 
