@@ -173,6 +173,9 @@ class LeaderService(Service):
 
 			leader_zxid = self._leader_zxid
 			if leader_zxid is None:
+				# Follower leaving the election: drop any cached leader payload.
+				self.LeaderInfo = None
+				self.App.PubSub.publish_threadsafe("LeaderService.state/FOLLOWER!", self.Scope)
 				return
 
 			released = False
