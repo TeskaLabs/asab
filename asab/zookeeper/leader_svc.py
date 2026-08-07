@@ -38,9 +38,9 @@ class LeaderService(Service):
 	Participation can be controlled with `StepDown()` / `SetUp()`:
 
 	- `StepDown()` leaves the election. If this instance is the leader, the
-	  ephemeral election znode is deleted so other participants can elect a
-	  new leader; this instance becomes a follower and will not re-contend
-	  until `SetUp()` is called.
+		ephemeral election znode is deleted so other participants can elect a
+		new leader; this instance becomes a follower and will not re-contend
+		until `SetUp()` is called.
 	- `SetUp()` resumes participation and runs an election attempt.
 
 	Examples:
