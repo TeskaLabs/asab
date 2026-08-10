@@ -234,8 +234,6 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 							# Synchronize the temp_extract_dir into the library
 							synchronize_dirs(self.RepoPath, temp_extract_dir)
 							if not self.IsReady:
-								with open(os.path.join(self.RootPath, ".source"), "w") as f:
-									f.write(self.Source)
 								with open(os.path.join(self.RootPath, ".ready"), "w") as f:
 									f.write("yes")
 								await self._set_ready()
@@ -258,8 +256,6 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 						elif response.status == 304:
 							# The repository has not changed ...
 							if not self.IsReady:
-								with open(os.path.join(self.RootPath, ".source"), "w") as f:
-									f.write(self.Source)
 								with open(os.path.join(self.RootPath, ".ready"), "w") as f:
 									f.write("yes")
 								await self._set_ready()
