@@ -91,7 +91,7 @@ class LeaderService(Service):
 		app.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_ready)
 		app.PubSub.subscribe("ZooKeeperContainer.state/SUSPENDED!", self._on_zk_suspended)
 		app.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
-		app.PubSub.subscribe("Application.tick60!", self._on_tick60)
+		app.PubSub.subscribe("Application.tick/60!", self._on_tick60)
 
 		self._leader_zxid = None
 		self.LeaderInfo = None
