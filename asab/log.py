@@ -427,9 +427,39 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 		self.converter = time.gmtime
 
 
+class LoggingJSONDumper(object):
+	"""
+	JSON serializer for log records.
+	Datetimes are emitted as ISO8601 (UTC with `Z` suffix).
+	"""
+
+	def __call__(self, obj):
+		return json.dumps(obj, default=self.default)
+
+	def default(self, o):
+		if isinstance(o, datetime.datetime):
+			if o.tzinfo == datetime.timezone.utc:
+				# isoformat ends with "+00:00", replace it with "Z"
+				return o.isoformat()[:-6] + "Z"
+			elif o.tzinfo is not None:
+				# The datetime object is timezone-aware but not UTC
+				# NOT WANTED, using non-UTC timestamps is not recommended
+				return o.isoformat()
+			else:
+				# The datetime object is timezone-naive -> interpret it as UTC
+				return o.isoformat() + "Z"
+
+		# If obj is not json serializable, convert it to string
+		try:
+			return str(o)
+		except Exception:
+			raise TypeError("Error when logging. Object {} of type {} is not JSON serializable.".format(o, type(o)))
+
+
 class JSONFormatter(logging.Formatter):
 
 	def __init__(self):
+		self.Dumper = LoggingJSONDumper()
 		self.Enricher = {}
 		instance_id = os.environ.get("INSTANCE_ID")
 		service_id = os.environ.get("SERVICE_ID")
@@ -444,22 +474,11 @@ class JSONFormatter(logging.Formatter):
 		if hostname is not None:
 			self.Enricher["hostname"] = hostname
 
-	def _default(self, obj):
-		# If obj is not json serializable, convert it to string
-		try:
-			return str(obj)
-		except Exception:
-			raise TypeError("Error when logging. Object {} of type {} is not JSON serializable.".format(obj, type(obj)))
-
 	def format(self, record):
 		r_copy = record.__dict__.copy()
 		r_copy.update(self.Enricher)
-
-		# Emit UTC ISO8601 timestamp (e.g. 2026-08-07T12:20:25.598569Z)
-		ct = datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc)
-		r_copy["asctime"] = ct.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-
-		return json.dumps(r_copy, default=self._default)
+		r_copy["asctime"] = datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc)
+		return self.Dumper(r_copy)
 
 
 class FormatingDatagramHandler(logging.handlers.DatagramHandler):
