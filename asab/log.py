@@ -453,7 +453,7 @@ class LoggingJSONDumper(object):
 		try:
 			return str(o)
 		except Exception:
-			raise TypeError("Error when logging. Object {} of type {} is not JSON serializable.".format(o, type(o)))
+			raise TypeError("Error when logging. Object of type {} is not JSON serializable.".format(type(o)))
 
 
 class JSONFormatter(logging.Formatter):
