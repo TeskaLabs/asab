@@ -434,6 +434,11 @@ class LoggingJSONDumper(object):
 	"""
 
 	def __call__(self, obj):
+		# LogRecord.created is a float; convert it to asctime so default() can emit ISO8601.
+		# Without this, only the numeric "created" field would be present.
+		created = obj.get("created")
+		if created is not None:
+			obj["asctime"] = datetime.datetime.fromtimestamp(created, tz=datetime.timezone.utc)
 		return json.dumps(obj, default=self.default)
 
 	def default(self, o):
@@ -477,7 +482,6 @@ class JSONFormatter(logging.Formatter):
 	def format(self, record):
 		r_copy = record.__dict__.copy()
 		r_copy.update(self.Enricher)
-		r_copy["asctime"] = datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc)
 		return self.Dumper(r_copy)
 
 
