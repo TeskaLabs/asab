@@ -1,17 +1,14 @@
-import hashlib
 import typing
 
 
 class LibraryProviderABC(object):
 
 
-	def __init__(self, library, layer, source):
+	def __init__(self, library, layer):
 		super().__init__()
 		self.App = library.App
 		self.Library = library
 		self.Layer = layer
-		self.Source = source
-		self.ID = hashlib.sha256(source.encode("utf-8")).hexdigest()
 		self.IsReady = False
 
 
