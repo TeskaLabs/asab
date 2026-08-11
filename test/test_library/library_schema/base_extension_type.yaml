@@ -1,7 +1,0 @@
----
-define:
-  name: Invalid Base Schema
-  type: lmio/schema-extension
-fields:
-  host.name:
-    type: str
