@@ -60,7 +60,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 	"""
 
 
-	def __init__(self, library, path, layer, *, repodir=None):
+	def __init__(self, library, path, layer, *, source, repodir=None):
 
 		url = urllib.parse.urlparse(path)
 		assert url.scheme.startswith("libsreg+")
@@ -117,7 +117,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 
 		os.makedirs(os.path.join(self.RepoPath), exist_ok=True)
 
-		super().__init__(library, self.RepoPath, layer, set_ready=False)
+		super().__init__(library, self.RepoPath, layer, source=source, set_ready=False)
 
 		self.PullLock = asyncio.Lock()
 		self.LastPull = None

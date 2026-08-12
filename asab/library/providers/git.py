@@ -70,7 +70,7 @@ class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 		ssh_passphrase=<optional passphrase for SSH key>
 		verify_ssh_fingerprint=yes|no (default: no - auto-accepts host keys)
 	"""
-	def __init__(self, library, path, layer, *, repodir=None):
+	def __init__(self, library, path, layer, *, source, repodir=None):
 
 		# Initialize attributes to avoid attribute errors
 		self.URLScheme = ""
@@ -101,7 +101,7 @@ class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 				hashlib.sha256(path.encode('utf-8')).hexdigest()
 			)
 
-		super().__init__(library, self.RepoPath, layer, set_ready=False)
+		super().__init__(library, self.RepoPath, layer, source=source, set_ready=False)
 
 		# Set custom SSL certificate locations if specified
 		cert_file = Config.get("library:git", "cert_file", fallback=None)
