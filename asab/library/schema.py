@@ -187,7 +187,7 @@ def _schema_path(schema: str) -> tuple[str, str, str]:
 	directory, filename = os.path.split(path)
 	if directory != "/Schemas":
 		raise LibraryInvalidPathError(
-			message="Schema path must be under '/Schemas/'.",
+			message="Base schema path must match '/Schemas/<name>.yaml'.",
 			path=path,
 		)
 

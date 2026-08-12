@@ -142,7 +142,10 @@ class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
 		with tempfile.TemporaryDirectory() as root:
 			service = make_schema_service(make_filesystem_provider(root))
 
-			with self.assertRaises(LibraryInvalidPathError):
+			with self.assertRaisesRegex(
+				LibraryInvalidPathError,
+				"Base schema path must match '/Schemas/<name>.yaml'.",
+			):
 				await service.read_schema("/Schemas/Extensions/CFM.yaml")
 
 	async def test_base_schema_only_returns_base_schema(self):
