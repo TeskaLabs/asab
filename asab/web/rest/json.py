@@ -246,6 +246,7 @@ async def JsonExceptionMiddleware(request, handler):
 
 _form_content_types = frozenset(['', 'application/x-www-form-urlencoded', 'multipart/form-data'])
 
+
 def json_schema_handler(json_schema, *_args, **_kwargs):
 
 	"""
