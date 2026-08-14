@@ -5,9 +5,18 @@ import datetime
 import functools
 import dataclasses
 
-
 import aiohttp.web
 import fastjsonschema
+
+try:
+	import yaml
+	try:
+		from yaml import CSafeLoader as YamlSafeLoader
+	except ImportError:
+		from yaml import SafeLoader as YamlSafeLoader
+except ImportError:
+	yaml = None
+	YamlSafeLoader = None
 
 from ... import exceptions
 
@@ -293,6 +302,9 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 					data = await request.json()
 				except json.decoder.JSONDecodeError:
 					raise aiohttp.web.HTTPBadRequest(reason="Failed to parse JSON request")
+			elif request.content_type == 'application/x-yaml' and yaml is not None:
+				data = await request.text()
+				data = yaml.load(data, Loader=YamlSafeLoader)
 			elif request.content_type in form_content_types:
 				multi_dict = await request.post()
 				data = {k: v for k, v in multi_dict.items()}
