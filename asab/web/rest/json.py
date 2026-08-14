@@ -244,6 +244,7 @@ async def JsonExceptionMiddleware(request, handler):
 			status=500,
 		)
 
+_form_content_types = frozenset(['', 'application/x-www-form-urlencoded', 'multipart/form-data'])
 
 def json_schema_handler(json_schema, *_args, **_kwargs):
 
@@ -290,13 +291,13 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 				"JSON schema input must be type <class 'dict'> or type <class 'str'>, "
 				"not type {}.".format(type(json_schema)))
 
-		form_content_types = frozenset(['', 'application/x-www-form-urlencoded', 'multipart/form-data'])
 
 		@functools.wraps(func)
 		async def validator(*args, **kwargs):
 			# Initializing fastjsonschema.compile method and generating
 			# the validation function for validating JSON schema
 			request = args[-1]
+
 			if request.content_type == 'application/json':
 				try:
 					data = await request.json()
@@ -308,11 +309,12 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 					data = yaml.load(data, Loader=YamlSafeLoader)
 				except yaml.YAMLError:
 					raise aiohttp.web.HTTPBadRequest(reason="Failed to parse YAML request")
-			elif request.content_type in form_content_types:
+			elif request.content_type in _form_content_types:
 				multi_dict = await request.post()
 				data = {k: v for k, v in multi_dict.items()}
 			else:
 				raise aiohttp.web.HTTPBadRequest(reason="Unsupported content-type {}".format(request.content_type))
+
 			# Checking the validation on JSON data set
 			try:
 				validate(data)
