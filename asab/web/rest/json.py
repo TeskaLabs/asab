@@ -304,7 +304,10 @@ def json_schema_handler(json_schema, *_args, **_kwargs):
 					raise aiohttp.web.HTTPBadRequest(reason="Failed to parse JSON request")
 			elif request.content_type == 'application/x-yaml' and yaml is not None:
 				data = await request.text()
-				data = yaml.load(data, Loader=YamlSafeLoader)
+				try:
+					data = yaml.load(data, Loader=YamlSafeLoader)
+				except yaml.YAMLError:
+					raise aiohttp.web.HTTPBadRequest(reason="Failed to parse YAML request")
 			elif request.content_type in form_content_types:
 				multi_dict = await request.post()
 				data = {k: v for k, v in multi_dict.items()}
