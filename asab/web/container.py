@@ -12,6 +12,7 @@ from ..tls import SSLContextBuilder
 from .service import WebService
 from ..application import Application
 from ..contextvars import Request
+from . import cors
 
 #
 
@@ -32,7 +33,10 @@ class WebContainer(Configurable):
 		'rootdir': '',
 		'servertokens': 'full',  # Controls whether 'Server' response header field is included ('full') or faked 'prod' ()
 		'cors': '',
-		'cors_preflight_paths': '/openidconnect/*, /test/*',
+		'cors_preflight_paths': '/*',
+		'cors_allow_headers': 'Authorization, Content-Type, X-App, X-Request-Id',
+		'cors_allow_methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+		'cors_allow_credentials': 'yes',
 		'body_max_size': 1024**2,  # Client’s maximum body size in a request, in bytes
 	}
 
@@ -42,7 +46,9 @@ class WebContainer(Configurable):
 
 		self.Addresses = None  # The address is available only after `WebContainer.started!` PubSub message is published.
 		self.BackLog = int(self.Config.get("backlog"))
-		self.CORS = self.Config.get("cors")
+		self.CORS = cors.normalize_cors_config(self.Config.get("cors"))
+		self.CORSHandler = None
+		self._CORSPreflightRoutes = set()
 
 		servertokens = self.Config.get("servertokens")
 		if servertokens == 'prod':
@@ -141,10 +147,8 @@ class WebContainer(Configurable):
 
 		websvc._register_container(self, config_section_name)
 
-		if self.CORS != "":
-			preflight_str = self.Config["cors_preflight_paths"].strip("\n").replace("*", "{tail:.*}")
-			preflight_paths = re.split(r"[,\s]+", preflight_str, re.MULTILINE)
-			self.add_preflight_handlers(preflight_paths)
+		if self.CORS:
+			self.enable_cors(allow_origin=self.CORS)
 
 		self.WebApp.middlewares.append(set_request_context)
 
@@ -180,41 +184,102 @@ class WebContainer(Configurable):
 		await self.WebAppRunner.cleanup()
 
 
-	def add_preflight_handlers(self, preflight_paths: typing.List[str]):
+	def enable_cors(
+		self,
+		allow_origin: typing.Union[str, typing.Iterable[str], typing.Callable[[str], bool]],
+		preflight_paths: typing.Union[str, typing.Iterable[str], None] = None,
+		allow_headers: typing.Union[str, typing.Iterable[str], None] = None,
+		allow_methods: typing.Union[str, typing.Iterable[str], None] = None,
+		allow_credentials: typing.Optional[bool] = None,
+	):
 		"""
-		Add handlers with preflight resources.
+		Enable Cross-Origin Resource Sharing on this web container.
 
-		Preflight requests are sent by the browser, for some cross domain request (custom header etc.).
-		Browser sends preflight request first.
-		It is request on the same endpoint as app demanded request, but of **OPTIONS** method.
-		Only when satisfactory response is returned, browser proceeds with sending original request.
-		Use `cors_preflight_paths` option to specify all paths and path prefixes (separated by comma) for which you
-		want to allow **OPTIONS** method for preflight requests.
+		If `[web] cors` is non-empty, this method is called automatically during container
+		construction. Applications such as SeaCat Auth can call it from code instead
+		(leave `cors` empty and pass a callable origin check).
+
+		Calling this method again replaces the origin policy and adds any new preflight
+		paths. OPTIONS routes that are already registered are not added twice.
 
 		Args:
-			preflight_paths (list[str]): List of routes that will be provided with **OPTIONS** handler.
+			allow_origin: `"*"` to allow every origin, a string or iterable of allowed
+				origins, or a callable `origin: str -> bool` for a dynamic allowlist.
+			preflight_paths: Path prefixes (`/foo/*`) and exact paths that receive CORS
+				headers, including OPTIONS preflight. Defaults to `[web] cors_preflight_paths`.
+			allow_headers: Allowed request headers. Defaults to `[web] cors_allow_headers`.
+			allow_methods: Allowed HTTP methods. Defaults to `[web] cors_allow_methods`.
+			allow_credentials: Whether browsers may send cookies and Authorization.
+				Defaults to `[web] cors_allow_credentials`. When this is true, the
+				response echoes the request `Origin` even if `allow_origin` is `"*"`;
+				`Access-Control-Allow-Origin: *` is never combined with credentials.
 		"""
-		for path in preflight_paths:
-			self.WebApp.router.add_route("OPTIONS", path, self._preflight_handler)
+		if preflight_paths is None:
+			preflight_paths = self.Config.get("cors_preflight_paths")
+		if allow_headers is None:
+			allow_headers = self.Config.get("cors_allow_headers")
+		if allow_methods is None:
+			allow_methods = self.Config.get("cors_allow_methods")
+		if allow_credentials is None:
+			allow_credentials = self.Config.getboolean("cors_allow_credentials")
+
+		if self.CORSHandler is None:
+			self.CORSHandler = cors.CORSHandler(
+				allow_origin=allow_origin,
+				paths=preflight_paths,
+				allow_headers=allow_headers,
+				allow_methods=allow_methods,
+				allow_credentials=allow_credentials,
+			)
+		else:
+			self.CORSHandler.set_policy(
+				allow_origin,
+				allow_headers,
+				allow_methods,
+				allow_credentials,
+			)
+			self.CORSHandler.add_paths(preflight_paths)
+
+		self._register_preflight_routes(preflight_paths)
+
+
+	def add_preflight_handlers(self, preflight_paths: typing.Iterable[str]):
+		"""
+		Add OPTIONS handlers and CORS path patterns to already-enabled CORS.
+
+		Use `enable_cors()` to start CORS. This method only extends the set of paths.
+
+		Args:
+			preflight_paths: Path prefixes (`/foo/*`) and exact paths that should
+				receive CORS, including OPTIONS preflight.
+		"""
+		if self.CORSHandler is None:
+			raise RuntimeError("CORS is not enabled; call enable_cors() first.")
+		self.CORSHandler.add_paths(preflight_paths)
+		self._register_preflight_routes(preflight_paths)
+
+
+	def _register_preflight_routes(self, preflight_paths: typing.Union[str, typing.Iterable[str], None]):
+		for path in cors.normalize_path_list(preflight_paths):
+			route_path = cors.path_to_route(path)
+			if route_path in self._CORSPreflightRoutes:
+				continue
+			self.WebApp.router.add_route("OPTIONS", route_path, self._preflight_handler)
+			self._CORSPreflightRoutes.add(route_path)
 
 
 	async def _preflight_handler(self, request):
-			return aiohttp.web.HTTPNoContent(headers={
-				"Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
-				"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-				"Access-Control-Allow-Headers": "X-PINGOTHER, Content-Type, Authorization",
-				"Access-Control-Allow-Credentials": "true",
-				"Access-Control-Max-Age": "86400",
-			})
+		# CORS headers are applied in `_on_prepare_response` so preflight and actual
+		# responses share the same policy. 204 is returned even when Origin is omitted
+		# or not allowed; in that case no CORS headers are sent.
+		return aiohttp.web.HTTPNoContent()
 
 
 	async def _on_prepare_response(self, request, response):
 		response.headers['Server'] = self.ServerTokens
 
-		if self.CORS != "":
-			# TODO: Be more precise about "allow origin" header
-			response.headers['Access-Control-Allow-Origin'] = "*"
-			response.headers['Access-Control-Allow-Methods'] = "GET, POST, DELETE, PUT, PATCH, OPTIONS"
+		if self.CORSHandler is not None:
+			self.CORSHandler.apply(request, response)
 
 
 	def get_ports(self) -> typing.List[str]:

@@ -142,10 +142,12 @@ Configuration is passed to the `asab.web.WebContainer` object.
 | `backlog` | A number of unaccepted connections that the system will allow before refusing new connections, see [`socket.socket.listen()`](https://docs.python.org/3/library/socket.html#socket.socket.listen) for details |
 | `rootdir` | The root path for the server. In case of many web containers, each one can implement a different root |
 | `servertokens` | Controls whether `'Server'` response header field is included (`'full'`) or faked (`'prod'`) |
-| `cors` | See [Cross-Origin Resource Sharing](../web/cors) section |
 | `body_max_size`| Client's maximum size in a request, in bytes. If a **POST** request exceeds this value, `aiohttp.HTTPRequestEntityTooLarge` exception is raised. See [the documentation](https://docs.aiohttp.org/en/stable/web_reference.html?highlight=client_max_size#aiohttp.web.Application) for more information |
-| `cors` | Contents of the Access-Control-Allow-Origin header. See the [CORS section](./cors) |
-| `cors_preflight_paths` | Pattern for endpoints that shall return responses to pre-flight requests (**OPTIONS**). Value must start with `"/"`. See the [CORS section](./cors) |
+| `cors` | Origin policy for Cross-Origin Resource Sharing. Empty disables CORS. `*` allows all origins. Otherwise a comma- and/or whitespace-separated allowlist. See the [CORS section](./cors) |
+| `cors_preflight_paths` | Path prefixes (`/foo/*`) and exact paths that receive CORS headers, including OPTIONS preflight. Default `/*`. See the [CORS section](./cors) |
+| `cors_allow_headers` | Allowed request headers advertised in CORS responses. See the [CORS section](./cors) |
+| `cors_allow_methods` | Allowed HTTP methods advertised in CORS responses. See the [CORS section](./cors) |
+| `cors_allow_credentials` | When `yes`, credentialed cross-origin requests are allowed. See the [CORS section](./cors) |
 
 ### The default configuration
 
@@ -156,7 +158,10 @@ backlog=128
 rootdir=
 servertokens=full
 cors=
-cors_preflight_paths=/openidconnect/*, /test/*
+cors_preflight_paths=/*
+cors_allow_headers=Authorization, Content-Type, X-App, X-Request-Id
+cors_allow_methods=GET, POST, PUT, PATCH, DELETE, OPTIONS
+cors_allow_credentials=yes
 body_max_size=1024**2
 ```
 
