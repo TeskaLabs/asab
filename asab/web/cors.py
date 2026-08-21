@@ -175,7 +175,10 @@ class CORSHandler:
 
 	def apply(self, request, response):
 		for name, value in self.headers_for(request.headers.get("Origin"), request.path).items():
-			response.headers[name] = value
+			if name == "Vary":
+				_merge_vary_origin(response.headers)
+			else:
+				response.headers[name] = value
 
 
 	def _set_allow_origin(
@@ -195,6 +198,24 @@ class CORSHandler:
 			return
 		self.AllowAll = False
 		self.AllowedOrigins = set(split_config_list(parsed))
+
+
+def _merge_vary_origin(headers) -> None:
+	"""
+	Add `Origin` to `Vary` without dropping existing tokens.
+
+	`Vary: *` already varies on every header, including Origin, so it is left unchanged.
+	"""
+	existing = headers.get("Vary")
+	if existing is None:
+		headers["Vary"] = "Origin"
+		return
+	tokens = [token.strip() for token in existing.split(",") if token.strip()]
+	if any(token == "*" for token in tokens):
+		return
+	if any(token.lower() == "origin" for token in tokens):
+		return
+	headers["Vary"] = "{}, Origin".format(existing.strip())
 
 
 def _path_matches_pattern(request_path: str, pattern: str) -> bool:

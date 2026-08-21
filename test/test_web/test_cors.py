@@ -1,4 +1,10 @@
+import logging
 import unittest
+
+import asab
+import asab.abc
+import asab.web
+from aiohttp.test_utils import make_mocked_request
 
 from asab.web.cors import (
 	CORSHandler,
@@ -226,3 +232,73 @@ class TestCORSHandler(unittest.TestCase):
 		no_origin = _Response()
 		handler.apply(_Request("/hello"), no_origin)
 		self.assertEqual(no_origin.headers, {})
+
+	def test_apply_merges_vary_origin(self):
+		handler = _handler(allow_origin="https://a.example", allow_credentials=True)
+		request = _Request("/hello", "https://a.example")
+
+		response = _Response()
+		handler.apply(request, response)
+		self.assertEqual(response.headers["Access-Control-Allow-Origin"], "https://a.example")
+		self.assertEqual(response.headers["Vary"], "Origin")
+
+		response = _Response()
+		response.headers["Vary"] = "Accept-Encoding"
+		handler.apply(request, response)
+		self.assertEqual(response.headers["Vary"], "Accept-Encoding, Origin")
+		self.assertEqual(response.headers["Access-Control-Allow-Origin"], "https://a.example")
+
+		response = _Response()
+		response.headers["Vary"] = "Origin, Accept-Encoding"
+		handler.apply(request, response)
+		self.assertEqual(response.headers["Vary"], "Origin, Accept-Encoding")
+
+		response = _Response()
+		response.headers["Vary"] = "*"
+		handler.apply(request, response)
+		self.assertEqual(response.headers["Vary"], "*")
+
+		denied = _Response()
+		denied.headers["Vary"] = "Accept-Encoding"
+		handler.apply(_Request("/hello", "https://evil.example"), denied)
+		self.assertEqual(denied.headers, {"Vary": "Accept-Encoding"})
+
+
+class _FakeWebService(object):
+	def __init__(self, app):
+		self.App = app
+
+	def _register_container(self, container, config_section_name):
+		pass
+
+
+class TestWebContainerPreflight(unittest.TestCase):
+
+	def setUp(self):
+		self.App = asab.Application(args=[], modules=[])
+		self.container = asab.web.WebContainer(
+			_FakeWebService(self.App),
+			"web",
+			config={"listen": "127.0.0.1 0"},
+		)
+
+	def tearDown(self):
+		asab.abc.singleton.Singleton.delete(self.App.__class__)
+		self.App = None
+		logging.getLogger().handlers = []
+
+	def test_options_directory_reaches_preflight_handler(self):
+		self.container.enable_cors(allow_origin="*", preflight_paths=["/foo/*"])
+		self.assertIn("/foo/{tail:.*}", self.container._CORSPreflightRoutes)
+		self.assertIn("/foo", self.container._CORSPreflightRoutes)
+
+		async def resolve(path):
+			request = make_mocked_request("OPTIONS", path, app=self.container.WebApp)
+			return await self.container.WebApp.router.resolve(request)
+
+		match_info = self.App.Loop.run_until_complete(resolve("/foo"))
+		self.assertEqual(match_info.handler, self.container._preflight_handler)
+		response = self.App.Loop.run_until_complete(
+			match_info.handler(make_mocked_request("OPTIONS", "/foo", app=self.container.WebApp))
+		)
+		self.assertEqual(response.status, 204)

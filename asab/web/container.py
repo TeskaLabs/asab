@@ -36,7 +36,7 @@ class WebContainer(Configurable):
 		'cors_preflight_paths': '/*',
 		'cors_allow_headers': 'Authorization, Content-Type, X-App, X-Request-Id',
 		'cors_allow_methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-		'cors_allow_credentials': 'yes',
+		'cors_allow_credentials': 'no',
 		'body_max_size': 1024**2,  # Client’s maximum body size in a request, in bytes
 	}
 
@@ -261,11 +261,18 @@ class WebContainer(Configurable):
 
 	def _register_preflight_routes(self, preflight_paths: typing.Union[str, typing.Iterable[str], None]):
 		for path in cors.normalize_path_list(preflight_paths):
-			route_path = cors.path_to_route(path)
-			if route_path in self._CORSPreflightRoutes:
-				continue
-			self.WebApp.router.add_route("OPTIONS", route_path, self._preflight_handler)
-			self._CORSPreflightRoutes.add(route_path)
+			route_paths = [cors.path_to_route(path)]
+			# `/foo/{tail:.*}` does not match OPTIONS `/foo`; register the directory too.
+			# Root `/*` already covers `/` via `/{tail:.*}`.
+			if path.endswith("/*") and path != "/*":
+				directory = path[:-2]
+				if directory:
+					route_paths.append(directory)
+			for route_path in route_paths:
+				if route_path in self._CORSPreflightRoutes:
+					continue
+				self.WebApp.router.add_route("OPTIONS", route_path, self._preflight_handler)
+				self._CORSPreflightRoutes.add(route_path)
 
 
 	async def _preflight_handler(self, request):
