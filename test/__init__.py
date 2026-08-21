@@ -7,3 +7,4 @@ from .test_metrics.test_duplicates import *
 from .test_crash.test_crash import *
 from .test_auth.test_access_control import *
 from .test_auth.test_authorization import *
+from .test_web.test_cors import *
