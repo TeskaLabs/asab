@@ -3,16 +3,30 @@ import typing
 import collections.abc
 
 
-def split_config_list(value: str) -> typing.List[str]:
+def split_config_list(
+	value: typing.Union[str, typing.Iterable[str], None],
+) -> typing.List[str]:
 	"""
 	Split a comma- and/or whitespace-separated config value into tokens.
+
+	A string is split on commas and whitespace. An iterable of strings is flattened;
+	each item is split the same way. `None` and a blank string yield an empty list.
 	"""
 	if value is None:
 		return []
-	value = value.strip()
-	if not value:
-		return []
-	return [item for item in re.split(r"[,\s]+", value) if item]
+	if isinstance(value, str):
+		value = value.strip()
+		if not value:
+			return []
+		return [item for item in re.split(r"[,\s]+", value) if item]
+	if isinstance(value, collections.abc.Iterable):
+		tokens = []
+		for item in value:
+			if not isinstance(item, str):
+				raise TypeError("Expected strings, not {}".format(type(item)))
+			tokens.extend(split_config_list(item))
+		return tokens
+	raise TypeError("Expected a string or iterable of strings, not {}".format(type(value)))
 
 
 def normalize_cors_config(value: typing.Optional[str]) -> str:
@@ -39,14 +53,14 @@ def normalize_header_list(value: typing.Union[str, typing.Iterable[str], None]) 
 	"""
 	Normalize Allow-Headers / Allow-Methods into a comma-separated header value.
 	"""
-	return ", ".join(_tokens_from_str_or_iterable(value, "CORS header"))
+	return ", ".join(split_config_list(value))
 
 
 def normalize_path_list(value: typing.Union[str, typing.Iterable[str], None]) -> typing.List[str]:
 	"""
 	Normalize preflight path patterns into a list of path strings.
 	"""
-	return _tokens_from_str_or_iterable(value, "CORS path")
+	return split_config_list(value)
 
 
 def path_to_route(path: str) -> str:
@@ -226,21 +240,3 @@ def _path_matches_pattern(request_path: str, pattern: str) -> bool:
 		# `/foo/*` also matches the directory itself (`/foo`)
 		return request_path == pattern[:-2]
 	return request_path == pattern
-
-
-def _tokens_from_str_or_iterable(
-	value: typing.Union[str, typing.Iterable[str], None],
-	what: str,
-) -> typing.List[str]:
-	if value is None:
-		return []
-	if isinstance(value, str):
-		return split_config_list(value)
-	if isinstance(value, collections.abc.Iterable):
-		tokens = []
-		for item in value:
-			if not isinstance(item, str):
-				raise TypeError("{} values must be strings, not {}".format(what, type(item)))
-			tokens.extend(split_config_list(item))
-		return tokens
-	raise TypeError("{} must be a string or iterable of strings, not {}".format(what, type(value)))
