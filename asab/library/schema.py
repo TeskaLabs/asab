@@ -131,7 +131,7 @@ class LibrarySchemaService(Service):
 					continue
 				merged_fields[field_name] = copy.deepcopy(field_definition)
 
-			if skipped_fields:
+			if len(skipped_fields) > 0:
 				L.warning(
 					"Skipping schema extension fields: fields already exist.",
 					struct_data={
