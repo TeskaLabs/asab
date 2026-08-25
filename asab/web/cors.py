@@ -11,6 +11,12 @@ def split_config_list(
 
 	A string is split on commas and whitespace. An iterable of strings is flattened;
 	each item is split the same way. `None` and a blank string yield an empty list.
+
+	Args:
+		value: A config string, an iterable of strings, or `None`.
+
+	Returns:
+		A list of non-empty tokens.
 	"""
 	if value is None:
 		return []
@@ -33,6 +39,9 @@ def normalize_cors_config(value: typing.Optional[str]) -> str:
 	"""
 	Normalize the `[web] cors` origin policy.
 
+	Args:
+		value: The raw `[web] cors` string, or `None`.
+
 	Returns:
 		An empty string when CORS must not start, `*` when all origins are allowed,
 		otherwise a comma-separated allowlist with no extra spaces.
@@ -52,6 +61,12 @@ def normalize_cors_config(value: typing.Optional[str]) -> str:
 def normalize_header_list(value: typing.Union[str, typing.Iterable[str], None]) -> str:
 	"""
 	Normalize Allow-Headers / Allow-Methods into a comma-separated header value.
+
+	Args:
+		value: A config string, an iterable of header or method names, or `None`.
+
+	Returns:
+		A comma-separated header value, or an empty string.
 	"""
 	return ", ".join(split_config_list(value))
 
@@ -59,6 +74,12 @@ def normalize_header_list(value: typing.Union[str, typing.Iterable[str], None]) 
 def normalize_path_list(value: typing.Union[str, typing.Iterable[str], None]) -> typing.List[str]:
 	"""
 	Normalize preflight path patterns into a list of path strings.
+
+	Args:
+		value: A config string, an iterable of path patterns, or `None`.
+
+	Returns:
+		A list of path patterns.
 	"""
 	return split_config_list(value)
 
@@ -66,6 +87,12 @@ def normalize_path_list(value: typing.Union[str, typing.Iterable[str], None]) ->
 def path_to_route(path: str) -> str:
 	"""
 	Convert a trailing glob (`/foo/*`) into an aiohttp route pattern (`/foo/{tail:.*}`).
+
+	Args:
+		path: A CORS path pattern, possibly ending in `/*`.
+
+	Returns:
+		An aiohttp route pattern. Paths without a trailing glob are returned unchanged.
 	"""
 	path = path.strip()
 	if path.endswith("/*"):
@@ -79,6 +106,13 @@ def path_matches(request_path: str, patterns: typing.Iterable[str]) -> bool:
 
 	A pattern ending in `/*` is a prefix (`/foo/*` matches `/foo` and `/foo/...`).
 	Other patterns are exact.
+
+	Args:
+		request_path: The URL path of the request.
+		patterns: CORS path patterns (`/foo/*` prefixes or exact paths).
+
+	Returns:
+		`True` if the path matches at least one pattern, otherwise `False`.
 	"""
 	for pattern in patterns:
 		if _path_matches_pattern(request_path, pattern):
@@ -92,6 +126,13 @@ def parse_allow_origin(
 	"""
 	Normalize an `enable_cors(allow_origin=...)` value to `*`, a comma-separated
 	allowlist, an empty string, or a callable `origin -> bool`.
+
+	Args:
+		allow_origin: `"*"`, a string or iterable of origins, or a callable
+			`origin: str -> bool`.
+
+	Returns:
+		`"*"` , a comma-separated allowlist, an empty string, or the callable unchanged.
 	"""
 	if isinstance(allow_origin, str):
 		return normalize_cors_config(allow_origin)
@@ -124,6 +165,17 @@ class CORSHandler:
 		allow_methods: typing.Union[str, typing.Iterable[str], None],
 		allow_credentials: bool,
 	):
+		"""
+		Create a CORS policy applied to both preflight and actual responses.
+
+		Args:
+			allow_origin: `"*"` to allow every origin, a string or iterable of allowed
+				origins, or a callable `origin: str -> bool`.
+			paths: Path prefixes (`/foo/*`) and exact paths that receive CORS headers.
+			allow_headers: Allowed request headers.
+			allow_methods: Allowed HTTP methods.
+			allow_credentials: Whether browsers may send cookies and Authorization.
+		"""
 		self.Paths = []
 		self._PathSet = set()
 		self.set_policy(allow_origin, allow_headers, allow_methods, allow_credentials)
@@ -137,6 +189,16 @@ class CORSHandler:
 		allow_methods: typing.Union[str, typing.Iterable[str], None],
 		allow_credentials: bool,
 	):
+		"""
+		Replace the origin, header, method, and credentials policy.
+
+		Args:
+			allow_origin: `"*"` to allow every origin, a string or iterable of allowed
+				origins, or a callable `origin: str -> bool`.
+			allow_headers: Allowed request headers.
+			allow_methods: Allowed HTTP methods.
+			allow_credentials: Whether browsers may send cookies and Authorization.
+		"""
 		self._set_allow_origin(allow_origin)
 		self.AllowHeaders = normalize_header_list(allow_headers)
 		self.AllowMethods = normalize_header_list(allow_methods)
@@ -144,6 +206,12 @@ class CORSHandler:
 
 
 	def add_paths(self, paths: typing.Union[str, typing.Iterable[str], None]):
+		"""
+		Add CORS path patterns. Duplicates are ignored.
+
+		Args:
+			paths: Path prefixes (`/foo/*`) and exact paths, or `None`.
+		"""
 		for path in normalize_path_list(paths):
 			if path not in self._PathSet:
 				self._PathSet.add(path)
@@ -151,6 +219,15 @@ class CORSHandler:
 
 
 	def is_origin_allowed(self, origin: typing.Optional[str]) -> bool:
+		"""
+		Return whether `origin` is allowed by the current policy.
+
+		Args:
+			origin: The request `Origin` header, or `None` if it is missing.
+
+		Returns:
+			`True` if the origin is present and allowed, otherwise `False`.
+		"""
 		if not origin:
 			return False
 		if self.OriginValidator is not None:
@@ -163,6 +240,14 @@ class CORSHandler:
 	def headers_for(self, origin: typing.Optional[str], path: str) -> typing.Dict[str, str]:
 		"""
 		Return CORS headers for this request, or an empty dict if CORS must not apply.
+
+		Args:
+			origin: The request `Origin` header, or `None` if it is missing.
+			path: The URL path of the request.
+
+		Returns:
+			A mapping of CORS header names to values. Empty when the path is outside
+			the configured patterns or the origin is missing or not allowed.
 		"""
 		if not path_matches(path, self.Paths):
 			return {}
@@ -188,6 +273,16 @@ class CORSHandler:
 
 
 	def apply(self, request, response):
+		"""
+		Write CORS headers onto `response` when the request is allowed.
+
+		`Vary: Origin` is merged into any existing `Vary` token list. `Vary: *` is
+		left unchanged.
+
+		Args:
+			request: The incoming aiohttp request.
+			response: The aiohttp response being prepared.
+		"""
 		for name, value in self.headers_for(request.headers.get("Origin"), request.path).items():
 			if name == "Vary":
 				_merge_vary_origin(response.headers)
@@ -199,6 +294,13 @@ class CORSHandler:
 		self,
 		allow_origin: typing.Union[str, typing.Iterable[str], typing.Callable[[str], bool]],
 	):
+		"""
+		Replace only the origin policy.
+
+		Args:
+			allow_origin: `"*"`, a string or iterable of origins, or a callable
+				`origin: str -> bool`.
+		"""
 		parsed = parse_allow_origin(allow_origin)
 		if callable(parsed):
 			self.AllowAll = False
@@ -219,6 +321,9 @@ def _merge_vary_origin(headers) -> None:
 	Add `Origin` to `Vary` without dropping existing tokens.
 
 	`Vary: *` already varies on every header, including Origin, so it is left unchanged.
+
+	Args:
+		headers: A mutable mapping of response headers.
 	"""
 	existing = headers.get("Vary")
 	if existing is None:
@@ -233,6 +338,16 @@ def _merge_vary_origin(headers) -> None:
 
 
 def _path_matches_pattern(request_path: str, pattern: str) -> bool:
+	"""
+	Return whether `request_path` matches a single CORS path pattern.
+
+	Args:
+		request_path: The URL path of the request.
+		pattern: A `/foo/*` prefix or an exact path.
+
+	Returns:
+		`True` if the path matches the pattern, otherwise `False`.
+	"""
 	if pattern.endswith("/*"):
 		prefix = pattern[:-1]  # "/foo/" or "/"
 		if request_path.startswith(prefix):
