@@ -178,6 +178,12 @@ class CORSHandler:
 		"""
 		self.Paths = []
 		self._PathSet = set()
+		self.AllowHeaders = ""
+		self.AllowMethods = ""
+		self.AllowCredentials = False
+		self.AllowAll = False
+		self.AllowedOrigins = set()
+		self.OriginValidator = None
 		self.set_policy(allow_origin, allow_headers, allow_methods, allow_credentials)
 		self.add_paths(paths)
 
