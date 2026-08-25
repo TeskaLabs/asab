@@ -21,7 +21,7 @@ cors=*
 cors_preflight_paths=/*
 cors_allow_headers=Authorization, Content-Type, X-App, X-Request-Id
 cors_allow_methods=GET, POST, PUT, PATCH, DELETE, OPTIONS
-cors_allow_credentials=yes
+cors_allow_credentials=no
 ```
 
 | Option | Meaning |
