@@ -2,13 +2,12 @@ import asyncio
 import os
 import tempfile
 import logging
-import hashlib
 import re
 import typing
 
 from .filesystem import SimpleFileSystemLibraryProvider
 from ...config import Config
-from ...utils import convert_to_seconds
+from ...utils import convert_to_seconds, get_source_id
 
 #
 
@@ -98,7 +97,7 @@ class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 			self.RepoPath = os.path.join(
 				tempdir,
 				"asab.library.git",
-				hashlib.sha256(path.encode('utf-8')).hexdigest()
+				get_source_id(path)
 			)
 
 		super().__init__(library, self.RepoPath, layer, source=source, set_ready=False)

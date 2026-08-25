@@ -1,5 +1,6 @@
-import hashlib
 import typing
+
+from ...utils import get_source_id
 
 
 class LibraryProviderABC(object):
@@ -11,7 +12,7 @@ class LibraryProviderABC(object):
 		self.Library = library
 		self.Layer = layer
 		self.Source = source
-		self.ID = hashlib.sha256(source.encode("utf-8")).hexdigest()
+		self.ID = get_source_id(source)
 		self.IsReady = False
 
 

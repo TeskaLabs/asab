@@ -1,7 +1,6 @@
 import os.path
 import lzma
 import logging
-import hashlib
 import random
 import tarfile
 import asyncio
@@ -14,7 +13,7 @@ import aiohttp
 
 from .filesystem import SimpleFileSystemLibraryProvider
 from ..dirsync import synchronize_dirs
-from ...utils import convert_to_seconds
+from ...utils import convert_to_seconds, get_source_id
 
 #
 
@@ -105,7 +104,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 			self.RootPath = os.path.join(
 				tempdir,
 				"asab.library.libsreg",
-				hashlib.sha256(path.encode("utf-8")).hexdigest()
+				get_source_id(path)
 			)
 		else:
 			self.RootPath = repodir

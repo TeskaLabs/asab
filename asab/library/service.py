@@ -3,7 +3,6 @@ import io
 import time
 import os.path
 import typing
-import hashlib
 import tarfile
 import asyncio
 import logging
@@ -18,6 +17,7 @@ from ..config import Config
 from ..log import LOG_NOTICE
 from .item import LibraryItem
 from ..application import Application
+from ..utils import get_source_id
 from .providers.abc import LibraryProviderABC
 from ..exceptions import LibraryInvalidPathError, LibraryNotReadyError
 from ..contextvars import Tenant
@@ -1027,7 +1027,7 @@ class LibraryService(Service):
 				await provider.subscribe(path, target)
 
 	def _get_repodir(self, path: str) -> str:
-		return os.path.join(self.CacheDir, hashlib.sha256(path.encode('utf-8')).hexdigest())
+		return os.path.join(self.CacheDir, get_source_id(path))
 
 
 def _validate_path_item(path: str) -> None:
