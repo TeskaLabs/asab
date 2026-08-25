@@ -8,6 +8,7 @@ prefix filtering, duplicate-field precedence, and deterministic merge order.
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 from test.test_library.library_schema_test_utils import (
 	make_filesystem_provider,
@@ -17,7 +18,7 @@ from test.test_library.library_schema_test_utils import (
 )
 
 
-DUPLICATE_FIELD_WARNING = "Skipping schema extension field: field already exists."
+DUPLICATE_FIELD_WARNING = "Skipping schema extension fields: fields already exist."
 
 
 class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
@@ -141,7 +142,7 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 			write_fixture(root, "/Schemas/Extensions/ECS-Conflict.yaml", "extension_multiple_conflicts.yaml")
 			service = make_schema_service(make_filesystem_provider(root))
 
-			with self.assertLogs("asab.library.schema", level="WARNING") as logs:
+			with mock.patch("asab.library.schema.L.warning") as warning:
 				schema = await service.read_schema("/Schemas/ECS.yaml")
 
 			self.assertEqual(
@@ -159,10 +160,12 @@ class TestLibrarySchemaExtensions(unittest.IsolatedAsyncioTestCase):
 				"bool",
 				"Non-conflicting field from the same extension should still be merged.",
 			)
-			self.assertEqual(
-				sum(DUPLICATE_FIELD_WARNING in message for message in logs.output),
-				2,
-				"Both conflicting extension fields should log duplicate skips.",
+			warning.assert_called_once_with(
+				DUPLICATE_FIELD_WARNING,
+				struct_data={
+					"path": "/Schemas/Extensions/ECS-Conflict.yaml",
+					"fields": ["host.name", "event.created"],
+				},
 			)
 
 	async def test_extension_for_other_schema_is_ignored(self):
