@@ -229,7 +229,10 @@ class CORSHandler:
 			allow_methods: Allowed HTTP methods.
 			allow_credentials: Whether browsers may send cookies and Authorization.
 		"""
-		self._set_allow_origin(allow_origin)
+		allow_all, allowed_origins, origin_validator = self._parse_origin_policy(allow_origin)
+		self.AllowAll = allow_all
+		self.AllowedOrigins = allowed_origins
+		self.OriginValidator = origin_validator
 		self.AllowHeaders = normalize_header_list(allow_headers)
 		self.AllowMethods = normalize_header_list(allow_methods)
 		self.AllowCredentials = bool(allow_credentials)
@@ -368,30 +371,30 @@ class CORSHandler:
 				response.headers[name] = value
 
 
-	def _set_allow_origin(
+	def _parse_origin_policy(
 		self,
 		allow_origin: typing.Union[str, typing.Iterable[str], typing.Callable[[str], bool]],
-	):
+	) -> typing.Tuple[bool, typing.Set[str], typing.Optional[typing.Callable[[str], bool]]]:
 		"""
-		Replace only the origin policy.
+		Parse an origin policy into its three runtime fields.
+
+		This computes the complete policy without mutating the handler, so a
+		`TypeError` from a bad value cannot leave the handler half-updated. The
+		caller assigns the returned tuple in one step.
 
 		Args:
 			allow_origin: `"*"`, a string or iterable of origins, or a callable
 				`origin: str -> bool`.
+
+		Returns:
+			A tuple `(allow_all, allowed_origins, origin_validator)`.
 		"""
 		parsed = parse_allow_origin(allow_origin)
 		if callable(parsed):
-			self.AllowAll = False
-			self.AllowedOrigins = set()
-			self.OriginValidator = parsed
-			return
-		self.OriginValidator = None
+			return False, set(), parsed
 		if parsed == "*":
-			self.AllowAll = True
-			self.AllowedOrigins = set()
-			return
-		self.AllowAll = False
-		self.AllowedOrigins = set(normalize_origin(origin) for origin in split_config_list(parsed))
+			return True, set(), None
+		return False, set(normalize_origin(origin) for origin in split_config_list(parsed)), None
 
 
 def _merge_vary_origin(headers) -> None:

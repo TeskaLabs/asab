@@ -223,6 +223,10 @@ class WebContainer(Configurable):
 		if allow_credentials is None:
 			allow_credentials = self.Config.getboolean("cors_allow_credentials")
 
+		# Normalize paths before touching any state so a bad value cannot leave
+		# the handler half-updated.
+		preflight_paths = cors.normalize_path_list(preflight_paths)
+
 		if self.CORSHandler is None:
 			self.CORSHandler = cors.CORSHandler(
 				allow_origin=allow_origin,
@@ -232,13 +236,13 @@ class WebContainer(Configurable):
 				allow_credentials=allow_credentials,
 			)
 		else:
+			self.CORSHandler.add_paths(preflight_paths)
 			self.CORSHandler.set_policy(
 				allow_origin,
 				allow_headers,
 				allow_methods,
 				allow_credentials,
 			)
-			self.CORSHandler.add_paths(preflight_paths)
 
 		self._register_preflight_routes()
 
