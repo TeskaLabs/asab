@@ -201,6 +201,7 @@ class CORSHandler:
 		"""
 		self.Paths = []
 		self._PathSet = set()
+		self._RouteSet = set()
 		self.AllowHeaders = ""
 		self.AllowMethods = ""
 		self.AllowCredentials = False
@@ -238,13 +239,26 @@ class CORSHandler:
 		"""
 		Add CORS path patterns. Duplicates are ignored.
 
+		A path is a duplicate when its expanded route set is already covered by an
+		existing entry. `/foo/*` expands to `/foo/{tail:.*}` and `/foo`, so adding
+		`/foo` after `/foo/*` is a no-op, and adding `/foo/*` after `/foo` keeps
+		both (`/foo/*` also covers sub-paths). This keeps `Paths` free of redundant
+		entries while `_register_preflight_routes` stays idempotent.
+
 		Args:
 			paths: Path prefixes (`/foo/*`) and exact paths, or `None`.
 		"""
 		for path in normalize_path_list(paths):
-			if path not in self._PathSet:
-				self._PathSet.add(path)
-				self.Paths.append(path)
+			if path in self._PathSet:
+				continue
+			route_paths = {path_to_route(path)}
+			if path.endswith("/*") and path != "/*":
+				route_paths.add(path[:-2])
+			if route_paths <= self._RouteSet:
+				continue
+			self._PathSet.add(path)
+			self.Paths.append(path)
+			self._RouteSet = self._RouteSet | route_paths
 
 
 	def is_origin_allowed(self, origin: typing.Optional[str]) -> bool:

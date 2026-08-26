@@ -240,7 +240,7 @@ class WebContainer(Configurable):
 			)
 			self.CORSHandler.add_paths(preflight_paths)
 
-		self._register_preflight_routes(preflight_paths)
+		self._register_preflight_routes()
 
 
 	def add_preflight_handlers(self, preflight_paths: typing.Iterable[str]):
@@ -256,14 +256,22 @@ class WebContainer(Configurable):
 		if self.CORSHandler is None:
 			raise RuntimeError("CORS is not enabled; call enable_cors() first.")
 		self.CORSHandler.add_paths(preflight_paths)
-		self._register_preflight_routes(preflight_paths)
+		self._register_preflight_routes()
 
 
-	def _register_preflight_routes(self, preflight_paths: typing.Union[str, typing.Iterable[str], None]):
-		for path in cors.normalize_path_list(preflight_paths):
+	def _register_preflight_routes(self):
+		"""
+		Register OPTIONS routes for all CORS path patterns.
+
+		The handler's `Paths` list is the single source of truth for path patterns;
+		this method reads it, so it is idempotent and never registers the same route
+		twice. Paths ending in `/*` produce two routes: the glob (`/foo/{tail:.*}`)
+		and the directory itself (`/foo`), because aiohttp's `{tail:.*}` does not
+		match the bare directory. Root `/*` is exempt because `/{tail:.*}` already
+		covers `/`.
+		"""
+		for path in self.CORSHandler.Paths:
 			route_paths = [cors.path_to_route(path)]
-			# `/foo/{tail:.*}` does not match OPTIONS `/foo`; register the directory too.
-			# Root `/*` already covers `/` via `/{tail:.*}`.
 			if path.endswith("/*") and path != "/*":
 				directory = path[:-2]
 				if directory:

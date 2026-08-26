@@ -329,3 +329,21 @@ class TestWebContainerPreflight(unittest.TestCase):
 			match_info.handler(make_mocked_request("OPTIONS", "/foo", app=self.container.WebApp))
 		)
 		self.assertEqual(response.status, 204)
+
+
+	def test_overlapping_paths_do_not_register_duplicate_routes(self):
+		# `/foo/*` expands to `/foo/{tail:.*}` and `/foo`; a separate `/foo` entry
+		# must not register the `/foo` route a second time.
+		self.container.enable_cors(allow_origin="*", preflight_paths=["/foo/*", "/foo"])
+		self.assertEqual(
+			self.container._CORSPreflightRoutes,
+			{"/foo/{tail:.*}", "/foo"},
+		)
+
+		# Calling enable_cors() again must not add duplicates either.
+		self.container.enable_cors(allow_origin="*", preflight_paths=["/foo/*"])
+		self.assertEqual(
+			self.container._CORSPreflightRoutes,
+			{"/foo/{tail:.*}", "/foo"},
+		)
+		self.assertEqual(self.container.CORSHandler.Paths, ["/foo/*"])
