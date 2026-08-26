@@ -12,7 +12,6 @@ import aiohttp
 
 from ...config import Config
 from ..item import LibraryItem
-from ...utils import get_source_id
 from .abc import LibraryProviderABC
 
 #
@@ -51,7 +50,7 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 		if self.CacheDir == 'false':
 			self.CacheDir = None
 		elif self.CacheDir == 'true':
-			self.CacheDir = os.path.join(tempfile.gettempdir(), "asab.library.azure.{}".format(get_source_id(path)))
+			self.CacheDir = os.path.join(tempfile.gettempdir(), "asab.library.azure.{}".format(self.ID))
 
 		# Ensure that the case directory exists
 		if self.CacheDir is not None:

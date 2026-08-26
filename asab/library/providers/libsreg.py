@@ -60,6 +60,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 
 
 	def __init__(self, library, path, layer, *, source, repodir=None):
+		self.ID = get_source_id(source)
 
 		url = urllib.parse.urlparse(path)
 		assert url.scheme.startswith("libsreg+")
@@ -104,7 +105,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 			self.RootPath = os.path.join(
 				tempdir,
 				"asab.library.libsreg",
-				get_source_id(path)
+				self.ID
 			)
 		else:
 			self.RootPath = repodir

@@ -70,6 +70,7 @@ class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 		verify_ssh_fingerprint=yes|no (default: no - auto-accepts host keys)
 	"""
 	def __init__(self, library, path, layer, *, source, repodir=None):
+		self.ID = get_source_id(source)
 
 		# Initialize attributes to avoid attribute errors
 		self.URLScheme = ""
@@ -97,7 +98,7 @@ class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 			self.RepoPath = os.path.join(
 				tempdir,
 				"asab.library.git",
-				get_source_id(path)
+				self.ID
 			)
 
 		super().__init__(library, self.RepoPath, layer, source=source, set_ready=False)
