@@ -58,6 +58,29 @@ def normalize_cors_config(value: typing.Optional[str]) -> str:
 	return ",".join(items)
 
 
+def normalize_origin(origin: str) -> str:
+	"""
+	Normalize an origin for comparison and for the `Access-Control-Allow-Origin` header.
+
+	The scheme and host of an origin are case-insensitive (RFC 6454), so they are
+	lowercased. A trailing slash is stripped because browsers and clients send both
+	`https://app.example` and `https://app.example/`. The CORS `Origin` header never
+	contains a path, query, or fragment; if one is present in the value it is left
+	as-is and will simply not match an allowlist entry.
+
+	Args:
+		origin: An origin, for example `https://App.Example/`.
+
+	Returns:
+		The normalized origin, for example `https://app.example`.
+	"""
+	origin = origin.strip().rstrip("/")
+	scheme, sep, rest = origin.partition("://")
+	if sep:
+		origin = "{}{}{}".format(scheme.lower(), sep, rest.lower())
+	return origin
+
+
 def normalize_header_list(value: typing.Union[str, typing.Iterable[str], None]) -> str:
 	"""
 	Normalize Allow-Headers / Allow-Methods into a comma-separated header value.
@@ -228,6 +251,9 @@ class CORSHandler:
 		"""
 		Return whether `origin` is allowed by the current policy.
 
+		Origins are compared in their normalized form: the scheme and host are
+		case-insensitive and a trailing slash is ignored.
+
 		Args:
 			origin: The request `Origin` header, or `None` if it is missing.
 
@@ -240,7 +266,7 @@ class CORSHandler:
 			return bool(self.OriginValidator(origin))
 		if self.AllowAll:
 			return True
-		return origin in self.AllowedOrigins
+		return normalize_origin(origin) in self.AllowedOrigins
 
 
 	def headers_for(self, origin: typing.Optional[str], path: str) -> typing.Dict[str, str]:
@@ -264,7 +290,7 @@ class CORSHandler:
 			allow_origin = "*"
 		else:
 			# Echo the request origin. Never send `*` together with credentials.
-			allow_origin = origin
+			allow_origin = normalize_origin(origin)
 
 		headers = {
 			"Access-Control-Allow-Origin": allow_origin,
@@ -319,7 +345,7 @@ class CORSHandler:
 			self.AllowedOrigins = set()
 			return
 		self.AllowAll = False
-		self.AllowedOrigins = set(split_config_list(parsed))
+		self.AllowedOrigins = set(normalize_origin(origin) for origin in split_config_list(parsed))
 
 
 def _merge_vary_origin(headers) -> None:

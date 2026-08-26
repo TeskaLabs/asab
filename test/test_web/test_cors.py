@@ -10,6 +10,7 @@ from asab.web.cors import (
 	CORSHandler,
 	normalize_cors_config,
 	normalize_header_list,
+	normalize_origin,
 	normalize_path_list,
 	path_matches,
 	path_to_route,
@@ -70,6 +71,19 @@ class TestNormalizeCorsConfig(unittest.TestCase):
 			normalize_cors_config(value),
 			",".join(["https://o{}.example".format(i) for i in range(12)]),
 		)
+
+
+class TestNormalizeOrigin(unittest.TestCase):
+
+	def test_lowercases_scheme_and_host(self):
+		self.assertEqual(normalize_origin("HTTPS://App.Example"), "https://app.example")
+		self.assertEqual(normalize_origin("https://app.example"), "https://app.example")
+
+	def test_strips_trailing_slash(self):
+		self.assertEqual(normalize_origin("https://app.example/"), "https://app.example")
+
+	def test_null_origin_unchanged(self):
+		self.assertEqual(normalize_origin("null"), "null")
 
 
 class TestNormalizeLists(unittest.TestCase):
@@ -163,6 +177,19 @@ class TestCORSHandler(unittest.TestCase):
 
 		handler = _handler(allow_origin=["https://a.example", "https://b.example"])
 		self.assertTrue(handler.is_origin_allowed("https://b.example"))
+		self.assertFalse(handler.is_origin_allowed("https://c.example"))
+
+	def test_origin_matching_is_case_insensitive(self):
+		handler = _handler(
+			allow_origin=["https://App.Example", "https://b.example/"],
+			allow_credentials=True,
+		)
+		self.assertTrue(handler.is_origin_allowed("HTTPS://app.example"))
+		self.assertTrue(handler.is_origin_allowed("https://app.example/"))
+		self.assertTrue(handler.is_origin_allowed("https://B.Example"))
+
+		headers = handler.headers_for("HTTPS://App.Example/", "/hello")
+		self.assertEqual(headers["Access-Control-Allow-Origin"], "https://app.example")
 		self.assertFalse(handler.is_origin_allowed("https://c.example"))
 
 	def test_callback_allow_and_deny(self):
