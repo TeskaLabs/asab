@@ -297,7 +297,7 @@ class CORSHandler:
 		Return CORS headers for this request, or an empty dict if CORS must not apply.
 
 		For preflight requests (OPTIONS with `Access-Control-Request-Headers` or
-		`Access-Control-Request-Methods`), the `Access-Control-Allow-Headers` and
+		`Access-Control-Request-Method`), the `Access-Control-Allow-Headers` and
 		`Access-Control-Allow-Methods` values echo the intersection of what the
 		request asked for and what the policy allows. This keeps the advertised
 		list aligned with what the server actually accepts. On actual responses
@@ -308,7 +308,7 @@ class CORSHandler:
 			path: The URL path of the request.
 			request_headers: Value of the `Access-Control-Request-Headers` preflight
 				header, or `None` for actual requests.
-			request_methods: Value of the `Access-Control-Request-Methods` preflight
+			request_methods: Value of the `Access-Control-Request-Method` preflight
 				header, or `None` for actual requests.
 
 		Returns:
@@ -363,7 +363,7 @@ class CORSHandler:
 			request.headers.get("Origin"),
 			request.path,
 			request.headers.get("Access-Control-Request-Headers"),
-			request.headers.get("Access-Control-Request-Methods"),
+			request.headers.get("Access-Control-Request-Method"),
 		).items():
 			if name == "Vary":
 				_merge_vary_origin(response.headers)

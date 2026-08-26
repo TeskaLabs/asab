@@ -282,7 +282,7 @@ class TestCORSHandler(unittest.TestCase):
 		)
 		request = _Request("/hello", "https://a.example")
 		request.headers["Access-Control-Request-Headers"] = "Authorization, X-PINGOTHER"
-		request.headers["Access-Control-Request-Methods"] = "POST, DELETE"
+		request.headers["Access-Control-Request-Method"] = "POST, DELETE"
 		response = _Response()
 		handler.apply(request, response)
 		self.assertEqual(response.headers["Access-Control-Allow-Headers"], "Authorization")
