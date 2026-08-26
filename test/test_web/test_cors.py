@@ -227,6 +227,67 @@ class TestCORSHandler(unittest.TestCase):
 		actual = handler.headers_for(origin, "/api/item")
 		self.assertEqual(preflight, actual)
 
+	def test_preflight_echoes_requested_headers_and_methods(self):
+		handler = _handler(
+			allow_origin=["https://a.example"],
+			allow_headers=["Authorization", "Content-Type"],
+			allow_methods=["GET", "POST", "OPTIONS"],
+			allow_credentials=True,
+		)
+		origin = "https://a.example"
+		headers = handler.headers_for(
+			origin,
+			"/api/item",
+			request_headers="Authorization, X-Requested-With",
+			request_methods="POST, DELETE",
+		)
+		# Only what the request asked for and the policy allows is echoed.
+		self.assertEqual(headers["Access-Control-Allow-Headers"], "Authorization")
+		self.assertEqual(headers["Access-Control-Allow-Methods"], "POST")
+
+	def test_preflight_with_empty_policy_omits_allow_headers(self):
+		handler = _handler(
+			allow_origin=["https://a.example"],
+			allow_headers="",
+			allow_methods="",
+			allow_credentials=True,
+		)
+		origin = "https://a.example"
+		headers = handler.headers_for(
+			origin,
+			"/api/item",
+			request_headers="Authorization",
+			request_methods="POST",
+		)
+		self.assertEqual(headers["Access-Control-Allow-Headers"], "")
+		self.assertEqual(headers["Access-Control-Allow-Methods"], "")
+
+	def test_actual_response_uses_configured_lists(self):
+		handler = _handler(
+			allow_origin=["https://a.example"],
+			allow_headers=["Authorization", "Content-Type"],
+			allow_methods=["GET", "POST", "OPTIONS"],
+			allow_credentials=True,
+		)
+		headers = handler.headers_for("https://a.example", "/api/item")
+		self.assertEqual(headers["Access-Control-Allow-Headers"], "Authorization, Content-Type")
+		self.assertEqual(headers["Access-Control-Allow-Methods"], "GET, POST, OPTIONS")
+
+	def test_apply_threads_preflight_request_headers(self):
+		handler = _handler(
+			allow_origin=["https://a.example"],
+			allow_headers=["Authorization", "Content-Type"],
+			allow_methods=["GET", "POST", "OPTIONS"],
+			allow_credentials=True,
+		)
+		request = _Request("/hello", "https://a.example")
+		request.headers["Access-Control-Request-Headers"] = "Authorization, X-PINGOTHER"
+		request.headers["Access-Control-Request-Methods"] = "POST, DELETE"
+		response = _Response()
+		handler.apply(request, response)
+		self.assertEqual(response.headers["Access-Control-Allow-Headers"], "Authorization")
+		self.assertEqual(response.headers["Access-Control-Allow-Methods"], "POST")
+
 	def test_replace_origin_policy_and_add_paths(self):
 		handler = _handler(allow_origin="*", paths=["/*"])
 		self.assertTrue(handler.is_origin_allowed("https://any.example"))

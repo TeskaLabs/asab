@@ -283,13 +283,30 @@ class CORSHandler:
 		return normalize_origin(origin) in self.AllowedOrigins
 
 
-	def headers_for(self, origin: typing.Optional[str], path: str) -> typing.Dict[str, str]:
+	def headers_for(
+		self,
+		origin: typing.Optional[str],
+		path: str,
+		request_headers: typing.Optional[str] = None,
+		request_methods: typing.Optional[str] = None,
+	) -> typing.Dict[str, str]:
 		"""
 		Return CORS headers for this request, or an empty dict if CORS must not apply.
+
+		For preflight requests (OPTIONS with `Access-Control-Request-Headers` or
+		`Access-Control-Request-Methods`), the `Access-Control-Allow-Headers` and
+		`Access-Control-Allow-Methods` values echo the intersection of what the
+		request asked for and what the policy allows. This keeps the advertised
+		list aligned with what the server actually accepts. On actual responses
+		the configured lists are used unchanged.
 
 		Args:
 			origin: The request `Origin` header, or `None` if it is missing.
 			path: The URL path of the request.
+			request_headers: Value of the `Access-Control-Request-Headers` preflight
+				header, or `None` for actual requests.
+			request_methods: Value of the `Access-Control-Request-Methods` preflight
+				header, or `None` for actual requests.
 
 		Returns:
 			A mapping of CORS header names to values. Empty when the path is outside
@@ -306,10 +323,20 @@ class CORSHandler:
 			# Echo the request origin. Never send `*` together with credentials.
 			allow_origin = normalize_origin(origin)
 
+		if request_headers is not None and self.AllowHeaders:
+			allow_headers = _intersect_requested(request_headers, self.AllowHeaders)
+		else:
+			allow_headers = self.AllowHeaders
+
+		if request_methods is not None and self.AllowMethods:
+			allow_methods = _intersect_requested(request_methods, self.AllowMethods)
+		else:
+			allow_methods = self.AllowMethods
+
 		headers = {
 			"Access-Control-Allow-Origin": allow_origin,
-			"Access-Control-Allow-Methods": self.AllowMethods,
-			"Access-Control-Allow-Headers": self.AllowHeaders,
+			"Access-Control-Allow-Methods": allow_methods,
+			"Access-Control-Allow-Headers": allow_headers,
 			"Access-Control-Max-Age": "86400",
 			"Vary": "Origin",
 		}
@@ -329,7 +356,12 @@ class CORSHandler:
 			request: The incoming aiohttp request.
 			response: The aiohttp response being prepared.
 		"""
-		for name, value in self.headers_for(request.headers.get("Origin"), request.path).items():
+		for name, value in self.headers_for(
+			request.headers.get("Origin"),
+			request.path,
+			request.headers.get("Access-Control-Request-Headers"),
+			request.headers.get("Access-Control-Request-Methods"),
+		).items():
 			if name == "Vary":
 				_merge_vary_origin(response.headers)
 			else:
@@ -381,6 +413,31 @@ def _merge_vary_origin(headers) -> None:
 	if any(token.lower() == "origin" for token in tokens):
 		return
 	headers["Vary"] = "{}, Origin".format(existing.strip())
+
+
+def _intersect_requested(requested: str, allowed: str) -> str:
+	"""
+	Return the tokens from `requested` that are present in `allowed`.
+
+	Used for preflight responses: the browser asks for the headers or methods it
+	will use via `Access-Control-Request-*`, and the server answers with the
+	intersection so the advertised list never advertises more than the policy.
+
+	Args:
+		requested: Comma-separated tokens from the preflight request.
+		allowed: Comma-separated tokens from the CORS policy.
+
+	Returns:
+		A comma-separated string of the tokens in `requested` that are in `allowed`,
+		in the order requested. Empty if none are allowed.
+	"""
+	allowed_tokens = {token.strip().lower() for token in allowed.split(",") if token.strip()}
+	result = []
+	for token in requested.split(","):
+		token = token.strip()
+		if token and token.lower() in allowed_tokens:
+			result.append(token)
+	return ", ".join(result)
 
 
 def _path_matches_pattern(request_path: str, pattern: str) -> bool:
