@@ -10,6 +10,7 @@ from asab.web.cors import (
 	CORSHandler,
 	normalize_cors_config,
 	normalize_header_list,
+	normalize_origin,
 	normalize_path_list,
 	path_matches,
 	path_to_route,
@@ -70,6 +71,19 @@ class TestNormalizeCorsConfig(unittest.TestCase):
 			normalize_cors_config(value),
 			",".join(["https://o{}.example".format(i) for i in range(12)]),
 		)
+
+
+class TestNormalizeOrigin(unittest.TestCase):
+
+	def test_lowercases_scheme_and_host(self):
+		self.assertEqual(normalize_origin("HTTPS://App.Example"), "https://app.example")
+		self.assertEqual(normalize_origin("https://app.example"), "https://app.example")
+
+	def test_strips_trailing_slash(self):
+		self.assertEqual(normalize_origin("https://app.example/"), "https://app.example")
+
+	def test_null_origin_unchanged(self):
+		self.assertEqual(normalize_origin("null"), "null")
 
 
 class TestNormalizeLists(unittest.TestCase):
@@ -165,6 +179,19 @@ class TestCORSHandler(unittest.TestCase):
 		self.assertTrue(handler.is_origin_allowed("https://b.example"))
 		self.assertFalse(handler.is_origin_allowed("https://c.example"))
 
+	def test_origin_matching_is_case_insensitive(self):
+		handler = _handler(
+			allow_origin=["https://App.Example", "https://b.example/"],
+			allow_credentials=True,
+		)
+		self.assertTrue(handler.is_origin_allowed("HTTPS://app.example"))
+		self.assertTrue(handler.is_origin_allowed("https://app.example/"))
+		self.assertTrue(handler.is_origin_allowed("https://B.Example"))
+
+		headers = handler.headers_for("HTTPS://App.Example/", "/hello")
+		self.assertEqual(headers["Access-Control-Allow-Origin"], "https://app.example")
+		self.assertFalse(handler.is_origin_allowed("https://c.example"))
+
 	def test_callback_allow_and_deny(self):
 		allowed = {"https://client.example"}
 
@@ -199,6 +226,67 @@ class TestCORSHandler(unittest.TestCase):
 		preflight = handler.headers_for(origin, "/api/item")
 		actual = handler.headers_for(origin, "/api/item")
 		self.assertEqual(preflight, actual)
+
+	def test_preflight_echoes_requested_headers_and_methods(self):
+		handler = _handler(
+			allow_origin=["https://a.example"],
+			allow_headers=["Authorization", "Content-Type"],
+			allow_methods=["GET", "POST", "OPTIONS"],
+			allow_credentials=True,
+		)
+		origin = "https://a.example"
+		headers = handler.headers_for(
+			origin,
+			"/api/item",
+			request_headers="Authorization, X-Requested-With",
+			request_methods="POST, DELETE",
+		)
+		# Only what the request asked for and the policy allows is echoed.
+		self.assertEqual(headers["Access-Control-Allow-Headers"], "Authorization")
+		self.assertEqual(headers["Access-Control-Allow-Methods"], "POST")
+
+	def test_preflight_with_empty_policy_omits_allow_headers(self):
+		handler = _handler(
+			allow_origin=["https://a.example"],
+			allow_headers="",
+			allow_methods="",
+			allow_credentials=True,
+		)
+		origin = "https://a.example"
+		headers = handler.headers_for(
+			origin,
+			"/api/item",
+			request_headers="Authorization",
+			request_methods="POST",
+		)
+		self.assertEqual(headers["Access-Control-Allow-Headers"], "")
+		self.assertEqual(headers["Access-Control-Allow-Methods"], "")
+
+	def test_actual_response_uses_configured_lists(self):
+		handler = _handler(
+			allow_origin=["https://a.example"],
+			allow_headers=["Authorization", "Content-Type"],
+			allow_methods=["GET", "POST", "OPTIONS"],
+			allow_credentials=True,
+		)
+		headers = handler.headers_for("https://a.example", "/api/item")
+		self.assertEqual(headers["Access-Control-Allow-Headers"], "Authorization, Content-Type")
+		self.assertEqual(headers["Access-Control-Allow-Methods"], "GET, POST, OPTIONS")
+
+	def test_apply_threads_preflight_request_headers(self):
+		handler = _handler(
+			allow_origin=["https://a.example"],
+			allow_headers=["Authorization", "Content-Type"],
+			allow_methods=["GET", "POST", "OPTIONS"],
+			allow_credentials=True,
+		)
+		request = _Request("/hello", "https://a.example")
+		request.headers["Access-Control-Request-Headers"] = "Authorization, X-PINGOTHER"
+		request.headers["Access-Control-Request-Methods"] = "POST, DELETE"
+		response = _Response()
+		handler.apply(request, response)
+		self.assertEqual(response.headers["Access-Control-Allow-Headers"], "Authorization")
+		self.assertEqual(response.headers["Access-Control-Allow-Methods"], "POST")
 
 	def test_replace_origin_policy_and_add_paths(self):
 		handler = _handler(allow_origin="*", paths=["/*"])
@@ -302,3 +390,21 @@ class TestWebContainerPreflight(unittest.TestCase):
 			match_info.handler(make_mocked_request("OPTIONS", "/foo", app=self.container.WebApp))
 		)
 		self.assertEqual(response.status, 204)
+
+
+	def test_overlapping_paths_do_not_register_duplicate_routes(self):
+		# `/foo/*` expands to `/foo/{tail:.*}` and `/foo`; a separate `/foo` entry
+		# must not register the `/foo` route a second time.
+		self.container.enable_cors(allow_origin="*", preflight_paths=["/foo/*", "/foo"])
+		self.assertEqual(
+			self.container._CORSPreflightRoutes,
+			{"/foo/{tail:.*}", "/foo"},
+		)
+
+		# Calling enable_cors() again must not add duplicates either.
+		self.container.enable_cors(allow_origin="*", preflight_paths=["/foo/*"])
+		self.assertEqual(
+			self.container._CORSPreflightRoutes,
+			{"/foo/{tail:.*}", "/foo"},
+		)
+		self.assertEqual(self.container.CORSHandler.Paths, ["/foo/*"])

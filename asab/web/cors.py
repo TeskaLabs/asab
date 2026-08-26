@@ -58,6 +58,29 @@ def normalize_cors_config(value: typing.Optional[str]) -> str:
 	return ",".join(items)
 
 
+def normalize_origin(origin: str) -> str:
+	"""
+	Normalize an origin for comparison and for the `Access-Control-Allow-Origin` header.
+
+	The scheme and host of an origin are case-insensitive (RFC 6454), so they are
+	lowercased. A trailing slash is stripped because browsers and clients send both
+	`https://app.example` and `https://app.example/`. The CORS `Origin` header never
+	contains a path, query, or fragment; if one is present in the value it is left
+	as-is and will simply not match an allowlist entry.
+
+	Args:
+		origin: An origin, for example `https://App.Example/`.
+
+	Returns:
+		The normalized origin, for example `https://app.example`.
+	"""
+	origin = origin.strip().rstrip("/")
+	scheme, sep, rest = origin.partition("://")
+	if sep:
+		origin = "{}{}{}".format(scheme.lower(), sep, rest.lower())
+	return origin
+
+
 def normalize_header_list(value: typing.Union[str, typing.Iterable[str], None]) -> str:
 	"""
 	Normalize Allow-Headers / Allow-Methods into a comma-separated header value.
@@ -178,6 +201,7 @@ class CORSHandler:
 		"""
 		self.Paths = []
 		self._PathSet = set()
+		self._RouteSet = set()
 		self.AllowHeaders = ""
 		self.AllowMethods = ""
 		self.AllowCredentials = False
@@ -205,7 +229,10 @@ class CORSHandler:
 			allow_methods: Allowed HTTP methods.
 			allow_credentials: Whether browsers may send cookies and Authorization.
 		"""
-		self._set_allow_origin(allow_origin)
+		allow_all, allowed_origins, origin_validator = self._parse_origin_policy(allow_origin)
+		self.AllowAll = allow_all
+		self.AllowedOrigins = allowed_origins
+		self.OriginValidator = origin_validator
 		self.AllowHeaders = normalize_header_list(allow_headers)
 		self.AllowMethods = normalize_header_list(allow_methods)
 		self.AllowCredentials = bool(allow_credentials)
@@ -215,18 +242,34 @@ class CORSHandler:
 		"""
 		Add CORS path patterns. Duplicates are ignored.
 
+		A path is a duplicate when its expanded route set is already covered by an
+		existing entry. `/foo/*` expands to `/foo/{tail:.*}` and `/foo`, so adding
+		`/foo` after `/foo/*` is a no-op, and adding `/foo/*` after `/foo` keeps
+		both (`/foo/*` also covers sub-paths). This keeps `Paths` free of redundant
+		entries while `_register_preflight_routes` stays idempotent.
+
 		Args:
 			paths: Path prefixes (`/foo/*`) and exact paths, or `None`.
 		"""
 		for path in normalize_path_list(paths):
-			if path not in self._PathSet:
-				self._PathSet.add(path)
-				self.Paths.append(path)
+			if path in self._PathSet:
+				continue
+			route_paths = {path_to_route(path)}
+			if path.endswith("/*") and path != "/*":
+				route_paths.add(path[:-2])
+			if route_paths <= self._RouteSet:
+				continue
+			self._PathSet.add(path)
+			self.Paths.append(path)
+			self._RouteSet = self._RouteSet | route_paths
 
 
 	def is_origin_allowed(self, origin: typing.Optional[str]) -> bool:
 		"""
 		Return whether `origin` is allowed by the current policy.
+
+		Origins are compared in their normalized form: the scheme and host are
+		case-insensitive and a trailing slash is ignored.
 
 		Args:
 			origin: The request `Origin` header, or `None` if it is missing.
@@ -240,16 +283,33 @@ class CORSHandler:
 			return bool(self.OriginValidator(origin))
 		if self.AllowAll:
 			return True
-		return origin in self.AllowedOrigins
+		return normalize_origin(origin) in self.AllowedOrigins
 
 
-	def headers_for(self, origin: typing.Optional[str], path: str) -> typing.Dict[str, str]:
+	def headers_for(
+		self,
+		origin: typing.Optional[str],
+		path: str,
+		request_headers: typing.Optional[str] = None,
+		request_methods: typing.Optional[str] = None,
+	) -> typing.Dict[str, str]:
 		"""
 		Return CORS headers for this request, or an empty dict if CORS must not apply.
+
+		For preflight requests (OPTIONS with `Access-Control-Request-Headers` or
+		`Access-Control-Request-Methods`), the `Access-Control-Allow-Headers` and
+		`Access-Control-Allow-Methods` values echo the intersection of what the
+		request asked for and what the policy allows. This keeps the advertised
+		list aligned with what the server actually accepts. On actual responses
+		the configured lists are used unchanged.
 
 		Args:
 			origin: The request `Origin` header, or `None` if it is missing.
 			path: The URL path of the request.
+			request_headers: Value of the `Access-Control-Request-Headers` preflight
+				header, or `None` for actual requests.
+			request_methods: Value of the `Access-Control-Request-Methods` preflight
+				header, or `None` for actual requests.
 
 		Returns:
 			A mapping of CORS header names to values. Empty when the path is outside
@@ -264,12 +324,22 @@ class CORSHandler:
 			allow_origin = "*"
 		else:
 			# Echo the request origin. Never send `*` together with credentials.
-			allow_origin = origin
+			allow_origin = normalize_origin(origin)
+
+		if request_headers is not None and self.AllowHeaders:
+			allow_headers = _intersect_requested(request_headers, self.AllowHeaders)
+		else:
+			allow_headers = self.AllowHeaders
+
+		if request_methods is not None and self.AllowMethods:
+			allow_methods = _intersect_requested(request_methods, self.AllowMethods)
+		else:
+			allow_methods = self.AllowMethods
 
 		headers = {
 			"Access-Control-Allow-Origin": allow_origin,
-			"Access-Control-Allow-Methods": self.AllowMethods,
-			"Access-Control-Allow-Headers": self.AllowHeaders,
+			"Access-Control-Allow-Methods": allow_methods,
+			"Access-Control-Allow-Headers": allow_headers,
 			"Access-Control-Max-Age": "86400",
 			"Vary": "Origin",
 		}
@@ -289,37 +359,42 @@ class CORSHandler:
 			request: The incoming aiohttp request.
 			response: The aiohttp response being prepared.
 		"""
-		for name, value in self.headers_for(request.headers.get("Origin"), request.path).items():
+		for name, value in self.headers_for(
+			request.headers.get("Origin"),
+			request.path,
+			request.headers.get("Access-Control-Request-Headers"),
+			request.headers.get("Access-Control-Request-Methods"),
+		).items():
 			if name == "Vary":
 				_merge_vary_origin(response.headers)
 			else:
 				response.headers[name] = value
 
 
-	def _set_allow_origin(
+	def _parse_origin_policy(
 		self,
 		allow_origin: typing.Union[str, typing.Iterable[str], typing.Callable[[str], bool]],
-	):
+	) -> typing.Tuple[bool, typing.Set[str], typing.Optional[typing.Callable[[str], bool]]]:
 		"""
-		Replace only the origin policy.
+		Parse an origin policy into its three runtime fields.
+
+		This computes the complete policy without mutating the handler, so a
+		`TypeError` from a bad value cannot leave the handler half-updated. The
+		caller assigns the returned tuple in one step.
 
 		Args:
 			allow_origin: `"*"`, a string or iterable of origins, or a callable
 				`origin: str -> bool`.
+
+		Returns:
+			A tuple `(allow_all, allowed_origins, origin_validator)`.
 		"""
 		parsed = parse_allow_origin(allow_origin)
 		if callable(parsed):
-			self.AllowAll = False
-			self.AllowedOrigins = set()
-			self.OriginValidator = parsed
-			return
-		self.OriginValidator = None
+			return False, set(), parsed
 		if parsed == "*":
-			self.AllowAll = True
-			self.AllowedOrigins = set()
-			return
-		self.AllowAll = False
-		self.AllowedOrigins = set(split_config_list(parsed))
+			return True, set(), None
+		return False, set(normalize_origin(origin) for origin in split_config_list(parsed)), None
 
 
 def _merge_vary_origin(headers) -> None:
@@ -341,6 +416,31 @@ def _merge_vary_origin(headers) -> None:
 	if any(token.lower() == "origin" for token in tokens):
 		return
 	headers["Vary"] = "{}, Origin".format(existing.strip())
+
+
+def _intersect_requested(requested: str, allowed: str) -> str:
+	"""
+	Return the tokens from `requested` that are present in `allowed`.
+
+	Used for preflight responses: the browser asks for the headers or methods it
+	will use via `Access-Control-Request-*`, and the server answers with the
+	intersection so the advertised list never advertises more than the policy.
+
+	Args:
+		requested: Comma-separated tokens from the preflight request.
+		allowed: Comma-separated tokens from the CORS policy.
+
+	Returns:
+		A comma-separated string of the tokens in `requested` that are in `allowed`,
+		in the order requested. Empty if none are allowed.
+	"""
+	allowed_tokens = {token.strip().lower() for token in allowed.split(",") if token.strip()}
+	result = []
+	for token in requested.split(","):
+		token = token.strip()
+		if token and token.lower() in allowed_tokens:
+			result.append(token)
+	return ", ".join(result)
 
 
 def _path_matches_pattern(request_path: str, pattern: str) -> bool:
