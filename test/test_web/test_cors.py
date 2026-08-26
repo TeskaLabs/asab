@@ -288,6 +288,38 @@ class TestCORSHandler(unittest.TestCase):
 		self.assertEqual(response.headers["Access-Control-Allow-Headers"], "Authorization")
 		self.assertEqual(response.headers["Access-Control-Allow-Methods"], "POST")
 
+	def test_set_policy_preserves_policy_on_validation_error(self):
+		handler = _handler(
+			allow_origin=["https://a.example"],
+			allow_headers=["Authorization", "Content-Type"],
+			allow_methods=["GET", "POST"],
+			allow_credentials=True,
+		)
+		with self.assertRaises(TypeError):
+			handler.set_policy(
+				["https://a.example"],
+				allow_headers=[123],
+				allow_methods=["GET"],
+				allow_credentials=False,
+			)
+		self.assertEqual(handler.AllowHeaders, "Authorization, Content-Type")
+		self.assertEqual(handler.AllowMethods, "GET, POST")
+		self.assertTrue(handler.AllowCredentials)
+		self.assertFalse(handler.AllowAll)
+		self.assertEqual(handler.AllowedOrigins, {normalize_origin("https://a.example")})
+		self.assertIsNone(handler.OriginValidator)
+
+		with self.assertRaises(TypeError):
+			handler.set_policy(
+				allow_origin=[123],
+				allow_headers=["Authorization"],
+				allow_methods=["GET"],
+				allow_credentials=False,
+			)
+		self.assertEqual(handler.AllowHeaders, "Authorization, Content-Type")
+		self.assertEqual(handler.AllowMethods, "GET, POST")
+		self.assertTrue(handler.AllowCredentials)
+
 	def test_replace_origin_policy_and_add_paths(self):
 		handler = _handler(allow_origin="*", paths=["/*"])
 		self.assertTrue(handler.is_origin_allowed("https://any.example"))
@@ -408,3 +440,19 @@ class TestWebContainerPreflight(unittest.TestCase):
 			{"/foo/{tail:.*}", "/foo"},
 		)
 		self.assertEqual(self.container.CORSHandler.Paths, ["/foo/*"])
+
+	def test_enable_cors_does_not_add_paths_when_policy_invalid(self):
+		self.container.enable_cors(allow_origin="*", preflight_paths=["/*"])
+		self.assertEqual(self.container.CORSHandler.Paths, ["/*"])
+		self.assertTrue(self.container.CORSHandler.AllowAll)
+
+		with self.assertRaises(TypeError):
+			self.container.enable_cors(
+				allow_origin=[123],
+				preflight_paths=["/new/*"],
+			)
+
+		self.assertEqual(self.container.CORSHandler.Paths, ["/*"])
+		self.assertTrue(self.container.CORSHandler.AllowAll)
+		self.assertNotIn("/new/{tail:.*}", self.container._CORSPreflightRoutes)
+		self.assertNotIn("/new", self.container._CORSPreflightRoutes)

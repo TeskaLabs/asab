@@ -230,12 +230,16 @@ class CORSHandler:
 			allow_credentials: Whether browsers may send cookies and Authorization.
 		"""
 		allow_all, allowed_origins, origin_validator = self._parse_origin_policy(allow_origin)
+		allow_headers = normalize_header_list(allow_headers)
+		allow_methods = normalize_header_list(allow_methods)
+		allow_credentials = bool(allow_credentials)
+
 		self.AllowAll = allow_all
 		self.AllowedOrigins = allowed_origins
 		self.OriginValidator = origin_validator
-		self.AllowHeaders = normalize_header_list(allow_headers)
-		self.AllowMethods = normalize_header_list(allow_methods)
-		self.AllowCredentials = bool(allow_credentials)
+		self.AllowHeaders = allow_headers
+		self.AllowMethods = allow_methods
+		self.AllowCredentials = allow_credentials
 
 
 	def add_paths(self, paths: typing.Union[str, typing.Iterable[str], None]):

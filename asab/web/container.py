@@ -236,13 +236,13 @@ class WebContainer(Configurable):
 				allow_credentials=allow_credentials,
 			)
 		else:
-			self.CORSHandler.add_paths(preflight_paths)
 			self.CORSHandler.set_policy(
 				allow_origin,
 				allow_headers,
 				allow_methods,
 				allow_credentials,
 			)
+			self.CORSHandler.add_paths(preflight_paths)
 
 		self._register_preflight_routes()
 
