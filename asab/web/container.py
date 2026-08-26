@@ -288,13 +288,24 @@ class WebContainer(Configurable):
 
 
 	async def _preflight_handler(self, request):
-		# CORS headers are applied in `_on_prepare_response` so preflight and actual
-		# responses share the same policy. 204 is returned even when Origin is omitted
-		# or not allowed; in that case no CORS headers are sent.
+		"""
+		Answer CORS preflight requests with 204 No Content.
+
+		The CORS headers are applied in `_on_prepare_response`, so preflight and
+		actual responses share the same policy. A preflight request still receives
+		204 even when the `Origin` header is missing or the origin is not allowed;
+		in that case no CORS headers are attached.
+		"""
 		return aiohttp.web.HTTPNoContent()
 
 
 	async def _on_prepare_response(self, request, response):
+		"""
+		Attach server and CORS headers to every outgoing response.
+
+		CORS headers are attached only when CORS is enabled and the request origin
+		and path match the policy; see `CORSHandler.apply()`.
+		"""
 		response.headers['Server'] = self.ServerTokens
 
 		if self.CORSHandler is not None:

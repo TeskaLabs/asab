@@ -14,6 +14,9 @@
 - Log authentication failure reasons (#788)
 - Support ApiKey tokens in development auth mode (#759)
 
+### Breaking Changes
+- `WebContainer.add_preflight_handlers()` now raises `RuntimeError` when CORS was not started first; call `WebContainer.enable_cors()` instead (#812)
+
 ---
 
 
