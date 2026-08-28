@@ -142,8 +142,14 @@ class TestLibrarySchemaValidation(unittest.IsolatedAsyncioTestCase):
 		with tempfile.TemporaryDirectory() as root:
 			service = make_schema_service(make_filesystem_provider(root))
 
-			with self.assertRaises(LibraryInvalidPathError):
+			with self.assertRaises(LibraryInvalidPathError) as context:
 				await service.read_schema("/Schemas/Extensions/CFM.yaml")
+
+			self.assertEqual(
+				str(context.exception),
+				"Invalid Library path '/Schemas/Extensions/CFM.yaml': "
+				"Base schema path must match '/Schemas/<name>.yaml'.",
+			)
 
 	async def test_base_schema_only_returns_base_schema(self):
 		"""When no extensions exist, the effective schema contains only base fields."""
