@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Release candidate
+
+### Features
+- `asab.web.cors`: Rewrote web CORS with origin allowlist, credentials, and `WebContainer.enable_cors()` (#812)
+
+---
+
 ## v26.36
 
 ### Breaking Changes
