@@ -1,12 +1,8 @@
 import re
-import io
-import time
 import os.path
 import typing
-import tarfile
 import asyncio
 import logging
-import tempfile
 import configparser
 import contextlib
 
@@ -919,59 +915,6 @@ class LibraryService(Service):
 		# Item not found
 		L.info("Item '{}' not found in directory '{}'.".format(filename, directory))
 		return None
-
-
-	async def export(self, path: str = "/", remove_path: bool = False) -> typing.IO:
-		"""
-		Return a file-like stream containing a gzipped tar archive of the library contents of the path.
-
-		Args:
-			path: The path to export.
-			tenant (str | None ): The tenant to use for the operation.
-			remove_path: If `True`, the path will be removed from the tar file.
-
-		Returns:
-			A file object containing a gzipped tar archive.
-		"""
-		self._ensure_ready()
-
-		_validate_path_directory(path)
-
-		fileobj = tempfile.TemporaryFile()
-		tarobj = tarfile.open(name=None, mode='w:gz', fileobj=fileobj)
-
-		items = await self._list(path, providers=self.Libraries[:1])
-		recitems = list(items[:])
-
-		while len(recitems) > 0:
-
-			item = recitems.pop(0)
-			if item.type != 'dir':
-				continue
-
-			child_items = await self._list(item.name, providers=item.providers)
-			items.extend(child_items)
-			recitems.extend(child_items)
-
-		for item in items:
-			if item.type != 'item':
-				continue
-			my_data = await self.Libraries[0].read(item.name)
-			if remove_path:
-				assert item.name.startswith(path)
-				tar_name = item.name[len(path):]
-			else:
-				tar_name = item.name
-			info = tarfile.TarInfo(tar_name)
-			my_data.seek(0, io.SEEK_END)
-			info.size = my_data.tell()
-			my_data.seek(0, io.SEEK_SET)
-			info.mtime = time.time()
-			tarobj.addfile(tarinfo=info, fileobj=my_data)
-
-		tarobj.close()
-		fileobj.seek(0)
-		return fileobj
 
 
 	async def subscribe(
