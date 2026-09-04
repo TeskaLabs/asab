@@ -261,7 +261,7 @@ class LeaderService(Service):
 		if not self._participating:
 			return
 		if not self.IsLeader():
-			self._election_thread()
+			self.ZkContainer.ProactorService.schedule_threadsafe(self._election_thread)
 
 
 	def _on_tick60(self, event_name):
