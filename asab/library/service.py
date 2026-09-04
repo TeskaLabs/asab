@@ -1,7 +1,6 @@
 import re
 import os.path
 import typing
-import hashlib
 import asyncio
 import logging
 import configparser
@@ -14,6 +13,7 @@ from ..config import Config
 from ..log import LOG_NOTICE
 from .item import LibraryItem
 from ..application import Application
+from ..utils import get_source_id
 from .providers.abc import LibraryProviderABC
 from ..exceptions import LibraryInvalidPathError, LibraryNotReadyError
 from ..contextvars import Tenant
@@ -128,33 +128,33 @@ class LibraryService(Service):
 
 		if path.startswith('zk://') or path.startswith('zookeeper://'):
 			from .providers.zookeeper import ZooKeeperLibraryProvider
-			library_provider = ZooKeeperLibraryProvider(self, path, layer)
+			library_provider = ZooKeeperLibraryProvider(self, path, layer, source=path)
 
 		elif path.startswith('./') or path.startswith('/') or path.startswith('file://'):
 			from .providers.filesystem import FileSystemLibraryProvider
-			library_provider = FileSystemLibraryProvider(self, path, layer)
+			library_provider = FileSystemLibraryProvider(self, path, layer, source=path)
 
 		elif path.startswith('azure+https://'):
 			from .providers.azurestorage import AzureStorageLibraryProvider
-			library_provider = AzureStorageLibraryProvider(self, path, layer)
+			library_provider = AzureStorageLibraryProvider(self, path, layer, source=path)
 
 		elif path.startswith('git+'):
 			if len(self.CacheDir) > 0:
 				repodir = self._get_repodir(path)
 				from .providers.cache import CacheLibraryProvider
-				library_provider = CacheLibraryProvider(self, path, layer, repodir=repodir, ready_file=os.path.join(repodir, ".ready"))
+				library_provider = CacheLibraryProvider(self, path, layer, source=path, repodir=repodir, ready_file=os.path.join(repodir, ".ready"))
 			else:
 				from .providers.git import GitLibraryProvider
-				library_provider = GitLibraryProvider(self, path, layer)
+				library_provider = GitLibraryProvider(self, path, layer, source=path)
 
 		elif path.startswith('libsreg+'):
 			if len(self.CacheDir) > 0:
 				repodir = self._get_repodir(path)
 				from .providers.cache import CacheLibraryProvider
-				library_provider = CacheLibraryProvider(self, path, layer, repodir=os.path.join(repodir, "content"), ready_file=os.path.join(repodir, ".ready"))
+				library_provider = CacheLibraryProvider(self, path, layer, source=path, repodir=os.path.join(repodir, "content"), ready_file=os.path.join(repodir, ".ready"))
 			else:
 				from .providers.libsreg import LibsRegLibraryProvider
-				library_provider = LibsRegLibraryProvider(self, path, layer)
+				library_provider = LibsRegLibraryProvider(self, path, layer, source=path)
 
 		elif path == '' or path.startswith("#") or path.startswith(";"):
 			# This is empty or commented line
@@ -970,7 +970,7 @@ class LibraryService(Service):
 				await provider.subscribe(path, target)
 
 	def _get_repodir(self, path: str) -> str:
-		return os.path.join(self.CacheDir, hashlib.sha256(path.encode('utf-8')).hexdigest())
+		return os.path.join(self.CacheDir, get_source_id(path))
 
 
 def _validate_path_item(path: str) -> None:

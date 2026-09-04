@@ -1,7 +1,13 @@
 import os
+import hashlib
 import urllib.parse
 import configparser
 import typing
+
+
+def get_source_id(source: str) -> str:
+	"""Return the stable identifier used for a library provider source."""
+	return hashlib.sha256(source.encode("utf-8")).hexdigest()
 
 
 def convert_to_seconds(value: str) -> float:

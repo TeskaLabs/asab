@@ -1,7 +1,6 @@
 import os.path
 import lzma
 import logging
-import hashlib
 import random
 import tarfile
 import asyncio
@@ -14,7 +13,7 @@ import aiohttp
 
 from .filesystem import SimpleFileSystemLibraryProvider
 from ..dirsync import synchronize_dirs
-from ...utils import convert_to_seconds
+from ...utils import convert_to_seconds, get_source_id
 
 #
 
@@ -60,7 +59,8 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 	"""
 
 
-	def __init__(self, library, path, layer, *, repodir=None):
+	def __init__(self, library, path, layer, *, source, repodir=None):
+		self.ID = get_source_id(source)
 
 		url = urllib.parse.urlparse(path)
 		assert url.scheme.startswith("libsreg+")
@@ -105,7 +105,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 			self.RootPath = os.path.join(
 				tempdir,
 				"asab.library.libsreg",
-				hashlib.sha256(path.encode("utf-8")).hexdigest()
+				self.ID
 			)
 		else:
 			self.RootPath = repodir
@@ -117,7 +117,7 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 
 		os.makedirs(os.path.join(self.RepoPath), exist_ok=True)
 
-		super().__init__(library, self.RepoPath, layer, set_ready=False)
+		super().__init__(library, self.RepoPath, layer, source=source, set_ready=False)
 
 		self.PullLock = asyncio.Lock()
 		self.LastPull = None

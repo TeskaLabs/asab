@@ -39,18 +39,18 @@ class AzureStorageLibraryProvider(LibraryProviderABC):
 
 	'''
 
-	def __init__(self, library, path, layer):
-		super().__init__(library, layer)
+	def __init__(self, library, path, layer, *, source):
+		super().__init__(library, layer, source)
 		assert path[:6] == "azure+"
+		self.Path = path
 		self.URL = urllib.parse.urlparse(path[6:])
 		self.Model = None  # Will be set by `_load_model` method
-		self.Path = path
 
 		self.CacheDir = Config.get("library", "azure_cache")
 		if self.CacheDir == 'false':
 			self.CacheDir = None
 		elif self.CacheDir == 'true':
-			self.CacheDir = os.path.join(tempfile.gettempdir(), "asab.library.azure.{}".format(hashlib.sha256(path.encode('utf-8')).hexdigest()))
+			self.CacheDir = os.path.join(tempfile.gettempdir(), "asab.library.azure.{}".format(self.ID))
 
 		# Ensure that the case directory exists
 		if self.CacheDir is not None:
