@@ -37,6 +37,7 @@ class WebContainer(Configurable):
 		'cors_allow_headers': 'Authorization, Content-Type, X-App, X-Request-Id',
 		'cors_allow_methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
 		'cors_allow_credentials': 'no',
+		'cors_max_age': '1d',
 		'body_max_size': 1024**2,  # Client’s maximum body size in a request, in bytes
 	}
 
@@ -191,6 +192,7 @@ class WebContainer(Configurable):
 		allow_headers: typing.Union[str, typing.Iterable[str], None] = None,
 		allow_methods: typing.Union[str, typing.Iterable[str], None] = None,
 		allow_credentials: typing.Optional[bool] = None,
+		max_age: typing.Optional[typing.Union[int, float]] = None,
 	):
 		"""
 		Enable Cross-Origin Resource Sharing on this web container.
@@ -213,6 +215,8 @@ class WebContainer(Configurable):
 				Defaults to `[web] cors_allow_credentials`. When this is true, the
 				response echoes the request `Origin` even if `allow_origin` is `"*"`;
 				`Access-Control-Allow-Origin: *` is never combined with credentials.
+			max_age: Preflight cache duration in seconds for `Access-Control-Max-Age`.
+				Defaults to `[web] cors_max_age` (parsed with `Config.getseconds`, default `1d`).
 		"""
 		if preflight_paths is None:
 			preflight_paths = self.Config.get("cors_preflight_paths")
@@ -222,6 +226,8 @@ class WebContainer(Configurable):
 			allow_methods = self.Config.get("cors_allow_methods")
 		if allow_credentials is None:
 			allow_credentials = self.Config.getboolean("cors_allow_credentials")
+		if max_age is None:
+			max_age = self.Config.getseconds("cors_max_age")
 
 		# Normalize paths before touching any state so a bad value cannot leave
 		# the handler half-updated.
@@ -234,6 +240,7 @@ class WebContainer(Configurable):
 				allow_headers=allow_headers,
 				allow_methods=allow_methods,
 				allow_credentials=allow_credentials,
+				max_age=max_age,
 			)
 		else:
 			self.CORSHandler.set_policy(
@@ -241,6 +248,7 @@ class WebContainer(Configurable):
 				allow_headers,
 				allow_methods,
 				allow_credentials,
+				max_age=max_age,
 			)
 			self.CORSHandler.add_paths(preflight_paths)
 

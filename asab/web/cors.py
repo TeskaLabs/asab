@@ -187,6 +187,7 @@ class CORSHandler:
 		allow_headers: typing.Union[str, typing.Iterable[str], None],
 		allow_methods: typing.Union[str, typing.Iterable[str], None],
 		allow_credentials: bool,
+		max_age: typing.Union[int, float] = 86400,
 	):
 		"""
 		Create a CORS policy applied to both preflight and actual responses.
@@ -198,6 +199,8 @@ class CORSHandler:
 			allow_headers: Allowed request headers.
 			allow_methods: Allowed HTTP methods.
 			allow_credentials: Whether browsers may send cookies and Authorization.
+			max_age: Preflight cache duration in seconds (`Access-Control-Max-Age`).
+				Defaults to one day (86400).
 		"""
 		self.Paths = []
 		self._PathSet = set()
@@ -205,10 +208,13 @@ class CORSHandler:
 		self.AllowHeaders = ""
 		self.AllowMethods = ""
 		self.AllowCredentials = False
+		self.MaxAge = 86400
 		self.AllowAll = False
 		self.AllowedOrigins = set()
 		self.OriginValidator = None
-		self.set_policy(allow_origin, allow_headers, allow_methods, allow_credentials)
+		self.set_policy(
+			allow_origin, allow_headers, allow_methods, allow_credentials, max_age=max_age
+		)
 		self.add_paths(paths)
 
 
@@ -218,9 +224,10 @@ class CORSHandler:
 		allow_headers: typing.Union[str, typing.Iterable[str], None],
 		allow_methods: typing.Union[str, typing.Iterable[str], None],
 		allow_credentials: bool,
+		max_age: typing.Union[int, float] = 86400,
 	):
 		"""
-		Replace the origin, header, method, and credentials policy.
+		Replace the origin, header, method, credentials, and max-age policy.
 
 		Args:
 			allow_origin: `"*"` to allow every origin, a string or iterable of allowed
@@ -228,11 +235,15 @@ class CORSHandler:
 			allow_headers: Allowed request headers.
 			allow_methods: Allowed HTTP methods.
 			allow_credentials: Whether browsers may send cookies and Authorization.
+			max_age: Preflight cache duration in seconds (`Access-Control-Max-Age`).
 		"""
 		allow_all, allowed_origins, origin_validator = self._parse_origin_policy(allow_origin)
 		allow_headers = normalize_header_list(allow_headers)
 		allow_methods = normalize_header_list(allow_methods)
 		allow_credentials = bool(allow_credentials)
+		max_age = int(max_age)
+		if max_age < 0:
+			raise ValueError("max_age must be non-negative, not {}".format(max_age))
 
 		self.AllowAll = allow_all
 		self.AllowedOrigins = allowed_origins
@@ -240,6 +251,7 @@ class CORSHandler:
 		self.AllowHeaders = allow_headers
 		self.AllowMethods = allow_methods
 		self.AllowCredentials = allow_credentials
+		self.MaxAge = max_age
 
 
 	def add_paths(self, paths: typing.Union[str, typing.Iterable[str], None]):
@@ -341,7 +353,7 @@ class CORSHandler:
 			headers["Access-Control-Allow-Methods"] = _intersect_requested(
 				request_methods, self.AllowMethods
 			) if self.AllowMethods else ""
-			headers["Access-Control-Max-Age"] = "86400"
+			headers["Access-Control-Max-Age"] = str(self.MaxAge)
 		if request_headers is not None:
 			headers["Access-Control-Allow-Headers"] = _intersect_requested(
 				request_headers, self.AllowHeaders

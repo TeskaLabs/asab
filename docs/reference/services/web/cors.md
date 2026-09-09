@@ -22,15 +22,17 @@ cors_preflight_paths=/*
 cors_allow_headers=Authorization, Content-Type, X-App, X-Request-Id
 cors_allow_methods=GET, POST, PUT, PATCH, DELETE, OPTIONS
 cors_allow_credentials=no
+cors_max_age=1d
 ```
 
 | Option | Meaning |
 | --- | --- |
 | `cors` | Origin policy. Empty (the default) does not start CORS. `*` allows every origin. Otherwise a comma- and/or whitespace-separated allowlist of origins, normalized to comma-separated values with no extra spaces. If the list contains `*`, it is treated as `*`. |
 | `cors_preflight_paths` | Path prefixes (`/foo/*`) and exact paths that receive CORS headers, including OPTIONS preflight. Values must start with `"/"`. The default `/*` covers the whole application. |
-| `cors_allow_headers` | Value of `Access-Control-Allow-Headers`. |
-| `cors_allow_methods` | Value of `Access-Control-Allow-Methods`. |
+| `cors_allow_headers` | Value of `Access-Control-Allow-Headers` (preflight only; intersected with `Access-Control-Request-Headers`). |
+| `cors_allow_methods` | Value of `Access-Control-Allow-Methods` (preflight only; intersected with `Access-Control-Request-Method`). |
 | `cors_allow_credentials` | When `yes`, responses include `Access-Control-Allow-Credentials: true`. |
+| `cors_max_age` | Preflight cache duration for `Access-Control-Max-Age`. Parsed with `Config.getseconds` (for example `1d`, `12h`, `86400`). Default `1d`. |
 
 ### Credentials and `*`
 

@@ -237,6 +237,19 @@ class TestCORSHandler(unittest.TestCase):
 		self.assertEqual(preflight["Access-Control-Allow-Headers"], "Authorization")
 		self.assertEqual(preflight["Access-Control-Max-Age"], "86400")
 
+	def test_preflight_uses_configured_max_age(self):
+		handler = _handler(
+			allow_origin=["https://a.example"],
+			allow_credentials=True,
+			max_age=3600,
+		)
+		headers = handler.headers_for(
+			"https://a.example",
+			"/api/item",
+			request_methods="POST",
+		)
+		self.assertEqual(headers["Access-Control-Max-Age"], "3600")
+
 	def test_preflight_echoes_requested_headers_and_methods(self):
 		handler = _handler(
 			allow_origin=["https://a.example"],
