@@ -241,9 +241,9 @@ class CORSHandler:
 		allow_headers = normalize_header_list(allow_headers)
 		allow_methods = normalize_header_list(allow_methods)
 		allow_credentials = bool(allow_credentials)
-		max_age = int(max_age)
 		if max_age < 0:
 			raise ValueError("max_age must be non-negative, not {}".format(max_age))
+		max_age = int(max_age)
 
 		self.AllowAll = allow_all
 		self.AllowedOrigins = allowed_origins
