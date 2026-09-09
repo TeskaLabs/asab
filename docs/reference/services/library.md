@@ -198,7 +198,7 @@ Some providers are able to detect changes of the library items.
 
 !!! info
 
-	Note that the some of the providers detect changes immediately while others detect them periodically. For example, *git provider* pulls the repository every minute, only after that the changes can be detected.
+	Note that the some of the providers detect changes immediately while others detect them periodically. For example, *git provider* checks the remote repository on every application tick (once per minute) and pulls it when the configured pull interval has elapsed; only after that the changes can be detected.
 
 
 ## Providers
@@ -416,6 +416,38 @@ providers: git+http(s)://<username>:<deploy-token>@<path>#<branch>
 	[library]
 	providers: git+https://github.com/john/awesome_project.git#name-of-the-branch
 	```
+
+#### Pull interval
+
+The git provider checks the remote repository periodically and pulls the
+changes, so that the library content stays up to date. The provider evaluates
+the check on every application tick (once per minute), but an actual pull
+happens only when the time since the last pull is at least the configured
+pull interval.
+
+The default pull interval is **12 hours**. You can change it per provider by
+appending `#pull=<interval>` to the provider URL, after the branch. The URL
+contains only one `#` that starts the fragment; the second `#` separates the
+branch from `pull=` inside that fragment.
+
+``` ini
+[library]
+providers: git+https://<username>:<deploy-token>@<path>#<branch>#pull=<interval>
+```
+
+!!! example "Custom pull interval:"
+
+	``` ini
+	[library]
+	providers: git+https://github.com/john/awesome_project.git#name-of-the-branch#pull=10m
+	```
+
+The interval is parsed by `asab.utils.convert_to_seconds()`, which accepts a
+number of seconds or a value with a unit: `ms`, `s`, `m`, `h`, `d`, `w`,
+`M` (months), or `y` (years). A value without a unit is treated as seconds.
+
+Because the check runs once per minute, an interval shorter than 1 minute is
+effectively clamped to 1 minute.
 
 #### Deploy tokens in GitLab
 
