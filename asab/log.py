@@ -426,6 +426,25 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 		super().__init__(fmt=fmt, datefmt='%Y-%m-%dT%H:%M:%S.%f', style=style, sd_id=sd_id)
 		self.converter = time.gmtime
 
+	def default(self, o):
+		if isinstance(o, datetime.datetime):
+			if o.tzinfo == datetime.timezone.utc:
+				# isoformat ends with "+00:00", replace it with "Z"
+				return o.isoformat()[:-6] + "Z"
+			elif o.tzinfo is not None:
+				# The datetime object is timezone-aware but not UTC
+				# NOT WANTED, using non-UTC timestamps is not recommended
+				return o.isoformat()
+			else:
+				# The datetime object is timezone-naive -> interpret it as UTC
+				return o.isoformat() + "Z"
+
+		# If obj is not json serializable, convert it to string
+		try:
+			return str(o)
+		except Exception:
+			raise TypeError("Error when logging. Object of type {} is not JSON serializable.".format(type(o)))
+
 
 class JSONFormatter(logging.Formatter):
 
@@ -445,11 +464,20 @@ class JSONFormatter(logging.Formatter):
 			self.Enricher["hostname"] = hostname
 
 	def _default(self, obj):
-		# If obj is not json serializable, convert it to string
+		if isinstance(obj, datetime.datetime):
+			if obj.tzinfo == datetime.timezone.utc:
+				return obj.isoformat()[:-6] + "Z"
+			elif obj.tzinfo is not None:
+				return obj.isoformat()
+			else:
+				return obj.isoformat() + "Z"
+
+		# Try to convert the object to a string
 		try:
 			return str(obj)
 		except Exception:
 			raise TypeError("Error when logging. Object {} of type {} is not JSON serializable.".format(obj, type(obj)))
+
 
 	def format(self, record):
 		r_copy = record.__dict__.copy()
