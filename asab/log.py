@@ -426,21 +426,6 @@ class SyslogRFC5424microFormatter(StructuredDataFormatter):
 		super().__init__(fmt=fmt, datefmt='%Y-%m-%dT%H:%M:%S.%f', style=style, sd_id=sd_id)
 		self.converter = time.gmtime
 
-
-class LoggingJSONDumper(object):
-	"""
-	JSON serializer for log records.
-	Datetimes are emitted as ISO8601 (UTC with `Z` suffix).
-	"""
-
-	def __call__(self, obj):
-		# LogRecord.created is a float; convert it to asctime so default() can emit ISO8601.
-		# Without this, only the numeric "created" field would be present.
-		created = obj.get("created")
-		if created is not None:
-			obj["asctime"] = datetime.datetime.fromtimestamp(created, tz=datetime.timezone.utc)
-		return json.dumps(obj, default=self.default)
-
 	def default(self, o):
 		if isinstance(o, datetime.datetime):
 			if o.tzinfo == datetime.timezone.utc:
@@ -464,7 +449,6 @@ class LoggingJSONDumper(object):
 class JSONFormatter(logging.Formatter):
 
 	def __init__(self):
-		self.Dumper = LoggingJSONDumper()
 		self.Enricher = {}
 		instance_id = os.environ.get("INSTANCE_ID")
 		service_id = os.environ.get("SERVICE_ID")
@@ -479,10 +463,26 @@ class JSONFormatter(logging.Formatter):
 		if hostname is not None:
 			self.Enricher["hostname"] = hostname
 
+	def _default(self, obj):
+		if isinstance(obj, datetime.datetime):
+			if obj.tzinfo == datetime.timezone.utc:
+				return obj.isoformat()[:-6] + "Z"
+			elif obj.tzinfo is not None:
+				return obj.isoformat()
+			else:
+				return obj.isoformat() + "Z"
+
+		# Try to convert the object to a string
+		try:
+			return str(obj)
+		except Exception:
+			raise TypeError("Error when logging. Object {} of type {} is not JSON serializable.".format(obj, type(obj)))
+
+
 	def format(self, record):
 		r_copy = record.__dict__.copy()
 		r_copy.update(self.Enricher)
-		return self.Dumper(r_copy)
+		return json.dumps(r_copy, default=self._default)
 
 
 class FormatingDatagramHandler(logging.handlers.DatagramHandler):
