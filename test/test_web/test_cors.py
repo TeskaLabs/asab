@@ -155,10 +155,9 @@ class TestCORSHandler(unittest.TestCase):
 		self.assertEqual(headers["Access-Control-Allow-Credentials"], "true")
 		self.assertNotEqual(headers["Access-Control-Allow-Origin"], "*")
 		self.assertEqual(headers["Vary"], "Origin")
-		self.assertEqual(headers["Access-Control-Max-Age"], "86400")
-		self.assertIn("GET", headers["Access-Control-Allow-Methods"])
-		self.assertIn("Authorization", headers["Access-Control-Allow-Headers"])
-		self.assertNotIn("X-PINGOTHER", headers["Access-Control-Allow-Headers"])
+		self.assertNotIn("Access-Control-Max-Age", headers)
+		self.assertNotIn("Access-Control-Allow-Methods", headers)
+		self.assertNotIn("Access-Control-Allow-Headers", headers)
 
 	def test_star_without_credentials_sends_star(self):
 		handler = _handler(allow_origin="*", allow_credentials=False)
@@ -215,7 +214,7 @@ class TestCORSHandler(unittest.TestCase):
 		self.assertEqual(handler.headers_for(origin, "/asab/v1/info"), {})
 		self.assertEqual(handler.headers_for(origin, "/.well-known/jwks.json"), {})
 
-	def test_preflight_and_actual_share_policy(self):
+	def test_preflight_and_actual_differ(self):
 		handler = _handler(
 			allow_origin=["https://a.example"],
 			allow_headers=["Authorization", "Content-Type"],
@@ -223,9 +222,20 @@ class TestCORSHandler(unittest.TestCase):
 			allow_credentials=True,
 		)
 		origin = "https://a.example"
-		preflight = handler.headers_for(origin, "/api/item")
 		actual = handler.headers_for(origin, "/api/item")
-		self.assertEqual(preflight, actual)
+		preflight = handler.headers_for(
+			origin,
+			"/api/item",
+			request_headers="Authorization",
+			request_methods="POST",
+		)
+		self.assertEqual(actual["Access-Control-Allow-Origin"], origin)
+		self.assertNotIn("Access-Control-Allow-Methods", actual)
+		self.assertNotIn("Access-Control-Allow-Headers", actual)
+		self.assertNotIn("Access-Control-Max-Age", actual)
+		self.assertEqual(preflight["Access-Control-Allow-Methods"], "POST")
+		self.assertEqual(preflight["Access-Control-Allow-Headers"], "Authorization")
+		self.assertEqual(preflight["Access-Control-Max-Age"], "86400")
 
 	def test_preflight_echoes_requested_headers_and_methods(self):
 		handler = _handler(
@@ -262,7 +272,7 @@ class TestCORSHandler(unittest.TestCase):
 		self.assertEqual(headers["Access-Control-Allow-Headers"], "")
 		self.assertEqual(headers["Access-Control-Allow-Methods"], "")
 
-	def test_actual_response_uses_configured_lists(self):
+	def test_actual_response_omits_preflight_headers(self):
 		handler = _handler(
 			allow_origin=["https://a.example"],
 			allow_headers=["Authorization", "Content-Type"],
@@ -270,8 +280,12 @@ class TestCORSHandler(unittest.TestCase):
 			allow_credentials=True,
 		)
 		headers = handler.headers_for("https://a.example", "/api/item")
-		self.assertEqual(headers["Access-Control-Allow-Headers"], "Authorization, Content-Type")
-		self.assertEqual(headers["Access-Control-Allow-Methods"], "GET, POST, OPTIONS")
+		self.assertEqual(headers["Access-Control-Allow-Origin"], "https://a.example")
+		self.assertEqual(headers["Access-Control-Allow-Credentials"], "true")
+		self.assertEqual(headers["Vary"], "Origin")
+		self.assertNotIn("Access-Control-Allow-Headers", headers)
+		self.assertNotIn("Access-Control-Allow-Methods", headers)
+		self.assertNotIn("Access-Control-Max-Age", headers)
 
 	def test_apply_threads_preflight_request_headers(self):
 		handler = _handler(

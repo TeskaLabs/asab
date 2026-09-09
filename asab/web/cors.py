@@ -300,12 +300,11 @@ class CORSHandler:
 		"""
 		Return CORS headers for this request, or an empty dict if CORS must not apply.
 
-		For preflight requests (OPTIONS with `Access-Control-Request-Headers` or
-		`Access-Control-Request-Method`), the `Access-Control-Allow-Headers` and
-		`Access-Control-Allow-Methods` values echo the intersection of what the
-		request asked for and what the policy allows. This keeps the advertised
-		list aligned with what the server actually accepts. On actual responses
-		the configured lists are used unchanged.
+		Actual responses only get `Access-Control-Allow-Origin` (and credentials /
+		`Vary` when applicable). `Access-Control-Allow-Methods`,
+		`Access-Control-Allow-Headers`, and `Access-Control-Max-Age` are added only
+		for preflight: methods/headers are the intersection of what the request
+		asked for (`Access-Control-Request-*`) and what the policy allows.
 
 		Args:
 			origin: The request `Origin` header, or `None` if it is missing.
@@ -330,25 +329,24 @@ class CORSHandler:
 			# Echo the request origin. Never send `*` together with credentials.
 			allow_origin = normalize_origin(origin)
 
-		if request_headers is not None and self.AllowHeaders:
-			allow_headers = _intersect_requested(request_headers, self.AllowHeaders)
-		else:
-			allow_headers = self.AllowHeaders
-
-		if request_methods is not None and self.AllowMethods:
-			allow_methods = _intersect_requested(request_methods, self.AllowMethods)
-		else:
-			allow_methods = self.AllowMethods
-
 		headers = {
 			"Access-Control-Allow-Origin": allow_origin,
-			"Access-Control-Allow-Methods": allow_methods,
-			"Access-Control-Allow-Headers": allow_headers,
-			"Access-Control-Max-Age": "86400",
 			"Vary": "Origin",
 		}
 		if self.AllowCredentials:
 			headers["Access-Control-Allow-Credentials"] = "true"
+
+		# Preflight-only headers (Fetch CORS). Request-Method marks a preflight.
+		if request_methods is not None:
+			headers["Access-Control-Allow-Methods"] = _intersect_requested(
+				request_methods, self.AllowMethods
+			) if self.AllowMethods else ""
+			headers["Access-Control-Max-Age"] = "86400"
+		if request_headers is not None:
+			headers["Access-Control-Allow-Headers"] = _intersect_requested(
+				request_headers, self.AllowHeaders
+			) if self.AllowHeaders else ""
+
 		return headers
 
 

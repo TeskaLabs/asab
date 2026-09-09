@@ -6,7 +6,7 @@
 
 The Cross-Origin Resource Sharing standard works by adding HTTP headers that let servers describe which origins are permitted to read a response from a web browser. For HTTP methods that can cause side-effects (in particular methods other than **GET**, or **POST** with certain MIME types), the specification mandates that browsers **"preflight"** the request with **OPTIONS**, and only then send the actual request. Servers can also tell clients whether "credentials" (cookies and HTTP authentication) should be sent with requests.
 
-ASAB applies the same origin, methods, headers, and credentials policy to preflight (**OPTIONS**) and to actual responses. CORS is installed only on paths listed in `cors_preflight_paths` (or passed to `enable_cors()`). Auth and tenant wrappers skip **OPTIONS** so preflight is not blocked by authentication.
+ASAB applies the same origin and credentials policy to preflight (**OPTIONS**) and to actual responses. `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, and `Access-Control-Max-Age` are sent only on preflight, echoing the intersection of the request's `Access-Control-Request-*` headers and the configured policy. CORS is installed only on paths listed in `cors_preflight_paths` (or passed to `enable_cors()`). Auth and tenant wrappers skip **OPTIONS** so preflight is not blocked by authentication.
 
 If the request has no `Origin` header, or the origin is not allowed, CORS headers are omitted. Untrusted origins are never echoed. A preflight request still receives **204 No Content**.
 
