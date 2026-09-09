@@ -3,6 +3,7 @@
 ## Release candidate
 
 ### Features
+- `asab.web.cors`: Removed redundant CORS headers and made CORS max age configurable (#816)
 - `asab.web.cors`: Rewrote web CORS with origin allowlist, credentials, and `WebContainer.enable_cors()` (#812)
 
 ---

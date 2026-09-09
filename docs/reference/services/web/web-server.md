@@ -148,6 +148,7 @@ Configuration is passed to the `asab.web.WebContainer` object.
 | `cors_allow_headers` | Allowed request headers advertised in CORS responses. See the [CORS section](./cors) |
 | `cors_allow_methods` | Allowed HTTP methods advertised in CORS responses. See the [CORS section](./cors) |
 | `cors_allow_credentials` | When `yes`, credentialed cross-origin requests are allowed. See the [CORS section](./cors) |
+| `cors_max_age` | Preflight cache duration (`Access-Control-Max-Age`), parsed with `Config.getseconds`. Default `1d`. See the [CORS section](./cors) |
 
 ### The default configuration
 
@@ -162,6 +163,7 @@ cors_preflight_paths=/*
 cors_allow_headers=Authorization, Content-Type, X-App, X-Request-Id
 cors_allow_methods=GET, POST, PUT, PATCH, DELETE, OPTIONS
 cors_allow_credentials=no
+cors_max_age=1d
 body_max_size=1024**2
 ```
 
