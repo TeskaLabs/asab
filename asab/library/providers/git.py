@@ -63,7 +63,7 @@ class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 		providers=git+ssh://git@<url>#<branch name>
 
 		[library:git]
-		repodir=<optional location of the repository cache>
+		repodir=<optional base path for repository caches; each provider URL gets a subdirectory>
 		ssh_key_path=<optional path to SSH private key, defaults to ~/.ssh/id_rsa>
 		ssh_pubkey_path=<optional path to SSH public key, defaults to ~/.ssh/id_rsa.pub>
 		ssh_passphrase=<optional passphrase for SSH key>
@@ -92,7 +92,8 @@ class GitLibraryProvider(SimpleFileSystemLibraryProvider):
 		if repodir is None:
 			repodir = Config.get("library:git", "repodir", fallback=None)
 		if repodir is not None:
-			self.RepoPath = os.path.abspath(repodir)
+			# One clone directory per provider URL under the configured base.
+			self.RepoPath = os.path.join(os.path.abspath(repodir), self.ID)
 		else:
 			tempdir = tempfile.gettempdir()
 			self.RepoPath = os.path.join(
