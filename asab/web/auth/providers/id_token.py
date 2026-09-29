@@ -38,7 +38,7 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 		self.App.PubSub.subscribe("PublicKey.updated!", self.collect_keys)
 		self.App.PubSub.subscribe("Application.housekeeping!", self._delete_invalid_authorizations)
-		self.App.TaskService.schedule(self._update_public_keys())
+		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_started)
 
 
 	def register_key_provider(self, provider: PublicKeyProviderABC):
@@ -47,7 +47,15 @@ class IdTokenAuthProvider(AuthProviderABC):
 
 
 	async def initialize(self):
-		pass
+		try:
+			await self._update_public_keys()
+		except Exception as e:
+			L.warning("Failed to update public keys: {}".format(str(e)))
+
+
+	async def _on_zk_started(self, event_name, zookeeper):
+		# ZooKeeper is started, so we can update the public keys.
+		await self._update_public_keys()
 
 
 	async def authorize(self, request: aiohttp.web.Request) -> Authorization:
@@ -95,7 +103,10 @@ class IdTokenAuthProvider(AuthProviderABC):
 		Update the public keys from all key providers.
 		"""
 		for provider in list(self._KeyProviders):
-			await provider.reload_keys()
+			try:
+				await provider.reload_keys()
+			except Exception as e:
+				L.warning("Failed to reload public keys from provider {}: {}".format(provider, str(e)))
 		self.collect_keys()
 
 
