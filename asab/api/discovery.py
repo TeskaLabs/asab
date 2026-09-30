@@ -1,4 +1,5 @@
 import copy
+import ipaddress
 import json
 import socket
 import typing
@@ -303,11 +304,9 @@ class DiscoveryService(Service):
 						L.error("Unexpected format of 'web' section in advertised data: '{}'".format(web))
 						continue
 
-					if ip == "0.0.0.0":
-						family = socket.AF_INET
-					elif ip == "::":
-						family = socket.AF_INET6
-					else:
+					family = _address_family(ip)
+					if family is None:
+						L.error("Unexpected address in 'web' section of advertised data: '{}'".format(ip))
 						continue
 
 					for id_type, ids in discovery.items():
@@ -498,6 +497,28 @@ class DiscoveryResolver(aiohttp.DefaultResolver):
 			raise NotDiscoveredError("Failed to resolve any of the hosts for '{}' / '{}'.".format(hostname, ','.join(x for x in set(x[0] for x in located_instances))))
 
 		return hosts
+
+
+def _address_family(ip):
+	"""
+	Return the socket address family of an advertised web address.
+
+	The bind address can be any IPv4 or IPv6 address. Family is derived from the
+	address structure.
+	"""
+	if not isinstance(ip, str):
+		return None
+
+	try:
+		parsed = ipaddress.ip_address(ip)
+	except ValueError:
+		return None
+
+	if isinstance(parsed, ipaddress.IPv4Address):
+		return socket.AF_INET
+	if isinstance(parsed, ipaddress.IPv6Address):
+		return socket.AF_INET6
+	return None
 
 
 class NotDiscoveredError(RuntimeError):
