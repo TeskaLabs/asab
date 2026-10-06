@@ -11,7 +11,7 @@ import urllib.parse
 
 import aiohttp
 
-from .filesystem import SimpleFileSystemLibraryProvider
+from .filesystem import FileSystemLibraryProvider
 from ..dirsync import synchronize_dirs
 from ...utils import convert_to_seconds, get_source_id
 
@@ -22,9 +22,12 @@ L = logging.getLogger(__name__)
 #
 
 
-class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
+class LibsRegLibraryProvider(FileSystemLibraryProvider):
 	"""
 	Read-only provider to read from remote "library repository".
+
+	Extracted content is served with the same global / tenant / personal
+	overlays as FileSystemLibraryProvider.
 
 	It provides an option to specify more servers for more reliable content delivery.
 
@@ -117,7 +120,13 @@ class LibsRegLibraryProvider(SimpleFileSystemLibraryProvider):
 
 		os.makedirs(os.path.join(self.RepoPath), exist_ok=True)
 
-		super().__init__(library, self.RepoPath, layer, source=source, set_ready=False)
+		# Content is nearly constant and changes are signaled by pull/etag, not local watches.
+		super().__init__(
+			library, self.RepoPath, layer,
+			source=source,
+			set_ready=False,
+			enable_inotify=False,
+		)
 
 		self.PullLock = asyncio.Lock()
 		self.LastPull = None

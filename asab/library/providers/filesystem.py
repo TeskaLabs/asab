@@ -41,7 +41,7 @@ class SimpleFileSystemLibraryProvider(LibraryProviderABC):
 	- global path: <BasePath>/<path>
 	"""
 
-	def __init__(self, library, path, layer, *, source, set_ready=True):
+	def __init__(self, library, path, layer, *, source, set_ready=True, enable_inotify=True):
 		super().__init__(library, layer, source)
 
 		# Check for `file://` prefix and strip it if present
@@ -58,8 +58,9 @@ class SimpleFileSystemLibraryProvider(LibraryProviderABC):
 		self.AggrEvents = []
 		self.WDs = {}  # wd -> (subscribed_path, child_path)
 
-		# Initialize inotify for subscription support (optional in base class)
-		if inotify_init is not None:
+		# Initialize inotify for subscription support (optional in base class).
+		# Providers that treat content as nearly constant (e.g. libsreg pull) can disable it.
+		if enable_inotify and inotify_init is not None:
 			init = inotify_init()
 			if init == -1:
 				L.warning(
@@ -378,8 +379,13 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 		("personal", "<cred>") -> watch one personal credential scope
 	"""
 
-	def __init__(self, library, path, layer, *, source, set_ready=True):
-		super().__init__(library, path, layer, source=source, set_ready=False)
+	def __init__(self, library, path, layer, *, source, set_ready=True, enable_inotify=True):
+		super().__init__(
+			library, path, layer,
+			source=source,
+			set_ready=False,
+			enable_inotify=enable_inotify,
+		)
 
 		# Set up disabled file path
 		self.DisabledFilePath = os.path.join(self.BasePath, '.disabled.yaml')
