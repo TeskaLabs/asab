@@ -359,25 +359,31 @@ class SimpleFileSystemLibraryProvider(LibraryProviderABC):
 
 class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 	"""
-	Filesystem provider with ZooKeeper-like target semantics:
+	Filesystem provider with ZooKeeper-like target semantics.
 
-	- global path: <BasePath>/<path>
-	- tenant path: <BasePath>/.tenants/<tenant>/<path>
-	- personal path: <BasePath>/.personal/<tenant>/<credentials>/<path>
+	Targets differ only by filesystem root:
 
-	read():
-		personal → tenant → global
+	- global:   <BasePath>
+	- tenant:   <BasePath>/.tenants/<tenant>
+	- personal: <BasePath>/.personal/<tenant>/<credentials>
 
-	list():
-		personal-items + tenant-items + global-items (no merging by name)
+	Library path `/foo` is always joined under that root. Missing target
+	context (no tenant / credentials) skips that target; it never aliases
+	another target.
+
+	read(): personal → tenant → global
+	list(): personal + tenant + global (no merging by name)
 
 	subscribe(path, target):
 		None / "global"        -> watch global path
-		"tenant"               -> watch in all tenants under /.tenants
-		("tenant", "<tenant>") -> watch in one tenant
-		"personal"             -> watch all personal scopes
-		("personal", "<cred>") -> watch one personal credential scope
+		"tenant"               -> watch path under every tenant in /.tenants
+		("tenant", "<tenant>") -> watch one tenant
+		"personal"             -> watch current (tenant, credentials) scope
+		("personal", "<cred>") -> watch one personal credential under current tenant
 	"""
+
+	# Precedence order for read/list overlays.
+	Targets = ("personal", "tenant", "global")
 
 	def __init__(self, library, path, layer, *, source, set_ready=True, enable_inotify=True):
 		super().__init__(
@@ -387,7 +393,6 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 			enable_inotify=enable_inotify,
 		)
 
-		# Set up disabled file path
 		self.DisabledFilePath = os.path.join(self.BasePath, '.disabled.yaml')
 
 		if set_ready:
@@ -409,172 +414,120 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 			return None
 
 
-	def _personal_path(self, path, tenant_id, cred_id):
-		assert path[:1] == '/'
+	def _target_base(
+		self,
+		target: typing.Optional[str],
+		*,
+		tenant_id: typing.Optional[str] = None,
+		cred_id: typing.Optional[str] = None,
+	) -> typing.Optional[str]:
+		"""
+		Return the absolute filesystem root for a target, or None if that
+		target cannot be resolved with the given/current context.
+		"""
+		if target in (None, "global"):
+			return self.BasePath
 
-		if not tenant_id or not cred_id:
+		if target == "tenant":
+			if not tenant_id:
+				return None
+			return os.path.join(self.BasePath, ".tenants", tenant_id)
+
+		if target == "personal":
+			if not tenant_id or not cred_id:
+				return None
+			return os.path.join(self.BasePath, ".personal", tenant_id, cred_id)
+
+		raise ValueError("Unexpected target: {!r}".format(target))
+
+
+	def build_path(
+		self,
+		path: str,
+		target: typing.Optional[str] = "global",
+		*,
+		tenant_id: typing.Optional[str] = None,
+		cred_id: typing.Optional[str] = None,
+	) -> typing.Optional[str]:
+		"""
+		Build an absolute filesystem path for `path` under the given target root.
+
+		Returns:
+			Absolute filesystem path, or None when the target cannot be resolved
+			(missing tenant/credentials). Never falls back to another target.
+
+		Raises:
+			ValueError: path traversal outside the target root.
+		"""
+		assert path[:1] == '/'
+		assert '//' not in path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
+
+		if target in ("tenant", "personal") and tenant_id is None:
+			tenant_id = self._current_tenant_id()
+		if target == "personal" and cred_id is None:
+			cred_id = self._current_credentials_id()
+
+		base = self._target_base(target, tenant_id=tenant_id, cred_id=cred_id)
+		if base is None:
 			return None
 
-		base = os.path.join(self.BasePath, '.personal')
-		full = os.path.normpath(
-			os.path.join(base, tenant_id, cred_id, path.lstrip('/'))
-		)
+		base_norm = os.path.normpath(base)
+		if path == '/':
+			full = base_norm
+		else:
+			full = os.path.normpath(os.path.join(base_norm, path.lstrip('/')))
 
-		if not full.startswith(base + os.sep):
+		if full != base_norm and not full.startswith(base_norm + os.sep):
 			raise ValueError("Path traversal detected")
 
 		return full
 
 
-	def _resolve_fs_path_from_info(self, info):
-		scope = info["scope"]
-		path = info["path"]
-		tenant_id = info["tenant_id"]
-		cred_id = info["cred_id"]
-
-		if scope == "global":
-			return self.build_path(path)
-
-		if scope == "tenant":
-			return self.build_path(path, tenant_specific=True, tenant=tenant_id)
-
-		if scope == "personal":
-			fs_path = self._personal_path(path, tenant_id, cred_id)
-			if fs_path is None:
-				raise RuntimeError("Personal scope path without tenant/cred")
-			return fs_path
-
-		raise RuntimeError("Unknown scope: {}".format(scope))
-
-
-	def build_path(self, path, tenant_specific=False, tenant=None):
-		"""
-		Build an absolute filesystem path under this provider base path.
-
-		Args:
-			path: Library path starting with '/'.
-			tenant_specific: If True, resolve into '/.tenants/<tenant>/' when tenant is available.
-			tenant: Explicit tenant ID override. If None, uses Tenant context.
-
-		Returns:
-			Absolute filesystem path.
-
-		Notes:
-			- This method is for both file and directory paths.
-			- It does not enforce file-extension rules.
-		"""
-		assert path[:1] == '/'
-
-		if tenant_specific:
-			if tenant is None:
-				try:
-					tenant = Tenant.get()
-				except LookupError:
-					tenant = None
-
-			if tenant:
-				node_path = self.BasePath + '/.tenants/' + tenant + path
-			else:
-				node_path = self.BasePath + path if path != '/' else self.BasePath
-		else:
-			node_path = self.BasePath + path if path != '/' else self.BasePath
-
-		node_path = node_path.rstrip("/")
-
-		assert '//' not in node_path, "Directory path cannot contain double slashes (//). Example format: /library/Templates/"
-		assert node_path[0] == '/', "Directory path must start with '/'"
-
-		return node_path
-
-
 	async def read(self, path: str) -> typing.Optional[typing.IO]:
 		"""
-		Read a file from filesystem overlays in precedence order:
-
-		1) personal: '/.personal/<tenant>/<credentials>/<path>'
-		2) tenant:   '/.tenants/<tenant>/<path>'
-		3) global:   '<BasePath>/<path>'
-
-		Returns:
-			Binary file object, or None if not found.
+		Read a file from overlays in precedence order: personal → tenant → global.
 		"""
 		self._validate_read_path(path)
 
-		tenant_id = self._current_tenant_id()
-		cred_id = self._current_credentials_id()
+		for target in self.Targets:
+			try:
+				fs_path = self.build_path(path, target)
+			except ValueError:
+				continue
+			if fs_path is None:
+				continue
+			if os.path.isfile(fs_path):
+				return io.FileIO(fs_path, 'rb')
 
-		# personal
-		personal_path = self._personal_path(path, tenant_id, cred_id)
-		if personal_path and os.path.isfile(personal_path):
-			return io.FileIO(personal_path, 'rb')
-
-		# tenant
-		try:
-			tenant_path = self.build_path(path, tenant_specific=True)
-			if os.path.isfile(tenant_path):
-				return io.FileIO(tenant_path, 'rb')
-		except Exception:
-			pass
-
-		# global
-		try:
-			global_path = self.build_path(path, tenant_specific=False)
-			return io.FileIO(global_path, 'rb')
-		except (FileNotFoundError, IsADirectoryError):
-			return None
+		return None
 
 
 	async def list(self, path: str) -> list:
 		"""
-		List directory items from overlays and concatenate in precedence order:
-
-		personal + tenant + global
-
-		Returns:
-			List[LibraryItem]
+		List directory items from overlays: personal + tenant + global.
+		Missing overlay roots contribute nothing (ZooKeeper semantics).
 		"""
-		# Global
-		global_node_path = self.build_path(path, tenant_specific=False)
-		global_items = self._list_from_node_path(global_node_path, path, target="global")
-
-		# Tenant
-		tenant_node_path = self.build_path(path, tenant_specific=True)
-		if tenant_node_path != global_node_path:
+		items = []
+		for target in self.Targets:
 			try:
-				tenant_items = self._list_from_node_path(tenant_node_path, path, target="tenant")
-			except KeyError:
-				# Tenant path does not exist → empty overlay (ZooKeeper semantics)
-				tenant_items = []
-		else:
-			tenant_items = []
-
-		# personal
-		personal_items = []
-		tenant_id = self._current_tenant_id()
-		cred_id = self._current_credentials_id()
-		if tenant_id and cred_id:
-			try:
-				personal_node = self._personal_path(path, tenant_id, cred_id)
+				node_path = self.build_path(path, target)
 			except ValueError:
-				personal_node = None
+				continue
+			if node_path is None:
+				continue
+			try:
+				items.extend(self._list_from_node_path(node_path, path, target=target))
+			except KeyError:
+				# Overlay path does not exist → empty contribution
+				pass
 
-			if personal_node is not None:
-				try:
-					personal_items = self._list_from_node_path(
-						personal_node,
-						path,
-						target="personal",
-					)
-				except KeyError:
-					personal_items = []
-
-		return personal_items + tenant_items + global_items
+		return items
 
 
 	def _list_from_node_path(self, node_path: str, base_path: str, target="global"):
 		exists = os.access(node_path, os.R_OK) and os.path.isdir(node_path)
 		if not exists:
-			raise KeyError("Path '{}' not found by FileSystemLibraryProviderTarget.".format(base_path))
+			raise KeyError("Path '{}' not found by FileSystemLibraryProvider.".format(base_path))
 
 		items = []
 		for fname in glob.iglob(os.path.join(node_path, "*")):
@@ -583,7 +536,6 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 			except FileNotFoundError:
 				continue
 
-			# Turn absolute filesystem path back into library path under base_path
 			rel_name = os.path.basename(fname)
 			if rel_name.startswith('.'):
 				continue
@@ -601,19 +553,11 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 				size = None
 				lib_name = "{}/{}".format(base_path.rstrip("/"), rel_name)
 
-			# Remove any component that starts with '.'
 			if any(x.startswith('.') for x in lib_name.split('/')):
 				continue
 
 			if self.Layer == 0:
-				if target == "global":
-					layer_label = "0:global"
-				elif target == "tenant":
-					layer_label = "0:tenant"
-				elif target == "personal":
-					layer_label = "0:personal"
-				else:
-					layer_label = "0:{}".format(target)
+				layer_label = "0:{}".format(target)
 			else:
 				layer_label = self.Layer
 
@@ -628,6 +572,109 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 		return items
 
 
+	def _iter_subscription_bases(self, target: typing.Union[str, tuple, None]):
+		"""Yield absolute filesystem roots to watch for `target`."""
+		if target in {None, "global"}:
+			base = self._target_base("global")
+			if base is not None:
+				yield base
+			return
+
+		if target == "tenant":
+			tenants_root = os.path.join(self.BasePath, ".tenants")
+			if not os.path.isdir(tenants_root):
+				return
+			for name in sorted(os.listdir(tenants_root)):
+				if name.startswith('.'):
+					continue
+				tenant_path = os.path.join(tenants_root, name)
+				if os.path.isdir(tenant_path):
+					yield tenant_path
+			return
+
+		if isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
+			base = self._target_base("tenant", tenant_id=target[1])
+			if base is not None:
+				yield base
+			return
+
+		if target == "personal":
+			base = self._target_base(
+				"personal",
+				tenant_id=self._current_tenant_id(),
+				cred_id=self._current_credentials_id(),
+			)
+			if base is not None:
+				yield base
+			return
+
+		if isinstance(target, tuple) and len(target) == 2 and target[0] == "personal":
+			base = self._target_base(
+				"personal",
+				tenant_id=self._current_tenant_id(),
+				cred_id=target[1],
+			)
+			if base is not None:
+				yield base
+			return
+
+		raise ValueError("Unexpected target: {!r}".format(target))
+
+
+	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
+		if self.FD is None:
+			L.warning(
+				"Filesystem library change notifications are unavailable; inotify is not initialized.",
+				struct_data={"base_path": self.BasePath, "path": path},
+			)
+			return
+
+		for fs_root in self._iter_subscription_bases(target):
+			if path == '/':
+				node_path = os.path.normpath(fs_root)
+			else:
+				node_path = os.path.normpath(
+					os.path.join(os.path.normpath(fs_root), path.lstrip('/'))
+				)
+
+			if not os.path.isdir(node_path):
+				continue
+			self._subscribe_recursive(path, path, fs_root)
+
+
+	def _subscribe_recursive(self, subscribed_path, path_to_be_listed, fs_root=None):
+		if fs_root is None:
+			fs_root = self.BasePath
+
+		if path_to_be_listed == '/':
+			node_path = os.path.normpath(fs_root)
+		else:
+			node_path = os.path.normpath(
+				os.path.join(os.path.normpath(fs_root), path_to_be_listed.lstrip('/'))
+			)
+
+		if not os.path.isdir(node_path):
+			return
+
+		wd = inotify_add_watch(self.FD, node_path.encode(), IN_ALL_EVENTS)
+		if wd == -1:
+			L.error(
+				"Cannot watch library directory for changes; inotify_add_watch failed.",
+				struct_data={"path": node_path, "layer": self.Layer},
+			)
+			return
+		self.WDs[wd] = (subscribed_path, path_to_be_listed, fs_root)
+
+		try:
+			items = self._list_from_node_path(node_path, path_to_be_listed, target="global")
+		except KeyError:
+			return
+
+		for item in items:
+			if item.type == "dir":
+				self._subscribe_recursive(subscribed_path, item.name, fs_root)
+
+
 	def _on_inotify_read(self):
 		data = os.read(self.FD, 64 * 1024)
 
@@ -638,18 +685,26 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 			name = (data[pos - namesize: pos].split(b'\x00', 1)[0]).decode()
 
 			if mask & IN_ISDIR == IN_ISDIR and ((mask & IN_CREATE == IN_CREATE) or (mask & IN_MOVED_TO == IN_MOVED_TO)):
-				subscribed_path, child_path = self.WDs[wd]
-				self._subscribe_recursive(subscribed_path, "/".join([child_path, name]))
+				subscribed_path, child_path, fs_root = self.WDs[wd]
+				self._subscribe_recursive(subscribed_path, "/".join([child_path.rstrip("/"), name]), fs_root)
 
 			if mask & IN_IGNORED == IN_IGNORED:
-				# cleanup
 				del self.WDs[wd]
 				continue
 
-			name = (data[pos - namesize: pos].split(b'\x00', 1)[0]).decode()
+			watch = self.WDs.get(wd)
+			if watch is not None:
+				_, child_path, fs_root = watch
+				if child_path == '/':
+					watched_dir = os.path.normpath(fs_root)
+				else:
+					watched_dir = os.path.normpath(
+						os.path.join(os.path.normpath(fs_root), child_path.lstrip('/'))
+					)
+				full_path = os.path.join(watched_dir, name) if name else watched_dir
+				if os.path.normpath(full_path) == os.path.normpath(self.DisabledFilePath):
+					self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
 
-			full_path = os.path.join(self.BasePath, name)
-			if os.path.normpath(full_path) == os.path.normpath(self.DisabledFilePath):
-				self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
+			self.AggrEvents.append((wd, mask, cookie, name))
 
 		self.AggrTimer.restart(0.2)

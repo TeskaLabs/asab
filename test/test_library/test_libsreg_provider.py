@@ -122,6 +122,35 @@ class TestLibsRegLibraryProvider(unittest.IsolatedAsyncioTestCase):
 			{"/Templates/item.json", "/Templates/global-only.json"},
 		)
 
+	async def test_list_overlay_only_directory_without_global(self):
+		"""Tenant/personal dirs are listed even when the global path is absent."""
+		_write_file(
+			self.content_root,
+			"/.tenants/acme/OverlayOnly/tenant.json",
+			"tenant-overlay-only",
+		)
+		_write_file(
+			self.content_root,
+			"/.personal/acme/user1/OverlayOnly/personal.json",
+			"personal-overlay-only",
+		)
+
+		tenant_token = Tenant.set("acme")
+		authz_token = Authz.set(SimpleNamespace(CredentialsId="user1"))
+		try:
+			items = await self.provider.list("/OverlayOnly/")
+		finally:
+			Authz.reset(authz_token)
+			Tenant.reset(tenant_token)
+
+		by_layer = {}
+		for item in items:
+			by_layer.setdefault(item.layers[0], []).append(item.name)
+
+		self.assertNotIn("0:global", by_layer)
+		self.assertEqual(by_layer["0:personal"], ["/OverlayOnly/personal.json"])
+		self.assertEqual(by_layer["0:tenant"], ["/OverlayOnly/tenant.json"])
+
 	async def test_subscribe_records_path_without_using_inotify(self):
 		self.assertIsNone(self.provider.FD)
 		await self.provider.subscribe("/Templates/")
