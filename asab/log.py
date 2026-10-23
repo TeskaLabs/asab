@@ -533,12 +533,29 @@ class AsyncIOHandler(logging.Handler):
 
 
 	def _connect(self, loop):
+		"""Initiate a non-blocking socket connection to the syslog address.
+
+		Behavior:
+			- Immediate connection: Registers `_on_write` and `_on_read` callbacks.
+			- Async handshake (`BlockingIOError` / `EINPROGRESS`): Registers only
+				`_on_connect_complete` as a writer.
+			- Failure: Logs the error to `stderr` and aborts.
+
+		Note:
+			Reader registration is deferred during async handshakes because a failed
+			connection (e.g., `ECONNREFUSED`) marks the socket both readable and
+			writable; firing `_on_read` early would close the socket and leave a
+			dangling writer callback on the event loop.
+		"""
 		self._reset()
 
 		try:
 			self._socket = socket.socket(self._family, self._type)
 			self._socket.setblocking(0)
 			self._socket.connect(self._address)
+		except BlockingIOError:
+			self._loop.add_writer(self._socket, self._on_connect_complete)
+			return
 		except Exception as e:
 			print("Error when opening syslog connection to '{}'".format(self._address), e, file=sys.stderr)
 			return
@@ -546,9 +563,43 @@ class AsyncIOHandler(logging.Handler):
 		self._loop.add_writer(self._socket, self._on_write)
 		self._loop.add_reader(self._socket, self._on_read)
 
+	def _on_connect_complete(self):
+		"""Verify asynchronous connection completion and transition to writing.
+
+		Triggered when the connecting socket becomes writable.
+
+		Steps:
+			1. Deregisters itself from the event loop's writer callbacks.
+			2. Queries `SO_ERROR` via `getsockopt`, since writability alone
+				indicates completion rather than success.
+			3. Calls `_on_write` if `SO_ERROR == 0`, or logs to `stderr` and
+				calls `_reset` on error.
+		"""
+		if self._socket is None:
+			return
+		try:
+			err = self._socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+			self._loop.remove_writer(self._socket)
+		except OSError:
+			return
+		if err != 0:
+			print("Error when opening syslog connection to '{}': {}".format(self._address, err), file=sys.stderr)
+			self._reset()
+			return
+		self._on_write()
+
 	def _on_write(self):
+		"""Mark the connection ready, register the reader, and flush queued messages.
+
+		Steps:
+			1. Sets `_write_ready = True` and removes the active writer callback.
+			2. Registers `_on_read` on the event loop to monitor the connection.
+			3. Drains `_queue` via `sendall`, dumping any failed messages and
+				tracebacks to `stderr` as a fallback.
+		"""
 		self._write_ready = True
 		self._loop.remove_writer(self._socket)
+		self._loop.add_reader(self._socket, self._on_read)
 
 		while not self._queue.empty():
 			msg = self._queue.get_nowait()
@@ -574,11 +625,22 @@ class AsyncIOHandler(logging.Handler):
 
 
 	def emit(self, record):
-		"""
-		This is the entry point for log entries.
+		"""Format, frame, and transmit or buffer a log record.
+
+		Behavior:
+			- Formatting: Encodes the formatted log record as UTF-8 bytes.
+			- Framing: Applies RFC 6587 octet-counting (`<byte_length> <message>`)
+				for stream sockets (`SOCK_STREAM`) to safely handle multiline
+				messages (e.g., tracebacks) without newline delimiter splitting.
+				Datagram sockets (`SOCK_DGRAM`) remain unframed.
+			- Delivery: Sends immediately via `sendall` if `_write_ready` is True;
+				buffers the message via `_enqueue` if the socket is not ready or if
+				transmission fails.
 		"""
 		try:
 			msg = self.format(record).encode('utf-8')
+			if self._type == socket.SOCK_STREAM:
+				msg = ("{} ".format(len(msg))).encode('ascii') + msg
 
 			if self._write_ready:
 				try:
