@@ -827,7 +827,7 @@ def _compute_housekeeping_schedule(not_before: datetime.datetime) -> typing.Tupl
 	randomize = Config.getboolean("housekeeping", "randomize", fallback=False)
 
 	day_base = not_before.replace(hour=0, minute=0, second=0, microsecond=0)
-	for days_ahead in range(367):
+	for days_ahead in range(-1, 366):
 		window_start = (day_base + datetime.timedelta(days=days_ahead)).replace(
 			hour=config_house_time.hour,
 			minute=config_house_time.minute,
