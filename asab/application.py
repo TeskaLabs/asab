@@ -763,32 +763,10 @@ class Application(metaclass=Singleton):
 		Returns:
 			(next_housekeeping_time, next_time_limit, next_housekeeping_id)
 		"""
-		config_house_time = datetime.datetime.strptime(Config['housekeeping']['at'], "%H:%M")  # default: 03:00
-		config_time_limit = datetime.datetime.strptime(Config['housekeeping']['limit'], "%H:%M")  # default: 05:00
-
 		now = datetime.datetime.now(datetime.timezone.utc)
-
-		next_housekeeping_time = now.replace(
-			hour=config_house_time.hour,
-			minute=config_house_time.minute,
-			second=0,
-			microsecond=0)
-
-		# if the app started after the housekeeping time, set it to the next day
-		if now > next_housekeeping_time:
-			next_housekeeping_time += datetime.timedelta(days=1)
-
-		# compute the time limit for the housekeeping
-		time_delta_limit = config_time_limit - config_house_time
-		if time_delta_limit < datetime.timedelta(hours=0):
-			time_delta_limit += datetime.timedelta(days=1)
-
-		next_time_limit = next_housekeeping_time + time_delta_limit
-
+		next_housekeeping_time, next_time_limit = _compute_housekeeping_schedule(now)
 		# Each time has its id that prevents from accidental executing housekeeping twice.
 		next_housekeeping_id = _housekeeping_id(now)
-
-
 		return (next_housekeeping_time, next_time_limit, next_housekeeping_id)
 
 	def _on_housekeeping_tick(self, message_type):
@@ -814,8 +792,7 @@ class Application(metaclass=Singleton):
 				)
 				self.HousekeepingMissedEvents.append(today_id)
 
-			self.HousekeepingTime += datetime.timedelta(days=1)
-			self.HousekeepingTimeLimit += datetime.timedelta(days=1)
+			self.HousekeepingTime, self.HousekeepingTimeLimit = _compute_housekeeping_schedule(self.HousekeepingTimeLimit)
 			self.HousekeepingId = _housekeeping_id(self.HousekeepingTime)
 
 			if len(self.HousekeepingMissedEvents) > 0:
@@ -824,6 +801,51 @@ class Application(metaclass=Singleton):
 					struct_data={
 						"missed_housekeeping_events": self.HousekeepingMissedEvents
 					})
+
+
+def _housekeeping_time_delta_limit() -> datetime.timedelta:
+	config_house_time = datetime.datetime.strptime(Config['housekeeping']['at'], "%H:%M")
+	config_time_limit = datetime.datetime.strptime(Config['housekeeping']['limit'], "%H:%M")
+	time_delta_limit = config_time_limit - config_house_time
+	if time_delta_limit < datetime.timedelta(hours=0):
+		time_delta_limit += datetime.timedelta(days=1)
+	return time_delta_limit
+
+
+def _compute_housekeeping_schedule(not_before: datetime.datetime) -> typing.Tuple[datetime.datetime, datetime.datetime]:
+	"""
+	Return the next housekeeping time and time limit (UTC).
+
+	`not_before` is the earliest moment that may still belong to a window that
+	has already ended; the first window with an end strictly after `not_before` is used.
+	When randomization is enabled, the housekeeping time is chosen uniformly in the first
+	half of the window, i.e. [at, at + (limit - at) / 2], so the second half remains
+	as a buffer before the time limit.
+	"""
+	config_house_time = datetime.datetime.strptime(Config['housekeeping']['at'], "%H:%M")
+	time_delta_limit = _housekeeping_time_delta_limit()
+	randomize = Config.getboolean("housekeeping", "randomize", fallback=False)
+
+	day_base = not_before.replace(hour=0, minute=0, second=0, microsecond=0)
+	for days_ahead in range(-1, 366):
+		window_start = (day_base + datetime.timedelta(days=days_ahead)).replace(
+			hour=config_house_time.hour,
+			minute=config_house_time.minute,
+			second=0,
+			microsecond=0,
+		)
+		window_end = window_start + time_delta_limit
+		if window_end <= not_before:
+			continue
+
+		if randomize and time_delta_limit.total_seconds() > 0:
+			offset_seconds = random.uniform(0, time_delta_limit.total_seconds() / 2)
+			housekeeping_time = window_start + datetime.timedelta(seconds=offset_seconds)
+			housekeeping_time = housekeeping_time.replace(microsecond=0)
+		else:
+			housekeeping_time = window_start
+
+		return (housekeeping_time, window_end)
 
 
 def _housekeeping_id(dt: datetime.datetime) -> int:

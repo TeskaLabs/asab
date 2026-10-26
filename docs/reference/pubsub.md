@@ -200,23 +200,26 @@ def clean_recycle_bin(msg):
 
 The application checks every ten minutes if it's time for housekeeping.
 If the UTC time reaches the value for housekeeping, the app will publish **Application.housekeeping!**
-and schedules the next housekeeping for tomorrow at the same time.
+and schedules the next housekeeping for the following day (at `at`, or at a new random time when `randomize` is enabled).
 There is also a time limit, which is set to 05:00 AM UTC by default.
 
-By default, the time for housekeeping is set to 03:00 AM UTC and the limit to 05:00 AM UTC.
+By default, the time for housekeeping is set to 01:00 AM UTC and the limit to 05:00 AM UTC.
 
 
 Housekeeping can be also configured to run during the application [init-time](../application/#init-time).
-Housekeeping time, time limit, and housekeeping at startup can be changed in the configuration file:
+Housekeeping time, time limit, randomization, and housekeeping at startup can be changed in the configuration file:
 
 ``` ini
 [housekeeping]
 at=19:30
 limit=21:00
+randomize=yes
 run_at_startup=yes
 ```
 
-This sets the housekeeping time to 7:30 PM UTC and the time limit to 9:00 PM UTC.
+This sets the housekeeping window to 7:30 PM–9:00 PM UTC.
+With `randomize=yes`, a random UTC time in the first half of that window is chosen for each day (from `at` to halfway to `limit`), leaving the rest of the window before the time limit.
+With `randomize=no` (the default), housekeeping is scheduled at `at`.
 The time must be written in the format 'HH:MM'.
 Remember that the time is set to UTC, so be careful when operating in a different timezone.
 

@@ -113,8 +113,9 @@ class ConfigParser(configparser.ConfigParser):
 		},
 
 		"housekeeping": {
-			"at": "03:00",
-			"limit": "05:00",
+			"at": "01:00",
+			"limit": "03:00",
+			"randomize": "no",
 			"run_at_startup": "no",
 		},
 
