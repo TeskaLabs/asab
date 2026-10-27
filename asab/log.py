@@ -174,7 +174,7 @@ class Logging(object):
 			try:
 				self.RootLogger.setLevel(_NAME_TO_LEVEL.get(level_name, level_name))
 			except ValueError:
-				L.error("Cannot detect logging level '{}'".format(level_name))
+				L.error("Cannot detect logging level", struct_data={"logging_requested": level_name, "type": "logging"})
 
 		# Fine-grained log level configurations
 		levels = Config["logging"].get('levels')
@@ -186,13 +186,13 @@ class Logging(object):
 			try:
 				logger_name, level_name = level_line.split(None, 1)
 			except ValueError:
-				L.error("Cannot read line '{}' in '[logging] levels' section, expected format: 'logger_name level_name'.".format(level_line))
+				L.error("Cannot read line '{}' in '[logging] levels' section, expected format: 'logger_name level_name'.".format(level_line), struct_data={"type": "logging", "line": level_line})
 				continue
 			level = _NAME_TO_LEVEL.get(level_name.upper(), level_name.upper())
 			try:
 				logging.getLogger(logger_name).setLevel(level)
 			except ValueError:
-				L.error("Cannot detect logging level '{}' for {} logger".format(level_name, logger_name))
+				L.error("Cannot detect logging level '{}' for {} logger".format(level_name, logger_name), struct_data={"type": "logging", "line": level_name, "logger_name": logger_name})
 
 	def rotate(self):
 		if self.FileHandler is not None:
@@ -315,7 +315,7 @@ class StructuredDataFormatter(logging.Formatter):
 				s = "%s.%03d" % (t, record.msecs)
 			return s
 		except BaseException as e:
-			print("ERROR when logging: {}".format(e), file=sys.stderr)
+			L.error("General logging error", struct_data={"error": str(e)}, struct_data={"type": "logging", "error": e})
 			return str(ct)
 
 
@@ -557,7 +557,7 @@ class AsyncIOHandler(logging.Handler):
 			self._loop.add_writer(self._socket, self._on_connect_complete)
 			return
 		except Exception as e:
-			print("Error when opening syslog connection to '{}'".format(self._address), e, file=sys.stderr)
+			L.error("Error while opening syslog connetion", struct_data={"target": self._address, "error": str(e)})
 			return
 
 		self._loop.add_writer(self._socket, self._on_write)
@@ -583,7 +583,7 @@ class AsyncIOHandler(logging.Handler):
 		except OSError:
 			return
 		if err != 0:
-			print("Error when opening syslog connection to '{}': {}".format(self._address, err), file=sys.stderr)
+			L.error("Error while openning syslog connection", struct_data={"target": self._address, "error": str(e)})
 			self._reset()
 			return
 		self._on_write()
@@ -607,12 +607,14 @@ class AsyncIOHandler(logging.Handler):
 				self._socket.sendall(msg)
 			except Exception as e:
 				# Contingency dump when the socket is not ready
-				print(msg.decode("utf-8"), file=sys.stderr)
-				print(
-					"Error when writing to syslog '{}': {}".format(self._address, e),
-					traceback.format_exc(),
-					sep="\n",
-					file=sys.stderr
+				L.error(
+					"Error while writing to syslog",
+					struct_data={
+						"error": str(e),
+						"message": msg.decode("utf-8"),
+						"target": self._address,
+						"traceback": traceback.format_exc(),
+					},
 				)
 
 	def _on_read(self):
@@ -621,7 +623,7 @@ class AsyncIOHandler(logging.Handler):
 			# We receive "something" ... let's ignore that!
 			return
 		except Exception as e:
-			print("Error on the syslog socket '{}'".format(self._address), e, file=sys.stderr)
+			L.error("General error on the syslog socket", struct_data={"error": str(e), "target": self._address})
 
 
 	def emit(self, record):
@@ -646,7 +648,7 @@ class AsyncIOHandler(logging.Handler):
 				try:
 					self._socket.sendall(msg)
 				except Exception as e:
-					print("Error when writing to syslog '{}'".format(self._address), e, file=sys.stderr)
+					L.error("Error then writing to syslog", struct_data={"error": str(e), "target": self._address})
 					self._enqueue(msg)
 
 			else:
@@ -654,7 +656,7 @@ class AsyncIOHandler(logging.Handler):
 
 
 		except Exception as e:
-			print("Error when emit to syslog '{}'".format(self._address), e, file=sys.stderr)
+			L.error("Error whem emitting to syslog", struct_data={"error": str(e), "target": self._address})
 			self.handleError(record)
 
 
