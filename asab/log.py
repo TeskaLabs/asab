@@ -25,8 +25,6 @@ Info log level that is visible in non-verbose mode. It should not be used for wa
 
 logging.addLevelName(LOG_NOTICE, "NOTICE")
 
-L = logging.getLogger(__name__)
-
 _NAME_TO_LEVEL = {
 	"NOTSET": logging.NOTSET,
 	"NOT SET": logging.NOTSET,
@@ -174,7 +172,7 @@ class Logging(object):
 			try:
 				self.RootLogger.setLevel(_NAME_TO_LEVEL.get(level_name, level_name))
 			except ValueError:
-				L.error("Cannot detect logging level", struct_data={"logging_requested": level_name, "type": "logging"})
+				L.error("Cannot detect logging level", struct_data={"level": level_name})
 
 		# Fine-grained log level configurations
 		levels = Config["logging"].get('levels')
@@ -186,13 +184,13 @@ class Logging(object):
 			try:
 				logger_name, level_name = level_line.split(None, 1)
 			except ValueError:
-				L.error("Cannot read line '{}' in '[logging] levels' section, expected format: 'logger_name level_name'.".format(level_line), struct_data={"type": "logging", "line": level_line})
+				L.error("Cannot read line in '[logging] levels' section, expected format: 'logger_name level_name'", struct_data={"line": level_line})
 				continue
 			level = _NAME_TO_LEVEL.get(level_name.upper(), level_name.upper())
 			try:
 				logging.getLogger(logger_name).setLevel(level)
 			except ValueError:
-				L.error("Cannot detect logging level '{}' for {} logger".format(level_name, logger_name), struct_data={"type": "logging", "line": level_name, "logger_name": logger_name})
+				L.error("Cannot detect logging level for logger", struct_data={"level": level_name, "logger": logger_name})
 
 	def rotate(self):
 		if self.FileHandler is not None:
@@ -245,6 +243,9 @@ It means that you can use expressions such as ``logger.info("Hello world!", stru
 
 
 logging.setLoggerClass(_StructuredDataLogger)
+
+# Must be created after `setLoggerClass`, otherwise it does not accept `struct_data`
+L = logging.getLogger(__name__)
 
 
 class StructuredDataFormatter(logging.Formatter):
@@ -315,8 +316,9 @@ class StructuredDataFormatter(logging.Formatter):
 				s = "%s.%03d" % (t, record.msecs)
 			return s
 		except BaseException as e:
-			L.error("General logging error", struct_data={"error": str(e)}, struct_data={"type": "logging", "error": e})
-			return str(ct)
+			# Logging from inside a formatter would recurse into this formatter
+			print("Error when formatting log time: {}".format(e), file=sys.stderr)
+			return str(record.created)
 
 
 	def render_struct_data(self, struct_data):
@@ -516,11 +518,23 @@ class AsyncIOHandler(logging.Handler):
 		self._loop = loop
 
 		self._socket = None
+		self._reporting_error = False
 		self._reset()
 
 		self._queue = queue.Queue()
 
 		self._loop.call_soon(self._connect, self._loop)
+
+
+	def _error(self, message, struct_data):
+		# The root logger routes `L` back to this handler; such records are skipped in `emit` to prevent recursion.
+		self.acquire()
+		try:
+			self._reporting_error = True
+			L.error(message, struct_data=struct_data)
+		finally:
+			self._reporting_error = False
+			self.release()
 
 
 	def _reset(self):
@@ -539,7 +553,7 @@ class AsyncIOHandler(logging.Handler):
 			- Immediate connection: Registers `_on_write` and `_on_read` callbacks.
 			- Async handshake (`BlockingIOError` / `EINPROGRESS`): Registers only
 				`_on_connect_complete` as a writer.
-			- Failure: Logs the error to `stderr` and aborts.
+			- Failure: Logs the error (bypassing this handler) and aborts.
 
 		Note:
 			Reader registration is deferred during async handshakes because a failed
@@ -557,7 +571,7 @@ class AsyncIOHandler(logging.Handler):
 			self._loop.add_writer(self._socket, self._on_connect_complete)
 			return
 		except Exception as e:
-			L.error("Error while opening syslog connetion", struct_data={"target": self._address, "error": str(e)})
+			self._error("Error when opening syslog connection", struct_data={"target": self._address, "error": str(e)})
 			return
 
 		self._loop.add_writer(self._socket, self._on_write)
@@ -572,18 +586,20 @@ class AsyncIOHandler(logging.Handler):
 			1. Deregisters itself from the event loop's writer callbacks.
 			2. Queries `SO_ERROR` via `getsockopt`, since writability alone
 				indicates completion rather than success.
-			3. Calls `_on_write` if `SO_ERROR == 0`, or logs to `stderr` and
-				calls `_reset` on error.
+			3. Calls `_on_write` if `SO_ERROR == 0`, or logs the error
+				(bypassing this handler) and calls `_reset`.
 		"""
 		if self._socket is None:
 			return
+		self._loop.remove_writer(self._socket)
 		try:
 			err = self._socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
-			self._loop.remove_writer(self._socket)
-		except OSError:
+		except OSError as e:
+			self._error("Error when opening syslog connection", struct_data={"target": self._address, "error": str(e)})
+			self._reset()
 			return
 		if err != 0:
-			L.error("Error while openning syslog connection", struct_data={"target": self._address, "error": str(e)})
+			self._error("Error when opening syslog connection", struct_data={"target": self._address, "error": os.strerror(err)})
 			self._reset()
 			return
 		self._on_write()
@@ -594,8 +610,8 @@ class AsyncIOHandler(logging.Handler):
 		Steps:
 			1. Sets `_write_ready = True` and removes the active writer callback.
 			2. Registers `_on_read` on the event loop to monitor the connection.
-			3. Drains `_queue` via `sendall`, dumping any failed messages and
-				tracebacks to `stderr` as a fallback.
+			3. Drains `_queue` via `sendall`, logging any failed messages and
+				tracebacks (bypassing this handler) as a fallback.
 		"""
 		self._write_ready = True
 		self._loop.remove_writer(self._socket)
@@ -607,23 +623,28 @@ class AsyncIOHandler(logging.Handler):
 				self._socket.sendall(msg)
 			except Exception as e:
 				# Contingency dump when the socket is not ready
-				L.error(
-					"Error while writing to syslog",
+				self._error(
+					"Error when writing to syslog",
 					struct_data={
+						"target": self._address,
 						"error": str(e),
 						"message": msg.decode("utf-8"),
-						"target": self._address,
 						"traceback": traceback.format_exc(),
 					},
 				)
 
 	def _on_read(self):
 		try:
-			_ = self._socket.recvfrom(1024)
-			# We receive "something" ... let's ignore that!
-			return
+			data, _ = self._socket.recvfrom(1024)
 		except Exception as e:
-			L.error("General error on the syslog socket", struct_data={"error": str(e), "target": self._address})
+			self._error("Error on the syslog socket", struct_data={"target": self._address, "error": str(e)})
+			return
+
+		if len(data) == 0 and self._type == socket.SOCK_STREAM:
+			# Peer closed the connection; the socket would stay readable forever otherwise
+			self._error("Syslog connection closed by peer", struct_data={"target": self._address})
+			self._reset()
+		# We receive "something" ... let's ignore that!
 
 
 	def emit(self, record):
@@ -639,16 +660,22 @@ class AsyncIOHandler(logging.Handler):
 				buffers the message via `_enqueue` if the socket is not ready or if
 				transmission fails.
 		"""
+		if self._reporting_error:
+			return
+
 		try:
 			msg = self.format(record).encode('utf-8')
 			if self._type == socket.SOCK_STREAM:
+				# The NUL trailer of some formats is a framing delimiter and must not be part of an octet-counted frame
+				if msg.endswith(b'\000'):
+					msg = msg[:-1]
 				msg = ("{} ".format(len(msg))).encode('ascii') + msg
 
 			if self._write_ready:
 				try:
 					self._socket.sendall(msg)
 				except Exception as e:
-					L.error("Error then writing to syslog", struct_data={"error": str(e), "target": self._address})
+					self._error("Error when writing to syslog", struct_data={"target": self._address, "error": str(e)})
 					self._enqueue(msg)
 
 			else:
@@ -656,7 +683,7 @@ class AsyncIOHandler(logging.Handler):
 
 
 		except Exception as e:
-			L.error("Error whem emitting to syslog", struct_data={"error": str(e), "target": self._address})
+			self._error("Error when emitting to syslog", struct_data={"target": self._address, "error": str(e)})
 			self.handleError(record)
 
 
