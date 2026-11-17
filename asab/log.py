@@ -315,7 +315,7 @@ class StructuredDataFormatter(logging.Formatter):
 				t = ct.strftime("%Y-%m-%d %H:%M:%S")
 				s = "%s.%03d" % (t, record.msecs)
 			return s
-		except BaseException as e:
+		except Exception as e:
 			# Logging from inside a formatter would recurse into this formatter
 			print("Error when formatting log time: {}".format(e), file=sys.stderr)
 			return str(record.created)
@@ -527,7 +527,9 @@ class AsyncIOHandler(logging.Handler):
 
 
 	def _error(self, message, struct_data):
-		# The root logger routes `L` back to this handler; such records are skipped in `emit` to prevent recursion.
+		"""
+		Logging handler: the root logger routes `L` back to this handler; such records are skipped in `emit` to prevent recursion.
+		"""
 		self.acquire()
 		try:
 			self._reporting_error = True
@@ -648,7 +650,8 @@ class AsyncIOHandler(logging.Handler):
 
 
 	def emit(self, record):
-		"""Format, frame, and transmit or buffer a log record.
+		"""
+		Format, frame, and transmit or buffer a log record.
 
 		Behavior:
 			- Formatting: Encodes the formatted log record as UTF-8 bytes.
@@ -670,6 +673,10 @@ class AsyncIOHandler(logging.Handler):
 				if msg.endswith(b'\000'):
 					msg = msg[:-1]
 				msg = ("{} ".format(len(msg))).encode('ascii') + msg
+
+			if len(msg) > self.MaxMessageLen:
+				self._error("Error, the message exeeds max_message_len, adjust via source or service configuration", struct_data={"target": self._address, "max_message_len": str(self.MaxMessageLen)})
+				raise Exception
 
 			if self._write_ready:
 				try:
