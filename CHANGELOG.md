@@ -6,6 +6,10 @@
 - `asab.web.cors`: Removed redundant CORS headers and made CORS max age configurable (#816)
 - `asab.web.cors`: Rewrote web CORS with origin allowlist, credentials, and `WebContainer.enable_cors()` (#812)
 
+### Fixes
+
+- `asab.library.ZooKeeperLibraryProvider`: Advance stored version after `/.version.yaml` change to avoid redundant library change checks (#823)
+
 ---
 
 ## v26.36
