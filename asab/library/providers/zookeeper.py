@@ -551,7 +551,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	async def _on_library_changed(self, event_name=None):
 		if self.Zookeeper is None or not self.IsReady:
 			return
-		subscription_actual_paths = self.SubscriptionActualPaths
 
 		for (target, path) in list(self.Subscriptions):
 
@@ -604,7 +603,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					)
 
 			elif target == "personal" or (isinstance(target, tuple) and len(target) == 2 and target[0] == "personal"):
-				actual_paths = subscription_actual_paths.get((target, path))
+				actual_paths = self.SubscriptionActualPaths.get((target, path))
 				if actual_paths is None:
 					actual_path = self._subscription_personal_path(path, target)
 					actual_paths = [actual_path] if actual_path is not None else []
