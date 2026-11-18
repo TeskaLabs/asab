@@ -254,7 +254,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 	def _check_version_counter(self, version):
-		# If version is `None` aka `/.version.yaml` doesn't exists, then assume version -1
+		"""
+		Check the version counter and set the version if it has changed.
+
+		If the version has changed, schedule a task to reload the library.
+		If the version is `None`, then set the version to 1.
+		"""
+
 		if version is not None:
 			try:
 				version = int(version)
@@ -272,9 +278,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			# The version has not changed
 			return
 
+		self.Version = version
 		self.App.TaskService.schedule(self._on_library_changed())
-
-	# inside class ZooKeeperLibraryProvider
 
 	def _current_tenant_id(self):
 		try:
@@ -493,8 +498,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def subscribe(self, path, target: typing.Union[str, tuple, None] = None):
 		self.Subscriptions.add((target, path))
-		if not hasattr(self, "SubscriptionActualPaths"):
-			self.SubscriptionActualPaths = {}
 
 		if target in {None, "global"}:
 			self.SubscriptionActualPaths[(target, path)] = [path]
@@ -548,7 +551,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	async def _on_library_changed(self, event_name=None):
 		if self.Zookeeper is None or not self.IsReady:
 			return
-		subscription_actual_paths = getattr(self, "SubscriptionActualPaths", {})
+		subscription_actual_paths = self.SubscriptionActualPaths
 
 		for (target, path) in list(self.Subscriptions):
 
