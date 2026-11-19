@@ -4,7 +4,7 @@ Asynchronous Server App Boilerplate
 .. image:: https://img.shields.io/github/license/TeskaLabs/asab
     :target: https://github.com/TeskaLabs/asab/blob/master/LICENSE
 
-Asynchronous Server App Boilerplate (or ASAB for short) is a microservice *framework* for Python 3 and `asyncio`.
+Asynchronous Server App Boilerplate (or ASAB for short) is a microservice *framework* for Python 3.10+ and `asyncio`.
 The aim of ASAB is to minimize the amount of code that needs to be written when building a microservice or an aplication server.
 ASAB is fully asynchronous using async/await syntax from Python 3, making your code modern, non-blocking, speedy and hence scalable.
 We make every effort to build ASAB container-friendly so that you can deploy ASAB-based microservice via Docker or Kubernetes in a breeze.

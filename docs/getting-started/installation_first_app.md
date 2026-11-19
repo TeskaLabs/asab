@@ -54,7 +54,7 @@ ASAB is distributed via [pypi](https://pypi.org/project/asab/). There are three 
         app.run()
     ```
 
-    1. All ASAB applications use Python 3.9+. This is specified by a "hashbang" line at the very beginning of the file.
+    1. All ASAB applications use Python 3.10+. This is specified by a "hashbang" line at the very beginning of the file.
 
     2. ASAB is imported as the `asab` module via an import statement.
 
