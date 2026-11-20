@@ -14,21 +14,31 @@ class CacheLibraryProvider(SimpleFileSystemLibraryProvider):
 		self.ContentDir = repodir
 		super().__init__(library, repodir, layer, source=source, set_ready=False)
 
+		self.ProviderKind = path.split("+", 1)[0] if "+" in path else "unknown"
+
 		L.info(
 			"Using cache library provider instead of downloading library content. For standalone or local development, remove cache_dir from configuration so the library downloads directly.",
-			struct_data={"ready_file": self.ReadyFile, "source": self.Source}
+			struct_data={
+				"ready_file": self.ReadyFile,
+				"content_dir": self.ContentDir,
+				"layer": self.Layer,
+				"provider_kind": self.ProviderKind,
+			},
 		)
 
 		# Wait for the ready file to be created by an external cache filler (typically ASAB Governator).
 		self.App.TaskService.schedule(self.wait_for_ready())
 
 	async def wait_for_ready(self):
+		struct_data = {
+			"ready_file": self.ReadyFile,
+			"content_dir": self.ContentDir,
+			"layer": self.Layer,
+			"provider_kind": self.ProviderKind,
+		}
+
 		cnt = 0
 		while not os.path.exists(self.ReadyFile):
-			struct_data = {
-				"ready_file": self.ReadyFile,
-				"source": self.Source,
-			}
 			if cnt >= 60 and cnt % 60 == 0:
 				if os.path.isdir(self.ContentDir):
 					L.error(
