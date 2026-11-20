@@ -14,6 +14,11 @@ class CacheLibraryProvider(SimpleFileSystemLibraryProvider):
 		self.ContentDir = repodir
 		super().__init__(library, repodir, layer, source=source, set_ready=False)
 
+		L.info(
+			"Using cache library provider instead of downloading library content. For standalone or local development, remove cache_dir from configuration so the library downloads directly.",
+			struct_data={"ready_file": self.ReadyFile, "source": self.Source}
+		)
+
 		# Wait for the ready file to be created by an external cache filler (typically ASAB Governator).
 		self.App.TaskService.schedule(self.wait_for_ready())
 
