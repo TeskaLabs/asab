@@ -19,7 +19,6 @@ class CacheLibraryProvider(SimpleFileSystemLibraryProvider):
 		L.info(
 			"Using cache library provider instead of downloading library content. For standalone or local development, remove cache_dir from configuration so the library downloads directly.",
 			struct_data={
-				"ready_file": self.ReadyFile,
 				"content_dir": self.ContentDir,
 				"layer": self.Layer,
 				"provider_kind": self.ProviderKind,
@@ -31,7 +30,6 @@ class CacheLibraryProvider(SimpleFileSystemLibraryProvider):
 
 	async def wait_for_ready(self):
 		struct_data = {
-			"ready_file": self.ReadyFile,
 			"content_dir": self.ContentDir,
 			"layer": self.Layer,
 			"provider_kind": self.ProviderKind,
