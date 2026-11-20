@@ -12,6 +12,7 @@
 
 ### Fixes
 
+- `asab.library.CacheLibraryProvider`: Log actionable errors when the cache `.ready` file is missing, including Governator vs. in-progress population hints (#828)
 - `asab.library.ZooKeeperLibraryProvider`: Advance stored version after `/.version.yaml` change to avoid redundant library change checks (#823)
 
 ---
