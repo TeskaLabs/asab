@@ -7,7 +7,6 @@ import urllib.parse
 
 import kazoo.exceptions
 import kazoo.protocol.states
-import kazoo.recipe.watchers
 
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
@@ -177,7 +176,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.FullPath += self.BasePath
 
 		self.DisabledNodePath = self.build_path('/.disabled.yaml')
-		self.DisabledWatch = None
 
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_connected)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
@@ -191,7 +189,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		The `finalize` function is called when the application is shutting down
 		"""
-		self.DisabledWatch = None
 		zksvc = self.App.get_service("asab.ZooKeeperService")
 		await zksvc.remove(self.ZookeeperContainer)
 
@@ -205,15 +202,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		L.info("is connected.", struct_data={'path': self.FullPath})
 
-		def on_disabled_changed(data, stat):
-			# Whenever .disabled.yaml changes, reload disables
-			self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
-
-		def install_disabled_watcher():
-			return kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.DisabledNodePath, on_disabled_changed)
-
-		self.DisabledWatch = await self.Zookeeper.ProactorService.execute(install_disabled_watcher)
-
+		await self._install_disabled_watch()
 		await self._install_subscription_watches()
 		await self._set_ready()
 
@@ -224,7 +213,37 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		await self._set_ready(ready=False)
 
-	def _on_subscription_watch(self, event, subscribed_path):
+	def _on_disabled_changed(self, event):
+		"""
+		Kazoo callback (ZooKeeper I/O thread) for `/.disabled.yaml`.
+
+		Reloads disable metadata and may publish `Library.change!` via the library service.
+		"""
+		if self.Zookeeper is None:
+			return
+		if event.path is not None and event.path != self.DisabledNodePath:
+			return
+		self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
+
+	async def _install_disabled_watch(self):
+		"""
+		Register a PERSISTENT_RECURSIVE watch on `/.disabled.yaml` when the znode exists.
+		"""
+		if self.Zookeeper is None:
+			return
+
+		def install():
+			if not self.Zookeeper.Client.exists(self.DisabledNodePath):
+				return
+
+			self.Zookeeper.Client.add_watch(
+				self.DisabledNodePath,
+				self._on_disabled_changed,
+				kazoo.protocol.states.AddWatchMode.PERSISTENT_RECURSIVE,
+			)
+		await self.Zookeeper.ProactorService.execute(install)
+
+	def _on_library_changed(self, event, subscribed_path):
 		"""
 		Kazoo callback (ZooKeeper I/O thread) for PERSISTENT_RECURSIVE subscription watches.
 
@@ -237,8 +256,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	def _publish_library_change(self, event, library_path):
 		"""
 		Emit `Library.change!` for the subscribed library directory path.
-
-		`/.disabled.yaml` is ignored here; it is handled by a separate DataWatch.
 		"""
 		if self.Zookeeper is None or not self.IsReady or event.path is None:
 			return
@@ -515,7 +532,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					# Kazoo invokes the watch callback with only `event`. This callable is stored
 					# on the client and binds `subscribed_path` to the ZK watch at install time.
 					def on_watch(event, subscribed_path=subscribed_path):
-						self._on_subscription_watch(event, subscribed_path)
+						self._on_library_changed(event, subscribed_path)
 
 					self.Zookeeper.Client.add_watch(
 						zk_root,
