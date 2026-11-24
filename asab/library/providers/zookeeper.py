@@ -225,15 +225,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def _install_disabled_watch(self):
 		"""
-		Register a PERSISTENT_RECURSIVE watch on `/.disabled.yaml` when the znode exists.
+		Register a persistent recursive watch on `/.disabled.yaml`, if the node does not exist it will be created.
 		"""
 		if self.Zookeeper is None:
 			return
-
 		def install():
-			if not self.Zookeeper.Client.exists(self.DisabledNodePath):
-				return
-
 			self.Zookeeper.Client.add_watch(
 				self.DisabledNodePath,
 				self._on_disabled_changed,
