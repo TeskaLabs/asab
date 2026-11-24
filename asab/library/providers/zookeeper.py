@@ -1,5 +1,4 @@
 import io
-import hashlib
 import typing
 import logging
 import functools
@@ -7,6 +6,7 @@ import os.path
 import urllib.parse
 
 import kazoo.exceptions
+import kazoo.protocol.states
 import kazoo.recipe.watchers
 
 from .abc import LibraryProviderABC
@@ -176,23 +176,14 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		self.FullPath += self.BasePath
 
-		self.VersionNodePath = self.build_path('/.version.yaml')
-		self.Version = None  # Will be read when a library become ready
-		self.VersionWatch = None
-
 		self.DisabledNodePath = self.build_path('/.disabled.yaml')
 		self.DisabledWatch = None
 
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_connected)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/SUSPENDED!", self._on_zk_lost)
-		self.App.PubSub.subscribe("Application.tick/60!", self._get_version_counter)
 
-		# This is a contingency check for changes for subscribed folders in library even without version counter change.
-		self.App.PubSub.subscribe("Application.tick/600!", self._on_library_changed)
-
-		self.Subscriptions: typing.Iterable[str] = set()
-		self.NodeDigests: typing.Dict[str, bytes] = {}
+		self.Subscriptions: typing.Set[typing.Tuple[typing.Union[str, tuple, None], str]] = set()
 		self.SubscriptionActualPaths: typing.Dict[typing.Tuple[typing.Union[str, tuple, None], str], typing.List[str]] = {}
 
 
@@ -214,14 +205,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		L.info("is connected.", struct_data={'path': self.FullPath})
 
-		def on_version_changed(version, event):
-			self.App.Loop.call_soon_threadsafe(self._check_version_counter, version)
-
-		def install_watcher():
-			return kazoo.recipe.watchers.DataWatch(self.Zookeeper.Client, self.VersionNodePath, on_version_changed)
-
-		self.VersionWatch = await self.Zookeeper.ProactorService.execute(install_watcher)
-
 		def on_disabled_changed(data, stat):
 			# Whenever .disabled.yaml changes, reload disables
 			self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
@@ -231,6 +214,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		self.DisabledWatch = await self.Zookeeper.ProactorService.execute(install_disabled_watcher)
 
+		await self._install_subscription_watches()
 		await self._set_ready()
 
 
@@ -240,46 +224,30 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		await self._set_ready(ready=False)
 
-
-	async def _get_version_counter(self, event_name=None):
-		if self.Zookeeper is None or not self.IsReady:
-			return
-
-		try:
-			version = await self.Zookeeper.get_data(self.VersionNodePath)
-		except kazoo.exceptions.ConnectionClosedError:
-			return
-
-		self._check_version_counter(version)
-
-
-	def _check_version_counter(self, version):
+	def _on_subscription_watch(self, event, subscribed_path):
 		"""
-		Check the version counter and set the version if it has changed.
+		Kazoo callback (ZooKeeper I/O thread) for PERSISTENT_RECURSIVE subscription watches.
 
-		If the version has changed, schedule a task to reload the library.
-		If the version is `None`, then set the version to 1.
+		Forwards the event to the asyncio loop.
 		"""
+		self.App.Loop.call_soon_threadsafe(
+			functools.partial(self._publish_library_change, event, subscribed_path),
+		)
 
-		if version is not None:
-			try:
-				version = int(version)
-			except ValueError:
-				version = 1
-		else:
-			version = 1
+	def _publish_library_change(self, event, library_path):
+		"""
+		Emit `Library.change!` for the subscribed library directory path.
 
-		if self.Version is None:
-			# Initial grab of the version
-			self.Version = version
+		`/.disabled.yaml` is ignored here; it is handled by a separate DataWatch.
+		"""
+		if self.Zookeeper is None or not self.IsReady or event.path is None:
 			return
 
-		if self.Version == version:
-			# The version has not changed
+		if event.path == self.DisabledNodePath:
 			return
 
-		self.Version = version
-		self.App.TaskService.schedule(self._on_library_changed())
+		# TODO How to emit the event.path (the path of the changed node) and keep it line with other Library providers?
+		self.App.PubSub.publish("Library.change!", self, library_path)
 
 	def _current_tenant_id(self):
 		try:
@@ -501,104 +469,101 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		if target in {None, "global"}:
 			self.SubscriptionActualPaths[(target, path)] = [path]
-			self.NodeDigests[path] = await self._get_directory_hash(path)
 
 		elif target == "tenant":
 			actual_paths = []
 			for tenant in await self._get_tenants():
-				actual_path = "/.tenants/{}{}".format(tenant, path)
-				actual_paths.append(actual_path)
-				self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
+				actual_paths.append("/.tenants/{}{}".format(tenant, path))
 			self.SubscriptionActualPaths[(target, path)] = actual_paths
 
 		elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
 			_, tenant = target
-			actual_path = "/.tenants/{}{}".format(tenant, path)
-			self.SubscriptionActualPaths[(target, path)] = [actual_path]
-			self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
+			self.SubscriptionActualPaths[(target, path)] = ["/.tenants/{}{}".format(tenant, path)]
 
 		elif target == "personal" or (isinstance(target, tuple) and len(target) == 2 and target[0] == "personal"):
 			actual_path = self._subscription_personal_path(path, target)
 			if actual_path is not None:
 				self.SubscriptionActualPaths[(target, path)] = [actual_path]
-				self.NodeDigests[actual_path] = await self._get_directory_hash(actual_path)
 			else:
 				self.SubscriptionActualPaths[(target, path)] = []
 		else:
 			raise ValueError("Unexpected target: {!r}".format(target))
 
-	async def _get_directory_hash(self, path):
-		path = self.BasePath + path
+		if self.Zookeeper is not None:
+			await self._install_subscription_watches()
 
-		def recursive_traversal(path, digest):
-			if not self.Zookeeper.Client.exists(path):
-				return
+	async def _install_subscription_watches(self):
+		"""
+		Register or refresh PERSISTENT_RECURSIVE watches for every current subscription.
 
-			children = self.Zookeeper.Client.get_children(path)
-			for child in children:
-				if path != "/":
-					child_path = "{}/{}".format(path, child)
-				else:
-					child_path = "/{}".format(child)
-				zstat = self.Zookeeper.Client.exists(child_path)
-				digest.update("{}\n{}\n".format(child_path, zstat.version).encode('utf-8'))
-				recursive_traversal(child_path, digest)
-
-		digest = hashlib.sha1()
-		await self.Zookeeper.ProactorService.execute(recursive_traversal, path, digest)
-		return digest.digest()
-
-	async def _on_library_changed(self, event_name=None):
-		if self.Zookeeper is None or not self.IsReady:
+		Called after ZooKeeper connects and after `subscribe()` updates the subscription set.
+		"""
+		if self.Zookeeper is None:
 			return
 
 		for (target, path) in list(self.Subscriptions):
 
-			async def do_check_path(actual_path):
-				try:
-					newdigest = await self._get_directory_hash(actual_path)
-				except kazoo.exceptions.NoNodeError:
-					newdigest = None
-				if newdigest != self.NodeDigests.get(actual_path):
-					self.NodeDigests[actual_path] = newdigest
-					self.App.PubSub.publish("Library.change!", self, path)
+			async def do_install_watch(actual_path, subscribed_path=path):
+				zk_root = (self.BasePath + actual_path).rstrip("/")
+				if not zk_root:
+					zk_root = "/"
+
+				def install():
+					if not self.Zookeeper.Client.exists(zk_root):
+						return
+
+					# Kazoo invokes the watch callback with only `event`. This callable is stored
+					# on the client and binds `subscribed_path` to the ZK watch at install time.
+					def on_watch(event, subscribed_path=subscribed_path):
+						self._on_subscription_watch(event, subscribed_path)
+
+					self.Zookeeper.Client.add_watch(
+						zk_root,
+						on_watch,
+						kazoo.protocol.states.AddWatchMode.PERSISTENT_RECURSIVE,
+					)
+
+				await self.Zookeeper.ProactorService.execute(install)
 
 			if target in {None, "global"}:
 				try:
-					await do_check_path(actual_path=path)
+					await do_install_watch(actual_path=path)
 				except kazoo.exceptions.ConnectionClosedError:
 					return
 				except Exception:
 					L.exception(
-						"Failed to detect library changes on global ZooKeeper path.",
+						"Failed to install library watch on global ZooKeeper path.",
 						struct_data={"path": path},
 					)
 
 			elif target == "tenant":
 				try:
 					tenants = await self._get_tenants()
+					self.SubscriptionActualPaths[(target, path)] = [
+						"/.tenants/{}{}".format(tenant, path) for tenant in tenants
+					]
 				except kazoo.exceptions.ConnectionClosedError:
 					return
 				for tenant in tenants:
 					try:
-						await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
+						await do_install_watch(actual_path="/.tenants/{}{}".format(tenant, path))
 					except kazoo.exceptions.ConnectionClosedError:
 						return
 					except Exception:
 						L.exception(
-							"Failed to detect library changes on tenant ZooKeeper path.",
+							"Failed to install library watch on tenant ZooKeeper path.",
 							struct_data={"path": path, "tenant": tenant},
 						)
 
 			elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
 				tenant = target[1]
 				try:
-					await do_check_path(actual_path="/.tenants/{}{}".format(tenant, path))
+					await do_install_watch(actual_path="/.tenants/{}{}".format(tenant, path))
 				except kazoo.exceptions.ConnectionClosedError:
 					return
 				except Exception:
 					L.exception(
-						"Failed to detect library changes on tenant-specific ZooKeeper path.",
+						"Failed to install library watch on tenant-specific ZooKeeper path.",
 						struct_data={"path": path, "tenant": tenant},
 					)
 
@@ -609,12 +574,12 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					actual_paths = [actual_path] if actual_path is not None else []
 				for actual_path in actual_paths:
 					try:
-						await do_check_path(actual_path=actual_path)
+						await do_install_watch(actual_path=actual_path)
 					except kazoo.exceptions.ConnectionClosedError:
 						return
 					except Exception:
 						L.exception(
-							"Failed to detect library changes on personal ZooKeeper path.",
+							"Failed to install library watch on personal ZooKeeper path.",
 							struct_data={"path": path},
 						)
 			else:
