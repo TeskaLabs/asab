@@ -225,7 +225,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	async def _install_disabled_watch(self):
 		"""
-		Register a persistent recursive watch on `/.disabled.yaml`, if the node does not exist it will be created.
+		Register a persistent recursive watch on `/.disabled.yaml`.
 		"""
 		if self.Zookeeper is None:
 			return
@@ -519,9 +519,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 					zk_root = "/"
 
 				def install():
-					if not self.Zookeeper.Client.exists(zk_root):
-						return
-
 					# Kazoo invokes the watch callback with only `event`. This callable is stored
 					# on the client and binds `subscribed_path` to the ZK watch at install time.
 					def on_watch(event, subscribed_path=subscribed_path):
