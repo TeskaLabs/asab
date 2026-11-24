@@ -229,6 +229,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		if self.Zookeeper is None:
 			return
+
 		def install():
 			self.Zookeeper.Client.add_watch(
 				self.DisabledNodePath,
