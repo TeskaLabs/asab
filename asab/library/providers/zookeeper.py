@@ -215,9 +215,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	def _on_disabled_changed(self, event):
 		"""
-		Kazoo callback (ZooKeeper I/O thread) for `/.disabled.yaml`.
-
-		Reloads disable metadata and may publish `Library.change!` via the library service.
+		Kazoo callback for `/.disabled.yaml`.
 		"""
 		if self.Zookeeper is None:
 			return
@@ -245,9 +243,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 	def _on_library_changed(self, event, subscribed_path):
 		"""
-		Kazoo callback (ZooKeeper I/O thread) for PERSISTENT_RECURSIVE subscription watches.
-
-		Forwards the event to the asyncio loop.
+		Kazoo callback for persistent recursive subscription watches.
 		"""
 		self.App.Loop.call_soon_threadsafe(
 			functools.partial(self._publish_library_change, event, subscribed_path),
