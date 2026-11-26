@@ -49,8 +49,8 @@ class TaskService(asab.Service):
 				await task
 			except asyncio.CancelledError:
 				pass
-			except Exception as e:
-				L.exception("Error '{}' during task service:".format(e))
+			except Exception:
+				L.exception("Background task failed during TaskService shutdown.")
 
 		for task in list(self.PendingTasks):
 			task.cancel()
@@ -59,13 +59,19 @@ class TaskService(asab.Service):
 				self.PendingTasks.remove(task)
 			except asyncio.CancelledError:
 				self.PendingTasks.remove(task)
-			except Exception as e:
-				L.exception("Error '{}' during task service:".format(e))
+			except Exception:
+				L.exception("TaskService main loop failed during application shutdown.")
 
 
 		total_tasks = len(self.PendingTasks) + self.NewTasks.qsize()
 		if total_tasks > 0:
-			L.warning("{}+{} pending and incomplete tasks".format(len(self.PendingTasks), self.NewTasks.qsize()))
+			L.warning(
+				"TaskService stopped with background tasks that were not completed.",
+				struct_data={
+					"pending_tasks": len(self.PendingTasks),
+					"queued_tasks": self.NewTasks.qsize(),
+				},
+			)
 
 
 	def _main_task_exited(self, ctx):
@@ -75,12 +81,34 @@ class TaskService(asab.Service):
 			self.Main.result()
 		except asyncio.CancelledError:
 			pass
-		except Exception as e:
-			L.exception("Error '{}' during task service:".format(e))
+		except Exception:
+			L.exception("TaskService main loop failed unexpectedly.")
 
 		self.Main = None
-		L.warning("Main task exited unexpectedly, restarting ...")
+		L.warning(
+			"TaskService main loop exited unexpectedly; restarting the task dispatcher.",
+		)
 		self.start()
+
+
+	def _prepare_task(self, task):
+		if task is None:
+			L.warning(
+				"Ignored scheduled background task because the task object is None.",
+			)
+			return None
+
+		if isinstance(task, typing.Coroutine):
+			return asyncio.create_task(task)
+
+		if isinstance(task, (asyncio.Task, asyncio.Future)):
+			return task
+
+		L.warning(
+			"Ignored scheduled background task because of an unsupported task type.",
+			struct_data={"task_type": type(task).__name__},
+		)
+		return None
 
 
 	def schedule(self, *tasks):
@@ -142,17 +170,15 @@ class TaskService(asab.Service):
 		while True:
 
 			while self.NewTasks.qsize() > 0:
-				task = self.NewTasks.get_nowait()
-				if isinstance(task, typing.Coroutine):
-					task = asyncio.create_task(task)
-				self.PendingTasks.add(task)
+				task = self._prepare_task(self.NewTasks.get_nowait())
+				if task is not None:
+					self.PendingTasks.add(task)
 
 			if len(self.PendingTasks) == 0:
 				# Block until a new task is scheduled
-				task = await self.NewTasks.get()
-				if isinstance(task, typing.Coroutine):
-					task = asyncio.create_task(task)
-				self.PendingTasks.add(task)
+				task = self._prepare_task(await self.NewTasks.get())
+				if task is not None:
+					self.PendingTasks.add(task)
 
 			else:
 				done, self.PendingTasks = await asyncio.wait(self.PendingTasks, timeout=1.0)
@@ -160,11 +186,19 @@ class TaskService(asab.Service):
 					try:
 						await task
 					except Exception:
+						task_name = task.get_name() if hasattr(task, "get_name") else repr(task)
 						try:
 							exc = task.exception()
-							L.exception("Error during task:", exc_info=exc)
+							L.exception(
+								"Scheduled background task failed.",
+								exc_info=exc,
+								struct_data={"task": task_name},
+							)
 						except Exception:
-							L.exception("Error during task (no stack trace available)")
+							L.exception(
+								"Scheduled background task failed; stack trace is not available.",
+								struct_data={"task": task_name},
+							)
 					self.App.PubSub.publish("TaskService.task_done!", task)
 
 
@@ -174,5 +208,8 @@ async def forever(async_fn):
 			await async_fn()
 		except asyncio.CancelledError:
 			break
-		except Exception as e:
-			L.exception("Error '{}' during forever task:".format(e))
+		except Exception:
+			L.exception(
+				"Long-running background task exited with an error; it will be restarted on the next iteration.",
+				struct_data={"callable": getattr(async_fn, "__qualname__", repr(async_fn))},
+			)
