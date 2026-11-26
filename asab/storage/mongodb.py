@@ -25,9 +25,34 @@ asab.Config.add_defaults(
 		'asab:storage': {
 			'mongodb_uri': '',
 			'mongodb_database': '',
+			'maxPoolSize': '',
+			'minPoolSize': '',
+			'maxIdleTimeMS': '',
+			'waitQueueTimeoutMS': '',
 		}
 	}
 )
+
+
+def _motor_client_kwargs(config_section_name):
+	"""Optional PyMongo pool settings from config (also valid in the URI query string)."""
+	kwargs = {}
+
+	for key in ('maxPoolSize', 'minPoolSize', 'maxIdleTimeMS', 'waitQueueTimeoutMS'):
+		raw = asab.Config.get(config_section_name, key, fallback='').strip()
+
+		if not raw:
+			continue
+
+		try:
+			kwargs[key] = int(raw)
+		except ValueError:
+			L.warning(
+				"Invalid MongoDB pool setting; expected an integer.",
+				struct_data={"config_section": config_section_name, "key": key, "value": raw},
+			)
+
+	return kwargs
 
 
 _tx_session = contextvars.ContextVar("MongoDBTransactionSession", default=None)
@@ -51,7 +76,10 @@ class StorageService(StorageServiceABC):
 		if len(uri) == 0:
 			raise RuntimeError("No MongoDB URI has been provided.")
 
-		self.Client = motor.motor_asyncio.AsyncIOMotorClient(uri)
+		self.Client = motor.motor_asyncio.AsyncIOMotorClient(
+			uri,
+			**_motor_client_kwargs(config_section_name),
+		)
 
 		# Check the old section and then the new section for database name
 		db_name = asab.Config.get(config_section_name, 'mongodb_database', fallback='')

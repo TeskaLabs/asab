@@ -7,6 +7,7 @@
 - Dropped Python 3.9 support; minimum version is 3.10, CI adds 3.14 and 3.15 (#827)
 
 ### Features
+- `asab.storage.mongodb`: Optional `maxPoolSize`, `minPoolSize`, `maxIdleTimeMS`, and `waitQueueTimeoutMS` in the storage config section for Motor/PyMongo connection pools
 - `asab.web.cors`: Removed redundant CORS headers and made CORS max age configurable (#816)
 - `asab.web.cors`: Rewrote web CORS with origin allowlist, credentials, and `WebContainer.enable_cors()` (#812)
 
