@@ -176,6 +176,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.FullPath += self.BasePath
 
 		self.DisabledNodePath = self.build_path('/.disabled.yaml')
+		self.TenantsPath = self.BasePath + "/.tenants"
+
 
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/CONNECTED!", self._on_zk_connected)
 		self.App.PubSub.subscribe("ZooKeeperContainer.state/LOST!", self._on_zk_lost)
@@ -202,7 +204,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			return
 
 		await self._install_disabled_watch()
-		await self._remove_subscription_watches()
+		await self._remove_watches()
 		await self._install_subscription_watches()
 		await self._set_ready()
 
@@ -219,24 +221,65 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		if self.ZooKeeper is None:
 			return
-		if event.path is not None and event.path != self.DisabledNodePath:
-			return
 		self.App.TaskService.schedule(self.Library._read_disabled(publish_changes=True))
 
 	async def _install_disabled_watch(self):
-		"""
-		Register a persistent recursive watch on `/.disabled.yaml`.
-		"""
+		"""Register a persistent watch on `/.disabled.yaml` (remove first on reconnect)."""
 		if self.ZooKeeper is None:
 			return
 
 		def install():
+			try:
+				self.ZooKeeper.Client.remove_all_watches(
+					self.DisabledNodePath,
+					kazoo.protocol.states.WatcherType.ANY,
+				)
+			except kazoo.exceptions.ZookeeperError:
+				pass
 			self.ZooKeeper.Client.add_watch(
 				self.DisabledNodePath,
 				self._on_disabled_changed,
+				kazoo.protocol.states.AddWatchMode.PERSISTENT,
+			)
+
+		await self.ZooKeeper.ProactorService.execute(install)
+
+	def _on_tenants_discovery(self, event):
+		if self.ZooKeeper is None or event.type != "CREATED" or event.path is None:
+			return
+		prefix = self.TenantsPath + "/"
+		if not event.path.startswith(prefix):
+			return
+		tenant = event.path[len(prefix):]
+		if "/" in tenant or not tenant or tenant.startswith("."):
+			return
+		self.App.TaskService.schedule(self._install_watches_for_new_tenant(tenant))
+
+	async def _install_watches_for_new_tenant(self, tenant):
+		for (target, path) in list(self.Subscriptions):
+			if target != "tenant":
+				continue
+			actual_path = "/.tenants/{}{}".format(tenant, path)
+			paths = self.SubscriptionActualPaths.setdefault((target, path), [])
+			if actual_path not in paths:
+				paths.append(actual_path)
+			await self._install_subscription_watch(("tenant", tenant), path)
+
+	async def _install_tenants_discovery_watch(self):
+		if self.ZooKeeper is None or not any(t == "tenant" for t, _ in self.Subscriptions):
+			return
+
+		def install():
+			self.ZooKeeper.Client.add_watch(
+				self.TenantsPath,
+				self._on_tenants_discovery,
 				kazoo.protocol.states.AddWatchMode.PERSISTENT_RECURSIVE,
 			)
-		await self.ZooKeeper.ProactorService.execute(install)
+
+		try:
+			await self.ZooKeeper.ProactorService.execute(install)
+		except (kazoo.exceptions.NoNodeError, kazoo.exceptions.ConnectionClosedError, kazoo.exceptions.ZookeeperError):
+			pass
 
 	def _on_library_changed(self, event, subscribed_path):
 		"""
@@ -503,18 +546,29 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		if self.ZooKeeper is not None:
 			await self._install_subscription_watch(target, path)
+			if target == "tenant":
+				await self._install_tenants_discovery_watch()
 
-	async def _remove_subscription_watches(self):
+	async def _remove_watches(self):
 		"""
-		Remove persistent recursive watches for current subscriptions.
-
-		Persistent watches are not dropped on disconnect; remove them before reinstalling
-		after a ZooKeeper reconnect so callbacks are not registered twice.
+		Remove persistent recursive watches for current subscriptions before reinstalling them after a ZooKeeper reconnect, so callbacks are not registered twice.
 		"""
 		if self.ZooKeeper is None:
 			return
 
 		self.InstalledWatchRoots.clear()
+
+		if any(target == "tenant" for target, _ in self.Subscriptions):
+			def remove_tenants_watches():
+				try:
+					self.ZooKeeper.Client.remove_all_watches(self.TenantsPath, kazoo.protocol.states.WatcherType.ANY)
+				except kazoo.exceptions.ZookeeperError:
+					pass
+
+			try:
+				await self.ZooKeeper.ProactorService.execute(remove_tenants_watches)
+			except kazoo.exceptions.ConnectionClosedError:
+				return
 
 		processed_zk_roots = set()
 		for (target, path) in list(self.Subscriptions):
@@ -634,14 +688,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 	async def _install_subscription_watches(self):
 		"""
 		Register PERSISTENT_RECURSIVE watches for every current subscription.
-
-		Called after ZooKeeper connects; run `_remove_watches()` before this on reconnect.
 		"""
 		if self.ZooKeeper is None:
 			return
 
 		for (target, path) in list(self.Subscriptions):
 			await self._install_subscription_watch(target, path)
+		await self._install_tenants_discovery_watch()
 
 	async def _get_personals(self) -> typing.List[str]:
 		"""
