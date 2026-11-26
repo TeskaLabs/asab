@@ -183,6 +183,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		self.Subscriptions: typing.Set[typing.Tuple[typing.Union[str, tuple, None], str]] = set()
 		self.SubscriptionActualPaths: typing.Dict[typing.Tuple[typing.Union[str, tuple, None], str], typing.List[str]] = {}
+		self.InstalledWatchRoots: typing.Set[str] = set()
 
 
 	async def finalize(self, app):
@@ -203,6 +204,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		L.info("is connected.", struct_data={'path': self.FullPath})
 
 		await self._install_disabled_watch()
+		await self._remove_subscription_watches()
 		await self._install_subscription_watches()
 		await self._set_ready()
 
@@ -500,97 +502,146 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			raise ValueError("Unexpected target: {!r}".format(target))
 
 		if self.Zookeeper is not None:
-			await self._install_subscription_watches()
+			await self._install_subscription_watch(target, path)
 
-	async def _install_subscription_watches(self):
+	async def _remove_subscription_watches(self):
 		"""
-		Register or refresh PERSISTENT_RECURSIVE watches for every current subscription.
+		Remove persistent recursive watches for current subscriptions.
 
-		Called after ZooKeeper connects and after `subscribe()` updates the subscription set.
+		Persistent watches are not dropped on disconnect; remove them before reinstalling
+		after a ZooKeeper reconnect so callbacks are not registered twice.
 		"""
 		if self.Zookeeper is None:
 			return
 
-		for (target, path) in list(self.Subscriptions):
+		self.InstalledWatchRoots.clear()
 
-			async def do_install_watch(actual_path, subscribed_path=path):
+		processed_zk_roots = set()
+		for (target, path) in list(self.Subscriptions):
+			for actual_path in self.SubscriptionActualPaths.get((target, path), []):
 				zk_root = (self.BasePath + actual_path).rstrip("/")
 				if not zk_root:
 					zk_root = "/"
+				if zk_root in processed_zk_roots:
+					continue
+				processed_zk_roots.add(zk_root)
 
-				def install():
-					# Kazoo invokes the watch callback with only `event`. This callable is stored
-					# on the client and binds `subscribed_path` to the ZK watch at install time.
-					def on_watch(event, subscribed_path=subscribed_path):
-						self._on_library_changed(event, subscribed_path)
-
-					self.Zookeeper.Client.add_watch(
-						zk_root,
-						on_watch,
-						kazoo.protocol.states.AddWatchMode.PERSISTENT_RECURSIVE,
-					)
-
-				await self.Zookeeper.ProactorService.execute(install)
-
-			if target in {None, "global"}:
-				try:
-					await do_install_watch(actual_path=path)
-				except kazoo.exceptions.ConnectionClosedError:
-					return
-				except Exception:
-					L.exception(
-						"Failed to install library watch on global ZooKeeper path.",
-						struct_data={"path": path},
-					)
-
-			elif target == "tenant":
-				try:
-					tenants = await self._get_tenants()
-					self.SubscriptionActualPaths[(target, path)] = [
-						"/.tenants/{}{}".format(tenant, path) for tenant in tenants
-					]
-				except kazoo.exceptions.ConnectionClosedError:
-					return
-				for tenant in tenants:
+				def remove(zk_root=zk_root):
 					try:
-						await do_install_watch(actual_path="/.tenants/{}{}".format(tenant, path))
-					except kazoo.exceptions.ConnectionClosedError:
-						return
-					except Exception:
-						L.exception(
-							"Failed to install library watch on tenant ZooKeeper path.",
-							struct_data={"path": path, "tenant": tenant},
+						self.Zookeeper.Client.remove_all_watches(
+							zk_root,
+							kazoo.protocol.states.WatcherType.ANY,
 						)
+					except kazoo.exceptions.ZookeeperError:
+						# No watch on this path or node missing — safe to continue.
+						pass
 
-			elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
-				tenant = target[1]
+				try:
+					await self.Zookeeper.ProactorService.execute(remove)
+				except kazoo.exceptions.ConnectionClosedError:
+					return
+
+	async def _install_subscription_watch(self, target, path):
+		"""
+		Register persistent recursive watch for a library subscription.
+		"""
+		if self.Zookeeper is None:
+			return
+
+		async def do_install_watch(actual_path, subscribed_path=path):
+			zk_root = (self.BasePath + actual_path).rstrip("/")
+			if not zk_root:
+				zk_root = "/"
+
+			if zk_root in self.InstalledWatchRoots:
+				return
+
+			def install():
+				# Kazoo invokes the watch callback with only `event`. This callable is stored
+				# on the client and binds `subscribed_path` to the ZK watch at install time.
+				def on_watch(event, subscribed_path=subscribed_path):
+					self._on_library_changed(event, subscribed_path)
+
+				self.Zookeeper.Client.add_watch(
+					zk_root,
+					on_watch,
+					kazoo.protocol.states.AddWatchMode.PERSISTENT_RECURSIVE,
+				)
+
+			await self.Zookeeper.ProactorService.execute(install)
+			self.InstalledWatchRoots.add(zk_root)
+
+		if target in {None, "global"}:
+			try:
+				await do_install_watch(actual_path=path)
+			except kazoo.exceptions.ConnectionClosedError:
+				return
+			except Exception:
+				L.exception(
+					"Failed to install library watch on global ZooKeeper path.",
+					struct_data={"path": path},
+				)
+
+		elif target == "tenant":
+			try:
+				tenants = await self._get_tenants()
+				self.SubscriptionActualPaths[(target, path)] = [
+					"/.tenants/{}{}".format(tenant, path) for tenant in tenants
+				]
+			except kazoo.exceptions.ConnectionClosedError:
+				return
+			for tenant in tenants:
 				try:
 					await do_install_watch(actual_path="/.tenants/{}{}".format(tenant, path))
 				except kazoo.exceptions.ConnectionClosedError:
 					return
 				except Exception:
 					L.exception(
-						"Failed to install library watch on tenant-specific ZooKeeper path.",
+						"Failed to install library watch on tenant ZooKeeper path.",
 						struct_data={"path": path, "tenant": tenant},
 					)
 
-			elif target == "personal" or (isinstance(target, tuple) and len(target) == 2 and target[0] == "personal"):
-				actual_paths = self.SubscriptionActualPaths.get((target, path))
-				if actual_paths is None:
-					actual_path = self._subscription_personal_path(path, target)
-					actual_paths = [actual_path] if actual_path is not None else []
-				for actual_path in actual_paths:
-					try:
-						await do_install_watch(actual_path=actual_path)
-					except kazoo.exceptions.ConnectionClosedError:
-						return
-					except Exception:
-						L.exception(
-							"Failed to install library watch on personal ZooKeeper path.",
-							struct_data={"path": path},
-						)
-			else:
-				raise ValueError("Unexpected target: {!r}".format((target, path)))
+		elif isinstance(target, tuple) and len(target) == 2 and target[0] == "tenant":
+			tenant = target[1]
+			try:
+				await do_install_watch(actual_path="/.tenants/{}{}".format(tenant, path))
+			except kazoo.exceptions.ConnectionClosedError:
+				return
+			except Exception:
+				L.exception(
+					"Failed to install library watch on tenant-specific ZooKeeper path.",
+					struct_data={"path": path, "tenant": tenant},
+				)
+
+		elif target == "personal" or (isinstance(target, tuple) and len(target) == 2 and target[0] == "personal"):
+			actual_paths = self.SubscriptionActualPaths.get((target, path))
+			if actual_paths is None:
+				actual_path = self._subscription_personal_path(path, target)
+				actual_paths = [actual_path] if actual_path is not None else []
+			for actual_path in actual_paths:
+				try:
+					await do_install_watch(actual_path=actual_path)
+				except kazoo.exceptions.ConnectionClosedError:
+					return
+				except Exception:
+					L.exception(
+						"Failed to install library watch on personal ZooKeeper path.",
+						struct_data={"path": path},
+					)
+		else:
+			raise ValueError("Unexpected target: {!r}".format((target, path)))
+
+	async def _install_subscription_watches(self):
+		"""
+		Register PERSISTENT_RECURSIVE watches for every current subscription.
+
+		Called after ZooKeeper connects; run `_remove_watches()` before this on reconnect.
+		"""
+		if self.Zookeeper is None:
+			return
+
+		for (target, path) in list(self.Subscriptions):
+			await self._install_subscription_watch(target, path)
 
 	async def _get_personals(self) -> typing.List[str]:
 		"""
