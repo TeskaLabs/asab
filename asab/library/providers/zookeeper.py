@@ -153,25 +153,25 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			)
 			raise SystemExit("Exit due to a critical configuration error.")
 
-		self.ZookeeperContainer = ZooKeeperContainer(
+		self.ZooKeeperContainer = ZooKeeperContainer(
 			zksvc,
 			config_section_name=config_section_name,
 			z_path=z_url
 		)
-		self.Zookeeper = self.ZookeeperContainer.ZooKeeper
+		self.ZooKeeper = self.ZooKeeperContainer.ZooKeeper
 
 		if config_section_name == 'zookeeper':
-			self.FullPath += self.ZookeeperContainer.Config['servers']
+			self.FullPath += self.ZooKeeperContainer.Config['servers']
 		else:
 			self.FullPath += url_pieces.netloc
 
 		# Handle `zk://` configuration
-		if z_url is None and url_pieces.netloc == "" and url_pieces.path == "" and self.ZookeeperContainer.Path != '':
-			self.BasePath = '/' + self.ZookeeperContainer.Path
+		if z_url is None and url_pieces.netloc == "" and url_pieces.path == "" and self.ZooKeeperContainer.Path != '':
+			self.BasePath = '/' + self.ZooKeeperContainer.Path
 
 		# Handle `zk://./path` configuration
-		if z_url is None and url_pieces.netloc == "." and self.ZookeeperContainer.Path != '':
-			self.BasePath = '/' + self.ZookeeperContainer.Path + self.BasePath
+		if z_url is None and url_pieces.netloc == "." and self.ZooKeeperContainer.Path != '':
+			self.BasePath = '/' + self.ZooKeeperContainer.Path + self.BasePath
 
 		self.FullPath += self.BasePath
 
@@ -191,17 +191,15 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		The `finalize` function is called when the application is shutting down
 		"""
 		zksvc = self.App.get_service("asab.ZooKeeperService")
-		await zksvc.remove(self.ZookeeperContainer)
+		await zksvc.remove(self.ZooKeeperContainer)
 
 
 	async def _on_zk_connected(self, event_name, zkcontainer):
 		"""
-		When the Zookeeper container is connected, set the self.Zookeeper property to the Zookeeper object.
+		When the ZooKeeper container is connected, set the self.ZooKeeper property to the ZooKeeper client.
 		"""
-		if zkcontainer != self.ZookeeperContainer:
+		if zkcontainer != self.ZooKeeperContainer:
 			return
-
-		L.info("is connected.", struct_data={'path': self.FullPath})
 
 		await self._install_disabled_watch()
 		await self._remove_subscription_watches()
@@ -210,7 +208,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 
 	async def _on_zk_lost(self, event_name, zkcontainer):
-		if zkcontainer != self.ZookeeperContainer:
+		if zkcontainer != self.ZooKeeperContainer:
 			return
 
 		await self._set_ready(ready=False)
@@ -219,7 +217,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		Kazoo callback for `/.disabled.yaml`.
 		"""
-		if self.Zookeeper is None:
+		if self.ZooKeeper is None:
 			return
 		if event.path is not None and event.path != self.DisabledNodePath:
 			return
@@ -229,16 +227,16 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		Register a persistent recursive watch on `/.disabled.yaml`.
 		"""
-		if self.Zookeeper is None:
+		if self.ZooKeeper is None:
 			return
 
 		def install():
-			self.Zookeeper.Client.add_watch(
+			self.ZooKeeper.Client.add_watch(
 				self.DisabledNodePath,
 				self._on_disabled_changed,
 				kazoo.protocol.states.AddWatchMode.PERSISTENT_RECURSIVE,
 			)
-		await self.Zookeeper.ProactorService.execute(install)
+		await self.ZooKeeper.ProactorService.execute(install)
 
 	def _on_library_changed(self, event, subscribed_path):
 		"""
@@ -252,7 +250,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		Emit `Library.change!` for the subscribed library directory path.
 		"""
-		if self.Zookeeper is None or not self.IsReady or event.path is None:
+		if self.ZooKeeper is None or not self.IsReady or event.path is None:
 			return
 
 		if event.path == self.DisabledNodePath:
@@ -297,7 +295,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return "/.personal/{}/{}{}".format(tenant_id, cred_id, path)
 
 	async def read(self, path: str) -> typing.Optional[typing.IO]:
-		if self.Zookeeper is None:
+		if self.ZooKeeper is None:
 			L.warning(
 				"ZooKeeper library provider is not connected yet; read operation rejected.",
 				struct_data={"path": path},
@@ -335,7 +333,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		try:
 			for node_path in candidate_paths:
-				node_data = await self.Zookeeper.get_data(node_path)
+				node_data = await self.ZooKeeper.get_data(node_path)
 				if node_data is not None:
 					return io.BytesIO(initial_bytes=node_data)
 			return None
@@ -347,7 +345,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			raise RuntimeError("Zookeeper library provider is not ready") from None
 
 	async def list(self, path: str) -> list:
-		if self.Zookeeper is None:
+		if self.ZooKeeper is None:
 			L.warning(
 				"ZooKeeper library provider is not connected yet; list operation rejected.",
 				struct_data={"path": path},
@@ -356,13 +354,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		# global
 		global_node_path = self.build_path(path, tenant_specific=False)
-		global_nodes = await self.Zookeeper.get_children(global_node_path) or []
+		global_nodes = await self.ZooKeeper.get_children(global_node_path) or []
 		global_items = await self.process_nodes(global_nodes, path, target="global")
 
 		# tenant
 		tenant_node_path = self.build_path(path, tenant_specific=True)
 		if tenant_node_path != global_node_path:
-			tenant_nodes = await self.Zookeeper.get_children(tenant_node_path) or []
+			tenant_nodes = await self.ZooKeeper.get_children(tenant_node_path) or []
 			tenant_items = await self.process_nodes(tenant_nodes, path, target="tenant")
 		else:
 			tenant_items = []
@@ -384,7 +382,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			personal_node_path = "{}/.personal/{}/{}{}".format(self.BasePath, tenant_id, cred_id, path)
 			personal_node_path = personal_node_path.replace("//", "/")
 			try:
-				personal_nodes = await self.Zookeeper.get_children(personal_node_path) or []
+				personal_nodes = await self.ZooKeeper.get_children(personal_node_path) or []
 			except kazoo.exceptions.NoNodeError:
 				personal_nodes = []
 			personal_items = await self.process_nodes(personal_nodes, path, target="personal")
@@ -417,7 +415,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 						node_path = self._personal_node_path(fname, tenant_id, cred_id) or ""
 					else:
 						node_path = self.build_path(fname, tenant_specific=(target == "tenant"))
-					zstat = await self.Zookeeper.exists(node_path) if node_path else None
+					zstat = await self.ZooKeeper.exists(node_path) if node_path else None
 					size = zstat.dataLength if zstat else 0
 				except kazoo.exceptions.NoNodeError:
 					size = None
@@ -501,7 +499,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		else:
 			raise ValueError("Unexpected target: {!r}".format(target))
 
-		if self.Zookeeper is not None:
+		if self.ZooKeeper is not None:
 			await self._install_subscription_watch(target, path)
 
 	async def _remove_subscription_watches(self):
@@ -511,7 +509,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		Persistent watches are not dropped on disconnect; remove them before reinstalling
 		after a ZooKeeper reconnect so callbacks are not registered twice.
 		"""
-		if self.Zookeeper is None:
+		if self.ZooKeeper is None:
 			return
 
 		self.InstalledWatchRoots.clear()
@@ -528,7 +526,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 				def remove(zk_root=zk_root):
 					try:
-						self.Zookeeper.Client.remove_all_watches(
+						self.ZooKeeper.Client.remove_all_watches(
 							zk_root,
 							kazoo.protocol.states.WatcherType.ANY,
 						)
@@ -537,7 +535,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 						pass
 
 				try:
-					await self.Zookeeper.ProactorService.execute(remove)
+					await self.ZooKeeper.ProactorService.execute(remove)
 				except kazoo.exceptions.ConnectionClosedError:
 					return
 
@@ -545,7 +543,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		Register persistent recursive watch for a library subscription.
 		"""
-		if self.Zookeeper is None:
+		if self.ZooKeeper is None:
 			return
 
 		async def do_install_watch(actual_path, subscribed_path=path):
@@ -562,13 +560,13 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				def on_watch(event, subscribed_path=subscribed_path):
 					self._on_library_changed(event, subscribed_path)
 
-				self.Zookeeper.Client.add_watch(
+				self.ZooKeeper.Client.add_watch(
 					zk_root,
 					on_watch,
 					kazoo.protocol.states.AddWatchMode.PERSISTENT_RECURSIVE,
 				)
 
-			await self.Zookeeper.ProactorService.execute(install)
+			await self.ZooKeeper.ProactorService.execute(install)
 			self.InstalledWatchRoots.add(zk_root)
 
 		if target in {None, "global"}:
@@ -637,7 +635,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 
 		Called after ZooKeeper connects; run `_remove_watches()` before this on reconnect.
 		"""
-		if self.Zookeeper is None:
+		if self.ZooKeeper is None:
 			return
 
 		for (target, path) in list(self.Subscriptions):
@@ -649,7 +647,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		try:
 			cred_ids = [
-				c for c in await self.Zookeeper.get_children("{}/.personal".format(self.BasePath)) or []
+				c for c in await self.ZooKeeper.get_children("{}/.personal".format(self.BasePath)) or []
 				if not c.startswith(".")
 			]
 		except kazoo.exceptions.NoNodeError:
@@ -663,7 +661,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		try:
 			tenants = [
-				t for t in await self.Zookeeper.get_children("{}/.tenants".format(self.BasePath)) or []
+				t for t in await self.ZooKeeper.get_children("{}/.tenants".format(self.BasePath)) or []
 				if not t.startswith(".")
 			]
 		except kazoo.exceptions.NoNodeError:
@@ -692,7 +690,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		:param results: The list where results are accumulated
 		"""
 		try:
-			children = await self.Zookeeper.get_children(path)
+			children = await self.ZooKeeper.get_children(path)
 			for child in children:
 				full_path = "{}/{}".format(path, child).rstrip('/')
 				if full_path.endswith(filename):
