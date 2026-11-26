@@ -242,6 +242,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		"""
 		Kazoo callback for persistent recursive subscription watches.
 		"""
+		# Kazoo invokes this callback on its connection thread, not the asyncio loop.
+		# Schedule PubSub on the main loop so library change delivery stays thread-safe.
 		self.App.Loop.call_soon_threadsafe(
 			functools.partial(self._publish_library_change, event, subscribed_path),
 		)
@@ -478,7 +480,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.Subscriptions.add((target, path))
 
 		if target in {None, "global"}:
-			self.SubscriptionActualPaths[(target, path)] = [path]
+			self.SubscriptionActualPaths[("global", path)] = [path]
 
 		elif target == "tenant":
 			actual_paths = []
