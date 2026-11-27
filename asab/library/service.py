@@ -16,7 +16,7 @@ from ..application import Application
 from ..utils import get_source_id
 from .providers.abc import LibraryProviderABC
 from ..exceptions import LibraryInvalidPathError, LibraryNotReadyError
-from ..contextvars import Tenant
+from ..contextvars import get_current_tenant_id
 
 #
 
@@ -745,10 +745,7 @@ class LibraryService(Service):
 				message="Argument 'path' must be a non-empty string.",
 				path=path,
 			)
-		try:
-			tenant = Tenant.get()
-		except LookupError:
-			tenant = None
+		tenant = get_current_tenant_id()
 
 		# First check disabled by path
 		for dp, disabled in self.DisabledPaths:
@@ -820,10 +817,7 @@ class LibraryService(Service):
 				path=path,
 			)
 
-		try:
-			tenant = Tenant.get()
-		except LookupError:
-			tenant = None
+		tenant = get_current_tenant_id()
 
 		# 1) Folder favorites
 		#    - Exact match if not inheriting
