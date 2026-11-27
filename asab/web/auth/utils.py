@@ -7,21 +7,9 @@ import json
 import logging
 
 from ...exceptions import NotAuthenticatedError
-from ...contextvars import Authz
 
 
 L = logging.getLogger(__name__)
-
-
-def get_current_credentials_id(self):
-	"""
-	Return current credentials ID from auth context, or None if not present.
-	"""
-	try:
-		authz = Authz.get()
-		return getattr(authz, "CredentialsId", None)
-	except LookupError:
-		return None
 
 
 def get_bearer_token_from_authorization_header(request: aiohttp.web.Request) -> typing.Tuple[str, str]:
