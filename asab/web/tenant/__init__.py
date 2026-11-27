@@ -4,7 +4,7 @@ from .installer import NO_TENANT_ROUTES
 
 
 __all__ = (
-	"TenantService",
 	"allow_no_tenant",
 	"NO_TENANT_ROUTES",
+	"TenantService",
 )

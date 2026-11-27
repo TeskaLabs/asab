@@ -203,3 +203,5 @@ Custom subject ID (sub) and access control (resources)
 ::: asab.web.auth.require_superuser
 
 ::: asab.web.auth.noauth
+
+::: contextvars.get_current_credentials_id

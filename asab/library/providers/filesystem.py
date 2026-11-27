@@ -11,8 +11,7 @@ from .abc import LibraryProviderABC
 from ..item import LibraryItem
 from ...timer import Timer
 
-# Only import context vars in the full provider, not base
-from ...contextvars import Tenant, Authz
+from ...contextvars import get_current_credentials_id, get_current_tenant_id
 
 try:
 	from .filesystem_inotify import (
@@ -388,21 +387,6 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 			self.App.TaskService.schedule(self._set_ready())
 
 
-	def _current_tenant_id(self):
-		try:
-			return Tenant.get()
-		except LookupError:
-			return None
-
-
-	def _current_credentials_id(self):
-		try:
-			authz = Authz.get()
-			return getattr(authz, "CredentialsId", None)
-		except LookupError:
-			return None
-
-
 	def _personal_path(self, path, tenant_id, cred_id):
 		assert path[:1] == '/'
 
@@ -461,10 +445,7 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 
 		if tenant_specific:
 			if tenant is None:
-				try:
-					tenant = Tenant.get()
-				except LookupError:
-					tenant = None
+				tenant = get_current_tenant_id()
 
 			if tenant:
 				node_path = self.BasePath + '/.tenants/' + tenant + path
@@ -494,8 +475,8 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 		"""
 		self._validate_read_path(path)
 
-		tenant_id = self._current_tenant_id()
-		cred_id = self._current_credentials_id()
+		tenant_id = get_current_tenant_id()
+		cred_id = get_current_credentials_id()
 
 		# personal
 		personal_path = self._personal_path(path, tenant_id, cred_id)
@@ -544,8 +525,8 @@ class FileSystemLibraryProvider(SimpleFileSystemLibraryProvider):
 
 		# personal
 		personal_items = []
-		tenant_id = self._current_tenant_id()
-		cred_id = self._current_credentials_id()
+		tenant_id = get_current_tenant_id()
+		cred_id = get_current_credentials_id()
 		if tenant_id and cred_id:
 			try:
 				personal_node = self._personal_path(path, tenant_id, cred_id)

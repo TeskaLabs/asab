@@ -12,7 +12,7 @@ import kazoo.recipe.watchers
 from .abc import LibraryProviderABC
 from ..item import LibraryItem
 from ...zookeeper import ZooKeeperContainer
-from ...contextvars import Tenant, Authz
+from ...contextvars import get_current_credentials_id, get_current_tenant_id
 
 #
 
@@ -281,22 +281,6 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		self.Version = version
 		self.App.TaskService.schedule(self._on_library_changed())
 
-	def _current_tenant_id(self):
-		try:
-			return Tenant.get()
-		except LookupError:
-			return None
-
-	def _current_credentials_id(self):
-		"""
-		Return current CredentialsId from auth context, or None if not present.
-		"""
-		try:
-			authz = Authz.get()
-			return getattr(authz, "CredentialsId", None)
-		except LookupError:
-			return None
-
 	def _personal_node_path(self, path: str, tenant_id: typing.Optional[str], cred_id: typing.Optional[str]) -> typing.Optional[str]:
 		"""
 		Returns '/.personal/{tenant}/{cred}{path}' or None if tenant/cred are missing.
@@ -307,11 +291,11 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		return "{}/.personal/{}/{}{}".format(self.BasePath, tenant_id, cred_id, path).rstrip("/")
 
 	def _subscription_personal_path(self, path: str, target: typing.Union[str, tuple, None]) -> typing.Optional[str]:
-		tenant_id = self._current_tenant_id()
+		tenant_id = get_current_tenant_id()
 		if isinstance(target, tuple) and len(target) == 2 and target[0] == "personal":
 			cred_id = target[1]
 		else:
-			cred_id = self._current_credentials_id()
+			cred_id = get_current_credentials_id()
 		if not tenant_id or not cred_id:
 			return None
 		return "/.personal/{}/{}{}".format(tenant_id, cred_id, path)
@@ -328,16 +312,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 		candidate_paths: typing.List[str] = []
 
 		# personal (needs both tenant + CredentialsId)
-		try:
-			tenant_id = Tenant.get()
-		except LookupError:
-			tenant_id = None
-
-		try:
-			authz = Authz.get()
-			cred_id = getattr(authz, "CredentialsId", None)
-		except LookupError:
-			cred_id = None
+		tenant_id = get_current_tenant_id()
+		cred_id = get_current_credentials_id()
 
 		personal_candidate = self._personal_node_path(path, tenant_id, cred_id)
 		if personal_candidate:
@@ -388,16 +364,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			tenant_items = []
 
 		# personal (only for current tenant + current credentials)
-		try:
-			tenant_id = Tenant.get()
-		except LookupError:
-			tenant_id = None
-
-		try:
-			authz = Authz.get()
-			cred_id = getattr(authz, "CredentialsId", None)
-		except LookupError:
-			cred_id = None
+		tenant_id = get_current_tenant_id()
+		cred_id = get_current_credentials_id()
 
 		personal_items = []
 		if tenant_id and cred_id:
@@ -425,15 +393,8 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 				try:
 					if target == "personal":
 						# current tenant + current cred
-						try:
-							tenant_id = Tenant.get()
-						except LookupError:
-							tenant_id = None
-						try:
-							authz = Authz.get()
-							cred_id = getattr(authz, "CredentialsId", None)
-						except LookupError:
-							cred_id = None
+						tenant_id = get_current_tenant_id()
+						cred_id = get_current_credentials_id()
 						node_path = self._personal_node_path(fname, tenant_id, cred_id) or ""
 					else:
 						node_path = self.build_path(fname, tenant_specific=(target == "tenant"))
@@ -481,10 +442,7 @@ class ZooKeeperLibraryProvider(LibraryProviderABC):
 			node_path = self.BasePath
 
 		if tenant_specific:
-			try:
-				tenant = Tenant.get()
-			except LookupError:
-				tenant = None
+			tenant = get_current_tenant_id()
 
 			if tenant:
 				node_path = self.BasePath + '/.tenants/' + tenant + path
