@@ -181,3 +181,5 @@ The `asab.web.tenant` module is configured in the `[tenants]` section with the f
 ::: asab.web.tenant.TenantService
 
 ::: asab.web.tenant.allow_no_tenant
+
+::: asab.contextvars.get_current_tenant_id
